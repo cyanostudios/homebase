@@ -10,10 +10,17 @@
   },
   "dependencies": {
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "@tanstack/react-router": "latest",
+    "shadcn-ui": "latest",
+    "@lingui/react": "latest",
+    "@lingui/core": "latest"
   },
   "devDependencies": {
     "vite": "latest",
-    "typescript": "latest"
+    "typescript": "latest",
+    "tailwindcss": "latest",
+    "postcss": "latest",
+    "autoprefixer": "latest"
   }
 }

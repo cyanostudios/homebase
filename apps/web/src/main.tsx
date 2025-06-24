@@ -1,10 +1,16 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { RouterProvider } from '@tanstack/react-router';
+import { I18nProvider } from '@lingui/react';
+import { router } from './lib/router';
+import './index.css';
 
-const App = () => <div>Homebase Web</div>;
+const App = () => <RouterProvider router={router} />;
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <I18nProvider i18n={{} as any}>
+      <App />
+    </I18nProvider>
   </React.StrictMode>
 );
