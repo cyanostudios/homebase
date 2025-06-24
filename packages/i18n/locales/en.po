@@ -1,0 +1,8 @@
+# English translation file
+# Generated for scaffolding; will be replaced by Lingui.
+
+msgid "hello"
+msgstr "Hello"
+
+msgid "goodbye"
+msgstr "Goodbye"
