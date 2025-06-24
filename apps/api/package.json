@@ -3,13 +3,14 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "ts-node src/server.ts",
+    "dev": "ts-node src/main.ts",
     "build": "tsc",
     "lint": "eslint . --ext ts",
     "test": "echo \"No tests yet\""
   },
   "dependencies": {
-    "fastify": "latest"
+    "fastify": "latest",
+    "@homebase/db": "workspace:*"
   },
   "devDependencies": {
     "typescript": "latest",
