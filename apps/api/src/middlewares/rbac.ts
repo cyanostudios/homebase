@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 
-export async function rbacMiddleware(_req: FastifyRequest, _res: FastifyReply) {
-  // TODO: implement role/permission checks
+export async function rbacMiddleware(request: FastifyRequest, reply: FastifyReply) {
+  request.log.info('RBAC permission check middleware placeholder');
+  // TODO: check permissions
 }
