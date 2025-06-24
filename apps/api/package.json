@@ -1,0 +1,18 @@
+{
+  "name": "@homebase/api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "ts-node src/server.ts",
+    "build": "tsc",
+    "lint": "eslint . --ext ts",
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "fastify": "latest"
+  },
+  "devDependencies": {
+    "typescript": "latest",
+    "ts-node": "latest"
+  }
+}
