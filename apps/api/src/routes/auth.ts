@@ -1,7 +1,7 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyPluginAsync } from 'fastify';
 
 // Placeholder implementations will be replaced with real logic
-export default async function authRoute(app: FastifyInstance) {
+const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/auth/login', async () => {
     // Handle login via magic link or OAuth2
     return { token: 'placeholder' };
@@ -16,4 +16,6 @@ export default async function authRoute(app: FastifyInstance) {
     // Invalidate the current session
     return { success: true };
   });
-}
+};
+
+export default authRoutes;
