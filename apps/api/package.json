@@ -3,11 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "ts-node src/main.ts",
+    "dev": "ts-node src/server.ts",
     "build": "tsc",
     "lint": "eslint . --ext ts",
-    "test": "echo \"No tests yet\"",
-    "start": "node dist/main.js"
+    "test": "echo \"No tests yet\""
   },
   "dependencies": {
     "fastify": "latest"
