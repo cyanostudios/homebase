@@ -1,4 +1,9 @@
+// Wrapper functions for calling authentication endpoints
 export const auth = {
-  login: async () => {},
-  logout: async () => {},
+  async login() {
+    // Placeholder: perform login request to /auth/login
+  },
+  async logout() {
+    // Placeholder: perform logout request to /auth/logout
+  },
 };
