@@ -1,10 +1,10 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage } from "../storage";
 import { z } from "zod";
-import { db } from "./db";
+import { db } from "../db";
 import { sql } from "drizzle-orm";
-import { DatabaseOptimizations } from "./database-optimizations";
+import { DatabaseOptimizations } from "../database-optimizations";
 import { 
   insertContactSchema, 
   insertInvoiceSchema, 
