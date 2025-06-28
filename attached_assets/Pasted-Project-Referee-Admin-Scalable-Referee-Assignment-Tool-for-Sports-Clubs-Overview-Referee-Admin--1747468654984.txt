@@ -1,0 +1,177 @@
+Project: Referee Admin – Scalable Referee Assignment Tool for Sports Clubs
+
+Overview:
+Referee Admin is a SaaS platform designed to help sports clubs manage the assignment of referees to games. The goal is to make it easy for club administrators to assign referees, notify them, and receive their responses — while also providing referees with an intuitive interface for managing their assignments.
+
+This project is initially built on WordPress for quick prototyping and content/database management, but the architecture is semi-headless and built in a way that it can later be ported to a full React frontend with minimal adjustments. All code is written as if by a senior developer or team, with full consistency in naming conventions, structure, and inline documentation — all in English. Everything that can be implemented via code logic (rather than WordPress-specific features) is built outside WP structure to enable easy future migration.
+
+Key Features:
+
+Club Dashboard: Web-based interface where club admins manage matches and referee assignments.
+
+Match Management: Import or manually create matches. Future support for Skånes FF or SvFF integration.
+
+Referee Assignment: Assign one or more referees to each game.
+
+Referee Notification: Notify referees about their assignments via UI button (manual trigger).
+
+Referee Responses: Referees can accept or decline assignments via SMS or app (in future phases).
+
+Reminder System: Accepted referees will get reminders 24h before a match.
+
+Status Per Referee: Each assigned referee can have a unique status: Not Notified, Notified, Assigned.
+
+Referee Profile Panel: Clicking a referee name opens a sidebar with full referee details.
+
+Match Info Panel: Clicking a match opens sidebar with match + referee info.
+
+Mobile-first UI: Optimized for desktop, tablet, and mobile from the start.
+
+Notification Integration: Placeholder integration for Twilio or other SMS provider with debug logging in place.
+
+Phases:
+
+MVP (Phase 1): Assign referees and notify them manually. Use WordPress CPT + ACF + REST.
+
+Phase 2: Referee app for notifications and responses.
+
+Phase 3: SMS-based interaction + secure login with OTP/Auth.
+
+Technical Structure:
+
+Backend: WordPress
+
+Custom Post Types (CPT): ra_game, ra_referee, ra_club
+
+ACF fields: transitioned to JSON storage model (e.g. ra_game_ref_status stores referee IDs and per-ref status)
+
+REST API: Extended with custom endpoints for assigning, notifying, etc.
+
+Frontend: Vanilla JavaScript (React-style structure)
+
+Components like renderGameRow() render modular DOM blocks
+
+CSS written mobile-first and responsive with scalable layout (easy to port to Tailwind)
+
+All business logic and DOM interaction kept modular and portable outside of WordPress
+
+Folder Structure (within WP theme):
+
+/wp-content/
+  themes/
+    refereeadmin/
+      functions.php           # All custom endpoints, CPT and REST setup
+      js/
+        club-dashboard.js     # Club dashboard frontend logic
+      css/
+        style.css             # UI styling (independent from WP theme)
+      templates/
+        page-club-dashboard.php  # Just loads a container, JS does the rest
+
+Frontend Behavior:
+
+Club dashboard loads via a template that only includes a div and JS file
+
+All match data is fetched via REST (CPT ra_game)
+
+All referee data is fetched via REST (CPT ra_referee)
+
+UI uses left sidebar nav (desktop), mobile tab buttons
+
+When a referee is assigned, status is stored per referee in ra_game_ref_status JSON field
+
+Notification is triggered via a “Notify” button next to the referee’s name
+
+Referee info and match info open in right-side sliding panel
+
+SMS integration placeholder will log output in dev, and connect to Twilio or similar in production
+
+Status Indicators (per referee):
+
+🔴 Not Assigned (default)
+
+🟡 Not Notified
+
+🟠 Notified
+
+🟢 Assigned
+
+API Endpoints (custom):
+
+POST /refereeadmin/v1/assign – Assign referee to game
+
+POST /refereeadmin/v1/unassign – Remove referee from game
+
+POST /refereeadmin/v1/notify – Mark referee as notified for game (per referee)
+
+Why Semi-Headless WP?
+The goal is to use WordPress as a database and admin panel while making the frontend portable to React. This hybrid approach lets us:
+
+Develop fast using WP’s admin interface (ACF or JSON meta fields)
+
+Fetch structured data via REST
+
+Build modular, React-friendly frontend code (vanilla JS first, then React)
+
+Easily replace WP with another backend in the future
+
+When it’s time to migrate:
+
+REST API stays the same
+
+JS code becomes JSX components
+
+WP runs on api.domain.com, frontend on app.domain.com
+
+Coding Guidelines:
+
+All code written in English
+
+All variable/function/file naming must follow consistent conventions
+
+All JavaScript is modular and built to resemble React component structure
+
+Use inline documentation/comments for every function block and key logic
+
+Separate business logic from DOM manipulation whenever possible
+
+Write scalable CSS from the start with responsiveness for tablets/mobiles
+
+Always program as if part of a larger, maintainable team codebase
+
+Technology Stack:
+
+Layer
+
+Tool/Framework
+
+CMS / DB
+
+WordPress (MySQL)
+
+Admin UI
+
+Advanced Custom Fields (ACF)
+
+API
+
+WP REST API + Custom Routes
+
+Frontend
+
+Vanilla JS (React-structured)
+
+UI Layer
+
+Mobile-first CSS
+
+SMS/Push
+
+Twilio API (with dev logging)
+
+Auth
+
+Basic Auth (JWT in future)
+
+This is the guiding spec for building a maintainable, portable, and scalable referee assignment tool for sports clubs with a modern software engineering approach. Ready to be handed over to devs, or used directly in AI code assistants like Replit AI or GitHub Copilot.
+

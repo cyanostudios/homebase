@@ -1,0 +1,51 @@
+I want you to clean and restructure the application to support a modular, maintainable, and scalable design system.
+
+This must be done **without altering any core functionality**, only improving structure, layout consistency, and removing redundant code.
+
+Your tasks:
+
+1. **MODULAR STRUCTURE**
+   - Restructure UI into named, reusable layout modules:
+     - `TopBar` (fixed on desktop, highest z-index, aligns with main content)
+     - `LeftColumn` (navigation/menu, view switcher)
+     - `MiddleColumn` (main content, e.g., match or referee list)
+     - `RightColumn` (info/detail panels: match details, referee details, forms)
+   - Ensure each module has its own Tailwind-friendly class structure.
+   - Use semantic naming (e.g., `MatchList`, `RefereePanel`, `DetailSidebar`, etc).
+
+2. **UI CONSISTENCY**
+   - Identify and clean up inconsistent margins/paddings across all components.
+   - Consolidate repetitive Tailwind classes into reusable utility classes or Tailwind config.
+   - Align the vertical position of the `TopBar` with the main columns below.
+
+3. **STYLING CLEANUP**
+   - Remove unused CSS and Tailwind class clutter.
+   - Normalize spacing between components across views.
+   - Avoid conflicting styles across older and newer components.
+
+4. **FILE & COMPONENT CLEANUP**
+   - Remove unused components, legacy files, or duplicate code blocks.
+   - Simplify overcomplicated components by splitting into smaller, purpose-driven parts.
+   - Standardize all layout components to use the same design tokens or class logic.
+
+5. **SAFEGUARDS**
+   - Do **not** change existing functionality or break any interaction (e.g., match opening, sidebar transitions, animations, overlays, or referee view logic).
+   - If uncertain about logic or dependency, leave a comment `// TODO: confirm before refactor` and skip.
+   - Log any major restructuring with file names and reasons.
+
+6. **SLIDE/ANIMATION**
+   - Preserve the current slide-in sidebar behavior:
+     - Apply slide-in only when opening the **first** sidebar layer
+     - Apply slide-out only when closing the **last** layer
+     - Prevent animation flickers caused by overlays or DOM timing
+
+7. **TEST & REPORT**
+   - At each stage, verify visual alignment, transitions, and component render logic.
+   - Log all components affected and what was changed.
+   - When cleanup is complete, provide a short summary of what was improved.
+
+Start by scanning the project and listing:
+– All layout-related components
+– All inconsistent spacing/styles
+– All unused files or components
+Then proceed with safe modular cleanup.

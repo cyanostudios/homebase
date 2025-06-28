@@ -1,0 +1,472 @@
+import React, { useRef, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { ContactFormValues } from "./contact-form-schema";
+import { EnhancedContactForm } from "./enhanced-contact-form";
+import { Button } from "@/components/ui/button";
+import { X, Save, Edit, Check } from "lucide-react";
+import { Contact } from "@/lib/types";
+
+interface ContactPanelProps {
+  mode: "create" | "edit" | "view";
+  isOpen: boolean;
+  onClose: () => void;
+  contactId?: number; // Required for edit and view modes
+  onModeChange?: (mode: "create" | "edit" | "view") => void;
+}
+
+// Helper function to safely parse JSON fields
+const parseJsonField = (field: any): any[] => {
+  if (typeof field === 'string' && field.trim() !== '') {
+    try {
+      return JSON.parse(field);
+    } catch (e) {
+      console.warn('Failed to parse JSON field:', field);
+      return [];
+    }
+  }
+  return Array.isArray(field) ? field : [];
+};
+
+// Helper function to flatten contact data for API
+const flattenContactData = (contactData: ContactFormValues) => ({
+  // Basic information
+  fullName: contactData.fullName,
+  email: contactData.email,
+  phone: contactData.phone,
+  address: contactData.visitingAddress || "",
+  city: contactData.addressCity || "",
+
+  // Company information
+  companyName: contactData.companyName,
+  organizationNumber: contactData.organizationNumber,
+  vatNumber: contactData.vatNumber,
+  fTax: contactData.fTax,
+  companyType: contactData.companyType,
+  industry: contactData.industry,
+
+  // Address details
+  addressType: contactData.addressType,
+  visitingAddress: contactData.visitingAddress,
+  mailingAddress: contactData.mailingAddress,
+  postalCode: contactData.postalCode,
+  addressCity: contactData.addressCity,
+  region: contactData.region,
+  country: contactData.country,
+
+  // Contact details
+  phoneSwitchboard: contactData.phoneSwitchboard,
+  phoneDirect: contactData.phoneDirect,
+  emailGeneral: contactData.emailGeneral,
+  emailInvoicing: contactData.emailInvoicing,
+  emailOrders: contactData.emailOrders,
+  website: contactData.website,
+
+  // JSON fields - stringify arrays/objects
+  contactPersons: JSON.stringify(contactData.contactPersons || []),
+  additionalAddresses: JSON.stringify(contactData.additionalAddresses || []),
+
+  // Payment information
+  bankgiroNumber: contactData.bankgiroNumber,
+  plusgiroNumber: contactData.plusgiroNumber,
+  iban: contactData.iban,
+  bicSwift: contactData.bicSwift,
+  bankName: contactData.bankName,
+
+  // Invoice information
+  invoiceMethod: contactData.invoiceMethod,
+  invoiceRequirements: contactData.invoiceRequirements,
+  paymentTerms: contactData.paymentTerms,
+  vatRate: contactData.vatRate
+});
+
+// Convert contact data to form values for edit mode
+const getContactFormValues = (contact: Contact | null): Partial<ContactFormValues> => {
+  if (!contact) {
+    return {
+      contactType: "Company" as const,
+      fullName: "",
+      email: "",
+      phone: "",
+      companyName: "",
+      address: "",
+      city: ""
+    };
+  }
+
+  // Determine contact type based on available data
+  const hasCompanyName = !!(contact as any)?.companyName;
+  const hasFullName = !!contact?.fullName;
+  const inferredContactType = hasCompanyName ? "Company" : (hasFullName ? "Individual" : "Company");
+
+  return {
+    contactType: (contact as any)?.contactType || inferredContactType,
+    fullName: contact.fullName || "",
+    companyName: (contact as any)?.companyName || "",
+    organizationNumber: (contact as any)?.organizationNumber || "",
+    vatNumber: (contact as any)?.vatNumber || "",
+    fTax: (contact as any)?.fTax || false,
+    companyType: (contact as any)?.companyType || "",
+    industry: (contact as any)?.industry || "",
+    addressType: (contact as any)?.addressType || "",
+    visitingAddress: (contact as any)?.visitingAddress || "",
+    mailingAddress: (contact as any)?.mailingAddress || "",
+    postalCode: (contact as any)?.postalCode || "",
+    addressCity: (contact as any)?.addressCity || "",
+    region: (contact as any)?.region || "",
+    country: (contact as any)?.country || "",
+    phoneSwitchboard: (contact as any)?.phoneSwitchboard || "",
+    phoneDirect: (contact as any)?.phoneDirect || "",
+    emailGeneral: (contact as any)?.emailGeneral || "",
+    emailInvoicing: (contact as any)?.emailInvoicing || "",
+    emailOrders: (contact as any)?.emailOrders || "",
+    website: (contact as any)?.website || "",
+    contactPersons: parseJsonField((contact as any)?.contactPersons),
+    additionalAddresses: parseJsonField((contact as any)?.additionalAddresses),
+    bankgiroNumber: (contact as any)?.bankgiroNumber || "",
+    plusgiroNumber: (contact as any)?.plusgiroNumber || "",
+    iban: (contact as any)?.iban || "",
+    bicSwift: (contact as any)?.bicSwift || "",
+    bankName: (contact as any)?.bankName || "",
+    invoiceMethod: (contact as any)?.invoiceMethod || "Email",
+    invoiceRequirements: (contact as any)?.invoiceRequirements || "",
+    paymentTerms: (contact as any)?.paymentTerms || "net_14",
+    vatRate: (contact as any)?.vatRate || "25%",
+    email: contact.email || "",
+    phone: contact.phone || "",
+  };
+};
+
+export function ContactPanel({ 
+  mode, 
+  isOpen, 
+  onClose, 
+  contactId, 
+  onModeChange 
+}: ContactPanelProps) {
+  const { toast } = useToast();
+  const formRef = useRef<{ submitForm: () => void; saveDraft: () => void }>(null);
+
+  // Validation: contactId is required for edit and view modes
+  useEffect(() => {
+    if ((mode === "edit" || mode === "view") && !contactId) {
+      console.error("ContactPanel: contactId is required for edit and view modes");
+    }
+  }, [mode, contactId]);
+
+  // Fetch contact data for edit and view modes
+  const { 
+    data: contactData, 
+    isLoading: isLoadingContact,
+    error: contactError 
+  } = useQuery({
+    queryKey: ["/api/contacts", contactId],
+    queryFn: () => apiRequest("GET", `/api/contacts/${contactId}`),
+    enabled: (mode === "edit" || mode === "view") && !!contactId,
+    retry: false, // Don't retry on 404
+  });
+
+  // Invalidate queries helper
+  const invalidateContactQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+    if (contactId) {
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts", contactId] });
+    }
+    queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+  };
+
+  // Create contact mutation
+  const createContactMutation = useMutation({
+    mutationFn: async (contactData: ContactFormValues) => {
+      const flatData = flattenContactData(contactData);
+      return await apiRequest("POST", "/api/contacts", flatData);
+    },
+    onSuccess: () => {
+      invalidateContactQueries();
+      toast({
+        title: "Contact created",
+        description: "The contact has been created successfully.",
+      });
+      onClose();
+    },
+    onError: (error: any) => {
+      console.error("Create contact error:", error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to create contact. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update contact mutation
+  const updateContactMutation = useMutation({
+    mutationFn: async (contactData: ContactFormValues) => {
+      if (!contactId) {
+        throw new Error("Contact ID is required for updates");
+      }
+
+      const flatData = flattenContactData(contactData);
+      return await apiRequest("PUT", `/api/contacts/${contactId}`, flatData);
+    },
+    onSuccess: () => {
+      invalidateContactQueries();
+      toast({
+        title: "Contact updated",
+        description: "The contact has been updated successfully.",
+      });
+      // Switch to view mode after successful update
+      onModeChange?.("view");
+    },
+    onError: (error: any) => {
+      console.error("Update contact error:", error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to update contact. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Form submission handler
+  const handleSubmit = (data: ContactFormValues) => {
+    if (mode === "create") {
+      createContactMutation.mutate(data);
+    } else if (mode === "edit") {
+      updateContactMutation.mutate(data);
+    }
+  };
+
+  // Mode change handlers
+  const handleEdit = () => onModeChange?.("edit");
+  const handleCancelEdit = () => onModeChange?.("view");
+
+  // Draft save handler (placeholder implementation)
+  const handleSaveDraft = () => {
+    // TODO: Implement actual draft saving logic
+    // This could involve:
+    // 1. Getting current form values
+    // 2. Saving to localStorage or API endpoint
+    // 3. Providing user feedback
+    toast({ 
+      title: "Draft saved",
+      description: "Your changes have been saved as a draft."
+    });
+  };
+
+  // Get panel title based on mode
+  const getPanelTitle = () => {
+    switch (mode) {
+      case "create":
+        return "Add New Contact";
+      case "edit":
+        return "Edit Contact";
+      case "view":
+        if (contactData) {
+          const hasCompanyName = !!(contactData as any)?.companyName;
+          const displayName = hasCompanyName 
+            ? (contactData as any).companyName 
+            : (contactData as Contact).fullName || "Contact";
+          return displayName;
+        }
+        return "Contact Details";
+      default:
+        return "Contact";
+    }
+  };
+
+  // Get panel subtitle based on mode
+  const getPanelSubtitle = () => {
+    switch (mode) {
+      case "create":
+        return "Enter comprehensive company information";
+      case "edit":
+        return "Update contact information";
+      case "view":
+        if (contactData && (contactData as any)?.organizationNumber) {
+          return `Org. Nr: ${(contactData as any).organizationNumber}`;
+        }
+        return "Contact Information";
+      default:
+        return "";
+    }
+  };
+
+  // Get action buttons based on mode
+  const getActionButtons = () => {
+    const isSubmitting = createContactMutation.isPending || updateContactMutation.isPending;
+
+    if (mode === "view") {
+      return (
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
+            onClick={onClose}
+          >
+            <X className="w-4 h-4" />
+            <span>Close</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="flex items-center space-x-2"
+            onClick={handleEdit}
+          >
+            <Edit className="w-4 h-4" />
+            <span>Edit</span>
+          </Button>
+        </div>
+      );
+    }
+
+    if (mode === "edit") {
+      return (
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
+            onClick={handleCancelEdit}
+          >
+            <X className="w-4 h-4" />
+            <span>Cancel</span>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-neutral-800 hover:text-neutral-900 hover:bg-neutral-100 transition-colors"
+            onClick={handleSaveDraft}
+          >
+            <Save className="w-4 h-4" />
+            <span>Save Draft</span>
+          </Button>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={isSubmitting}
+            className="flex items-center space-x-2"
+            form="contact-form"
+          >
+            <Check className="w-4 h-4" />
+            <span>{isSubmitting ? 'Saving...' : 'Save Changes'}</span>
+          </Button>
+        </div>
+      );
+    }
+
+    // Create mode
+    return (
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="ghost"
+          className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
+          onClick={onClose}
+        >
+          <X className="w-4 h-4" />
+          <span>Cancel</span>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-neutral-800 hover:text-neutral-900 hover:bg-neutral-100 transition-colors"
+          onClick={handleSaveDraft}
+        >
+          <Save className="w-4 h-4" />
+          <span>Save Draft</span>
+        </Button>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={isSubmitting}
+          className="flex items-center space-x-2"
+          form="contact-form"
+        >
+          <span>{isSubmitting ? 'Creating...' : 'Create Contact'}</span>
+        </Button>
+      </div>
+    );
+  };
+
+  // Show loading state for edit/view modes
+  if ((mode === "edit" || mode === "view") && isLoadingContact) {
+    return (
+      <div className="h-full flex flex-col bg-white overflow-hidden">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900 mx-auto mb-4"></div>
+            <p className="text-neutral-500">Loading contact...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle error state
+  if ((mode === "edit" || mode === "view") && contactError) {
+    return (
+      <div className="h-full flex flex-col bg-white overflow-hidden">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-500 mb-4">
+              {contactError?.message || "Failed to load contact"}
+            </p>
+            <Button onClick={onClose} variant="outline">
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render form for edit/view modes if no contact data is available
+  if ((mode === "edit" || mode === "view") && !contactData) {
+    return (
+      <div className="h-full flex flex-col bg-white overflow-hidden">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-neutral-500 mb-4">Contact not found</p>
+            <Button onClick={onClose} variant="outline">
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col bg-white overflow-hidden">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 border-b border-neutral-200 bg-white">
+        <div className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-neutral-900">{getPanelTitle()}</h2>
+              <p className="text-sm text-neutral-500">{getPanelSubtitle()}</p>
+            </div>
+            {getActionButtons()}
+          </div>
+        </div>
+      </div>
+
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6">
+          <EnhancedContactForm
+            onSubmit={handleSubmit}
+            isSubmitting={createContactMutation.isPending || updateContactMutation.isPending}
+            showButtons={false}
+            readOnly={mode === "view"}
+            defaultValues={mode === "create" ? undefined : getContactFormValues(contactData as Contact)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

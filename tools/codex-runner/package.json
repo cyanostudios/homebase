@@ -1,0 +1,19 @@
+{
+  "name": "codex-runner",
+  "version": "1.0.0",
+  "main": "codex-runner.ts",
+  "type": "module",
+  "scripts": {
+"start": "node --loader ts-node/esm codex-runner.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "openai": "^4.0.0",
+    "simple-git": "^3.19.1"
+  },
+  "devDependencies": {
+    "ts-node": "^10.0.0",
+    "typescript": "^5.0.0"
+  }
+}
+

@@ -1,0 +1,28 @@
+# Node.js
+node_modules
+dist
+*.log
+*.cache
+*.tar.gz
+
+# macOS
+.DS_Store
+
+# Replit
+.replit
+.replit.db
+*.replit.*
+
+# Build/output
+server/public
+vite.config.ts.*
+
+# Env files
+.env
+.env.local
+.env.production
+.env.development
+
+# Optional extras
+coverage
+tools/codex-runner/tmp-codex-*
