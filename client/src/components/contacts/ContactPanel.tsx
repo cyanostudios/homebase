@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -147,6 +148,8 @@ export function ContactPanel({
 }: ContactPanelProps) {
   const { toast } = useToast();
   const formRef = useRef<{ submitForm: () => void; saveDraft: () => void }>(null);
+
+  const isViewMode = mode === "view";
 
   // Validation: contactId is required for edit and view modes
   useEffect(() => {
@@ -299,84 +302,25 @@ export function ContactPanel({
 
     if (mode === "view") {
       return (
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
-            onClick={onClose}
-          >
-            <X className="w-4 h-4" />
-            <span>Close</span>
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            className="flex items-center space-x-2"
-            onClick={handleEdit}
-          >
-            <Edit className="w-4 h-4" />
-            <span>Edit</span>
-          </Button>
-        </div>
+        <Button type="button" size="sm" className="flex items-center space-x-2" onClick={handleEdit}>
+          <Edit className="w-4 h-4" />
+          <span>Edit</span>
+        </Button>
       );
     }
 
-    if (mode === "edit") {
-      return (
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
-            onClick={handleCancelEdit}
-          >
-            <X className="w-4 h-4" />
-            <span>Cancel</span>
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-neutral-800 hover:text-neutral-900 hover:bg-neutral-100 transition-colors"
-            onClick={handleSaveDraft}
-          >
-            <Save className="w-4 h-4" />
-            <span>Save Draft</span>
-          </Button>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={isSubmitting}
-            className="flex items-center space-x-2"
-            form="contact-form"
-          >
-            <Check className="w-4 h-4" />
-            <span>{isSubmitting ? 'Saving...' : 'Save Changes'}</span>
-          </Button>
-        </div>
-      );
-    }
+    const cancelHandler = mode === "create" ? onClose : handleCancelEdit;
 
-    // Create mode
     return (
       <div className="flex items-center gap-2">
         <Button
           type="button"
           variant="ghost"
           className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
-          onClick={onClose}
+          onClick={cancelHandler}
         >
           <X className="w-4 h-4" />
           <span>Cancel</span>
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-neutral-800 hover:text-neutral-900 hover:bg-neutral-100 transition-colors"
-          onClick={handleSaveDraft}
-        >
-          <Save className="w-4 h-4" />
-          <span>Save Draft</span>
         </Button>
         <Button
           type="submit"
@@ -385,7 +329,8 @@ export function ContactPanel({
           className="flex items-center space-x-2"
           form="contact-form"
         >
-          <span>{isSubmitting ? 'Creating...' : 'Create Contact'}</span>
+          <Check className="w-4 h-4" />
+          <span>{isSubmitting ? 'Saving...' : (mode === 'create' ? 'Create' : 'Save')}</span>
         </Button>
       </div>
     );
@@ -441,6 +386,7 @@ export function ContactPanel({
 
   return (
     <div className="h-full flex flex-col bg-white overflow-hidden">
+      <div style={{backgroundColor: 'red', height: '2px', width: '100%'}}></div>
       {/* Fixed Header */}
       <div className="flex-shrink-0 border-b border-neutral-200 bg-white">
         <div className="p-6">
@@ -457,13 +403,15 @@ export function ContactPanel({
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-6">
-          <EnhancedContactForm
-            onSubmit={handleSubmit}
-            isSubmitting={createContactMutation.isPending || updateContactMutation.isPending}
-            showButtons={false}
-            readOnly={mode === "view"}
-            defaultValues={mode === "create" ? undefined : getContactFormValues(contactData as Contact)}
-          />
+          <div className={cn(isViewMode && "opacity-60")}>
+            <EnhancedContactForm
+              onSubmit={handleSubmit}
+              isSubmitting={createContactMutation.isPending || updateContactMutation.isPending}
+              showButtons={false}
+              readOnly={isViewMode}
+              defaultValues={mode === "create" ? undefined : getContactFormValues(contactData as Contact)}
+            />
+          </div>
         </div>
       </div>
     </div>
