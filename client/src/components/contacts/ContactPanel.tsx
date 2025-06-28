@@ -156,22 +156,21 @@ export function ContactPanel({
   }, [mode, contactId]);
 
   // Fetch contact data for edit and view modes
-  const { 
-    data: contactData, 
+  const {
+    data: contactData,
     isLoading: isLoadingContact,
-    error: contactError 
-  } = useQuery({
-    queryKey: ["/api/contacts", contactId],
-    queryFn: () => apiRequest("GET", `/api/contacts/${contactId}`),
+    error: contactError
+  } = useQuery<Contact>({
+    queryKey: [`/api/contacts/${contactId}`],
     enabled: (mode === "edit" || mode === "view") && !!contactId,
-    retry: false, // Don't retry on 404
+    retry: false,
   });
 
   // Invalidate queries helper
   const invalidateContactQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
     if (contactId) {
-      queryClient.invalidateQueries({ queryKey: ["/api/contacts", contactId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/contacts/${contactId}`] });
     }
     queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
     queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
