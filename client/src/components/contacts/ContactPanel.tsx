@@ -5,6 +5,8 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ContactFormValues } from "./contact-form-schema";
 import { EnhancedContactForm } from "./enhanced-contact-form";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { X, Edit, Check } from "lucide-react";
 import { Contact } from "@/lib/types";
 
@@ -30,21 +32,26 @@ const parseJsonField = (field: any): any[] => {
 };
 
 // Helper function to flatten contact data for API
-const flattenContactData = (contactData: ContactFormValues) => ({
-  // Basic information
-  fullName: contactData.fullName,
-  email: contactData.email,
-  phone: contactData.phone,
-  address: contactData.visitingAddress || "",
-  city: contactData.addressCity || "",
+const flattenContactData = (contactData: ContactFormValues) => {
+  const isPrivate = contactData.contactType === "private";
+  const fullName = isPrivate ? contactData.companyName : contactData.fullName;
+  const companyName = isPrivate ? "" : contactData.companyName;
 
-  // Company information
-  companyName: contactData.companyName,
-  organizationNumber: contactData.organizationNumber,
-  vatNumber: contactData.vatNumber,
-  fTax: contactData.fTax,
-  companyType: contactData.companyType,
-  industry: contactData.industry,
+  return {
+    // Basic information
+    fullName,
+    email: contactData.email,
+    phone: contactData.phone,
+    address: contactData.visitingAddress || "",
+    city: contactData.addressCity || "",
+
+    // Company information
+    companyName,
+    organizationNumber: contactData.organizationNumber,
+    vatNumber: contactData.vatNumber,
+    fTax: contactData.fTax,
+    companyType: contactData.companyType,
+    industry: contactData.industry,
 
   // Address details
   addressType: contactData.addressType,
@@ -68,7 +75,6 @@ const flattenContactData = (contactData: ContactFormValues) => ({
   additionalAddresses: JSON.stringify(contactData.additionalAddresses || []),
 
   // Payment information
-  bankgiroNumber: contactData.bankgiroNumber,
   plusgiroNumber: contactData.plusgiroNumber,
   iban: contactData.iban,
   bicSwift: contactData.bicSwift,
@@ -79,7 +85,8 @@ const flattenContactData = (contactData: ContactFormValues) => ({
   invoiceRequirements: contactData.invoiceRequirements,
   paymentTerms: contactData.paymentTerms,
   vatRate: contactData.vatRate
-});
+  };
+};
 
 // Convert contact data to form values for edit mode
 const normalizeContactType = (type: any): "company" | "private" => {
@@ -106,10 +113,14 @@ const getContactFormValues = (contact: Contact | null): Partial<ContactFormValue
   const hasFullName = !!contact?.fullName;
   const inferredContactType = hasCompanyName ? "company" : (hasFullName ? "private" : "company");
 
+  const contactType = normalizeContactType((contact as any)?.contactType) || inferredContactType;
+  const name = contact.fullName || (contact as any)?.companyName || "";
+
   return {
-    contactType: normalizeContactType((contact as any)?.contactType) || inferredContactType,
+    contactType,
     fullName: contact.fullName || "",
-    companyName: (contact as any)?.companyName || "",
+    // use a single input field for the name
+    companyName: name,
     organizationNumber: (contact as any)?.organizationNumber || "",
     vatNumber: (contact as any)?.vatNumber || "",
     fTax: (contact as any)?.fTax || false,
@@ -286,87 +297,111 @@ export function ContactPanel({
     }
   };
 
+  const renderContactDetails = (data: Contact) => {
+    const basicFields = [
+      { label: 'Type', value: normalizeContactType((data as any).contactType) === 'private' ? 'Private' : 'Company' },
+      { label: 'Full Name', value: data.fullName },
+      { label: 'Company Name', value: (data as any).companyName },
+      { label: 'Email', value: data.email },
+      { label: 'Phone', value: data.phone },
+      { label: 'Organization Number', value: (data as any).organizationNumber },
+      { label: 'VAT Number', value: (data as any).vatNumber },
+      { label: 'Visiting Address', value: (data as any).visitingAddress },
+      { label: 'Mailing Address', value: (data as any).mailingAddress },
+      { label: 'City', value: (data as any).addressCity },
+      { label: 'Region', value: (data as any).region },
+      { label: 'Country', value: (data as any).country },
+      { label: 'Website', value: (data as any).website },
+      { label: 'Phone Switchboard', value: (data as any).phoneSwitchboard },
+      { label: 'Phone Direct', value: (data as any).phoneDirect },
+      { label: 'Email General', value: (data as any).emailGeneral },
+      { label: 'Email Invoicing', value: (data as any).emailInvoicing },
+      { label: 'Email Orders', value: (data as any).emailOrders },
+      { label: 'Bankgiro', value: (data as any).bankgiroNumber },
+      { label: 'Plusgiro', value: (data as any).plusgiroNumber },
+      { label: 'IBAN', value: (data as any).iban },
+      { label: 'BIC/SWIFT', value: (data as any).bicSwift },
+      { label: 'Bank Name', value: (data as any).bankName },
+      { label: 'Invoice Method', value: (data as any).invoiceMethod },
+      { label: 'Invoice Requirements', value: (data as any).invoiceRequirements },
+      { label: 'Payment Terms', value: (data as any).paymentTerms },
+      { label: 'VAT Rate', value: (data as any).vatRate },
+    ];
+
+    const contactPersons = parseJsonField((data as any).contactPersons);
+    const additionalAddresses = parseJsonField((data as any).additionalAddresses);
+
+    return (
+      <Card className="mb-4">
+        <CardContent className="space-y-2">
+          {basicFields
+            .filter((f) => f.value && f.value !== '')
+            .map((f) => (
+              <div
+                key={f.label}
+                className="flex justify-between border-b pb-2 last:border-b-0"
+              >
+                <span className="text-sm font-medium text-neutral-600">
+                  {f.label}
+                </span>
+                <span className="text-sm text-neutral-900 text-right break-all">
+                  {String(f.value)}
+                </span>
+              </div>
+            ))}
+          {contactPersons.length > 0 && (
+            <div className="pt-2">
+              <p className="font-medium text-neutral-600">Contact Persons</p>
+              <ul className="list-disc pl-5 space-y-1">
+                {contactPersons.map((p: any, idx: number) => (
+                  <li key={idx} className="text-sm text-neutral-900">
+                    {p.firstName} {p.lastName} {p.title && `- ${p.title}`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {additionalAddresses.length > 0 && (
+            <div className="pt-2">
+              <p className="font-medium text-neutral-600">Additional Addresses</p>
+              <ul className="list-disc pl-5 space-y-1">
+                {additionalAddresses.map((a: any, idx: number) => (
+                  <li key={idx} className="text-sm text-neutral-900">
+                    {a.visitingAddress} {a.addressCity}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   const renderViewMode = () => {
     if (!contactData) return null;
 
-    const basicFields = [
-      { label: 'Type', value: normalizeContactType((contactData as any).contactType) === 'private' ? 'Private' : 'Company' },
-      { label: 'Full Name', value: contactData.fullName },
-      { label: 'Company Name', value: (contactData as any).companyName },
-      { label: 'Email', value: contactData.email },
-      { label: 'Phone', value: contactData.phone },
-      { label: 'Organization Number', value: (contactData as any).organizationNumber },
-      { label: 'VAT Number', value: (contactData as any).vatNumber },
-      { label: 'Visiting Address', value: (contactData as any).visitingAddress },
-      { label: 'Mailing Address', value: (contactData as any).mailingAddress },
-      { label: 'City', value: (contactData as any).addressCity },
-      { label: 'Region', value: (contactData as any).region },
-      { label: 'Country', value: (contactData as any).country },
-      { label: 'Website', value: (contactData as any).website },
-      { label: 'Phone Switchboard', value: (contactData as any).phoneSwitchboard },
-      { label: 'Phone Direct', value: (contactData as any).phoneDirect },
-      { label: 'Email General', value: (contactData as any).emailGeneral },
-      { label: 'Email Invoicing', value: (contactData as any).emailInvoicing },
-      { label: 'Email Orders', value: (contactData as any).emailOrders },
-      { label: 'Bankgiro', value: (contactData as any).bankgiroNumber },
-      { label: 'Plusgiro', value: (contactData as any).plusgiroNumber },
-      { label: 'IBAN', value: (contactData as any).iban },
-      { label: 'BIC/SWIFT', value: (contactData as any).bicSwift },
-      { label: 'Bank Name', value: (contactData as any).bankName },
-      { label: 'Invoice Method', value: (contactData as any).invoiceMethod },
-      { label: 'Invoice Requirements', value: (contactData as any).invoiceRequirements },
-      { label: 'Payment Terms', value: (contactData as any).paymentTerms },
-      { label: 'VAT Rate', value: (contactData as any).vatRate },
-    ];
-
-    const contactPersons = parseJsonField((contactData as any).contactPersons);
-    const additionalAddresses = parseJsonField((contactData as any).additionalAddresses);
+    if (Array.isArray(contactData)) {
+      return (
+        <div className="p-6 space-y-4">
+          <Accordion type="multiple" className="w-full">
+            {contactData.map((c) => {
+              const name = (c as any).companyName || c.fullName || 'Contact';
+              return (
+                <AccordionItem key={c.id} value={String(c.id)}>
+                  <AccordionTrigger>{name}</AccordionTrigger>
+                  <AccordionContent>{renderContactDetails(c)}</AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+        </div>
+      );
+    }
 
     return (
       <div className="p-6 space-y-6">
-        <Card>
-          <CardContent className="space-y-2">
-            {basicFields
-              .filter((f) => f.value && f.value !== '')
-              .map((f) => (
-                <div
-                  key={f.label}
-                  className="flex justify-between border-b pb-2 last:border-b-0"
-                >
-                  <span className="text-sm font-medium text-neutral-600">
-                    {f.label}
-                  </span>
-                  <span className="text-sm text-neutral-900 text-right break-all">
-                    {String(f.value)}
-                  </span>
-                </div>
-              ))}
-            {contactPersons.length > 0 && (
-              <div className="pt-2">
-                <p className="font-medium text-neutral-600">Contact Persons</p>
-                <ul className="list-disc pl-5 space-y-1">
-                  {contactPersons.map((p: any, idx: number) => (
-                    <li key={idx} className="text-sm text-neutral-900">
-                      {p.firstName} {p.lastName} {p.title && `- ${p.title}`}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {additionalAddresses.length > 0 && (
-              <div className="pt-2">
-                <p className="font-medium text-neutral-600">Additional Addresses</p>
-                <ul className="list-disc pl-5 space-y-1">
-                  {additionalAddresses.map((a: any, idx: number) => (
-                    <li key={idx} className="text-sm text-neutral-900">
-                      {a.visitingAddress} {a.addressCity}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {renderContactDetails(contactData as Contact)}
         <div className="flex justify-end gap-2">
           <Button
             type="button"
