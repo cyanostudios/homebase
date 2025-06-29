@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -12,6 +12,7 @@ import { Contact, Activity, ActivityType } from "@/lib/types";
 import { formatDistance } from "date-fns";
 import { formatTime } from "@/lib/date-utils";
 import { useTimeFormat } from "@/context/time-format-context";
+import { cn } from "@/lib/utils";
 
 interface ContactPanelProps {
   mode: "create" | "edit" | "view";
@@ -161,12 +162,25 @@ export function ContactPanel({
   const { toast } = useToast();
   const { timeFormat } = useTimeFormat();
 
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
   // Validation: contactId is required for edit and view modes
   useEffect(() => {
     if ((mode === "edit" || mode === "view") && !contactId) {
       console.error("ContactPanel: contactId is required for edit and view modes");
     }
   }, [mode, contactId]);
+
+  // Reset change state when contact data changes
+  useEffect(() => {
+    setHasUnsavedChanges(false);
+  }, [contactData]);
+
+  useEffect(() => {
+    if (mode !== "edit") {
+      setHasUnsavedChanges(false);
+    }
+  }, [mode]);
 
   // Fetch contact data for edit and view modes
   const {
@@ -235,8 +249,7 @@ export function ContactPanel({
         title: "Contact updated",
         description: "The contact has been updated successfully.",
       });
-      // Switch to view mode after successful update
-      onModeChange?.("view");
+      setHasUnsavedChanges(false);
     },
     onError: (error: any) => {
       console.error("Update contact error:", error);
@@ -259,7 +272,11 @@ export function ContactPanel({
 
   // Mode change handlers
   const handleEdit = () => onModeChange?.("edit");
-  const handleCancelEdit = () => onModeChange?.("view");
+  const handleCancelEdit = () => {
+    setHasUnsavedChanges(false);
+    onModeChange?.("view");
+  };
+  const handleFormChange = (dirty: boolean) => setHasUnsavedChanges(dirty);
 
 
   // Get panel title based on mode
@@ -433,6 +450,7 @@ const renderEditMode = () => (
       isSubmitting={updateContactMutation.isPending}
       showButtons={false}
       defaultValues={getContactFormValues(contactData as Contact)}
+      onChange={handleFormChange}
     />
     <div className="flex justify-end gap-2">
         <Button
@@ -448,7 +466,10 @@ const renderEditMode = () => (
           type="submit"
           size="sm"
           disabled={updateContactMutation.isPending}
-          className="flex items-center space-x-2 px-3 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white"
+          className={cn(
+            "flex items-center space-x-2 px-3 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white",
+            !hasUnsavedChanges && "opacity-50"
+          )}
           form="contact-form"
         >
       <Check className="w-4 h-4" />
