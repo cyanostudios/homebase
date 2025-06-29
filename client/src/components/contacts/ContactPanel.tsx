@@ -1,12 +1,11 @@
-import React, { useRef, useEffect } from "react";
-import { cn } from "@/lib/utils";
+import React, { useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ContactFormValues } from "./contact-form-schema";
 import { EnhancedContactForm } from "./enhanced-contact-form";
 import { Button } from "@/components/ui/button";
-import { X, Save, Edit, Check } from "lucide-react";
+import { X, Edit, Check } from "lucide-react";
 import { Contact } from "@/lib/types";
 
 interface ContactPanelProps {
@@ -147,9 +146,6 @@ export function ContactPanel({
   onModeChange 
 }: ContactPanelProps) {
   const { toast } = useToast();
-  const formRef = useRef<{ submitForm: () => void; saveDraft: () => void }>(null);
-
-  const isViewMode = mode === "view";
 
   // Validation: contactId is required for edit and view modes
   useEffect(() => {
@@ -245,18 +241,6 @@ export function ContactPanel({
   const handleEdit = () => onModeChange?.("edit");
   const handleCancelEdit = () => onModeChange?.("view");
 
-  // Draft save handler (placeholder implementation)
-  const handleSaveDraft = () => {
-    // TODO: Implement actual draft saving logic
-    // This could involve:
-    // 1. Getting current form values
-    // 2. Saving to localStorage or API endpoint
-    // 3. Providing user feedback
-    toast({ 
-      title: "Draft saved",
-      description: "Your changes have been saved as a draft."
-    });
-  };
 
   // Get panel title based on mode
   const getPanelTitle = () => {
@@ -296,28 +280,115 @@ export function ContactPanel({
     }
   };
 
-  // Get action buttons based on mode
-  const getActionButtons = () => {
-    const isSubmitting = createContactMutation.isPending || updateContactMutation.isPending;
+  const renderViewMode = () => {
+    if (!contactData) return null;
 
-    if (mode === "view") {
-      return (
-        <Button type="button" size="sm" className="flex items-center space-x-2" onClick={handleEdit}>
-          <Edit className="w-4 h-4" />
-          <span>Edit</span>
-        </Button>
-      );
-    }
+    const basicFields = [
+      { label: 'Full Name', value: contactData.fullName },
+      { label: 'Company Name', value: (contactData as any).companyName },
+      { label: 'Email', value: contactData.email },
+      { label: 'Phone', value: contactData.phone },
+      { label: 'Organization Number', value: (contactData as any).organizationNumber },
+      { label: 'VAT Number', value: (contactData as any).vatNumber },
+      { label: 'Visiting Address', value: (contactData as any).visitingAddress },
+      { label: 'Mailing Address', value: (contactData as any).mailingAddress },
+      { label: 'City', value: (contactData as any).addressCity },
+      { label: 'Region', value: (contactData as any).region },
+      { label: 'Country', value: (contactData as any).country },
+      { label: 'Website', value: (contactData as any).website },
+      { label: 'Phone Switchboard', value: (contactData as any).phoneSwitchboard },
+      { label: 'Phone Direct', value: (contactData as any).phoneDirect },
+      { label: 'Email General', value: (contactData as any).emailGeneral },
+      { label: 'Email Invoicing', value: (contactData as any).emailInvoicing },
+      { label: 'Email Orders', value: (contactData as any).emailOrders },
+      { label: 'Bankgiro', value: (contactData as any).bankgiroNumber },
+      { label: 'Plusgiro', value: (contactData as any).plusgiroNumber },
+      { label: 'IBAN', value: (contactData as any).iban },
+      { label: 'BIC/SWIFT', value: (contactData as any).bicSwift },
+      { label: 'Bank Name', value: (contactData as any).bankName },
+      { label: 'Invoice Method', value: (contactData as any).invoiceMethod },
+      { label: 'Invoice Requirements', value: (contactData as any).invoiceRequirements },
+      { label: 'Payment Terms', value: (contactData as any).paymentTerms },
+      { label: 'VAT Rate', value: (contactData as any).vatRate },
+    ];
 
-    const cancelHandler = mode === "create" ? onClose : handleCancelEdit;
+    const contactPersons = parseJsonField((contactData as any).contactPersons);
+    const additionalAddresses = parseJsonField((contactData as any).additionalAddresses);
 
     return (
-      <div className="flex items-center gap-2">
+      <div className="p-6 space-y-6">
+        <Card>
+          <CardContent className="space-y-2">
+            {basicFields
+              .filter((f) => f.value && f.value !== '')
+              .map((f) => (
+                <div
+                  key={f.label}
+                  className="flex justify-between border-b pb-2 last:border-b-0"
+                >
+                  <span className="text-sm font-medium text-neutral-600">
+                    {f.label}
+                  </span>
+                  <span className="text-sm text-neutral-900 text-right break-all">
+                    {String(f.value)}
+                  </span>
+                </div>
+              ))}
+            {contactPersons.length > 0 && (
+              <div className="pt-2">
+                <p className="font-medium text-neutral-600">Contact Persons</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  {contactPersons.map((p: any, idx: number) => (
+                    <li key={idx} className="text-sm text-neutral-900">
+                      {p.firstName} {p.lastName} {p.title && `- ${p.title}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {additionalAddresses.length > 0 && (
+              <div className="pt-2">
+                <p className="font-medium text-neutral-600">Additional Addresses</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  {additionalAddresses.map((a: any, idx: number) => (
+                    <li key={idx} className="text-sm text-neutral-900">
+                      {a.visitingAddress} {a.addressCity}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            size="sm"
+            className="flex items-center gap-2"
+            onClick={handleEdit}
+          >
+            <Edit className="w-4 h-4" />
+            <span>Edit</span>
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderEditMode = () => (
+    <div className="p-6 space-y-4">
+      <EnhancedContactForm
+        onSubmit={handleSubmit}
+        isSubmitting={updateContactMutation.isPending}
+        showButtons={false}
+        defaultValues={getContactFormValues(contactData as Contact)}
+      />
+      <div className="flex justify-end gap-2">
         <Button
           type="button"
           variant="ghost"
-          className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
-          onClick={cancelHandler}
+          className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
+          onClick={handleCancelEdit}
         >
           <X className="w-4 h-4" />
           <span>Cancel</span>
@@ -325,16 +396,47 @@ export function ContactPanel({
         <Button
           type="submit"
           size="sm"
-          disabled={isSubmitting}
+          disabled={updateContactMutation.isPending}
           className="flex items-center space-x-2"
           form="contact-form"
         >
           <Check className="w-4 h-4" />
-          <span>{isSubmitting ? 'Saving...' : (mode === 'create' ? 'Create' : 'Save')}</span>
+          <span>Save</span>
         </Button>
       </div>
-    );
-  };
+    </div>
+  );
+
+  const renderCreateMode = () => (
+    <div className="p-6 space-y-4">
+      <EnhancedContactForm
+        onSubmit={handleSubmit}
+        isSubmitting={createContactMutation.isPending}
+        showButtons={false}
+      />
+      <div className="flex justify-end gap-2">
+        <Button
+          type="button"
+          variant="ghost"
+          className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
+          onClick={onClose}
+        >
+          <X className="w-4 h-4" />
+          <span>Cancel</span>
+        </Button>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={createContactMutation.isPending}
+          className="flex items-center space-x-2"
+          form="contact-form"
+        >
+          <Check className="w-4 h-4" />
+          <span>Save</span>
+        </Button>
+      </div>
+    </div>
+  );
 
   // Show loading state for edit/view modes
   if ((mode === "edit" || mode === "view") && isLoadingContact) {
@@ -387,32 +489,16 @@ export function ContactPanel({
   return (
     <div className="h-full flex flex-col bg-white overflow-hidden">
       <div style={{backgroundColor: 'red', height: '2px', width: '100%'}}></div>
-      {/* Fixed Header */}
       <div className="flex-shrink-0 border-b border-neutral-200 bg-white">
         <div className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-neutral-900">{getPanelTitle()}</h2>
-              <p className="text-sm text-neutral-500">{getPanelSubtitle()}</p>
-            </div>
-            {getActionButtons()}
-          </div>
+          <h2 className="text-lg font-semibold text-neutral-900">{getPanelTitle()}</h2>
+          <p className="text-sm text-neutral-500">{getPanelSubtitle()}</p>
         </div>
       </div>
-
-      {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="p-6">
-          <div className={cn(isViewMode && "opacity-60")}>
-            <EnhancedContactForm
-              onSubmit={handleSubmit}
-              isSubmitting={createContactMutation.isPending || updateContactMutation.isPending}
-              showButtons={false}
-              readOnly={isViewMode}
-              defaultValues={mode === "create" ? undefined : getContactFormValues(contactData as Contact)}
-            />
-          </div>
-        </div>
+        {mode === 'view' && renderViewMode()}
+        {mode === 'edit' && renderEditMode()}
+        {mode === 'create' && renderCreateMode()}
       </div>
     </div>
   );
