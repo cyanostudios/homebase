@@ -50,32 +50,26 @@ export function TopBar() {
           {/* Create Buttons - Show based on current view and hide when in edit mode */}
           {!isInEditMode && canCreateInvoice && (
             <>
-              <button
-                onClick={openInvoiceCreatePanel}
-                className="flex items-center space-x-2 px-3 py-2 text-sm font-medium transition-colors cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-              >
+              <Button onClick={openInvoiceCreatePanel} variant="subtleBlue" className="px-3 py-2 text-sm">
                 <Plus className="h-4 w-4" />
                 <span>Create Invoice</span>
-              </button>
+              </Button>
               {showImportButton && (
                 <Link href="/invoices/import">
-                  <button className="flex items-center space-x-2 px-3 py-2 text-sm font-medium transition-colors cursor-pointer text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50 border border-neutral-200 rounded-md">
+                  <Button variant="subtleGray" className="px-3 py-2 text-sm">
                     <Upload className="h-4 w-4" />
                     <span>Import</span>
-                  </button>
+                  </Button>
                 </Link>
               )}
             </>
           )}
           
           {!isInEditMode && canCreateContact && (
-            <button
-              onClick={openContactCreatePanel}
-              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium transition-colors cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-            >
+            <Button onClick={openContactCreatePanel} variant="subtleBlue" className="px-3 py-2 text-sm">
               <UserPlus className="h-4 w-4" />
               <span>Add Contact</span>
-            </button>
+            </Button>
           )}
 
 

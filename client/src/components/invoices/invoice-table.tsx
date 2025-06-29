@@ -164,9 +164,10 @@ function InvoiceRow({ invoice, onClick, onNotifyClick }: InvoiceRowProps) {
       
       {/* View */}
       <td className="px-4 py-3 text-center">
-        <button className="text-primary-600 hover:text-primary-800 transition-colors">
-          <Eye className="h-4 w-4" />
-        </button>
+        <Button variant="subtleGray" size="sm" className="px-2 py-1">
+          <Eye className="h-4 w-4 mr-1" />
+          <span>View</span>
+        </Button>
       </td>
     </tr>
   );

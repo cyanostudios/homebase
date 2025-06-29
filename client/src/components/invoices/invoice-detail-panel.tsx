@@ -584,35 +584,34 @@ export function InvoiceDetailPanel() {
             <div className="flex items-center gap-2">
               {viewMode === "club" && !isInlineEditing ? (
                 <>
-                  <button
+                  <Button
                     onClick={handleDownloadPDF}
                     disabled={isGeneratingPDF}
-                    className="flex items-center space-x-2 px-3 py-2 text-sm font-medium transition-colors cursor-pointer text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    variant="subtleGray"
+                    className="px-3 py-2 text-sm"
                   >
                     <Download className="w-4 h-4" />
                     <span>{isGeneratingPDF ? "Generating..." : "Download PDF"}</span>
-                  </button>
-                  <button
-                    onClick={startEditing}
-                    className="flex items-center space-x-2 px-3 py-2 text-sm font-medium transition-colors cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                  >
+                  </Button>
+                  <Button onClick={startEditing} variant="subtleBlue" className="px-3 py-2 text-sm">
                     <Edit className="w-4 h-4" />
                     <span>Edit</span>
-                  </button>
+                  </Button>
                 </>
               ) : viewMode === "club" ? (
                 <div className="flex items-center gap-2">
                   <Button
                     onClick={form.handleSubmit(onSubmit)}
-                    className="flex items-center space-x-2 px-3 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white"
+                    variant="filledGreen"
+                    className="px-3 py-2 text-sm"
                   >
                     <Save className="w-4 h-4" />
                     <span>Save</span>
                   </Button>
                   <Button
                     onClick={cancelEditing}
-                    variant="ghost"
-                    className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    variant="subtleRed"
+                    className="px-3 py-2 text-sm"
                   >
                     <XCircle className="w-4 h-4" />
                     <span>Cancel</span>
@@ -621,9 +620,9 @@ export function InvoiceDetailPanel() {
               ) : null}
               {!isInlineEditing && (
                 <Button
-                  variant="ghost"
+                  variant="subtleRed"
                   onClick={closeInvoicePanel}
-                  className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
+                  className="px-3 py-2 text-sm"
                 >
                   <X className="w-4 h-4" />
                   <span>Close</span>
@@ -993,8 +992,9 @@ export function InvoiceDetailPanel() {
                 {isClubMode && !isInvoiceInPast && (
                 <Dialog open={isAssigningContact} onOpenChange={setIsAssigningContact}>
                   <DialogTrigger asChild>
-                    <Button 
-                      className="flex items-center bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 h-auto text-sm shadow-lg hover:shadow-xl transition-all duration-200 border-0"
+                    <Button
+                      variant="filledGreen"
+                      className="px-6 py-3 h-auto text-sm shadow-lg hover:shadow-xl"
                       style={{ borderRadius: '6px' }}
                     >
                       <span className="material-icons text-base mr-2">add</span>
@@ -1055,20 +1055,22 @@ export function InvoiceDetailPanel() {
                       </div>
                     </div>
                     <div className="flex justify-end space-x-2">
-                      <button 
-                        className="flex items-center space-x-2 px-3 py-2 text-sm font-medium transition-colors cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      <Button
+                        variant="subtleRed"
+                        className="px-3 py-2 text-sm"
                         onClick={() => setIsAssigningContact(false)}
                       >
                         <span>Cancel</span>
-                      </button>
-                      <button 
-                        className="flex items-center bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 h-auto text-sm shadow-lg hover:shadow-xl transition-all duration-200 border-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-green-600"
+                      </Button>
+                      <Button
+                        variant="filledGreen"
+                        className="px-6 py-3 h-auto text-sm shadow-lg hover:shadow-xl"
                         style={{ borderRadius: '6px', minHeight: '44px' }}
-                        onClick={handleAssignContact} 
+                        onClick={handleAssignContact}
                         disabled={!selectedContactId}
                       >
                         <span>Assign Contact</span>
-                      </button>
+                      </Button>
                     </div>
                   </DialogContent>
                 </Dialog>

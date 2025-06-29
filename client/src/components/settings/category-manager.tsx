@@ -58,12 +58,13 @@ export function CategoryManager({
             className="inline-flex items-center justify-between gap-1 px-2 py-1 bg-neutral-50 border border-neutral-200 text-neutral-700 rounded text-xs hover:bg-neutral-100 transition-colors"
           >
             <span className="truncate text-xs">{category}</span>
-            <button
+            <Button
               onClick={() => removeCategory(category)}
-              className="text-neutral-400 hover:text-red-500 transition-colors flex-shrink-0"
+              variant="subtleRed"
+              size="icon"
             >
               <X className="h-2.5 w-2.5" />
-            </button>
+            </Button>
           </span>
         ))}
       </div>
