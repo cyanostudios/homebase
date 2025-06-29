@@ -39,6 +39,7 @@ interface EnhancedContactFormProps {
   contact?: any;
   onSubmit: (data: ContactFormValues) => void;
   onDraft?: (data: ContactFormValues) => void;
+  onChange?: (dirty: boolean) => void;
   isSubmitting?: boolean;
   showButtons?: boolean;
   formId?: string;
@@ -46,15 +47,16 @@ interface EnhancedContactFormProps {
   defaultValues?: Partial<ContactFormValues>;
 }
 
-export function EnhancedContactForm({ 
-  contact, 
-  onSubmit, 
-  onDraft, 
-  isSubmitting = false, 
-  showButtons = true, 
+export function EnhancedContactForm({
+  contact,
+  onSubmit,
+  onDraft,
+  onChange,
+  isSubmitting = false,
+  showButtons = true,
   formId = "contact-form",
   readOnly = false,
-  defaultValues 
+  defaultValues
 }: EnhancedContactFormProps) {
   const { qualificationLevels } = useQualificationLevels();
   const { defaultCity } = useCity();
@@ -153,8 +155,18 @@ export function EnhancedContactForm({
   useEffect(() => {
     if (defaultValues || contact) {
       form.reset(formDefaultValues);
+      onChange?.(false);
     }
-  }, [defaultValues, contact, form, formDefaultValues]);
+  }, [defaultValues, contact, form, formDefaultValues, onChange]);
+
+  // Notify parent when form values change
+  useEffect(() => {
+    if (!onChange) return;
+    const subscription = form.watch(() => {
+      onChange(form.formState.isDirty);
+    });
+    return () => subscription.unsubscribe();
+  }, [form, onChange]);
 
   const {
     fields: contactPersonFields,
