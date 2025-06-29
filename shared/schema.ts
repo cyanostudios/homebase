@@ -133,12 +133,6 @@ export const contacts = pgTable("contacts", {
     country: string;
   }>>().default([]),
   
-  // Payment Information
-  bankgiroNumber: text("bankgiro_number"),
-  plusgiroNumber: text("plusgiro_number"),
-  iban: text("iban"),
-  bicSwift: text("bic_swift"),
-  bankName: text("bank_name"),
   
   // Invoicing Information
   invoiceMethod: text("invoice_method"), // e-invoice, PDF, mail

@@ -63,12 +63,6 @@ export const contactFormSchema = z.object({
   // Contact Persons
   contactPersons: z.array(contactPersonSchema).default([]),
   
-  // Payment Information
-  bankgiroNumber: z.string().optional(),
-  plusgiroNumber: z.string().optional(),
-  iban: z.string().optional(),
-  bicSwift: z.string().optional(),
-  bankName: z.string().optional(),
   
   // Invoicing Information
   invoiceMethod: z.string().optional(),
