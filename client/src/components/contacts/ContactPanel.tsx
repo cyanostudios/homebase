@@ -337,25 +337,24 @@ export function ContactPanel({
 
     return (
       <Card className="mb-4">
-        <CardContent className="space-y-2">
-          {basicFields
-            .filter((f) => f.value && f.value !== '')
-            .map((f) => (
-              <div
-                key={f.label}
-                className="flex justify-between border-b pb-2 last:border-b-0"
-              >
-                <span className="text-sm font-medium text-neutral-600">
-                  {f.label}
-                </span>
-                <span className="text-sm text-neutral-900 text-right break-all">
-                  {String(f.value)}
-                </span>
-              </div>
-            ))}
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            {basicFields
+              .filter((f) => f.value && f.value !== '')
+              .map((f) => (
+                <div key={f.label} className="space-y-1">
+                  <p className="text-xs text-neutral-500">{f.label}</p>
+                  <p className="text-sm font-medium text-neutral-900 break-words">
+                    {String(f.value)}
+                  </p>
+                </div>
+              ))}
+          </div>
           {contactPersons.length > 0 && (
-            <div className="pt-2">
-              <p className="font-medium text-neutral-600">Contact Persons</p>
+            <div className="pt-4">
+              <p className="text-xs font-medium text-neutral-500 mb-1">
+                Contact Persons
+              </p>
               <ul className="list-disc pl-5 space-y-1">
                 {contactPersons.map((p: any, idx: number) => (
                   <li key={idx} className="text-sm text-neutral-900">
@@ -366,8 +365,10 @@ export function ContactPanel({
             </div>
           )}
           {additionalAddresses.length > 0 && (
-            <div className="pt-2">
-              <p className="font-medium text-neutral-600">Additional Addresses</p>
+            <div className="pt-4">
+              <p className="text-xs font-medium text-neutral-500 mb-1">
+                Additional Addresses
+              </p>
               <ul className="list-disc pl-5 space-y-1">
                 {additionalAddresses.map((a: any, idx: number) => (
                   <li key={idx} className="text-sm text-neutral-900">
