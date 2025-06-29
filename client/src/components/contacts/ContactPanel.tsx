@@ -82,10 +82,16 @@ const flattenContactData = (contactData: ContactFormValues) => ({
 });
 
 // Convert contact data to form values for edit mode
+const normalizeContactType = (type: any): "company" | "private" => {
+  if (!type) return "company";
+  const val = String(type).toLowerCase();
+  return val === "private" || val === "individual" ? "private" : "company";
+};
+
 const getContactFormValues = (contact: Contact | null): Partial<ContactFormValues> => {
   if (!contact) {
     return {
-      contactType: "Company" as const,
+      contactType: "company" as const,
       fullName: "",
       email: "",
       phone: "",
@@ -98,10 +104,10 @@ const getContactFormValues = (contact: Contact | null): Partial<ContactFormValue
   // Determine contact type based on available data
   const hasCompanyName = !!(contact as any)?.companyName;
   const hasFullName = !!contact?.fullName;
-  const inferredContactType = hasCompanyName ? "Company" : (hasFullName ? "Individual" : "Company");
+  const inferredContactType = hasCompanyName ? "company" : (hasFullName ? "private" : "company");
 
   return {
-    contactType: (contact as any)?.contactType || inferredContactType,
+    contactType: normalizeContactType((contact as any)?.contactType) || inferredContactType,
     fullName: contact.fullName || "",
     companyName: (contact as any)?.companyName || "",
     organizationNumber: (contact as any)?.organizationNumber || "",
@@ -284,6 +290,7 @@ export function ContactPanel({
     if (!contactData) return null;
 
     const basicFields = [
+      { label: 'Type', value: normalizeContactType((contactData as any).contactType) === 'private' ? 'Private' : 'Company' },
       { label: 'Full Name', value: contactData.fullName },
       { label: 'Company Name', value: (contactData as any).companyName },
       { label: 'Email', value: contactData.email },
@@ -360,11 +367,20 @@ export function ContactPanel({
             )}
           </CardContent>
         </Card>
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
           <Button
             type="button"
-            size="sm"
-            className="flex items-center gap-2"
+            variant="ghost"
+            className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
+            onClick={onClose}
+          >
+            <X className="w-4 h-4" />
+            <span>Close</span>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50"
             onClick={handleEdit}
           >
             <Edit className="w-4 h-4" />
@@ -397,7 +413,7 @@ export function ContactPanel({
           type="submit"
           size="sm"
           disabled={updateContactMutation.isPending}
-          className="flex items-center space-x-2"
+          className="flex items-center space-x-2 px-3 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white"
           form="contact-form"
         >
           <Check className="w-4 h-4" />
@@ -428,7 +444,7 @@ export function ContactPanel({
           type="submit"
           size="sm"
           disabled={createContactMutation.isPending}
-          className="flex items-center space-x-2"
+          className="flex items-center space-x-2 px-3 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white"
           form="contact-form"
         >
           <Check className="w-4 h-4" />
