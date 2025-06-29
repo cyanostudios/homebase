@@ -36,10 +36,11 @@ export function DefaultCitySettings() {
             onChange={(e) => setCityInput(e.target.value)}
             className="flex-1 h-10 text-sm"
           />
-          <Button 
+          <Button
             onClick={handleSaveCity}
             size="sm"
-            className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap flex items-center space-x-2"
+            variant="filledGreen"
+            className="h-10 px-4 whitespace-nowrap flex items-center space-x-2"
           >
             <MapPin className="h-3 w-3" />
             <span>Save</span>

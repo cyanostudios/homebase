@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, Settings, LogOut, UserCheck, Building2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import { useViewMode } from "@/context/view-mode-context";
 import { cn } from "@/lib/utils";
@@ -73,12 +74,9 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavDrawerProps) {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-neutral-200">
           <h2 className="text-lg font-semibold">Navigation</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-neutral-100 rounded-lg"
-          >
+          <Button onClick={onClose} variant="subtleGray" size="icon" className="p-2">
             <X className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Navigation Items */}

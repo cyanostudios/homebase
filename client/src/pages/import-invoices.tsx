@@ -82,14 +82,15 @@ export default function ImportInvoices() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-              <Button 
+              <Button
                 onClick={(e) => {
                   e.stopPropagation();
                   setActiveImportType('text');
                 }}
                 className="w-full"
-                variant="outline"
+                variant="subtleGray"
               >
+                <FileText className="h-4 w-4 mr-2" />
                 Start Text Import
               </Button>
             </CardContent>

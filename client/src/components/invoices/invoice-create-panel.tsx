@@ -236,11 +236,7 @@ export function InvoiceCreatePanel({ isOpen, onClose }: InvoiceCreatePanelProps)
               <h2 className="text-lg font-semibold text-neutral-900">Create New Invoice</h2>
               <p className="text-sm text-neutral-500">Enter comprehensive invoice details below</p>
             </div>
-            <Button
-              variant="ghost"
-              onClick={onClose}
-              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
-            >
+            <Button onClick={onClose} variant="subtleRed" className="px-3 py-2 text-sm">
               <X className="w-4 h-4" />
               <span>Close</span>
             </Button>
@@ -969,15 +965,12 @@ export function InvoiceCreatePanel({ isOpen, onClose }: InvoiceCreatePanelProps)
                 </div>
 
                 <div className="flex justify-end space-x-2 pt-6">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50"
-                  >
+                  <Button type="button" variant="filledGreen">
                     <Save className="w-4 h-4 mr-2" />
                     Save Draft
                   </Button>
-                  <Button type="submit" disabled={createInvoiceMutation.isPending}>
+                  <Button type="submit" variant="subtleBlue" disabled={createInvoiceMutation.isPending}>
+                    <Plus className="w-4 h-4 mr-2" />
                     {createInvoiceMutation.isPending ? "Creating..." : "Create Invoice"}
                   </Button>
                 </div>
