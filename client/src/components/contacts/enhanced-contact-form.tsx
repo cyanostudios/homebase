@@ -83,9 +83,15 @@ export function EnhancedContactForm({
     { value: "0", label: "0% - Nollmoms", description: "Export of goods/services, intra-EU sales to businesses" }
   ];
 
+  const normalizeContactType = (type: any): "company" | "private" => {
+    if (!type) return "company";
+    const val = String(type).toLowerCase();
+    return val === "private" || val === "individual" ? "private" : "company";
+  };
+
   // Merge defaultValues with fallback values - memoized to prevent unnecessary re-renders
   const formDefaultValues = useMemo(() => ({
-    contactType: defaultValues?.contactType || contact?.contactType || "Company",
+    contactType: normalizeContactType(defaultValues?.contactType || contact?.contactType || "company"),
     fullName: defaultValues?.fullName || contact?.fullName || "",
     email: defaultValues?.email || contact?.email || "",
     phone: defaultValues?.phone || contact?.phone || "",
