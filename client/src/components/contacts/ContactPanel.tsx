@@ -7,8 +7,11 @@ import { EnhancedContactForm } from "./enhanced-contact-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import { X, Edit, Check } from "lucide-react";
-import { Contact } from "@/lib/types";
+import { X, Edit, Check, AlertCircle } from "lucide-react";
+import { Contact, Activity, ActivityType } from "@/lib/types";
+import { formatDistance } from "date-fns";
+import { formatTime } from "@/lib/date-utils";
+import { useTimeFormat } from "@/context/time-format-context";
 
 interface ContactPanelProps {
   mode: "create" | "edit" | "view";
@@ -167,6 +170,7 @@ export function ContactPanel({
   onModeChange 
 }: ContactPanelProps) {
   const { toast } = useToast();
+  const { timeFormat } = useTimeFormat();
 
   // Validation: contactId is required for edit and view modes
   useEffect(() => {
@@ -184,6 +188,12 @@ export function ContactPanel({
     queryKey: [`/api/contacts/${contactId}`],
     enabled: (mode === "edit" || mode === "view") && !!contactId,
     retry: false,
+  });
+
+  // Get recent activities for this contact
+  const { data: activities } = useQuery<Activity[]>({
+    queryKey: ['/api/activities'],
+    enabled: !!contactId,
   });
 
   // Invalidate queries helper
@@ -431,15 +441,15 @@ export function ContactPanel({
     );
   };
 
-  const renderEditMode = () => (
-    <div className="p-6 space-y-4">
-      <EnhancedContactForm
-        onSubmit={handleSubmit}
-        isSubmitting={updateContactMutation.isPending}
-        showButtons={false}
-        defaultValues={getContactFormValues(contactData as Contact)}
-      />
-      <div className="flex justify-end gap-2">
+const renderEditMode = () => (
+  <div className="p-6 space-y-4">
+    <EnhancedContactForm
+      onSubmit={handleSubmit}
+      isSubmitting={updateContactMutation.isPending}
+      showButtons={false}
+      defaultValues={getContactFormValues(contactData as Contact)}
+    />
+    <div className="flex justify-end gap-2">
         <Button
           type="button"
           variant="ghost"
@@ -456,12 +466,53 @@ export function ContactPanel({
           className="flex items-center space-x-2 px-3 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white"
           form="contact-form"
         >
-          <Check className="w-4 h-4" />
-          <span>Save</span>
-        </Button>
-      </div>
+      <Check className="w-4 h-4" />
+      <span>Save</span>
+    </Button>
     </div>
-  );
+    {activities && activities.length > 0 && (
+      <div className="mt-6 border-t border-neutral-200 pt-4">
+        <h4 className="font-medium mb-3 flex items-center">
+          <AlertCircle className="w-4 h-4 mr-2 text-green-500" />
+          Latest Changes
+        </h4>
+        <div className="space-y-2">
+          {activities
+            .filter(
+              (activity) =>
+                activity.contactId === contactId &&
+                [ActivityType.CONTACT_UPDATED, ActivityType.CONTACT_CREATED].includes(
+                  activity.activityType
+                )
+            )
+            .sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            )
+            .slice(0, 5)
+            .map((activity) => (
+              <div key={activity.id} className="text-xs text-neutral-600">
+                <p>{activity.description}</p>
+                <p className="text-xs text-neutral-400 mt-1">
+                  {formatDistance(new Date(activity.createdAt), new Date(), { addSuffix: true })}
+                  {" "}
+                  • {formatTime(activity.createdAt, timeFormat)}
+                </p>
+              </div>
+            ))}
+          {activities.filter(
+            (activity) =>
+              activity.contactId === contactId &&
+              [ActivityType.CONTACT_UPDATED, ActivityType.CONTACT_CREATED].includes(
+                activity.activityType
+              )
+          ).length === 0 && (
+            <div className="text-sm text-neutral-500 italic">No recent changes to display</div>
+          )}
+        </div>
+      </div>
+    )}
+  </div>
+);
 
   const renderCreateMode = () => (
     <div className="p-6 space-y-4">
