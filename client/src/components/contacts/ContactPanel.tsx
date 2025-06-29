@@ -38,6 +38,9 @@ const flattenContactData = (contactData: ContactFormValues) => {
   const companyName = isPrivate ? "" : contactData.companyName;
 
   return {
+    // Persist contact type
+    contactType: contactData.contactType,
+
     // Basic information
     fullName,
     email: contactData.email,
@@ -75,6 +78,7 @@ const flattenContactData = (contactData: ContactFormValues) => {
   additionalAddresses: JSON.stringify(contactData.additionalAddresses || []),
 
   // Payment information
+  bankgiroNumber: contactData.bankgiroNumber,
   plusgiroNumber: contactData.plusgiroNumber,
   iban: contactData.iban,
   bicSwift: contactData.bicSwift,
