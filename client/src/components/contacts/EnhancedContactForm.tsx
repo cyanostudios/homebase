@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ContactFormValues, contactFormSchema, ContactPersonFormValues } from "./contact-form-schema";
+import { ContactFormValues, contactFormSchema, ContactPersonFormValues } from "./contactFormSchema";
 import { useQualificationLevels } from "@/context/qualification-levels-context";
 import { useCity } from "@/context/city-context";
 
