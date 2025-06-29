@@ -136,12 +136,6 @@ export function EnhancedContactForm({
     // Additional Addresses
     additionalAddresses: defaultValues?.additionalAddresses || contact?.additionalAddresses || [],
     
-    // Payment Information
-    bankgiroNumber: defaultValues?.bankgiroNumber || contact?.bankgiroNumber || "",
-    plusgiroNumber: defaultValues?.plusgiroNumber || contact?.plusgiroNumber || "",
-    iban: defaultValues?.iban || contact?.iban || "",
-    bicSwift: defaultValues?.bicSwift || contact?.bicSwift || "",
-    bankName: defaultValues?.bankName || contact?.bankName || "",
     
     // Invoicing Information
     invoiceMethod: defaultValues?.invoiceMethod || contact?.invoiceMethod || "Email",
@@ -239,25 +233,23 @@ export function EnhancedContactForm({
                 control={form.control}
                 name="contactType"
                 render={({ field }) => (
-                  <FormItem className="space-y-3">
+                  <FormItem>
                     <FormLabel>Contact Type</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        className="flex flex-row space-x-6"
-                        disabled={readOnly}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="company" id="company" disabled={readOnly} />
-                          <FormLabel htmlFor="company">Company</FormLabel>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="private" id="private" disabled={readOnly} />
-                          <FormLabel htmlFor="private">Private</FormLabel>
-                        </div>
-                      </RadioGroup>
-                    </FormControl>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={readOnly}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="company">Company</SelectItem>
+                        <SelectItem value="private">Private</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -851,24 +843,22 @@ export function EnhancedContactForm({
                 control={form.control}
                 name="fTax"
                 render={({ field }) => (
-                  <FormItem className="space-y-3">
+                  <FormItem>
                     <FormLabel>F-Tax Registration</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={(value) => field.onChange(value === "true")}
-                        value={field.value ? "true" : "false"}
-                        className="flex flex-row space-x-6"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="true" id="ftax-yes" />
-                          <FormLabel htmlFor="ftax-yes">Yes</FormLabel>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="false" id="ftax-no" />
-                          <FormLabel htmlFor="ftax-no">No</FormLabel>
-                        </div>
-                      </RadioGroup>
-                    </FormControl>
+                    <Select
+                      onValueChange={(v) => field.onChange(v === "true")}
+                      value={field.value ? "true" : "false"}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select option" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="true">Yes</SelectItem>
+                        <SelectItem value="false">No</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

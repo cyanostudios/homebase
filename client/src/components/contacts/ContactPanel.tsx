@@ -80,12 +80,6 @@ const flattenContactData = (contactData: ContactFormValues) => {
   contactPersons: JSON.stringify(contactData.contactPersons || []),
   additionalAddresses: JSON.stringify(contactData.additionalAddresses || []),
 
-  // Payment information
-  bankgiroNumber: contactData.bankgiroNumber,
-  plusgiroNumber: contactData.plusgiroNumber,
-  iban: contactData.iban,
-  bicSwift: contactData.bicSwift,
-  bankName: contactData.bankName,
 
   // Invoice information
   invoiceMethod: contactData.invoiceMethod,
@@ -148,11 +142,6 @@ const getContactFormValues = (contact: Contact | null): Partial<ContactFormValue
     website: (contact as any)?.website || "",
     contactPersons: parseJsonField((contact as any)?.contactPersons),
     additionalAddresses: parseJsonField((contact as any)?.additionalAddresses),
-    bankgiroNumber: (contact as any)?.bankgiroNumber || "",
-    plusgiroNumber: (contact as any)?.plusgiroNumber || "",
-    iban: (contact as any)?.iban || "",
-    bicSwift: (contact as any)?.bicSwift || "",
-    bankName: (contact as any)?.bankName || "",
     invoiceMethod: (contact as any)?.invoiceMethod || "Email",
     invoiceRequirements: (contact as any)?.invoiceRequirements || "",
     paymentTerms: (contact as any)?.paymentTerms || "net_14",
@@ -331,11 +320,7 @@ export function ContactPanel({
       { label: 'Email General', value: (data as any).emailGeneral },
       { label: 'Email Invoicing', value: (data as any).emailInvoicing },
       { label: 'Email Orders', value: (data as any).emailOrders },
-      { label: 'Bankgiro', value: (data as any).bankgiroNumber },
-      { label: 'Plusgiro', value: (data as any).plusgiroNumber },
-      { label: 'IBAN', value: (data as any).iban },
-      { label: 'BIC/SWIFT', value: (data as any).bicSwift },
-      { label: 'Bank Name', value: (data as any).bankName },
+      { label: 'F-tax', value: (data as any).fTax ? 'Yes' : 'No' },
       { label: 'Invoice Method', value: (data as any).invoiceMethod },
       { label: 'Invoice Requirements', value: (data as any).invoiceRequirements },
       { label: 'Payment Terms', value: (data as any).paymentTerms },
@@ -346,7 +331,7 @@ export function ContactPanel({
     const additionalAddresses = parseJsonField((data as any).additionalAddresses);
 
     return (
-      <Card className="mb-4">
+      <Card className="mb-4 border-none shadow-none">
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             {basicFields

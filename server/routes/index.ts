@@ -537,12 +537,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           emailOrders: body.contactInfo?.emailOrders,
           website: body.contactInfo?.website,
           
-          // Payment information
-          bankgiroNumber: body.paymentInfo?.bankgiroNumber,
-          plusgiroNumber: body.paymentInfo?.plusgiroNumber,
-          iban: body.paymentInfo?.iban,
-          bicSwift: body.paymentInfo?.bicSwift,
-          bankName: body.paymentInfo?.bankName,
           
           // Invoice information
           fTax: body.invoiceInfo?.fTax,
