@@ -19,7 +19,7 @@ import { useCity } from "@/context/city-context";
 
 // Component for displaying a single invoice row in the table
 interface InvoiceRowProps {
-  invoice: any; // Allow both Date and string types for dateTime
+  invoice: Invoice;
   onClick: () => void;
   onNotifyClick?: (e: React.MouseEvent, assignmentId: number) => void;
 }
@@ -202,7 +202,7 @@ export function InvoiceTable() {
   };
 
   // Handlers
-  const handleRowClick = (invoice: any) => {
+  const handleRowClick = (invoice: Invoice) => {
     // Prevent navigation when in edit mode
     if (isInvoiceInEditMode || isContactInEditMode) {
       return;

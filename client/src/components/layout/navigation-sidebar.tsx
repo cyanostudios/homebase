@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
+import type { Contact } from "@shared/schema";
 import { useEffect, useState } from "react";
 
 interface NavItemProps {
@@ -60,7 +61,7 @@ export function NavigationSidebar() {
   }, [viewMode]);
   
   // Fetch current contact data for display
-  const { data: contact } = useQuery({
+  const { data: contact } = useQuery<Contact>({
     queryKey: [`/api/contacts/${contactId}`],
     enabled: !!contactId && !isClubMode,
   });
@@ -95,8 +96,7 @@ export function NavigationSidebar() {
     if (isClubMode) {
       return "Johan Andersson";
     } else {
-      // Cast contact to the correct type or use safe property access
-      return (contact as any)?.fullName || localStorage.getItem("contactName") || "Contact";
+      return contact?.fullName || localStorage.getItem("contactName") || "Contact";
     }
   };
 

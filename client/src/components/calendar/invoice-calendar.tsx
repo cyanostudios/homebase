@@ -11,7 +11,7 @@ import { getMatchStatusColor } from '@/lib/status-colors';
 
 // This function is now handled by the shared getMatchStatusColor function
 
-function InvoiceEvent({ invoice, onClick }: { invoice: any; onClick: () => void }) {
+function InvoiceEvent({ invoice, onClick }: { invoice: Invoice; onClick: () => void }) {
   // Handle both string and Date types for dateTime
   const invoiceDate = typeof invoice.dateTime === 'string' ? new Date(invoice.dateTime) : invoice.dateTime;
 
@@ -38,7 +38,7 @@ function InvoiceEvent({ invoice, onClick }: { invoice: any; onClick: () => void 
 type CalendarView = 'day' | 'week' | 'month';
 
 export default function InvoiceCalendar() {
-  const { data: invoices = [], isLoading } = useQuery<any[]>({
+  const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
     queryKey: ['/api/invoices'],
   });
   const { openInvoicePanel } = useApp();
@@ -267,7 +267,7 @@ export default function InvoiceCalendar() {
                         <InvoiceEvent
                           key={invoice.id}
                           invoice={invoice}
-                          onClick={() => openInvoicePanel(invoice as any)}
+                          onClick={() => openInvoicePanel(invoice)}
                         />
                       );
                     })}

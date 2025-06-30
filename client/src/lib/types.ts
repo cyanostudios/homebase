@@ -1,5 +1,5 @@
 // Additional interface definitions
-import { ActivityType } from "@shared/schema";
+import { ActivityType, ContactAssignment } from "@shared/schema";
 
 export interface User {
   id: number;
@@ -96,7 +96,7 @@ export interface InvoiceWithContacts {
   status: string;
   clubId: number | null;
   createdAt: string;
-  contactAssignments: any[];
+  contactAssignments: ContactAssignment[];
 }
 
 export interface Notification {

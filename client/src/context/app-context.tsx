@@ -250,13 +250,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         title: "Contact assigned",
         description: "The contact has been assigned to the invoice",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { message?: string; response?: { status?: number; data?: { message?: string } } };
 
       
       // Check if this is an "already assigned" error - if so, throw it so the calling component can handle it
-      if (error?.message?.includes("already assigned") || 
-          (error?.response?.status === 400 && error?.response?.data?.message?.includes("already assigned"))) {
-        throw error; // Re-throw so the calling component can show the specific alert
+      if (err?.message?.includes("already assigned") ||
+          (err?.response?.status === 400 && err?.response?.data?.message?.includes("already assigned"))) {
+        throw err; // Re-throw so the calling component can show the specific alert
       }
       
       // For other errors, show the generic toast
@@ -265,7 +266,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         description: "There was a problem assigning the contact",
         variant: "destructive",
       });
-      throw error; // Re-throw other errors too
+      throw err; // Re-throw other errors too
     }
   };
   
