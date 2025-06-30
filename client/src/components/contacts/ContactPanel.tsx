@@ -172,11 +172,6 @@ export function ContactPanel({
     }
   }, [mode, contactId]);
 
-  // Reset change state when contact data changes
-  useEffect(() => {
-    setHasUnsavedChanges(false);
-  }, [contactData]);
-
   useEffect(() => {
     if (mode !== "edit") {
       setHasUnsavedChanges(false);
@@ -193,6 +188,11 @@ export function ContactPanel({
     enabled: (mode === "edit" || mode === "view") && !!contactId,
     retry: false,
   });
+
+  // Reset change state when contact data changes
+  useEffect(() => {
+    setHasUnsavedChanges(false);
+  }, [contactData]);
 
   // Get recent activities for this contact
   const { data: activities } = useQuery<Activity[]>({
