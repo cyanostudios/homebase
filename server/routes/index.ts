@@ -40,10 +40,9 @@ diagnostics.connectionError = error.stack;
       const data = result.rows || result;
       const row = Array.isArray(data) ? data[0] : data;
       diagnostics.directInvoiceCount = row?.count || 0;
-    } catch (error: any) {
-      diagnostics.directInvoiceCount = `FAILED: ${error.message}`;
-    }
-    }
+  } catch (error: any) {
+    diagnostics.directInvoiceCount = `FAILED: ${error.message}`;
+  }
 
     try {
       const invoices = await storage.getInvoices();
