@@ -216,12 +216,18 @@ export class DatabaseStorage implements IStorage {
 
   // Settings operations
   async getSetting(key: string): Promise<Setting | undefined> {
-    console.log("DEBUG: getSetting called with key:", key);
+    if (process.env.NODE_ENV === "development") {
+      console.log("DEBUG: getSetting called with key:", key);
+    }
     try {
       const result = await db.select().from(settings).where(eq(settings.key, key));
-      console.log("DEBUG: getSetting result:", result);
+      if (process.env.NODE_ENV === "development") {
+        console.log("DEBUG: getSetting result:", result);
+      }
       const [setting] = result;
-      console.log("DEBUG: getSetting setting:", setting);
+      if (process.env.NODE_ENV === "development") {
+        console.log("DEBUG: getSetting setting:", setting);
+      }
       return setting || undefined;
     } catch (error) {
       console.error("DEBUG: getSetting error:", error);
