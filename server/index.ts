@@ -44,7 +44,7 @@ app.use((req, res, next) => {
 (async () => {
   // Initialize the database before registering routes
   const dbStatus = await initializeDatabase();
-  console.log("Database initialization status:", dbStatus);
+  log(`Database initialization status: ${JSON.stringify(dbStatus)}`);
   
   // If database is not connected, it's a critical error
   if (!dbStatus.connected) {
@@ -53,8 +53,8 @@ app.use((req, res, next) => {
   
   // If database is connected but tables don't exist, create schema
   if (dbStatus.connected && !dbStatus.tablesExist) {
-    console.log("Database tables don't exist, but invoices table has been created manually.");
-    console.log("The 'matches' table has been renamed to 'invoices' successfully.");
+    log("Database tables don't exist, but invoices table has been created manually.");
+    log("The 'matches' table has been renamed to 'invoices' successfully.");
   }
   
   const server = await registerRoutes(app);
@@ -66,21 +66,21 @@ app.use((req, res, next) => {
   app.use("/api/settings", settingsRouter);
 
   // Log route registration completion for production debugging
-  console.log("=== ROUTE REGISTRATION COMPLETE ===");
-  console.log("Environment:", process.env.NODE_ENV || 'development');
-  console.log("Database URL exists:", !!process.env.DATABASE_URL);
-  console.log("Routes registered before static serving");
+  log("=== ROUTE REGISTRATION COMPLETE ===");
+  log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  log(`Database URL exists: ${!!process.env.DATABASE_URL}`);
+  log("Routes registered before static serving");
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
-    console.log("Development: Vite middleware loaded");
+    log("Development: Vite middleware loaded");
   } else {
-    console.log("Production: Loading static file serving");
+    log("Production: Loading static file serving");
     serveStatic(app);
-    console.log("Production: Static file serving loaded");
+    log("Production: Static file serving loaded");
   }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
