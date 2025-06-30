@@ -435,7 +435,7 @@ export function InvoiceDetailPanel() {
         await assignContact(currentInvoice.id, parseInt(selectedContactId), roleEnum);
         setIsAssigningContact(false);
         setSelectedContactId("");
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Check if the error is because contact is already assigned
         if (error?.message?.includes("already assigned") || error?.response?.data?.message?.includes("already assigned")) {
           const selectedContact = contacts?.find(r => r.id === parseInt(selectedContactId));
@@ -453,7 +453,7 @@ export function InvoiceDetailPanel() {
           await assignContact(currentInvoice.id, parseInt(selectedContactId), roleEnum);
           setIsAssigningContact(false);
           setSelectedContactId("");
-        } catch (assignError: any) {
+        } catch (assignError: unknown) {
           // Check again for already assigned error in the assignment attempt
           if (assignError?.message?.includes("already assigned") || assignError?.response?.data?.message?.includes("already assigned")) {
             const selectedContact = contacts?.find(r => r.id === parseInt(selectedContactId));

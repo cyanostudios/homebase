@@ -1,4 +1,4 @@
-import { ContactStatus } from "@shared/schema";
+import { ContactStatus, ContactAssignment } from "@shared/schema";
 
 export interface StatusColorConfig {
   bg: string;
@@ -60,7 +60,7 @@ export function getStatusColor(status: ContactStatus | null | undefined): Status
   return STATUS_COLORS[status] || STATUS_COLORS.UNASSIGNED;
 }
 
-export function getMatchStatusColor(assignments: any[]): StatusColorConfig {
+export function getMatchStatusColor(assignments: ContactAssignment[]): StatusColorConfig {
   if (!assignments || assignments.length === 0) {
     return STATUS_COLORS.UNASSIGNED;
   }

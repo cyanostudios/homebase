@@ -14,7 +14,7 @@ interface ContactRowProps {
 }
 
 function ContactRow({ contact, onClick }: ContactRowProps) {
-  const contactPersons = (contact.contactPersons as any[] | undefined) || [];
+  const contactPersons = (contact.contactPersons || []) as Contact['contactPersons'];
 
   const displayName = contact.companyName || contact.fullName;
   return (
@@ -53,7 +53,7 @@ function ContactRow({ contact, onClick }: ContactRowProps) {
 
 // Mobile card component for contacts
 function ContactMobileCard({ contact, onClick }: { contact: Contact; onClick: () => void }) {
-  const contactPersons = (contact.contactPersons as any[] | undefined) || [];
+  const contactPersons = (contact.contactPersons || []) as Contact['contactPersons'];
   const displayName = contact.companyName || contact.fullName;
 
   return (

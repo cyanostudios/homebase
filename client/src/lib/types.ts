@@ -1,3 +1,6 @@
+// Additional interface definitions
+import { ActivityType, ContactAssignment } from "@shared/schema";
+
 // Re-export shared types for consistency across client and server
 export type {
   User,
@@ -10,7 +13,6 @@ export type {
   Setting,
 } from "@shared/schema";
 export { ActivityType, ContactStatus } from "@shared/schema";
-
 
 export interface DashboardStats {
   sentInvoices: number;
@@ -37,5 +39,5 @@ export interface InvoiceWithContacts {
   status: string;
   clubId: number | null;
   createdAt: string;
-  contactAssignments: any[];
+  contactAssignments: ContactAssignment[];
 }

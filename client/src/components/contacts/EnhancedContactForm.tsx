@@ -35,8 +35,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Save } from "lucide-react";
 
+import type { Contact } from "@shared/schema";
+
 interface EnhancedContactFormProps {
-  contact?: any;
+  contact?: Contact;
   onSubmit: (data: ContactFormValues) => void;
   onDraft?: (data: ContactFormValues) => void;
   onChange?: (dirty: boolean) => void;
@@ -85,7 +87,7 @@ export function EnhancedContactForm({
     { value: "0", label: "0% - Nollmoms", description: "Export of goods/services, intra-EU sales to businesses" }
   ];
 
-  const normalizeContactType = (type: any): "company" | "private" => {
+  const normalizeContactType = (type: unknown): "company" | "private" => {
     if (!type) return "company";
     const val = String(type).toLowerCase();
     return val === "private" || val === "individual" ? "private" : "company";
