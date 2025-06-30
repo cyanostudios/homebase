@@ -12,32 +12,6 @@ export enum ContactStatus {
   DECLINED = "DECLINED"
 }
 
-
-
-// Enum for referee/contact status
-export enum RefereeStatus {
-  NOT_ASSIGNED = "NOT_ASSIGNED",
-  NOT_NOTIFIED = "NOT_NOTIFIED",
-  NOTIFIED = "NOTIFIED",
-  ASSIGNED = "ASSIGNED",
-  DECLINED = "DECLINED"
-}
-
-// Enum for referee/contact availability
-export enum RefereeAvailability {
-  AVAILABLE = "AVAILABLE",
-  LIMITED = "LIMITED",
-  BUSY = "BUSY",
-  UNAVAILABLE = "UNAVAILABLE"
-}
-
-// Enum for referee/contact roles
-export enum RefereeRole {
-  MAIN_REFEREE = "MAIN_REFEREE",
-  ASSISTANT_REFEREE = "ASSISTANT_REFEREE",
-  FOURTH_OFFICIAL = "FOURTH_OFFICIAL"
-}
-
 // Enum for activity types
 export enum ActivityType {
   INVOICE_CREATED = "INVOICE_CREATED",

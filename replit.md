@@ -26,7 +26,7 @@ Referee Admin is a comprehensive sports club management system designed for mana
 - **Schema**: Centralized schema definition in `shared/schema.ts`
 - **Tables**: Users, Clubs, Referees, Matches, Referee Assignments, Activities, Notifications, Settings
 - **Relationships**: Foreign key constraints with proper cascading
-- **Enums**: TypeScript enums for status management (RefereeStatus, RefereeAvailability, etc.)
+- **Enums**: TypeScript enums for status management
 
 ## Key Components
 
