@@ -5,6 +5,33 @@ import { insertContactSchema } from "@shared/schema";
 
 const router = Router();
 
+router.post("/login", async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const contact = await storage.getContactByEmail(email);
+
+    if (!contact) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    res.json({
+      message: "Login successful",
+      contact: {
+        id: contact.id,
+        fullName: contact.fullName,
+        email: contact.email,
+      },
+    });
+  } catch {
+    res.status(500).json({ message: "Login failed" });
+  }
+});
+
 router.get("/", async (_req: Request, res: Response) => {
   try {
     const contacts = await storage.getContacts();
