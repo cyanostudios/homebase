@@ -54,7 +54,7 @@ app.use((req, res, next) => {
   // If database is connected but tables don't exist, create schema
   if (dbStatus.connected && !dbStatus.tablesExist) {
     console.log("Database tables don't exist, but invoices table has been created manually.");
-    console.log("The 'matches' table has been renamed to 'invoices' successfully.");
+    console.log("Database initialized with invoices table.");
   }
   
   const server = await registerRoutes(app);

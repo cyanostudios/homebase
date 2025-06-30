@@ -210,8 +210,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (currentInvoice) {
         queryClient.invalidateQueries({ queryKey: [`/api/invoices/${currentInvoice.id}/assignments`] });
       }
-      // Also invalidate the matches with assignments query to refresh the match table
-      queryClient.invalidateQueries({ queryKey: ['/api/matches-with-assignments'] });
+      // Also invalidate the invoices with assignments query to refresh the table
+      queryClient.invalidateQueries({ queryKey: ['/api/invoices-with-assignments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/activities'] });
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
       
@@ -278,8 +278,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (currentInvoice) {
         queryClient.invalidateQueries({ queryKey: [`/api/invoices/${currentInvoice.id}/assignments`] });
       }
-      // Also invalidate the matches with assignments query to refresh the match table
-      queryClient.invalidateQueries({ queryKey: ['/api/matches-with-assignments'] });
+      // Also invalidate the invoices with assignments query to refresh the table
+      queryClient.invalidateQueries({ queryKey: ['/api/invoices-with-assignments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/activities'] });
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
       

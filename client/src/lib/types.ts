@@ -20,7 +20,7 @@ export interface Club {
   createdAt: string;
 }
 
-export interface Referee {
+export interface Contact {
   id: number;
   fullName: string;
   email: string;
@@ -46,10 +46,10 @@ export interface Invoice {
   createdAt: string;
 }
 
-export interface RefereeAssignment {
+export interface ContactAssignment {
   id: number;
   invoiceId: number;
-  refereeId: number;
+  contactId: number;
   role: string;
   status: string;
   notifiedAt: string | null;
@@ -57,7 +57,7 @@ export interface RefereeAssignment {
   response: string | null;
   reminderSent: boolean;
   createdAt: string;
-  referee?: Referee;
+  contact?: Contact;
   invoice?: Invoice;
 }
 

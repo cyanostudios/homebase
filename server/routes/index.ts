@@ -64,12 +64,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Test table existence
     try {
-      const result = await db.execute(sql`SELECT COUNT(*) as count FROM matches`);
+      const result = await db.execute(sql`SELECT COUNT(*) as count FROM invoices`);
       const data = result.rows || result;
       const row = Array.isArray(data) ? data[0] : data;
-      diagnostics.directMatchCount = row?.count || 0;
+      diagnostics.directInvoiceCount = row?.count || 0;
     } catch (error: any) {
-      diagnostics.directMatchCount = `FAILED: ${error.message}`;
+      diagnostics.directInvoiceCount = `FAILED: ${error.message}`;
     }
 
     // Test storage layer

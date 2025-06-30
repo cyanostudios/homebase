@@ -26,8 +26,8 @@ export function TopBar() {
         <div className="top-bar__search">
           <div className="top-bar__search-wrapper">
             <Search className="top-bar__search-icon" />
-            <Input 
-              placeholder="Search matches, referees..." 
+            <Input
+              placeholder="Search invoices, contacts..."
               className="top-bar__search-input"
             />
           </div>

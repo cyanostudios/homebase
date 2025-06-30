@@ -61,36 +61,36 @@ export function ImportInvoicesPanel({ onClose }: ImportInvoicesPanelProps) {
 
   const settingsLoading = loadingDefaultSport || loadingMatchCategories || loadingTeamCategories || loadingTeamSizeFormats || loadingDefaultTeamSize;
 
-  // Mutation for importing matches
+  // Mutation for importing invoices
   const importMutation = useMutation({
     mutationFn: async (matches: ParsedMatch[]) => {
       const results = [];
       for (const match of matches) {
-        const matchData = {
+        const invoiceData = {
           homeTeam: match.homeTeam,
           awayTeam: match.awayTeam,
           dateTime: match.dateTime,
           venue: match.venue || '',
           city: match.city || '',
           category: match.category || '',
-          description: `${match.teamCategory || ''} - ${match.teamSize || ''}`.replace(/^[\s-]+|[\s-]+$/g, '') || 'Match',
+          description: `${match.teamCategory || ''} - ${match.teamSize || ''}`.replace(/^[\s-]+|[\s-]+$/g, '') || 'Invoice',
           sport: match.sport || defaultSport?.value || 'Football',
           team: `${match.teamCategory || ''} ${match.teamSize || ''}`.trim() || 'Team',
           status: match.status || 'SCHEDULED',
           clubId: 1 // Default club ID
         };
-        
-        const response = await apiRequest('POST', '/api/matches', matchData);
+
+        const response = await apiRequest('POST', '/api/invoices', invoiceData);
         results.push(await response.json());
       }
       return results;
     },
     onSuccess: (data) => {
-      // Invalidate matches query to refresh the table
-      queryClient.invalidateQueries({ queryKey: ['/api/matches'] });
+      // Invalidate invoices query to refresh the table
+      queryClient.invalidateQueries({ queryKey: ['/api/invoices'] });
       setImportResult({ 
         success: true, 
-        message: `Successfully imported ${data.length} matches` 
+        message: `Successfully imported ${data.length} invoices`
       });
       
       // Clear input and preview after successful import
@@ -101,12 +101,12 @@ export function ImportInvoicesPanel({ onClose }: ImportInvoicesPanelProps) {
     onError: (error) => {
       setImportResult({ 
         success: false, 
-        message: 'Failed to import matches. Please try again.' 
+        message: 'Failed to import invoices. Please try again.'
       });
     }
   });
 
-  // Parse text input into match objects
+  // Parse text input into invoice objects
   const parseTextInput = (text: string): ParsedMatch[] => {
     const lines = text.split('\n').filter(line => line.trim() !== '');
     
@@ -233,7 +233,7 @@ export function ImportInvoicesPanel({ onClose }: ImportInvoicesPanelProps) {
     const validMatches = parsedMatches.filter(match => match.isValid);
     
     if (validMatches.length === 0) {
-      setImportResult({ success: false, message: 'No valid matches to import' });
+      setImportResult({ success: false, message: 'No valid invoices to import' });
       return;
     }
 
@@ -337,7 +337,7 @@ export function ImportInvoicesPanel({ onClose }: ImportInvoicesPanelProps) {
               </div>
             </div>
             <CardDescription>
-              Review parsed matches before importing
+              Review parsed invoices before importing
             </CardDescription>
           </CardHeader>
           <CardContent>
