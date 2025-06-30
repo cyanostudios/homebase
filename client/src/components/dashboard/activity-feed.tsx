@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Activity, ActivityType } from "@/lib/types";
+import type { Activity } from "@shared/schema";
+import { ActivityType } from "@shared/schema";
 import { formatDistanceToNow, format } from "date-fns";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Invoice, Contact, ContactAssignment, Activity, DashboardStats } from "@/lib/types";
+import type { Invoice, Contact, ContactAssignment, Activity } from "@shared/schema";
+import type { DashboardStats } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 

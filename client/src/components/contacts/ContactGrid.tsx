@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Contact } from "@/lib/types";
+import type { Contact } from "@shared/schema";
 import { useApp } from "@/context/app-context";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo } from "react";
