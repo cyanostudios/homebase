@@ -258,11 +258,9 @@ export function InvoiceDetailPanel() {
     },
   });
 
-  // Determine if we're in club mode or referee mode
+  // Determine if we're in club mode or contact mode
   // We'll use this only for conditional rendering of editing features
   const isClubMode = viewMode === "club";
-  
-  const currentContactId = !isClubMode ? parseInt(localStorage.getItem("refereeId") || "0") : null;
 
 
 
@@ -497,7 +495,7 @@ export function InvoiceDetailPanel() {
   };
 
   const handleConfirmRefereeDecline = async () => {
-    if (!assignmentToDecline || !currentRefereeId) return;
+    if (!assignmentToDecline || !currentContactId) return;
 
     try {
       const response = await fetch(`/api/assignments/${assignmentToDecline.id}/respond`, {
@@ -505,7 +503,7 @@ export function InvoiceDetailPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           response: "DECLINED", 
-          refereeId: currentRefereeId 
+          refereeId: currentContactId
         })
       });
 
@@ -516,7 +514,7 @@ export function InvoiceDetailPanel() {
 
       // Invalidate queries to refresh the data
       await queryClient.invalidateQueries({ queryKey: [`/api/invoices/${currentInvoice?.id}/assignments`] });
-      await queryClient.invalidateQueries({ queryKey: [`/api/referees/${currentRefereeId}/assignments`] });
+      await queryClient.invalidateQueries({ queryKey: [`/api/contacts/${currentContactId}/assignments`] });
 
       toast({
         title: "Assignment Declined",
