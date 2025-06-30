@@ -3,8 +3,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Invoice, Contact, ContactAssignment, Activity, ActivityType } from "@/lib/types";
-import { ContactStatus } from "@shared/schema";
+import type { Invoice, Contact, ContactAssignment, Activity } from "@shared/schema";
+import { ActivityType, ContactStatus } from "@shared/schema";
 
 import { useApp } from "@/context/app-context";
 import { useViewMode } from "@/context/view-mode-context";
