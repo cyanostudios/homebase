@@ -55,11 +55,12 @@ app.use((req, res, next) => {
     console.error("CRITICAL: Database connection failed. Application may not function correctly.");
   }
   
-  // If database is connected but tables don't exist, create schema
-  if (dbStatus.connected && !dbStatus.tablesExist) {
-    log("Database tables don't exist, but invoices table has been created manually.");
-    log("The 'matches' table has been renamed to 'invoices' successfully.");
-  }
+// If database is connected but tables don't exist, create schema
+if (dbStatus.connected && !dbStatus.tablesExist) {
+  log("Database tables don't exist, but invoices table has been created manually.");
+  log("Database initialized with invoices table.");
+  log("The 'matches' table has been renamed to 'invoices' successfully.");
+}
   
   const server = await registerRoutes(app);
 

@@ -27,7 +27,7 @@ interface InvoiceRowProps {
 function InvoiceRow({ invoice, onClick, onNotifyClick }: InvoiceRowProps) {
   const { timeFormat } = useTimeFormat();
   const { dateFormat } = useDateFormat();
-  const { data: assignments } = useQuery<(RefereeAssignment & { referee?: Referee })[]>({
+  const { data: assignments } = useQuery<(ContactAssignment & { contact?: Contact })[]>({
     queryKey: [`/api/invoices/${invoice.id}/assignments`],
   });
 
@@ -44,26 +44,26 @@ function InvoiceRow({ invoice, onClick, onNotifyClick }: InvoiceRowProps) {
   // Combine date and time for display
   const dateTimeDisplay = `${formattedDate} ${formattedTime}`;
 
-  // Get assignments with referee data
-  const refereeAssignments = useMemo(() => {
+  // Get assignments with contact data
+  const contactAssignments = useMemo(() => {
     if (!assignments || assignments.length === 0) {
       return [];
     }
 
-    // Get assignments with referee data and ensure status is properly mapped
+    // Get assignments with contact data and ensure status is properly mapped
     return assignments
-      .filter(a => a.referee)
+      .filter(a => a.contact)
       .map(a => {
         // Make sure we have the correct status enum value
         let status = a.status;
         // If status is a string, convert it to the proper enum value
         if (typeof status === 'string') {
-          status = status as RefereeStatus;
+          status = status as ContactStatus;
         }
 
         return {
           id: a.id,
-          name: a.referee?.fullName || '',
+          name: a.contact?.fullName || '',
           status: status
         };
       });
@@ -132,25 +132,25 @@ function InvoiceRow({ invoice, onClick, onNotifyClick }: InvoiceRowProps) {
         </span>
       </td>
       
-      {/* Referee */}
+      {/* Contact */}
       <td className="px-4 py-3 text-xs">
         <div className="flex flex-col space-y-1">
-          {refereeAssignments.length === 0 ? (
+          {contactAssignments.length === 0 ? (
             <div className="flex items-center">
               <div className="status-dot bg-neutral-300 mr-2"></div>
-              <span className="text-neutral-500">No referees assigned</span>
+              <span className="text-neutral-500">No contacts assigned</span>
             </div>
           ) : (
-            refereeAssignments.map(ref => (
+            contactAssignments.map(ref => (
               <div key={ref.id} className="flex items-center">
                 {/* Status color dot - perfectly round indicators */}
-                {ref.status === RefereeStatus.ASSIGNED ? (
+                {ref.status === ContactStatus.ASSIGNED ? (
                   <div className="status-dot bg-green-500 mr-2.5" title="Assigned"></div>
-                ) : ref.status === RefereeStatus.NOTIFIED ? (
+                ) : ref.status === ContactStatus.NOTIFIED ? (
                   <div className="status-dot bg-orange-500 mr-2.5" title="Notified"></div>
-                ) : ref.status === RefereeStatus.NOT_NOTIFIED ? (
+                ) : ref.status === ContactStatus.NOT_NOTIFIED ? (
                   <div className="status-dot bg-amber-400 mr-2.5" title="Not Notified"></div>
-                ) : ref.status === RefereeStatus.DECLINED ? (
+                ) : ref.status === ContactStatus.DECLINED ? (
                   <div className="status-dot bg-red-600 mr-2.5" title="Declined"></div>
                 ) : (
                   <div className="status-dot bg-neutral-300 mr-2.5" title="Not Assigned"></div>
@@ -174,7 +174,7 @@ function InvoiceRow({ invoice, onClick, onNotifyClick }: InvoiceRowProps) {
 }
 
 export function InvoiceTable() {
-  const { openInvoicePanel, notifyReferee, isInvoiceInEditMode, isRefereeInEditMode } = useApp();
+  const { openInvoicePanel, notifyContact, isInvoiceInEditMode, isContactInEditMode } = useApp();
   const isMobile = useIsMobile();
   const { timeFormat } = useTimeFormat();
 
@@ -204,7 +204,7 @@ export function InvoiceTable() {
   // Handlers
   const handleRowClick = (invoice: any) => {
     // Prevent navigation when in edit mode
-    if (isInvoiceInEditMode || isRefereeInEditMode) {
+    if (isInvoiceInEditMode || isContactInEditMode) {
       return;
     }
     openInvoicePanel(invoice);
@@ -212,7 +212,7 @@ export function InvoiceTable() {
 
   const handleNotifyClick = (e: React.MouseEvent, assignmentId: number) => {
     e.stopPropagation();
-    notifyReferee(assignmentId);
+    notifyContact(assignmentId);
   };
 
   // Process invoices for filtering and sorting
@@ -408,7 +408,7 @@ export function InvoiceTable() {
               <th className="px-4 py-3 font-medium text-left hidden md:table-cell">Venue</th>
               <th className="px-4 py-3 font-medium text-left hidden lg:table-cell">Invoice Category</th>
               <th className="px-4 py-3 font-medium text-left hidden lg:table-cell">Team Category</th>
-              <th className="px-4 py-3 font-medium text-left">Referee</th>
+              <th className="px-4 py-3 font-medium text-left">Contact</th>
               <th className="px-4 py-3 font-medium text-center w-12">View</th>
             </tr>
             </thead>

@@ -262,7 +262,7 @@ export function InvoiceDetailPanel() {
   // We'll use this only for conditional rendering of editing features
   const isClubMode = viewMode === "club";
   
-  const currentRefereeId = !isClubMode ? parseInt(localStorage.getItem("refereeId") || "0") : null;
+  const currentContactId = !isClubMode ? parseInt(localStorage.getItem("refereeId") || "0") : null;
 
 
 
@@ -967,14 +967,14 @@ export function InvoiceDetailPanel() {
                           <FormLabel>Description (Optional)</FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="Additional match details"
+                              placeholder="Additional invoice details"
                               className="resize-none min-h-[100px]"
                               {...field}
                               value={field.value || ""}
                             />
                           </FormControl>
                           <FormDescription>
-                            Add any additional information about the match
+                            Add any additional information about the invoice
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -1411,7 +1411,7 @@ export function InvoiceDetailPanel() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Decline Assignment</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to decline this match? This action cannot be undone.
+                  Are you sure you want to decline this invoice? This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

@@ -15,8 +15,8 @@ export function MobileHeader() {
 
   const getPageTitle = () => {
     if (location === "/") return "Dashboard";
-    if (location === "/matches") return "Matches";
-    if (location === "/referees") return "Referees";
+    if (location === "/invoices") return "Invoices";
+    if (location === "/contacts") return "Contacts";
     if (location === "/calendar") return "Calendar";
     if (location === "/statistics" || location === "/stats") return "Statistics";
     if (location === "/settings") return "Settings";
@@ -26,9 +26,9 @@ export function MobileHeader() {
     return isClubMode ? "Referee Admin" : "Referee Portal";
   };
 
-  const canCreateMatch = isClubMode && location === "/matches";
-  const canCreateReferee = isClubMode && location === "/referees";
-  const showImportButton = isClubMode && location === "/matches";
+  const canCreateInvoice = isClubMode && location === "/invoices";
+  const canCreateContact = isClubMode && location === "/contacts";
+  const showImportButton = isClubMode && location === "/invoices";
 
   return (
     <>
@@ -52,7 +52,7 @@ export function MobileHeader() {
 
           {/* Right: Action Buttons - Show based on current view */}
           <div className="flex items-center gap-2">
-            {canCreateMatch && (
+          {canCreateInvoice && (
               <>
                 <Button
                   onClick={openInvoiceCreatePanel}
@@ -60,7 +60,7 @@ export function MobileHeader() {
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Plus className="h-4 w-4 mr-1" />
-                  Match
+                  Invoice
                 </Button>
                 {showImportButton && (
                   <Button
@@ -76,14 +76,14 @@ export function MobileHeader() {
               </>
             )}
             
-            {canCreateReferee && (
+            {canCreateContact && (
               <Button
                 onClick={openContactCreatePanel}
                 size="sm"
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Plus className="h-4 w-4 mr-1" />
-                Referee
+                Contact
               </Button>
             )}
           </div>

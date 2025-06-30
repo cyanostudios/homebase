@@ -1,6 +1,6 @@
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths, startOfDay, addWeeks, subWeeks } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
-import type { Match, RefereeAssignment, Referee } from '@shared/schema';
+import type { Invoice, ContactAssignment, Contact } from '@shared/schema';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin } from 'lucide-react';
@@ -11,13 +11,13 @@ import { getMatchStatusColor } from '@/lib/status-colors';
 
 // This function is now handled by the shared getMatchStatusColor function
 
-function MatchEvent({ match, onClick }: { match: any; onClick: () => void }) {
+function InvoiceEvent({ invoice, onClick }: { invoice: any; onClick: () => void }) {
   // Handle both string and Date types for dateTime
-  const matchDate = typeof match.dateTime === 'string' ? new Date(match.dateTime) : match.dateTime;
-  
-  // Fetch referee assignments for this match
-  const { data: assignments } = useQuery<(RefereeAssignment & { referee?: Referee })[]>({
-    queryKey: [`/api/matches/${match.id}/assignments`],
+  const invoiceDate = typeof invoice.dateTime === 'string' ? new Date(invoice.dateTime) : invoice.dateTime;
+
+  // Fetch contact assignments for this invoice
+  const { data: assignments } = useQuery<(ContactAssignment & { contact?: Contact })[]>({
+    queryKey: [`/api/invoices/${invoice.id}/assignments`],
   });
 
   const colors = useMemo(() => getMatchStatusColor(assignments || []), [assignments]);
@@ -27,9 +27,9 @@ function MatchEvent({ match, onClick }: { match: any; onClick: () => void }) {
       className={`mb-0.5 px-1 py-0.5 ${colors.bg} ${colors.hover} text-white rounded text-[10px] cursor-pointer border-l ${colors.border} transition-colors leading-tight`}
       onClick={onClick}
     >
-      <div className="font-medium truncate">{match.homeTeam} vs {match.awayTeam}</div>
+      <div className="font-medium truncate">{invoice.homeTeam} vs {invoice.awayTeam}</div>
       <div className={`${colors.text} truncate`}>
-        {format(matchDate, 'HH:mm')}
+        {format(invoiceDate, 'HH:mm')}
       </div>
     </div>
   );
@@ -37,11 +37,11 @@ function MatchEvent({ match, onClick }: { match: any; onClick: () => void }) {
 
 type CalendarView = 'day' | 'week' | 'month';
 
-export default function MatchCalendar() {
-  const { data: matches = [], isLoading } = useQuery<any[]>({
-    queryKey: ['/api/matches'],
+export default function InvoiceCalendar() {
+  const { data: invoices = [], isLoading } = useQuery<any[]>({
+    queryKey: ['/api/invoices'],
   });
-  const { openMatchPanel } = useApp();
+  const { openInvoicePanel } = useApp();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>('month');
@@ -76,11 +76,11 @@ export default function MatchCalendar() {
 
   const calendarDays = getCalendarData();
 
-  // Get matches for a specific day
-  const getMatchesForDay = (date: Date) => {
-    return matches.filter(match => {
-      const matchDate = typeof match.dateTime === 'string' ? new Date(match.dateTime) : match.dateTime;
-      return isSameDay(matchDate, date);
+  // Get invoices for a specific day
+  const getInvoicesForDay = (date: Date) => {
+    return invoices.filter(invoice => {
+      const invoiceDate = typeof invoice.dateTime === 'string' ? new Date(invoice.dateTime) : invoice.dateTime;
+      return isSameDay(invoiceDate, date);
     });
   };
 
@@ -233,7 +233,7 @@ export default function MatchCalendar() {
           ${view === 'day' ? 'grid-cols-1' : view === 'week' ? 'grid-cols-7' : 'grid-cols-7'}
         `}>
           {calendarDays.map((day, index) => {
-            const dayMatches = getMatchesForDay(day);
+            const dayInvoices = getInvoicesForDay(day);
             const isCurrentMonth = view === 'month' ? isSameMonth(day, currentDate) : true;
             const isToday = isSameDay(day, new Date());
 
@@ -257,25 +257,24 @@ export default function MatchCalendar() {
                 
                 <div className="absolute inset-x-2 top-8 bottom-2 overflow-hidden">
                   <div className="space-y-0.5 h-full overflow-y-auto">
-                    {dayMatches.slice(0, view === 'day' ? 10 : isMobile ? 3 : 4).map((match) => {
-                      // Convert match to proper type for openMatchPanel
-                      const matchForPanel = {
-                        ...match,
-                        dateTime: typeof match.dateTime === 'string' ? match.dateTime : match.dateTime.toISOString()
+                    {dayInvoices.slice(0, view === 'day' ? 10 : isMobile ? 3 : 4).map((invoice) => {
+                      const invoiceForPanel = {
+                        ...invoice,
+                        dateTime: typeof invoice.dateTime === 'string' ? invoice.dateTime : invoice.dateTime.toISOString()
                       };
-                      
+
                       return (
-                        <MatchEvent
-                          key={match.id}
-                          match={match}
-                          onClick={() => openMatchPanel(match as any)}
+                        <InvoiceEvent
+                          key={invoice.id}
+                          invoice={invoice}
+                          onClick={() => openInvoicePanel(invoice as any)}
                         />
                       );
                     })}
-                    
-                    {dayMatches.length > (view === 'day' ? 10 : isMobile ? 3 : 4) && (
+
+                    {dayInvoices.length > (view === 'day' ? 10 : isMobile ? 3 : 4) && (
                       <div className="text-[10px] text-gray-500 px-1 py-0.5 bg-gray-100 rounded text-center">
-                        +{dayMatches.length - (view === 'day' ? 10 : isMobile ? 3 : 4)} more
+                        +{dayInvoices.length - (view === 'day' ? 10 : isMobile ? 3 : 4)} more
                       </div>
                     )}
                   </div>

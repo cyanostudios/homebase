@@ -17,10 +17,10 @@ const tabs: TabItem[] = [
     path: "/",
   },
   {
-    id: "matches",
-    label: "Matches",
+    id: "invoices",
+    label: "Invoices",
     icon: Trophy,
-    path: "/matches",
+    path: "/invoices",
   },
   {
     id: "calendar",
@@ -29,10 +29,10 @@ const tabs: TabItem[] = [
     path: "/calendar",
   },
   {
-    id: "referees",
-    label: "Referees",
+    id: "contacts",
+    label: "Contacts",
     icon: Users,
-    path: "/referees",
+    path: "/contacts",
   },
 ];
 

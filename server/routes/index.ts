@@ -32,6 +32,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       diagnostics.connectionTest = "SUCCESS";
     } catch (error: any) {
       diagnostics.connectionTest = `FAILED: ${error.message}`;
+diagnostics.connectionError = error.stack;
+    }
+    // Test table existence
+    try {
+      const result = await db.execute(sql`SELECT COUNT(*) as count FROM invoices`);
+      const data = result.rows || result;
+      const row = Array.isArray(data) ? data[0] : data;
+      diagnostics.directInvoiceCount = row?.count || 0;
+    } catch (error: any) {
+      diagnostics.directInvoiceCount = `FAILED: ${error.message}`;
+    }
     }
 
     try {

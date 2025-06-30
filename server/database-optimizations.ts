@@ -32,35 +32,35 @@ export class DatabaseOptimizations {
     return assignmentsByInvoice;
   }
 
-  // Batch load decline history for multiple referee-invoice combinations
-  static async batchLoadDeclineHistory(refereeInvoicePairs: Array<{refereeId: number, invoiceId: number}>) {
-    if (refereeInvoicePairs.length === 0) return {};
-    
+  // Batch load decline history for multiple contact-invoice combinations
+  static async batchLoadDeclineHistory(contactInvoicePairs: Array<{contactId: number, invoiceId: number}>) {
+    if (contactInvoicePairs.length === 0) return {};
+
     // Create conditions for all pairs
-    const conditions = refereeInvoicePairs.map(pair => 
+    const conditions = contactInvoicePairs.map(pair =>
       and(
-        eq(refereeAssignments.refereeId, pair.refereeId),
-        eq(refereeAssignments.invoiceId, pair.invoiceId),
-        eq(refereeAssignments.status, 'DECLINED')
+        eq(contactAssignments.contactId, pair.contactId),
+        eq(contactAssignments.invoiceId, pair.invoiceId),
+        eq(contactAssignments.status, 'DECLINED')
       )
     );
-    
+
     const declineHistory = await db
       .select({
-        refereeId: refereeAssignments.refereeId,
-        invoiceId: refereeAssignments.invoiceId,
+        contactId: contactAssignments.contactId,
+        invoiceId: contactAssignments.invoiceId,
         hasDeclined: sql<boolean>`COUNT(*) > 0`
       })
-      .from(refereeAssignments)
-      .where(sql`${refereeAssignments.refereeId} IN (${refereeInvoicePairs.map(p => p.refereeId).join(',')}) 
-                 AND ${refereeAssignments.invoiceId} IN (${refereeInvoicePairs.map(p => p.invoiceId).join(',')})
-                 AND ${refereeAssignments.status} = 'DECLINED'`)
-      .groupBy(refereeAssignments.refereeId, refereeAssignments.invoiceId);
+      .from(contactAssignments)
+      .where(sql`${contactAssignments.contactId} IN (${contactInvoicePairs.map(p => p.contactId).join(',')})
+                 AND ${contactAssignments.invoiceId} IN (${contactInvoicePairs.map(p => p.invoiceId).join(',')})
+                 AND ${contactAssignments.status} = 'DECLINED'`)
+      .groupBy(contactAssignments.contactId, contactAssignments.invoiceId);
     
     // Convert to lookup object
     const lookup: Record<string, boolean> = {};
     declineHistory.forEach(record => {
-      lookup[`${record.refereeId}-${record.invoiceId}`] = record.hasDeclined;
+      lookup[`${record.contactId}-${record.invoiceId}`] = record.hasDeclined;
     });
     
     return lookup;
@@ -146,22 +146,22 @@ export class DatabaseOptimizations {
   // Add database indexes for frequently queried columns
   static async createOptimizationIndexes() {
     try {
-      // Index for referee assignments by match_id (frequently queried)
+      // Index for contact assignments by invoice_id (frequently queried)
       await db.execute(sql`
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_referee_assignments_match_id 
-        ON referee_assignments(match_id)
+        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_contact_assignments_invoice_id
+        ON contact_assignments(invoice_id)
       `);
 
-      // Index for referee assignments by referee_id
+      // Index for contact assignments by contact_id
       await db.execute(sql`
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_referee_assignments_referee_id 
-        ON referee_assignments(referee_id)
+        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_contact_assignments_contact_id
+        ON contact_assignments(contact_id)
       `);
 
-      // Index for matches by date_time (for upcoming matches queries)
+      // Index for invoices by date_time (for upcoming invoice queries)
       await db.execute(sql`
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_matches_date_time 
-        ON matches(date_time)
+        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_invoices_date_time
+        ON invoices(date_time)
       `);
 
       // Index for activities by created_at (for recent activities)
@@ -170,16 +170,16 @@ export class DatabaseOptimizations {
         ON activities(created_at DESC)
       `);
 
-      // Index for notifications by referee_id and is_read
+      // Index for notifications by contact_id and is_read
       await db.execute(sql`
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_notifications_referee_read 
-        ON notifications(referee_id, is_read)
+        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_notifications_contact_read
+        ON notifications(contact_id, is_read)
       `);
 
-      // Composite index for referee assignments status and match date queries
+      // Composite index for contact assignments status and invoice date queries
       await db.execute(sql`
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_assignments_status_match_date 
-        ON referee_assignments(status, match_id)
+        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_assignments_status_invoice_date
+        ON contact_assignments(status, invoice_id)
       `);
 
       console.log("Database optimization indexes created successfully");
