@@ -29,12 +29,9 @@ interface NavItemProps {
 }
 
 function NavItem({ href, icon, label, isActive, colorClass = "text-neutral-600", hoverColorClass = "hover:bg-neutral-100", activeColorClass = "bg-blue-50" }: NavItemProps) {
-  const handleClick = () => {
-    console.log(`NavItem clicked: ${label} -> ${href}`);
-  };
-  
+
   return (
-    <Link href={href} onClick={handleClick}>
+    <Link href={href}>
       <div className={cn(
         "flex items-center space-x-3 px-3 py-2 text-sm font-medium transition-colors cursor-pointer nav-item-rounded",
         isActive 
