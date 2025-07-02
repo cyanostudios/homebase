@@ -16,13 +16,13 @@ document.head.appendChild(fontLink);
 
 // Add title
 const title = document.createElement("title");
-title.textContent = "Referee Admin - Sports Club Dashboard";
+title.textContent = "Homebase - Club Dashboard";
 document.head.appendChild(title);
 
 // Add meta description
 const metaDescription = document.createElement("meta");
 metaDescription.name = "description";
-metaDescription.content = "Referee Admin - Scalable Referee Assignment Tool for Sports Clubs. Manage matches, referees, and assignments efficiently.";
+metaDescription.content = "Homebase - Modern Contact Management and Assignment Tool for Clubs. Manage contacts, assignments, and activities efficiently.";
 document.head.appendChild(metaDescription);
 
 createRoot(document.getElementById("root")!).render(<App />);

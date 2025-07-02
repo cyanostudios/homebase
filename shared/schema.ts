@@ -141,7 +141,7 @@ export const contactAssignments = pgTable("contact_assignments", {
   id: serial("id").primaryKey(),
   invoiceId: integer("invoice_id").notNull().references(() => invoices.id),
   contactId: integer("contact_id").notNull().references(() => contacts.id),
-  role: text("role").notNull().default("MAIN_REFEREE"),
+  role: text("role").notNull().default("MAIN_CONTACT"),
   status: text("status").notNull().default("NOT_ASSIGNED"),
   notifiedAt: timestamp("notified_at"),
   responseAt: timestamp("response_at"),

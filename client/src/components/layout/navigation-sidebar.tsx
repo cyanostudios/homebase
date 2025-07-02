@@ -50,22 +50,7 @@ export function NavigationSidebar() {
   const { viewMode } = useViewMode();
   const [location] = useLocation();
   const isClubMode = viewMode === "club";
-  const [contactId, setContactId] = useState<number | null>(null);
   
-  // Get contact ID from localStorage
-  useEffect(() => {
-    const storedId = localStorage.getItem("contactId");
-    if (storedId) {
-      setContactId(Number(storedId));
-    }
-  }, [viewMode]);
-  
-  // Fetch current contact data for display
-  const { data: contact } = useQuery<Contact>({
-    queryKey: [`/api/contacts/${contactId}`],
-    enabled: !!contactId && !isClubMode,
-  });
-
   const clubNavItems = [
     { href: "/", icon: <Home className="h-4 w-4" />, label: "Dashboard", colorClass: "text-gray-700", hoverColorClass: "hover:bg-gray-50", activeColorClass: "bg-gray-50" },
     { href: "/invoices", icon: <Building2 className="h-4 w-4" />, label: "Invoices", colorClass: "text-green-500", hoverColorClass: "hover:bg-green-50", activeColorClass: "bg-green-50" },
@@ -74,14 +59,7 @@ export function NavigationSidebar() {
     { href: "/stats", icon: <BarChart3 className="h-4 w-4" />, label: "Statistics", colorClass: "text-purple-500", hoverColorClass: "hover:bg-purple-50", activeColorClass: "bg-purple-50" },
   ];
 
-  const contactNavItems = [
-    { href: "/contact/dashboard", icon: <Home className="h-4 w-4" />, label: "Overview", colorClass: "text-gray-700", hoverColorClass: "hover:bg-gray-50", activeColorClass: "bg-gray-50" },
-    { href: "/contact/notifications", icon: <Bell className="h-4 w-4" />, label: "Notifications", colorClass: "text-orange-500", hoverColorClass: "hover:bg-orange-50", activeColorClass: "bg-orange-50" },
-    { href: "/contact/assignments", icon: <Trophy className="h-4 w-4" />, label: "Assignments", colorClass: "text-green-500", hoverColorClass: "hover:bg-green-50", activeColorClass: "bg-green-50" },
-    { href: "/contact/profile", icon: <User className="h-4 w-4" />, label: "Profile", colorClass: "text-blue-500", hoverColorClass: "hover:bg-blue-50", activeColorClass: "bg-blue-50" },
-  ];
-
-  const navItems = isClubMode ? clubNavItems : contactNavItems;
+  const navItems = clubNavItems;
 
   const handleLogout = () => {
     if (!isClubMode) {
@@ -89,14 +67,6 @@ export function NavigationSidebar() {
       localStorage.removeItem("contactName");
       localStorage.setItem("viewMode", "club");
       window.location.href = "/";
-    }
-  };
-
-  const getUserName = () => {
-    if (isClubMode) {
-      return "Johan Andersson";
-    } else {
-      return contact?.fullName || localStorage.getItem("contactName") || "Contact";
     }
   };
 
@@ -122,29 +92,6 @@ export function NavigationSidebar() {
       {/* Bottom section with divider */}
       <div className="border-t border-neutral-200">
         <div className="p-4 space-y-2">
-          {/* View Mode Switch Button */}
-          <div className={cn(
-            "flex items-center space-x-3 px-3 py-2 text-sm font-medium transition-colors cursor-pointer nav-item-rounded",
-            "text-neutral-900 hover:bg-indigo-50"
-          )} onClick={() => {
-            if (isClubMode) {
-              // Switch to contact mode with Maria as example
-              localStorage.setItem("contactId", "5");
-              localStorage.setItem("contactName", "Maria Johansson");
-              localStorage.setItem("viewMode", "contact");
-              window.location.href = "/contact/assignments";
-            } else {
-              // Switch to club mode
-              localStorage.removeItem("contactId");
-              localStorage.removeItem("contactName");
-              localStorage.setItem("viewMode", "club");
-              window.location.href = "/";
-            }
-          }}>
-            <RefreshCw className="h-4 w-4 text-indigo-500" />
-            <span>Switch</span>
-          </div>
-
           {/* Settings Link */}
           <div className={cn(
             "flex items-center space-x-3 px-3 py-2 text-sm font-medium transition-colors cursor-pointer nav-item-rounded",
@@ -163,12 +110,6 @@ export function NavigationSidebar() {
           )} onClick={handleLogout}>
             <LogOut className="h-4 w-4 text-red-500" />
             <span>Logout</span>
-          </div>
-
-          {/* User info */}
-          <div className="px-3 py-2">
-            <p className="text-xs font-medium text-neutral-900 truncate">{getUserName()}</p>
-            <p className="text-xs text-neutral-500">{isClubMode ? "Admin" : "Contact"}</p>
           </div>
         </div>
       </div>

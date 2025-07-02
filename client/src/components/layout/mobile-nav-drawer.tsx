@@ -23,12 +23,7 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavDrawerProps) {
     { href: "/stats", label: "Statistics" },
   ];
 
-  const contactNavItems = [
-    { href: "/contact/assignments", label: "Assignments" },
-    { href: "/contact/profile", label: "Profile" },
-  ];
-
-  const navItems = isClubMode ? clubNavItems : contactNavItems;
+  const navItems = clubNavItems;
 
   const handleLogout = () => {
     if (!isClubMode) {
@@ -41,21 +36,6 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavDrawerProps) {
   };
 
   const handleNavItemClick = () => {
-    onClose();
-  };
-
-  const handleViewModeSwitch = () => {
-    if (isClubMode) {
-      localStorage.setItem("contactId", "5");
-      localStorage.setItem("contactName", "Maria Johansson");
-      localStorage.setItem("viewMode", "contact");
-      window.location.href = "/contact/assignments";
-    } else {
-      localStorage.removeItem("contactId");
-      localStorage.removeItem("contactName");
-      localStorage.setItem("viewMode", "club");
-      window.location.href = "/";
-    }
     onClose();
   };
 
@@ -117,21 +97,6 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavDrawerProps) {
               <span>Settings</span>
             </div>
           </Link>
-
-          {/* View Mode Switch */}
-          <div 
-            className="flex items-center space-x-3 px-3 py-2 text-sm font-medium transition-colors cursor-pointer rounded-lg text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
-            onClick={handleViewModeSwitch}
-          >
-            {isClubMode ? (
-              <UserCheck className="h-4 w-4" />
-            ) : (
-              <Building2 className="h-4 w-4" />
-            )}
-            <span>
-              {isClubMode ? "Switch to Contact" : "Switch to Club"}
-            </span>
-          </div>
 
           {/* Logout */}
           <div 

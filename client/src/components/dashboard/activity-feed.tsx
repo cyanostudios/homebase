@@ -43,8 +43,8 @@ export function ActivityFeed() {
   // Sort activities by creation date (newest first) and limit to 5 if showAllActivities is false
   const displayedActivities = (activities && activities.length > 0) 
     ? (!showAllActivities 
-        ? activities.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5)
-        : activities.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+        ? activities.sort((a, b) => new Date(b.createdAt || Date.now()).getTime() - new Date(a.createdAt || Date.now()).getTime()).slice(0, 5)
+        : activities.sort((a, b) => new Date(b.createdAt || Date.now()).getTime() - new Date(a.createdAt || Date.now()).getTime()))
     : [];
 
   if (isLoading) {
@@ -114,25 +114,23 @@ function ActivityItem({ activity }: ActivityItemProps) {
     switch (activity.activityType) {
       case ActivityType.ASSIGNMENT_ACCEPTED:
         return { icon: "sports", bgColor: "bg-primary-100", textColor: "text-primary-600" };
-      case ActivityType.REFEREE_ASSIGNED:
-        return { icon: "event", bgColor: "bg-secondary-100", textColor: "text-secondary-600" };
       case ActivityType.ASSIGNMENT_DECLINED:
         return { icon: "cancel", bgColor: "bg-red-100", textColor: "text-red-600" };
       case ActivityType.NOTIFICATION_SENT:
         return { icon: "send", bgColor: "bg-green-100", textColor: "text-green-600" };
-      case ActivityType.MATCH_CREATED:
-        return { icon: "event_available", bgColor: "bg-blue-100", textColor: "text-blue-600" };
-      case ActivityType.ASSIGNMENT_REMOVED:
-        return { icon: "person_remove", bgColor: "bg-red-100", textColor: "text-red-600" };
-      case ActivityType.REFEREE_CREATED:
+      case ActivityType.CONTACT_CREATED:
         return { icon: "person_add", bgColor: "bg-indigo-100", textColor: "text-indigo-600" };
+      case ActivityType.ASSIGNMENT_CREATED:
+        return { icon: "event", bgColor: "bg-secondary-100", textColor: "text-secondary-600" };
+      case ActivityType.ASSIGNMENT_DELETED:
+        return { icon: "person_remove", bgColor: "bg-red-100", textColor: "text-red-600" };
       default:
         return { icon: "info", bgColor: "bg-neutral-100", textColor: "text-neutral-600" };
     }
   };
 
   const { icon, bgColor, textColor } = getActivityIcon();
-  const activityDate = new Date(activity.createdAt);
+  const activityDate = new Date(activity.createdAt || Date.now());
 
   // Use the date utils functions for consistent formatting
   const formattedTime = formatTime(activityDate, timeFormat);
@@ -142,8 +140,7 @@ function ActivityItem({ activity }: ActivityItemProps) {
 
   return (
     <div className={`p-4 flex items-start space-x-4 ${
-      activity.activityType === ActivityType.REFEREE_ASSIGNED || activity.activityType === ActivityType.ASSIGNMENT_REMOVED ? 'bg-[#3a606e]/5' :
-      activity.activityType === ActivityType.MATCH_CREATED || activity.activityType === ActivityType.MATCH_UPDATED ? 'bg-blue-50' :
+      activity.activityType === ActivityType.ASSIGNMENT_CREATED || activity.activityType === ActivityType.ASSIGNMENT_DELETED ? 'bg-[#3a606e]/5' :
       'bg-neutral-50'
     }`}>
       <div className={`${textColor}`}>
@@ -157,4 +154,33 @@ function ActivityItem({ activity }: ActivityItemProps) {
       </div>
     </div>
   );
+}
+
+function getActivityLabel(type: ActivityType): string {
+  switch (type) {
+    case ActivityType.CONTACT_CREATED:
+      return "Contact Created";
+    case ActivityType.CONTACT_UPDATED:
+      return "Contact Updated";
+    case ActivityType.ASSIGNMENT_CREATED:
+      return "Assignment Created";
+    case ActivityType.ASSIGNMENT_UPDATED:
+      return "Assignment Updated";
+    case ActivityType.ASSIGNMENT_DELETED:
+      return "Assignment Deleted";
+    case ActivityType.ASSIGNMENT_ACCEPTED:
+      return "Assignment Accepted";
+    case ActivityType.ASSIGNMENT_DECLINED:
+      return "Assignment Declined";
+    case ActivityType.NOTIFICATION_SENT:
+      return "Notification Sent";
+    case ActivityType.NOTIFICATION_READ:
+      return "Notification Read";
+    case ActivityType.INVOICE_CREATED:
+      return "Invoice Created";
+    case ActivityType.INVOICE_UPDATED:
+      return "Invoice Updated";
+    default:
+      return "Activity";
+  }
 }

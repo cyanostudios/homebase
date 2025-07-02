@@ -14,7 +14,7 @@ export function DefaultSportSettings() {
           Default Sport
         </CardTitle>
         <CardDescription>
-          Set the default sport for new matches and referee assignments.
+          Set the default sport for new matches and contact assignments.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

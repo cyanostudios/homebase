@@ -17,10 +17,7 @@ export function TopBar() {
     if (location === "/calendar") return "Calendar";
     if (location === "/statistics" || location === "/stats") return "Statistics";
     if (location === "/settings") return "Settings";
-    if (location === "/referee/assignments") return "My Assignments";
-    if (location === "/referee/profile") return "My Profile";
-    if (location === "/referee/notifications") return "Notifications";
-    return isClubMode ? "Referee Admin" : "Referee Portal";
+    return "Homebase Club";
   };
 
   const canCreateInvoice = isClubMode && (location === "/invoices" || location === "/");

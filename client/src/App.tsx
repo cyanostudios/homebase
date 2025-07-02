@@ -31,7 +31,7 @@ import { useViewMode } from "@/context/view-mode-context";
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} forcedTheme="light" storageKey="referee-admin-theme">
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} forcedTheme="light" storageKey="homebase-theme">
         <TooltipProvider>
           <ViewModeProvider>
             <AppContent />

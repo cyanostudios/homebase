@@ -35,9 +35,9 @@ function ContactRow({ contact, onClick }: ContactRowProps) {
           <span className="text-neutral-500">-</span>
         ) : (
           <div className="flex flex-col space-y-1">
-            {contactPersons.map((p, idx) => (
-              <span key={idx}>{`${p.firstName} ${p.lastName}`}</span>
-            ))}
+{Array.isArray(contactPersons) ? contactPersons.map((p, idx) => (
+  <span key={idx}>{`${p.firstName} ${p.lastName}`}</span>
+)) : null}
           </div>
         )}
       </td>

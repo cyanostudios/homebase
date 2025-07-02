@@ -91,7 +91,7 @@ export function QualificationLevelsSettings() {
       )}
       
       <p className="text-xs text-neutral-500">
-        These qualification levels will be available when creating or editing referee profiles.
+        These qualification levels will be available when creating or editing contact profiles.
       </p>
     </div>
   );

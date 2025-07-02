@@ -172,7 +172,7 @@ router.post("/:id/notify", async (req: Request, res: Response) => {
     }
     res.json(updated);
   } catch {
-    res.status(500).json({ message: "Failed to notify referee" });
+    res.status(500).json({ message: "Failed to notify contact" });
   }
 });
 

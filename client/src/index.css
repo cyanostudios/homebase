@@ -168,14 +168,6 @@
 --radius: 0;
   }
 
-/* Referee mode colors */
-.referee-mode {
---primary: 196 26% 32%; /* #3a606e - dark teal for referee mode */
---primary-foreground: 0 0% 100%;
---accent: 225 6% 97%; /* #f7f8f9 */
---accent-foreground: 215 100% 50%; /* #0080ff - blue */
-}
-
   .dark {
       --background: 0 0% 13%; /* #222222 */
 --foreground: 0 0% 100%; /* #ffffff */
@@ -198,14 +190,6 @@
 --ring: 196 26% 32%; /* #3a606e */
 --radius: 0;
   }
-
-/* Dark mode with referee theme */
-.dark.referee-mode {
---primary: 196 26% 42%; /* Lighter #3a606e for dark referee mode */
---primary-foreground: 0 0% 100%;
---accent: 210 7% 21%; /* #353a3d */
---accent-foreground: 12 48% 74%; /* Lighter #db7965 */
-}
 
 @layer base {
   * {
@@ -345,7 +329,6 @@ button,
 .form-item,
 .weather-widget,
 .match-card,
-.referee-card,
 .activity-item,
 .notification-item,
 .status-badge,
@@ -367,5 +350,5 @@ button,
 /* Keep rounded-full for circular elements */
 .rounded-full,
 .status-dot {
-  border-radius: 50% !important;
+  border-radius: 9999px !important;
 }

@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, Filter, Settings } from "lucide-react";
@@ -18,7 +17,7 @@ export function TopBar() {
         {/* Left: App Title */}
         <div className="top-bar__brand">
           <h1 className="top-bar__title">
-            {isClubMode ? "Club Manager" : "Referee Portal"}
+            {isClubMode ? "Club Manager" : "Contact Portal"}
           </h1>
         </div>
 

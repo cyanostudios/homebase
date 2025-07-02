@@ -5,7 +5,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { useApp } from "@/context/app-context";
 import React, { useState, useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { InvoiceMobileCard } from "./invoice-mobile-card";
+
 import { formatDateTime, formatTime } from "@/lib/date-utils";
 import { useTimeFormat } from "@/context/time-format-context";
 import { useDateFormat } from "@/context/date-format-context";
@@ -318,14 +318,7 @@ export function InvoiceTable() {
           </div>
         ) : (
           <>
-            {paginatedInvoices.map((invoice) => (
-              <InvoiceMobileCard
-                key={invoice.id}
-                invoice={invoice}
-                onClick={() => handleRowClick(invoice)}
-                onNotifyClick={handleNotifyClick}
-              />
-            ))}
+
 
             {/* Pagination controls */}
             {totalPages > 1 && (

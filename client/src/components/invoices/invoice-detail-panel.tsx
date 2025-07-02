@@ -395,14 +395,14 @@ export function InvoiceDetailPanel() {
   const mapRoleToEnum = (role: string): string => {
     switch (role) {
       case "Main Referee":
-        return "MAIN_REFEREE";
+        return "MAIN_CONTACT";
       case "Linesman":
       case "Assistant Referee":
         return "LINESMAN";
       case "Fourth Official":
         return "FOURTH_OFFICIAL";
       default:
-        return "MAIN_REFEREE"; // fallback
+        return "MAIN_CONTACT"; // fallback
     }
   };
 

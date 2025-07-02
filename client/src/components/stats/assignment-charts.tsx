@@ -66,7 +66,7 @@ export function ContactAssignmentCharts() {
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-lg font-medium mb-4">Referee Assignments by Club</h3>
+        <h3 className="text-lg font-medium mb-4">Contact Assignments by Club</h3>
         <div className="h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
@@ -75,7 +75,7 @@ export function ContactAssignmentCharts() {
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
-                dataKey="refereeName" 
+                dataKey="contactName" 
                 angle={-45} 
                 textAnchor="end"
                 height={70}
