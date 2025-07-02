@@ -3,28 +3,50 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import * as schema from "@shared/schema";
+import { config } from 'dotenv';
 
-// Check for Replit PostgreSQL environment variables
-if (!process.env.PGHOST || !process.env.PGUSER || !process.env.PGPASSWORD || !process.env.PGDATABASE) {
-  throw new Error(
-    "Replit PostgreSQL environment variables must be set. Ensure the database is provisioned.",
-  );
+// Load .env.local for local development
+config({ path: '.env.local' });
+
+// Determine if we're running on Replit or locally
+const isReplit = process.env.REPL_ID || process.env.REPLIT_DB_URL;
+const isLocal = process.env.NODE_ENV === 'development' && !isReplit;
+
+// Database connection configuration
+let connectionString: string;
+let sslConfig: any = false;
+
+if (isLocal) {
+  // Local development - use DATABASE_URL from .env.local
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL must be set in .env.local for local development");
+  }
+  connectionString = process.env.DATABASE_URL;
+  console.log("Using local database configuration");
+} else {
+  // Replit environment - use Replit-specific variables
+  if (!process.env.PGHOST || !process.env.PGUSER || !process.env.PGPASSWORD || !process.env.PGDATABASE) {
+    throw new Error(
+      "Replit PostgreSQL environment variables must be set. Ensure the database is provisioned.",
+    );
+  }
+  connectionString = `postgresql://${process.env.PGUSER}:${process.env.PGPASSWORD}@${process.env.PGHOST}:${process.env.PGPORT}/${process.env.PGDATABASE}?sslmode=require`;
+  sslConfig = { rejectUnauthorized: false };
+  console.log("Using Replit database configuration");
 }
 
-// Create connection pool for Replit PostgreSQL
-const replitDatabaseUrl = `postgresql://${process.env.PGUSER}:${process.env.PGPASSWORD}@${process.env.PGHOST}:${process.env.PGPORT}/${process.env.PGDATABASE}?sslmode=require`;
-
+// Create connection pool
 export const pool = new Pool({ 
-  connectionString: replitDatabaseUrl,
-  max: 5, // Reduced for Replit PostgreSQL
+  connectionString,
+  max: isLocal ? 10 : 5, // More connections locally, fewer on Replit
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 30000,
-  ssl: { rejectUnauthorized: false }, // Replit PostgreSQL SSL configuration
+  ssl: sslConfig,
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000
 });
 
-// Initialize Drizzle ORM with the schema for Replit PostgreSQL
+// Initialize Drizzle ORM with the schema
 export const db = drizzle(pool, { 
   schema,
   logger: process.env.NODE_ENV === 'development'
@@ -93,7 +115,7 @@ export async function initializeDatabase() {
       
       // If no invoices exist in the deployed database, log a warning
       if (invoiceCount === 0) {
-        console.warn("WARNING: Database tables exist but there are no invoices! Data needs to be seeded.");
+        console.log(`INFO: Database tables exist but there are no invoices! ${isLocal ? 'This is normal for local development.' : 'Data may need to be seeded.'}`);
       }
     }
     
@@ -102,6 +124,7 @@ export async function initializeDatabase() {
     return {
       connected: true,
       tablesExist,
+      environment: isLocal ? 'local' : 'replit',
       timestamp: new Date().toISOString()
     };
   } catch (error: unknown) {
@@ -110,10 +133,11 @@ export async function initializeDatabase() {
     return {
       connected: false,
       error: errorMessage,
+      environment: isLocal ? 'local' : 'replit',
       timestamp: new Date().toISOString()
     };
   }
 }
 
-// Log database connection success
-console.log("Database connection established");
+// Log database connection establishment
+console.log(`Database connection established for ${isLocal ? 'local development' : 'Replit environment'}`);
