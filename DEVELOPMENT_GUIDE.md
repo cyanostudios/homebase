@@ -1,146 +1,206 @@
-# **Development Guide**
+# Development Guide & AI Instructions
 
-## **Constraints**
+## Project Overview
+**Project Name:** Homebase  
+**Repository:** cyanostudios/homebase  
+**Current Status:** Transitioning from accounting app to core business template  
+**Tech Stack:** React + TypeScript + Vite + Express + PostgreSQL + Drizzle ORM  
 
-* Never change core functionality unless explicitly instructed.
-* Do not guess or assume what the user wants. If something is unclear, stop and ask for clarification.
-* All UI or UX changes must be implemented consistently across:
+### Architecture Philosophy
+**Internal Plugin-Based System** (for development teams & AI agents)
+- **Core:** Essential functionality that every business app needs
+- **Plugins:** Internal modules developed by teams following core standards
+- **Team-Based Development:** Different teams can work on different plugins independently
+- **Agent-Friendly:** AI agents can understand and extend the plugin system
 
-  * Desktop
-  * Tablet
-  * Mobile
-* Modular design is mandatory. Each visual block (TopBar, LeftColumn, SecondColumn, ThirdColumn, Panels) must:
-
-  * Be isolated from other blocks
-  * Be easy to restyle without affecting unrelated parts of the layout
-* Remove all:
-
-  * Unused styles and CSS classes
-  * Console logs that are no longer used
-  * Dead code, especially old components or test views
-* Favor clarity over cleverness. Simple, explicit code is preferred over abstract or over-engineered patterns.
-
-> Always ask before making any assumption-based changes or optimizations.
-
-## **UI Architecture Principles**
-
-### **Active Patterns**
-
-* All sidebar panels (match detail, referee detail, edit forms, etc.) must appear in the right-hand column.
-* View-specific functionality (matches, referees, dashboard) must never block panel rendering.
-* Edit actions (like "Edit Referee") must open the right-hand panel, not a modal or dialog.
-* Panels should be mounted globally (e.g., from `App.tsx`) to ensure they're available regardless of the current view.
-* Every UI block (TopBar, LeftColumn, MidColumn, RightColumn) must be independently styled and modular.
-
-### **Deprecated Patterns**
-
-* Dialog/modal-based editing (e.g. old `EditRefereeForm` popup) is not allowed.
-* Duplicate edit systems – only one unified panel-based edit system is allowed.
-* Using CSS overlays or transforms that cause blinking or hide content unintentionally.
-
-### **Migration & Cleanup Policy**
-
-* Legacy modals or unused components must be removed if they duplicate sidebar logic.
-* Do not reintroduce deprecated functionality unless explicitly requested in a prompt.
-* Always test UI behavior in desktop, tablet, and mobile views.
-* Remove unused styles, legacy CSS variables, and console logs during refactoring.
-* Always prefer clarity over cleverness in both layout and logic.
-
-## **React Hook Usage Policy**
-
-To prevent runtime errors like:
-
+### Core vs Plugin Separation
 ```
-Rendered fewer hooks than expected. This may be caused by an accidental early return statement.
+CORE (Essential - never remove):
+├── Database layer & ORM
+├── Authentication framework
+├── Contacts management (core business entity)
+├── API routing system
+├── UI component library
+├── Environment configuration
+└── Plugin registration system
+
+PLUGINS (Team-developed modules):
+├── Invoices (first plugin - to be refactored from core)
+├── Reporting 
+├── Payment processing
+├── [Future plugins by teams]
+└── Custom business logic
 ```
 
-Follow these rules strictly in all components that use React hooks (useState, useEffect, useMemo, etc.):
+### Development Roadmap
+1. **Phase 1:** Complete Contacts as core functionality
+2. **Phase 2:** Refactor Invoices into first plugin
+3. **Phase 3:** Establish plugin development standards
+4. **Phase 4:** Additional plugins by teams  
 
-**Always**
+## Development Environment Setup
 
-* Declare all hooks at the top of your component body.
-* Ensure hooks are not inside conditions, loops, or nested functions.
-* Place any conditional rendering logic after hooks are declared.
+### Local Development
+- **Database:** PostgreSQL via Docker (container: local-postgres)
+- **Server:** Express on port 3001
+- **Client:** React with Vite HMR
+- **Environment:** `.env.local` with DATABASE_URL
 
-```tsx
-// Correct pattern
-function RefereeGrid() {
-  const [state, setState] = useState(false);
+### Production/Replit
+- **Database:** Replit PostgreSQL (uses PGHOST, PGUSER, etc.)
+- **Deployment:** Replit hosting
+- **Environment:** Replit environment variables
 
-  if (!state) return null;
+## Architecture & Code Standards
 
-  return <div>Ready</div>;
-}
+### Folder Structure
+```
+/core                # Core system (protected - minimal changes)
+  ├── /auth          # Authentication framework
+  ├── /database      # Database layer & ORM
+  ├── /contacts      # Contacts management (core entity)
+  ├── /api           # Core API routing & plugin hooks
+  ├── /ui            # Base UI components & layouts
+  └── /config        # Environment & plugin registration
+
+/plugins             # Team-developed modules
+  ├── /invoices      # Invoice plugin (to be refactored)
+  ├── /reporting     # Reporting plugin
+  └── /[team-name]   # Custom team plugins
+
+/client              # React frontend (core + plugin integration)
+/server              # Express backend (core + plugin routes)
+/shared              # Shared schemas/types between core & plugins
+/migrations          # Drizzle migrations (core + plugins)
 ```
 
-**Never**
+### Current Project Status
+- **Name:** May change from "accounting" to more generic business app name
+- **Current State:** Invoices mixed with core - needs refactoring
+- **Next Priority:** Complete Contacts as stable core functionality
+- **Plugin Migration:** Invoices will be first plugin extraction
 
-```tsx
-// This will crash on resize or viewport switches
-function RefereeGrid() {
-  if (!props.data) return null;
+### Database Layer
+- **ORM:** Drizzle with PostgreSQL
+- **Migrations:** Auto-generated via `drizzle-kit push`
+- **Schema:** Defined in `/shared/schema.ts`
 
-  const [value, setValue] = useState(false); // Illegal hook call
+## AI Agent Instructions
 
-  return <div>...</div>;
-}
+### When Working with Claude in Cursor
+
+#### Code Generation Principles
+- **Senior-to-Junior Communication:** Write code as a senior developer but ensure it's readable and well-documented for junior developers
+- **Clean Code:** Always remove unused imports, variables, and dead code
+- **No Bloat:** Keep codebase lean - delete unnecessary files and dependencies
+- **Documentation:** Include clear comments explaining complex logic and business rules
+- **Variable-First Approach:** Use environment variables and configuration objects instead of hardcoded values
+- **Plugin Architecture:** Build features as self-contained modules that can be enabled/disabled
+- **Core Protection:** Never modify core files when adding features - use plugin system instead
+
+#### Plugin Development Guidelines
+- **Team Independence:** Teams can develop plugins without touching core files
+- **Standard Interface:** All plugins follow the same registration and API patterns
+- **Database Conventions:** Plugin tables use prefixes (e.g., `invoice_`, `report_`)
+- **File-Based Configuration:** Plugin registration via config files, not UI
+- **Core Integration:** Plugins hook into core via standardized endpoints
+- **AI Agent Compatible:** Plugin structure should be clear for AI agents to understand and extend
+
+#### Plugin Registration Process
+1. **Development:** Team develops plugin following core standards
+2. **Integration:** Plugin registers itself via config file
+3. **Database:** Plugin manages its own schema/migrations
+4. **API:** Plugin exposes standardized API endpoints
+5. **Frontend:** Plugin provides React components that integrate with core UI
+
+#### Database Operations
+- **Environment Agnostic:** All database connections must use environment variables
+- **No Hardcoded URLs:** Database connections should work across local/staging/production
+- **Schema Management:** Keep schema definitions in shared folder for consistency
+
+#### Frontend Development
+- **Component Reusability:** Build components that can be easily moved or reused
+- **Configuration Over Hardcoding:** API endpoints, URLs, and settings should be configurable
+- **Clean Imports:** Regularly audit and remove unused dependencies
+
+#### Error Handling
+- **Environment-Aware Logging:** Different log levels for development vs production
+- **Graceful Degradation:** Application should handle database/service failures gracefully
+
+## Development Workflow
+
+### Git Strategy
+**Phase 1 - Core Development:**
+- Work directly in `main` branch
+- Focus on building stable core functionality
+- Commits should be atomic and well-documented
+
+**Phase 2 - Plugin Development:**
+- Create feature branches for each plugin: `feature/plugin-invoices`, `feature/plugin-reporting`
+- Teams work independently on their plugin branches
+- Merge to `main` only after thorough testing
+- Core remains protected - no direct core modifications in plugin branches
+
+### Local Development Process
+1. Clone Homebase repository
+2. Set up local environment (Docker PostgreSQL + .env.local)
+3. Develop and test locally
+4. Push to appropriate branch (main for core, feature/* for plugins)
+5. Merge to main when ready (post-core phase requires testing)
+
+### Repository Migration
+- **Current:** Working in cyanostudios/accounting
+- **Target:** Migrate to cyanostudios/homebase
+- **Process:** Clean migration focusing on core extraction
+
+## Common Commands
+```bash
+# Start local development
+npm run dev
+
+# Database operations
+npx drizzle-kit push      # Apply schema changes
+npx drizzle-kit studio    # Open database browser
+
+# Docker commands
+docker start local-postgres    # Start database
+docker stop local-postgres     # Stop database
 ```
 
-This is especially important in:
+## Troubleshooting
 
-* RefereeGrid
-* MatchTable
-* Panels
-* All layout-level components that re-render on viewport changes.
+### Common Issues
+- 
 
-**Rule of thumb:** Declare all hooks first. Return JSX later. Never mix logic with hook declarations.
+### Environment Variables
+- **Local:** DATABASE_URL, PORT, NODE_ENV
+- **Replit:** PGHOST, PGUSER, PGPASSWORD, PGDATABASE, PGPORT
 
-## **Schema and Database Compatibility Strategy**
+## Code Style & Conventions
 
-When introducing new fields to existing database tables (e.g., `matches`), follow these best practices to ensure backward compatibility and UI stability:
+### TypeScript
+- **Strict Mode:** Use strict TypeScript settings
+- **Type Safety:** Prefer interfaces over any types
+- **Clear Naming:** Use descriptive variable names that explain purpose
+- **Environment Variables:** Always type environment variables and provide fallbacks
 
-### Adding a New Field
+### React Components
+- **Functional Components:** Use functional components with hooks
+- **Props Interface:** Define clear interfaces for all component props
+- **Single Responsibility:** Each component should have one clear purpose
+- **Reusable Logic:** Extract reusable logic into custom hooks
 
-1. **Database Migration**
+### API Endpoints
+- **RESTful Design:** Follow REST conventions for API design
+- **Environment Configuration:** API base URLs should be configurable
+- **Error Responses:** Consistent error response format across all endpoints
+- **Input Validation:** Validate all inputs with clear error messages
 
-   * Always add new columns as nullable or with a sensible default:
+### General Principles
+- **DRY (Don't Repeat Yourself):** Extract common functionality into utilities
+- **KISS (Keep It Simple):** Simple solutions over complex architectures
+- **Portable Code:** Write code that can easily migrate between platforms
+- **Delete Mercilessly:** Remove unused code, files, and dependencies regularly
 
-     ```sql
-     ALTER TABLE matches ADD COLUMN team_size_format TEXT DEFAULT '11v11';
-     ```
-
-2. **Backfill Existing Data**
-
-   * Immediately update existing rows to ensure no null values exist:
-
-     ```sql
-     UPDATE matches SET team_size_format = '11v11' WHERE team_size_format IS NULL;
-     ```
-
-3. **Schema Definition in Code**
-
-   * Avoid marking the field as `.notNull()` in Drizzle initially. Instead:
-
-     ```ts
-     teamSizeFormat: text("team_size_format").default("11v11"),
-     ```
-
-4. **Frontend Fallback**
-
-   * Always add a UI fallback:
-
-     ```ts
-     match.teamSizeFormat || "11v11"
-     ```
-
-5. **Type Safety**
-
-   * Update your Zod schemas and inferred types to allow the field to be optional or to have defaults.
-
-6. **Staged Rollout**
-
-   * Don’t introduce UI components that rely on the new field until you have verified that the field is available and safe to use across all relevant contexts (e.g., match list, detail view, edit form).
-
-### Summary
-
-These steps ensure that new fields are introduced smoothly without breaking the display or logic for existing records. Always validate the full pipeline: DB → API → Frontend → UI.
+---
+*Last Updated: [2 july 2025]*
