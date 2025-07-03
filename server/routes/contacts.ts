@@ -53,6 +53,8 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 router.post("/", async (req: Request, res: Response) => {
+  console.log('🔵 POST /api/contacts called');
+  console.log('🔵 Request body:', req.body);
   try {
     const body = req.body;
     let flattened: any;
@@ -87,16 +89,17 @@ router.post("/", async (req: Request, res: Response) => {
         einvoiceAddress: body.invoiceInfo?.einvoiceAddress,
         referencePerson: body.invoiceInfo?.referencePerson,
         invoiceRequirements: body.invoiceInfo?.invoiceRequirements,
-        contactPersons: JSON.stringify(body.contactPersons || []),
-        additionalAddresses: JSON.stringify(body.additionalAddresses || []),
+        contactPersons: body.contactPersons || [],
+        additionalAddresses: body.additionalAddresses || [],
       };
     } else {
       flattened = {
         ...body,
-        contactPersons: JSON.stringify(body.contactPersons || []),
-        additionalAddresses: JSON.stringify(body.additionalAddresses || []),
+        contactPersons: body.contactPersons || [],
+        additionalAddresses: body.additionalAddresses || [],
       };
     }
+    console.log('🔵 Flattened data:', flattened);
     const data = insertContactSchema.parse(flattened);
     const contact = await storage.createContact(data);
     const contactName = contact.fullName || contact.email || contact.companyName || "New Contact";
@@ -107,8 +110,12 @@ router.post("/", async (req: Request, res: Response) => {
       contactId: contact.id,
       invoiceId: null,
     });
+    console.log('🟢 Contact created successfully:', contact);
     res.status(201).json(contact);
-  } catch (error) {
+  } catch (error: any) {
+    console.error('🔴 Error creating contact:', error);
+    console.error('🔴 Error details:', error?.message);
+    console.error('🔴 Stack trace:', error?.stack);
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: "Invalid contact data", errors: error.errors });
     }
@@ -124,7 +131,7 @@ router.put("/:id", async (req: Request, res: Response) => {
     const data = insertContactSchema.partial().parse(req.body);
     const updated = await storage.updateContact(id, data);
     res.json(updated);
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: "Invalid contact data", errors: error.errors });
     }

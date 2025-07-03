@@ -2,10 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import type { Contact } from "@shared/schema";
 import { useApp } from "@/context/app-context";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useState, useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Button } from "@/components/ui/button";
-import { ChevronUp, ChevronDown, Eye } from "lucide-react";
+import { ChevronUp, ChevronDown, Eye, Plus } from "lucide-react";
 
 // Component for displaying a single contact row in the table
 interface ContactRowProps {
@@ -15,8 +15,8 @@ interface ContactRowProps {
 
 function ContactRow({ contact, onClick }: ContactRowProps) {
   const contactPersons = (contact.contactPersons || []) as Contact['contactPersons'];
-
   const displayName = contact.companyName || contact.fullName;
+  
   return (
     <tr
       className="hover:bg-neutral-50 cursor-pointer transition-colors"
@@ -35,9 +35,9 @@ function ContactRow({ contact, onClick }: ContactRowProps) {
           <span className="text-neutral-500">-</span>
         ) : (
           <div className="flex flex-col space-y-1">
-{Array.isArray(contactPersons) ? contactPersons.map((p, idx) => (
-  <span key={idx}>{`${p.firstName} ${p.lastName}`}</span>
-)) : null}
+            {Array.isArray(contactPersons) ? contactPersons.map((p, idx) => (
+              <span key={idx}>{`${p.firstName} ${p.lastName}`}</span>
+            )) : null}
           </div>
         )}
       </td>
@@ -87,7 +87,7 @@ function ContactMobileCard({ contact, onClick }: { contact: Contact; onClick: ()
   );
 }
 
-export function ContactGrid() {
+export function ContactList() {
   const { openContactPanel, isInvoiceInEditMode, isContactInEditMode } = useApp();
   const isMobile = useIsMobile();
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -95,20 +95,13 @@ export function ContactGrid() {
   const [nameFilter, setNameFilter] = useState('');
   const itemsPerPage = 10;
 
-  // All hooks must be called before any conditional returns
   const { data: contacts, isLoading } = useQuery<Contact[]>({
     queryKey: ['/api/contacts'],
   });
 
-  
-
   // Handle sort toggle
   const toggleSortDirection = () => {
     setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-  };
-
-  const handleSortToggle = () => {
-    toggleSortDirection();
   };
 
   // Process contacts for filtering and sorting
@@ -147,6 +140,31 @@ export function ContactGrid() {
     return Math.ceil((processedContacts?.length || 0) / itemsPerPage);
   }, [processedContacts, itemsPerPage]);
 
+  // Handle contact click
+  const handleContactClick = (contact: Contact) => {
+    // Prevent navigation when in edit mode
+    if (isInvoiceInEditMode || isContactInEditMode) {
+      return;
+    }
+    openContactPanel(contact);
+  };
+
+  // Handle add contact click
+  const handleAddContact = () => {
+    console.log('🔵 handleAddContact called');
+    console.log('🔵 openContactPanel function:', openContactPanel);
+    console.log('🔵 Current edit states:', { isInvoiceInEditMode, isContactInEditMode });
+    
+    if (isInvoiceInEditMode || isContactInEditMode) {
+      console.log('🔴 Blocked: Edit mode active');
+      return;
+    }
+    
+    console.log('🟢 Calling openContactPanel(null)');
+    openContactPanel(null);
+    console.log('🟢 After openContactPanel call');
+  };
+
   // Render loading state
   if (isLoading) {
     return (
@@ -161,7 +179,7 @@ export function ContactGrid() {
     return (
       <div className="p-8 text-center">
         <h3 className="text-lg font-medium text-neutral-500">No contacts found</h3>
-        <p className="text-neutral-400 mt-1">Add a contact to get started</p>
+        <p className="text-neutral-400 mt-1 mb-4">Add a contact to get started</p>
       </div>
     );
   }
@@ -170,17 +188,26 @@ export function ContactGrid() {
   if (isMobile) {
     return (
       <div className="px-2 py-2">
-        {/* Filter controls */}
-        <div className="mb-4">
-          <Input
-            placeholder="Filter by name or email..."
-            value={nameFilter}
-            onChange={(e) => {
-              setNameFilter(e.target.value);
-              setPage(1); // Reset to first page when filtering
-            }}
-            className="w-full"
-          />
+        {/* Filter controls and Add button */}
+        <div className="mb-4 space-y-3">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Filter by name or email..."
+              value={nameFilter}
+              onChange={(e) => {
+                setNameFilter(e.target.value);
+                setPage(1); // Reset to first page when filtering
+              }}
+              className="flex-1"
+            />
+            <Button 
+              onClick={handleAddContact}
+              size="sm"
+              className="shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         {paginatedContacts.length === 0 ? (
@@ -193,13 +220,7 @@ export function ContactGrid() {
               <ContactMobileCard
                 key={contact.id}
                 contact={contact}
-                onClick={() => {
-                  // Prevent navigation when in edit mode
-                  if (isInvoiceInEditMode || isContactInEditMode) {
-                    return;
-                  }
-                  openContactPanel(contact);
-                }}
+                onClick={() => handleContactClick(contact)}
               />
             ))}
 
@@ -236,65 +257,65 @@ export function ContactGrid() {
   // Desktop layout
   return (
     <div className="space-y-3">
-      {/* Filter controls */}
+      {/* Filter controls and Add button */}
       <div className="bg-white rounded-md p-4">
-        <Input
-          placeholder="Filter by name or email..."
-          value={nameFilter}
-          onChange={(e) => {
-            setNameFilter(e.target.value);
-            setPage(1); // Reset to first page when filtering
-          }}
-          className="w-full max-w-md"
-        />
+        <div className="flex justify-between items-center gap-4">
+          <Input
+            placeholder="Filter by name or email..."
+            value={nameFilter}
+            onChange={(e) => {
+              setNameFilter(e.target.value);
+              setPage(1); // Reset to first page when filtering
+            }}
+            className="max-w-md"
+          />
+          <Button onClick={handleAddContact}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Contact
+          </Button>
+        </div>
       </div>
 
       <div className="bg-white rounded-md">
         <div className="overflow-x-auto rounded-md">
           <table className="w-full">
-          <thead className="bg-[#3a606e]/5 text-xs text-[#3a606e] uppercase">
-            <tr>
-              <th
-                className="px-4 py-3 font-medium text-left cursor-pointer"
-                onClick={handleSortToggle}
-              >
-                <div className="flex items-center">
-                  <span>Company Info</span>
-                  {sortDirection === 'asc' ? (
-                    <ChevronUp className="h-4 w-4 ml-1" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 ml-1" />
-                  )}
-                </div>
-              </th>
-              <th className="px-4 py-3 font-medium text-left">Contact Persons</th>
-              <th className="px-4 py-3 font-medium text-left">Invoices</th>
-              <th className="px-4 py-3 font-medium text-center w-12">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-100">
-            {paginatedContacts.length === 0 ? (
+            <thead className="bg-[#3a606e]/5 text-xs text-[#3a606e] uppercase">
               <tr>
-                <td colSpan={4} className="py-8 text-center text-neutral-500">
-                  No contacts found for this filter
-                </td>
+                <th
+                  className="px-4 py-3 font-medium text-left cursor-pointer"
+                  onClick={toggleSortDirection}
+                >
+                  <div className="flex items-center">
+                    <span>Company Info</span>
+                    {sortDirection === 'asc' ? (
+                      <ChevronUp className="h-4 w-4 ml-1" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 ml-1" />
+                    )}
+                  </div>
+                </th>
+                <th className="px-4 py-3 font-medium text-left">Contact Persons</th>
+                <th className="px-4 py-3 font-medium text-left">Invoices</th>
+                <th className="px-4 py-3 font-medium text-center w-12">Actions</th>
               </tr>
-            ) : (
-              paginatedContacts.map((contact) => (
-                <ContactRow
-                  key={contact.id}
-                  contact={contact}
-                  onClick={() => {
-                    // Prevent navigation when in edit mode
-                    if (isInvoiceInEditMode || isContactInEditMode) {
-                      return;
-                    }
-                    openContactPanel(contact);
-                  }}
-                />
-              ))
-            )}
-          </tbody>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              {paginatedContacts.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-neutral-500">
+                    No contacts found for this filter
+                  </td>
+                </tr>
+              ) : (
+                paginatedContacts.map((contact) => (
+                  <ContactRow
+                    key={contact.id}
+                    contact={contact}
+                    onClick={() => handleContactClick(contact)}
+                  />
+                ))
+              )}
+            </tbody>
           </table>
         </div>
       </div>

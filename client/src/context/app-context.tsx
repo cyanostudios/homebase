@@ -251,7 +251,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // Contact panel functions
-  const openContactPanel = (contact: Contact) => {
+  const openContactPanel = (contact: Contact | null) => {
     setCurrentContact(contact);
     setIsContactPanelOpen(true);
     document.body.classList.add('overflow-hidden');
