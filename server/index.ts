@@ -2,12 +2,11 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import invoicesRouter from "./routes/invoices";
 import contactsRouter from "./routes/contacts";
-import assignmentsRouter from "./routes/assignments";
 import settingsRouter from "./routes/settings";
 import notificationsRouter from "./routes/notifications";
 import activitiesRouter from "./routes/activities";
 import statsRouter from "./routes/stats";
-import adminRouter from "./routes/admin";
+//import adminRouter from "./routes/admin";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeDatabase } from "./db";
 
@@ -67,12 +66,11 @@ if (dbStatus.connected && !dbStatus.tablesExist) {
   // Mount feature routers
   app.use("/api/invoices", invoicesRouter);
   app.use("/api/contacts", contactsRouter);
-  app.use("/api/assignments", assignmentsRouter);
   app.use("/api/settings", settingsRouter);
   app.use("/api/notifications", notificationsRouter);
   app.use("/api", activitiesRouter);
   app.use("/api", statsRouter);
-  app.use("/api/admin", adminRouter);
+  //app.use("/api/admin", adminRouter);
 
   // Log route registration completion for production debugging
   log("=== ROUTE REGISTRATION COMPLETE ===");

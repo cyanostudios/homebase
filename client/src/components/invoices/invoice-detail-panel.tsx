@@ -10,9 +10,9 @@ import { useApp } from "@/context/app-context";
 import { useViewMode } from "@/context/view-mode-context";
 import { useTimeFormat } from "@/context/time-format-context";
 import { useDateFormat } from "@/context/date-format-context";
-import { useInvoiceCategories } from "@/context/invoice-categories-context";
-import { useTeamCategories } from "@/context/team-categories-context";
-import { useTeamSizeFormats } from "@/context/team-size-formats-context";
+//import { useInvoiceCategories } from "@/context/invoice-categories-context";
+//import { useTeamCategories } from "@/context/team-categories-context";
+//import { useTeamSizeFormats } from "@/context/team-size-formats-context";
 import { 
   extractTeamSizeFormat, 
   getTeamSizeFormatLabel, 

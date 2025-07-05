@@ -3,7 +3,6 @@ import {
   clubs, type Club, type InsertClub,
   contacts, type Contact, type InsertContact,
   invoices, type Invoice, type InsertInvoice,
-  contactAssignments, type ContactAssignment, type InsertContactAssignment,
   activities, type Activity, type InsertActivity,
   notifications, type Notification, type InsertNotification,
   settings, type Setting, type InsertSetting
@@ -37,14 +36,6 @@ export interface IStorage {
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
   updateInvoice(id: number, invoice: Partial<InsertInvoice>): Promise<Invoice | undefined>;
 
-  // Contact Assignment operations
-  getContactAssignment(id: number): Promise<ContactAssignment | undefined>;
-  getContactAssignmentsByInvoice(invoiceId: number): Promise<ContactAssignment[]>;
-  getContactAssignmentsByContact(contactId: number): Promise<ContactAssignment[]>;
-  createContactAssignment(assignment: InsertContactAssignment): Promise<ContactAssignment>;
-  updateContactAssignment(id: number, assignment: Partial<InsertContactAssignment>): Promise<ContactAssignment | undefined>;
-  deleteContactAssignment(id: number): Promise<boolean>;
-  
   // Activity operations
   getActivities(limit?: number): Promise<Activity[]>;
   createActivity(activity: InsertActivity): Promise<Activity>;
@@ -107,12 +98,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createContact(insertContact: InsertContact): Promise<Contact> {
-    const [contact] = await db.insert(contacts).values(insertContact).returning();
+    const [contact] = await db.insert(contacts).values({
+      ...insertContact,
+      contactPersons: insertContact.contactPersons as any,
+      additionalAddresses: insertContact.additionalAddresses as any,
+    }).returning();
     return contact;
   }
 
   async updateContact(id: number, contactUpdate: Partial<InsertContact>): Promise<Contact | undefined> {
-    const [contact] = await db.update(contacts).set(contactUpdate).where(eq(contacts.id, id)).returning();
+    const [contact] = await db.update(contacts).set({
+      ...contactUpdate,
+      contactPersons: contactUpdate.contactPersons as any,
+      additionalAddresses: contactUpdate.additionalAddresses as any,
+    }).where(eq(contacts.id, id)).returning();
     return contact || undefined;
   }
 
@@ -140,40 +139,12 @@ export class DatabaseStorage implements IStorage {
     return invoice || undefined;
   }
 
-  async getContactAssignment(id: number): Promise<ContactAssignment | undefined> {
-    const [assignment] = await db.select().from(contactAssignments).where(eq(contactAssignments.id, id));
-    return assignment || undefined;
-  }
-
-  async getContactAssignmentsByInvoice(invoiceId: number): Promise<ContactAssignment[]> {
-    return await db.select().from(contactAssignments).where(eq(contactAssignments.invoiceId, invoiceId));
-  }
-
-  async getContactAssignmentsByContact(contactId: number): Promise<ContactAssignment[]> {
-    return await db.select().from(contactAssignments).where(eq(contactAssignments.contactId, contactId));
-  }
-
-  async createContactAssignment(insertAssignment: InsertContactAssignment): Promise<ContactAssignment> {
-    const [assignment] = await db.insert(contactAssignments).values(insertAssignment).returning();
-    return assignment;
-  }
-
-  async updateContactAssignment(id: number, assignmentUpdate: Partial<InsertContactAssignment>): Promise<ContactAssignment | undefined> {
-    const [assignment] = await db.update(contactAssignments).set(assignmentUpdate).where(eq(contactAssignments.id, id)).returning();
-    return assignment || undefined;
-  }
-
-  async deleteContactAssignment(id: number): Promise<boolean> {
-    const result = await db.delete(contactAssignments).where(eq(contactAssignments.id, id));
-    return (result.rowCount || 0) > 0;
-  }
-
   async getActivities(limit?: number): Promise<Activity[]> {
     let query = db.select().from(activities);
     if (limit) {
       query = query.limit(limit);
     }
-    return await query;
+    return await query.execute();
   }
 
   async createActivity(insertActivity: InsertActivity): Promise<Activity> {
@@ -198,15 +169,7 @@ export class DatabaseStorage implements IStorage {
     `);
     
     const row = result.rows[0] as any;
-    return {
-      id: row.id,
-      contactId: row.contact_id,
-      message: row.message,
-      isRead: row.is_read,
-      relatedTo: row.related_to,
-      relatedId: row.related_id,
-      createdAt: row.created_at
-    };
+    return row as Notification;
   }
 
   async markNotificationAsRead(id: number): Promise<Notification | undefined> {
@@ -214,47 +177,18 @@ export class DatabaseStorage implements IStorage {
     return notification || undefined;
   }
 
-  // Settings operations
   async getSetting(key: string): Promise<Setting | undefined> {
-    if (process.env.NODE_ENV === "development") {
-      console.log("DEBUG: getSetting called with key:", key);
-    }
-    try {
-      const result = await db.select().from(settings).where(eq(settings.key, key));
-      if (process.env.NODE_ENV === "development") {
-        console.log("DEBUG: getSetting result:", result);
-      }
-      const [setting] = result;
-      if (process.env.NODE_ENV === "development") {
-        console.log("DEBUG: getSetting setting:", setting);
-      }
-      return setting || undefined;
-    } catch (error) {
-      console.error("DEBUG: getSetting error:", error);
-      return undefined;
-    }
+    const [setting] = await db.select().from(settings).where(eq(settings.key, key));
+    return setting || undefined;
   }
 
   async setSetting(key: string, value: string, type: string = "string"): Promise<Setting> {
-    // Check if setting exists
-    const existing = await this.getSetting(key);
-    
-    if (existing) {
-      // Update existing setting
-      const [updated] = await db
-        .update(settings)
-        .set({ value, type })
-        .where(eq(settings.key, key))
-        .returning();
-      return updated;
-    } else {
-      // Create new setting
-      const [created] = await db
-        .insert(settings)
-        .values({ key, value, type })
-        .returning();
-      return created;
-    }
+    const [setting] = await db
+      .insert(settings)
+      .values({ key, value, type })
+      .onConflictDoUpdate({ target: settings.key, set: { value, type, updatedAt: sql`now()` } })
+      .returning();
+    return setting;
   }
 
   async getSettings(): Promise<Setting[]> {

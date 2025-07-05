@@ -40,7 +40,7 @@ export default function ImportInvoices() {
               </div>
               <CardTitle className="text-lg">CSV Import</CardTitle>
               <CardDescription>
-                Upload match data from CSV files with team names, dates, and venues.
+                Upload invoice data from CSV files with relevant financial details.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
@@ -59,7 +59,7 @@ export default function ImportInvoices() {
               </div>
               <CardTitle className="text-lg">API Import</CardTitle>
               <CardDescription>
-                Connect to external league management systems and import match schedules.
+                Connect to external accounting systems and import invoice data.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
@@ -78,7 +78,7 @@ export default function ImportInvoices() {
               </div>
               <CardTitle className="text-lg">Text Import</CardTitle>
               <CardDescription>
-                Paste match information directly from text sources or documents.
+                Paste invoice information directly from text sources or documents.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
@@ -105,17 +105,17 @@ export default function ImportInvoices() {
           <CardContent className="space-y-4">
             <div className="text-sm text-neutral-600">
               <p className="mb-3">
-                When importing matches, ensure your data includes the following required fields:
+                When importing invoices, ensure your data includes the following required fields:
               </p>
               <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>Home team name</li>
-                <li>Away team name</li>
-                <li>Match date and time</li>
-                <li>Venue information</li>
+                <li>Customer Name</li>
+                <li>Invoice Date</li>
+                <li>Amount Due</li>
+                <li>Service Description</li>
               </ul>
               <p className="mt-3">
-                Optional fields that can enhance your match data include team categories, 
-                match descriptions, and specific sport classifications.
+                Optional fields that can enhance your invoice data include payment terms,
+                reference numbers, and specific category classifications.
               </p>
             </div>
           </CardContent>

@@ -7,20 +7,17 @@ import { AlertCircle, CheckCircle, Upload, Eye, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { format } from "date-fns";
 
 interface ParsedInvoice {
   id?: string;
-  homeTeam: string;
-  awayTeam: string;
-  dateTime: string;
-  venue?: string;
-  city?: string;
+  customerName: string;
+  invoiceDate: string;
+  amountDue: string;
+  serviceDescription?: string;
+  paymentTerms?: string;
+  referenceNumber?: string;
   category?: string;
-  description?: string;
-  sport?: string;
-  team?: string;
-  teamCategory?: string;
-  teamSize?: string;
   status?: string;
   isValid: boolean;
   errors: string[];
@@ -39,44 +36,26 @@ export function ImportInvoicesPanel({ onClose }: ImportInvoicesPanelProps) {
   const queryClient = useQueryClient();
 
   // Fetch settings for categories and formats
-  const { data: defaultSport, isLoading: loadingDefaultSport } = useQuery<{value: string}>({
-    queryKey: ['/api/settings/default_sport'],
-  });
-
   const { data: invoiceCategories, isLoading: loadingInvoiceCategories } = useQuery<{value: string}>({
     queryKey: ['/api/settings/invoice_categories'],
   });
 
-  const { data: teamCategories, isLoading: loadingTeamCategories } = useQuery<{value: string}>({
-    queryKey: ['/api/settings/team_categories'],
-  });
-
-  const { data: teamSizeFormats, isLoading: loadingTeamSizeFormats } = useQuery<{value: string}>({
-    queryKey: ['/api/settings/team_size_formats'],
-  });
-
-  const { data: defaultTeamSize, isLoading: loadingDefaultTeamSize } = useQuery<{value: string}>({
-    queryKey: ['/api/settings/default_team_size'],
-  });
-
-  const settingsLoading = loadingDefaultSport || loadingMatchCategories || loadingTeamCategories || loadingTeamSizeFormats || loadingDefaultTeamSize;
+  const settingsLoading = loadingInvoiceCategories;
 
   // Mutation for importing invoices
   const importMutation = useMutation({
-    mutationFn: async (matches: ParsedMatch[]) => {
+    mutationFn: async (invoices: ParsedInvoice[]) => {
       const results = [];
-      for (const match of matches) {
+      for (const invoice of invoices) {
         const invoiceData = {
-          homeTeam: match.homeTeam,
-          awayTeam: match.awayTeam,
-          dateTime: match.dateTime,
-          venue: match.venue || '',
-          city: match.city || '',
-          category: match.category || '',
-          description: `${match.teamCategory || ''} - ${match.teamSize || ''}`.replace(/^[\s-]+|[\s-]+$/g, '') || 'Invoice',
-          sport: match.sport || defaultSport?.value || 'Football',
-          team: `${match.teamCategory || ''} ${match.teamSize || ''}`.trim() || 'Team',
-          status: match.status || 'SCHEDULED',
+          customerName: invoice.customerName,
+          invoiceDate: invoice.invoiceDate,
+          amountDue: invoice.amountDue,
+          serviceDescription: invoice.serviceDescription || '',
+          paymentTerms: invoice.paymentTerms || '',
+          referenceNumber: invoice.referenceNumber || '',
+          category: invoice.category || '',
+          status: invoice.status || 'PENDING',
           clubId: 1 // Default club ID
         };
 
@@ -95,7 +74,7 @@ export function ImportInvoicesPanel({ onClose }: ImportInvoicesPanelProps) {
       
       // Clear input and preview after successful import
       setTextInput('');
-      setParsedMatches([]);
+      setParsedInvoices([]);
       setShowPreview(false);
     },
     onError: (error) => {
@@ -107,320 +86,200 @@ export function ImportInvoicesPanel({ onClose }: ImportInvoicesPanelProps) {
   });
 
   // Parse text input into invoice objects
-  const parseTextInput = (text: string): ParsedMatch[] => {
+  const parseTextInput = (text: string): ParsedInvoice[] => {
     const lines = text.split('\n').filter(line => line.trim() !== '');
     
     return lines.map((line, index) => {
       const errors: string[] = [];
       const parts = line.split(',').map(part => part.trim());
       
-      // Expected format: Date, Home Team, Away Team, Venue, City, Category, Team Category, Team Size
-      // Minimum required: Date, Home Team, Away Team
+      // Expected format: Customer Name, Invoice Date, Amount Due, Service Description, Payment Terms, Reference Number, Category
+      // Minimum required: Customer Name, Invoice Date, Amount Due
       if (parts.length < 3) {
-        errors.push('Minimum 3 fields required: Date, Home Team, Away Team');
+        errors.push('Minimum 3 fields required: Customer Name, Invoice Date, Amount Due');
       }
 
-      const dateStr = parts[0] || '';
-      const homeTeam = parts[1] || '';
-      const awayTeam = parts[2] || '';
-      const venue = parts[3] || '';
-      const city = parts[4] || '';
-      const category = parts[5] || '';
-      // Get default values from settings
-      const defaultTeamCategoryFromSettings = teamCategories?.value ? JSON.parse(teamCategories.value)[0] : null;
-      const defaultTeamSizeFromSettings = teamSizeFormats?.value ? JSON.parse(teamSizeFormats.value)[0] : null;
-      
-      let teamCategory = parts[6] || defaultTeamCategoryFromSettings || '';
-      let teamSize = parts[7] || defaultTeamSizeFromSettings || '';
+      const customerName = parts[0] || '';
+      const invoiceDateStr = parts[1] || '';
+      const amountDue = parts[2] || '';
+      const serviceDescription = parts[3] || '';
+      const paymentTerms = parts[4] || '';
+      const referenceNumber = parts[5] || '';
+      const category = parts[6] || '';
 
-      // Validate team category against settings
-      if (parts[6] && teamCategories?.value) {
-        const teamCategoriesList = JSON.parse(teamCategories.value);
-        if (!teamCategoriesList.includes(parts[6])) {
-          errors.push(`Invalid team category "${parts[6]}". Available: ${teamCategoriesList.join(', ')}`);
-          teamCategory = defaultTeamCategoryFromSettings || '';
+      // Validate invoice category against settings
+      if (parts[6] && invoiceCategories?.value) {
+        const invoiceCategoriesList = JSON.parse(invoiceCategories.value);
+        if (!invoiceCategoriesList.includes(parts[6])) {
+          errors.push(`Invalid invoice category "${parts[6]}". Available: ${invoiceCategoriesList.join(', ')}`);
         }
-      } else if (!teamCategories?.value && parts[6]) {
-        errors.push('Team categories not loaded. Please try again.');
-      }
-
-      // Validate team size against settings
-      if (parts[7] && teamSizeFormats?.value) {
-        const teamSizesList = JSON.parse(teamSizeFormats.value);
-        if (!teamSizesList.includes(parts[7])) {
-          errors.push(`Invalid team size "${parts[7]}". Available: ${teamSizesList.join(', ')}`);
-          teamSize = defaultTeamSizeFromSettings || '';
-        }
-      } else if (!teamSizeFormats?.value && parts[7]) {
-        errors.push('Team size formats not loaded. Please try again.');
-      }
-
-      // Validate match category against settings
-      if (parts[5] && matchCategories?.value) {
-        const matchCategoriesList = JSON.parse(matchCategories.value);
-        if (!matchCategoriesList.includes(parts[5])) {
-          errors.push(`Invalid match category "${parts[5]}". Available: ${matchCategoriesList.join(', ')}`);
-        }
-      } else if (!matchCategories?.value && parts[5]) {
-        errors.push('Match categories not loaded. Please try again.');
+      } else if (!invoiceCategories?.value && parts[6]) {
+        errors.push('Invoice categories not loaded. Please try again.');
       }
 
       // Validate date
-      let parsedDate = '';
-      if (dateStr) {
-        const date = new Date(dateStr);
+      let parsedInvoiceDate = '';
+      if (invoiceDateStr) {
+        const date = new Date(invoiceDateStr);
         if (isNaN(date.getTime())) {
           errors.push('Invalid date format');
         } else {
-          parsedDate = date.toISOString();
+          parsedInvoiceDate = date.toISOString();
         }
       } else {
-        errors.push('Date is required');
+        errors.push('Invoice Date is required');
       }
 
-      // Validate teams
-      if (!homeTeam) {
-        errors.push('Home team is required');
+      // Validate customer name and amount due
+      if (!customerName) {
+        errors.push('Customer Name is required');
       }
-      if (!awayTeam) {
-        errors.push('Away team is required');
+      if (!amountDue) {
+        errors.push('Amount Due is required');
       }
-      if (homeTeam && awayTeam && homeTeam.toLowerCase() === awayTeam.toLowerCase()) {
-        errors.push('Home and away teams cannot be the same');
+      if (amountDue && isNaN(parseFloat(amountDue))) {
+        errors.push('Amount Due must be a valid number');
       }
 
       return {
         id: `temp-${index}`,
-        homeTeam,
-        awayTeam,
-        dateTime: parsedDate,
-        venue,
-        city,
+        customerName,
+        invoiceDate: parsedInvoiceDate,
+        amountDue,
+        serviceDescription,
+        paymentTerms,
+        referenceNumber,
         category,
-        description: '',
-        sport: defaultSport?.value || '',
-        team: category,
-        teamCategory,
-        teamSize,
-        status: 'SCHEDULED',
+        status: 'PENDING',
         isValid: errors.length === 0,
         errors,
-        rawLine: line
+        rawLine: line,
       };
     });
   };
 
   const handlePreview = () => {
-    if (!textInput.trim()) {
-      setImportResult({ success: false, message: 'Please enter match data to preview' });
-      return;
-    }
-
-    // Check if all required settings are loaded
-    const settingsLoaded = defaultSport && matchCategories && teamCategories && teamSizeFormats && defaultTeamSize;
-    if (!settingsLoaded) {
-      setImportResult({ success: false, message: 'Settings are still loading. Please wait and try again.' });
-      return;
-    }
-
     const parsed = parseTextInput(textInput);
-    setParsedMatches(parsed);
+    setParsedInvoices(parsed);
     setShowPreview(true);
-    setImportResult(null);
+    setImportResult(null); // Clear previous import results
   };
 
   const handleImport = () => {
-    const validMatches = parsedMatches.filter(match => match.isValid);
-    
-    if (validMatches.length === 0) {
-      setImportResult({ success: false, message: 'No valid invoices to import' });
-      return;
+    // Filter out invalid invoices before importing
+    const validInvoices = parsedInvoices.filter(invoice => invoice.isValid);
+    if (validInvoices.length > 0) {
+      importMutation.mutate(validInvoices);
+    } else {
+      setImportResult({ success: false, message: "No valid invoices to import." });
     }
-
-    importMutation.mutate(validMatches);
   };
 
   const handleClear = () => {
     setTextInput('');
-    setParsedMatches([]);
+    setParsedInvoices([]);
     setShowPreview(false);
     setImportResult(null);
   };
 
-  const validCount = parsedMatches.filter(match => match.isValid).length;
-  const invalidCount = parsedMatches.length - validCount;
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Import Matches from Text</h2>
-          <p className="text-sm text-neutral-600 mt-1">
-            Paste match data with each match on a new line
-          </p>
-        </div>
-        {onClose && (
-          <Button variant="outline" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-
-      {/* Input Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Match Data Input</CardTitle>
-          <CardDescription>
-            Enter one match per line. Format: Date, Home Team, Away Team, Venue, City, Category, Team Category, Team Size
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="text-sm text-neutral-600 bg-neutral-50 p-3 rounded-md">
-            <div className="font-medium mb-2">Example format:</div>
-            <div className="font-mono text-xs space-y-1">
-              <div>2025-06-20 15:00, Manchester United, Liverpool, Old Trafford, Manchester, Premier League, Senior, fullsize</div>
-              <div>2025-06-21 17:30, Chelsea, Arsenal, Stamford Bridge, London, Premier League, Youth, small</div>
-            </div>
-            <div className="text-xs mt-2 text-neutral-500">
-              <strong>Available Match Categories:</strong> {matchCategories?.value ? JSON.parse(matchCategories.value).join(', ') : 'Loading...'}<br/>
-              <strong>Available Team Categories:</strong> {teamCategories?.value ? JSON.parse(teamCategories.value).join(', ') : 'Loading...'}<br/>
-              <strong>Available Team Sizes:</strong> {teamSizeFormats?.value ? JSON.parse(teamSizeFormats.value).join(', ') : 'Loading...'}
-            </div>
-          </div>
-          
+    <Card>
+      <CardHeader>
+        <CardTitle>Import Invoices from Text</CardTitle>
+        <CardDescription>Paste invoice data, one invoice per line, with fields separated by commas.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid w-full gap-2">
           <Textarea
-            placeholder="Paste your match data here..."
+            placeholder={`Paste your invoice data here... (e.g., "Client A, 2024-07-01, 1500.00, Web Design, Net 30, REF123, Marketing")`}
             value={textInput}
-            onChange={(e) => setTextInput(e.target.value)}
-            rows={8}
-            className="font-mono text-sm"
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setTextInput(e.target.value)}
+            rows={10}
           />
-          
-          <div className="flex gap-2">
-            <Button 
-              onClick={handlePreview}
-              variant="outline"
-              disabled={!textInput.trim() || settingsLoading}
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              {settingsLoading ? 'Loading Settings...' : 'Preview'}
-            </Button>
-            <Button 
-              onClick={handleClear}
-              variant="outline"
-              disabled={!textInput.trim() && !showPreview}
-            >
-              Clear
-            </Button>
+          <p className="text-sm text-neutral-500 mt-2">
+            Required fields: Customer Name, Invoice Date (YYYY-MM-DD), Amount Due.
+            Optional fields: Service Description, Payment Terms, Reference Number, Category.
+          </p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button onClick={handleClear} variant="outline">Clear</Button>
+            <Button onClick={handlePreview} disabled={textInput.trim() === '' || settingsLoading}>Preview & Validate</Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Preview Section */}
-      {showPreview && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Preview Results</CardTitle>
-              <div className="flex gap-2">
-                {validCount > 0 && (
-                  <Badge variant="default" className="bg-green-100 text-green-800">
-                    {validCount} Valid
-                  </Badge>
-                )}
-                {invalidCount > 0 && (
-                  <Badge variant="destructive">
-                    {invalidCount} Invalid
-                  </Badge>
-                )}
-              </div>
-            </div>
-            <CardDescription>
-              Review parsed invoices before importing
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {parsedMatches.map((match, index) => (
-                <div
-                  key={match.id}
-                  className={`p-3 rounded-lg border ${
-                    match.isValid 
-                      ? 'border-green-200 bg-green-50' 
-                      : 'border-red-200 bg-red-50'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        {match.isValid ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <AlertCircle className="h-4 w-4 text-red-600" />
-                        )}
-                        <span className="font-medium">
-                          {match.homeTeam} vs {match.awayTeam}
-                        </span>
-                      </div>
-                      
-                      <div className="text-sm text-neutral-600 grid grid-cols-2 gap-2">
-                        <div>Date: {match.dateTime ? new Date(match.dateTime).toLocaleString() : 'Invalid'}</div>
-                        <div>Venue: {match.venue || 'Not specified'}</div>
-                        <div>City: {match.city || 'Not specified'}</div>
-                        <div>Category: {match.category || 'Not specified'}</div>
-                        <div>Team Category: {match.teamCategory || 'Not specified'}</div>
-                        <div>Team Size: {match.teamSize || 'Not specified'}</div>
-                      </div>
-
-                      {match.errors.length > 0 && (
-                        <div className="mt-2">
-                          <div className="text-xs font-medium text-red-700 mb-1">Errors:</div>
-                          <ul className="text-xs text-red-600 list-disc list-inside">
-                            {match.errors.map((error, errorIndex) => (
-                              <li key={errorIndex}>{error}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="mt-2 pt-2 border-t border-neutral-200">
-                    <div className="text-xs text-neutral-500 font-mono">
-                      Raw: {match.rawLine}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {validCount > 0 && (
-              <div className="mt-4 pt-4 border-t">
-                <Button 
-                  onClick={handleImport}
-                  disabled={importMutation.isPending || validCount === 0}
-                  className="w-full"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  {importMutation.isPending ? 'Importing...' : `Import ${validCount} Valid Matches`}
-                </Button>
-              </div>
+        {showPreview && parsedInvoices.length > 0 && (
+          <div className="mt-6 space-y-4">
+            <h4 className="font-semibold text-lg">Import Preview ({parsedInvoices.length} entries)</h4>
+            {importResult && (
+              <Alert variant={importResult.success ? "default" : "destructive"}>
+                {importResult.success ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                <AlertDescription>{importResult.message}</AlertDescription>
+              </Alert>
             )}
-          </CardContent>
-        </Card>
-      )}
+            <div className="border rounded-md max-h-96 overflow-y-auto">
+              <table className="min-w-full divide-y divide-neutral-200">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">#</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Customer Name</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Invoice Date</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Amount Due</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Service Description</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Payment Terms</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Reference Number</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Category</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-neutral-200">
+                  {parsedInvoices.map((invoice, index) => (
+                    <tr key={invoice.id} className={!invoice.isValid ? 'bg-red-50' : ''}>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-neutral-900">{index + 1}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-neutral-500">{invoice.customerName}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-neutral-500">{invoice.invoiceDate ? format(new Date(invoice.invoiceDate), 'yyyy-MM-dd') : ''}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-neutral-500">{invoice.amountDue}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-neutral-500">{invoice.serviceDescription}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-neutral-500">{invoice.paymentTerms}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-neutral-500">{invoice.referenceNumber}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-neutral-500">{invoice.category}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm">
+                        <Badge variant={invoice.isValid ? "default" : "destructive"}>
+                          {invoice.isValid ? "Valid" : "Invalid"}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-      {/* Result Messages */}
-      {importResult && (
-        <Alert className={importResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
-          <AlertCircle className={`h-4 w-4 ${importResult.success ? 'text-green-600' : 'text-red-600'}`} />
-          <AlertDescription className={importResult.success ? 'text-green-800' : 'text-red-800'}>
-            {importResult.message}
-          </AlertDescription>
-        </Alert>
-      )}
-    </div>
+            {parsedInvoices.some(invoice => !invoice.isValid) && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Some invoices have validation errors. Please fix them before importing.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setShowPreview(false)} variant="outline">Edit Input</Button>
+              <Button
+                onClick={handleImport}
+                disabled={parsedInvoices.some(invoice => !invoice.isValid) || importMutation.isPending}
+              >
+                {importMutation.isPending ? "Importing..." : `Import ${parsedInvoices.filter(m => m.isValid).length} Invoices`}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {showPreview && parsedInvoices.length === 0 && (
+          <div className="mt-6 text-center text-neutral-500">
+            No invoices parsed from the input. Please check your data format.
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

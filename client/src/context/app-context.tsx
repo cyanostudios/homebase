@@ -28,6 +28,7 @@ interface AppContextType {
   currentContact: Contact | null;
   isContactPanelOpen: boolean;
   isContactInEditMode: boolean;
+  contactPanelMode: "list" | "view" | "edit" | "create";
   
   // Queries
   dashboardStats: DashboardStats | undefined;
@@ -47,7 +48,7 @@ interface AppContextType {
   setInvoiceEditMode: (isEditing: boolean) => void;
   
   // Contact actions
-  openContactPanel: (contact: Contact) => void;
+  openContactPanel: (contact: Contact | null, mode?: "view" | "edit" | "create") => void;
   closeContactPanel: () => void;
   setContactEditMode: (isEditing: boolean) => void;
 }
@@ -66,6 +67,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentContact, setCurrentContact] = useState<Contact | null>(null);
   const [isContactPanelOpen, setIsContactPanelOpen] = useState(false);
   const [isContactInEditMode, setIsContactInEditMode] = useState(false);
+  const [contactPanelMode, setContactPanelMode] = useState<"list" | "view" | "edit" | "create">("list");
   
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -251,19 +253,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // Contact panel functions
-  const openContactPanel = (contact: Contact | null) => {
+  const openContactPanel = (contact: Contact | null, mode: "view" | "edit" | "create" = "view") => {
     setCurrentContact(contact);
+    setContactPanelMode(mode);
     setIsContactPanelOpen(true);
     document.body.classList.add('overflow-hidden');
   };
 
   const closeContactPanel = () => {
     setIsContactPanelOpen(false);
+    setContactPanelMode("list");
     document.body.classList.remove('overflow-hidden');
   };
 
   const setContactEditMode = (isEditing: boolean) => {
     setIsContactInEditMode(isEditing);
+    setContactPanelMode(isEditing ? "edit" : "view");
   };
 
   return (
@@ -280,6 +285,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         currentContact,
         isContactPanelOpen,
         isContactInEditMode,
+        contactPanelMode,
         
         // Queries
         dashboardStats,

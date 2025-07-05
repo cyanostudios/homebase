@@ -1,65 +1,97 @@
 import { Link, useLocation } from "wouter";
 import { useViewMode } from "@/context/view-mode-context";
-import { 
-  Home, 
-  Calendar, 
-  Users, 
-  BarChart3, 
+import {
+  Home,
+  Users,
+  BarChart3,
   Settings,
-  User,
-  Trophy,
   LogOut,
-  Building2,
-  UserCheck,
-  RefreshCw,
-  Bell
+  BookOpen, // Represents Invoices or general business documents
+  Wallet,   // Represents Payments
+  ClipboardList, // Represents Reports
+  UserCog, // Represents Staff List/Accounts
+  LifeBuoy, // Represents Customer Support
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
-import type { Contact } from "@shared/schema";
-import { useEffect, useState } from "react";
 
 interface NavItemProps {
   href: string;
   icon: React.ReactNode;
   label: string;
   isActive?: boolean;
-  colorClass?: string;
-  hoverColorClass?: string;
-  activeColorClass?: string;
 }
 
-function NavItem({ href, icon, label, isActive, colorClass = "text-neutral-600", hoverColorClass = "hover:bg-neutral-100", activeColorClass = "bg-blue-50" }: NavItemProps) {
-
+function NavItem({ href, icon, label, isActive }: NavItemProps) {
   return (
     <Link href={href}>
       <div className={cn(
-        "flex items-center space-x-3 px-3 py-2 text-sm font-medium transition-colors cursor-pointer nav-item-rounded",
-        isActive 
-          ? `${activeColorClass} text-neutral-900` 
-          : `text-neutral-900 ${hoverColorClass}`
+        "flex items-center space-x-3 px-3 py-2 text-sm font-medium transition-colors cursor-pointer rounded-md mx-2",
+        isActive
+          ? "bg-indigo-600 text-white shadow-sm"
+          : "text-neutral-700 hover:bg-neutral-100"
       )}>
-        <span className={colorClass}>{icon}</span>
+        <span className={isActive ? "text-white" : "text-neutral-500"}>{icon}</span>
         <span>{label}</span>
       </div>
     </Link>
   );
 }
 
+interface NavSectionProps {
+  title: string;
+  items: { href: string; icon: React.ReactNode; label: string; }[];
+}
+
+function NavSection({ title, items }: NavSectionProps) {
+  const [location] = useLocation();
+  return (
+    <div className="space-y-1">
+      <h3 className="text-xs font-semibold uppercase text-neutral-400 tracking-wider px-4 py-2 mt-4 mb-1">
+        {title}
+      </h3>
+      {items.map((item) => (
+        <NavItem
+          key={item.href}
+          href={item.href}
+          icon={item.icon}
+          label={item.label}
+          isActive={location === item.href}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function NavigationSidebar() {
   const { viewMode } = useViewMode();
-  const [location] = useLocation();
   const isClubMode = viewMode === "club";
-  
-  const clubNavItems = [
-    { href: "/", icon: <Home className="h-4 w-4" />, label: "Dashboard", colorClass: "text-gray-700", hoverColorClass: "hover:bg-gray-50", activeColorClass: "bg-gray-50" },
-    { href: "/invoices", icon: <Building2 className="h-4 w-4" />, label: "Invoices", colorClass: "text-green-500", hoverColorClass: "hover:bg-green-50", activeColorClass: "bg-green-50" },
-    { href: "/calendar", icon: <Calendar className="h-4 w-4" />, label: "Calendar", colorClass: "text-blue-400", hoverColorClass: "hover:bg-blue-50", activeColorClass: "bg-blue-50" },
-    { href: "/contacts", icon: <Users className="h-4 w-4" />, label: "Contacts", colorClass: "text-yellow-500", hoverColorClass: "hover:bg-yellow-50", activeColorClass: "bg-yellow-50" },
-    { href: "/stats", icon: <BarChart3 className="h-4 w-4" />, label: "Statistics", colorClass: "text-purple-500", hoverColorClass: "hover:bg-purple-50", activeColorClass: "bg-purple-50" },
-  ];
 
-  const navItems = clubNavItems;
+  const navigationGroups = [
+    {
+      title: "MAIN",
+      items: [
+        { href: "/", icon: <Home className="h-4 w-4" />, label: "Dashboard" },
+        { href: "/contacts", icon: <Users className="h-4 w-4" />, label: "Contacts" },
+      ],
+    },
+    {
+      title: "BUSINESS",
+      items: [
+        { href: "/invoices", icon: <BookOpen className="h-4 w-4" />, label: "Invoices" },
+        { href: "/payments", icon: <Wallet className="h-4 w-4" />, label: "Payments" }, // Placeholder
+        { href: "/stats", icon: <ClipboardList className="h-4 w-4" />, label: "Reports" }, // Using stats for Reports
+      ],
+    },
+    {
+      title: "SETTINGS",
+      items: [
+        { href: "/settings", icon: <Settings className="h-4 w-4" />, label: "Settings" },
+        { href: "/staff-list", icon: <UserCog className="h-4 w-4" />, label: "Staff List" }, // Placeholder
+        { href: "/accounts", icon: <Users className="h-4 w-4" />, label: "Accounts" }, // Placeholder
+        { href: "/support", icon: <LifeBuoy className="h-4 w-4" />, label: "Customer Support" }, // Placeholder
+      ],
+    },
+  ];
 
   const handleLogout = () => {
     if (!isClubMode) {
@@ -71,56 +103,33 @@ export function NavigationSidebar() {
   };
 
   return (
-    <div className="w-48 flex-shrink-0 h-full flex flex-col">
-      <div className="flex-1 p-4">
-        <nav className="space-y-2">
-          {navItems.map((item) => (
-            <NavItem
-              key={item.href}
-              href={item.href}
-              icon={item.icon}
-              label={item.label}
-              isActive={location === item.href}
-              colorClass={item.colorClass}
-              hoverColorClass={item.hoverColorClass}
-              activeColorClass={item.activeColorClass}
-            />
+    <div className="w-[260px] flex-shrink-0 h-full flex flex-col bg-white border-r border-neutral-200 shadow-sm">
+      <div className="flex-1 py-4">
+        <nav className="space-y-1">
+          {navigationGroups.map((group) => (
+            <NavSection key={group.title} title={group.title} items={group.items} />
           ))}
         </nav>
       </div>
 
-      {/* Bottom section with divider */}
-      <div className="border-t border-neutral-200">
-        <div className="p-4 space-y-2">
-          {/* Settings Link */}
-          <div className={cn(
-            "flex items-center space-x-3 px-3 py-2 text-sm font-medium transition-colors cursor-pointer nav-item-rounded",
-            location === "/settings" 
-              ? "bg-slate-50 text-neutral-900" 
-              : "text-neutral-900 hover:bg-slate-50"
-          )} onClick={() => window.location.href = "/settings"}>
-            <Settings className="h-4 w-4 text-slate-500" />
-            <span>Settings</span>
-          </div>
-
-          {/* Logout Button */}
-          <div className={cn(
-            "flex items-center space-x-3 px-3 py-2 text-sm font-medium transition-colors cursor-pointer nav-item-rounded",
-            "text-neutral-900 hover:bg-red-50"
-          )} onClick={handleLogout}>
-            <LogOut className="h-4 w-4 text-red-500" />
-            <span>Logout</span>
-          </div>
+      {/* Logout Button */}
+      <div className="border-t border-neutral-200 py-4">
+        <div className={cn(
+          "flex items-center space-x-3 px-5 py-2 text-sm font-medium transition-colors cursor-pointer rounded-md mx-2",
+          "text-neutral-700 hover:bg-red-50 hover:text-red-700"
+        )} onClick={handleLogout}>
+          <LogOut className="h-4 w-4 text-neutral-500" />
+          <span>Logout</span>
         </div>
       </div>
     </div>
   );
 }
 
-//Layout component to adjust column widths
+// MainLayout component (no changes to be made here, just ensuring it's present for context)
 export function MainLayout({ children, detailPanel }: { children: React.ReactNode; detailPanel: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[200px_1fr_300px] h-screen"> {/* Adjust grid-cols as needed */}
+    <div className="grid grid-cols-[260px_1fr_672px] h-screen"> {/* Adjust grid-cols as needed */}
       <NavigationSidebar />
       <main className="p-4">{children}</main>
       <aside className="p-4 border-l border-neutral-200">{detailPanel}</aside>

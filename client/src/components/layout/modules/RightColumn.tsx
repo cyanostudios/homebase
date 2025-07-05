@@ -1,50 +1,51 @@
+import { UniversalPanel } from '@/core/ui/UniversalPanel';
 import { DetailPanelArea } from "../detail-panel-area";
 import { useApp } from "@/context/app-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useEffect, useState } from "react";
 
 export function RightColumn() {
-  const { 
-    isInvoicePanelOpen, 
-    isContactPanelOpen, 
-    isInvoiceCreatePanelOpen, 
-    isContactCreatePanelOpen 
+  const {
+    isInvoicePanelOpen,
+    isContactPanelOpen,
+    isInvoiceCreatePanelOpen,
+    currentContact,
+    closeContactPanel,
   } = useApp();
   const isMobile = useIsMobile();
   const [hasBeenOpened, setHasBeenOpened] = useState(false);
 
-  const isPanelOpen = isInvoicePanelOpen || isContactPanelOpen || isInvoiceCreatePanelOpen || isContactCreatePanelOpen;
+  const isPanelOpen = isInvoicePanelOpen || isContactPanelOpen || isInvoiceCreatePanelOpen;
 
-  // Track if panel has been opened to control slide animation - must be before conditional returns
   useEffect(() => {
     if (isPanelOpen && !hasBeenOpened) {
       setHasBeenOpened(true);
-    } else if (!isPanelOpen) {
+    } else if (!isPanelOpen && hasBeenOpened) {
       setHasBeenOpened(false);
     }
   }, [isPanelOpen, hasBeenOpened]);
 
-  // On mobile, panels overlay as full-screen modals
-  if (isMobile && isPanelOpen) {
+  if (isMobile && isContactPanelOpen) {
     return (
-      <div className="fixed inset-0 z-50 bg-white">
+      <div className="fixed inset-0 z-50 bg-white overflow-hidden">
         <DetailPanelArea />
       </div>
     );
   }
 
-  // Don't render anything on mobile when no panel is open
-  if (isMobile) {
+  if (isMobile || !isContactPanelOpen) {
     return null;
   }
 
   return (
-    <div 
-      className={`absolute right-0 top-0 bottom-0 w-748 bg-white border-l border-neutral-200 z-50 shadow-xl
-        transform transition-transform duration-300 ease-in-out
-        ${isPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}
+    <UniversalPanel
+      isOpen={isContactPanelOpen}
+      onClose={closeContactPanel}
+      title="Contact"
+      subtitle="Manage contact information"
+      width="672px"
     >
       <DetailPanelArea />
-    </div>
+    </UniversalPanel>
   );
 }
