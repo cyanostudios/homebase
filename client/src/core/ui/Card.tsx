@@ -9,14 +9,14 @@ interface CardProps {
 export function Card({
   children,
   className = '',
-  padding = 'none', // Default to no padding
+  padding = 'none',
 }: CardProps) {
-  const baseStyles = "bg-white rounded-lg shadow-sm border border-gray-200";
-
+  const baseStyles = "bg-white rounded-lg shadow-sm";
+  
   const paddingStyles = {
     none: "",
     sm: "p-3",
-    md: "p-4",
+    md: "p-4", 
     lg: "p-6",
   };
 

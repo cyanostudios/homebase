@@ -4,57 +4,71 @@ import { UniversalPanel } from '@/core/ui/UniversalPanel';
 import { ContactList } from '@/plugins/contacts/components/ContactList';
 import { ContactForm } from '@/plugins/contacts/components/ContactForm';
 import { MainLayout } from '@/core/ui/MainLayout';
+import { Button } from '@/core/ui/Button';
+import { Check, X } from 'lucide-react';
 
 function AppContent() {
- console.log('AppContent rendering...');
- 
- try {
-   const { isContactPanelOpen, currentContact, closeContactPanel } = useApp();
-   console.log('Context loaded, panel open:', isContactPanelOpen);
+  const { isContactPanelOpen, currentContact, closeContactPanel } = useApp();
 
-   const handleSaveContact = async (data: any) => {
-     console.log('Saving contact:', data);
-     closeContactPanel();
-   };
+  const handleSaveContact = async (data: any) => {
+    console.log('Saving contact:', data);
+    // TODO: API call
+    closeContactPanel();
+  };
 
-   return (
-     <>
-       <MainLayout>
-         <ContactList />
-       </MainLayout>
-       
-       <UniversalPanel
-         isOpen={isContactPanelOpen}
-         onClose={closeContactPanel}
-         title={currentContact ? 'Edit Contact' : 'Create Contact'}
-         subtitle={currentContact ? 'Update contact information' : 'Enter new contact details'}
-       >
-         <ContactForm
-           onSave={handleSaveContact}
-           onCancel={closeContactPanel}
-         />
-       </UniversalPanel>
-     </>
-   );
- } catch (error) {
-   console.error('AppContent error:', error);
-   return <div>Error in AppContent: {String(error)}</div>;
- }
+  // Footer med knappar för ContactForm
+  const contactFormFooter = (
+    <div className="flex justify-end space-x-3">
+      <Button
+        type="button"
+        onClick={closeContactPanel}
+        variant="danger"
+        icon={X}
+      >
+        Cancel
+      </Button>
+      <Button
+        type="submit"
+        variant="primary"
+        icon={Check}
+        onClick={() => {
+          // Trigger form submit - detta behöver förbättras med proper form handling
+          console.log('Save clicked');
+        }}
+      >
+        Save Contact
+      </Button>
+    </div>
+  );
+
+  return (
+    <>
+      <MainLayout>
+        <ContactList />
+      </MainLayout>
+      
+      <UniversalPanel
+        isOpen={isContactPanelOpen}
+        onClose={closeContactPanel}
+        title={currentContact ? 'Edit Contact' : 'Create Contact'}
+        subtitle={currentContact ? 'Update contact information' : 'Enter new contact details'}
+        footer={contactFormFooter}
+      >
+        <ContactForm
+          onSave={handleSaveContact}
+          onCancel={closeContactPanel}
+        />
+      </UniversalPanel>
+    </>
+  );
 }
 
 function App() {
- console.log('App rendering...');
- 
- try {
-   return (
-     <AppProvider>
-       <AppContent />
-     </AppProvider>
-   );
- } catch (error) {
-   console.error('App error:', error);
-   return <div>Error in App: {String(error)}</div>;
- }
+  return (
+    <AppProvider>
+      <AppContent />
+    </AppProvider>
+  );
 }
 
 export default App;
