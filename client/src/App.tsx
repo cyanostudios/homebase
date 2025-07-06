@@ -3,43 +3,114 @@ import { AppProvider, useApp } from '@/core/api/AppContext';
 import { UniversalPanel } from '@/core/ui/UniversalPanel';
 import { ContactList } from '@/plugins/contacts/components/ContactList';
 import { ContactForm } from '@/plugins/contacts/components/ContactForm';
+import { ContactView } from '@/plugins/contacts/components/ContactView';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { Button } from '@/core/ui/Button';
-import { Check, X } from 'lucide-react';
+import { Check, X, Edit } from 'lucide-react';
 
 function AppContent() {
-  const { isContactPanelOpen, currentContact, closeContactPanel } = useApp();
+  const { 
+    isContactPanelOpen, 
+    currentContact, 
+    panelMode, 
+    closeContactPanel, 
+    saveContact,
+    openContactForEdit,
+    openContactForView,
+    validationErrors
+  } = useApp();
 
   const handleSaveContact = async (data: any) => {
     console.log('Saving contact:', data);
-    // TODO: API call
-    closeContactPanel();
+    return saveContact(data);
   };
 
-  // Footer med knappar för ContactForm
-  const contactFormFooter = (
-    <div className="flex justify-end space-x-3">
-      <Button
-        type="button"
-        onClick={closeContactPanel}
-        variant="danger"
-        icon={X}
-      >
-        Cancel
-      </Button>
-      <Button
-        type="submit"
-        variant="primary"
-        icon={Check}
-        onClick={() => {
-          // Trigger form submit - detta behöver förbättras med proper form handling
-          console.log('Save clicked');
-        }}
-      >
-        Save Contact
-      </Button>
-    </div>
-  );
+  const handleCancel = () => {
+    if (panelMode === 'edit' && currentContact) {
+      // Return to view mode instead of closing
+      openContactForView(currentContact);
+    } else {
+      // Close panel for create mode
+      closeContactPanel();
+    }
+  };
+
+  const handleSaveClick = () => {
+    // Trigger the form submission via global function
+    if (window.submitContactForm) {
+      window.submitContactForm();
+    }
+  };
+
+  // Check if there are any blocking errors (non-warning)
+  const hasBlockingErrors = validationErrors.some(error => !error.message.includes('Warning'));
+
+  // Different footers based on panel mode
+  const getFooter = () => {
+    if (panelMode === 'view') {
+      return (
+        <div className="flex justify-end space-x-3">
+          <Button
+            type="button"
+            onClick={closeContactPanel}
+            variant="secondary"
+            icon={X}
+          >
+            Close
+          </Button>
+          <Button
+            type="button"
+            onClick={() => currentContact && openContactForEdit(currentContact)}
+            variant="primary"
+            icon={Edit}
+          >
+            Edit Contact
+          </Button>
+        </div>
+      );
+    }
+
+    // Form mode (create/edit)
+    return (
+      <div className="flex justify-end space-x-3">
+        <Button
+          type="button"
+          onClick={() => { if (window.cancelContactForm) window.cancelContactForm(); }}
+          variant="danger"
+          icon={X}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          onClick={handleSaveClick}
+          variant="primary"
+          icon={Check}
+          disabled={hasBlockingErrors}
+        >
+          {panelMode === 'edit' ? 'Update Contact' : 'Save Contact'}
+        </Button>
+      </div>
+    );
+  };
+
+  const getPanelTitle = () => {
+    switch (panelMode) {
+      case 'view': return 'View Contact';
+      case 'edit': return 'Edit Contact';
+      case 'create': return 'Create Contact';
+      default: return 'Contact';
+    }
+  };
+
+  const getPanelSubtitle = () => {
+    switch (panelMode) {
+      case 'view': return 'Contact information';
+      case 'edit': return 'Update contact information';
+      case 'create': return 'Enter new contact details';
+      default: return '';
+    }
+  };
 
   return (
     <>
@@ -49,15 +120,20 @@ function AppContent() {
       
       <UniversalPanel
         isOpen={isContactPanelOpen}
-        onClose={closeContactPanel}
-        title={currentContact ? 'Edit Contact' : 'Create Contact'}
-        subtitle={currentContact ? 'Update contact information' : 'Enter new contact details'}
-        footer={contactFormFooter}
+        onClose={() => { if (window.cancelContactForm) window.cancelContactForm(); else closeContactPanel(); }}
+        title={getPanelTitle()}
+        subtitle={getPanelSubtitle()}
+        footer={getFooter()}
       >
-        <ContactForm
-          onSave={handleSaveContact}
-          onCancel={closeContactPanel}
-        />
+        {panelMode === 'view' ? (
+          <ContactView contact={currentContact} />
+        ) : (
+          <ContactForm
+            currentContact={currentContact}
+            onSave={handleSaveContact}
+            onCancel={handleCancel}
+          />
+        )}
       </UniversalPanel>
     </>
   );

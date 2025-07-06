@@ -3,7 +3,7 @@
 ## Project Overview
 **Project Name:** Homebase  
 **Repository:** cyanostudios/homebase  
-**Current Status:** Transitioning from accounting app to core business template  
+**Current Status:** v3 - Enterprise-grade Contact Management System  
 **Tech Stack:** React + TypeScript + Vite + Express + PostgreSQL + Drizzle ORM  
 
 ### Architecture Philosophy
@@ -18,22 +18,24 @@
 CORE (Essential - never remove):
 ├── Database layer & ORM
 ├── Authentication framework
-├── Contacts management (core business entity)
+├── Contacts management (complete - v3)
 ├── API routing system
-├── UI component library
+├── UI component library (UniversalPanel, ConfirmDialog, etc.)
 ├── Environment configuration
+├── Validation framework
+├── State management (AppContext)
 └── Plugin registration system
 
 PLUGINS (Team-developed modules):
-├── Invoices (first plugin - to be refactored from core)
+├── Invoices (next priority - to be refactored from core)
 ├── Reporting 
 ├── Payment processing
-├── [Future plugins by teams]
+├── Calendar/Equipment (future plugins)
 └── Custom business logic
 ```
 
 ### Development Roadmap
-1. **Phase 1:** Complete Contacts as core functionality
+1. **Phase 1:** ✅ Complete Contacts as core functionality (v3 DONE)
 2. **Phase 2:** Refactor Invoices into first plugin
 3. **Phase 3:** Establish plugin development standards
 4. **Phase 4:** Additional plugins by teams  
@@ -42,8 +44,9 @@ PLUGINS (Team-developed modules):
 
 ### Local Development
 - **Database:** PostgreSQL via Docker (container: local-postgres)
-- **Server:** Express on port 3001
-- **Client:** React with Vite HMR
+- **Frontend:** Vite dev server on port 3001
+- **Backend:** Express server on port 3002
+- **Proxy:** Vite proxies `/api/*` requests to backend
 - **Environment:** `.env.local` with DATABASE_URL
 
 ### Production/Replit
@@ -53,154 +56,212 @@ PLUGINS (Team-developed modules):
 
 ## Architecture & Code Standards
 
-### Folder Structure
+### Current Folder Structure (v3)
 ```
-/core                # Core system (protected - minimal changes)
-  ├── /auth          # Authentication framework
-  ├── /database      # Database layer & ORM
-  ├── /contacts      # Contacts management (core entity)
-  ├── /api           # Core API routing & plugin hooks
-  ├── /ui            # Base UI components & layouts
-  └── /config        # Environment & plugin registration
+/client/src
+  ├── /core
+  │   ├── /ui                # UniversalPanel, ConfirmDialog, Button, etc.
+  │   └── /api              # AppContext, global state management
+  ├── /plugins
+  │   └── /contacts
+  │       └── /components   # ContactList, ContactForm
+  ├── /hooks               # useUnsavedChanges, custom hooks
+  ├── /lib                 # Utilities
+  └── /utils               # Helper functions
 
-/plugins             # Team-developed modules
-  ├── /invoices      # Invoice plugin (to be refactored)
-  ├── /reporting     # Reporting plugin
-  └── /[team-name]   # Custom team plugins
+/server
+  ├── /core                # Core server functionality
+  └── /plugins             # Plugin-specific API routes
 
-/client              # React frontend (core + plugin integration)
-/server              # Express backend (core + plugin routes)
-/shared              # Shared schemas/types between core & plugins
-/migrations          # Drizzle migrations (core + plugins)
+/shared                    # Types/schemas shared between client/server
+/preservation              # Backup of working components from v1
 ```
 
-### Current Project Status
-- **Name:** May change from "accounting" to more generic business app name
-- **Current State:** Invoices mixed with core - needs refactoring
-- **Next Priority:** Complete Contacts as stable core functionality
-- **Plugin Migration:** Invoices will be first plugin extraction
+### Current Project Status (v3)
+- **Name:** Homebase - Plugin-based business application template
+- **Contacts System:** ✅ Complete enterprise-grade implementation
+- **Next Priority:** Database integration (PostgreSQL + Drizzle)
+- **Plugin Migration:** Invoices will be first plugin extraction after DB layer
 
-### Database Layer
+### Database Layer (Planned)
 - **ORM:** Drizzle with PostgreSQL
 - **Migrations:** Auto-generated via `drizzle-kit push`
 - **Schema:** Defined in `/shared/schema.ts`
+
+## v3 Achievements & Standards
+
+### Professional UX Patterns (Implemented)
+- **Unsaved Changes Protection:** Warning dialogs when leaving forms with unsaved data
+- **Consistent Confirmations:** ConfirmDialog component replaces browser alerts
+- **Form State Management:** Custom useUnsavedChanges hook with useCallback optimizations
+- **Smart Reset Logic:** Form resets cleanly in create mode after discard
+- **Validation Framework:** Comprehensive error handling with field-level feedback
+
+### Component Architecture (v3)
+- **UniversalPanel:** 672px-wide right panel with header/footer and scrollable content
+- **ConfirmDialog:** Reusable confirmation dialog for dangerous actions
+- **ContactForm:** Enterprise-grade form with company/private toggle, repeatable sections
+- **ContactList:** Professional table with action buttons and consistent styling
+- **Button Standards:** Primary/secondary/danger variants with consistent icons
+
+### Working Code Patterns
+- **useCallback Optimization:** Prevents infinite loops in React hooks
+- **Global Window Functions:** `window.submitContactForm`, `window.cancelContactForm`
+- **State Management:** React Context for global state, useState for component state
+- **TypeScript Interfaces:** Complete type safety for complex business data
 
 ## AI Agent Instructions
 
 ### When Working with Claude in Cursor
 
+#### Communication Style
+- **Direct Commands Only:** "Write this in terminal 1" - no long explanations
+- **Code Artifacts:** Use artifacts for longer code files that need manual copy/paste
+- **Clean Code Focus:** No code bloat, thoughtful changes only
+- **Best Practices:** Senior-level coding standards assumed
+- **Minimal Reasoning:** Trust user's judgment, provide direct solutions
+
+#### Development Workflow Patterns (v3)
+- **Step-by-Step:** Break complex tasks into small, testable steps
+- **Terminal Management:** Always specify which terminal (1: frontend, 2: backend, 3: commands)
+- **Agent Usage:** Use Cursor agents (GPT-4.1, Gemini) sparingly - only when necessary
+- **File Management:** Manual copy/paste from artifacts for longer code files
+- **Testing:** Test each step before proceeding
+
 #### Code Generation Principles
-- **Senior-to-Junior Communication:** Write code as a senior developer but ensure it's readable and well-documented for junior developers
-- **Clean Code:** Always remove unused imports, variables, and dead code
-- **No Bloat:** Keep codebase lean - delete unnecessary files and dependencies
-- **Documentation:** Include clear comments explaining complex logic and business rules
-- **Variable-First Approach:** Use environment variables and configuration objects instead of hardcoded values
-- **Plugin Architecture:** Build features as self-contained modules that can be enabled/disabled
-- **Core Protection:** Never modify core files when adding features - use plugin system instead
+- **Reuse Established Patterns:** Follow v3 patterns for new components
+- **useCallback for Handlers:** Stabilize function references to prevent loops
+- **Consistent Imports:** React imports, Lucide icons, core UI components
+- **TypeScript Interfaces:** Define clear interfaces for component props
+- **Error Handling:** Follow ConfirmDialog and validation patterns
 
 #### Plugin Development Guidelines
 - **Team Independence:** Teams can develop plugins without touching core files
 - **Standard Interface:** All plugins follow the same registration and API patterns
 - **Database Conventions:** Plugin tables use prefixes (e.g., `invoice_`, `report_`)
-- **File-Based Configuration:** Plugin registration via config files, not UI
 - **Core Integration:** Plugins hook into core via standardized endpoints
-- **AI Agent Compatible:** Plugin structure should be clear for AI agents to understand and extend
+- **Component Reuse:** Use UniversalPanel, ConfirmDialog, Button standards
 
-#### Plugin Registration Process
-1. **Development:** Team develops plugin following core standards
-2. **Integration:** Plugin registers itself via config file
-3. **Database:** Plugin manages its own schema/migrations
-4. **API:** Plugin exposes standardized API endpoints
-5. **Frontend:** Plugin provides React components that integrate with core UI
+### Established v3 Patterns to Follow
 
-#### Database Operations
-- **Environment Agnostic:** All database connections must use environment variables
-- **No Hardcoded URLs:** Database connections should work across local/staging/production
-- **Schema Management:** Keep schema definitions in shared folder for consistency
+#### Form Components
+```typescript
+// Use useUnsavedChanges hook
+const { isDirty, showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } = useUnsavedChanges();
 
-#### Frontend Development
-- **Component Reusability:** Build components that can be easily moved or reused
-- **Configuration Over Hardcoding:** API endpoints, URLs, and settings should be configurable
-- **Clean Imports:** Regularly audit and remove unused dependencies
+// Stabilize handlers with useCallback
+const handleSubmit = useCallback(() => {
+  // handler logic
+}, [dependencies]);
 
-#### Error Handling
-- **Environment-Aware Logging:** Different log levels for development vs production
-- **Graceful Degradation:** Application should handle database/service failures gracefully
+// Global window functions for footer buttons
+useEffect(() => {
+  window.submitForm = handleSubmit;
+  window.cancelForm = handleCancel;
+  return () => {
+    delete window.submitForm;
+    delete window.cancelForm;
+  };
+}, [handleSubmit, handleCancel]);
+```
+
+#### Confirmation Dialogs
+```typescript
+// Use ConfirmDialog component
+<ConfirmDialog
+  isOpen={showConfirm}
+  title="Delete Item"
+  message="Are you sure?"
+  confirmText="Delete"
+  cancelText="Cancel"
+  onConfirm={handleConfirm}
+  onCancel={handleCancel}
+  variant="danger"
+/>
+```
+
+#### Component Structure
+- **UniversalPanel** for right-side panels
+- **Card** components for content sections
+- **Button** with consistent variants and Lucide icons
+- **Heading** and **Text** from Typography for consistent text styles
 
 ## Development Workflow
 
-### Git Strategy
-**Phase 1 - Core Development:**
-- Work directly in `main` branch
-- Focus on building stable core functionality
-- Commits should be atomic and well-documented
-
-**Phase 2 - Plugin Development:**
-- Create feature branches for each plugin: `feature/plugin-invoices`, `feature/plugin-reporting`
-- Teams work independently on their plugin branches
-- Merge to `main` only after thorough testing
-- Core remains protected - no direct core modifications in plugin branches
+### Git Strategy (v3)
+- **Branch:** `fresh-start-v3` (current working branch)
+- **Backup:** Previous versions tagged and preserved
+- **Commit Style:** Functional, descriptive commits after each working feature
+- **Preservation:** `/preservation/` folder contains working v1 components
 
 ### Local Development Process
-1. Clone Homebase repository
-2. Set up local environment (Docker PostgreSQL + .env.local)
-3. Develop and test locally
-4. Push to appropriate branch (main for core, feature/* for plugins)
-5. Merge to main when ready (post-core phase requires testing)
+1. **Terminal 1:** `npx vite --config vite.config.ts` (frontend)
+2. **Terminal 2:** `npx tsx server/index.ts` (backend)
+3. **Terminal 3:** Commands (git, file operations, curl tests)
+4. Test each step before proceeding
+5. Use artifacts for longer code files
+6. Commit working states frequently
 
-### Repository Migration
-- **Current:** Working in cyanostudios/accounting
-- **Target:** Migrate to cyanostudios/homebase
-- **Process:** Clean migration focusing on core extraction
-
-## Common Commands
+### Database Integration (Next Phase)
 ```bash
-# Start local development
-npm run dev
-
-# Database operations
+# Future commands for database setup
 npx drizzle-kit push      # Apply schema changes
 npx drizzle-kit studio    # Open database browser
-
-# Docker commands
 docker start local-postgres    # Start database
-docker stop local-postgres     # Stop database
 ```
 
-## Troubleshooting
-
-### Common Issues
-- 
-
-### Environment Variables
-- **Local:** DATABASE_URL, PORT, NODE_ENV
-- **Replit:** PGHOST, PGUSER, PGPASSWORD, PGDATABASE, PGPORT
-
-## Code Style & Conventions
+## Code Style & Conventions (v3 Standards)
 
 ### TypeScript
-- **Strict Mode:** Use strict TypeScript settings
-- **Type Safety:** Prefer interfaces over any types
-- **Clear Naming:** Use descriptive variable names that explain purpose
-- **Environment Variables:** Always type environment variables and provide fallbacks
+- **Strict Mode:** Complete type safety implemented
+- **Interface Definitions:** All components have proper TypeScript interfaces
+- **useCallback:** Stabilize function references to prevent React loops
+- **Import Organization:** React imports first, then UI components, then hooks
 
 ### React Components
-- **Functional Components:** Use functional components with hooks
-- **Props Interface:** Define clear interfaces for all component props
-- **Single Responsibility:** Each component should have one clear purpose
-- **Reusable Logic:** Extract reusable logic into custom hooks
+- **Functional Components:** All components use hooks pattern
+- **Custom Hooks:** useUnsavedChanges pattern for form state management
+- **Global Functions:** Window-attached functions for cross-component communication
+- **Consistent Styling:** Follow Button, Card, UniversalPanel patterns
 
-### API Endpoints
-- **RESTful Design:** Follow REST conventions for API design
-- **Environment Configuration:** API base URLs should be configurable
-- **Error Responses:** Consistent error response format across all endpoints
-- **Input Validation:** Validate all inputs with clear error messages
+### UI/UX Standards
+- **Font Sizes:** Reduced globally (16px→15px, 14px→13px) for better density
+- **Icon Standards:** Lucide React icons for all buttons and UI elements
+- **Color Scheme:** Blue primary, gray secondary, red danger variants
+- **Spacing:** Consistent gap and padding using Tailwind classes
 
-### General Principles
-- **DRY (Don't Repeat Yourself):** Extract common functionality into utilities
-- **KISS (Keep It Simple):** Simple solutions over complex architectures
-- **Portable Code:** Write code that can easily migrate between platforms
-- **Delete Mercilessly:** Remove unused code, files, and dependencies regularly
+### File Organization
+- **Core Components:** `/client/src/core/ui/` for reusable UI
+- **Plugin Components:** `/client/src/plugins/[name]/components/`
+- **Custom Hooks:** `/client/src/hooks/` for reusable logic
+- **Type Definitions:** Clear interfaces in component files
+
+## Troubleshooting Patterns (v3)
+
+### Common v3 Patterns
+- **Infinite Loops:** Use useCallback to stabilize function references
+- **Form Reset:** Use dedicated resetForm function with proper timing
+- **Global Functions:** Attach/detach window functions in useEffect cleanup
+- **TypeScript Errors:** Check import paths and interface definitions
+
+### Environment Variables
+- **Local:** Frontend port 3001, Backend port 3002
+- **Vite Config:** Proxy setup for `/api/*` requests
+- **Path Aliases:** `@/*` maps to `./client/src/*`
+
+## Current Status Summary
+
+### ✅ Completed (v3)
+- **Enterprise Contact Management:** Complete CRUD with business features
+- **Professional UX:** Unsaved changes protection, consistent confirmations
+- **Clean Architecture:** Reusable components, custom hooks, stable patterns
+- **TypeScript Safety:** Complete type definitions and error handling
+- **Production Ready:** Code quality suitable for enterprise deployment
+
+### 🎯 Next Priorities
+1. **Database Integration:** PostgreSQL + Drizzle ORM implementation
+2. **Plugin System:** Refactor existing code into plugin architecture
+3. **Additional Plugins:** Calendar, Equipment, Invoice modules
 
 ---
-*Last Updated: [2 july 2025]*
+*Last Updated: July 2025 - v3 Complete*

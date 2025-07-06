@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Building, User, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/core/ui/Button';
 import { Heading } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { useApp } from '@/core/api/AppContext';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 interface ContactPerson {
   id: string;
@@ -24,15 +27,31 @@ interface Address {
 }
 
 interface ContactFormProps {
+  currentContact?: any;
   onSave: (data: any) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
 }
 
-export const ContactForm: React.FC<ContactFormProps> = ({ onSave, onCancel, isSubmitting = false }) => {
+export const ContactForm: React.FC<ContactFormProps> = ({ 
+  currentContact, 
+  onSave, 
+  onCancel, 
+  isSubmitting = false 
+}) => {
+  const { validationErrors, clearValidationErrors } = useApp();
+  const { 
+    isDirty, 
+    showWarning, 
+    markDirty, 
+    markClean, 
+    attemptAction, 
+    confirmDiscard, 
+    cancelDiscard 
+  } = useUnsavedChanges();
   const [formData, setFormData] = useState({
     // Contact Type
-    contactType: 'company', // 'company' or 'private'
+    contactType: 'company',
     
     // Basic Information
     companyName: '',
@@ -46,14 +65,6 @@ export const ContactForm: React.FC<ContactFormProps> = ({ onSave, onCancel, isSu
     
     // Addresses
     addresses: [] as Address[],
-    
-    // Address
-    addressLine1: '',
-    addressLine2: '',
-    postalCode: '',
-    city: '',
-    region: '',
-    country: 'Sweden',
     
     // Contact Details
     email: '',
@@ -71,9 +82,104 @@ export const ContactForm: React.FC<ContactFormProps> = ({ onSave, onCancel, isSu
     notes: ''
   });
 
+  // Load currentContact data when editing
+  useEffect(() => {
+    if (currentContact) {
+      // Edit mode - load existing data
+      setFormData({
+        contactType: currentContact.contactType || 'company',
+        companyName: currentContact.companyName || '',
+        companyType: currentContact.companyType || 'AB',
+        organizationNumber: currentContact.organizationNumber || '',
+        vatNumber: currentContact.vatNumber || '',
+        personalNumber: currentContact.personalNumber || '',
+        contactPersons: currentContact.contactPersons || [],
+        addresses: currentContact.addresses || [],
+        email: currentContact.email || '',
+        phone: currentContact.phone || '',
+        phone2: currentContact.phone2 || '',
+        website: currentContact.website || '',
+        taxRate: currentContact.taxRate || '25',
+        paymentTerms: currentContact.paymentTerms || '30',
+        currency: currentContact.currency || 'SEK',
+        fTax: currentContact.fTax || 'yes',
+        notes: currentContact.notes || ''
+      });
+      markClean(); // Mark as clean after loading existing data
+    } else {
+      // Create mode - reset to empty form (including when panel reopens)
+      resetForm();
+    }
+  }, [currentContact, markClean]);
+
+  const resetForm = useCallback(() => {
+    setFormData({
+      contactType: 'company',
+      companyName: '',
+      companyType: 'AB',
+      organizationNumber: '',
+      vatNumber: '',
+      personalNumber: '',
+      contactPersons: [],
+      addresses: [],
+      email: '',
+      phone: '',
+      phone2: '',
+      website: '',
+      taxRate: '25',
+      paymentTerms: '30',
+      currency: 'SEK',
+      fTax: 'yes',
+      notes: ''
+    });
+    markClean();
+  }, [markClean]);
+
+  const handleSubmit = useCallback(() => {
+    console.log('Form submitting with data:', formData);
+    const success = onSave(formData);
+    if (success) {
+      markClean(); // Mark as clean after successful save
+    }
+    // If validation failed, form stays open to show errors
+    if (!success) {
+      console.log('Save failed due to validation errors');
+    }
+  }, [formData, onSave, markClean]);
+
+  const handleCancel = useCallback(() => {
+    attemptAction(() => {
+      onCancel();
+    });
+  }, [attemptAction, onCancel]);
+
+  // Expose functions to parent for unsaved changes handling
+  useEffect(() => {
+    // Add submit handler to window so footer button can call it
+    window.submitContactForm = handleSubmit;
+    
+    // Add cancel handler that respects unsaved changes
+    window.cancelContactForm = handleCancel;
+    
+    return () => {
+      delete window.submitContactForm;
+      delete window.cancelContactForm;
+    };
+  }, [handleSubmit, handleCancel]);
+
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    markDirty(); // Mark as dirty when user makes changes
+    // Don't clear validation errors while typing - let them persist until next save
   };
+
+  // Helper function to get error for a specific field
+  const getFieldError = (fieldName: string) => {
+    return validationErrors.find(error => error.field === fieldName);
+  };
+
+  // Check if there are any blocking errors (non-warning)
+  const hasBlockingErrors = validationErrors.some(error => !error.message.includes('Warning'));
 
   // Contact Person Functions
   const addContactPerson = () => {
@@ -142,7 +248,37 @@ export const ContactForm: React.FC<ContactFormProps> = ({ onSave, onCancel, isSu
 
   return (
     <div className="p-6 space-y-4">
-      <form className="space-y-4">
+      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+        
+        {/* Validation Summary */}
+        {hasBlockingErrors && (
+          <Card padding="md">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">
+                    Cannot save contact
+                  </h3>
+                  <div className="mt-2 text-sm text-red-700">
+                    <p>Please fix the following errors before saving:</p>
+                    <ul className="list-disc list-inside mt-1">
+                      {validationErrors
+                        .filter(error => !error.message.includes('Warning'))
+                        .map((error, index) => (
+                          <li key={index}>{error.message}</li>
+                        ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
         
         {/* Contact Type Selection */}
         <Card padding="md">
@@ -191,9 +327,14 @@ export const ContactForm: React.FC<ContactFormProps> = ({ onSave, onCancel, isSu
                   type="text"
                   value={formData.companyName}
                   onChange={(e) => updateField('companyName', e.target.value)}
-                  className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    getFieldError('companyName') ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   required
                 />
+                {getFieldError('companyName') && (
+                  <p className="mt-1 text-sm text-red-600">{getFieldError('companyName')?.message}</p>
+                )}
               </div>
               
               <div>
@@ -221,8 +362,13 @@ export const ContactForm: React.FC<ContactFormProps> = ({ onSave, onCancel, isSu
                   value={formData.organizationNumber}
                   onChange={(e) => updateField('organizationNumber', e.target.value)}
                   placeholder="XXXXXX-XXXX"
-                  className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    getFieldError('organizationNumber') ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
+                {getFieldError('organizationNumber') && (
+                  <p className="mt-1 text-sm text-red-600">{getFieldError('organizationNumber')?.message}</p>
+                )}
               </div>
               
               <div>
@@ -248,9 +394,14 @@ export const ContactForm: React.FC<ContactFormProps> = ({ onSave, onCancel, isSu
                   type="text"
                   value={formData.companyName}
                   onChange={(e) => updateField('companyName', e.target.value)}
-                  className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    getFieldError('companyName') ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   required
                 />
+                {getFieldError('companyName') && (
+                  <p className="mt-1 text-sm text-red-600">{getFieldError('companyName')?.message}</p>
+                )}
               </div>
               
               <div>
@@ -262,8 +413,13 @@ export const ContactForm: React.FC<ContactFormProps> = ({ onSave, onCancel, isSu
                   value={formData.personalNumber}
                   onChange={(e) => updateField('personalNumber', e.target.value)}
                   placeholder="YYYYMMDD-XXXX"
-                  className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    getFieldError('personalNumber') ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
+                {getFieldError('personalNumber') && (
+                  <p className="mt-1 text-sm text-red-600">{getFieldError('personalNumber')?.message}</p>
+                )}
               </div>
             </div>
           )}
@@ -281,8 +437,17 @@ export const ContactForm: React.FC<ContactFormProps> = ({ onSave, onCancel, isSu
                 type="email"
                 value={formData.email}
                 onChange={(e) => updateField('email', e.target.value)}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  getFieldError('email') ? 'border-yellow-500' : 'border-gray-300'
+                }`}
               />
+              {getFieldError('email') && (
+                <p className={`mt-1 text-sm ${
+                  getFieldError('email')?.message.includes('Warning') ? 'text-yellow-600' : 'text-red-600'
+                }`}>
+                  {getFieldError('email')?.message}
+                </p>
+              )}
             </div>
             
             <div>
@@ -326,7 +491,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({ onSave, onCancel, isSu
           </div>
         </Card>
 
-        {/* Address Information */}
+        {/* Addresses */}
         <Card padding="md">
           <div className="flex items-center justify-between mb-3">
             <Heading level={3}>Addresses</Heading>
@@ -346,7 +511,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({ onSave, onCancel, isSu
           ) : (
             <div className="space-y-4">
               {formData.addresses.map((address, index) => (
-                <div key={address.id} className="border border-gray-200 rounded-lg p-4">
+                <div key={address.id} className="bg-gray-50 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium text-gray-700">
                       Address {index + 1}
@@ -486,7 +651,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({ onSave, onCancel, isSu
             ) : (
               <div className="space-y-4">
                 {formData.contactPersons.map((person, index) => (
-                  <div key={person.id} className="border border-gray-200 rounded-lg p-4">
+                  <div key={person.id} className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-medium text-gray-700">
                         Contact Person {index + 1}
@@ -557,23 +722,6 @@ export const ContactForm: React.FC<ContactFormProps> = ({ onSave, onCancel, isSu
             )}
           </Card>
         )}
-        
-        {/* Notes */}
-        <Card padding="md">
-          <Heading level={3} className="mb-3">Notes</Heading>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Additional Notes
-            </label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => updateField('notes', e.target.value)}
-              rows={4}
-              placeholder="Add any additional notes about this contact..."
-              className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
-            />
-          </div>
-        </Card>
 
         {/* Tax & Business Settings */}
         <Card padding="md">
@@ -643,7 +791,39 @@ export const ContactForm: React.FC<ContactFormProps> = ({ onSave, onCancel, isSu
             </div>
           </div>
         </Card>
+        
+        {/* Notes */}
+        <Card padding="md">
+          <Heading level={3} className="mb-3">Notes</Heading>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Additional Notes
+            </label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => updateField('notes', e.target.value)}
+              rows={4}
+              placeholder="Add any additional notes about this contact..."
+              className="w-full px-3 py-2 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
+            />
+          </div>
+        </Card>
       </form>
+      
+      {/* Unsaved Changes Warning Dialog */}
+      <ConfirmDialog
+        isOpen={showWarning}
+        title="Unsaved Changes"
+        message={currentContact 
+          ? "You have unsaved changes. Do you want to discard your changes and return to view mode?" 
+          : "You have unsaved changes. Do you want to discard your changes and close the form?"
+        }
+        confirmText="Discard Changes"
+        cancelText="Continue Editing"
+        onConfirm={confirmDiscard}
+        onCancel={cancelDiscard}
+        variant="warning"
+      />
     </div>
   );
 };

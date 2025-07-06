@@ -10,6 +10,8 @@ import {
   User,
   UserCheck,
   Trophy,
+  Calendar,
+  Package,
   ChevronLeft, 
   ChevronRight 
 } from 'lucide-react';
@@ -20,6 +22,7 @@ const navCategories = [
     title: 'Main',
     items: [
       { label: 'Dashboard', icon: Home },
+      { label: 'Calendar', icon: Calendar },
     ]
   },
   {
@@ -30,6 +33,7 @@ const navCategories = [
       { label: 'Journal', icon: BookOpen },
       { label: 'Bookkeeping', icon: Calculator },
       { label: 'Projects', icon: FolderOpen },
+      { label: 'Equipment', icon: Package },
     ]
   },
   {
@@ -55,7 +59,6 @@ export function Sidebar() {
     <aside className={`fixed left-0 top-0 h-screen bg-white border-r border-gray-200 flex flex-col z-40 transition-all duration-300 ${
       isCollapsed ? 'w-16' : 'w-64'
     }`}>
-      {/* Logo/Company Name */}
       <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
         {!isCollapsed && (
           <span className="text-xl font-bold text-blue-600 tracking-tight">Homebase</span>
@@ -72,7 +75,6 @@ export function Sidebar() {
         </button>
       </div>
       
-      {/* Navigation */}
       <nav className="flex-1 py-6 px-2 space-y-6 overflow-y-auto">
         {navCategories.map((category) => (
           <div key={category.title}>
