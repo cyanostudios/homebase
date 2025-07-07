@@ -24,6 +24,7 @@ interface Address {
   city: string;
   region: string;
   country: string;
+  email: string;
 }
 
 interface ContactFormProps {
@@ -50,7 +51,8 @@ export const ContactForm: React.FC<ContactFormProps> = ({
     cancelDiscard 
   } = useUnsavedChanges();
   const [formData, setFormData] = useState({
-    // Contact Type
+    // Contact Number & Type
+    contactNumber: '',
     contactType: 'company',
     
     // Basic Information
@@ -87,6 +89,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
     if (currentContact) {
       // Edit mode - load existing data
       setFormData({
+        contactNumber: currentContact.contactNumber || '',
         contactType: currentContact.contactType || 'company',
         companyName: currentContact.companyName || '',
         companyType: currentContact.companyType || 'AB',
@@ -114,6 +117,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
   const resetForm = useCallback(() => {
     setFormData({
+      contactNumber: '',
       contactType: 'company',
       companyName: '',
       companyType: 'AB',
@@ -222,7 +226,8 @@ export const ContactForm: React.FC<ContactFormProps> = ({
       postalCode: '',
       city: '',
       region: '',
-      country: 'Sweden'
+      country: 'Sweden',
+      email: ''
     };
     setFormData(prev => ({
       ...prev,
@@ -280,34 +285,64 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           </Card>
         )}
         
-        {/* Contact Type Selection */}
+        {/* Contact Number & Type - Mobile Optimized */}
         <Card padding="md">
-          <Heading level={3} className="mb-3">Contact Type</Heading>
-          <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() => updateField('contactType', 'company')}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-colors text-base ${
-                formData.contactType === 'company' 
-                  ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                  : 'border-gray-300 hover:border-gray-400'
-              }`}
-            >
-              <Building className="w-5 h-5" />
-              Company
-            </button>
-            <button
-              type="button"
-              onClick={() => updateField('contactType', 'private')}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-colors text-base ${
-                formData.contactType === 'private' 
-                  ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                  : 'border-gray-300 hover:border-gray-400'
-              }`}
-            >
-              <User className="w-5 h-5" />
-              Private Person
-            </button>
+          <Heading level={3} className="mb-3">Contact Number & Type</Heading>
+          
+          {/* Mobile: Stack vertically, Desktop: Side by side */}
+          <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Contact Number
+              </label>
+              <input
+                type="text"
+                value={formData.contactNumber}
+                onChange={(e) => updateField('contactNumber', e.target.value)}
+                placeholder="01"
+                className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  getFieldError('contactNumber') ? 'border-red-500' : 'border-gray-300'
+                }`}
+                required
+              />
+              {getFieldError('contactNumber') && (
+                <p className="mt-1 text-sm text-red-600">{getFieldError('contactNumber')?.message}</p>
+              )}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Contact Type
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => updateField('contactType', 'company')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md border-2 transition-colors text-sm flex-1 justify-center ${
+                    formData.contactType === 'company' 
+                      ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  <Building className="w-4 h-4" />
+                  <span className="hidden sm:inline">Company</span>
+                  <span className="sm:hidden">Co.</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateField('contactType', 'private')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md border-2 transition-colors text-sm flex-1 justify-center ${
+                    formData.contactType === 'private' 
+                      ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  <User className="w-4 h-4" />
+                  <span className="hidden sm:inline">Private</span>
+                  <span className="sm:hidden">Priv.</span>
+                </button>
+              </div>
+            </div>
           </div>
         </Card>
 
@@ -318,7 +353,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           </Heading>
           
           {formData.contactType === 'company' ? (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Company Name
@@ -385,7 +420,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Full Name
@@ -428,7 +463,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         {/* Contact Details */}
         <Card padding="md">
           <Heading level={3} className="mb-3">General Contact Details</Heading>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email
@@ -511,7 +546,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           ) : (
             <div className="space-y-4">
               {formData.addresses.map((address, index) => (
-                <div key={address.id} className="bg-gray-50 rounded-lg p-4">
+                <div key={address.id} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium text-gray-700">
                       Address {index + 1}
@@ -526,7 +561,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                     </Button>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Address Type
@@ -545,7 +580,18 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                       </select>
                     </div>
                     
-                    <div></div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email for this address
+                      </label>
+                      <input
+                        type="email"
+                        value={address.email}
+                        onChange={(e) => updateAddress(address.id, 'email', e.target.value)}
+                        placeholder="contact@company.com"
+                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -651,7 +697,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             ) : (
               <div className="space-y-4">
                 {formData.contactPersons.map((person, index) => (
-                  <div key={person.id} className="bg-gray-50 rounded-lg p-4">
+                  <div key={person.id} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-medium text-gray-700">
                         Contact Person {index + 1}
@@ -666,7 +712,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                       </Button>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Name
@@ -726,7 +772,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         {/* Tax & Business Settings */}
         <Card padding="md">
           <Heading level={3} className="mb-3">Tax & Business Settings</Heading>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Tax Rate (%)

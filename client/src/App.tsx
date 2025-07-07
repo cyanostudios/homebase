@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AppProvider, useApp } from '@/core/api/AppContext';
+import { TopBar } from '@/core/ui/TopBar';
 import { UniversalPanel } from '@/core/ui/UniversalPanel';
 import { ContactList } from '@/plugins/contacts/components/ContactList';
 import { ContactForm } from '@/plugins/contacts/components/ContactForm';
 import { ContactView } from '@/plugins/contacts/components/ContactView';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { Button } from '@/core/ui/Button';
-import { Check, X, Edit } from 'lucide-react';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { Check, X, Edit, Trash2 } from 'lucide-react';
 
 function AppContent() {
   const { 
@@ -17,8 +19,27 @@ function AppContent() {
     saveContact,
     openContactForEdit,
     openContactForView,
+    deleteContact,
     validationErrors
   } = useApp();
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleDeleteContact = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    if (currentContact) {
+      deleteContact(currentContact.id);
+      closeContactPanel();
+    }
+    setShowDeleteConfirm(false);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+  };
 
   const handleSaveContact = async (data: any) => {
     console.log('Saving contact:', data);
@@ -49,23 +70,33 @@ function AppContent() {
   const getFooter = () => {
     if (panelMode === 'view') {
       return (
-        <div className="flex justify-end space-x-3">
+        <div className="flex items-center justify-between w-full">
           <Button
             type="button"
-            onClick={closeContactPanel}
-            variant="secondary"
-            icon={X}
+            onClick={handleDeleteContact}
+            variant="danger"
+            icon={Trash2}
           >
-            Close
+            Delete
           </Button>
-          <Button
-            type="button"
-            onClick={() => currentContact && openContactForEdit(currentContact)}
-            variant="primary"
-            icon={Edit}
-          >
-            Edit Contact
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={closeContactPanel}
+              variant="secondary"
+              icon={X}
+            >
+              Close
+            </Button>
+            <Button
+              type="button"
+              onClick={() => currentContact && openContactForEdit(currentContact)}
+              variant="primary"
+              icon={Edit}
+            >
+              Edit
+            </Button>
+          </div>
         </div>
       );
     }
@@ -88,7 +119,7 @@ function AppContent() {
           icon={Check}
           disabled={hasBlockingErrors}
         >
-          {panelMode === 'edit' ? 'Update Contact' : 'Save Contact'}
+          {panelMode === 'edit' ? 'Update' : 'Save'}
         </Button>
       </div>
     );
@@ -113,10 +144,13 @@ function AppContent() {
   };
 
   return (
-    <>
-      <MainLayout>
-        <ContactList />
-      </MainLayout>
+    <MainLayout>
+      <div className="h-full flex flex-col">
+        <TopBar />
+        <div className="flex-1 overflow-auto">
+          <ContactList />
+        </div>
+      </div>
       
       <UniversalPanel
         isOpen={isContactPanelOpen}
@@ -135,7 +169,22 @@ function AppContent() {
           />
         )}
       </UniversalPanel>
-    </>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Contact"
+        message={currentContact 
+          ? `Are you sure you want to delete "${currentContact.companyName}"? This action cannot be undone.`
+          : "Are you sure you want to delete this contact? This action cannot be undone."
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        variant="danger"
+      />
+    </MainLayout>
   );
 }
 

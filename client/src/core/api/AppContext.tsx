@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface Contact {
   id: string;
+  contactNumber: string;
   contactType: 'company' | 'private';
   companyName: string;
   companyType?: string;
@@ -56,10 +57,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   
-  // Initial dummy data
+  // Initial dummy data with contact numbers
   const [contacts, setContacts] = useState<Contact[]>([
     {
       id: '1',
+      contactNumber: '01',
       contactType: 'company',
       companyName: 'Acme Corporation',
       companyType: 'AB',
@@ -101,6 +103,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     {
       id: '2',
+      contactNumber: '02',
       contactType: 'private',
       companyName: 'Jane Cooper',
       personalNumber: '19851201-1234',
@@ -134,8 +137,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   ]);
 
+  // Helper function to generate next contact number
+  const generateNextContactNumber = (): string => {
+    const existingNumbers = contacts.map(contact => parseInt(contact.contactNumber) || 0);
+    const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+    const nextNumber = maxNumber + 1;
+    return nextNumber.toString().padStart(2, '0'); // Format as 01, 02, etc.
+  };
+
   const validateContact = (contactData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
+    
+    // Contact number validation
+    if (!contactData.contactNumber?.trim()) {
+      errors.push({
+        field: 'contactNumber',
+        message: 'Contact number is required'
+      });
+    } else {
+      // Check for duplicate contact numbers
+      const existingContact = contacts.find(contact => 
+        contact.id !== currentContact?.id && // Exclude current contact when editing
+        contact.contactNumber === contactData.contactNumber.trim()
+      );
+      
+      if (existingContact) {
+        errors.push({
+          field: 'contactNumber',
+          message: `Contact number "${contactData.contactNumber}" already exists for "${existingContact.companyName}"`
+        });
+      }
+    }
     
     // Required fields
     if (!contactData.companyName?.trim()) {
@@ -236,6 +268,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const saveContact = (contactData: any): boolean => {
     console.log('Validating contact data:', contactData);
     
+    // Auto-generate contact number for new contacts if not provided
+    if (!currentContact && !contactData.contactNumber?.trim()) {
+      contactData.contactNumber = generateNextContactNumber();
+    }
+    
     // Run validation
     const errors = validateContact(contactData);
     setValidationErrors(errors);
@@ -248,25 +285,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     
     // Save the contact
+    let savedContact: Contact;
     if (currentContact) {
       // Update existing contact
+      savedContact = { ...contactData, id: currentContact.id, updatedAt: new Date() };
       setContacts(prev => prev.map(contact => 
-        contact.id === currentContact.id 
-          ? { ...contactData, id: currentContact.id, updatedAt: new Date() }
-          : contact
+        contact.id === currentContact.id ? savedContact : contact
       ));
+      // Stay in view mode after edit
+      setCurrentContact(savedContact);
+      setPanelMode('view');
+      setValidationErrors([]);
     } else {
       // Create new contact
-      const newContact: Contact = {
+      savedContact = {
         ...contactData,
         id: Date.now().toString(),
         createdAt: new Date(),
         updatedAt: new Date()
       };
-      setContacts(prev => [...prev, newContact]);
+      setContacts(prev => [...prev, savedContact]);
+      // Close panel after create
+      closeContactPanel();
     }
     
-    closeContactPanel();
     return true;
   };
 

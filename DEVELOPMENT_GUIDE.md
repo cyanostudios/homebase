@@ -223,6 +223,28 @@ docker start local-postgres    # Start database
 - **Custom Hooks:** useUnsavedChanges pattern for form state management
 - **Global Functions:** Window-attached functions for cross-component communication
 - **Consistent Styling:** Follow Button, Card, UniversalPanel patterns
+- **Default Parameters:** Use default values for configurable props to make components flexible
+  ```typescript
+  // Good - flexible with sensible defaults
+  export function MyComponent({
+    size = 'md',
+    showIcon = true,
+    variant = 'primary',
+    className = '',
+    width = {
+      mobile: 'w-full',
+      sm: 'sm:w-[90%]',
+      md: 'md:w-[600px]',
+      lg: 'lg:w-[800px]'
+    }
+  }: MyComponentProps) {}
+  
+  // Usage becomes simple
+  <MyComponent />                    // Uses all defaults
+  <MyComponent size="lg" />          // Override only what you need
+  ```
+- **Mobile Responsiveness:** All components must handle mobile screens gracefully
+- **Screen Size Detection:** Use useEffect + window.innerWidth < 768 pattern for mobile detection
 
 ### UI/UX Standards
 - **Font Sizes:** Reduced globally (16px→15px, 14px→13px) for better density

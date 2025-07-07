@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Home, 
   FileText, 
@@ -53,21 +53,51 @@ const navCategories = [
 ];
 
 export function Sidebar() {
-  const { isCollapsed, setIsCollapsed } = useSidebar();
+  const { isCollapsed, setIsCollapsed, isMobileOverlay, setIsMobileOverlay } = useSidebar();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  const handleMenuItemClick = () => {
+    // Close mobile overlay when menu item is clicked
+    if (isMobile && isMobileOverlay) {
+      setIsMobileOverlay(false);
+    }
+  };
 
   return (
-    <aside className={`fixed left-0 top-0 h-screen bg-white border-r border-gray-200 flex flex-col z-40 transition-all duration-300 ${
-      isCollapsed ? 'w-16' : 'w-64'
-    }`}>
+    <aside className={`left-0 top-0 h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-40
+      ${isMobile ? 'fixed' : 'sticky'}
+      ${isMobile ? (
+        isMobileOverlay ? 'translate-x-0 w-64' : '-translate-x-full w-64'
+      ) : (
+        isCollapsed ? 'w-16' : 'w-64'
+      )}
+    `}>
       <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-        {!isCollapsed && (
+        {(!isCollapsed || (isMobile && isMobileOverlay)) && (
           <span className="text-xl font-bold text-blue-600 tracking-tight">Homebase</span>
         )}
         <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={() => {
+            if (isMobile) {
+              setIsMobileOverlay(!isMobileOverlay);
+            } else {
+              setIsCollapsed(!isCollapsed);
+            }
+          }}
           className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
         >
-          {isCollapsed ? (
+          {(isCollapsed && !isMobileOverlay) ? (
             <ChevronRight className="w-4 h-4 text-gray-600" />
           ) : (
             <ChevronLeft className="w-4 h-4 text-gray-600" />
@@ -78,7 +108,7 @@ export function Sidebar() {
       <nav className="flex-1 py-6 px-2 space-y-6 overflow-y-auto">
         {navCategories.map((category) => (
           <div key={category.title}>
-            {!isCollapsed && (
+            {(!isCollapsed || (isMobile && isMobileOverlay)) && (
               <h3 className="px-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 {category.title}
               </h3>
@@ -88,13 +118,14 @@ export function Sidebar() {
                 <a
                   key={item.label}
                   href="#"
+                  onClick={handleMenuItemClick}
                   className={`flex items-center px-3 py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors font-medium text-sm ${
-                    isCollapsed ? 'justify-center' : 'gap-3'
+                    (isCollapsed && !(isMobile && isMobileOverlay)) ? 'justify-center' : 'gap-3'
                   }`}
-                  title={isCollapsed ? item.label : undefined}
+                  title={(isCollapsed && !(isMobile && isMobileOverlay)) ? item.label : undefined}
                 >
                   <item.icon className="w-5 h-5 flex-shrink-0" />
-                  {!isCollapsed && <span>{item.label}</span>}
+                  {(!isCollapsed || (isMobile && isMobileOverlay)) && <span>{item.label}</span>}
                 </a>
               ))}
             </div>
