@@ -12,9 +12,11 @@ export const useSidebar = () => useContext(SidebarContext);
 
 interface MainLayoutProps {
   children: React.ReactNode;
+  currentPage: 'contacts' | 'notes';
+  onPageChange: (page: 'contacts' | 'notes') => void;
 }
 
-export function MainLayout({ children }: MainLayoutProps) {
+export function MainLayout({ children, currentPage, onPageChange }: MainLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOverlay, setIsMobileOverlay] = useState(false);
 
@@ -44,7 +46,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           />
         )}
         
-        <Sidebar />
+        <Sidebar currentPage={currentPage} onPageChange={onPageChange} />
         <main className={`flex-1 overflow-auto bg-gray-50 transition-all duration-300 
           md:${isCollapsed ? 'ml-16' : 'ml-64'}
           ml-0

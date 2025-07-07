@@ -284,29 +284,19 @@ export const ContactList: React.FC = () => {
                         {contact.phone && (
                           <div className="text-xs text-gray-600">{contact.phone}</div>
                         )}
-                        
-                        {/* Mobile actions under contact info */}
-                        <div className="flex gap-2 pt-2">
-                          <Button 
-                            variant="secondary" 
-                            size="sm" 
-                            icon={Edit}
-                            onClick={() => openContactForEdit(contact)}
-                            className="flex-1 h-8"
-                          >
-                            Edit
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            icon={Eye}
-                            onClick={() => openContactForView(contact)}
-                            className="flex-1 h-8"
-                          >
-                            View
-                          </Button>
-                        </div>
                       </div>
+                    </div>
+                    {/* View button in top right */}
+                    <div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        icon={Eye}
+                        onClick={() => openContactForView(contact)}
+                        className="h-8 px-3"
+                      >
+                        View
+                      </Button>
                     </div>
                   </div>
                 </div>

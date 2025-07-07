@@ -12,47 +12,54 @@ import {
   Trophy,
   Calendar,
   Package,
+  StickyNote,
   ChevronLeft, 
   ChevronRight 
 } from 'lucide-react';
 import { useSidebar } from './MainLayout';
 
+interface SidebarProps {
+  currentPage: 'contacts' | 'notes';
+  onPageChange: (page: 'contacts' | 'notes') => void;
+}
+
 const navCategories = [
   {
     title: 'Main',
     items: [
-      { label: 'Dashboard', icon: Home },
-      { label: 'Calendar', icon: Calendar },
+      { label: 'Dashboard', icon: Home, page: null },
+      { label: 'Calendar', icon: Calendar, page: null },
     ]
   },
   {
     title: 'Business',
     items: [
-      { label: 'Contacts', icon: Users },
-      { label: 'Invoice', icon: FileText },
-      { label: 'Journal', icon: BookOpen },
-      { label: 'Bookkeeping', icon: Calculator },
-      { label: 'Projects', icon: FolderOpen },
-      { label: 'Equipment', icon: Package },
+      { label: 'Contacts', icon: Users, page: 'contacts' },
+      { label: 'Notes', icon: StickyNote, page: 'notes' },
+      { label: 'Invoice', icon: FileText, page: null },
+      { label: 'Journal', icon: BookOpen, page: null },
+      { label: 'Bookkeeping', icon: Calculator, page: null },
+      { label: 'Projects', icon: FolderOpen, page: null },
+      { label: 'Equipment', icon: Package, page: null },
     ]
   },
   {
     title: 'Sports',
     items: [
-      { label: 'Referee', icon: UserCheck },
-      { label: 'Matches', icon: Trophy },
+      { label: 'Referee', icon: UserCheck, page: null },
+      { label: 'Matches', icon: Trophy, page: null },
     ]
   },
   {
     title: 'Account',
     items: [
-      { label: 'Settings', icon: Settings },
-      { label: 'Profile', icon: User },
+      { label: 'Settings', icon: Settings, page: null },
+      { label: 'Profile', icon: User, page: null },
     ]
   }
 ];
 
-export function Sidebar() {
+export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
   const { isCollapsed, setIsCollapsed, isMobileOverlay, setIsMobileOverlay } = useSidebar();
   const [isMobile, setIsMobile] = useState(false);
 
@@ -67,10 +74,15 @@ export function Sidebar() {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  const handleMenuItemClick = () => {
+  const handleMenuItemClick = (page: string | null) => {
     // Close mobile overlay when menu item is clicked
     if (isMobile && isMobileOverlay) {
       setIsMobileOverlay(false);
+    }
+    
+    // Handle navigation
+    if (page === 'contacts' || page === 'notes') {
+      onPageChange(page);
     }
   };
 
@@ -115,18 +127,24 @@ export function Sidebar() {
             )}
             <div className="space-y-1">
               {category.items.map((item) => (
-                <a
+                <button
                   key={item.label}
-                  href="#"
-                  onClick={handleMenuItemClick}
-                  className={`flex items-center px-3 py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors font-medium text-sm ${
+                  onClick={() => handleMenuItemClick(item.page)}
+                  className={`w-full flex items-center px-3 py-2 rounded-lg transition-colors font-medium text-sm ${
                     (isCollapsed && !(isMobile && isMobileOverlay)) ? 'justify-center' : 'gap-3'
+                  } ${
+                    item.page === currentPage 
+                      ? 'bg-blue-50 text-blue-700' 
+                      : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+                  } ${
+                    item.page === null ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
                   }`}
                   title={(isCollapsed && !(isMobile && isMobileOverlay)) ? item.label : undefined}
+                  disabled={item.page === null}
                 >
                   <item.icon className="w-5 h-5 flex-shrink-0" />
                   {(!isCollapsed || (isMobile && isMobileOverlay)) && <span>{item.label}</span>}
-                </a>
+                </button>
               ))}
             </div>
           </div>

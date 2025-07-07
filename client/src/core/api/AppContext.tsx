@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { Note } from '@/plugins/notes/types/notes';
 
 interface Contact {
   id: string;
@@ -47,6 +48,26 @@ interface AppContextType {
   saveContact: (contactData: any) => boolean;
   deleteContact: (id: string) => void;
   clearValidationErrors: () => void;
+
+  // Note Panel State
+  isNotePanelOpen: boolean;
+  currentNote: Note | null;
+  notePanelMode: 'create' | 'edit' | 'view';
+  
+  // Notes Data
+  notes: Note[];
+  
+  // Note Actions
+  openNotePanel: (note: Note | null) => void;
+  openNoteForEdit: (note: Note) => void;
+  openNoteForView: (note: Note) => void;
+  closeNotePanel: () => void;
+  saveNote: (noteData: any) => boolean;
+  deleteNote: (id: string) => void;
+
+  // Cross-plugin references
+  getNotesForContact: (contactId: string) => Note[];
+  getContactsForNote: (noteId: string) => Contact[];
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -56,6 +77,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentContact, setCurrentContact] = useState<Contact | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  
+  // Notes state
+  const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
+  const [currentNote, setCurrentNote] = useState<Note | null>(null);
+  const [notePanelMode, setNotePanelMode] = useState<'create' | 'edit' | 'view'>('create');
   
   // Initial dummy data with contact numbers
   const [contacts, setContacts] = useState<Contact[]>([
@@ -134,6 +160,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
       notes: '',
       createdAt: new Date('2024-01-02'),
       updatedAt: new Date('2024-01-02')
+    }
+  ]);
+
+  // Initial dummy notes with mentions
+  const [notes, setNotes] = useState<Note[]>([
+    {
+      id: '1',
+      title: 'Project Meeting Notes',
+      content: 'Discussed the new project requirements with the team. Key points:\n\n- Budget: $50,000\n- Timeline: 3 months\n- Team size: 4 developers\n- Technology stack: React, Node.js, PostgreSQL\n\nNext steps:\n1. Create detailed project plan\n2. Set up development environment\n3. Schedule weekly standup meetings\n\nWe should reach out to @Acme Corporation for additional requirements.',
+      mentions: [
+        {
+          contactId: '1',
+          contactName: 'Acme Corporation',
+          companyName: 'Acme Corporation',
+          position: 298,
+          length: 16
+        }
+      ],
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-02')
+    },
+    {
+      id: '2',
+      title: 'Ideas for Marketing Campaign',
+      content: 'Brainstorming session for Q2 marketing campaign:\n\n- Social media focus on LinkedIn and Twitter\n- Content marketing with weekly blog posts\n- Webinar series on industry trends\n- Partnership with tech influencers\n\nBudget allocation:\n- Social media ads: 40%\n- Content creation: 30%\n- Webinars: 20%\n- Influencer partnerships: 10%\n\nNote: @Jane Cooper mentioned she has contacts in the industry that could help with influencer partnerships.',
+      mentions: [
+        {
+          contactId: '2',
+          contactName: 'Jane Cooper',
+          position: 392,
+          length: 12
+        }
+      ],
+      createdAt: new Date('2024-01-03'),
+      updatedAt: new Date('2024-01-03')
     }
   ]);
 
@@ -233,11 +294,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return errors;
   };
 
+  const validateNote = (noteData: any): ValidationError[] => {
+    const errors: ValidationError[] = [];
+    
+    // Title validation
+    if (!noteData.title?.trim()) {
+      errors.push({
+        field: 'title',
+        message: 'Note title is required'
+      });
+    }
+    
+    // Content validation
+    if (!noteData.content?.trim()) {
+      errors.push({
+        field: 'content',
+        message: 'Note content is required'
+      });
+    }
+    
+    return errors;
+  };
+
+  // Contact functions
   const openContactPanel = (contact: Contact | null) => {
     setCurrentContact(contact);
     setPanelMode(contact ? 'edit' : 'create');
     setIsContactPanelOpen(true);
     setValidationErrors([]);
+    // Close note panel if open
+    setIsNotePanelOpen(false);
   };
 
   const openContactForEdit = (contact: Contact) => {
@@ -245,6 +331,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPanelMode('edit');
     setIsContactPanelOpen(true);
     setValidationErrors([]);
+    // Close note panel if open
+    setIsNotePanelOpen(false);
   };
 
   const openContactForView = (contact: Contact) => {
@@ -252,6 +340,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPanelMode('view');
     setIsContactPanelOpen(true);
     setValidationErrors([]);
+    // Close note panel if open
+    setIsNotePanelOpen(false);
   };
 
   const closeContactPanel = () => {
@@ -321,13 +411,124 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  // Note functions
+  const openNotePanel = (note: Note | null) => {
+    setCurrentNote(note);
+    setNotePanelMode(note ? 'edit' : 'create');
+    setIsNotePanelOpen(true);
+    setValidationErrors([]);
+    // Close contact panel if open
+    setIsContactPanelOpen(false);
+  };
+
+  const openNoteForEdit = (note: Note) => {
+    setCurrentNote(note);
+    setNotePanelMode('edit');
+    setIsNotePanelOpen(true);
+    setValidationErrors([]);
+    // Close contact panel if open
+    setIsContactPanelOpen(false);
+  };
+
+  const openNoteForView = (note: Note) => {
+    setCurrentNote(note);
+    setNotePanelMode('view');
+    setIsNotePanelOpen(true);
+    setValidationErrors([]);
+    // Close contact panel if open
+    setIsContactPanelOpen(false);
+  };
+
+  const closeNotePanel = () => {
+    setIsNotePanelOpen(false);
+    setCurrentNote(null);
+    setNotePanelMode('create');
+    setValidationErrors([]);
+  };
+
+  const saveNote = (noteData: any): boolean => {
+    console.log('Validating note data:', noteData);
+    
+    // Run validation
+    const errors = validateNote(noteData);
+    setValidationErrors(errors);
+    
+    // If there are blocking errors, don't save
+    const blockingErrors = errors.filter(error => !error.message.includes('Warning'));
+    if (blockingErrors.length > 0) {
+      console.log('Validation failed:', blockingErrors);
+      return false;
+    }
+    
+    // Save the note
+    let savedNote: Note;
+    if (currentNote) {
+      // Update existing note
+      savedNote = { 
+        ...noteData, 
+        id: currentNote.id, 
+        updatedAt: new Date(), 
+        createdAt: currentNote.createdAt,
+        mentions: noteData.mentions || []
+      };
+      setNotes(prev => prev.map(note => 
+        note.id === currentNote.id ? savedNote : note
+      ));
+      // Stay in view mode after edit
+      setCurrentNote(savedNote);
+      setNotePanelMode('view');
+      setValidationErrors([]);
+    } else {
+      // Create new note
+      savedNote = {
+        ...noteData,
+        id: Date.now().toString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        mentions: noteData.mentions || []
+      };
+      setNotes(prev => [...prev, savedNote]);
+      // Close panel after create
+      closeNotePanel();
+    }
+    
+    return true;
+  };
+
+  const deleteNote = (id: string) => {
+    console.log("Deleting note with id:", id);
+    setNotes(prev => {
+      const newNotes = prev.filter(note => note.id !== id);
+      console.log("Notes after delete:", newNotes);
+      return newNotes;
+    });
+  };
+
+  // Cross-plugin reference functions
+  const getNotesForContact = (contactId: string): Note[] => {
+    return notes.filter(note => 
+      note.mentions && note.mentions.some(mention => mention.contactId === contactId)
+    );
+  };
+
+  const getContactsForNote = (noteId: string): Contact[] => {
+    const note = notes.find(n => n.id === noteId);
+    if (!note || !note.mentions) return [];
+    
+    return note.mentions.map(mention => 
+      contacts.find(contact => contact.id === mention.contactId)
+    ).filter(Boolean) as Contact[];
+  };
+
   return (
     <AppContext.Provider value={{
+      // Contact state
       isContactPanelOpen,
       currentContact,
       panelMode,
       validationErrors,
       contacts,
+      // Contact actions
       openContactPanel,
       openContactForEdit,
       openContactForView,
@@ -335,6 +536,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveContact,
       deleteContact,
       clearValidationErrors,
+      // Note state
+      isNotePanelOpen,
+      currentNote,
+      notePanelMode,
+      notes,
+      // Note actions
+      openNotePanel,
+      openNoteForEdit,
+      openNoteForView,
+      closeNotePanel,
+      saveNote,
+      deleteNote,
+      // Cross-plugin references
+      getNotesForContact,
+      getContactsForNote,
     }}>
       {children}
     </AppContext.Provider>

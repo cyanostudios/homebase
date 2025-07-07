@@ -1,14 +1,20 @@
 import React from 'react';
-import { Building, User, MapPin, Phone, Mail, Globe, CreditCard } from 'lucide-react';
+import { Building, User, MapPin, Phone, Mail, Globe, CreditCard, StickyNote } from 'lucide-react';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
+import { useApp } from '@/core/api/AppContext';
+import { Button } from '@/core/ui/Button';
 
 interface ContactViewProps {
   contact: any;
 }
 
 export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
+  const { getNotesForContact, openNoteForView } = useApp();
+  
   if (!contact) return null;
+
+  const mentionedInNotes = getNotesForContact(contact.id);
 
   return (
     <div className="p-6 space-y-4">
@@ -217,6 +223,40 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
       )}
 
       <hr className="border-gray-100" />
+
+      {/* Cross-plugin references - Mentioned in Notes */}
+      {mentionedInNotes.length > 0 && (
+        <>
+          <Card padding="md" className="shadow-none">
+            <Heading level={3} size="lg" color="gray-600" className="mb-3">Mentioned in Notes</Heading>
+            <div className="space-y-3">
+              {mentionedInNotes.map((note: any) => (
+                <div key={note.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <div className="flex items-center gap-3">
+                    <StickyNote className="w-4 h-4 text-yellow-600" />
+                    <div>
+                      <Text className="font-medium text-gray-900">{note.title}</Text>
+                      <Text variant="caption" className="text-gray-600">
+                        {new Date(note.updatedAt).toLocaleDateString()}
+                      </Text>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openNoteForView(note)}
+                    className="text-yellow-700 hover:text-yellow-800"
+                  >
+                    View Note
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <hr className="border-gray-100" />
+        </>
+      )}
 
       {/* Metadata */}
       <Card padding="md" className="shadow-none">

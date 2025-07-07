@@ -5,6 +5,9 @@ import { UniversalPanel } from '@/core/ui/UniversalPanel';
 import { ContactList } from '@/plugins/contacts/components/ContactList';
 import { ContactForm } from '@/plugins/contacts/components/ContactForm';
 import { ContactView } from '@/plugins/contacts/components/ContactView';
+import { NotesList } from '@/plugins/notes/components/NotesList';
+import { NoteForm } from '@/plugins/notes/components/NoteForm';
+import { NoteView } from '@/plugins/notes/components/NoteView';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { Button } from '@/core/ui/Button';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -12,6 +15,7 @@ import { Check, X, Edit, Trash2 } from 'lucide-react';
 
 function AppContent() {
   const { 
+    // Contact state
     isContactPanelOpen, 
     currentContact, 
     panelMode, 
@@ -20,19 +24,39 @@ function AppContent() {
     openContactForEdit,
     openContactForView,
     deleteContact,
-    validationErrors
+    validationErrors,
+    // Note state
+    isNotePanelOpen,
+    currentNote,
+    notePanelMode,
+    closeNotePanel,
+    saveNote,
+    openNoteForEdit,
+    openNoteForView,
+    deleteNote
   } = useApp();
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [currentPage, setCurrentPage] = useState<'contacts' | 'notes'>('contacts');
 
-  const handleDeleteContact = () => {
+  // Determine which panel is open and what type of item we're dealing with
+  const isAnyPanelOpen = isContactPanelOpen || isNotePanelOpen;
+  const isContact = isContactPanelOpen;
+  const isNote = isNotePanelOpen;
+  const currentItem = isContact ? currentContact : currentNote;
+  const currentMode = isContact ? panelMode : notePanelMode;
+
+  const handleDeleteItem = () => {
     setShowDeleteConfirm(true);
   };
 
   const confirmDelete = () => {
-    if (currentContact) {
+    if (isContact && currentContact) {
       deleteContact(currentContact.id);
       closeContactPanel();
+    } else if (isNote && currentNote) {
+      deleteNote(currentNote.id);
+      closeNotePanel();
     }
     setShowDeleteConfirm(false);
   };
@@ -46,20 +70,55 @@ function AppContent() {
     return saveContact(data);
   };
 
+  const handleSaveNote = async (data: any) => {
+    console.log('Saving note:', data);
+    return saveNote(data);
+  };
+
   const handleCancel = () => {
-    if (panelMode === 'edit' && currentContact) {
-      // Return to view mode instead of closing
-      openContactForView(currentContact);
-    } else {
-      // Close panel for create mode
-      closeContactPanel();
+    if (isContact) {
+      if (panelMode === 'edit' && currentContact) {
+        // Return to view mode instead of closing
+        openContactForView(currentContact);
+      } else {
+        // Close panel for create mode
+        closeContactPanel();
+      }
+    } else if (isNote) {
+      if (notePanelMode === 'edit' && currentNote) {
+        // Return to view mode instead of closing
+        openNoteForView(currentNote);
+      } else {
+        // Close panel for create mode
+        closeNotePanel();
+      }
     }
   };
 
   const handleSaveClick = () => {
     // Trigger the form submission via global function
-    if (window.submitContactForm) {
+    if (isContact && window.submitContactForm) {
       window.submitContactForm();
+    } else if (isNote && window.submitNoteForm) {
+      window.submitNoteForm();
+    }
+  };
+
+  const handleCancelClick = () => {
+    if (isContact && window.cancelContactForm) {
+      window.cancelContactForm();
+    } else if (isNote && window.cancelNoteForm) {
+      window.cancelNoteForm();
+    } else {
+      handleCancel();
+    }
+  };
+
+  const handleClosePanel = () => {
+    if (isContact) {
+      closeContactPanel();
+    } else if (isNote) {
+      closeNotePanel();
     }
   };
 
@@ -68,12 +127,12 @@ function AppContent() {
 
   // Different footers based on panel mode
   const getFooter = () => {
-    if (panelMode === 'view') {
+    if (currentMode === 'view') {
       return (
         <div className="flex items-center justify-between w-full">
           <Button
             type="button"
-            onClick={handleDeleteContact}
+            onClick={handleDeleteItem}
             variant="danger"
             icon={Trash2}
           >
@@ -82,7 +141,7 @@ function AppContent() {
           <div className="flex items-center gap-3">
             <Button
               type="button"
-              onClick={closeContactPanel}
+              onClick={handleClosePanel}
               variant="secondary"
               icon={X}
             >
@@ -90,7 +149,13 @@ function AppContent() {
             </Button>
             <Button
               type="button"
-              onClick={() => currentContact && openContactForEdit(currentContact)}
+              onClick={() => {
+                if (isContact && currentContact) {
+                  openContactForEdit(currentContact);
+                } else if (isNote && currentNote) {
+                  openNoteForEdit(currentNote);
+                }
+              }}
               variant="primary"
               icon={Edit}
             >
@@ -106,7 +171,7 @@ function AppContent() {
       <div className="flex justify-end space-x-3">
         <Button
           type="button"
-          onClick={() => { if (window.cancelContactForm) window.cancelContactForm(); }}
+          onClick={handleCancelClick}
           variant="danger"
           icon={X}
         >
@@ -119,65 +184,90 @@ function AppContent() {
           icon={Check}
           disabled={hasBlockingErrors}
         >
-          {panelMode === 'edit' ? 'Update' : 'Save'}
+          {currentMode === 'edit' ? 'Update' : 'Save'}
         </Button>
       </div>
     );
   };
 
   const getPanelTitle = () => {
-    switch (panelMode) {
-      case 'view': return 'View Contact';
-      case 'edit': return 'Edit Contact';
-      case 'create': return 'Create Contact';
-      default: return 'Contact';
+    const itemType = isContact ? 'Contact' : 'Note';
+    switch (currentMode) {
+      case 'view': return `View ${itemType}`;
+      case 'edit': return `Edit ${itemType}`;
+      case 'create': return `Create ${itemType}`;
+      default: return itemType;
     }
   };
 
   const getPanelSubtitle = () => {
-    switch (panelMode) {
-      case 'view': return 'Contact information';
-      case 'edit': return 'Update contact information';
-      case 'create': return 'Enter new contact details';
+    const itemType = isContact ? 'contact' : 'note';
+    switch (currentMode) {
+      case 'view': return `${itemType.charAt(0).toUpperCase() + itemType.slice(1)} information`;
+      case 'edit': return `Update ${itemType} information`;
+      case 'create': return `Enter new ${itemType} details`;
       default: return '';
     }
   };
 
+  const getDeleteMessage = () => {
+    if (isContact && currentContact) {
+      return `Are you sure you want to delete "${currentContact.companyName}"? This action cannot be undone.`;
+    } else if (isNote && currentNote) {
+      return `Are you sure you want to delete "${currentNote.title}"? This action cannot be undone.`;
+    }
+    return "Are you sure you want to delete this item? This action cannot be undone.";
+  };
+
   return (
-    <MainLayout>
+    <MainLayout currentPage={currentPage} onPageChange={setCurrentPage}>
       <div className="h-full flex flex-col">
         <TopBar />
         <div className="flex-1 overflow-auto">
-          <ContactList />
+          {currentPage === 'contacts' ? <ContactList /> : <NotesList />}
         </div>
       </div>
       
       <UniversalPanel
-        isOpen={isContactPanelOpen}
-        onClose={() => { if (window.cancelContactForm) window.cancelContactForm(); else closeContactPanel(); }}
+        isOpen={isAnyPanelOpen}
+        onClose={handleCancelClick}
         title={getPanelTitle()}
         subtitle={getPanelSubtitle()}
         footer={getFooter()}
       >
-        {panelMode === 'view' ? (
-          <ContactView contact={currentContact} />
-        ) : (
-          <ContactForm
-            currentContact={currentContact}
-            onSave={handleSaveContact}
-            onCancel={handleCancel}
-          />
+        {isContact && (
+          <>
+            {currentMode === 'view' ? (
+              <ContactView contact={currentContact} />
+            ) : (
+              <ContactForm
+                currentContact={currentContact}
+                onSave={handleSaveContact}
+                onCancel={handleCancel}
+              />
+            )}
+          </>
+        )}
+        {isNote && (
+          <>
+            {currentMode === 'view' ? (
+              <NoteView note={currentNote} />
+            ) : (
+              <NoteForm
+                currentNote={currentNote}
+                onSave={handleSaveNote}
+                onCancel={handleCancel}
+              />
+            )}
+          </>
         )}
       </UniversalPanel>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={showDeleteConfirm}
-        title="Delete Contact"
-        message={currentContact 
-          ? `Are you sure you want to delete "${currentContact.companyName}"? This action cannot be undone.`
-          : "Are you sure you want to delete this contact? This action cannot be undone."
-        }
+        title={`Delete ${isContact ? 'Contact' : 'Note'}`}
+        message={getDeleteMessage()}
         confirmText="Delete"
         cancelText="Cancel"
         onConfirm={confirmDelete}
