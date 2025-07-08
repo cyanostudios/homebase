@@ -96,7 +96,14 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
           {contact.website && (
             <div>
               <Text variant="muted">Website</Text>
-              <Text>{contact.website}</Text>
+              <a 
+                href={contact.website.startsWith('http') ? contact.website : `https://${contact.website}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                {contact.website}
+              </a>
             </div>
           )}
           
