@@ -9,12 +9,16 @@ import { NotesList } from '@/plugins/notes/components/NotesList';
 import { NoteForm } from '@/plugins/notes/components/NoteForm';
 import { NoteView } from '@/plugins/notes/components/NoteView';
 import { MainLayout } from '@/core/ui/MainLayout';
+import { LoginComponent } from '@/core/ui/LoginComponent';
 import { Button } from '@/core/ui/Button';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Check, X, Edit, Trash2 } from 'lucide-react';
 
 function AppContent() {
   const { 
+    // Auth state
+    isAuthenticated,
+    isLoading,
     // Contact state
     isContactPanelOpen, 
     currentContact, 
@@ -39,6 +43,23 @@ function AppContent() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [currentPage, setCurrentPage] = useState<'contacts' | 'notes'>('contacts');
 
+  // Show loading spinner while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login screen if not authenticated
+  if (!isAuthenticated) {
+    return <LoginComponent />;
+  }
+
   // Determine which panel is open and what type of item we're dealing with
   const isAnyPanelOpen = isContactPanelOpen || isNotePanelOpen;
   const isContact = isContactPanelOpen;
@@ -50,12 +71,12 @@ function AppContent() {
     setShowDeleteConfirm(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (isContact && currentContact) {
-      deleteContact(currentContact.id);
+      await deleteContact(currentContact.id);
       closeContactPanel();
     } else if (isNote && currentNote) {
-      deleteNote(currentNote.id);
+      await deleteNote(currentNote.id);
       closeNotePanel();
     }
     setShowDeleteConfirm(false);
@@ -67,12 +88,12 @@ function AppContent() {
 
   const handleSaveContact = async (data: any) => {
     console.log('Saving contact:', data);
-    return saveContact(data);
+    return await saveContact(data);
   };
 
   const handleSaveNote = async (data: any) => {
     console.log('Saving note:', data);
-    return saveNote(data);
+    return await saveNote(data);
   };
 
   const handleCancel = () => {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Note } from '@/plugins/notes/types/notes';
 
 interface Contact {
@@ -30,23 +30,7 @@ interface ValidationError {
   message: string;
 }
 
-interface User {
-  id: number;
-  email: string;
-  role: string;
-  plugins: string[];
-}
-
 interface AppContextType {
-  // Auth State
-  user: User | null;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => Promise<void>;
-  
-  // Loading States
-  isLoading: boolean;
-  
   // Contact Panel State
   isContactPanelOpen: boolean;
   currentContact: Contact | null;
@@ -61,8 +45,8 @@ interface AppContextType {
   openContactForEdit: (contact: Contact) => void;
   openContactForView: (contact: Contact) => void;
   closeContactPanel: () => void;
-  saveContact: (contactData: any) => Promise<boolean>;
-  deleteContact: (id: string) => Promise<void>;
+  saveContact: (contactData: any) => boolean;
+  deleteContact: (id: string) => void;
   clearValidationErrors: () => void;
 
   // Note Panel State
@@ -78,109 +62,17 @@ interface AppContextType {
   openNoteForEdit: (note: Note) => void;
   openNoteForView: (note: Note) => void;
   closeNotePanel: () => void;
-  saveNote: (noteData: any) => Promise<boolean>;
-  deleteNote: (id: string) => Promise<void>;
+  saveNote: (noteData: any) => boolean;
+  deleteNote: (id: string) => void;
 
   // Cross-plugin references
   getNotesForContact: (contactId: string) => Note[];
   getContactsForNote: (noteId: string) => Contact[];
-  
-  // Data refresh
-  refreshData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// API helper functions
-const api = {
-  async request(endpoint: string, options: RequestInit = {}) {
-    const response = await fetch(`/api${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      credentials: 'include',
-      ...options,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Network error' }));
-      throw new Error(error.error || 'Request failed');
-    }
-
-    return response.json();
-  },
-
-  // Auth endpoints
-  async login(email: string, password: string) {
-    return this.request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-  },
-
-  async logout() {
-    return this.request('/auth/logout', { method: 'POST' });
-  },
-
-  async getMe() {
-    return this.request('/auth/me');
-  },
-
-  // Contacts endpoints
-  async getContacts() {
-    return this.request('/contacts');
-  },
-
-  async createContact(contactData: any) {
-    return this.request('/contacts', {
-      method: 'POST',
-      body: JSON.stringify(contactData),
-    });
-  },
-
-  async updateContact(id: string, contactData: any) {
-    return this.request(`/contacts/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(contactData),
-    });
-  },
-
-  async deleteContact(id: string) {
-    return this.request(`/contacts/${id}`, { method: 'DELETE' });
-  },
-
-  // Notes endpoints
-  async getNotes() {
-    return this.request('/notes');
-  },
-
-  async createNote(noteData: any) {
-    return this.request('/notes', {
-      method: 'POST',
-      body: JSON.stringify(noteData),
-    });
-  },
-
-  async updateNote(id: string, noteData: any) {
-    return this.request(`/notes/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(noteData),
-    });
-  },
-
-  async deleteNote(id: string) {
-    return this.request(`/notes/${id}`, { method: 'DELETE' });
-  },
-};
-
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Auth state
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Panel states
   const [isContactPanelOpen, setIsContactPanelOpen] = useState(false);
   const [currentContact, setCurrentContact] = useState<Contact | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
@@ -191,103 +83,127 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [notePanelMode, setNotePanelMode] = useState<'create' | 'edit' | 'view'>('create');
   
-  // Data state
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
-
-  // Check authentication on app start
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  // Load data when authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadData();
-    } else {
-      setContacts([]);
-      setNotes([]);
+  // Initial dummy data with contact numbers
+  const [contacts, setContacts] = useState<Contact[]>([
+    {
+      id: '1',
+      contactNumber: '01',
+      contactType: 'company',
+      companyName: 'Acme Corporation',
+      companyType: 'AB',
+      organizationNumber: '556123-4567',
+      vatNumber: 'SE556123456701',
+      personalNumber: '',
+      contactPersons: [
+        {
+          id: '1',
+          name: 'John Smith',
+          title: 'CEO',
+          email: 'john@acme.com',
+          phone: '+46 70 123 45 67'
+        }
+      ],
+      addresses: [
+        {
+          id: '1',
+          type: 'Main Office',
+          addressLine1: 'Storgatan 123',
+          addressLine2: '',
+          postalCode: '111 22',
+          city: 'Stockholm',
+          region: 'Stockholm',
+          country: 'Sweden'
+        }
+      ],
+      email: 'info@acme.com',
+      phone: '+46 8 123 456 78',
+      phone2: '+46 70 123 45 67',
+      website: 'https://acme.com',
+      taxRate: '25',
+      paymentTerms: '30',
+      currency: 'SEK',
+      fTax: 'yes',
+      notes: 'Important client with multiple projects',
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01')
+    },
+    {
+      id: '2',
+      contactNumber: '02',
+      contactType: 'private',
+      companyName: 'Jane Cooper',
+      personalNumber: '19851201-1234',
+      companyType: '',
+      organizationNumber: '',
+      vatNumber: '',
+      contactPersons: [],
+      addresses: [
+        {
+          id: '1',
+          type: 'Home Address',
+          addressLine1: 'Hemgatan 45',
+          addressLine2: 'Lägenhet 3B',
+          postalCode: '211 34',
+          city: 'Malmö',
+          region: 'Skåne',
+          country: 'Sweden'
+        }
+      ],
+      email: 'jane.cooper@example.com',
+      phone: '+46 70 987 65 43',
+      phone2: '',
+      website: '',
+      taxRate: '25',
+      paymentTerms: '30',
+      currency: 'SEK',
+      fTax: 'no',
+      notes: '',
+      createdAt: new Date('2024-01-02'),
+      updatedAt: new Date('2024-01-02')
     }
-  }, [isAuthenticated]);
+  ]);
 
-  const checkAuth = async () => {
-    try {
-      const response = await api.getMe();
-      setUser(response.user);
-      setIsAuthenticated(true);
-    } catch (error) {
-      setUser(null);
-      setIsAuthenticated(false);
-    } finally {
-      setIsLoading(false);
+  // Initial dummy notes with mentions
+  const [notes, setNotes] = useState<Note[]>([
+    {
+      id: '1',
+      title: 'Project Meeting Notes',
+      content: 'Discussed the new project requirements with the team. Key points:\n\n- Budget: $50,000\n- Timeline: 3 months\n- Team size: 4 developers\n- Technology stack: React, Node.js, PostgreSQL\n\nNext steps:\n1. Create detailed project plan\n2. Set up development environment\n3. Schedule weekly standup meetings\n\nWe should reach out to @Acme Corporation for additional requirements.',
+      mentions: [
+        {
+          contactId: '1',
+          contactName: 'Acme Corporation',
+          companyName: 'Acme Corporation',
+          position: 298,
+          length: 16
+        }
+      ],
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-02')
+    },
+    {
+      id: '2',
+      title: 'Ideas for Marketing Campaign',
+      content: 'Brainstorming session for Q2 marketing campaign:\n\n- Social media focus on LinkedIn and Twitter\n- Content marketing with weekly blog posts\n- Webinar series on industry trends\n- Partnership with tech influencers\n\nBudget allocation:\n- Social media ads: 40%\n- Content creation: 30%\n- Webinars: 20%\n- Influencer partnerships: 10%\n\nNote: @Jane Cooper mentioned she has contacts in the industry that could help with influencer partnerships.',
+      mentions: [
+        {
+          contactId: '2',
+          contactName: 'Jane Cooper',
+          position: 392,
+          length: 12
+        }
+      ],
+      createdAt: new Date('2024-01-03'),
+      updatedAt: new Date('2024-01-03')
     }
-  };
-
-  const loadData = async () => {
-    try {
-      const [contactsData, notesData] = await Promise.all([
-        api.getContacts(),
-        api.getNotes(),
-      ]);
-      
-      // Transform API data to match interface
-      const transformedContacts = contactsData.map((contact: any) => ({
-        ...contact,
-        createdAt: new Date(contact.createdAt),
-        updatedAt: new Date(contact.updatedAt),
-      }));
-
-      const transformedNotes = notesData.map((note: any) => ({
-        ...note,
-        createdAt: new Date(note.createdAt),
-        updatedAt: new Date(note.updatedAt),
-      }));
-
-      setContacts(transformedContacts);
-      setNotes(transformedNotes);
-    } catch (error) {
-      console.error('Failed to load data:', error);
-    }
-  };
-
-  const refreshData = async () => {
-    if (isAuthenticated) {
-      await loadData();
-    }
-  };
-
-  // Auth functions
-  const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      const response = await api.login(email, password);
-      setUser(response.user);
-      setIsAuthenticated(true);
-      return true;
-    } catch (error) {
-      console.error('Login failed:', error);
-      return false;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await api.logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setUser(null);
-      setIsAuthenticated(false);
-      setContacts([]);
-      setNotes([]);
-    }
-  };
+  ]);
 
   // Helper function to generate next contact number
   const generateNextContactNumber = (): string => {
     const existingNumbers = contacts.map(contact => parseInt(contact.contactNumber) || 0);
     const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
     const nextNumber = maxNumber + 1;
-    return nextNumber.toString().padStart(2, '0');
+    return nextNumber.toString().padStart(2, '0'); // Format as 01, 02, etc.
   };
 
   const validateContact = (contactData: any): ValidationError[] => {
@@ -302,7 +218,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } else {
       // Check for duplicate contact numbers
       const existingContact = contacts.find(contact => 
-        contact.id !== currentContact?.id && 
+        contact.id !== currentContact?.id && // Exclude current contact when editing
         contact.contactNumber === contactData.contactNumber.trim()
       );
       
@@ -324,9 +240,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     
     // Company validations
     if (contactData.contactType === 'company') {
+      // Organization number validation
       if (contactData.organizationNumber?.trim()) {
         const existingContact = contacts.find(contact => 
-          contact.id !== currentContact?.id && 
+          contact.id !== currentContact?.id && // Exclude current contact when editing
           contact.contactType === 'company' &&
           contact.organizationNumber === contactData.organizationNumber.trim()
         );
@@ -342,9 +259,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     
     // Private person validations
     if (contactData.contactType === 'private') {
+      // Personal number validation
       if (contactData.personalNumber?.trim()) {
         const existingContact = contacts.find(contact => 
-          contact.id !== currentContact?.id && 
+          contact.id !== currentContact?.id && // Exclude current contact when editing
           contact.contactType === 'private' &&
           contact.personalNumber === contactData.personalNumber.trim()
         );
@@ -361,7 +279,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Email validation (warning, not blocking)
     if (contactData.email?.trim()) {
       const existingContact = contacts.find(contact => 
-        contact.id !== currentContact?.id && 
+        contact.id !== currentContact?.id && // Exclude current contact when editing
         contact.email === contactData.email.trim()
       );
       
@@ -379,6 +297,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const validateNote = (noteData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
     
+    // Title validation
     if (!noteData.title?.trim()) {
       errors.push({
         field: 'title',
@@ -386,6 +305,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
     }
     
+    // Content validation
     if (!noteData.content?.trim()) {
       errors.push({
         field: 'content',
@@ -402,6 +322,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPanelMode(contact ? 'edit' : 'create');
     setIsContactPanelOpen(true);
     setValidationErrors([]);
+    // Close note panel if open
     setIsNotePanelOpen(false);
   };
 
@@ -410,6 +331,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPanelMode('edit');
     setIsContactPanelOpen(true);
     setValidationErrors([]);
+    // Close note panel if open
     setIsNotePanelOpen(false);
   };
 
@@ -418,6 +340,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPanelMode('view');
     setIsContactPanelOpen(true);
     setValidationErrors([]);
+    // Close note panel if open
     setIsNotePanelOpen(false);
   };
 
@@ -432,7 +355,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setValidationErrors([]);
   };
 
-  const saveContact = async (contactData: any): Promise<boolean> => {
+  const saveContact = (contactData: any): boolean => {
     console.log('Validating contact data:', contactData);
     
     // Auto-generate contact number for new contacts if not provided
@@ -451,57 +374,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return false;
     }
     
-    try {
-      let savedContact: Contact;
-      
-      if (currentContact) {
-        // Update existing contact
-        savedContact = await api.updateContact(currentContact.id, contactData);
-        setContacts(prev => prev.map(contact => 
-          contact.id === currentContact.id ? {
-            ...savedContact,
-            createdAt: new Date(savedContact.createdAt),
-            updatedAt: new Date(savedContact.updatedAt),
-          } : contact
-        ));
-        setCurrentContact({
-          ...savedContact,
-          createdAt: new Date(savedContact.createdAt),
-          updatedAt: new Date(savedContact.updatedAt),
-        });
-        setPanelMode('view');
-        setValidationErrors([]);
-      } else {
-        // Create new contact
-        savedContact = await api.createContact(contactData);
-        setContacts(prev => [...prev, {
-          ...savedContact,
-          createdAt: new Date(savedContact.createdAt),
-          updatedAt: new Date(savedContact.updatedAt),
-        }]);
-        closeContactPanel();
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to save contact:', error);
-      setValidationErrors([{ field: 'general', message: 'Failed to save contact. Please try again.' }]);
-      return false;
+    // Save the contact
+    let savedContact: Contact;
+    if (currentContact) {
+      // Update existing contact
+      savedContact = { ...contactData, id: currentContact.id, updatedAt: new Date() };
+      setContacts(prev => prev.map(contact => 
+        contact.id === currentContact.id ? savedContact : contact
+      ));
+      // Stay in view mode after edit
+      setCurrentContact(savedContact);
+      setPanelMode('view');
+      setValidationErrors([]);
+    } else {
+      // Create new contact
+      savedContact = {
+        ...contactData,
+        id: Date.now().toString(),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      setContacts(prev => [...prev, savedContact]);
+      // Close panel after create
+      closeContactPanel();
     }
+    
+    return true;
   };
 
-  const deleteContact = async (id: string) => {
+  const deleteContact = (id: string) => {
     console.log("Deleting contact with id:", id);
-    try {
-      await api.deleteContact(id);
-      setContacts(prev => {
-        const newContacts = prev.filter(contact => contact.id !== id);
-        console.log("Contacts after delete:", newContacts);
-        return newContacts;
-      });
-    } catch (error) {
-      console.error('Failed to delete contact:', error);
-    }
+    setContacts(prev => {
+      const newContacts = prev.filter(contact => contact.id !== id);
+      console.log("Contacts after delete:", newContacts);
+      return newContacts;
+    });
   };
 
   // Note functions
@@ -510,6 +417,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setNotePanelMode(note ? 'edit' : 'create');
     setIsNotePanelOpen(true);
     setValidationErrors([]);
+    // Close contact panel if open
     setIsContactPanelOpen(false);
   };
 
@@ -518,6 +426,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setNotePanelMode('edit');
     setIsNotePanelOpen(true);
     setValidationErrors([]);
+    // Close contact panel if open
     setIsContactPanelOpen(false);
   };
 
@@ -526,6 +435,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setNotePanelMode('view');
     setIsNotePanelOpen(true);
     setValidationErrors([]);
+    // Close contact panel if open
     setIsContactPanelOpen(false);
   };
 
@@ -536,69 +446,62 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setValidationErrors([]);
   };
 
-  const saveNote = async (noteData: any): Promise<boolean> => {
+  const saveNote = (noteData: any): boolean => {
     console.log('Validating note data:', noteData);
     
     // Run validation
     const errors = validateNote(noteData);
     setValidationErrors(errors);
     
-    if (errors.length > 0) {
-      console.log('Validation failed:', errors);
+    // If there are blocking errors, don't save
+    const blockingErrors = errors.filter(error => !error.message.includes('Warning'));
+    if (blockingErrors.length > 0) {
+      console.log('Validation failed:', blockingErrors);
       return false;
     }
     
-    try {
-      let savedNote: Note;
-      
-      if (currentNote) {
-        // Update existing note
-        savedNote = await api.updateNote(currentNote.id, noteData);
-        setNotes(prev => prev.map(note => 
-          note.id === currentNote.id ? {
-            ...savedNote,
-            createdAt: new Date(savedNote.createdAt),
-            updatedAt: new Date(savedNote.updatedAt),
-          } : note
-        ));
-        setCurrentNote({
-          ...savedNote,
-          createdAt: new Date(savedNote.createdAt),
-          updatedAt: new Date(savedNote.updatedAt),
-        });
-        setNotePanelMode('view');
-        setValidationErrors([]);
-      } else {
-        // Create new note
-        savedNote = await api.createNote(noteData);
-        setNotes(prev => [...prev, {
-          ...savedNote,
-          createdAt: new Date(savedNote.createdAt),
-          updatedAt: new Date(savedNote.updatedAt),
-        }]);
-        closeNotePanel();
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to save note:', error);
-      setValidationErrors([{ field: 'general', message: 'Failed to save note. Please try again.' }]);
-      return false;
+    // Save the note
+    let savedNote: Note;
+    if (currentNote) {
+      // Update existing note
+      savedNote = { 
+        ...noteData, 
+        id: currentNote.id, 
+        updatedAt: new Date(), 
+        createdAt: currentNote.createdAt,
+        mentions: noteData.mentions || []
+      };
+      setNotes(prev => prev.map(note => 
+        note.id === currentNote.id ? savedNote : note
+      ));
+      // Stay in view mode after edit
+      setCurrentNote(savedNote);
+      setNotePanelMode('view');
+      setValidationErrors([]);
+    } else {
+      // Create new note
+      savedNote = {
+        ...noteData,
+        id: Date.now().toString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        mentions: noteData.mentions || []
+      };
+      setNotes(prev => [...prev, savedNote]);
+      // Close panel after create
+      closeNotePanel();
     }
+    
+    return true;
   };
 
-  const deleteNote = async (id: string) => {
+  const deleteNote = (id: string) => {
     console.log("Deleting note with id:", id);
-    try {
-      await api.deleteNote(id);
-      setNotes(prev => {
-        const newNotes = prev.filter(note => note.id !== id);
-        console.log("Notes after delete:", newNotes);
-        return newNotes;
-      });
-    } catch (error) {
-      console.error('Failed to delete note:', error);
-    }
+    setNotes(prev => {
+      const newNotes = prev.filter(note => note.id !== id);
+      console.log("Notes after delete:", newNotes);
+      return newNotes;
+    });
   };
 
   // Cross-plugin reference functions
@@ -619,20 +522,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      // Auth state
-      user,
-      isAuthenticated,
-      login,
-      logout,
-      isLoading,
-      
       // Contact state
       isContactPanelOpen,
       currentContact,
       panelMode,
       validationErrors,
       contacts,
-      
       // Contact actions
       openContactPanel,
       openContactForEdit,
@@ -641,13 +536,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveContact,
       deleteContact,
       clearValidationErrors,
-      
       // Note state
       isNotePanelOpen,
       currentNote,
       notePanelMode,
       notes,
-      
       // Note actions
       openNotePanel,
       openNoteForEdit,
@@ -655,13 +548,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       closeNotePanel,
       saveNote,
       deleteNote,
-      
       // Cross-plugin references
       getNotesForContact,
       getContactsForNote,
-      
-      // Data refresh
-      refreshData,
     }}>
       {children}
     </AppContext.Provider>
