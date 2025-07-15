@@ -28,14 +28,20 @@ const navCategories = [
     title: 'Main',
     items: [
       { label: 'Dashboard', icon: Home, page: null },
+      { label: 'Contacts', icon: Users, page: 'contacts' },
+      { label: 'Notes', icon: StickyNote, page: 'notes' },
       { label: 'Calendar', icon: Calendar, page: null },
+      { label: 'Planner', icon: Calendar, page: null },
+
+
+
+
     ]
   },
   {
     title: 'Business',
     items: [
-      { label: 'Contacts', icon: Users, page: 'contacts' },
-      { label: 'Notes', icon: StickyNote, page: 'notes' },
+      { label: 'Estimates', icon: Calculator, page: null },
       { label: 'Invoice', icon: FileText, page: null },
       { label: 'Journal', icon: BookOpen, page: null },
       { label: 'Bookkeeping', icon: Calculator, page: null },
