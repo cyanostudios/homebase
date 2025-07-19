@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Note } from '@/plugins/notes/types/notes';
+import { Estimate } from '@/plugins/estimates/types/estimate';
 
 interface Contact {
   id: string;
@@ -81,9 +82,26 @@ interface AppContextType {
   saveNote: (noteData: any) => Promise<boolean>;
   deleteNote: (id: string) => Promise<void>;
 
+  // Estimate Panel State
+  isEstimatePanelOpen: boolean;
+  currentEstimate: Estimate | null;
+  estimatePanelMode: 'create' | 'edit' | 'view';
+  
+  // Estimates Data
+  estimates: Estimate[];
+  
+  // Estimate Actions
+  openEstimatePanel: (estimate: Estimate | null) => void;
+  openEstimateForEdit: (estimate: Estimate) => void;
+  openEstimateForView: (estimate: Estimate) => void;
+  closeEstimatePanel: () => void;
+  saveEstimate: (estimateData: any) => Promise<boolean>;
+  deleteEstimate: (id: string) => Promise<void>;
+
   // Cross-plugin references
   getNotesForContact: (contactId: string) => Note[];
   getContactsForNote: (noteId: string) => Contact[];
+  getEstimatesForContact: (contactId: string) => Estimate[];
   
   // Data refresh
   refreshData: () => Promise<void>;
@@ -172,6 +190,33 @@ const api = {
   async deleteNote(id: string) {
     return this.request(`/notes/${id}`, { method: 'DELETE' });
   },
+
+  // Estimates endpoints
+  async getEstimates() {
+    return this.request('/estimates');
+  },
+
+  async getNextEstimateNumber() {
+    return this.request('/estimates/next-number');
+  },
+
+  async createEstimate(estimateData: any) {
+    return this.request('/estimates', {
+      method: 'POST',
+      body: JSON.stringify(estimateData),
+    });
+  },
+
+  async updateEstimate(id: string, estimateData: any) {
+    return this.request(`/estimates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(estimateData),
+    });
+  },
+
+  async deleteEstimate(id: string) {
+    return this.request(`/estimates/${id}`, { method: 'DELETE' });
+  },
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -191,9 +236,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [notePanelMode, setNotePanelMode] = useState<'create' | 'edit' | 'view'>('create');
   
+  // Estimates state
+  const [isEstimatePanelOpen, setIsEstimatePanelOpen] = useState(false);
+  const [currentEstimate, setCurrentEstimate] = useState<Estimate | null>(null);
+  const [estimatePanelMode, setEstimatePanelMode] = useState<'create' | 'edit' | 'view'>('create');
+  
   // Data state
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [estimates, setEstimates] = useState<Estimate[]>([]);
 
   // Check authentication on app start
   useEffect(() => {
@@ -207,6 +258,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } else {
       setContacts([]);
       setNotes([]);
+      setEstimates([]);
     }
   }, [isAuthenticated]);
 
@@ -225,9 +277,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadData = async () => {
     try {
-      const [contactsData, notesData] = await Promise.all([
+      const [contactsData, notesData, estimatesData] = await Promise.all([
         api.getContacts(),
         api.getNotes(),
+        api.getEstimates(),
       ]);
       
       // Transform API data to match interface
@@ -243,8 +296,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updatedAt: new Date(note.updatedAt),
       }));
 
+      const transformedEstimates = estimatesData.map((estimate: any) => ({
+        ...estimate,
+        validTo: new Date(estimate.validTo),
+        createdAt: new Date(estimate.createdAt),
+        updatedAt: new Date(estimate.updatedAt),
+      }));
+
       setContacts(transformedContacts);
       setNotes(transformedNotes);
+      setEstimates(transformedEstimates);
     } catch (error) {
       console.error('Failed to load data:', error);
     }
@@ -279,6 +340,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(false);
       setContacts([]);
       setNotes([]);
+      setEstimates([]);
     }
   };
 
@@ -396,6 +458,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return errors;
   };
 
+  const validateEstimate = (estimateData: any): ValidationError[] => {
+    const errors: ValidationError[] = [];
+    
+    if (!estimateData.contactId?.trim()) {
+      errors.push({
+        field: 'contactId',
+        message: 'Customer is required'
+      });
+    }
+    
+    if (!estimateData.lineItems || estimateData.lineItems.length === 0) {
+      errors.push({
+        field: 'lineItems',
+        message: 'At least one line item is required'
+      });
+    } else {
+      // Validate each line item
+      estimateData.lineItems.forEach((item: any, index: number) => {
+        if (!item.description?.trim()) {
+          errors.push({
+            field: `lineItems.${index}.description`,
+            message: `Line item ${index + 1}: Description is required`
+          });
+        }
+        if (!item.quantity || item.quantity <= 0) {
+          errors.push({
+            field: `lineItems.${index}.quantity`,
+            message: `Line item ${index + 1}: Quantity must be greater than 0`
+          });
+        }
+        if (!item.unitPrice || item.unitPrice < 0) {
+          errors.push({
+            field: `lineItems.${index}.unitPrice`,
+            message: `Line item ${index + 1}: Unit price must be 0 or greater`
+          });
+        }
+      });
+    }
+    
+    if (!estimateData.validTo) {
+      errors.push({
+        field: 'validTo',
+        message: 'Valid to date is required'
+      });
+    }
+    
+    return errors;
+  };
+
   // Contact functions
   const openContactPanel = (contact: Contact | null) => {
     setCurrentContact(contact);
@@ -403,6 +514,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsContactPanelOpen(true);
     setValidationErrors([]);
     setIsNotePanelOpen(false);
+    setIsEstimatePanelOpen(false);
   };
 
   const openContactForEdit = (contact: Contact) => {
@@ -411,6 +523,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsContactPanelOpen(true);
     setValidationErrors([]);
     setIsNotePanelOpen(false);
+    setIsEstimatePanelOpen(false);
   };
 
   const openContactForView = (contact: Contact) => {
@@ -419,6 +532,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsContactPanelOpen(true);
     setValidationErrors([]);
     setIsNotePanelOpen(false);
+    setIsEstimatePanelOpen(false);
   };
 
   const closeContactPanel = () => {
@@ -511,6 +625,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsNotePanelOpen(true);
     setValidationErrors([]);
     setIsContactPanelOpen(false);
+    setIsEstimatePanelOpen(false);
   };
 
   const openNoteForEdit = (note: Note) => {
@@ -519,6 +634,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsNotePanelOpen(true);
     setValidationErrors([]);
     setIsContactPanelOpen(false);
+    setIsEstimatePanelOpen(false);
   };
 
   const openNoteForView = (note: Note) => {
@@ -527,6 +643,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsNotePanelOpen(true);
     setValidationErrors([]);
     setIsContactPanelOpen(false);
+    setIsEstimatePanelOpen(false);
   };
 
   const closeNotePanel = () => {
@@ -601,6 +718,109 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Estimate functions
+  const openEstimatePanel = (estimate: Estimate | null) => {
+    setCurrentEstimate(estimate);
+    setEstimatePanelMode(estimate ? 'edit' : 'create');
+    setIsEstimatePanelOpen(true);
+    setValidationErrors([]);
+    setIsContactPanelOpen(false);
+    setIsNotePanelOpen(false);
+  };
+
+  const openEstimateForEdit = (estimate: Estimate) => {
+    setCurrentEstimate(estimate);
+    setEstimatePanelMode('edit');
+    setIsEstimatePanelOpen(true);
+    setValidationErrors([]);
+    setIsContactPanelOpen(false);
+    setIsNotePanelOpen(false);
+  };
+
+  const openEstimateForView = (estimate: Estimate) => {
+    setCurrentEstimate(estimate);
+    setEstimatePanelMode('view');
+    setIsEstimatePanelOpen(true);
+    setValidationErrors([]);
+    setIsContactPanelOpen(false);
+    setIsNotePanelOpen(false);
+  };
+
+  const closeEstimatePanel = () => {
+    setIsEstimatePanelOpen(false);
+    setCurrentEstimate(null);
+    setEstimatePanelMode('create');
+    setValidationErrors([]);
+  };
+
+  const saveEstimate = async (estimateData: any): Promise<boolean> => {
+    console.log('Validating estimate data:', estimateData);
+    
+    // Run validation
+    const errors = validateEstimate(estimateData);
+    setValidationErrors(errors);
+    
+    if (errors.length > 0) {
+      console.log('Validation failed:', errors);
+      return false;
+    }
+    
+    try {
+      let savedEstimate: Estimate;
+      
+      if (currentEstimate) {
+        // Update existing estimate
+        savedEstimate = await api.updateEstimate(currentEstimate.id, estimateData);
+        setEstimates(prev => prev.map(estimate => 
+          estimate.id === currentEstimate.id ? {
+            ...savedEstimate,
+            validTo: new Date(savedEstimate.validTo),
+            createdAt: new Date(savedEstimate.createdAt),
+            updatedAt: new Date(savedEstimate.updatedAt),
+          } : estimate
+        ));
+        setCurrentEstimate({
+          ...savedEstimate,
+          validTo: new Date(savedEstimate.validTo),
+          createdAt: new Date(savedEstimate.createdAt),
+          updatedAt: new Date(savedEstimate.updatedAt),
+        });
+        setEstimatePanelMode('view');
+        setValidationErrors([]);
+      } else {
+        // Create new estimate
+        savedEstimate = await api.createEstimate(estimateData);
+        setEstimates(prev => [...prev, {
+          ...savedEstimate,
+          validTo: new Date(savedEstimate.validTo),
+          createdAt: new Date(savedEstimate.createdAt),
+          updatedAt: new Date(savedEstimate.updatedAt),
+        }]);
+        closeEstimatePanel();
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to save estimate:', error);
+      setValidationErrors([{ field: 'general', message: 'Failed to save estimate. Please try again.' }]);
+      return false;
+    }
+  };
+
+  const deleteEstimate = async (id: string) => {
+    console.log("Deleting estimate with id:", id);
+    try {
+      await api.deleteEstimate(id);
+      setEstimates(prev => {
+        const newEstimates = prev.filter(estimate => estimate.id !== id);
+        console.log("Estimates after delete:", newEstimates);
+        return newEstimates;
+      });
+    } catch (error) {
+      console.error('Failed to delete estimate:', error);
+    }
+  };
+
   // Cross-plugin reference functions
   const getNotesForContact = (contactId: string): Note[] => {
     return notes.filter(note => 
@@ -615,6 +835,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return note.mentions.map(mention => 
       contacts.find(contact => contact.id === mention.contactId)
     ).filter(Boolean) as Contact[];
+  };
+
+  const getEstimatesForContact = (contactId: string): Estimate[] => {
+    return estimates.filter(estimate => estimate.contactId === contactId);
   };
 
   return (
@@ -656,9 +880,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveNote,
       deleteNote,
       
+      // Estimate state
+      isEstimatePanelOpen,
+      currentEstimate,
+      estimatePanelMode,
+      estimates,
+      
+      // Estimate actions
+      openEstimatePanel,
+      openEstimateForEdit,
+      openEstimateForView,
+      closeEstimatePanel,
+      saveEstimate,
+      deleteEstimate,
+      
       // Cross-plugin references
       getNotesForContact,
       getContactsForNote,
+      getEstimatesForContact,
       
       // Data refresh
       refreshData,

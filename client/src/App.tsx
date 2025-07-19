@@ -8,6 +8,9 @@ import { ContactView } from '@/plugins/contacts/components/ContactView';
 import { NotesList } from '@/plugins/notes/components/NotesList';
 import { NoteForm } from '@/plugins/notes/components/NoteForm';
 import { NoteView } from '@/plugins/notes/components/NoteView';
+import { EstimateList } from '@/plugins/estimates/components/EstimateList';
+import { EstimateForm } from '@/plugins/estimates/components/EstimateForm';
+import { EstimateView } from '@/plugins/estimates/components/EstimateView';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { LoginComponent } from '@/core/ui/LoginComponent';
 import { Button } from '@/core/ui/Button';
@@ -37,11 +40,20 @@ function AppContent() {
     saveNote,
     openNoteForEdit,
     openNoteForView,
-    deleteNote
+    deleteNote,
+    // Estimate state
+    isEstimatePanelOpen,
+    currentEstimate,
+    estimatePanelMode,
+    closeEstimatePanel,
+    saveEstimate,
+    openEstimateForEdit,
+    openEstimateForView,
+    deleteEstimate
   } = useApp();
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'contacts' | 'notes'>('contacts');
+  const [currentPage, setCurrentPage] = useState<'contacts' | 'notes' | 'estimates'>('contacts');
 
   // Show loading spinner while checking authentication
   if (isLoading) {
@@ -61,11 +73,12 @@ function AppContent() {
   }
 
   // Determine which panel is open and what type of item we're dealing with
-  const isAnyPanelOpen = isContactPanelOpen || isNotePanelOpen;
+  const isAnyPanelOpen = isContactPanelOpen || isNotePanelOpen || isEstimatePanelOpen;
   const isContact = isContactPanelOpen;
   const isNote = isNotePanelOpen;
-  const currentItem = isContact ? currentContact : currentNote;
-  const currentMode = isContact ? panelMode : notePanelMode;
+  const isEstimate = isEstimatePanelOpen;
+  const currentItem = isContact ? currentContact : isNote ? currentNote : currentEstimate;
+  const currentMode = isContact ? panelMode : isNote ? notePanelMode : estimatePanelMode;
 
   const handleDeleteItem = () => {
     setShowDeleteConfirm(true);
@@ -78,6 +91,9 @@ function AppContent() {
     } else if (isNote && currentNote) {
       await deleteNote(currentNote.id);
       closeNotePanel();
+    } else if (isEstimate && currentEstimate) {
+      await deleteEstimate(currentEstimate.id);
+      closeEstimatePanel();
     }
     setShowDeleteConfirm(false);
   };
@@ -94,6 +110,11 @@ function AppContent() {
   const handleSaveNote = async (data: any) => {
     console.log('Saving note:', data);
     return await saveNote(data);
+  };
+
+  const handleSaveEstimate = async (data: any) => {
+    console.log('Saving estimate:', data);
+    return await saveEstimate(data);
   };
 
   const handleCancel = () => {
@@ -113,6 +134,14 @@ function AppContent() {
         // Close panel for create mode
         closeNotePanel();
       }
+    } else if (isEstimate) {
+      if (estimatePanelMode === 'edit' && currentEstimate) {
+        // Return to view mode instead of closing
+        openEstimateForView(currentEstimate);
+      } else {
+        // Close panel for create mode
+        closeEstimatePanel();
+      }
     }
   };
 
@@ -122,6 +151,8 @@ function AppContent() {
       window.submitContactForm();
     } else if (isNote && window.submitNoteForm) {
       window.submitNoteForm();
+    } else if (isEstimate && window.submitEstimateForm) {
+      window.submitEstimateForm();
     }
   };
 
@@ -130,6 +161,8 @@ function AppContent() {
       window.cancelContactForm();
     } else if (isNote && window.cancelNoteForm) {
       window.cancelNoteForm();
+    } else if (isEstimate && window.cancelEstimateForm) {
+      window.cancelEstimateForm();
     } else {
       handleCancel();
     }
@@ -140,6 +173,8 @@ function AppContent() {
       closeContactPanel();
     } else if (isNote) {
       closeNotePanel();
+    } else if (isEstimate) {
+      closeEstimatePanel();
     }
   };
 
@@ -175,6 +210,8 @@ function AppContent() {
                   openContactForEdit(currentContact);
                 } else if (isNote && currentNote) {
                   openNoteForEdit(currentNote);
+                } else if (isEstimate && currentEstimate) {
+                  openEstimateForEdit(currentEstimate);
                 }
               }}
               variant="primary"
@@ -212,7 +249,7 @@ function AppContent() {
   };
 
   const getPanelTitle = () => {
-    const itemType = isContact ? 'Contact' : 'Note';
+    const itemType = isContact ? 'Contact' : isNote ? 'Note' : 'Estimate';
     switch (currentMode) {
       case 'view': return `View ${itemType}`;
       case 'edit': return `Edit ${itemType}`;
@@ -222,7 +259,7 @@ function AppContent() {
   };
 
   const getPanelSubtitle = () => {
-    const itemType = isContact ? 'contact' : 'note';
+    const itemType = isContact ? 'contact' : isNote ? 'note' : 'estimate';
     switch (currentMode) {
       case 'view': return `${itemType.charAt(0).toUpperCase() + itemType.slice(1)} information`;
       case 'edit': return `Update ${itemType} information`;
@@ -236,6 +273,8 @@ function AppContent() {
       return `Are you sure you want to delete "${currentContact.companyName}"? This action cannot be undone.`;
     } else if (isNote && currentNote) {
       return `Are you sure you want to delete "${currentNote.title}"? This action cannot be undone.`;
+    } else if (isEstimate && currentEstimate) {
+      return `Are you sure you want to delete estimate "${currentEstimate.estimateNumber}"? This action cannot be undone.`;
     }
     return "Are you sure you want to delete this item? This action cannot be undone.";
   };
@@ -245,7 +284,9 @@ function AppContent() {
       <div className="h-full flex flex-col">
         <TopBar />
         <div className="flex-1 overflow-auto">
-          {currentPage === 'contacts' ? <ContactList /> : <NotesList />}
+          {currentPage === 'contacts' && <ContactList />}
+          {currentPage === 'notes' && <NotesList />}
+          {currentPage === 'estimates' && <EstimateList />}
         </div>
       </div>
       
@@ -282,12 +323,25 @@ function AppContent() {
             )}
           </>
         )}
+        {isEstimate && (
+          <>
+            {currentMode === 'view' ? (
+              <EstimateView estimate={currentEstimate} />
+            ) : (
+              <EstimateForm
+                currentEstimate={currentEstimate}
+                onSave={handleSaveEstimate}
+                onCancel={handleCancel}
+              />
+            )}
+          </>
+        )}
       </UniversalPanel>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={showDeleteConfirm}
-        title={`Delete ${isContact ? 'Contact' : 'Note'}`}
+        title={`Delete ${isContact ? 'Contact' : isNote ? 'Note' : 'Estimate'}`}
         message={getDeleteMessage()}
         confirmText="Delete"
         cancelText="Cancel"

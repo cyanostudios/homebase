@@ -19,8 +19,8 @@ import {
 import { useSidebar } from './MainLayout';
 
 interface SidebarProps {
-  currentPage: 'contacts' | 'notes';
-  onPageChange: (page: 'contacts' | 'notes') => void;
+  currentPage: 'contacts' | 'notes' | 'estimates';
+  onPageChange: (page: 'contacts' | 'notes' | 'estimates') => void;
 }
 
 const navCategories = [
@@ -32,16 +32,12 @@ const navCategories = [
       { label: 'Notes', icon: StickyNote, page: 'notes' },
       { label: 'Calendar', icon: Calendar, page: null },
       { label: 'Planner', icon: Calendar, page: null },
-
-
-
-
     ]
   },
   {
     title: 'Business',
     items: [
-      { label: 'Estimates', icon: Calculator, page: null },
+      { label: 'Estimates', icon: Calculator, page: 'estimates' },
       { label: 'Invoice', icon: FileText, page: null },
       { label: 'Journal', icon: BookOpen, page: null },
       { label: 'Bookkeeping', icon: Calculator, page: null },
@@ -87,7 +83,7 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     }
     
     // Handle navigation
-    if (page === 'contacts' || page === 'notes') {
+    if (page === 'contacts' || page === 'notes' || page === 'estimates') {
       onPageChange(page);
     }
   };
