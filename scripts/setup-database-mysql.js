@@ -88,6 +88,29 @@ async function setupDatabase() {
       )
     `);
     
+    // Estimates table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS estimates (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        estimate_number VARCHAR(20) UNIQUE NOT NULL,
+        contact_id INT,
+        contact_name VARCHAR(255),
+        organization_number VARCHAR(50),
+        currency VARCHAR(3) DEFAULT 'SEK',
+        line_items JSON,
+        notes TEXT,
+        valid_to DATE,
+        subtotal DECIMAL(10,2) DEFAULT 0,
+        total_vat DECIMAL(10,2) DEFAULT 0,
+        total DECIMAL(10,2) DEFAULT 0,
+        status VARCHAR(20) DEFAULT 'draft',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+    
     // Sessions table for express-session
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS sessions (
@@ -102,6 +125,10 @@ async function setupDatabase() {
     await connection.execute('CREATE INDEX IF NOT EXISTS idx_contacts_user_id ON contacts(user_id)');
     await connection.execute('CREATE INDEX IF NOT EXISTS idx_contacts_number ON contacts(contact_number)');
     await connection.execute('CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id)');
+    await connection.execute('CREATE INDEX IF NOT EXISTS idx_estimates_user_id ON estimates(user_id)');
+    await connection.execute('CREATE INDEX IF NOT EXISTS idx_estimates_number ON estimates(estimate_number)');
+    await connection.execute('CREATE INDEX IF NOT EXISTS idx_estimates_contact_id ON estimates(contact_id)');
+    await connection.execute('CREATE INDEX IF NOT EXISTS idx_estimates_status ON estimates(status)');
     await connection.execute('CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires)');
     await connection.execute('CREATE INDEX IF NOT EXISTS idx_plugin_access_user ON user_plugin_access(user_id, plugin_name)');
     
@@ -120,7 +147,7 @@ async function setupDatabase() {
     const superuserId = userRows[0].id;
     
     // Grant all plugin access to superuser
-    const plugins = ['contacts', 'notes'];
+    const plugins = ['contacts', 'notes', 'estimates'];
     for (const plugin of plugins) {
       await connection.execute(`
         INSERT INTO user_plugin_access (user_id, plugin_name, granted_by)
@@ -132,7 +159,7 @@ async function setupDatabase() {
     console.log('✅ Database setup complete!');
     console.log('✅ Default superuser created: admin@homebase.se / admin123');
     console.log('⚠️  CHANGE DEFAULT PASSWORD AFTER FIRST LOGIN!');
-    console.log('✅ Plugin access granted: contacts, notes');
+    console.log('✅ Plugin access granted: contacts, notes, estimates');
     
     return superuserId;
     

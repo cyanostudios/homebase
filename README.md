@@ -1,289 +1,240 @@
 # Homebase
 
-A plugin-based business application template for rapid development of custom business solutions.
+Plugin-based business application platform with modular full-stack architecture.
 
 ## 🏠 Overview
 
-Homebase provides a robust foundation for building business applications with a core system that handles essential functionality and a plugin architecture for custom features. Perfect for development teams who need to build business apps quickly while maintaining code quality and scalability.
+Homebase provides a robust foundation for building business applications with a core system that handles essential functionality and a modular plugin architecture for custom features. Perfect for development teams who need to build business apps quickly while maintaining code quality and scalability.
 
-## ✨ Features
+## ✨ Key Features
 
-### Core System (v3)
-- **Enterprise Contact Management** - Complete CRUD operations with advanced business features
-- **Professional UX Patterns** - Unsaved changes protection, consistent confirmation dialogs
-- **Comprehensive Validation** - Field-level validation with duplicate prevention
-- **Database Layer** - PostgreSQL with Drizzle ORM, works locally and in production
-- **API Foundation** - RESTful APIs with plugin integration hooks
-- **UI Component Library** - Reusable React components (UniversalPanel, ConfirmDialog, Button standards)
+### Modular Plugin Architecture (v3)
+- **Full-Stack Modularity** - Complete separation of frontend/backend plugin concerns
+- **Dynamic Plugin Loading** - Automatic discovery and registration of plugins
+- **Team Independence** - Multiple teams can develop plugins in parallel
+- **Production Ready** - Live deployment at app.beyondmusic.se
 
-### Plugin Architecture
-- **Independent Development** - Teams can build plugins without touching core
-- **Standardized Integration** - All plugins follow established v3 patterns
-- **Database Isolation** - Plugin data is properly namespaced
-- **Hot-Pluggable** - Enable/disable features via configuration
+### Core System
+- **Complete Authentication** - Session management with role-based access control
+- **Cross-Plugin References** - Revolutionary @mention system connecting different plugins
+- **Mobile-First Design** - Responsive interface across all devices
+- **Database Integration** - PostgreSQL (dev) / MySQL (prod) with native queries
+- **Production Security** - Enterprise-grade middleware and protection
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js 18+ (LTS recommended)
-- Docker (for local PostgreSQL - planned)
+- PostgreSQL (local development)
 - Git
 
-### Local Development Setup
+### Development Setup
 
-1. **Clone the repository**
+1. **Clone and install**
    ```bash
-   git clone git@github.com:cyanostudios/homebase.git
+   git clone [repository-url]
    cd homebase
-   ```
-
-2. **Install dependencies**
-   ```bash
    npm install
    ```
 
-3. **Start development servers**
+2. **Start development servers**
    ```bash
    # Terminal 1: Frontend (Vite dev server)
    npx vite --config vite.config.ts
    
-   # Terminal 2: Backend (Express server)
-   npx tsx server/index.ts
+   # Terminal 2: Backend (Modular plugin system)
+   npm run dev
    ```
 
-4. **Open in browser**
+3. **Access application**
    ```
-   http://localhost:3001
+   Local: http://localhost:3001
+   Production: https://app.beyondmusic.se
+   Login: admin@homebase.se / admin123
    ```
 
 ## 🔧 Tech Stack
 
-- **Frontend:** React 18 + TypeScript + Vite + Tailwind CSS + Lucide React icons
-- **Backend:** Express.js + TypeScript
-- **Database:** PostgreSQL + Drizzle ORM (planned)
-- **State Management:** React Context + Custom Hooks (useUnsavedChanges)
-- **Development:** Cursor IDE with AI assistance (GPT-4.1, Gemini, Claude)
-- **Deployment:** Cloudways (planned) + Local development
+- **Frontend:** React 18 + TypeScript + Vite + Tailwind CSS
+- **Backend:** Express.js + Modular Plugin System + CommonJS
+- **Database:** PostgreSQL (dev) / MySQL (prod) with native queries
+- **Authentication:** bcrypt + express-session + database sessions
+- **Security:** Helmet, CORS, compression, input validation
+- **Deployment:** Inleed Prime 3 (Node.js 22.16.0)
 
-## 📁 Project Structure (v3)
+## 📁 Architecture (v3)
 
+### Modular Backend Structure
 ```
-/client/src/
-  ├── core/
-  │   ├── ui/              # UniversalPanel, ConfirmDialog, Button, Typography
-  │   └── api/             # AppContext, global state management
-  ├── plugins/
-  │   └── contacts/
-  │       └── components/  # ContactList, ContactForm
-  ├── hooks/               # useUnsavedChanges, custom hooks
-  ├── lib/                 # Utilities
-  └── utils/               # Helper functions
+plugins/[plugin-name]/
+├── plugin.config.js         # Plugin metadata
+├── model.js                 # Database operations
+├── controller.js            # Business logic
+├── routes.js                # API endpoints
+└── index.js                 # Plugin initialization
 
-/server/
-  ├── core/                # Core server functionality
-  └── plugins/             # Plugin-specific API routes
-
-/shared/                   # Types/schemas shared between client/server
-/preservation/             # Backup of working components from v1
+plugin-loader.js             # Dynamic plugin loading system
+server/index.ts              # Main server (187 lines vs 486 before)
 ```
 
-## 🎯 Current Status (v3)
+### Frontend Structure
+```
+client/src/
+├── core/
+│   ├── ui/                  # Universal components
+│   └── api/                 # AppContext with database integration
+├── plugins/
+│   ├── contacts/            # Contact management plugin
+│   └── notes/               # Notes with @mention system
+├── hooks/                   # Custom React hooks
+└── utils/                   # Helper functions
+```
 
-### ✅ Completed Features
-- **Enterprise Contact Management**
-  - Company/Private person toggle with conditional fields
-  - Repeatable contact persons and addresses
-  - Tax & business settings (F-Tax, payment terms, etc.)
-  - Comprehensive notes and contact details
-  
-- **Professional UX Features**
-  - Unsaved changes protection with warning dialogs
-  - Consistent ConfirmDialog for dangerous actions (delete, etc.)
-  - Form reset functionality in create mode
-  - Field-level validation with error highlighting
-  
-- **Technical Excellence**
-  - useCallback optimizations preventing infinite loops
-  - Custom useUnsavedChanges hook for form state management
-  - TypeScript interfaces for all components and data structures
-  - Reusable UI components following design standards
+## 🎯 Current Status (v6 + Modular v3)
 
-### 🔄 Next Phase: Database Integration
-- PostgreSQL + Drizzle ORM implementation
-- Persistent data storage
-- Production-ready data layer
+### ✅ Production Live
+- **Live System:** https://app.beyondmusic.se
+- **Complete Authentication:** Login/logout with session management
+- **Plugin System:** Contacts + Notes with cross-plugin @mentions
+- **Mobile Interface:** Responsive design verified on live domain
+- **Database:** MySQL backend fully operational
+- **API Endpoints:** All CRUD operations tested and working
+
+### ✅ Modular Architecture
+- **Backend Refactored:** 61% code reduction (486 → 187 lines)
+- **Dynamic Plugin Loading:** Automatic discovery and registration
+- **Contacts Plugin:** Complete CRUD with business features
+- **Notes Plugin:** @mention system with cross-plugin references
+- **Plugin Templates:** Ready for rapid new plugin development
 
 ## 🔌 Plugin Development
 
-### Established v3 Patterns
+### Create New Plugin (5-10 minutes)
 
-#### Form Components
-```typescript
-// Use useUnsavedChanges hook for form state management
-const { isDirty, showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } = useUnsavedChanges();
+1. **Backend Plugin**
+   ```bash
+   mkdir -p plugins/my-plugin
+   # Copy templates from docs/PLUGIN_GUIDE_V3.md
+   ```
 
-// Stabilize handlers with useCallback to prevent loops
-const handleSubmit = useCallback(() => {
-  // handler logic
-}, [dependencies]);
+2. **Frontend Plugin**
+   ```bash
+   mkdir -p client/src/plugins/my-plugin
+   # Follow established patterns from contacts/notes
+   ```
 
-// Global window functions for cross-component communication
-useEffect(() => {
-  window.submitForm = handleSubmit;
-  window.cancelForm = handleCancel;
-  return () => {
-    delete window.submitForm;
-    delete window.cancelForm;
-  };
-}, [handleSubmit, handleCancel]);
-```
+3. **Test Integration**
+   ```bash
+   npm run dev
+   # Should show: "🟢 Loaded plugin: my-plugin (/api/my-plugin)"
+   ```
 
-#### UI Components
-```typescript
-// Use established component patterns
-<UniversalPanel>       // 672px-wide right panel with header/footer
-<ConfirmDialog>        // Consistent confirmation dialogs
-<Button variant="primary" icon={Plus}>  // Standardized buttons with Lucide icons
-<Card padding="md">    // Content containers
-```
+### Plugin Templates Available
+- **Backend:** model.js, controller.js, routes.js patterns
+- **Frontend:** List, Form, View components with mobile-first design
+- **Database:** Schema setup with authentication integration
+- **Examples:** Contacts (business features), Notes (@mentions)
 
-### Plugin Guidelines
+## 📚 Documentation
 
-- ✅ **DO:** Follow v3 UX patterns (unsaved changes, confirmations)
-- ✅ **DO:** Use established UI components (UniversalPanel, ConfirmDialog)
-- ✅ **DO:** Implement useCallback for function stability
-- ✅ **DO:** Use TypeScript interfaces for type safety
+Complete documentation is available in the **[docs/](./docs/)** directory:
 
-- ❌ **DON'T:** Modify core system files
-- ❌ **DON'T:** Create direct dependencies between plugins
-- ❌ **DON'T:** Bypass established validation patterns
-
-## 🚀 Deployment
-
-### Current Configuration
-- **Frontend:** Vite dev server on port 3001
-- **Backend:** Express server on port 3002
-- **Proxy:** Vite proxies `/api/*` requests to backend
-- **Hot Reload:** Both frontend and backend support live reloading
-
-### Environment Variables
-
-**Local (.env.local):**
-```
-DATABASE_URL=postgresql://postgres:password@localhost:5432/homebase
-PORT=3001
-NODE_ENV=development
-```
-
-**Production (Cloudways - planned):**
-```
-DATABASE_URL=<production-db-url>
-PORT=<production-port>
-NODE_ENV=production
-```
-
-## 📖 Documentation
-
-- **[Development Guide](./DEV_GUIDE.md)** - Complete v3 development instructions and patterns
-- **[Project Handover](./PROJECT_HANDOVER.md)** - v3 milestone summary and next steps
-- **[Plugin API Docs](./docs/plugin-api.md)** - Plugin development reference *(coming soon)*
-
-## 🔄 Development Workflow (v3)
-
-### Established Patterns
-- **Three Terminal Setup:**
-  - Terminal 1: `npx vite --config vite.config.ts` (frontend)
-  - Terminal 2: `npx tsx server/index.ts` (backend)  
-  - Terminal 3: Commands (git, file operations, curl tests)
-
-- **AI-Assisted Development:**
-  - Cursor IDE with GPT-4.1, Gemini agents (use sparingly)
-  - Claude for planning, step-by-step guidance, architecture decisions
-  - Direct commands only - minimal explanations
-  - Code artifacts for longer files requiring manual copy/paste
-
-### Core Development (Current)
-- Work in `fresh-start-v3` branch
-- Focus on database integration and plugin extraction
-- All changes follow established v3 patterns
-
-### Future Plugin Development
-- Create feature branches: `feature/plugin-name`
-- Independent team development using v3 patterns
-- Merge to main after following established testing procedures
+- **[docs/README.md](./docs/README.md)** - 📚 Complete documentation index
+- **[docs/PLUGIN_GUIDE_V3.md](./docs/PLUGIN_GUIDE_V3.md)** - ⭐ Current modular plugin guide
+- **[docs/DEVELOPMENT_GUIDE.md](./docs/DEVELOPMENT_GUIDE.md)** - 🏗️ Project overview & setup
+- **[docs/Claude_Development_Guide.md](./docs/Claude_Development_Guide.md)** - 🤖 AI collaboration patterns
+- **[docs/PROJECT_HANDOVER_V6.md](./docs/PROJECT_HANDOVER_V6.md)** - 🚀 Production deployment
 
 ## 🛠 Available Commands
 
 ```bash
 # Development
-npm run dev              # Start both frontend and backend
-npx vite --config vite.config.ts    # Frontend only (Terminal 1)
-npx tsx server/index.ts             # Backend only (Terminal 2)
+npm run dev                          # Backend with plugin system
+npx vite --config vite.config.ts     # Frontend development server
 
-# Database (Planned)
-npx drizzle-kit push    # Apply schema changes
-npx drizzle-kit studio  # Database browser
+# Testing
+curl http://localhost:3002/api/health     # Check plugin loading
+curl http://localhost:3002/api/plugins    # List loaded plugins
 
-# Git
-git add .
-git commit -m "Descriptive commit message"
-git push origin fresh-start-v3
+# Production
+# System runs at https://app.beyondmusic.se
 ```
+
+## 🚀 Deployment Status
+
+### Production Environment ✅
+- **Domain:** app.beyondmusic.se (HTTPS enabled)
+- **Server:** Inleed Prime 3 (Node.js 22.16.0)
+- **Database:** MySQL with session store
+- **Authentication:** Complete user management
+- **File Sync:** Local ↔ Production synchronized
+- **Monitoring:** Health endpoints + error logging
+
+### Development Environment ✅
+- **Frontend:** Vite dev server (port 3001)
+- **Backend:** Express with plugin-loader (port 3002)
+- **Database:** PostgreSQL local development
+- **Hot Reload:** Both frontend and backend
+- **Testing:** Complete API testing suite
+
+## 📈 Achievements
+
+### Technical Excellence
+- **Modular Architecture:** 61% server code reduction
+- **Production Deployment:** Complete development-to-live pipeline
+- **Plugin System:** Dynamic loading with automatic registration
+- **Cross-Plugin Integration:** Revolutionary @mention system
+- **Mobile-First Design:** Verified responsive across devices
+- **Security Implementation:** Production-grade protection
+
+### Business Value
+- **Rapid Development:** New plugins in 5-10 minutes
+- **Team Scalability:** Independent plugin development
+- **Customer Ready:** Multi-user authentication and access control
+- **Cost Effective:** Efficient hosting with proven performance
+- **Future Proof:** Modular architecture for easy expansion
 
 ## 🤝 Contributing
 
-### v3 Code Standards
-- **Clean Code:** No code bloat, thoughtful changes only
-- **TypeScript:** Complete type safety with proper interfaces
-- **React Patterns:** Functional components with hooks, useCallback for stability
-- **UI Consistency:** Follow Button, Card, UniversalPanel design standards
-- **Error Handling:** Use ConfirmDialog and validation patterns
+### Development Workflow
+- **Terminal 1:** Frontend development
+- **Terminal 2:** Backend with plugin system  
+- **Terminal 3:** Commands and testing
+- **Follow:** [docs/PLUGIN_GUIDE_V3.md](./docs/PLUGIN_GUIDE_V3.md) for all plugin development
 
-### AI Assistant Guidelines
-- **Direct Communication:** "Write this in terminal 1" format
-- **Code Artifacts:** Use for longer files requiring manual copy/paste
-- **Established Patterns:** Follow v3 UX and component patterns
-- **Testing:** Test each step before proceeding to next
+### Code Standards
+- **Modular Plugins:** Use established templates and patterns
+- **Mobile-First:** Responsive design required
+- **Authentication:** Proper session management and access control
+- **Error Handling:** Comprehensive logging and graceful failures
 
 ## 📋 Roadmap
 
-### ✅ Phase 1: Core Foundation (v3 COMPLETE)
-- [x] Complete enterprise contact management system
-- [x] Professional UX patterns (unsaved changes, confirmations)
-- [x] Comprehensive validation framework
-- [x] Reusable UI component library
-- [x] Stable React patterns with useCallback optimizations
+### Current Priority
+1. **Production Optimization** - Resolve any remaining issues
+2. **Data Import System** - Plugin-specific import strategies
+3. **Plugin Expansion** - Invoice, Projects, Equipment modules
 
-### 🔄 Phase 2: Database Integration (CURRENT)
-- [ ] PostgreSQL + Drizzle ORM implementation
-- [ ] Persistent data storage for contacts
-- [ ] Environment-agnostic database connections
-- [ ] Migration system for schema changes
-
-### 🎯 Phase 3: Plugin Architecture
-- [ ] Refactor existing features into plugin pattern
-- [ ] Plugin registration and management system
-- [ ] Standardized plugin development API
-- [ ] Plugin isolation and testing framework
-
-### 🚀 Phase 4: Additional Plugins
-- [ ] Invoice management plugin
-- [ ] Calendar/Equipment plugins
-- [ ] Reporting and analytics plugins
-- [ ] Custom business logic plugins
-
-## 📄 License
-
-Internal use only - Cyanostudios
+### Future Enhancement
+1. **Multi-tenant Architecture** - Customer-specific installations
+2. **Advanced Features** - Admin dashboard, external auth, analytics
+3. **Mobile Application** - React Native using live API
 
 ## 📞 Support
 
-For questions about Homebase development:
-- Check the [Development Guide](./DEV_GUIDE.md) for v3 patterns
-- Review established component and UX patterns
-- Use Cursor IDE with Claude for architectural guidance
+### Production Access
+- **Live System:** https://app.beyondmusic.se
+- **Login:** admin@homebase.se / admin123
+- **API Health:** https://app.beyondmusic.se/api/health
+
+### Development Support
+- **Documentation:** [docs/README.md](./docs/README.md)
+- **Plugin Guide:** [docs/PLUGIN_GUIDE_V3.md](./docs/PLUGIN_GUIDE_V3.md)
+- **Local Frontend:** http://localhost:3001
+- **Local Backend:** http://localhost:3002
 
 ---
 
-**Built with ❤️ by the Cyanostudios team**
-*Current Status: v3 Enterprise Contact Management Complete*
+**Status:** ✅ Production Live + Modular Architecture Implemented  
+**Last Updated:** July 19, 2025  
+**Built with ❤️ by the development team**

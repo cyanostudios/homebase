@@ -257,6 +257,94 @@ Before I make suggestions, could you:
 - Security measures implemented
 - Testing completed
 
+## File Management and Environment Awareness
+
+### Production vs Development Separation
+**Understanding what belongs where:**
+
+**Production Environment:**
+- Minimal file set (compiled code, dependencies, configs)
+- No source code or development tools
+- Optimized for performance and security
+
+**Development Environment:**
+- Complete source code and build tools
+- Development dependencies and configs
+- Debug tools and documentation
+
+**Example from Homebase v6:**
+- **Production (12 files):** `index.js`, `dist/`, `package.json`, `scripts/`
+- **Development (74 files):** All source code, build tools, documentation, backups
+
+### File Synchronization Strategies
+**Systematic approach to comparing environments:**
+
+**Inventory Commands:**
+```bash
+# Count files (excluding common excludes)
+find . -name "node_modules" -prune -o -name ".git" -prune -o -type f -print | wc -l
+
+# List important files by type
+ls -la *.js *.json 2>/dev/null
+
+# Directory structure
+find . -type d | sort
+```
+
+**Comparison Workflow:**
+1. **Inventory both environments** with same commands
+2. **Identify differences** systematically
+3. **Determine what belongs where** (not everything needs to sync)
+4. **Document the differences** for future reference
+
+### Legacy Code Cleanup
+**Systematic approach to removing outdated files:**
+
+**Cleanup Candidates:**
+- Old build artifacts and compiled files
+- Backup/preservation folders (after confirming content)
+- Development tools no longer used
+- Screenshot/asset files from development
+- Duplicate configuration files
+
+**Safe Cleanup Process:**
+```bash
+# 1. Inventory what exists
+find . -name "old_folder" -type d
+ls -la suspicious_files/
+
+# 2. Verify contents before deletion
+echo "=== CONTENTS TO DELETE ==="
+ls -la folder_to_delete/
+
+# 3. Remove systematically
+rm -rf confirmed_legacy_folder/
+rm duplicate_file.old
+
+# 4. Verify cleanup
+git status  # See what was removed
+```
+
+### Environment Context Awareness
+**Always know which environment you're working in:**
+
+**Context Verification:**
+```bash
+# Local machine indicators
+pwd  # Should show local path
+whoami  # Your local username
+
+# Server indicators  
+pwd  # Should show server path
+whoami  # Server username (e.g., s122463)
+```
+
+**Common Confusion Points:**
+- Running local commands thinking you're on server
+- Editing files in wrong environment
+- Comparing wrong directories
+- Using wrong terminal windows
+
 ## Anti-Patterns to Avoid
 
 ### Don't Guess
@@ -294,6 +382,65 @@ Before I make suggestions, could you:
 
 ❌ **Wrong:** Long explanations
 ✅ **Right:** Direct, actionable instructions
+
+## Production Deployment Lessons
+
+### Hosting Environment Limitations
+**Understanding platform-specific constraints:**
+
+**DirectAdmin/Shared Hosting Challenges:**
+- Limited access to system logs and debugging tools
+- Restricted environment variable management
+- Node.js module path complications
+- Session storage compatibility issues
+
+**Debug Access Limitations:**
+```bash
+# Often unavailable in shared hosting:
+tail -f /var/log/system.log  # System logs
+strace node app.js          # Process tracing
+netstat -tlnp               # Detailed port listening
+```
+
+**Working Within Constraints:**
+- Use platform-provided tools (DirectAdmin panels)
+- Implement application-level logging
+- Test with platform-compatible configurations
+- Document platform-specific workarounds
+
+### Domain and Network Configuration
+**Common deployment networking challenges:**
+
+**Port Mapping Issues:**
+- Standard web ports (80, 443) vs application ports (3002, 8000)
+- Browser security restrictions on non-standard ports
+- Reverse proxy vs direct port exposure
+
+**DNS vs Routing:**
+- DNS points to server IP ✓
+- Server runs application on internal port ✓  
+- Missing: Port mapping/proxy from domain to application
+
+**Session Management in Production:**
+- Development cookies work on localhost
+- Production cookies require proper domain/security settings
+- HTTPS vs HTTP cookie security requirements
+- Cross-origin session complications
+
+### Problem-Solving Boundaries
+**Recognizing when to seek external help:**
+
+**Expert Knowledge Required:**
+- Hosting provider-specific configurations
+- Platform administration and debugging access
+- Network infrastructure and routing
+- Third-party service integrations
+
+**When to Contact Support:**
+```
+Situation: "Session cookies not being set despite correct code configuration"
+Claude Response: "This appears to be a hosting environment issue. The code looks correct based on standards, but there may be platform-specific requirements. I recommend contacting [hosting provider] support with these specifics: [exact symptoms and attempted solutions]"
+```
 
 ## Success Metrics
 
