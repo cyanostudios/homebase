@@ -28,60 +28,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
   return (
     <div className="space-y-4">
       
-      {/* Contact Type & Basic Info - Mobile Optimized */}
-      <Card padding="sm" className="shadow-none px-0">
-        {/* Mobile/Desktop responsive header */}
-        <div className="space-y-3 md:space-y-0">
-          {/* Row 1: Contact Number + Type */}
-          <div className="flex items-center gap-3">
-            <div className="text-sm font-mono font-medium text-gray-600">#{contact.contactNumber}</div>
-            {contact.contactType === 'company' ? (
-              <Building className="w-5 h-5 text-blue-600" />
-            ) : (
-              <User className="w-5 h-5 text-green-600" />
-            )}
-            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-              contact.contactType === 'company' 
-                ? 'bg-blue-100 text-blue-800' 
-                : 'bg-green-100 text-green-800'
-            }`}>
-              {contact.contactType === 'company' ? 'Company' : 'Private Person'}
-            </span>
-          </div>
-          
-          {/* Row 2: Name + Company Type (if applicable) */}
-          <div className="py-2">
-            <Heading level={2} className="text-xl md:text-2xl">
-              {contact.companyName}
-              {contact.contactType === 'company' && contact.companyType && (
-                <span className="text-gray-600 font-normal"> ({contact.companyType})</span>
-              )}
-            </Heading>
-          </div>
-          
-          {/* Row 3: Organization/Personal Number */}
-          {contact.contactType === 'company' && contact.organizationNumber && (
-            <div>
-              <Text className="text-base font-medium text-gray-700">{contact.organizationNumber}</Text>
-            </div>
-          )}
-          {contact.contactType === 'private' && contact.personalNumber && (
-            <div>
-              <Text className="text-base font-medium text-gray-700">{contact.personalNumber}</Text>
-            </div>
-          )}
-        </div>
-
-        {/* VAT Number for companies */}
-        {contact.contactType === 'company' && contact.vatNumber && (
-          <div className="mt-3">
-            <div>
-              <Text variant="muted">VAT Number</Text>
-              <Text>{contact.vatNumber}</Text>
-            </div>
-          </div>
-        )}
-      </Card>
+ 
 
       {contact.contactType === 'company' && contact.vatNumber && (
         <hr className="border-gray-100" />

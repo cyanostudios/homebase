@@ -14,9 +14,11 @@ import {
   Package,
   StickyNote,
   ChevronLeft, 
-  ChevronRight 
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 import { useSidebar } from './MainLayout';
+import { useApp } from '@/core/api/AppContext';
 
 interface SidebarProps {
   currentPage: 'contacts' | 'notes' | 'estimates';
@@ -63,6 +65,7 @@ const navCategories = [
 
 export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
   const { isCollapsed, setIsCollapsed, isMobileOverlay, setIsMobileOverlay } = useSidebar();
+  const { logout, user } = useApp();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -75,6 +78,10 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
+
+  const handleLogout = async () => {
+    await logout();
+  };
 
   const handleMenuItemClick = (page: string | null) => {
     // Close mobile overlay when menu item is clicked
@@ -152,6 +159,36 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
           </div>
         ))}
       </nav>
+      
+      {/* User info and Logout at bottom */}
+      <div className="border-t border-gray-200">
+        {/* User info */}
+        {user && (!isCollapsed || (isMobile && isMobileOverlay)) && (
+          <div className="p-2">
+            <div className="flex items-center px-3 py-2 gap-3">
+              <User className="h-5 w-5 text-gray-500 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-gray-900 truncate text-sm">{user.email}</div>
+                <div className="text-xs text-gray-500 capitalize">{user.role}</div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Logout button */}
+        <div className="p-2">
+          <button
+            onClick={handleLogout}
+            className={`w-full flex items-center px-3 py-2 rounded-lg transition-colors font-medium text-sm text-red-600 hover:bg-red-50 ${
+              (isCollapsed && !(isMobile && isMobileOverlay)) ? 'justify-center' : 'gap-3'
+            }`}
+            title={(isCollapsed && !(isMobile && isMobileOverlay)) ? 'Logout' : undefined}
+          >
+            <LogOut className="w-5 h-5 flex-shrink-0" />
+            {(!isCollapsed || (isMobile && isMobileOverlay)) && <span>Logout</span>}
+          </button>
+        </div>
+      </div>
     </aside>
   );
 }

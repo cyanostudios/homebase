@@ -61,16 +61,19 @@ export const NoteForm: React.FC<NoteFormProps> = ({
     markClean();
   }, [markClean]);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     console.log('Form submitting with data:', formData);
-    const success = onSave(formData);
+    const success = await onSave(formData);
     if (success) {
       markClean();
+      if (!currentNote) {
+        resetForm();
+      }
     }
     if (!success) {
       console.log('Save failed due to validation errors');
     }
-  }, [formData, onSave, markClean]);
+  }, [formData, onSave, markClean, currentNote, resetForm]);
 
   const handleCancel = useCallback(() => {
     attemptAction(() => {
@@ -78,16 +81,27 @@ export const NoteForm: React.FC<NoteFormProps> = ({
     });
   }, [attemptAction, onCancel]);
 
-  // Expose functions to parent for unsaved changes handling
+  // FIXED: Global functions with correct plural naming
   useEffect(() => {
-    window.submitNoteForm = handleSubmit;
-    window.cancelNoteForm = handleCancel;
+    window.submitNotesForm = handleSubmit; // PLURAL!
+    window.cancelNotesForm = handleCancel; // PLURAL!
     
     return () => {
-      delete window.submitNoteForm;
-      delete window.cancelNoteForm;
+      delete window.submitNotesForm;
+      delete window.cancelNotesForm;
     };
   }, [handleSubmit, handleCancel]);
+
+  const handleDiscardChanges = () => {
+    if (!currentNote) {
+      resetForm();
+      setTimeout(() => {
+        confirmDiscard();
+      }, 0);
+    } else {
+      confirmDiscard();
+    }
+  };
 
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -108,12 +122,12 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   const hasBlockingErrors = validationErrors.some(error => !error.message.includes('Warning'));
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-4">
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
         
         {/* Validation Summary */}
         {hasBlockingErrors && (
-          <Card padding="md">
+          <Card padding="sm" className="shadow-none px-0">
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -142,7 +156,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
         )}
         
         {/* Note Title */}
-        <Card padding="md">
+        <Card padding="sm" className="shadow-none px-0">
           <Heading level={3} className="mb-3">Note Title</Heading>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -165,7 +179,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
         </Card>
 
         {/* Note Content with @mentions */}
-        <Card padding="md">
+        <Card padding="sm" className="shadow-none px-0">
           <Heading level={3} className="mb-3">Note Content</Heading>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -207,7 +221,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
         }
         confirmText="Discard Changes"
         cancelText="Continue Editing"
-        onConfirm={confirmDiscard}
+        onConfirm={handleDiscardChanges}
         onCancel={cancelDiscard}
         variant="warning"
       />

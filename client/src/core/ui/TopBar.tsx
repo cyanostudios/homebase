@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Menu, LogOut, User } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useSidebar } from './MainLayout';
-import { useApp } from '@/core/api/AppContext';
-import { Button } from '@/core/ui/Button';
 
 interface TopBarProps {
   height?: number;
@@ -19,8 +17,7 @@ export function TopBar({
 }: TopBarProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isMobile, setIsMobile] = useState(false);
-  const { isCollapsed, setIsCollapsed, isMobileOverlay, setIsMobileOverlay } = useSidebar();
-  const { user, logout } = useApp();
+  const { isMobileOverlay, setIsMobileOverlay } = useSidebar();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -58,10 +55,6 @@ export function TopBar({
     });
   };
 
-  const handleLogout = async () => {
-    await logout();
-  };
-
   return (
     <div 
       className={`w-full bg-white border-b border-gray-200 flex items-center justify-between px-6 ${className}`}
@@ -80,19 +73,8 @@ export function TopBar({
         {children}
       </div>
 
-      {/* Center/Right side - User info, Clock, Logout */}
+      {/* Right side - Clock only */}
       <div className="flex items-center gap-4">
-        {/* User info - hidden on mobile if clock is shown */}
-        {user && (
-          <div className={`flex items-center gap-2 text-sm text-gray-600 ${showClock && isMobile ? 'hidden' : ''}`}>
-            <User className="h-4 w-4" />
-            <span className="hidden sm:inline">{user.email}</span>
-            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-              {user.role}
-            </span>
-          </div>
-        )}
-
         {/* Clock */}
         {showClock && (
           <div className="text-right">
@@ -103,19 +85,6 @@ export function TopBar({
               {formatDate(currentTime)}
             </div>
           </div>
-        )}
-
-        {/* Logout button */}
-        {user && (
-          <Button
-            onClick={handleLogout}
-            variant="secondary"
-            icon={LogOut}
-            className="text-sm"
-          >
-            <span className="hidden sm:inline">Logout</span>
-            <span className="sm:hidden">Out</span>
-          </Button>
         )}
       </div>
     </div>

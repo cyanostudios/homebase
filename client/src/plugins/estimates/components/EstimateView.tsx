@@ -44,71 +44,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
 
   return (
     <div className="p-6 space-y-6">
-      
-      {/* Header */}
-      <div className="border-b border-gray-200 pb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-semibold text-gray-900">{estimate.estimateNumber}</h1>
-          {getStatusBadge(estimate.status)}
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div className="flex items-center gap-2 text-gray-600">
-            <Calendar className="h-4 w-4" />
-            <span>Created {new Date(estimate.createdAt).toLocaleDateString()}</span>
-          </div>
-          
-          <div className="flex items-center gap-2 text-gray-600">
-            <Calendar className="h-4 w-4" />
-            <span className={isValidToExpired ? 'text-red-600 font-medium' : ''}>
-              Valid to {new Date(estimate.validTo).toLocaleDateString()}
-              {isValidToExpired && ' (Expired)'}
-            </span>
-          </div>
-          
-          {estimate.updatedAt !== estimate.createdAt && (
-            <div className="flex items-center gap-2 text-gray-600">
-              <span>Updated {new Date(estimate.updatedAt).toLocaleDateString()}</span>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* Customer Information */}
-      <Card>
-        <div className="p-4">
-          <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Customer Information
-          </h3>
-          
-          <div className="space-y-2">
-            <div>
-              <span className="font-medium text-gray-900">{estimate.contactName}</span>
-              {estimate.contactId && (
-                <Button
-                  onClick={handleViewContact}
-                  variant="ghost"
-                  size="sm"
-                  className="ml-2"
-                >
-                  View Contact
-                </Button>
-              )}
-            </div>
-            
-            {estimate.organizationNumber && (
-              <div className="text-sm text-gray-600">
-                Organization Number: {estimate.organizationNumber}
-              </div>
-            )}
-            
-            <div className="text-sm text-gray-600">
-              Currency: {estimate.currency}
-            </div>
-          </div>
-        </div>
-      </Card>
 
       {/* Line Items */}
       <Card>

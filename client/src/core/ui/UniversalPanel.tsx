@@ -71,7 +71,7 @@ export function UniversalPanel({
         </div>
         
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 [&_.shadow-none]:border-none [&_.shadow-sm]:shadow-none [&_.shadow-sm]:border-none">
           {children}
         </div>
 

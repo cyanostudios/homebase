@@ -13,23 +13,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
 
   return (
     <div className="p-6 space-y-4">
-      
-      {/* Note Header */}
-      <Card padding="md" className="shadow-none">
-        <div className="space-y-3 md:space-y-0">
-          {/* Note Title with Icon */}
-          <div className="flex items-center gap-3">
-            <StickyNote className="w-6 h-6 text-yellow-600" />
-            <div className="py-2">
-              <Heading level={2} className="text-xl md:text-2xl">
-                {note.title}
-              </Heading>
-            </div>
-          </div>
-        </div>
-      </Card>
 
-      <hr className="border-gray-100" />
 
       {/* Note Content with clickable mentions */}
       <Card padding="md" className="shadow-none">
