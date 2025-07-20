@@ -1,5 +1,7 @@
 import React from 'react';
 import { useApp } from '@/core/api/AppContext';
+import { useContacts } from '@/plugins/contacts/hooks/useContacts';
+import { useNotes } from '@/plugins/notes/hooks/useNotes';
 
 interface MentionContentProps {
   content: string;
@@ -7,12 +9,34 @@ interface MentionContentProps {
 }
 
 export const MentionContent: React.FC<MentionContentProps> = ({ content, mentions = [] }) => {
-  const { openContactForView, contacts } = useApp();
+  // Use ContactContext for opening contacts
+  const { openContactForView } = useContacts();
+  
+  // Use NoteContext to close note panel when navigating to contact
+  const { closeNotePanel } = useNotes();
+  
+  // Get contacts from AppContext for cross-plugin references
+  const { refreshData } = useApp();
 
-  const handleMentionClick = (contactId: string) => {
-    const contact = contacts.find(c => c.id === contactId);
-    if (contact) {
-      openContactForView(contact);
+  const handleMentionClick = async (contactId: string) => {
+    // Refresh data to get latest contacts
+    await refreshData();
+    
+    // Find contact and open for view
+    // Note: We'll need to get the contact from the mention data since
+    // we don't have direct access to contacts list in this modular approach
+    const mention = mentions.find(m => m.contactId === contactId);
+    if (mention) {
+      // For now, we can create a minimal contact object from mention data
+      // This will work until we implement a proper cross-plugin contact lookup
+      const contact = {
+        id: mention.contactId,
+        companyName: mention.contactName,
+        // Add other required fields as needed
+      };
+      
+      closeNotePanel(); // Close note panel first
+      openContactForView(contact as any); // Then open contact panel
     }
   };
 

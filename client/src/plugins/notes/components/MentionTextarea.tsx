@@ -16,13 +16,41 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   rows = 12,
   className = ''
 }) => {
-  const { contacts } = useApp();
+  // Use AppContext to get contacts for cross-plugin @mentions
+  // We need contacts from AppContext since this is cross-plugin functionality
+  const { refreshData } = useApp();
+  const [contacts, setContacts] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [mentionStart, setMentionStart] = useState(0);
   const [mentionQuery, setMentionQuery] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load contacts when component mounts
+  useEffect(() => {
+    const loadContacts = async () => {
+      try {
+        await refreshData(); // This will load contacts into AppContext
+        // For now, we'll use a workaround to get contacts
+        // In a full implementation, we'd expose contacts through AppContext
+        // or create a dedicated cross-plugin contacts service
+        
+        // Temporary: we'll fetch contacts directly
+        const response = await fetch('/api/contacts', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const contactsData = await response.json();
+          setContacts(contactsData);
+        }
+      } catch (error) {
+        console.error('Failed to load contacts for mentions:', error);
+      }
+    };
+    
+    loadContacts();
+  }, [refreshData]);
 
   const extractMentions = (text: string) => {
     const mentions: any[] = [];

@@ -1,66 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { AppProvider, useApp } from '@/core/api/AppContext';
-import { ContactProvider } from '@/plugins/contacts/context/ContactContext';
-import { useContacts } from '@/plugins/contacts/hooks/useContacts';
+import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { TopBar } from '@/core/ui/TopBar';
 import { UniversalPanel } from '@/core/ui/UniversalPanel';
-import { ContactList } from '@/plugins/contacts/components/ContactList';
-import { ContactForm } from '@/plugins/contacts/components/ContactForm';
-import { ContactView } from '@/plugins/contacts/components/ContactView';
-import { NotesList } from '@/plugins/notes/components/NotesList';
-import { NoteForm } from '@/plugins/notes/components/NoteForm';
-import { NoteView } from '@/plugins/notes/components/NoteView';
-import { EstimateList } from '@/plugins/estimates/components/EstimateList';
-import { EstimateForm } from '@/plugins/estimates/components/EstimateForm';
-import { EstimateView } from '@/plugins/estimates/components/EstimateView';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { LoginComponent } from '@/core/ui/LoginComponent';
 import { Button } from '@/core/ui/Button';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Check, X, Edit, Trash2 } from 'lucide-react';
 
+// Dynamic Plugin Providers - scales infinitely without App.tsx changes
+function PluginProviders({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, closeOtherPanels } = useApp();
+  
+  return PLUGIN_REGISTRY.reduceRight((acc, plugin) => {
+    const { Provider, name } = plugin;
+    return (
+      <Provider
+        isAuthenticated={isAuthenticated}
+        onCloseOtherPanels={() => closeOtherPanels(name)}
+      >
+        {acc}
+      </Provider>
+    );
+  }, children);
+}
+
+// Dynamic Panel Management - automatically handles any number of plugins
 function AppContent() {
-  const { 
-    // Auth state
-    isAuthenticated,
-    isLoading,
-    // Note state
-    isNotePanelOpen,
-    currentNote,
-    notePanelMode,
-    closeNotePanel,
-    saveNote,
-    openNoteForEdit,
-    openNoteForView,
-    deleteNote,
-    // Estimate state
-    isEstimatePanelOpen,
-    currentEstimate,
-    estimatePanelMode,
-    closeEstimatePanel,
-    saveEstimate,
-    openEstimateForEdit,
-    openEstimateForView,
-    deleteEstimate,
-    // Panel coordination
-    closeOtherPanels
-  } = useApp();
-
-  // Contact state from ContactContext
-  const { 
-    isContactPanelOpen, 
-    currentContact, 
-    panelMode, 
-    closeContactPanel, 
-    saveContact,
-    openContactForEdit,
-    openContactForView,
-    deleteContact,
-    validationErrors,
-  } = useContacts();
-
+  const { isAuthenticated, isLoading } = useApp();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'contacts' | 'notes' | 'estimates'>('contacts');
+  const [currentPage, setCurrentPage] = useState<string>('contacts');
 
   // Show loading spinner while checking authentication
   if (isLoading) {
@@ -79,28 +49,48 @@ function AppContent() {
     return <LoginComponent />;
   }
 
-  // Determine which panel is open and what type of item we're dealing with
-  const isAnyPanelOpen = isContactPanelOpen || isNotePanelOpen || isEstimatePanelOpen;
-  const isContact = isContactPanelOpen;
-  const isNote = isNotePanelOpen;
-  const isEstimate = isEstimatePanelOpen;
-  const currentItem = isContact ? currentContact : isNote ? currentNote : currentEstimate;
-  const currentMode = isContact ? panelMode : isNote ? notePanelMode : estimatePanelMode;
+  // Dynamic panel detection - works with any number of plugins
+  const openPanels = PLUGIN_REGISTRY.filter(plugin => {
+    try {
+      const context = plugin.hook();
+      return context[plugin.panelKey];
+    } catch {
+      return false; // Plugin context not available
+    }
+  });
 
+  const isAnyPanelOpen = openPanels.length > 0;
+  const currentPlugin = openPanels[0]; // First open panel wins
+  
+  // Get current plugin context if panel is open
+  const currentPluginContext = currentPlugin ? currentPlugin.hook() : null;
+  const currentItem = currentPluginContext?.currentContact || 
+                     currentPluginContext?.currentNote || 
+                     currentPluginContext?.currentEstimate;
+  const currentMode = currentPluginContext?.panelMode || 
+                     currentPluginContext?.contactPanelMode || 
+                     currentPluginContext?.notePanelMode || 
+                     currentPluginContext?.estimatePanelMode;
+  const validationErrors = currentPluginContext?.validationErrors || [];
+
+  // Dynamic action handlers - work with any plugin
   const handleDeleteItem = () => {
     setShowDeleteConfirm(true);
   };
 
   const confirmDelete = async () => {
-    if (isContact && currentContact) {
-      await deleteContact(currentContact.id);
-      closeContactPanel();
-    } else if (isNote && currentNote) {
-      await deleteNote(currentNote.id);
-      closeNotePanel();
-    } else if (isEstimate && currentEstimate) {
-      await deleteEstimate(currentEstimate.id);
-      closeEstimatePanel();
+    if (currentPlugin && currentPluginContext) {
+      const deleteFunction = currentPluginContext.deleteContact || 
+                           currentPluginContext.deleteNote || 
+                           currentPluginContext.deleteEstimate;
+      const closeFunction = currentPluginContext.closeContactPanel || 
+                           currentPluginContext.closeNotePanel || 
+                           currentPluginContext.closeEstimatePanel;
+      
+      if (deleteFunction && closeFunction && currentItem) {
+        await deleteFunction(currentItem.id);
+        closeFunction();
+      }
     }
     setShowDeleteConfirm(false);
   };
@@ -109,86 +99,62 @@ function AppContent() {
     setShowDeleteConfirm(false);
   };
 
-  const handleSaveContact = async (data: any) => {
-    console.log('Saving contact:', data);
-    return await saveContact(data);
-  };
-
-  const handleSaveNote = async (data: any) => {
-    console.log('Saving note:', data);
-    return await saveNote(data);
-  };
-
-  const handleSaveEstimate = async (data: any) => {
-    console.log('Saving estimate:', data);
-    return await saveEstimate(data);
+  const handleSave = async (data: any) => {
+    if (currentPluginContext) {
+      const saveFunction = currentPluginContext.saveContact || 
+                          currentPluginContext.saveNote || 
+                          currentPluginContext.saveEstimate;
+      return saveFunction ? await saveFunction(data) : false;
+    }
+    return false;
   };
 
   const handleCancel = () => {
-    if (isContact) {
-      if (panelMode === 'edit' && currentContact) {
-        // Return to view mode instead of closing
-        openContactForView(currentContact);
-      } else {
-        // Close panel for create mode
-        closeContactPanel();
-      }
-    } else if (isNote) {
-      if (notePanelMode === 'edit' && currentNote) {
-        // Return to view mode instead of closing
-        openNoteForView(currentNote);
-      } else {
-        // Close panel for create mode
-        closeNotePanel();
-      }
-    } else if (isEstimate) {
-      if (estimatePanelMode === 'edit' && currentEstimate) {
-        // Return to view mode instead of closing
-        openEstimateForView(currentEstimate);
-      } else {
-        // Close panel for create mode
-        closeEstimatePanel();
+    if (currentPluginContext) {
+      const openForViewFunction = currentPluginContext.openContactForView || 
+                                 currentPluginContext.openNoteForView || 
+                                 currentPluginContext.openEstimateForView;
+      const closeFunction = currentPluginContext.closeContactPanel || 
+                           currentPluginContext.closeNotePanel || 
+                           currentPluginContext.closeEstimatePanel;
+
+      if (currentMode === 'edit' && currentItem && openForViewFunction) {
+        openForViewFunction(currentItem);
+      } else if (closeFunction) {
+        closeFunction();
       }
     }
   };
 
   const handleSaveClick = () => {
     // Trigger the form submission via global function
-    if (isContact && window.submitContactForm) {
-      window.submitContactForm();
-    } else if (isNote && window.submitNoteForm) {
-      window.submitNoteForm();
-    } else if (isEstimate && window.submitEstimateForm) {
-      window.submitEstimateForm();
+    if (currentPlugin) {
+      const submitFunction = window[`submit${currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1)}Form`];
+      if (submitFunction) submitFunction();
     }
   };
 
   const handleCancelClick = () => {
-    if (isContact && window.cancelContactForm) {
-      window.cancelContactForm();
-    } else if (isNote && window.cancelNoteForm) {
-      window.cancelNoteForm();
-    } else if (isEstimate && window.cancelEstimateForm) {
-      window.cancelEstimateForm();
-    } else {
-      handleCancel();
+    if (currentPlugin) {
+      const cancelFunction = window[`cancel${currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1)}Form`];
+      if (cancelFunction) cancelFunction();
+      else handleCancel();
     }
   };
 
   const handleClosePanel = () => {
-    if (isContact) {
-      closeContactPanel();
-    } else if (isNote) {
-      closeNotePanel();
-    } else if (isEstimate) {
-      closeEstimatePanel();
+    if (currentPluginContext) {
+      const closeFunction = currentPluginContext.closeContactPanel || 
+                           currentPluginContext.closeNotePanel || 
+                           currentPluginContext.closeEstimatePanel;
+      if (closeFunction) closeFunction();
     }
   };
 
   // Check if there are any blocking errors (non-warning)
-  const hasBlockingErrors = validationErrors.some(error => !error.message.includes('Warning'));
+  const hasBlockingErrors = validationErrors.some((error: any) => !error.message.includes('Warning'));
 
-  // Different footers based on panel mode
+  // Dynamic footer based on panel mode
   const getFooter = () => {
     if (currentMode === 'view') {
       return (
@@ -213,12 +179,11 @@ function AppContent() {
             <Button
               type="button"
               onClick={() => {
-                if (isContact && currentContact) {
-                  openContactForEdit(currentContact);
-                } else if (isNote && currentNote) {
-                  openNoteForEdit(currentNote);
-                } else if (isEstimate && currentEstimate) {
-                  openEstimateForEdit(currentEstimate);
+                if (currentPluginContext && currentItem) {
+                  const editFunction = currentPluginContext.openContactForEdit || 
+                                     currentPluginContext.openNoteForEdit || 
+                                     currentPluginContext.openEstimateForEdit;
+                  if (editFunction) editFunction(currentItem);
                 }
               }}
               variant="primary"
@@ -256,7 +221,8 @@ function AppContent() {
   };
 
   const getPanelTitle = () => {
-    const itemType = isContact ? 'Contact' : isNote ? 'Note' : 'Estimate';
+    if (!currentPlugin) return '';
+    const itemType = currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1); // contacts -> Contact
     switch (currentMode) {
       case 'view': return `View ${itemType}`;
       case 'edit': return `Edit ${itemType}`;
@@ -266,7 +232,8 @@ function AppContent() {
   };
 
   const getPanelSubtitle = () => {
-    const itemType = isContact ? 'contact' : isNote ? 'note' : 'estimate';
+    if (!currentPlugin) return '';
+    const itemType = currentPlugin.name.slice(0, -1); // contacts -> contact
     switch (currentMode) {
       case 'view': return `${itemType.charAt(0).toUpperCase() + itemType.slice(1)} information`;
       case 'edit': return `Update ${itemType} information`;
@@ -276,14 +243,48 @@ function AppContent() {
   };
 
   const getDeleteMessage = () => {
-    if (isContact && currentContact) {
-      return `Are you sure you want to delete "${currentContact.companyName}"? This action cannot be undone.`;
-    } else if (isNote && currentNote) {
-      return `Are you sure you want to delete "${currentNote.title}"? This action cannot be undone.`;
-    } else if (isEstimate && currentEstimate) {
-      return `Are you sure you want to delete estimate "${currentEstimate.estimateNumber}"? This action cannot be undone.`;
+    if (!currentItem || !currentPlugin) return "Are you sure you want to delete this item?";
+    
+    const itemName = currentItem.companyName || currentItem.title || currentItem.estimateNumber || 'this item';
+    return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
+  };
+
+  // Dynamic component rendering - works with any plugin
+  const renderCurrentPage = () => {
+    const plugin = PLUGIN_REGISTRY.find(p => p.name === currentPage);
+    if (!plugin) return <div>Plugin not found</div>;
+    
+    const ListComponent = plugin.components.List;
+    return <ListComponent />;
+  };
+
+  const renderPanelContent = () => {
+    if (!currentPlugin || !currentPluginContext) return null;
+
+    const ViewComponent = currentPlugin.components.View;
+    const FormComponent = currentPlugin.components.Form;
+
+    if (currentMode === 'view') {
+      // Pass correct props based on plugin type
+      if (currentPlugin.name === 'contacts') {
+        return <ViewComponent contact={currentItem} />;
+      } else if (currentPlugin.name === 'notes') {
+        return <ViewComponent note={currentItem} />;
+      } else {
+        return <ViewComponent item={currentItem} />;
+      }
+    } else {
+      // Form mode
+      return (
+        <FormComponent
+          currentContact={currentPlugin.name === 'contacts' ? currentItem : undefined}
+          currentNote={currentPlugin.name === 'notes' ? currentItem : undefined}
+          currentItem={currentItem}
+          onSave={handleSave}
+          onCancel={handleCancel}
+        />
+      );
     }
-    return "Are you sure you want to delete this item? This action cannot be undone.";
   };
 
   return (
@@ -291,9 +292,7 @@ function AppContent() {
       <div className="h-full flex flex-col">
         <TopBar />
         <div className="flex-1 overflow-auto">
-          {currentPage === 'contacts' && <ContactList />}
-          {currentPage === 'notes' && <NotesList />}
-          {currentPage === 'estimates' && <EstimateList />}
+          {renderCurrentPage()}
         </div>
       </div>
       
@@ -304,51 +303,13 @@ function AppContent() {
         subtitle={getPanelSubtitle()}
         footer={getFooter()}
       >
-        {isContact && (
-          <>
-            {currentMode === 'view' ? (
-              <ContactView contact={currentContact} />
-            ) : (
-              <ContactForm
-                currentContact={currentContact}
-                onSave={handleSaveContact}
-                onCancel={handleCancel}
-              />
-            )}
-          </>
-        )}
-        {isNote && (
-          <>
-            {currentMode === 'view' ? (
-              <NoteView note={currentNote} />
-            ) : (
-              <NoteForm
-                currentNote={currentNote}
-                onSave={handleSaveNote}
-                onCancel={handleCancel}
-              />
-            )}
-          </>
-        )}
-        {isEstimate && (
-          <>
-            {currentMode === 'view' ? (
-              <EstimateView estimate={currentEstimate} />
-            ) : (
-              <EstimateForm
-                currentEstimate={currentEstimate}
-                onSave={handleSaveEstimate}
-                onCancel={handleCancel}
-              />
-            )}
-          </>
-        )}
+        {renderPanelContent()}
       </UniversalPanel>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={showDeleteConfirm}
-        title={`Delete ${isContact ? 'Contact' : isNote ? 'Note' : 'Estimate'}`}
+        title={`Delete ${currentPlugin ? currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1) : 'Item'}`}
         message={getDeleteMessage()}
         confirmText="Delete"
         cancelText="Cancel"
@@ -360,24 +321,14 @@ function AppContent() {
   );
 }
 
+// Main App - constant size regardless of number of plugins
 function App() {
   return (
     <AppProvider>
-      <ContactProviderWrapper />
+      <PluginProviders>
+        <AppContent />
+      </PluginProviders>
     </AppProvider>
-  );
-}
-
-function ContactProviderWrapper() {
-  const { isAuthenticated, closeOtherPanels } = useApp();
-  
-  return (
-    <ContactProvider 
-      isAuthenticated={isAuthenticated} 
-      onCloseOtherPanels={() => closeOtherPanels('contacts')}
-    >
-      <AppContent />
-    </ContactProvider>
   );
 }
 

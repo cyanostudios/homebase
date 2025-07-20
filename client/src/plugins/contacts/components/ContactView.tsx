@@ -3,6 +3,8 @@ import { Building, User, MapPin, Phone, Mail, Globe, CreditCard, StickyNote } fr
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
 import { useApp } from '@/core/api/AppContext';
+import { useNotes } from '@/plugins/notes/hooks/useNotes';
+import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { Button } from '@/core/ui/Button';
 
 interface ContactViewProps {
@@ -10,8 +12,14 @@ interface ContactViewProps {
 }
 
 export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
-  // Use AppContext only for cross-plugin functions
-  const { getNotesForContact, openNoteForView } = useApp();
+  // Use AppContext only for cross-plugin data fetching
+  const { getNotesForContact } = useApp();
+  
+  // Use NoteContext for opening notes
+  const { openNoteForView } = useNotes();
+  
+  // Use ContactContext to close contact panel when navigating to note
+  const { closeContactPanel } = useContacts();
   
   if (!contact) return null;
 
@@ -252,7 +260,10 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => openNoteForView(note)}
+                    onClick={() => {
+                      closeContactPanel(); // Close contact panel first
+                      openNoteForView(note); // Then open note panel
+                    }}
                     className="text-yellow-700 hover:text-yellow-800"
                   >
                     View Note

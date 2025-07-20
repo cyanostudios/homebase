@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Note } from '@/plugins/notes/types/notes';
 import { Estimate } from '@/plugins/estimates/types/estimate';
 import { Contact } from '@/plugins/contacts/types/contacts';
+import { Note } from '@/plugins/notes/types/notes';
 
 interface User {
   id: number;
@@ -20,22 +20,6 @@ interface AppContextType {
   // Loading States
   isLoading: boolean;
 
-  // Note Panel State
-  isNotePanelOpen: boolean;
-  currentNote: Note | null;
-  notePanelMode: 'create' | 'edit' | 'view';
-  
-  // Notes Data
-  notes: Note[];
-  
-  // Note Actions
-  openNotePanel: (note: Note | null) => void;
-  openNoteForEdit: (note: Note) => void;
-  openNoteForView: (note: Note) => void;
-  closeNotePanel: () => void;
-  saveNote: (noteData: any) => Promise<boolean>;
-  deleteNote: (id: string) => Promise<void>;
-
   // Estimate Panel State
   isEstimatePanelOpen: boolean;
   currentEstimate: Estimate | null;
@@ -52,7 +36,7 @@ interface AppContextType {
   saveEstimate: (estimateData: any) => Promise<boolean>;
   deleteEstimate: (id: string) => Promise<void>;
 
-  // Cross-plugin references (needs contacts data for cross-references)
+  // Cross-plugin references (needs contacts and notes data for cross-references)
   getNotesForContact: (contactId: string) => Note[];
   getContactsForNote: (noteId: string) => Contact[];
   getEstimatesForContact: (contactId: string) => Estimate[];
@@ -107,27 +91,9 @@ const api = {
     return this.request('/contacts');
   },
 
-  // Notes endpoints
+  // Notes endpoints (only for cross-plugin references)
   async getNotes() {
     return this.request('/notes');
-  },
-
-  async createNote(noteData: any) {
-    return this.request('/notes', {
-      method: 'POST',
-      body: JSON.stringify(noteData),
-    });
-  },
-
-  async updateNote(id: string, noteData: any) {
-    return this.request(`/notes/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(noteData),
-    });
-  },
-
-  async deleteNote(id: string) {
-    return this.request(`/notes/${id}`, { method: 'DELETE' });
   },
 
   // Estimates endpoints
@@ -164,19 +130,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Notes state
-  const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
-  const [currentNote, setCurrentNote] = useState<Note | null>(null);
-  const [notePanelMode, setNotePanelMode] = useState<'create' | 'edit' | 'view'>('create');
-  
   // Estimates state
   const [isEstimatePanelOpen, setIsEstimatePanelOpen] = useState(false);
   const [currentEstimate, setCurrentEstimate] = useState<Estimate | null>(null);
   const [estimatePanelMode, setEstimatePanelMode] = useState<'create' | 'edit' | 'view'>('create');
   
-  // Data state
+  // Cross-plugin data (read-only for references)
   const [contacts, setContacts] = useState<Contact[]>([]); // Only for cross-plugin references
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]); // Only for cross-plugin references
   const [estimates, setEstimates] = useState<Estimate[]>([]);
 
   // Check authentication on app start
@@ -212,7 +173,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const [contactsData, notesData, estimatesData] = await Promise.all([
         api.getContacts(), // Only for cross-plugin references
-        api.getNotes(),
+        api.getNotes(), // Only for cross-plugin references
         api.getEstimates(),
       ]);
       
@@ -279,33 +240,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Close other panels coordination function
   const closeOtherPanels = (except?: 'contacts' | 'notes' | 'estimates') => {
-    if (except !== 'notes') {
-      setIsNotePanelOpen(false);
-    }
     if (except !== 'estimates') {
       setIsEstimatePanelOpen(false);
     }
-    // Contact panel closing is handled by ContactContext
-  };
-
-  const validateNote = (noteData: any) => {
-    const errors: any[] = [];
-    
-    if (!noteData.title?.trim()) {
-      errors.push({
-        field: 'title',
-        message: 'Note title is required'
-      });
-    }
-    
-    if (!noteData.content?.trim()) {
-      errors.push({
-        field: 'content',
-        message: 'Note content is required'
-      });
-    }
-    
-    return errors;
+    // Contact and note panel closing is handled by their respective contexts
   };
 
   const validateEstimate = (estimateData: any) => {
@@ -355,96 +293,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     
     return errors;
-  };
-
-  // Note functions
-  const openNotePanel = (note: Note | null) => {
-    setCurrentNote(note);
-    setNotePanelMode(note ? 'edit' : 'create');
-    setIsNotePanelOpen(true);
-    closeOtherPanels('notes');
-  };
-
-  const openNoteForEdit = (note: Note) => {
-    setCurrentNote(note);
-    setNotePanelMode('edit');
-    setIsNotePanelOpen(true);
-    closeOtherPanels('notes');
-  };
-
-  const openNoteForView = (note: Note) => {
-    setCurrentNote(note);
-    setNotePanelMode('view');
-    setIsNotePanelOpen(true);
-    closeOtherPanels('notes');
-  };
-
-  const closeNotePanel = () => {
-    setIsNotePanelOpen(false);
-    setCurrentNote(null);
-    setNotePanelMode('create');
-  };
-
-  const saveNote = async (noteData: any): Promise<boolean> => {
-    console.log('Validating note data:', noteData);
-    
-    // Run validation
-    const errors = validateNote(noteData);
-    
-    if (errors.length > 0) {
-      console.log('Validation failed:', errors);
-      return false;
-    }
-    
-    try {
-      let savedNote: Note;
-      
-      if (currentNote) {
-        // Update existing note
-        savedNote = await api.updateNote(currentNote.id, noteData);
-        setNotes(prev => prev.map(note => 
-          note.id === currentNote.id ? {
-            ...savedNote,
-            createdAt: new Date(savedNote.createdAt),
-            updatedAt: new Date(savedNote.updatedAt),
-          } : note
-        ));
-        setCurrentNote({
-          ...savedNote,
-          createdAt: new Date(savedNote.createdAt),
-          updatedAt: new Date(savedNote.updatedAt),
-        });
-        setNotePanelMode('view');
-      } else {
-        // Create new note
-        savedNote = await api.createNote(noteData);
-        setNotes(prev => [...prev, {
-          ...savedNote,
-          createdAt: new Date(savedNote.createdAt),
-          updatedAt: new Date(savedNote.updatedAt),
-        }]);
-        closeNotePanel();
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to save note:', error);
-      return false;
-    }
-  };
-
-  const deleteNote = async (id: string) => {
-    console.log("Deleting note with id:", id);
-    try {
-      await api.deleteNote(id);
-      setNotes(prev => {
-        const newNotes = prev.filter(note => note.id !== id);
-        console.log("Notes after delete:", newNotes);
-        return newNotes;
-      });
-    } catch (error) {
-      console.error('Failed to delete note:', error);
-    }
   };
 
   // Estimate functions
@@ -568,20 +416,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       isLoading,
-      
-      // Note state
-      isNotePanelOpen,
-      currentNote,
-      notePanelMode,
-      notes,
-      
-      // Note actions
-      openNotePanel,
-      openNoteForEdit,
-      openNoteForView,
-      closeNotePanel,
-      saveNote,
-      deleteNote,
       
       // Estimate state
       isEstimatePanelOpen,

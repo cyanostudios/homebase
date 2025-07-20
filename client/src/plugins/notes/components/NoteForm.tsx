@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Heading } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { useApp } from '@/core/api/AppContext';
+import { useNotes } from '../hooks/useNotes';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { MentionTextarea } from './MentionTextarea';
 
@@ -19,7 +19,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   onCancel, 
   isSubmitting = false 
 }) => {
-  const { validationErrors } = useApp();
+  const { validationErrors } = useNotes();
   const { 
     isDirty, 
     showWarning, 

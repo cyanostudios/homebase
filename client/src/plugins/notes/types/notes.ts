@@ -2,20 +2,20 @@ export interface Note {
   id: string;
   title: string;
   content: string;
-  mentions: NoteMention[];
+  mentions: Mention[];
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface NoteMention {
+export interface Mention {
   contactId: string;
   contactName: string;
-  companyName?: string;
-  position: number; // Character position in content where mention starts
-  length: number;   // Length of the mention text
+  companyName: string;
+  position: number;
+  length: number;
 }
 
-export interface NoteFormValues {
-  title: string;
-  content: string;
+export interface ValidationError {
+  field: string;
+  message: string;
 }

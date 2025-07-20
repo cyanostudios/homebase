@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Edit, Trash2, Eye, StickyNote, ChevronUp, ChevronDown } from 'lucide-react';
-import { useApp } from '@/core/api/AppContext';
+import { useNotes } from '../hooks/useNotes';
 import { Button } from '@/core/ui/Button';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
@@ -10,7 +10,7 @@ type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
 export const NotesList: React.FC = () => {
-  const { notes, openNotePanel, openNoteForEdit, openNoteForView, deleteNote } = useApp();
+  const { notes, openNotePanel, openNoteForEdit, openNoteForView, deleteNote } = useNotes();
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     noteId: string;
