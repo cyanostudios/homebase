@@ -10,6 +10,7 @@ interface ContactViewProps {
 }
 
 export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
+  // Use AppContext only for cross-plugin functions
   const { getNotesForContact, openNoteForView } = useApp();
   
   if (!contact) return null;

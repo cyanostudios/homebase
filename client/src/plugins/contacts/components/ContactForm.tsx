@@ -4,7 +4,7 @@ import { Button } from '@/core/ui/Button';
 import { Heading } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { useApp } from '@/core/api/AppContext';
+import { useContacts } from '../hooks/useContacts';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 interface ContactPerson {
@@ -40,7 +40,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
   onCancel, 
   isSubmitting = false 
 }) => {
-  const { validationErrors, clearValidationErrors } = useApp();
+  const { validationErrors, clearValidationErrors } = useContacts();
   const { 
     isDirty, 
     showWarning, 

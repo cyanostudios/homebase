@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Users, Mail, Phone, Edit, Trash2, Eye, Building, User, ChevronUp, ChevronDown } from 'lucide-react';
-import { useApp } from '@/core/api/AppContext';
+import { useContacts } from '../hooks/useContacts';
 import { Button } from '@/core/ui/Button';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
@@ -10,7 +10,7 @@ type SortField = 'contactNumber' | 'name' | 'type';
 type SortOrder = 'asc' | 'desc';
 
 export const ContactList: React.FC = () => {
-  const { contacts, openContactPanel, openContactForEdit, openContactForView, deleteContact } = useApp();
+  const { contacts, openContactPanel, openContactForEdit, openContactForView, deleteContact } = useContacts();
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     contactId: string;

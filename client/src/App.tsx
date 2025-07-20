@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { AppProvider, useApp } from '@/core/api/AppContext';
+import { ContactProvider } from '@/plugins/contacts/context/ContactContext';
+import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { TopBar } from '@/core/ui/TopBar';
 import { UniversalPanel } from '@/core/ui/UniversalPanel';
 import { ContactList } from '@/plugins/contacts/components/ContactList';
@@ -22,16 +24,6 @@ function AppContent() {
     // Auth state
     isAuthenticated,
     isLoading,
-    // Contact state
-    isContactPanelOpen, 
-    currentContact, 
-    panelMode, 
-    closeContactPanel, 
-    saveContact,
-    openContactForEdit,
-    openContactForView,
-    deleteContact,
-    validationErrors,
     // Note state
     isNotePanelOpen,
     currentNote,
@@ -49,8 +41,23 @@ function AppContent() {
     saveEstimate,
     openEstimateForEdit,
     openEstimateForView,
-    deleteEstimate
+    deleteEstimate,
+    // Panel coordination
+    closeOtherPanels
   } = useApp();
+
+  // Contact state from ContactContext
+  const { 
+    isContactPanelOpen, 
+    currentContact, 
+    panelMode, 
+    closeContactPanel, 
+    saveContact,
+    openContactForEdit,
+    openContactForView,
+    deleteContact,
+    validationErrors,
+  } = useContacts();
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [currentPage, setCurrentPage] = useState<'contacts' | 'notes' | 'estimates'>('contacts');
@@ -356,8 +363,21 @@ function AppContent() {
 function App() {
   return (
     <AppProvider>
-      <AppContent />
+      <ContactProviderWrapper />
     </AppProvider>
+  );
+}
+
+function ContactProviderWrapper() {
+  const { isAuthenticated, closeOtherPanels } = useApp();
+  
+  return (
+    <ContactProvider 
+      isAuthenticated={isAuthenticated} 
+      onCloseOtherPanels={() => closeOtherPanels('contacts')}
+    >
+      <AppContent />
+    </ContactProvider>
   );
 }
 

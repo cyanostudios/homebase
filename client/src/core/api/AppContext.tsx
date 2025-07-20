@@ -1,35 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Note } from '@/plugins/notes/types/notes';
 import { Estimate } from '@/plugins/estimates/types/estimate';
-
-interface Contact {
-  id: string;
-  contactNumber: string;
-  contactType: 'company' | 'private';
-  companyName: string;
-  companyType?: string;
-  organizationNumber?: string;
-  vatNumber?: string;
-  personalNumber?: string;
-  contactPersons: any[];
-  addresses: any[];
-  email: string;
-  phone: string;
-  phone2: string;
-  website: string;
-  taxRate: string;
-  paymentTerms: string;
-  currency: string;
-  fTax: string;
-  notes: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface ValidationError {
-  field: string;
-  message: string;
-}
+import { Contact } from '@/plugins/contacts/types/contacts';
 
 interface User {
   id: number;
@@ -47,24 +19,6 @@ interface AppContextType {
   
   // Loading States
   isLoading: boolean;
-  
-  // Contact Panel State
-  isContactPanelOpen: boolean;
-  currentContact: Contact | null;
-  panelMode: 'create' | 'edit' | 'view';
-  validationErrors: ValidationError[];
-  
-  // Contacts Data
-  contacts: Contact[];
-  
-  // Contact Actions
-  openContactPanel: (contact: Contact | null) => void;
-  openContactForEdit: (contact: Contact) => void;
-  openContactForView: (contact: Contact) => void;
-  closeContactPanel: () => void;
-  saveContact: (contactData: any) => Promise<boolean>;
-  deleteContact: (id: string) => Promise<void>;
-  clearValidationErrors: () => void;
 
   // Note Panel State
   isNotePanelOpen: boolean;
@@ -98,10 +52,13 @@ interface AppContextType {
   saveEstimate: (estimateData: any) => Promise<boolean>;
   deleteEstimate: (id: string) => Promise<void>;
 
-  // Cross-plugin references
+  // Cross-plugin references (needs contacts data for cross-references)
   getNotesForContact: (contactId: string) => Note[];
   getContactsForNote: (noteId: string) => Contact[];
   getEstimatesForContact: (contactId: string) => Estimate[];
+  
+  // Close other panels function (for plugin coordination)
+  closeOtherPanels: (except?: 'contacts' | 'notes' | 'estimates') => void;
   
   // Data refresh
   refreshData: () => Promise<void>;
@@ -145,27 +102,9 @@ const api = {
     return this.request('/auth/me');
   },
 
-  // Contacts endpoints
+  // Contacts endpoints (only for cross-plugin references)
   async getContacts() {
     return this.request('/contacts');
-  },
-
-  async createContact(contactData: any) {
-    return this.request('/contacts', {
-      method: 'POST',
-      body: JSON.stringify(contactData),
-    });
-  },
-
-  async updateContact(id: string, contactData: any) {
-    return this.request(`/contacts/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(contactData),
-    });
-  },
-
-  async deleteContact(id: string) {
-    return this.request(`/contacts/${id}`, { method: 'DELETE' });
   },
 
   // Notes endpoints
@@ -224,12 +163,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Panel states
-  const [isContactPanelOpen, setIsContactPanelOpen] = useState(false);
-  const [currentContact, setCurrentContact] = useState<Contact | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   
   // Notes state
   const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
@@ -242,7 +175,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [estimatePanelMode, setEstimatePanelMode] = useState<'create' | 'edit' | 'view'>('create');
   
   // Data state
-  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]); // Only for cross-plugin references
   const [notes, setNotes] = useState<Note[]>([]);
   const [estimates, setEstimates] = useState<Estimate[]>([]);
 
@@ -278,7 +211,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const loadData = async () => {
     try {
       const [contactsData, notesData, estimatesData] = await Promise.all([
-        api.getContacts(),
+        api.getContacts(), // Only for cross-plugin references
         api.getNotes(),
         api.getEstimates(),
       ]);
@@ -344,102 +277,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Helper function to generate next contact number
-  const generateNextContactNumber = (): string => {
-    const existingNumbers = contacts.map(contact => parseInt(contact.contactNumber) || 0);
-    const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
-    const nextNumber = maxNumber + 1;
-    return nextNumber.toString().padStart(2, '0');
+  // Close other panels coordination function
+  const closeOtherPanels = (except?: 'contacts' | 'notes' | 'estimates') => {
+    if (except !== 'notes') {
+      setIsNotePanelOpen(false);
+    }
+    if (except !== 'estimates') {
+      setIsEstimatePanelOpen(false);
+    }
+    // Contact panel closing is handled by ContactContext
   };
 
-  const validateContact = (contactData: any): ValidationError[] => {
-    const errors: ValidationError[] = [];
-    
-    // Contact number validation
-    if (!contactData.contactNumber?.trim()) {
-      errors.push({
-        field: 'contactNumber',
-        message: 'Contact number is required'
-      });
-    } else {
-      // Check for duplicate contact numbers
-      const existingContact = contacts.find(contact => 
-        contact.id !== currentContact?.id && 
-        contact.contactNumber === contactData.contactNumber.trim()
-      );
-      
-      if (existingContact) {
-        errors.push({
-          field: 'contactNumber',
-          message: `Contact number "${contactData.contactNumber}" already exists for "${existingContact.companyName}"`
-        });
-      }
-    }
-    
-    // Required fields
-    if (!contactData.companyName?.trim()) {
-      errors.push({
-        field: 'companyName',
-        message: contactData.contactType === 'company' ? 'Company name is required' : 'Full name is required'
-      });
-    }
-    
-    // Company validations
-    if (contactData.contactType === 'company') {
-      if (contactData.organizationNumber?.trim()) {
-        const existingContact = contacts.find(contact => 
-          contact.id !== currentContact?.id && 
-          contact.contactType === 'company' &&
-          contact.organizationNumber === contactData.organizationNumber.trim()
-        );
-        
-        if (existingContact) {
-          errors.push({
-            field: 'organizationNumber',
-            message: `Organization number already exists for "${existingContact.companyName}"`
-          });
-        }
-      }
-    }
-    
-    // Private person validations
-    if (contactData.contactType === 'private') {
-      if (contactData.personalNumber?.trim()) {
-        const existingContact = contacts.find(contact => 
-          contact.id !== currentContact?.id && 
-          contact.contactType === 'private' &&
-          contact.personalNumber === contactData.personalNumber.trim()
-        );
-        
-        if (existingContact) {
-          errors.push({
-            field: 'personalNumber',
-            message: `Personal number already exists for "${existingContact.companyName}"`
-          });
-        }
-      }
-    }
-    
-    // Email validation (warning, not blocking)
-    if (contactData.email?.trim()) {
-      const existingContact = contacts.find(contact => 
-        contact.id !== currentContact?.id && 
-        contact.email === contactData.email.trim()
-      );
-      
-      if (existingContact) {
-        errors.push({
-          field: 'email',
-          message: `Email already exists for "${existingContact.companyName}" (Warning)`
-        });
-      }
-    }
-    
-    return errors;
-  };
-
-  const validateNote = (noteData: any): ValidationError[] => {
-    const errors: ValidationError[] = [];
+  const validateNote = (noteData: any) => {
+    const errors: any[] = [];
     
     if (!noteData.title?.trim()) {
       errors.push({
@@ -458,8 +308,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return errors;
   };
 
-  const validateEstimate = (estimateData: any): ValidationError[] => {
-    const errors: ValidationError[] = [];
+  const validateEstimate = (estimateData: any) => {
+    const errors: any[] = [];
     
     if (!estimateData.contactId?.trim()) {
       errors.push({
@@ -507,150 +357,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return errors;
   };
 
-  // Contact functions
-  const openContactPanel = (contact: Contact | null) => {
-    setCurrentContact(contact);
-    setPanelMode(contact ? 'edit' : 'create');
-    setIsContactPanelOpen(true);
-    setValidationErrors([]);
-    setIsNotePanelOpen(false);
-    setIsEstimatePanelOpen(false);
-  };
-
-  const openContactForEdit = (contact: Contact) => {
-    setCurrentContact(contact);
-    setPanelMode('edit');
-    setIsContactPanelOpen(true);
-    setValidationErrors([]);
-    setIsNotePanelOpen(false);
-    setIsEstimatePanelOpen(false);
-  };
-
-  const openContactForView = (contact: Contact) => {
-    setCurrentContact(contact);
-    setPanelMode('view');
-    setIsContactPanelOpen(true);
-    setValidationErrors([]);
-    setIsNotePanelOpen(false);
-    setIsEstimatePanelOpen(false);
-  };
-
-  const closeContactPanel = () => {
-    setIsContactPanelOpen(false);
-    setCurrentContact(null);
-    setPanelMode('create');
-    setValidationErrors([]);
-  };
-
-  const clearValidationErrors = () => {
-    setValidationErrors([]);
-  };
-
-  const saveContact = async (contactData: any): Promise<boolean> => {
-    console.log('Validating contact data:', contactData);
-    
-    // Auto-generate contact number for new contacts if not provided
-    if (!currentContact && !contactData.contactNumber?.trim()) {
-      contactData.contactNumber = generateNextContactNumber();
-    }
-    
-    // Run validation
-    const errors = validateContact(contactData);
-    setValidationErrors(errors);
-    
-    // If there are blocking errors, don't save
-    const blockingErrors = errors.filter(error => !error.message.includes('Warning'));
-    if (blockingErrors.length > 0) {
-      console.log('Validation failed:', blockingErrors);
-      return false;
-    }
-    
-    try {
-      let savedContact: Contact;
-      
-      if (currentContact) {
-        // Update existing contact
-        savedContact = await api.updateContact(currentContact.id, contactData);
-        setContacts(prev => prev.map(contact => 
-          contact.id === currentContact.id ? {
-            ...savedContact,
-            createdAt: new Date(savedContact.createdAt),
-            updatedAt: new Date(savedContact.updatedAt),
-          } : contact
-        ));
-        setCurrentContact({
-          ...savedContact,
-          createdAt: new Date(savedContact.createdAt),
-          updatedAt: new Date(savedContact.updatedAt),
-        });
-        setPanelMode('view');
-        setValidationErrors([]);
-      } else {
-        // Create new contact
-        savedContact = await api.createContact(contactData);
-        setContacts(prev => [...prev, {
-          ...savedContact,
-          createdAt: new Date(savedContact.createdAt),
-          updatedAt: new Date(savedContact.updatedAt),
-        }]);
-        closeContactPanel();
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to save contact:', error);
-      setValidationErrors([{ field: 'general', message: 'Failed to save contact. Please try again.' }]);
-      return false;
-    }
-  };
-
-  const deleteContact = async (id: string) => {
-    console.log("Deleting contact with id:", id);
-    try {
-      await api.deleteContact(id);
-      setContacts(prev => {
-        const newContacts = prev.filter(contact => contact.id !== id);
-        console.log("Contacts after delete:", newContacts);
-        return newContacts;
-      });
-    } catch (error) {
-      console.error('Failed to delete contact:', error);
-    }
-  };
-
   // Note functions
   const openNotePanel = (note: Note | null) => {
     setCurrentNote(note);
     setNotePanelMode(note ? 'edit' : 'create');
     setIsNotePanelOpen(true);
-    setValidationErrors([]);
-    setIsContactPanelOpen(false);
-    setIsEstimatePanelOpen(false);
+    closeOtherPanels('notes');
   };
 
   const openNoteForEdit = (note: Note) => {
     setCurrentNote(note);
     setNotePanelMode('edit');
     setIsNotePanelOpen(true);
-    setValidationErrors([]);
-    setIsContactPanelOpen(false);
-    setIsEstimatePanelOpen(false);
+    closeOtherPanels('notes');
   };
 
   const openNoteForView = (note: Note) => {
     setCurrentNote(note);
     setNotePanelMode('view');
     setIsNotePanelOpen(true);
-    setValidationErrors([]);
-    setIsContactPanelOpen(false);
-    setIsEstimatePanelOpen(false);
+    closeOtherPanels('notes');
   };
 
   const closeNotePanel = () => {
     setIsNotePanelOpen(false);
     setCurrentNote(null);
     setNotePanelMode('create');
-    setValidationErrors([]);
   };
 
   const saveNote = async (noteData: any): Promise<boolean> => {
@@ -658,7 +390,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     
     // Run validation
     const errors = validateNote(noteData);
-    setValidationErrors(errors);
     
     if (errors.length > 0) {
       console.log('Validation failed:', errors);
@@ -684,7 +415,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           updatedAt: new Date(savedNote.updatedAt),
         });
         setNotePanelMode('view');
-        setValidationErrors([]);
       } else {
         // Create new note
         savedNote = await api.createNote(noteData);
@@ -699,7 +429,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return true;
     } catch (error) {
       console.error('Failed to save note:', error);
-      setValidationErrors([{ field: 'general', message: 'Failed to save note. Please try again.' }]);
       return false;
     }
   };
@@ -723,34 +452,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCurrentEstimate(estimate);
     setEstimatePanelMode(estimate ? 'edit' : 'create');
     setIsEstimatePanelOpen(true);
-    setValidationErrors([]);
-    setIsContactPanelOpen(false);
-    setIsNotePanelOpen(false);
+    closeOtherPanels('estimates');
   };
 
   const openEstimateForEdit = (estimate: Estimate) => {
     setCurrentEstimate(estimate);
     setEstimatePanelMode('edit');
     setIsEstimatePanelOpen(true);
-    setValidationErrors([]);
-    setIsContactPanelOpen(false);
-    setIsNotePanelOpen(false);
+    closeOtherPanels('estimates');
   };
 
   const openEstimateForView = (estimate: Estimate) => {
     setCurrentEstimate(estimate);
     setEstimatePanelMode('view');
     setIsEstimatePanelOpen(true);
-    setValidationErrors([]);
-    setIsContactPanelOpen(false);
-    setIsNotePanelOpen(false);
+    closeOtherPanels('estimates');
   };
 
   const closeEstimatePanel = () => {
     setIsEstimatePanelOpen(false);
     setCurrentEstimate(null);
     setEstimatePanelMode('create');
-    setValidationErrors([]);
   };
 
   const saveEstimate = async (estimateData: any): Promise<boolean> => {
@@ -758,7 +480,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     
     // Run validation
     const errors = validateEstimate(estimateData);
-    setValidationErrors(errors);
     
     if (errors.length > 0) {
       console.log('Validation failed:', errors);
@@ -786,7 +507,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           updatedAt: new Date(savedEstimate.updatedAt),
         });
         setEstimatePanelMode('view');
-        setValidationErrors([]);
       } else {
         // Create new estimate
         savedEstimate = await api.createEstimate(estimateData);
@@ -802,7 +522,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return true;
     } catch (error) {
       console.error('Failed to save estimate:', error);
-      setValidationErrors([{ field: 'general', message: 'Failed to save estimate. Please try again.' }]);
       return false;
     }
   };
@@ -850,22 +569,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       logout,
       isLoading,
       
-      // Contact state
-      isContactPanelOpen,
-      currentContact,
-      panelMode,
-      validationErrors,
-      contacts,
-      
-      // Contact actions
-      openContactPanel,
-      openContactForEdit,
-      openContactForView,
-      closeContactPanel,
-      saveContact,
-      deleteContact,
-      clearValidationErrors,
-      
       // Note state
       isNotePanelOpen,
       currentNote,
@@ -898,6 +601,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       getNotesForContact,
       getContactsForNote,
       getEstimatesForContact,
+      
+      // Panel coordination
+      closeOtherPanels,
       
       // Data refresh
       refreshData,
