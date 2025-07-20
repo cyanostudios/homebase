@@ -26,10 +26,10 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
   const mentionedInNotes = getNotesForContact(contact.id);
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-4">
       
       {/* Contact Type & Basic Info - Mobile Optimized */}
-      <Card padding="md" className="shadow-none">
+      <Card padding="sm" className="shadow-none px-0">
         {/* Mobile/Desktop responsive header */}
         <div className="space-y-3 md:space-y-0">
           {/* Row 1: Contact Number + Type */}
@@ -92,7 +92,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
       )}
 
       {/* Contact Details */}
-      <Card padding="md" className="shadow-none">
+      <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} size="lg" color="gray-600" className="mb-3">Contact Information</Heading>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {contact.email && (
@@ -136,7 +136,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
 
       {/* Addresses */}
       {contact.addresses && contact.addresses.length > 0 && (
-        <Card padding="md" className="shadow-none">
+        <Card padding="sm" className="shadow-none px-0">
           <Heading level={3} size="lg" color="gray-600" className="mb-3">Addresses</Heading>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {contact.addresses.map((address: any, index: number) => (
@@ -171,7 +171,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
 
       {/* Contact Persons */}
       {contact.contactType === 'company' && contact.contactPersons && contact.contactPersons.length > 0 && (
-        <Card padding="md" className="shadow-none">
+        <Card padding="sm" className="shadow-none px-0">
           <Heading level={3} size="lg" color="gray-600" className="mb-3">Contact Persons</Heading>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {contact.contactPersons.map((person: any, index: number) => (
@@ -206,7 +206,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
       <hr className="border-gray-100" />
 
       {/* Tax & Business Settings */}
-      <Card padding="md" className="shadow-none">
+      <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} size="lg" color="gray-600" className="mb-3">Business Settings</Heading>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -232,7 +232,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
 
       {/* Notes */}
       {contact.notes && (
-        <Card padding="md" className="shadow-none">
+        <Card padding="sm" className="shadow-none px-0">
           <Heading level={3} size="lg" color="gray-600" className="mb-3">Notes</Heading>
           <Text>{contact.notes}</Text>
         </Card>
@@ -243,7 +243,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
       {/* Cross-plugin references - Mentioned in Notes */}
       {mentionedInNotes.length > 0 && (
         <>
-          <Card padding="md" className="shadow-none">
+          <Card padding="sm" className="shadow-none px-0">
             <Heading level={3} size="lg" color="gray-600" className="mb-3">Mentioned in Notes</Heading>
             <div className="space-y-3">
               {mentionedInNotes.map((note: any) => (
@@ -278,7 +278,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
       )}
 
       {/* Metadata */}
-      <Card padding="md" className="shadow-none">
+      <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} size="lg" color="gray-600" className="mb-3">Record Information</Heading>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>

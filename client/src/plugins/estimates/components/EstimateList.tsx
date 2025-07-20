@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Edit, Trash2, Eye, Search, Calculator } from 'lucide-react';
-import { useApp } from '@/core/api/AppContext';
+import { useEstimates } from '../hooks/useEstimates';
 import { Button } from '@/core/ui/Button';
 import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -12,7 +12,7 @@ export function EstimateList() {
     openEstimateForEdit,
     openEstimateForView,
     deleteEstimate 
-  } = useApp();
+  } = useEstimates();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'estimateNumber' | 'contactName' | 'total' | 'createdAt'>('createdAt');

@@ -7,7 +7,7 @@ import { MainLayout } from '@/core/ui/MainLayout';
 import { LoginComponent } from '@/core/ui/LoginComponent';
 import { Button } from '@/core/ui/Button';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { Check, X, Edit, Trash2 } from 'lucide-react';
+import { Check, X, Edit, Trash2, Building, User, StickyNote, Calculator } from 'lucide-react';
 
 // Dynamic Plugin Providers - scales infinitely without App.tsx changes
 function PluginProviders({ children }: { children: React.ReactNode }) {
@@ -29,6 +29,35 @@ function PluginProviders({ children }: { children: React.ReactNode }) {
 // Dynamic Panel Management - automatically handles any number of plugins
 function AppContent() {
   const { isAuthenticated, isLoading } = useApp();
+  
+  // FIXED: Always call all plugin hooks in consistent order
+  const pluginContexts = PLUGIN_REGISTRY.map(plugin => {
+    try {
+      return {
+        plugin,
+        context: plugin.hook(),
+        isOpen: false, // Will be set below
+      };
+    } catch (error) {
+      // Plugin context not available - return safe fallback
+      return {
+        plugin,
+        context: null,
+        isOpen: false,
+      };
+    }
+  });
+
+  // Now determine which panels are open (after all hooks are called)
+  const openPanels = pluginContexts.filter(({ plugin, context }) => {
+    if (!context) return false;
+    try {
+      return context[plugin.panelKey];
+    } catch {
+      return false;
+    }
+  });
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [currentPage, setCurrentPage] = useState<string>('contacts');
 
@@ -49,21 +78,11 @@ function AppContent() {
     return <LoginComponent />;
   }
 
-  // Dynamic panel detection - works with any number of plugins
-  const openPanels = PLUGIN_REGISTRY.filter(plugin => {
-    try {
-      const context = plugin.hook();
-      return context[plugin.panelKey];
-    } catch {
-      return false; // Plugin context not available
-    }
-  });
-
   const isAnyPanelOpen = openPanels.length > 0;
-  const currentPlugin = openPanels[0]; // First open panel wins
+  const currentPluginData = openPanels[0]; // First open panel wins
+  const currentPlugin = currentPluginData?.plugin;
+  const currentPluginContext = currentPluginData?.context;
   
-  // Get current plugin context if panel is open
-  const currentPluginContext = currentPlugin ? currentPlugin.hook() : null;
   const currentItem = currentPluginContext?.currentContact || 
                      currentPluginContext?.currentNote || 
                      currentPluginContext?.currentEstimate;
@@ -222,9 +241,25 @@ function AppContent() {
 
   const getPanelTitle = () => {
     if (!currentPlugin) return '';
+    
+    if (currentMode === 'view' && currentItem) {
+      // Show item-specific info for better UX
+      if (currentPlugin.name === 'contacts') {
+        const contactNumber = `#${currentItem.contactNumber || currentItem.id}`;
+        const name = currentItem.companyName || `${currentItem.firstName || ''} ${currentItem.lastName || ''}`.trim();
+        const orgNumber = currentItem.organizationNumber || currentItem.personalNumber || '';
+        return `${contactNumber} • ${name}${orgNumber ? ` • ${orgNumber}` : ''}`;
+      } else if (currentPlugin.name === 'notes') {
+        return currentItem.title || `Note #${currentItem.id}`;
+      } else if (currentPlugin.name === 'estimates') {
+        return currentItem.estimateNumber || `Estimate #${currentItem.id}`;
+      }
+      return `#${currentItem.id}`; // Fallback for other plugins
+    }
+    
+    // For create/edit modes, keep descriptive titles
     const itemType = currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1); // contacts -> Contact
     switch (currentMode) {
-      case 'view': return `View ${itemType}`;
       case 'edit': return `Edit ${itemType}`;
       case 'create': return `Create ${itemType}`;
       default: return itemType;
@@ -233,9 +268,58 @@ function AppContent() {
 
   const getPanelSubtitle = () => {
     if (!currentPlugin) return '';
+    
+    if (currentMode === 'view' && currentItem) {
+      // Show icon + badge info in subtitle size - return JSX for rich formatting
+      if (currentPlugin.name === 'contacts') {
+        const isCompany = currentItem.contactType === 'company';
+        const contactType = isCompany ? 'Company' : 'Private Person';
+        const Icon = isCompany ? Building : User;
+        const badgeColor = isCompany ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800';
+        
+        return (
+          <div className="flex items-center gap-2">
+            <Icon className="w-4 h-4" style={{ color: isCompany ? '#2563eb' : '#16a34a' }} />
+            <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${badgeColor}`}>
+              {contactType}
+            </span>
+          </div>
+        );
+      } else if (currentPlugin.name === 'notes') {
+        const createdDate = new Date(currentItem.createdAt).toLocaleDateString();
+        return (
+          <div className="flex items-center gap-2">
+            <StickyNote className="w-4 h-4 text-yellow-600" />
+            <span>Created {createdDate}</span>
+          </div>
+        );
+      } else if (currentPlugin.name === 'estimates') {
+        const status = currentItem.status.charAt(0).toUpperCase() + currentItem.status.slice(1);
+        const total = `${currentItem.total?.toFixed(2) || '0.00'} ${currentItem.currency || 'SEK'}`;
+        const statusColors = {
+          draft: 'bg-gray-100 text-gray-800',
+          sent: 'bg-blue-100 text-blue-800',
+          accepted: 'bg-green-100 text-green-800',
+          rejected: 'bg-red-100 text-red-800',
+        };
+        const badgeColor = statusColors[currentItem.status] || statusColors.draft;
+        
+        return (
+          <div className="flex items-center gap-2">
+            <Calculator className="w-4 h-4 text-blue-600" />
+            <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${badgeColor}`}>
+              {status}
+            </span>
+            <span className="text-xs text-gray-600">• {total} • {currentItem.contactName}</span>
+          </div>
+        );
+      }
+      return 'View details'; // Fallback
+    }
+    
+    // For create/edit modes, keep instructional subtitles
     const itemType = currentPlugin.name.slice(0, -1); // contacts -> contact
     switch (currentMode) {
-      case 'view': return `${itemType.charAt(0).toUpperCase() + itemType.slice(1)} information`;
       case 'edit': return `Update ${itemType} information`;
       case 'create': return `Enter new ${itemType} details`;
       default: return '';
@@ -270,6 +354,8 @@ function AppContent() {
         return <ViewComponent contact={currentItem} />;
       } else if (currentPlugin.name === 'notes') {
         return <ViewComponent note={currentItem} />;
+      } else if (currentPlugin.name === 'estimates') {
+        return <ViewComponent estimate={currentItem} />;
       } else {
         return <ViewComponent item={currentItem} />;
       }
@@ -279,6 +365,7 @@ function AppContent() {
         <FormComponent
           currentContact={currentPlugin.name === 'contacts' ? currentItem : undefined}
           currentNote={currentPlugin.name === 'notes' ? currentItem : undefined}
+          currentEstimate={currentPlugin.name === 'estimates' ? currentItem : undefined}
           currentItem={currentItem}
           onSave={handleSave}
           onCancel={handleCancel}

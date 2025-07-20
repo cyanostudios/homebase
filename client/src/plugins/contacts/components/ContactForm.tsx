@@ -139,17 +139,20 @@ export const ContactForm: React.FC<ContactFormProps> = ({
     markClean();
   }, [markClean]);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     console.log('Form submitting with data:', formData);
-    const success = onSave(formData);
+    const success = await onSave(formData);
     if (success) {
       markClean(); // Mark as clean after successful save
+      if (!currentContact) {
+        resetForm();
+      }
     }
     // If validation failed, form stays open to show errors
     if (!success) {
       console.log('Save failed due to validation errors');
     }
-  }, [formData, onSave, markClean]);
+  }, [formData, onSave, markClean, currentContact, resetForm]);
 
   const handleCancel = useCallback(() => {
     attemptAction(() => {
@@ -157,19 +160,27 @@ export const ContactForm: React.FC<ContactFormProps> = ({
     });
   }, [attemptAction, onCancel]);
 
-  // Expose functions to parent for unsaved changes handling
+  // FIXED: Global functions with correct plural naming
   useEffect(() => {
-    // Add submit handler to window so footer button can call it
-    window.submitContactForm = handleSubmit;
-    
-    // Add cancel handler that respects unsaved changes
-    window.cancelContactForm = handleCancel;
+    window.submitContactsForm = handleSubmit; // PLURAL!
+    window.cancelContactsForm = handleCancel; // PLURAL!
     
     return () => {
-      delete window.submitContactForm;
-      delete window.cancelContactForm;
+      delete window.submitContactsForm;
+      delete window.cancelContactsForm;
     };
   }, [handleSubmit, handleCancel]);
+
+  const handleDiscardChanges = () => {
+    if (!currentContact) {
+      resetForm();
+      setTimeout(() => {
+        confirmDiscard();
+      }, 0);
+    } else {
+      confirmDiscard();
+    }
+  };
 
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -198,6 +209,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
       ...prev,
       contactPersons: [...prev.contactPersons, newPerson]
     }));
+    markDirty();
   };
 
   const removeContactPerson = (id: string) => {
@@ -205,6 +217,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
       ...prev,
       contactPersons: prev.contactPersons.filter(person => person.id !== id)
     }));
+    markDirty();
   };
 
   const updateContactPerson = (id: string, field: keyof ContactPerson, value: string) => {
@@ -214,6 +227,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         person.id === id ? { ...person, [field]: value } : person
       )
     }));
+    markDirty();
   };
 
   // Address Functions
@@ -233,6 +247,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
       ...prev,
       addresses: [...prev.addresses, newAddress]
     }));
+    markDirty();
   };
 
   const removeAddress = (id: string) => {
@@ -240,6 +255,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
       ...prev,
       addresses: prev.addresses.filter(address => address.id !== id)
     }));
+    markDirty();
   };
 
   const updateAddress = (id: string, field: keyof Address, value: string) => {
@@ -249,15 +265,16 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         address.id === id ? { ...address, [field]: value } : address
       )
     }));
+    markDirty();
   };
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-4">
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
         
         {/* Validation Summary */}
         {hasBlockingErrors && (
-          <Card padding="md">
+          <Card padding="sm" className="shadow-none px-0">
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -286,7 +303,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         )}
         
         {/* Contact Number & Type - Mobile Optimized */}
-        <Card padding="md">
+        <Card padding="sm" className="shadow-none px-0">
           <Heading level={3} className="mb-3">Contact Number & Type</Heading>
           
           {/* Mobile: Stack vertically, Desktop: Side by side */}
@@ -347,7 +364,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         </Card>
 
         {/* Basic Information */}
-        <Card padding="md">
+        <Card padding="sm" className="shadow-none px-0">
           <Heading level={3} className="mb-3">
             {formData.contactType === 'company' ? 'Company Information' : 'Personal Information'}
           </Heading>
@@ -461,7 +478,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         </Card>
 
         {/* Contact Details */}
-        <Card padding="md">
+        <Card padding="sm" className="shadow-none px-0">
           <Heading level={3} className="mb-3">General Contact Details</Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
@@ -527,7 +544,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         </Card>
 
         {/* Addresses */}
-        <Card padding="md">
+        <Card padding="sm" className="shadow-none px-0">
           <div className="flex items-center justify-between mb-3">
             <Heading level={3}>Addresses</Heading>
             <Button
@@ -678,7 +695,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
         {/* Contact Persons (only for companies) */}
         {formData.contactType === 'company' && (
-          <Card padding="md">
+          <Card padding="sm" className="shadow-none px-0">
             <div className="flex items-center justify-between mb-3">
               <Heading level={3}>Contact Persons</Heading>
               <Button
@@ -770,7 +787,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         )}
 
         {/* Tax & Business Settings */}
-        <Card padding="md">
+        <Card padding="sm" className="shadow-none px-0">
           <Heading level={3} className="mb-3">Tax & Business Settings</Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
@@ -839,7 +856,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         </Card>
         
         {/* Notes */}
-        <Card padding="md">
+        <Card padding="sm" className="shadow-none px-0">
           <Heading level={3} className="mb-3">Notes</Heading>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -866,7 +883,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         }
         confirmText="Discard Changes"
         cancelText="Continue Editing"
-        onConfirm={confirmDiscard}
+        onConfirm={handleDiscardChanges}
         onCancel={cancelDiscard}
         variant="warning"
       />

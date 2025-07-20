@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Estimate } from '@/plugins/estimates/types/estimate';
 import { Contact } from '@/plugins/contacts/types/contacts';
 import { Note } from '@/plugins/notes/types/notes';
+import { Estimate } from '@/plugins/estimates/types/estimates';
 
 interface User {
   id: number;
@@ -11,7 +11,7 @@ interface User {
 }
 
 interface AppContextType {
-  // Auth State
+  // Auth State (Core responsibility)
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
@@ -20,23 +20,7 @@ interface AppContextType {
   // Loading States
   isLoading: boolean;
 
-  // Estimate Panel State
-  isEstimatePanelOpen: boolean;
-  currentEstimate: Estimate | null;
-  estimatePanelMode: 'create' | 'edit' | 'view';
-  
-  // Estimates Data
-  estimates: Estimate[];
-  
-  // Estimate Actions
-  openEstimatePanel: (estimate: Estimate | null) => void;
-  openEstimateForEdit: (estimate: Estimate) => void;
-  openEstimateForView: (estimate: Estimate) => void;
-  closeEstimatePanel: () => void;
-  saveEstimate: (estimateData: any) => Promise<boolean>;
-  deleteEstimate: (id: string) => Promise<void>;
-
-  // Cross-plugin references (needs contacts and notes data for cross-references)
+  // Cross-plugin references (read-only data for cross-references)
   getNotesForContact: (contactId: string) => Note[];
   getContactsForNote: (noteId: string) => Contact[];
   getEstimatesForContact: (contactId: string) => Estimate[];
@@ -86,58 +70,29 @@ const api = {
     return this.request('/auth/me');
   },
 
-  // Contacts endpoints (only for cross-plugin references)
+  // Cross-plugin data endpoints (read-only for references)
   async getContacts() {
     return this.request('/contacts');
   },
 
-  // Notes endpoints (only for cross-plugin references)
   async getNotes() {
     return this.request('/notes');
   },
 
-  // Estimates endpoints
   async getEstimates() {
     return this.request('/estimates');
-  },
-
-  async getNextEstimateNumber() {
-    return this.request('/estimates/next-number');
-  },
-
-  async createEstimate(estimateData: any) {
-    return this.request('/estimates', {
-      method: 'POST',
-      body: JSON.stringify(estimateData),
-    });
-  },
-
-  async updateEstimate(id: string, estimateData: any) {
-    return this.request(`/estimates/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(estimateData),
-    });
-  },
-
-  async deleteEstimate(id: string) {
-    return this.request(`/estimates/${id}`, { method: 'DELETE' });
   },
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Auth state
+  // Auth state (core responsibility)
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Estimates state
-  const [isEstimatePanelOpen, setIsEstimatePanelOpen] = useState(false);
-  const [currentEstimate, setCurrentEstimate] = useState<Estimate | null>(null);
-  const [estimatePanelMode, setEstimatePanelMode] = useState<'create' | 'edit' | 'view'>('create');
-  
   // Cross-plugin data (read-only for references)
-  const [contacts, setContacts] = useState<Contact[]>([]); // Only for cross-plugin references
-  const [notes, setNotes] = useState<Note[]>([]); // Only for cross-plugin references
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [estimates, setEstimates] = useState<Estimate[]>([]);
 
   // Check authentication on app start
@@ -174,7 +129,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const [contactsData, notesData, estimatesData] = await Promise.all([
         api.getContacts(), // Only for cross-plugin references
         api.getNotes(), // Only for cross-plugin references
-        api.getEstimates(),
+        api.getEstimates(), // Only for cross-plugin references
       ]);
       
       // Transform API data to match interface
@@ -240,152 +195,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Close other panels coordination function
   const closeOtherPanels = (except?: 'contacts' | 'notes' | 'estimates') => {
-    if (except !== 'estimates') {
-      setIsEstimatePanelOpen(false);
-    }
-    // Contact and note panel closing is handled by their respective contexts
-  };
-
-  const validateEstimate = (estimateData: any) => {
-    const errors: any[] = [];
-    
-    if (!estimateData.contactId?.trim()) {
-      errors.push({
-        field: 'contactId',
-        message: 'Customer is required'
-      });
-    }
-    
-    if (!estimateData.lineItems || estimateData.lineItems.length === 0) {
-      errors.push({
-        field: 'lineItems',
-        message: 'At least one line item is required'
-      });
-    } else {
-      // Validate each line item
-      estimateData.lineItems.forEach((item: any, index: number) => {
-        if (!item.description?.trim()) {
-          errors.push({
-            field: `lineItems.${index}.description`,
-            message: `Line item ${index + 1}: Description is required`
-          });
-        }
-        if (!item.quantity || item.quantity <= 0) {
-          errors.push({
-            field: `lineItems.${index}.quantity`,
-            message: `Line item ${index + 1}: Quantity must be greater than 0`
-          });
-        }
-        if (!item.unitPrice || item.unitPrice < 0) {
-          errors.push({
-            field: `lineItems.${index}.unitPrice`,
-            message: `Line item ${index + 1}: Unit price must be 0 or greater`
-          });
-        }
-      });
-    }
-    
-    if (!estimateData.validTo) {
-      errors.push({
-        field: 'validTo',
-        message: 'Valid to date is required'
-      });
-    }
-    
-    return errors;
-  };
-
-  // Estimate functions
-  const openEstimatePanel = (estimate: Estimate | null) => {
-    setCurrentEstimate(estimate);
-    setEstimatePanelMode(estimate ? 'edit' : 'create');
-    setIsEstimatePanelOpen(true);
-    closeOtherPanels('estimates');
-  };
-
-  const openEstimateForEdit = (estimate: Estimate) => {
-    setCurrentEstimate(estimate);
-    setEstimatePanelMode('edit');
-    setIsEstimatePanelOpen(true);
-    closeOtherPanels('estimates');
-  };
-
-  const openEstimateForView = (estimate: Estimate) => {
-    setCurrentEstimate(estimate);
-    setEstimatePanelMode('view');
-    setIsEstimatePanelOpen(true);
-    closeOtherPanels('estimates');
-  };
-
-  const closeEstimatePanel = () => {
-    setIsEstimatePanelOpen(false);
-    setCurrentEstimate(null);
-    setEstimatePanelMode('create');
-  };
-
-  const saveEstimate = async (estimateData: any): Promise<boolean> => {
-    console.log('Validating estimate data:', estimateData);
-    
-    // Run validation
-    const errors = validateEstimate(estimateData);
-    
-    if (errors.length > 0) {
-      console.log('Validation failed:', errors);
-      return false;
-    }
-    
-    try {
-      let savedEstimate: Estimate;
-      
-      if (currentEstimate) {
-        // Update existing estimate
-        savedEstimate = await api.updateEstimate(currentEstimate.id, estimateData);
-        setEstimates(prev => prev.map(estimate => 
-          estimate.id === currentEstimate.id ? {
-            ...savedEstimate,
-            validTo: new Date(savedEstimate.validTo),
-            createdAt: new Date(savedEstimate.createdAt),
-            updatedAt: new Date(savedEstimate.updatedAt),
-          } : estimate
-        ));
-        setCurrentEstimate({
-          ...savedEstimate,
-          validTo: new Date(savedEstimate.validTo),
-          createdAt: new Date(savedEstimate.createdAt),
-          updatedAt: new Date(savedEstimate.updatedAt),
-        });
-        setEstimatePanelMode('view');
-      } else {
-        // Create new estimate
-        savedEstimate = await api.createEstimate(estimateData);
-        setEstimates(prev => [...prev, {
-          ...savedEstimate,
-          validTo: new Date(savedEstimate.validTo),
-          createdAt: new Date(savedEstimate.createdAt),
-          updatedAt: new Date(savedEstimate.updatedAt),
-        }]);
-        closeEstimatePanel();
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to save estimate:', error);
-      return false;
-    }
-  };
-
-  const deleteEstimate = async (id: string) => {
-    console.log("Deleting estimate with id:", id);
-    try {
-      await api.deleteEstimate(id);
-      setEstimates(prev => {
-        const newEstimates = prev.filter(estimate => estimate.id !== id);
-        console.log("Estimates after delete:", newEstimates);
-        return newEstimates;
-      });
-    } catch (error) {
-      console.error('Failed to delete estimate:', error);
-    }
+    // Panel closing is now handled by individual plugin contexts
+    // This function exists for plugin coordination only
   };
 
   // Cross-plugin reference functions
@@ -416,20 +227,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       isLoading,
-      
-      // Estimate state
-      isEstimatePanelOpen,
-      currentEstimate,
-      estimatePanelMode,
-      estimates,
-      
-      // Estimate actions
-      openEstimatePanel,
-      openEstimateForEdit,
-      openEstimateForView,
-      closeEstimatePanel,
-      saveEstimate,
-      deleteEstimate,
       
       // Cross-plugin references
       getNotesForContact,

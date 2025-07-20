@@ -1,14 +1,19 @@
 // client/src/core/pluginRegistry.ts
 import { ContactProvider } from '@/plugins/contacts/context/ContactContext';
 import { NoteProvider } from '@/plugins/notes/context/NoteContext';
+import { EstimateProvider } from '@/plugins/estimates/context/EstimateContext';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
+import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';
 import { ContactList } from '@/plugins/contacts/components/ContactList';
 import { ContactForm } from '@/plugins/contacts/components/ContactForm';
 import { ContactView } from '@/plugins/contacts/components/ContactView';
 import { NotesList } from '@/plugins/notes/components/NotesList';
 import { NoteForm } from '@/plugins/notes/components/NoteForm';
 import { NoteView } from '@/plugins/notes/components/NoteView';
+import { EstimateList } from '@/plugins/estimates/components/EstimateList';
+import { EstimateForm } from '@/plugins/estimates/components/EstimateForm';
+import { EstimateView } from '@/plugins/estimates/components/EstimateView';
 
 export interface PluginRegistryEntry {
   name: string;
@@ -22,7 +27,7 @@ export interface PluginRegistryEntry {
   components: {
     List: React.ComponentType;
     Form: React.ComponentType<{ currentItem?: any; onSave: (data: any) => void; onCancel: () => void; }>;
-    View: React.ComponentType<{ item?: any; contact?: any; note?: any; }>;
+    View: React.ComponentType<{ item?: any; contact?: any; note?: any; estimate?: any; }>;
   };
 }
 
@@ -47,6 +52,17 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       List: NotesList,
       Form: NoteForm,
       View: NoteView,
+    }
+  },
+  {
+    name: 'estimates',
+    Provider: EstimateProvider,
+    hook: useEstimates,
+    panelKey: 'isEstimatePanelOpen',
+    components: {
+      List: EstimateList,
+      Form: EstimateForm,
+      View: EstimateView,
     }
   }
   // New plugins just add entry here - no App.tsx changes needed

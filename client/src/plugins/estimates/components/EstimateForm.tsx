@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useEstimates } from '../hooks/useEstimates';
 import { useApp } from '@/core/api/AppContext';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -15,7 +16,11 @@ interface EstimateFormProps {
 }
 
 export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateFormProps) {
-  const { validationErrors, contacts } = useApp();
+  const { validationErrors } = useEstimates();
+  const { contacts } = useApp(); // Cross-plugin data access
+  
+  // Safety check for contacts
+  const safeContacts = contacts || [];
   const { 
     isDirty, 
     showWarning, 
@@ -104,12 +109,12 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
   // Global functions for UniversalPanel footer
   useEffect(() => {
-    window.submitEstimateForm = handleSubmit;
-    window.cancelEstimateForm = handleCancel;
+    window.submitEstimatesForm = handleSubmit; // FIXED: Plural form
+    window.cancelEstimatesForm = handleCancel; // FIXED: Plural form
     
     return () => {
-      delete window.submitEstimateForm;
-      delete window.cancelEstimateForm;
+      delete window.submitEstimatesForm;
+      delete window.cancelEstimatesForm;
     };
   }, [handleSubmit, handleCancel]);
 
@@ -130,7 +135,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
   };
 
   const handleContactChange = (contactId: string) => {
-    const contact = contacts.find(c => c.id === contactId);
+    const contact = safeContacts.find(c => c.id === contactId);
     if (contact) {
       setFormData(prev => ({
         ...prev,
@@ -240,7 +245,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                 required
               >
                 <option value="">Select a customer...</option>
-                {contacts.map(contact => (
+                {safeContacts.map(contact => (
                   <option key={contact.id} value={contact.id}>
                     {contact.companyName} {contact.organizationNumber && `(${contact.organizationNumber})`}
                   </option>

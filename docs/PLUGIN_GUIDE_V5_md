@@ -1,8 +1,12 @@
 # Plugin Development Guide v5 - Technical Reference
 
+## Purpose of This Guide
+
+This is a technical implementation guide for developing plugins in the Homebase modular architecture. After reading this guide, you should understand the file structure, code patterns, and development workflow needed to create new plugins. For complete working examples, reference the contacts plugin implementation. This guide focuses on "how-to" patterns rather than historical context.
+
 ## App Overview
 
-Homebase is a plugin-based business application built with modular architecture. The core handles authentication, database, and routing while plugins provide specialized functionality through isolated contexts.
+Homebase is a plugin-based business application with modular context architecture. The core handles authentication, database, and routing while plugins provide specialized functionality through isolated contexts. Each plugin manages its own state independently, preventing re-renders across plugins and enabling team isolation.
 
 **Stack:** React + TypeScript + Express.js + MySQL/PostgreSQL + Plugin-loader system
 
@@ -34,43 +38,11 @@ client/src/plugins/[plugin-name]/
 
 Core:
 ├── core/api/AppContext.tsx      # Minimal shared state (auth + cross-plugin)
+├── core/pluginRegistry.ts       # Plugin registration
 └── App.tsx                      # Provider composition
 ```
 
-## Modular Context System
-
-### Problem Solved
-- **Before:** 1000+ line AppContext with all plugin state → any change re-rendered everything
-- **After:** Each plugin has isolated context → 90% fewer re-renders, zero team conflicts
-
-### Architecture Pattern
-```typescript
-// Each plugin gets its own context
-const ContactContext = () => {
-  const [contacts, setContacts] = useState([]); // Only affects contact components
-};
-
-// AppContext only handles shared concerns
-const AppContext = () => {
-  const [user, setUser] = useState(null);        // Auth
-  const [contacts] = useState([]);               // Read-only for cross-plugin refs
-  const closeOtherPanels = (except) => { };     // Panel coordination
-};
-```
-
-### Provider Composition
-```typescript
-// App.tsx
-<AppProvider>
-  <ContactProvider>
-    <NoteProvider>
-      <AppContent />
-    </NoteProvider>
-  </ContactProvider>
-</AppProvider>
-```
-
-## Plugin Development Guide
+## Plugin Development Workflow
 
 ### 1. Backend Plugin Setup
 
@@ -90,76 +62,16 @@ module.exports = {
 };
 ```
 
-**model.js pattern:**
-```javascript
-class MyPluginModel {
-  constructor(pool) { this.pool = pool; }
-  
-  async getAll(userId) {
-    const result = await this.pool.query('SELECT * FROM my_plugin_table WHERE user_id = $1', [userId]);
-    return result.rows.map(this.transformRow);
-  }
-  
-  transformRow(row) {
-    return { id: row.id.toString(), title: row.title, /* ... */ };
-  }
-}
-```
-
-**controller.js pattern:**
-```javascript
-class MyPluginController {
-  constructor(model) { this.model = model; }
-  
-  async getAll(req, res) {
-    try {
-      const items = await this.model.getAll(req.session.user.id);
-      res.json(items);
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch items' });
-    }
-  }
-}
-```
-
-**routes.js pattern:**
-```javascript
-function createMyPluginRoutes(controller, requirePlugin) {
-  const router = express.Router();
-  router.get('/', requirePlugin('my-plugin'), (req, res) => controller.getAll(req, res));
-  return router;
-}
-```
-
-**index.js:**
-```javascript
-const MyPluginModel = require('./model');
-const MyPluginController = require('./controller');
-const createMyPluginRoutes = require('./routes');
-const config = require('./plugin.config');
-
-function initializePlugin(pool, requirePlugin) {
-  const model = new MyPluginModel(pool);
-  const controller = new MyPluginController(model);
-  const router = createMyPluginRoutes(controller, requirePlugin);
-  return { config, router, model, controller };
-}
-
-module.exports = initializePlugin;
-```
+**Standard patterns:** Copy from contacts plugin and adapt for your data model.
 
 ### 2. Frontend Plugin Setup
 
 **Create structure:**
 ```bash
 mkdir -p client/src/plugins/my-plugin/{types,context,hooks,api,components}
-touch client/src/plugins/my-plugin/types/my-plugin.ts
-touch client/src/plugins/my-plugin/context/MyPluginContext.tsx
-touch client/src/plugins/my-plugin/hooks/useMyPlugin.ts
-touch client/src/plugins/my-plugin/api/myPluginApi.ts
 ```
 
-**types/my-plugin.ts:**
+**types/my-plugin.ts pattern:**
 ```typescript
 export interface MyPluginItem {
   id: string;
@@ -181,40 +93,25 @@ interface MyPluginContextType {
   // Panel State
   isMyPluginPanelOpen: boolean;
   currentItem: MyPluginItem | null;
-  panelMode: 'create' | 'edit' | 'view';
+  myPluginPanelMode: 'create' | 'edit' | 'view'; // Note: [plugin]PanelMode naming
   
   // Data State
   items: MyPluginItem[];
+  validationErrors: ValidationError[];
   
   // Actions
   openMyPluginPanel: (item: MyPluginItem | null) => void;
+  openMyPluginForEdit: (item: MyPluginItem) => void;
+  openMyPluginForView: (item: MyPluginItem) => void;
   closeMyPluginPanel: () => void;
-  saveMyPluginItem: (itemData: any) => Promise<boolean>;
-  deleteMyPluginItem: (id: string) => Promise<void>;
+  saveMyPlugin: (data: any) => Promise<boolean>;
+  deleteMyPlugin: (id: string) => Promise<void>;
 }
 
 export function MyPluginProvider({ children, isAuthenticated, onCloseOtherPanels }) {
-  const [items, setItems] = useState<MyPluginItem[]>([]);
-  const [isMyPluginPanelOpen, setIsMyPluginPanelOpen] = useState(false);
-  // ... rest of state management
-  
+  // State management with isolated context
   // Load data when authenticated
-  useEffect(() => {
-    if (isAuthenticated) loadItems();
-    else setItems([]);
-  }, [isAuthenticated]);
-  
-  return (
-    <MyPluginContext.Provider value={{ /* all state and actions */ }}>
-      {children}
-    </MyPluginContext.Provider>
-  );
-}
-
-export function useMyPluginContext() {
-  const context = useContext(MyPluginContext);
-  if (!context) throw new Error('useMyPluginContext must be used within MyPluginProvider');
-  return context;
+  // All CRUD operations
 }
 ```
 
@@ -231,15 +128,9 @@ export function useMyPlugin() {
 ```typescript
 class MyPluginApi {
   private async request(endpoint: string, options: RequestInit = {}) {
-    const response = await fetch(`/api${endpoint}`, {
-      headers: { 'Content-Type': 'application/json', ...options.headers },
-      credentials: 'include',
-      ...options,
-    });
-    if (!response.ok) throw new Error('Request failed');
-    return response.json();
+    // Standard API request pattern
   }
-
+  
   async getItems() { return this.request('/my-plugin'); }
   async createItem(data: any) { return this.request('/my-plugin', { method: 'POST', body: JSON.stringify(data) }); }
 }
@@ -247,106 +138,102 @@ class MyPluginApi {
 export const myPluginApi = new MyPluginApi();
 ```
 
-### 3. Component Integration
+### 3. Component Patterns
 
-**Component pattern:**
+**List Component:**
 ```typescript
-// MyPluginList.tsx
-import { useMyPlugin } from '../hooks/useMyPlugin';
-
 export const MyPluginList = () => {
-  const { items, openMyPluginPanel, deleteMyPluginItem } = useMyPlugin();
-  
-  return (
-    <div>
-      <Button onClick={() => openMyPluginPanel(null)}>Add Item</Button>
-      {items.map(item => (
-        <div key={item.id}>
-          {item.title}
-          <Button onClick={() => deleteMyPluginItem(item.id)}>Delete</Button>
-        </div>
-      ))}
-    </div>
-  );
+  const { items, openMyPluginPanel } = useMyPlugin();
+  // Mobile-first responsive design
+  // Search and sort functionality
+  // CRUD action buttons
 };
 ```
 
-### 4. App Integration
-
-**Add to App.tsx provider chain:**
+**Form Component:**
 ```typescript
-function MyPluginProviderWrapper() {
-  const { isAuthenticated, closeOtherPanels } = useApp();
+export const MyPluginForm = ({ currentItem, onSave, onCancel }) => {
+  const { validationErrors } = useMyPlugin();
   
-  return (
-    <MyPluginProvider 
-      isAuthenticated={isAuthenticated} 
-      onCloseOtherPanels={() => closeOtherPanels('my-plugin')}
-    >
-      <AppContent />
-    </MyPluginProvider>
-  );
-}
-```
-
-**Update AppContent to handle panel:**
-```typescript
-function AppContent() {
-  const { isMyPluginPanelOpen, currentItem, panelMode } = useMyPlugin();
-  const isAnyPanelOpen = isContactPanelOpen || isNotePanelOpen || isMyPluginPanelOpen;
-  
-  return (
-    <UniversalPanel isOpen={isAnyPanelOpen}>
-      {isMyPluginPanelOpen && (
-        panelMode === 'view' ? 
-          <MyPluginView item={currentItem} /> : 
-          <MyPluginForm item={currentItem} />
-      )}
-    </UniversalPanel>
-  );
-}
-```
-
-## Cross-Plugin Communication
-
-### Panel Coordination
-```typescript
-// Problem: Multiple panels open simultaneously
-// Solution: Close current panel before opening target panel
-
-// From ContactView to open Note
-const { openNoteForView } = useNotes();
-const { closeContactPanel } = useContacts();
-
-const handleViewNote = (note) => {
-  closeContactPanel(); // Close current
-  openNoteForView(note); // Open target
-};
-
-// From NoteView to open Contact  
-const { openContactForView } = useContacts();
-const { closeNotePanel } = useNotes();
-
-const handleMentionClick = (contact) => {
-  closeNotePanel(); // Close current
-  openContactForView(contact); // Open target
+  // Global functions for UniversalPanel footer (IMPORTANT: Plural naming)
+  useEffect(() => {
+    window.submitMyPluginsForm = handleSubmit; // Note: Plural!
+    window.cancelMyPluginsForm = handleCancel; // Note: Plural!
+    return () => {
+      delete window.submitMyPluginsForm;
+      delete window.cancelMyPluginsForm;
+    };
+  }, [handleSubmit, handleCancel]);
 };
 ```
+
+**View Component:**
+```typescript
+export const MyPluginView = ({ item }) => {
+  // Read-only display
+  // Cross-plugin navigation if needed
+};
+```
+
+### 4. Plugin Registration
+
+**Add to core/pluginRegistry.ts:**
+```typescript
+import { MyPluginProvider } from '@/plugins/my-plugin/context/MyPluginContext';
+import { useMyPlugin } from '@/plugins/my-plugin/hooks/useMyPlugin';
+import { MyPluginList, MyPluginForm, MyPluginView } from '@/plugins/my-plugin/components';
+
+export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
+  // ... existing plugins
+  {
+    name: 'my-plugins', // Note: Plural
+    Provider: MyPluginProvider,
+    hook: useMyPlugin,
+    panelKey: 'isMyPluginPanelOpen',
+    components: {
+      List: MyPluginList,
+      Form: MyPluginForm,
+      View: MyPluginView,
+    }
+  }
+];
+```
+
+## Critical Implementation Details
+
+### Panel Mode Naming Convention
+- Context property: `[plugin]PanelMode` (e.g., `contactPanelMode`, `estimatePanelMode`)
+- App.tsx expects this specific naming pattern
+
+### Global Function Naming
+- Form components must use **plural** naming:
+  - `window.submitContactsForm` (not `submitContactForm`)
+  - `window.cancelEstimatesForm` (not `cancelEstimateForm`)
 
 ### Cross-Plugin Data Access
 ```typescript
-// AppContext provides read-only cross-plugin data
-const { getNotesForContact, getContactsForNote } = useApp();
+// In plugin components that need cross-plugin data:
+const { validationErrors } = useMyPlugin(); // Plugin-specific
+const { contacts, openContactForView } = useApp(); // Cross-plugin only
 
-// Usage in ContactView
-const mentionedInNotes = getNotesForContact(contact.id);
+// Always add safety checks:
+const safeContacts = contacts || [];
+```
+
+### Hook Order (Critical)
+App.tsx calls all plugin hooks in consistent order to prevent "Rules of Hooks" violations:
+```typescript
+// All plugin hooks are called first, then logic is applied
+const pluginContexts = PLUGIN_REGISTRY.map(plugin => ({
+  plugin,
+  context: plugin.hook(), // Always called, never conditional
+}));
 ```
 
 ## Database Integration
 
 ### Schema Pattern
 ```sql
--- Add to scripts/setup-database.js
 CREATE TABLE IF NOT EXISTS my_plugin_items (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -355,113 +242,73 @@ CREATE TABLE IF NOT EXISTS my_plugin_items (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE INDEX IF NOT EXISTS idx_my_plugin_user_id ON my_plugin_items(user_id);
 ```
 
 ### Plugin Access Control
 ```sql
--- Grant plugin access to users
 INSERT INTO user_plugin_access (user_id, plugin_name, enabled)
 SELECT id, 'my-plugin', true FROM users WHERE role = 'superuser';
 ```
 
-## Testing
+## Performance Benefits
+
+The modular context architecture provides:
+- **90% fewer re-renders** - Only relevant plugin components update
+- **Zero team conflicts** - Complete plugin isolation
+- **95% simpler testing** - Mock individual plugin contexts
+- **Hot module replacement ready** - Development experience optimized
+
+## Development Time
+
+**Estimated implementation time per plugin:** 20-30 minutes
+1. **Backend Plugin:** 8 minutes (copy templates, customize)
+2. **Frontend Context:** 8 minutes (copy templates, customize)  
+3. **Components:** 8 minutes (build UI using context hook)
+4. **Registration:** 3 minutes (add to pluginRegistry.ts)
+5. **Testing:** 3 minutes (verify CRUD operations)
+
+## Testing Patterns
 
 ### Plugin Context Testing
 ```typescript
-// Test plugin in isolation
 const TestMyPluginProvider = ({ children, mockData = [] }) => (
   <MyPluginContext.Provider value={{
     items: mockData,
     isMyPluginPanelOpen: false,
-    openMyPluginPanel: jest.fn(),
     // ... mock all context values
   }}>
     {children}
   </MyPluginContext.Provider>
 );
-
-test('MyPluginComponent renders correctly', () => {
-  render(
-    <TestMyPluginProvider mockData={[{ id: '1', title: 'Test' }]}>
-      <MyPluginComponent />
-    </TestMyPluginProvider>
-  );
-  expect(screen.getByText('Test')).toBeInTheDocument();
-});
 ```
 
 ### API Testing
 ```bash
-# Test plugin endpoints
 curl http://localhost:3002/api/my-plugin -b cookies.txt
 curl -X POST http://localhost:3002/api/my-plugin -H "Content-Type: application/json" -d '{"title":"Test"}' -b cookies.txt
 ```
 
-## Development Workflow
+## Common Issues & Solutions
 
-### Local Development
+### Plugin Not Loading
+Check server logs for plugin loading confirmation:
 ```bash
-# Terminal 1: Frontend
-npx vite --config vite.config.ts
-
-# Terminal 2: Backend  
 npm run dev
-
-# Terminal 3: Testing
-curl http://localhost:3002/api/health
+# Should show: "🟢 Loaded plugin: my-plugin (/api/my-plugin)"
 ```
 
-### Plugin Development Time
-- **Backend Plugin:** 8 minutes (copy templates, customize)
-- **Frontend Context:** 8 minutes (copy templates, customize)  
-- **Components:** 8 minutes (build UI using context hook)
-- **Integration:** 3 minutes (add to provider chain)
-- **Testing:** 3 minutes (verify CRUD operations)
-
-**Total:** 30 minutes per plugin
-
-## Production Deployment
-
-### Backend
-- Plugin-loader automatically discovers and loads all plugins
-- No manual registration required
-- Each plugin gets its own route namespace
-
-### Frontend
-- Modular contexts enable tree-shaking
-- Hot module replacement works per plugin
-- No bundle size issues with many plugins
-
-### Performance Benefits
-- **90% fewer re-renders** (only relevant plugin components update)
-- **40% smaller AppContext** (600 lines vs 1000+)
-- **Zero team conflicts** (complete plugin isolation)
-- **95% simpler testing** (mock individual plugin contexts)
-
-## Reference Implementation
-
-**See `client/src/plugins/contacts/` for complete working example:**
-- Full modular context implementation
-- Cross-plugin navigation patterns
-- Form validation and error handling
-- CRUD operations with API integration
-- Component structure and styling
-
-**See `plugins/contacts/` for complete backend example:**
-- Database model with JSON fields
-- Controller with error handling
-- Routes with authentication
-- Plugin configuration
-
-## Troubleshooting
-
-### Common Issues
-
-**Context not found error:**
+### Panel Conflicts
+Ensure proper cross-plugin navigation:
 ```typescript
-// Ensure hook is used within provider
+const handleCrossPluginNavigation = (item) => {
+  closeCurrentPluginPanel(); // Always close current first
+  openTargetPluginPanel(item); // Then open target
+};
+```
+
+### Context Not Found Error
+Ensure hook is used within provider:
+```typescript
 export function useMyPlugin() {
   const context = useContext(MyPluginContext);
   if (!context) throw new Error('useMyPlugin must be used within MyPluginProvider');
@@ -469,44 +316,21 @@ export function useMyPlugin() {
 }
 ```
 
-**Plugin not loading:**
-```bash
-# Check server logs for plugin loading
-npm run dev
-# Should show: "🟢 Loaded plugin: my-plugin (/api/my-plugin)"
-```
-
-**Panel conflicts:**
-```typescript
-// Ensure proper panel coordination
-const handleCrossPluginNavigation = (item) => {
-  closeCurrentPluginPanel(); // Always close current first
-  openTargetPluginPanel(item); // Then open target
-};
-```
-
-**Performance issues:**
-```typescript
-// Use useCallback for functions
-const handleSave = useCallback(async (data) => {
-  // ... save logic
-}, [dependencies]);
-
-// Use useMemo for expensive calculations
-const sortedItems = useMemo(() => {
-  return items.sort((a, b) => a.title.localeCompare(b.title));
-}, [items]);
-```
-
 ## Key Principles
 
-1. **Plugin Isolation:** Each plugin manages its own state through dedicated context
-2. **Provider Composition:** Stack providers in App.tsx to build context hierarchy  
-3. **Cross-Plugin Coordination:** Use AppContext for shared data and panel coordination
-4. **Automatic Discovery:** Backend plugin-loader handles registration automatically
-5. **Performance First:** Modular contexts prevent unnecessary re-renders
-6. **Type Safety:** TypeScript interfaces ensure robust plugin contracts
+1. **Plugin Isolation** - Each plugin manages its own state through dedicated context
+2. **Provider Composition** - Stack providers in App.tsx to build context hierarchy  
+3. **Cross-Plugin Coordination** - Use AppContext for shared data and panel coordination
+4. **Automatic Discovery** - Backend plugin-loader handles registration automatically
+5. **Performance First** - Modular contexts prevent unnecessary re-renders
+6. **Type Safety** - TypeScript interfaces ensure robust plugin contracts
+7. **Consistent Naming** - Follow established conventions for seamless integration
 
----
+## Reference Implementation
 
-*This guide provides the technical foundation for building plugins. Reference the contacts plugin implementation for complete working examples.*
+See `client/src/plugins/contacts/` for complete working example including:
+- Full modular context implementation
+- Cross-plugin navigation patterns
+- Form validation and error handling
+- CRUD operations with API integration
+- Component structure and styling

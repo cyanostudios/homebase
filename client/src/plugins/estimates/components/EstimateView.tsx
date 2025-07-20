@@ -10,7 +10,7 @@ interface EstimateViewProps {
 }
 
 export function EstimateView({ estimate }: EstimateViewProps) {
-  const { openContactForView, contacts } = useApp();
+  const { openContactForView, contacts } = useApp(); // Cross-plugin functions only
 
   if (!estimate) return null;
 

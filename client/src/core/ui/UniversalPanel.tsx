@@ -6,7 +6,7 @@ interface UniversalPanelProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  subtitle?: string;
+  subtitle?: string | React.ReactNode; // UPDATED: Accept JSX elements
   children: React.ReactNode;
   footer?: React.ReactNode;
   width?: {
@@ -53,17 +53,25 @@ export function UniversalPanel({
         `}
       >
         {/* Fixed Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 flex-shrink-0">
-          <div className="flex-1 mr-4">
-            <h2 className="text-lg font-semibold text-gray-900 truncate">{title}</h2>
-            {subtitle && <p className="text-sm text-gray-500 truncate">{subtitle}</p>}
+        <div className="flex items-start justify-between px-4 sm:px-6 py-6 border-b border-gray-200 flex-shrink-0">
+          <div className="flex-1 mr-4 space-y-3">
+            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+            {subtitle && (
+              <div className="text-sm text-gray-500">
+                {typeof subtitle === 'string' ? (
+                  <p>{subtitle}</p>
+                ) : (
+                  subtitle
+                )}
+              </div>
+            )}
           </div>
           <Button onClick={onClose} variant="danger" icon={X} size="sm">
           </Button>
         </div>
         
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
           {children}
         </div>
 
