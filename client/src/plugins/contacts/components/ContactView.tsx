@@ -28,11 +28,6 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
   return (
     <div className="space-y-4">
       
- 
-
-      {contact.contactType === 'company' && contact.vatNumber && (
-        <hr className="border-gray-100" />
-      )}
 
       {contact.contactType === 'private' && (
         <hr className="border-gray-100" />
@@ -114,7 +109,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
         </Card>
       )}
 
-      <hr className="border-gray-100" />
+  
 
       {/* Contact Persons */}
       {contact.contactType === 'company' && contact.contactPersons && contact.contactPersons.length > 0 && (
@@ -175,7 +170,6 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
         </div>
       </Card>
 
-      <hr className="border-gray-100" />
 
       {/* Notes */}
       {contact.notes && (
