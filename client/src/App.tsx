@@ -253,10 +253,21 @@ function AppContent() {
         return currentItem.title || `Note #${currentItem.id}`;
       } else if (currentPlugin.name === 'estimates') {
         const estimateNumber = currentItem.estimateNumber || `#${currentItem.id}`;
-        const customerName = currentItem.contactName || 'Unknown Customer';
         const total = `${currentItem.total?.toFixed(2) || '0.00'}`;
         const currency = currentItem.currency || 'SEK';
-        return `${estimateNumber} • ${customerName} • ${total} ${currency}`;
+        
+        return (
+          <div className="flex items-center gap-2">
+            <span>{estimateNumber} • </span>
+            <button
+              onClick={() => handleEstimateContactClick(currentItem.contactId)}
+              className="text-blue-600 hover:text-blue-800 hover:underline font-medium bg-blue-50 px-1 rounded"
+            >
+              @{currentItem.contactName}
+            </button>
+            <span> • {total} {currency}</span>
+          </div>
+        );
       }
       return `#${currentItem.id}`; // Fallback for other plugins
     }
@@ -267,6 +278,33 @@ function AppContent() {
       case 'edit': return `Edit ${itemType}`;
       case 'create': return `Create ${itemType}`;
       default: return itemType;
+    }
+  };
+
+  const handleEstimateContactClick = async (contactId: string) => {
+    try {
+      // Get contacts from the plugin contexts
+      const contactsPlugin = pluginContexts.find(p => p.plugin.name === 'contacts');
+      const estimatesPlugin = pluginContexts.find(p => p.plugin.name === 'estimates');
+      
+      if (contactsPlugin?.context && estimatesPlugin?.context) {
+        // Find the contact in contacts context
+        const contacts = contactsPlugin.context.contacts || [];
+        const contact = contacts.find((c: any) => c.id === contactId);
+        
+        if (contact) {
+          // Close estimate panel and open contact
+          if (estimatesPlugin.context.closeEstimatePanel) {
+            estimatesPlugin.context.closeEstimatePanel();
+          }
+          
+          if (contactsPlugin.context.openContactForView) {
+            contactsPlugin.context.openContactForView(contact);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to navigate to contact:', error);
     }
   };
 
