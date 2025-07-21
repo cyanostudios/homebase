@@ -20,6 +20,11 @@ interface AppContextType {
   // Loading States
   isLoading: boolean;
 
+  // Cross-plugin data (read-only for cross-references)
+  contacts: Contact[];
+  notes: Note[];
+  estimates: Estimate[];
+
   // Cross-plugin references (read-only data for cross-references)
   getNotesForContact: (contactId: string) => Note[];
   getContactsForNote: (noteId: string) => Contact[];
@@ -227,6 +232,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       isLoading,
+      
+      // Cross-plugin data (read-only)
+      contacts,
+      notes,
+      estimates,
       
       // Cross-plugin references
       getNotesForContact,

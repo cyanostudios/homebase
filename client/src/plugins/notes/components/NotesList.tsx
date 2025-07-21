@@ -28,7 +28,7 @@ export const NotesList: React.FC = () => {
   // Check screen size for responsive view
   useEffect(() => {
     const checkScreenSize = () => {
-      setIsMobileView(window.innerWidth < 768);
+      setIsMobileView(window.innerWidth < 768); // md breakpoint
     };
     
     checkScreenSize();
@@ -151,6 +151,9 @@ export const NotesList: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Content Preview
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Mentions
+                </th>
                 <th 
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('updatedAt')}
@@ -168,7 +171,7 @@ export const NotesList: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {sortedNotes.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                     No notes yet. Click "Add Note" to get started.
                   </td>
                 </tr>
@@ -182,9 +185,25 @@ export const NotesList: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-600 max-w-md">
-                        {truncateContent(note.content)}
+                      <div className="text-sm text-gray-600 max-w-xs line-clamp-2">
+                        {truncateContent(note.content, 120)}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {note.mentions && note.mentions.length > 0 && (
+                        <div className="flex flex-col items-start gap-0.5">
+                          {note.mentions.slice(0, 2).map((mention: any, index: number) => (
+                            <span key={index} className="text-xs text-blue-600">
+                              @{mention.contactName}
+                            </span>
+                          ))}
+                          {note.mentions.length > 2 && (
+                            <span className="text-xs text-gray-400">
+                              +{note.mentions.length - 2} more
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500">
@@ -243,6 +262,21 @@ export const NotesList: React.FC = () => {
                         <div className="text-xs text-gray-600">
                           {truncateContent(note.content, 80)}
                         </div>
+                        {/* Mobile @mention indicator */}
+                        {note.mentions && note.mentions.length > 0 && (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {note.mentions.slice(0, 2).map((mention: any, index: number) => (
+                              <span key={index} className="text-xs text-blue-600">
+                                @{mention.contactName}
+                              </span>
+                            ))}
+                            {note.mentions.length > 2 && (
+                              <span className="text-xs text-gray-400">
+                                +{note.mentions.length - 2} more
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                     {/* View button in top right */}

@@ -252,7 +252,11 @@ function AppContent() {
       } else if (currentPlugin.name === 'notes') {
         return currentItem.title || `Note #${currentItem.id}`;
       } else if (currentPlugin.name === 'estimates') {
-        return currentItem.estimateNumber || `Estimate #${currentItem.id}`;
+        const estimateNumber = currentItem.estimateNumber || `#${currentItem.id}`;
+        const customerName = currentItem.contactName || 'Unknown Customer';
+        const total = `${currentItem.total?.toFixed(2) || '0.00'}`;
+        const currency = currentItem.currency || 'SEK';
+        return `${estimateNumber} • ${customerName} • ${total} ${currency}`;
       }
       return `#${currentItem.id}`; // Fallback for other plugins
     }
@@ -295,7 +299,7 @@ function AppContent() {
         );
       } else if (currentPlugin.name === 'estimates') {
         const status = currentItem.status.charAt(0).toUpperCase() + currentItem.status.slice(1);
-        const total = `${currentItem.total?.toFixed(2) || '0.00'} ${currentItem.currency || 'SEK'}`;
+        const validTo = new Date(currentItem.validTo).toLocaleDateString();
         const statusColors = {
           draft: 'bg-gray-100 text-gray-800',
           sent: 'bg-blue-100 text-blue-800',
@@ -310,7 +314,7 @@ function AppContent() {
             <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${badgeColor}`}>
               {status}
             </span>
-            <span className="text-xs text-gray-600">• {total} • {currentItem.contactName}</span>
+            <span className="text-xs text-gray-600">• Valid to {validTo}</span>
           </div>
         );
       }

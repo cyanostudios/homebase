@@ -22,21 +22,31 @@ export const MentionContent: React.FC<MentionContentProps> = ({ content, mention
     // Refresh data to get latest contacts
     await refreshData();
     
-    // Find contact and open for view
-    // Note: We'll need to get the contact from the mention data since
-    // we don't have direct access to contacts list in this modular approach
-    const mention = mentions.find(m => m.contactId === contactId);
-    if (mention) {
-      // For now, we can create a minimal contact object from mention data
-      // This will work until we implement a proper cross-plugin contact lookup
-      const contact = {
-        id: mention.contactId,
-        companyName: mention.contactName,
-        // Add other required fields as needed
-      };
+    // Use the contacts data from AppContext to get full contact info
+    // We'll get it via a fetch since AppContext has the data but doesn't expose it directly
+    try {
+      const response = await fetch('/api/contacts', {
+        credentials: 'include'
+      });
       
-      closeNotePanel(); // Close note panel first
-      openContactForView(contact as any); // Then open contact panel
+      if (response.ok) {
+        const contactsData = await response.json();
+        const contact = contactsData.find((c: any) => c.id === contactId);
+        
+        if (contact) {
+          // Transform the contact data to match expected format
+          const transformedContact = {
+            ...contact,
+            createdAt: new Date(contact.createdAt),
+            updatedAt: new Date(contact.updatedAt),
+          };
+          
+          closeNotePanel(); // Close note panel first
+          openContactForView(transformedContact); // Then open contact panel with full data
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load contact data:', error);
     }
   };
 
