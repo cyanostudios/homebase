@@ -19,7 +19,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   onCancel, 
   isSubmitting = false 
 }) => {
-  const { validationErrors } = useNotes();
+  const { validationErrors, clearValidationErrors } = useNotes();
   const { 
     isDirty, 
     showWarning, 
@@ -105,11 +105,23 @@ export const NoteForm: React.FC<NoteFormProps> = ({
 
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // FIXED: Clear validation errors when user starts typing
+    if (validationErrors.length > 0) {
+      clearValidationErrors();
+    }
+    
     markDirty();
   };
 
   const handleContentChange = (content: string, mentions: any[]) => {
     setFormData(prev => ({ ...prev, content, mentions }));
+    
+    // FIXED: Clear validation errors when user starts typing
+    if (validationErrors.length > 0) {
+      clearValidationErrors();
+    }
+    
     markDirty();
   };
 
@@ -202,7 +214,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
                 <span className="font-medium text-blue-800">Mentions:</span>{' '}
                 {formData.mentions.map((mention: any, index: number) => (
                   <span key={index} className="text-blue-600">
-                    @{mention.contactName}{index < formData.mentions.length - 1 ? ', ' : ''}
+                    @{mention.contactName}{index < formData.length - 1 ? ', ' : ''}
                   </span>
                 ))}
               </div>

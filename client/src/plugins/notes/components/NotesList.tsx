@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, StickyNote, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, StickyNote, ChevronUp, ChevronDown, Search } from 'lucide-react';
 import { useNotes } from '../hooks/useNotes';
 import { Button } from '@/core/ui/Button';
 import { Heading, Text } from '@/core/ui/Typography';
@@ -11,6 +11,7 @@ type SortOrder = 'asc' | 'desc';
 
 export const NotesList: React.FC = () => {
   const { notes, openNotePanel, openNoteForEdit, openNoteForView, deleteNote } = useNotes();
+  const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     noteId: string;
@@ -47,7 +48,15 @@ export const NotesList: React.FC = () => {
   };
 
   const sortedNotes = useMemo(() => {
-    return [...notes].sort((a, b) => {
+    const filtered = notes.filter(note => 
+      note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (note.mentions && note.mentions.some((mention: any) => 
+        mention.contactName.toLowerCase().includes(searchTerm.toLowerCase())
+      ))
+    );
+
+    return [...filtered].sort((a, b) => {
       let aValue: string | Date;
       let bValue: string | Date;
       
@@ -76,7 +85,7 @@ export const NotesList: React.FC = () => {
         }
       }
     });
-  }, [notes, sortField, sortOrder]);
+  }, [notes, searchTerm, sortField, sortOrder]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return null;
@@ -122,7 +131,18 @@ export const NotesList: React.FC = () => {
           <Heading level={1}>Notes</Heading>
           <Text variant="caption">Manage your notes and ideas</Text>
         </div>
-        <div className="flex sm:block">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          {/* Search Controls */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <input
+              type="text"
+              placeholder="Search notes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
           <Button
             onClick={() => openNotePanel(null)}
             variant="primary"
@@ -172,12 +192,21 @@ export const NotesList: React.FC = () => {
               {sortedNotes.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                    No notes yet. Click "Add Note" to get started.
+                    {searchTerm ? 'No notes found matching your search.' : 'No notes yet. Click "Add Note" to get started.'}
                   </td>
                 </tr>
               ) : (
                 sortedNotes.map((note, idx) => (
-                  <tr key={note.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <tr 
+                    key={note.id} 
+                    className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-yellow-50 focus:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-inset cursor-pointer`}
+                    tabIndex={0}
+                    data-list-item={JSON.stringify(note)}
+                    data-plugin-name="notes"
+                    role="button"
+                    aria-label={`Open note ${note.title}`}
+                    onClick={() => openNoteForView(note)}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <StickyNote className="w-5 h-5 text-yellow-500" />
@@ -240,14 +269,14 @@ export const NotesList: React.FC = () => {
           <div className="divide-y divide-gray-200">
             {sortedNotes.length === 0 ? (
               <div className="p-6 text-center text-gray-400">
-                No notes yet. Click "Add Note" to get started.
+                {searchTerm ? 'No notes found matching your search.' : 'No notes yet. Click "Add Note" to get started.'}
               </div>
             ) : (
               sortedNotes.map((note) => (
                 <div key={note.id} className="p-4">
                   <div className="flex items-start gap-3">
                     <div className="flex flex-col items-center gap-1">
-                      <StickyNote className="w-5 h-5 text-yellow-500" />
+                      <StickyNote className="w-4 h-4 text-yellow-500" />
                       <div className="text-xs text-gray-500">
                         {new Date(note.updatedAt).toLocaleDateString()}
                       </div>

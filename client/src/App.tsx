@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { AppProvider, useApp } from '@/core/api/AppContext';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { TopBar } from '@/core/ui/TopBar';
@@ -47,6 +47,95 @@ function AppContent() {
       };
     }
   });
+
+  const [isMobileView, setIsMobileView] = useState(false);
+
+  // Check screen size for mobile layout
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobileView(window.innerWidth < 768); // md breakpoint
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  // Universal Space key handler for opening/closing panels
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Only handle Space key
+      if (e.code !== 'Space') return;
+      
+      // Don't interfere with form inputs, textareas, etc.
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      // Check if any panel is currently open
+      const isAnyPanelOpen = pluginContexts.some(({ plugin, context }) => {
+        if (!context) return false;
+        try {
+          return context[plugin.panelKey];
+        } catch {
+          return false;
+        }
+      });
+
+      // If a panel is open, close it
+      if (isAnyPanelOpen) {
+        e.preventDefault();
+        const openPluginData = pluginContexts.find(({ plugin, context }) => {
+          if (!context) return false;
+          try {
+            return context[plugin.panelKey];
+          } catch {
+            return false;
+          }
+        });
+
+        if (openPluginData?.context) {
+          const closeFunction = openPluginData.context.closeContactPanel || 
+                               openPluginData.context.closeNotePanel || 
+                               openPluginData.context.closeEstimatePanel;
+          if (closeFunction) closeFunction();
+        }
+        return;
+      }
+
+      // If no panel is open, check if a table row is focused and open it
+      const focusedElement = document.activeElement as HTMLElement;
+      if (focusedElement && focusedElement.dataset.listItem) {
+        e.preventDefault();
+        
+        // Parse the stored item data
+        try {
+          const itemData = JSON.parse(focusedElement.dataset.listItem);
+          const pluginName = focusedElement.dataset.pluginName;
+          
+          // Find the correct plugin context
+          const pluginData = pluginContexts.find(({ plugin }) => plugin.name === pluginName);
+          
+          if (pluginData?.context) {
+            // Open the item for view using the appropriate function
+            const openForViewFunction = pluginData.context.openContactForView || 
+                                       pluginData.context.openNoteForView || 
+                                       pluginData.context.openEstimateForView;
+            if (openForViewFunction) {
+              openForViewFunction(itemData);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to parse item data:', error);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [pluginContexts]);
 
   // Now determine which panels are open (after all hooks are called)
   const openPanels = pluginContexts.filter(({ plugin, context }) => {
@@ -248,7 +337,19 @@ function AppContent() {
         const contactNumber = `#${currentItem.contactNumber || currentItem.id}`;
         const name = currentItem.companyName || `${currentItem.firstName || ''} ${currentItem.lastName || ''}`.trim();
         const orgNumber = currentItem.organizationNumber || currentItem.personalNumber || '';
-        return `${contactNumber} • ${name}${orgNumber ? ` • ${orgNumber}` : ''}`;
+        
+        if (isMobileView && orgNumber) {
+          // Mobile: Split to multiple lines
+          return (
+            <div>
+              <div>{contactNumber} • {name}</div>
+              <div className="text-sm font-normal text-gray-600 mt-1">{orgNumber}</div>
+            </div>
+          );
+        } else {
+          // Desktop: Single line
+          return `${contactNumber} • ${name}${orgNumber ? ` • ${orgNumber}` : ''}`;
+        }
       } else if (currentPlugin.name === 'notes') {
         return currentItem.title || `Note #${currentItem.id}`;
       } else if (currentPlugin.name === 'estimates') {
@@ -256,18 +357,37 @@ function AppContent() {
         const total = `${currentItem.total?.toFixed(2) || '0.00'}`;
         const currency = currentItem.currency || 'SEK';
         
-        return (
-          <div className="flex items-center gap-2">
-            <span>{estimateNumber} • </span>
-            <button
-              onClick={() => handleEstimateContactClick(currentItem.contactId)}
-              className="text-blue-600 hover:text-blue-800 hover:underline font-medium bg-blue-50 px-1 rounded"
-            >
-              @{currentItem.contactName}
-            </button>
-            <span> • {total} {currency}</span>
-          </div>
-        );
+        if (isMobileView) {
+          // Mobile: Split to multiple lines
+          return (
+            <div>
+              <div className="flex items-center gap-2">
+                <span>{estimateNumber} • </span>
+                <button
+                  onClick={() => handleEstimateContactClick(currentItem.contactId)}
+                  className="text-blue-600 hover:text-blue-800 hover:underline font-medium px-1 rounded"
+                >
+                  @{currentItem.contactName}
+                </button>
+              </div>
+              <div className="text-sm font-normal text-gray-600 mt-1">{total} {currency}</div>
+            </div>
+          );
+        } else {
+          // Desktop: Single line
+          return (
+            <div className="flex items-center gap-2">
+              <span>{estimateNumber} • </span>
+              <button
+                onClick={() => handleEstimateContactClick(currentItem.contactId)}
+                className="text-blue-600 hover:text-blue-800 hover:underline font-medium px-1 rounded"
+              >
+                @{currentItem.contactName}
+              </button>
+              <span> • {total} {currency}</span>
+            </div>
+          );
+        }
       }
       return `#${currentItem.id}`; // Fallback for other plugins
     }

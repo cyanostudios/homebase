@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '@/core/api/AppContext';
+import { useEstimates } from '../hooks/useEstimates';
 import { Calendar, User, FileText, Calculator } from 'lucide-react';
 import { Card } from '@/core/ui/Card';
 import { Button } from '@/core/ui/Button';
@@ -12,22 +13,35 @@ interface EstimateViewProps {
 
 export function EstimateView({ estimate }: EstimateViewProps) {
   const { contacts } = useApp(); // Cross-plugin functions only
+  const { saveEstimate } = useEstimates(); // Use EstimateContext for updates
 
   if (!estimate) return null;
 
-  // Handle status change - this would typically call an API or update function
+  // Handle status change using EstimateContext
   const handleStatusChange = async (newStatus: string) => {
     try {
-      // In a real implementation, this would call an API endpoint
-      // For now, we'll just log it as a mockup
-      console.log(`Changing estimate ${estimate.id} status from ${estimate.status} to ${newStatus}`);
+      // Create updated estimate data with new status
+      const updatedData = {
+        contactId: estimate.contactId,
+        contactName: estimate.contactName,
+        organizationNumber: estimate.organizationNumber,
+        currency: estimate.currency,
+        lineItems: estimate.lineItems,
+        notes: estimate.notes,
+        validTo: estimate.validTo,
+        status: newStatus, // Update the status
+      };
+
+      // Use EstimateContext's saveEstimate function for real updates
+      const success = await saveEstimate(updatedData);
       
-      // This would typically be:
-      // await updateEstimateStatus(estimate.id, newStatus);
-      // Then refresh the data or update the local state
-      
-      // For now, show user feedback
-      alert(`Status changed to ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`);
+      if (success) {
+        console.log(`Status successfully changed to ${newStatus}`);
+        // The EstimateContext will handle updating the state and switching to view mode
+      } else {
+        console.error('Failed to update status');
+        alert('Failed to update status. Please try again.');
+      }
     } catch (error) {
       console.error('Failed to update status:', error);
       alert('Failed to update status. Please try again.');
@@ -154,7 +168,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
 
       <hr className="border-gray-100" />
 
-      {/* Quick Actions */}
+      {/* Quick Actions - UPDATED: Real status changes */}
       <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Quick Actions</Heading>
         
@@ -170,6 +184,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
               }
               onClick={() => handleStatusChange('draft')}
+              disabled={estimate.status === 'draft'}
             >
               Draft
             </Button>
@@ -181,6 +196,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                 : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
               }
               onClick={() => handleStatusChange('sent')}
+              disabled={estimate.status === 'sent'}
             >
               Sent
             </Button>
@@ -192,6 +208,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                 : 'bg-green-50 text-green-700 hover:bg-green-100'
               }
               onClick={() => handleStatusChange('accepted')}
+              disabled={estimate.status === 'accepted'}
             >
               Accepted
             </Button>
@@ -203,6 +220,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                 : 'bg-red-50 text-red-700 hover:bg-red-100'
               }
               onClick={() => handleStatusChange('rejected')}
+              disabled={estimate.status === 'rejected'}
             >
               Rejected
             </Button>

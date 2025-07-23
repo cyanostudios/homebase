@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building, User, MapPin, Phone, Mail, Globe, CreditCard, StickyNote, Calculator } from 'lucide-react';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
@@ -25,10 +25,49 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
   // Use ContactContext to close contact panel when navigating
   const { closeContactPanel } = useContacts();
   
+  // State for cross-plugin data
+  const [mentionedInNotes, setMentionedInNotes] = useState<any[]>([]);
+  const [relatedEstimates, setRelatedEstimates] = useState<any[]>([]);
+  const [loadingNotes, setLoadingNotes] = useState(false);
+  const [loadingEstimates, setLoadingEstimates] = useState(false);
+  
+  // Load cross-plugin data when contact changes
+  useEffect(() => {
+    if (!contact?.id) return;
+    
+    // Load notes (async)
+    const loadNotes = async () => {
+      setLoadingNotes(true);
+      try {
+        const notes = await getNotesForContact(contact.id);
+        setMentionedInNotes(notes);
+      } catch (error) {
+        console.error('Failed to load notes for contact:', error);
+        setMentionedInNotes([]);
+      } finally {
+        setLoadingNotes(false);
+      }
+    };
+    
+    // Load estimates (async)
+    const loadEstimates = async () => {
+      setLoadingEstimates(true);
+      try {
+        const estimates = await getEstimatesForContact(contact.id);
+        setRelatedEstimates(estimates);
+      } catch (error) {
+        console.error('Failed to load estimates for contact:', error);
+        setRelatedEstimates([]);
+      } finally {
+        setLoadingEstimates(false);
+      }
+    };
+    
+    loadNotes();
+    loadEstimates();
+  }, [contact?.id, getNotesForContact, getEstimatesForContact]);
+  
   if (!contact) return null;
-
-  const mentionedInNotes = getNotesForContact(contact.id);
-  const relatedEstimates = getEstimatesForContact(contact.id);
 
   return (
     <div className="space-y-4">
@@ -167,7 +206,6 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
         </div>
       </Card>
 
-
       {/* Notes */}
       {contact.notes && (
         <Card padding="sm" className="shadow-none px-0">
@@ -179,77 +217,40 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
       <hr className="border-gray-100" />
 
       {/* Cross-plugin references - Related Estimates */}
-      {relatedEstimates.length > 0 && (
-        <>
-          <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Related Estimates</Heading>
-            <div className="space-y-2">
-              {relatedEstimates.map((estimate: any) => {
-                const getStatusBadge = (status: string) => {
-                  const statusColors = {
-                    draft: 'bg-gray-100 text-gray-800',
-                    sent: 'bg-blue-100 text-blue-800',
-                    accepted: 'bg-green-100 text-green-800',
-                    rejected: 'bg-red-100 text-red-800',
-                  };
-                  const colorClass = statusColors[status as keyof typeof statusColors] || statusColors.draft;
-                  return (
-                    <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${colorClass}`}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </span>
-                  );
+      <Card padding="sm" className="shadow-none px-0">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Related Estimates</Heading>
+        {loadingEstimates ? (
+          <div className="text-sm text-gray-500">Loading estimates...</div>
+        ) : relatedEstimates.length > 0 ? (
+          <div className="space-y-2">
+            {relatedEstimates.map((estimate: any) => {
+              const getStatusBadge = (status: string) => {
+                const statusColors = {
+                  draft: 'bg-gray-100 text-gray-800',
+                  sent: 'bg-blue-100 text-blue-800',
+                  accepted: 'bg-green-100 text-green-800',
+                  rejected: 'bg-red-100 text-red-800',
                 };
-
+                const colorClass = statusColors[status as keyof typeof statusColors] || statusColors.draft;
                 return (
-                  <div key={estimate.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <Calculator className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm font-medium text-gray-900">{estimate.estimateNumber}</span>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {getStatusBadge(estimate.status)}
-                        <span className="text-sm font-medium text-gray-900">
-                          {estimate.total?.toFixed(2)} {estimate.currency}
-                        </span>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        closeContactPanel(); // Close contact panel first
-                        openEstimateForView(estimate); // Then open estimate panel
-                      }}
-                      className="text-blue-700 hover:text-blue-800 ml-3 flex-shrink-0"
-                    >
-                      View Estimate
-                    </Button>
-                  </div>
+                  <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${colorClass}`}>
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </span>
                 );
-              })}
-            </div>
-          </Card>
+              };
 
-          <hr className="border-gray-100" />
-        </>
-      )}
-
-      {/* Cross-plugin references - Mentioned in Notes */}
-      {mentionedInNotes.length > 0 && (
-        <>
-          <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Mentioned in Notes</Heading>
-            <div className="space-y-2">
-              {mentionedInNotes.map((note: any) => (
-                <div key={note.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+              return (
+                <div key={estimate.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <StickyNote className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                    <Calculator className="w-4 h-4 text-blue-600 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-gray-900">{note.title}</span>
+                      <span className="text-sm font-medium text-gray-900">{estimate.estimateNumber}</span>
                     </div>
-                    <div className="text-xs text-gray-600 flex-shrink-0">
-                      {new Date(note.updatedAt).toLocaleDateString()}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {getStatusBadge(estimate.status)}
+                      <span className="text-sm font-medium text-gray-900">
+                        {estimate.total?.toFixed(2)} {estimate.currency}
+                      </span>
                     </div>
                   </div>
                   <Button
@@ -257,20 +258,61 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                     size="sm"
                     onClick={() => {
                       closeContactPanel(); // Close contact panel first
-                      openNoteForView(note); // Then open note panel
+                      openEstimateForView(estimate); // Then open estimate panel
                     }}
-                    className="text-yellow-700 hover:text-yellow-800 ml-3 flex-shrink-0"
+                    className="text-blue-700 hover:text-blue-800 ml-3 flex-shrink-0"
                   >
-                    View Note
+                    View Estimate
                   </Button>
                 </div>
-              ))}
-            </div>
-          </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-sm text-gray-500">No estimates found for this contact.</div>
+        )}
+      </Card>
 
-          <hr className="border-gray-100" />
-        </>
-      )}
+      <hr className="border-gray-100" />
+
+      {/* Cross-plugin references - Mentioned in Notes */}
+      <Card padding="sm" className="shadow-none px-0">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Mentioned in Notes</Heading>
+        {loadingNotes ? (
+          <div className="text-sm text-gray-500">Loading notes...</div>
+        ) : mentionedInNotes.length > 0 ? (
+          <div className="space-y-2">
+            {mentionedInNotes.map((note: any) => (
+              <div key={note.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <StickyNote className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-gray-900">{note.title}</span>
+                  </div>
+                  <div className="text-xs text-gray-600 flex-shrink-0">
+                    {new Date(note.updatedAt).toLocaleDateString()}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    closeContactPanel(); // Close contact panel first
+                    openNoteForView(note); // Then open note panel
+                  }}
+                  className="text-yellow-700 hover:text-yellow-800 ml-3 flex-shrink-0"
+                >
+                  View Note
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-gray-500">This contact is not mentioned in any notes.</div>
+        )}
+      </Card>
+
+      <hr className="border-gray-100" />
 
       {/* Metadata */}
       <Card padding="sm" className="shadow-none px-0">

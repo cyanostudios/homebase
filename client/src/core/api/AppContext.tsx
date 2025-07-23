@@ -23,12 +23,11 @@ interface AppContextType {
   // Cross-plugin data (read-only for cross-references)
   contacts: Contact[];
   notes: Note[];
-  estimates: Estimate[];
 
   // Cross-plugin references (read-only data for cross-references)
-  getNotesForContact: (contactId: string) => Note[];
+  getNotesForContact: (contactId: string) => Promise<Note[]>;
   getContactsForNote: (noteId: string) => Contact[];
-  getEstimatesForContact: (contactId: string) => Estimate[];
+  getEstimatesForContact: (contactId: string) => Promise<Estimate[]>;
   
   // Close other panels function (for plugin coordination)
   closeOtherPanels: (except?: 'contacts' | 'notes' | 'estimates') => void;
@@ -84,6 +83,7 @@ const api = {
     return this.request('/notes');
   },
 
+  // CHANGED: Estimates API calls only for cross-plugin references
   async getEstimates() {
     return this.request('/estimates');
   },
@@ -98,7 +98,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Cross-plugin data (read-only for references)
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
-  const [estimates, setEstimates] = useState<Estimate[]>([]);
+  
+  // REMOVED: estimates state - now managed by EstimateContext
 
   // Check authentication on app start
   useEffect(() => {
@@ -112,7 +113,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } else {
       setContacts([]);
       setNotes([]);
-      setEstimates([]);
+      // REMOVED: setEstimates([]);
     }
   }, [isAuthenticated]);
 
@@ -131,10 +132,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadData = async () => {
     try {
-      const [contactsData, notesData, estimatesData] = await Promise.all([
+      // CHANGED: Only load contacts and notes for cross-plugin references
+      const [contactsData, notesData] = await Promise.all([
         api.getContacts(), // Only for cross-plugin references
         api.getNotes(), // Only for cross-plugin references
-        api.getEstimates(), // Only for cross-plugin references
+        // REMOVED: api.getEstimates() - now managed by EstimateContext
       ]);
       
       // Transform API data to match interface
@@ -150,16 +152,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updatedAt: new Date(note.updatedAt),
       }));
 
-      const transformedEstimates = estimatesData.map((estimate: any) => ({
-        ...estimate,
-        validTo: new Date(estimate.validTo),
-        createdAt: new Date(estimate.createdAt),
-        updatedAt: new Date(estimate.updatedAt),
-      }));
+      // REMOVED: estimate transformation - now in EstimateContext
 
       setContacts(transformedContacts);
       setNotes(transformedNotes);
-      setEstimates(transformedEstimates);
+      // REMOVED: setEstimates(transformedEstimates);
     } catch (error) {
       console.error('Failed to load data:', error);
     }
@@ -194,7 +191,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(false);
       setContacts([]);
       setNotes([]);
-      setEstimates([]);
+      // REMOVED: setEstimates([]);
     }
   };
 
@@ -205,7 +202,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // Cross-plugin reference functions
-  const getNotesForContact = (contactId: string): Note[] => {
+  const getNotesForContact = async (contactId: string): Promise<Note[]> => {
+    // CHANGED: Use current notes state for cross-plugin references
     return notes.filter(note => 
       note.mentions && note.mentions.some(mention => mention.contactId === contactId)
     );
@@ -220,8 +218,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ).filter(Boolean) as Contact[];
   };
 
-  const getEstimatesForContact = (contactId: string): Estimate[] => {
-    return estimates.filter(estimate => estimate.contactId === contactId);
+  // CHANGED: getEstimatesForContact now fetches fresh data via API
+  const getEstimatesForContact = async (contactId: string): Promise<Estimate[]> => {
+    try {
+      const estimatesData = await api.getEstimates();
+      const transformedEstimates = estimatesData.map((estimate: any) => ({
+        ...estimate,
+        validTo: new Date(estimate.validTo),
+        createdAt: new Date(estimate.createdAt),
+        updatedAt: new Date(estimate.updatedAt),
+      }));
+      return transformedEstimates.filter((estimate: Estimate) => estimate.contactId === contactId);
+    } catch (error) {
+      console.error('Failed to fetch estimates for contact:', error);
+      return [];
+    }
   };
 
   return (
@@ -236,12 +247,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Cross-plugin data (read-only)
       contacts,
       notes,
-      estimates,
+      // REMOVED: estimates - now managed by EstimateContext
       
       // Cross-plugin references
       getNotesForContact,
       getContactsForNote,
-      getEstimatesForContact,
+      getEstimatesForContact, // CHANGED: Now async API call
       
       // Panel coordination
       closeOtherPanels,

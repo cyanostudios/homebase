@@ -6,9 +6,9 @@ This is a technical implementation guide for developing plugins in the Homebase 
 
 ## App Overview
 
-Homebase is a plugin-based business application with modular context architecture. The core handles authentication, database, and routing while plugins provide specialized functionality through isolated contexts. Each plugin manages its own state independently, preventing re-renders across plugins and enabling team isolation.
+Homebase is a plugin-based business application with modular context architecture and universal keyboard navigation. The core handles authentication, database, and routing while plugins provide specialized functionality through isolated contexts. Each plugin manages its own state independently, preventing re-renders across plugins and enabling team isolation.
 
-**Stack:** React + TypeScript + Express.js + MySQL/PostgreSQL + Plugin-loader system
+**Stack:** React + TypeScript + Express.js + MySQL/PostgreSQL + Plugin-loader system + Universal Space Navigation
 
 ## Architecture Overview
 
@@ -34,12 +34,12 @@ client/src/plugins/[plugin-name]/
 ├── context/[Name]Context.tsx     # Plugin-specific state management
 ├── hooks/use[Name].ts           # Plugin-specific hook
 ├── api/[name]Api.ts             # Isolated API calls
-└── components/                  # Plugin components
+└── components/                  # Plugin components with keyboard navigation
 
 Core:
 ├── core/api/AppContext.tsx      # Minimal shared state (auth + cross-plugin)
 ├── core/pluginRegistry.ts       # Plugin registration
-└── App.tsx                      # Provider composition
+└── App.tsx                      # Provider composition + Universal Space handler
 ```
 
 ## Plugin Development Workflow
@@ -138,15 +138,83 @@ class MyPluginApi {
 export const myPluginApi = new MyPluginApi();
 ```
 
-### 3. Component Patterns
+### 3. Component Patterns with Keyboard Navigation
 
-**List Component:**
+**List Component (with Universal Space support):**
 ```typescript
 export const MyPluginList = () => {
-  const { items, openMyPluginPanel } = useMyPlugin();
+  const { items, openMyPluginPanel, openMyPluginForView } = useMyPlugin();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isMobileView, setIsMobileView] = useState(false);
+  
   // Mobile-first responsive design
-  // Search and sort functionality
-  // CRUD action buttons
+  // Search functionality
+  // IMPORTANT: Keyboard navigation support
+  
+  return (
+    <div className="p-4 sm:p-8">
+      {/* Header with search */}
+      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <Heading level={1}>My Plugin Items</Heading>
+          <Text variant="caption">Manage your items</Text>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          {/* Search Controls */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <input
+              type="text"
+              placeholder="Search items..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <Button
+            onClick={() => openMyPluginPanel(null)}
+            variant="primary"
+            icon={Plus}
+          >
+            Add Item
+          </Button>
+        </div>
+      </div>
+
+      {/* Table with keyboard navigation */}
+      <Card>
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Title
+              </th>
+              {/* More headers */}
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {items.map((item, idx) => (
+              <tr 
+                key={item.id} 
+                className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer`}
+                tabIndex={0}
+                data-list-item={JSON.stringify(item)}
+                data-plugin-name="my-plugins" // Note: Plural!
+                role="button"
+                aria-label={`Open ${item.title}`}
+                onClick={() => openMyPluginForView(item)}
+              >
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900">{item.title}</div>
+                </td>
+                {/* More cells */}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
 };
 ```
 
@@ -198,6 +266,44 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   }
 ];
 ```
+
+## Universal Keyboard Navigation (v7+ Feature)
+
+### Automatic Space Navigation
+All plugins automatically get keyboard navigation without additional code:
+
+**User Experience:**
+- **Tab** through table rows in any list
+- **Space** on focused row = Opens item in view mode
+- **Space** when panel is open = Closes panel
+- **Visual feedback** with focus rings and hover states
+
+**Implementation Requirements:**
+Your List component must include these attributes on table rows:
+
+```typescript
+<tr
+  tabIndex={0}                                    // Makes row focusable
+  data-list-item={JSON.stringify(item)}         // Item data for Space handler
+  data-plugin-name="my-plugins"                 // Plugin identifier (plural!)
+  role="button"                                 // Accessibility
+  aria-label={`Open ${item.title}`}            // Screen reader support
+  className="hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer"
+  onClick={() => openMyPluginForView(item)}    // Mouse support
+>
+```
+
+**Color Coding:**
+- **Contacts**: Blue theme (`hover:bg-blue-50 focus:bg-blue-100 focus:ring-blue-500`)
+- **Notes**: Yellow theme (`hover:bg-yellow-50 focus:bg-yellow-100 focus:ring-yellow-500`)
+- **Estimates**: Blue theme (`hover:bg-blue-50 focus:bg-blue-100 focus:ring-blue-500`)
+
+### Safety Features
+The universal Space handler automatically:
+- ✅ Ignores Space in form inputs and textareas
+- ✅ Prevents page scrolling conflicts
+- ✅ Works across all plugins without configuration
+- ✅ Provides consistent UX for accessibility
 
 ## Critical Implementation Details
 
@@ -257,15 +363,16 @@ The modular context architecture provides:
 - **Zero team conflicts** - Complete plugin isolation
 - **95% simpler testing** - Mock individual plugin contexts
 - **Hot module replacement ready** - Development experience optimized
+- **Universal keyboard navigation** - Consistent UX across all plugins
 
 ## Development Time
 
-**Estimated implementation time per plugin:** 20-30 minutes
-1. **Backend Plugin:** 8 minutes (copy templates, customize)
-2. **Frontend Context:** 8 minutes (copy templates, customize)  
-3. **Components:** 8 minutes (build UI using context hook)
-4. **Registration:** 3 minutes (add to pluginRegistry.ts)
-5. **Testing:** 3 minutes (verify CRUD operations)
+**Estimated implementation time per plugin:** 15-25 minutes
+1. **Backend Plugin:** 5 minutes (copy templates, customize)
+2. **Frontend Context:** 5 minutes (copy templates, customize)  
+3. **Components:** 8 minutes (build UI using context hook + keyboard nav)
+4. **Registration:** 5 minutes (add to pluginRegistry.ts)
+5. **Testing:** 2 minutes (verify CRUD operations + Space navigation)
 
 ## Testing Patterns
 
@@ -282,6 +389,18 @@ const TestMyPluginProvider = ({ children, mockData = [] }) => (
 );
 ```
 
+### Keyboard Navigation Testing
+```typescript
+// Test Space key functionality
+test('Space key opens item in view mode', () => {
+  render(<MyPluginList />);
+  const firstRow = screen.getByRole('button', { name: /open/i });
+  firstRow.focus();
+  fireEvent.keyDown(firstRow, { code: 'Space' });
+  expect(mockOpenForView).toHaveBeenCalled();
+});
+```
+
 ### API Testing
 ```bash
 curl http://localhost:3002/api/my-plugin -b cookies.txt
@@ -295,6 +414,15 @@ Check server logs for plugin loading confirmation:
 ```bash
 npm run dev
 # Should show: "🟢 Loaded plugin: my-plugin (/api/my-plugin)"
+```
+
+### Keyboard Navigation Not Working
+Ensure table rows have required attributes:
+```typescript
+// Missing any of these will break Space navigation
+tabIndex={0}
+data-list-item={JSON.stringify(item)}
+data-plugin-name="my-plugins" // Must be plural!
 ```
 
 ### Panel Conflicts
@@ -325,12 +453,15 @@ export function useMyPlugin() {
 5. **Performance First** - Modular contexts prevent unnecessary re-renders
 6. **Type Safety** - TypeScript interfaces ensure robust plugin contracts
 7. **Consistent Naming** - Follow established conventions for seamless integration
+8. **Universal Navigation** - Keyboard accessibility built-in for all plugins
 
 ## Reference Implementation
 
 See `client/src/plugins/contacts/` for complete working example including:
 - Full modular context implementation
+- Universal keyboard navigation support
 - Cross-plugin navigation patterns
 - Form validation and error handling
 - CRUD operations with API integration
 - Component structure and styling
+- Search functionality with responsive design

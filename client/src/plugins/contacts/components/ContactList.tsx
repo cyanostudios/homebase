@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Users, Mail, Phone, Edit, Trash2, Eye, Building, User, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Users, Mail, Phone, Edit, Trash2, Eye, Building, User, ChevronUp, ChevronDown, Search } from 'lucide-react';
 import { useContacts } from '../hooks/useContacts';
 import { Button } from '@/core/ui/Button';
 import { Heading, Text } from '@/core/ui/Typography';
@@ -11,6 +11,7 @@ type SortOrder = 'asc' | 'desc';
 
 export const ContactList: React.FC = () => {
   const { contacts, openContactPanel, openContactForEdit, openContactForView, deleteContact } = useContacts();
+  const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     contactId: string;
@@ -47,7 +48,15 @@ export const ContactList: React.FC = () => {
   };
 
   const sortedContacts = useMemo(() => {
-    return [...contacts].sort((a, b) => {
+    const filtered = contacts.filter(contact => 
+      contact.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contact.contactNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (contact.organizationNumber && contact.organizationNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (contact.personalNumber && contact.personalNumber.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+
+    return [...filtered].sort((a, b) => {
       let aValue: string;
       let bValue: string;
       
@@ -68,7 +77,7 @@ export const ContactList: React.FC = () => {
         return bValue.localeCompare(aValue);
       }
     });
-  }, [contacts, sortField, sortOrder]);
+  }, [contacts, searchTerm, sortField, sortOrder]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return null;
@@ -109,7 +118,18 @@ export const ContactList: React.FC = () => {
           <Heading level={1}>Contacts</Heading>
           <Text variant="caption">Manage your business contacts</Text>
         </div>
-        <div className="flex sm:block">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          {/* Search Controls */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <input
+              type="text"
+              placeholder="Search contacts..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
           <Button
             onClick={() => openContactPanel(null)}
             variant="primary"
@@ -168,12 +188,21 @@ export const ContactList: React.FC = () => {
               {sortedContacts.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
-                    No contacts yet. Click "Add Contact" to get started.
+                    {searchTerm ? 'No contacts found matching your search.' : 'No contacts yet. Click "Add Contact" to get started.'}
                   </td>
                 </tr>
               ) : (
                 sortedContacts.map((contact, idx) => (
-                  <tr key={contact.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <tr 
+                    key={contact.id} 
+                    className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer`}
+                    tabIndex={0}
+                    data-list-item={JSON.stringify(contact)}
+                    data-plugin-name="contacts"
+                    role="button"
+                    aria-label={`Open contact ${contact.companyName}`}
+                    onClick={() => openContactForView(contact)}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-mono font-medium text-gray-900">#{contact.contactNumber}</div>
                     </td>
@@ -248,7 +277,7 @@ export const ContactList: React.FC = () => {
           <div className="divide-y divide-gray-200">
             {sortedContacts.length === 0 ? (
               <div className="p-6 text-center text-gray-400">
-                No contacts yet. Click "Add Contact" to get started.
+                {searchTerm ? 'No contacts found matching your search.' : 'No contacts yet. Click "Add Contact" to get started.'}
               </div>
             ) : (
               sortedContacts.map((contact) => (
@@ -257,9 +286,9 @@ export const ContactList: React.FC = () => {
                     <div className="flex flex-col items-center gap-1">
                       <div className="text-xs font-mono font-medium text-gray-600">#{contact.contactNumber}</div>
                       {contact.contactType === 'company' ? (
-                        <Building className="w-5 h-5 text-blue-500" />
+                        <Building className="w-4 h-4 text-blue-500" />
                       ) : (
-                        <User className="w-5 h-5 text-green-500" />
+                        <User className="w-4 h-4 text-green-500" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">

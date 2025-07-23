@@ -139,7 +139,18 @@ export function EstimateList() {
           <Heading level={1}>Estimates</Heading>
           <Text variant="caption">Manage your customer estimates</Text>
         </div>
-        <div className="flex sm:block">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          {/* Search Controls */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <input
+              type="text"
+              placeholder="Search estimates..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
           <Button
             onClick={() => openEstimatePanel(null)}
             variant="primary"
@@ -147,20 +158,6 @@ export function EstimateList() {
           >
             Add Estimate
           </Button>
-        </div>
-      </div>
-
-      {/* Search Controls */}
-      <div className="mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <input
-            type="text"
-            placeholder="Search estimates..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
         </div>
       </div>
 
@@ -220,7 +217,16 @@ export function EstimateList() {
                 </tr>
               ) : (
                 sortedEstimates.map((estimate, idx) => (
-                  <tr key={estimate.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <tr 
+                    key={estimate.id} 
+                    className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer`}
+                    tabIndex={0}
+                    data-list-item={JSON.stringify(estimate)}
+                    data-plugin-name="estimates"
+                    role="button"
+                    aria-label={`Open estimate ${estimate.estimateNumber}`}
+                    onClick={() => openEstimateForView(estimate)}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <Calculator className="w-5 h-5 text-blue-500" />
