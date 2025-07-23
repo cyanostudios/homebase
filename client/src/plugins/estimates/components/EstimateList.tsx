@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, Search, Calculator, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Search, Calculator, ChevronUp, ChevronDown, Copy } from 'lucide-react';
 import { useEstimates } from '../hooks/useEstimates';
 import { Button } from '@/core/ui/Button';
 import { Heading, Text } from '@/core/ui/Typography';
@@ -15,7 +15,8 @@ export function EstimateList() {
     openEstimatePanel,
     openEstimateForEdit,
     openEstimateForView,
-    deleteEstimate 
+    deleteEstimate,
+    duplicateEstimate
   } = useEstimates();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -113,6 +114,11 @@ export function EstimateList() {
       estimateId: '',
       estimateNumber: ''
     });
+  };
+
+  const handleDuplicate = (e: React.MouseEvent, estimate: any) => {
+    e.stopPropagation();
+    duplicateEstimate(estimate);
   };
 
   const getStatusBadge = (status: string) => {
@@ -264,15 +270,30 @@ export function EstimateList() {
                           variant="ghost"
                           size="sm"
                           icon={Eye}
-                          onClick={() => openEstimateForView(estimate)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEstimateForView(estimate);
+                          }}
                         >
                           View
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={Copy}
+                          onClick={(e) => handleDuplicate(e, estimate)}
+                          title="Duplicate estimate"
+                        >
+                          Duplicate
                         </Button>
                         <Button
                           variant="secondary"
                           size="sm"
                           icon={Edit}
-                          onClick={() => openEstimateForEdit(estimate)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEstimateForEdit(estimate);
+                          }}
                         >
                           Edit
                         </Button>
@@ -320,8 +341,8 @@ export function EstimateList() {
                         </div>
                       </div>
                     </div>
-                    {/* View button in top right */}
-                    <div>
+                    {/* Action buttons in mobile */}
+                    <div className="flex flex-col gap-2">
                       <Button 
                         variant="ghost" 
                         size="sm" 

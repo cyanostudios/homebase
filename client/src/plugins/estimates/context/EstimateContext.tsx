@@ -19,6 +19,7 @@ interface EstimateContextType {
   closeEstimatePanel: () => void;
   saveEstimate: (estimateData: any) => Promise<boolean>;
   deleteEstimate: (id: string) => Promise<void>;
+  duplicateEstimate: (estimate: Estimate) => Promise<void>;
   clearValidationErrors: () => void;
 }
 
@@ -67,6 +68,17 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
     }
   };
 
+  // Helper function to generate next estimate number
+  const generateNextEstimateNumber = (): string => {
+    const existingNumbers = estimates.map(estimate => {
+      const match = estimate.estimateNumber.match(/\d+/);
+      return match ? parseInt(match[0]) : 0;
+    });
+    const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+    const nextNumber = maxNumber + 1;
+    return `EST-${nextNumber.toString().padStart(3, '0')}`;
+  };
+
   const validateEstimate = (estimateData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
     
@@ -78,14 +90,6 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
       });
     }
     
-    // FIXED: Remove title validation if estimates don't have titles
-    // if (!estimateData.title?.trim()) {
-    //   errors.push({
-    //     field: 'title',
-    //     message: 'Estimate title is required'
-    //   });
-    // }
-
     if (!estimateData.lineItems || estimateData.lineItems.length === 0) {
       errors.push({
         field: 'lineItems',
@@ -231,6 +235,36 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
     }
   };
 
+  const duplicateEstimate = async (originalEstimate: Estimate) => {
+    try {
+      const duplicateData = {
+        ...originalEstimate,
+        estimateNumber: generateNextEstimateNumber(),
+        status: 'draft' as const,
+        validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        lineItems: originalEstimate.lineItems.map(item => ({
+          ...item,
+          id: `${Date.now()}-${Math.random()}`, // New unique ID for each line item
+        })),
+      };
+      
+      // Remove fields that should not be duplicated
+      delete (duplicateData as any).id;
+      delete (duplicateData as any).createdAt;
+      delete (duplicateData as any).updatedAt;
+      
+      const savedEstimate = await estimatesApi.createEstimate(duplicateData);
+      setEstimates(prev => [...prev, {
+        ...savedEstimate,
+        validTo: new Date(savedEstimate.validTo),
+        createdAt: new Date(savedEstimate.createdAt),
+        updatedAt: new Date(savedEstimate.updatedAt),
+      }]);
+    } catch (error) {
+      console.error('Failed to duplicate estimate:', error);
+    }
+  };
+
   const value: EstimateContextType = {
     // Panel State - FIXED: Match App.tsx expectations
     isEstimatePanelOpen,
@@ -248,6 +282,7 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
     closeEstimatePanel,
     saveEstimate,
     deleteEstimate,
+    duplicateEstimate,
     clearValidationErrors,
   };
 

@@ -327,16 +327,6 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         <Card padding="sm" className="shadow-none px-0">
           <div className="flex items-center justify-between mb-3">
             <Heading level={3}>Line Items</Heading>
-                                <Button
-                      type="button"
-                      onClick={() => duplicateLineItem(index)}
-                      variant="secondary"
-                      icon={Copy}
-                      size="sm"
-                      className="h-8 w-8 p-0 flex-shrink-0"
-                      title="Duplicate item"
-                    >
-                    </Button>
                     <Button
               type="button"
               onClick={addLineItem}

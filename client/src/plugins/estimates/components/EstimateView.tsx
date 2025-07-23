@@ -13,7 +13,7 @@ interface EstimateViewProps {
 
 export function EstimateView({ estimate }: EstimateViewProps) {
   const { contacts } = useApp(); // Cross-plugin functions only
-  const { saveEstimate } = useEstimates(); // Use EstimateContext for updates
+  const { saveEstimate, duplicateEstimate } = useEstimates(); // Use EstimateContext for updates
 
   if (!estimate) return null;
 
@@ -45,6 +45,17 @@ export function EstimateView({ estimate }: EstimateViewProps) {
     } catch (error) {
       console.error('Failed to update status:', error);
       alert('Failed to update status. Please try again.');
+    }
+  };
+
+  // Handle duplicate using EstimateContext
+  const handleDuplicate = async () => {
+    try {
+      await duplicateEstimate(estimate);
+      // The duplicateEstimate function will create a new estimate and add it to the list
+    } catch (error) {
+      console.error('Failed to duplicate estimate:', error);
+      alert('Failed to duplicate estimate. Please try again.');
     }
   };
 
@@ -235,7 +246,11 @@ export function EstimateView({ estimate }: EstimateViewProps) {
               Download PDF
             </Button>
             
-            <Button variant="secondary" size="sm">
+            <Button 
+              variant="secondary" 
+              size="sm"
+              onClick={handleDuplicate}
+            >
               Duplicate Estimate
             </Button>
             
