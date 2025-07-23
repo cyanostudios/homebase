@@ -6,7 +6,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Button } from '@/core/ui/Button';
 import { Card } from '@/core/ui/Card';
 import { Heading } from '@/core/ui/Typography';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Copy } from 'lucide-react';
 import { Estimate, LineItem, calculateLineItem, calculateEstimateTotals } from '../types/estimate';
 
 interface EstimateFormProps {
@@ -16,7 +16,7 @@ interface EstimateFormProps {
 }
 
 export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateFormProps) {
-  const { validationErrors } = useEstimates();
+  const { validationErrors, clearValidationErrors } = useEstimates();
   const { contacts } = useApp(); // Cross-plugin data access
   
   // Safety check for contacts
@@ -132,8 +132,8 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
   const updateField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     markDirty();
+    clearValidationErrors();
   };
-
   const handleContactChange = (contactId: string) => {
     const contact = safeContacts.find(c => c.id === contactId);
     if (contact) {
@@ -171,6 +171,17 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
     });
     
     updateField('lineItems', updatedItems);
+  };
+
+  const duplicateLineItem = (index: number) => {
+    const itemToDuplicate = formData.lineItems[index];
+    const newItem = calculateLineItem({
+      ...itemToDuplicate,
+      id: Date.now().toString(),
+      sortOrder: formData.lineItems.length
+    });
+    
+    updateField('lineItems', [...formData.lineItems, newItem]);
   };
 
   const removeLineItem = (index: number) => {
@@ -316,7 +327,17 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         <Card padding="sm" className="shadow-none px-0">
           <div className="flex items-center justify-between mb-3">
             <Heading level={3}>Line Items</Heading>
-            <Button
+                                <Button
+                      type="button"
+                      onClick={() => duplicateLineItem(index)}
+                      variant="secondary"
+                      icon={Copy}
+                      size="sm"
+                      className="h-8 w-8 p-0 flex-shrink-0"
+                      title="Duplicate item"
+                    >
+                    </Button>
+                    <Button
               type="button"
               onClick={addLineItem}
               variant="secondary"
@@ -346,6 +367,16 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                       className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-none"
                       required
                     />
+                                        <Button
+                      type="button"
+                      onClick={() => duplicateLineItem(index)}
+                      variant="secondary"
+                      icon={Copy}
+                      size="sm"
+                      className="h-8 w-8 p-0 flex-shrink-0"
+                      title="Duplicate item"
+                    >
+                    </Button>
                     <Button
                       type="button"
                       onClick={() => removeLineItem(index)}

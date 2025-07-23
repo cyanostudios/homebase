@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Menu } from 'lucide-react';
 import { useSidebar } from './MainLayout';
+import { PomodoroTimer } from './pomodoro/PomodoroTimer';
+import { ClockDisplay } from './clock/ClockDisplay';
 
 interface TopBarProps {
   height?: number;
@@ -15,17 +17,9 @@ export function TopBar({
   className = '',
   children
 }: TopBarProps) {
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [isMobile, setIsMobile] = useState(false);
+  const [openPanel, setOpenPanel] = useState<'pomodoro' | 'clock' | null>(null);
   const { isMobileOverlay, setIsMobileOverlay } = useSidebar();
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -38,21 +32,12 @@ export function TopBar({
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('sv-SE', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
+  const handlePanelToggle = (panel: 'pomodoro' | 'clock') => {
+    setOpenPanel(openPanel === panel ? null : panel);
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('sv-SE', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+  const handleClosePanel = () => {
+    setOpenPanel(null);
   };
 
   return (
@@ -73,18 +58,24 @@ export function TopBar({
         {children}
       </div>
 
-      {/* Right side - Clock only */}
-      <div className="flex items-center gap-4">
+      {/* Right side - Pomodoro Timer + Clock */}
+      <div className="flex items-center gap-4 relative">
+        {/* Pomodoro Timer */}
+        <PomodoroTimer 
+          compact={true} 
+          isExpanded={openPanel === 'pomodoro'}
+          onToggle={() => handlePanelToggle('pomodoro')}
+          onClose={handleClosePanel}
+        />
+        
         {/* Clock */}
         {showClock && (
-          <div className="text-right">
-            <div className="text-sm font-medium text-gray-900">
-              {formatTime(currentTime)}
-            </div>
-            <div className="text-xs text-gray-500">
-              {formatDate(currentTime)}
-            </div>
-          </div>
+          <ClockDisplay 
+            compact={true}
+            isExpanded={openPanel === 'clock'}
+            onToggle={() => handlePanelToggle('clock')}
+            onClose={handleClosePanel}
+          />
         )}
       </div>
     </div>

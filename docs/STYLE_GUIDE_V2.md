@@ -182,6 +182,76 @@ p-4 sm:p-8          /* Page padding (mobile/desktop) */
 <div className="text-sm text-gray-900">Content</div>
 ```
 
+## TopBar Components (v7+ Enhanced)
+
+### Pomodoro Timer
+- **Timer button colors:**
+  - Work + Running: Blue (`bg-blue-50 border-blue-200 text-blue-600`)
+  - Other states: Follow session colors (red for work idle/paused, green for break, blue for long break)
+- **Quick action buttons:**
+  - Play: Blue (`!bg-blue-50 text-blue-600 hover:bg-blue-100`)
+  - Pause: Orange (`!bg-orange-50 text-orange-600 hover:bg-orange-100`)
+- **Compact Mode setting:** Icon-only view with progress bar
+- **Settings:** Work/break durations, sound/notifications/auto-start toggles
+
+### Clock Display
+- **Show Clock setting:** Toggle between full time display or icon-only
+- **Time formats:** 12h/24h toggle buttons
+- **Settings:** Date format, timezone, show seconds/date toggles
+- **Consistent toggle switches:** Same styling as Pomodoro
+
+### Panel Coordination
+```typescript
+// TopBar manages single panel state
+const [openPanel, setOpenPanel] = useState<'pomodoro' | 'clock' | null>(null);
+
+// Components receive external control
+<PomodoroTimer 
+  isExpanded={openPanel === 'pomodoro'}
+  onToggle={() => handlePanelToggle('pomodoro')}
+  onClose={handleClosePanel}
+/>
+```
+
+**Pattern:** Only one TopBar panel open at once, automatic switching between panels.
+
+### Toggle Switch Pattern (Standard)
+```tsx
+<button
+  onClick={() => handleSettingsChange('setting', !settings.setting)}
+  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+    settings.setting ? 'bg-blue-600' : 'bg-gray-200'
+  }`}
+>
+  <span
+    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+      settings.setting ? 'translate-x-6' : 'translate-x-1'
+    }`}
+  />
+</button>
+```
+
+### Settings Panel Structure
+```tsx
+// Consistent settings layout
+<div className="space-y-4 mb-6">
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">Setting Label</label>
+    {/* Input/select/buttons */}
+  </div>
+</div>
+
+<div className="space-y-3 mb-6">
+  <div className="flex items-center justify-between">
+    <div>
+      <Text className="text-sm font-medium text-gray-700 mb-0">Toggle Label</Text>
+      <Text variant="muted" className="text-xs">Description</Text>
+    </div>
+    {/* Toggle switch */}
+  </div>
+</div>
+```
+
 ### Responsive Tables (Contact Pattern)
 ```tsx
 // Screen size detection (required in all list components)
@@ -545,6 +615,12 @@ const { contacts, getNotesForContact } = useApp();
 - ✅ Include cross-plugin references
 - ✅ Add metadata sections
 
+### For TopBar Components
+- ✅ Use external panel coordination
+- ✅ Implement toggle switches with standard styling
+- ✅ Follow color patterns for different states
+- ✅ Include settings persistence in localStorage
+
 ## Migration Guidelines
 
 ### Converting Existing Components
@@ -563,5 +639,5 @@ const { contacts, getNotesForContact } = useApp();
 
 ---
 
-*Last Updated: July 21, 2025*  
-*Version: 2.0 - Complete v7+ styling standardization with Contact patterns as reference*
+*Last Updated: July 23, 2025*  
+*Version: 2.1 - Added TopBar components and panel coordination patterns*

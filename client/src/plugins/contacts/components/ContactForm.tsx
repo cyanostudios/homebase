@@ -184,8 +184,8 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    markDirty(); // Mark as dirty when user makes changes
-    // Don't clear validation errors while typing - let them persist until next save
+    markDirty();
+    clearValidationErrors();
   };
 
   // Helper function to get error for a specific field
