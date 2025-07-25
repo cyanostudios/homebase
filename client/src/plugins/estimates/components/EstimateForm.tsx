@@ -43,17 +43,35 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [totals, setTotals] = useState({ subtotal: 0, totalVat: 0, total: 0 });
+  const [totals, setTotals] = useState({ 
+    subtotal: 0, 
+    totalDiscount: 0, // NEW
+    subtotalAfterDiscount: 0, // NEW
+    totalVat: 0, 
+    total: 0 
+  });
 
   // Load currentEstimate data when editing
   useEffect(() => {
     if (currentEstimate) {
+      // Migrate existing line items to include discount fields
+      const migratedLineItems = (currentEstimate.lineItems || []).map(item => {
+        // If item doesn't have discount fields, add them with defaults
+        if (!item.hasOwnProperty('discount')) {
+          return calculateLineItem({
+            ...item,
+            discount: 0, // Default 0% discount for existing items
+          });
+        }
+        return item;
+      });
+
       setFormData({
         contactId: currentEstimate.contactId || '',
         contactName: currentEstimate.contactName || '',
         organizationNumber: currentEstimate.organizationNumber || '',
         currency: currentEstimate.currency || 'SEK',
-        lineItems: currentEstimate.lineItems || [],
+        lineItems: migratedLineItems,
         notes: currentEstimate.notes || '',
         validTo: new Date(currentEstimate.validTo),
         status: currentEstimate.status || 'draft'
@@ -154,6 +172,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
       description: '',
       quantity: 1,
       unitPrice: 0,
+      discount: 0, // NEW: Default 0% discount
       vatRate: 25,
       sortOrder: formData.lineItems.length
     });
@@ -327,7 +346,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         <Card padding="sm" className="shadow-none px-0">
           <div className="flex items-center justify-between mb-3">
             <Heading level={3}>Line Items</Heading>
-                    <Button
+            <Button
               type="button"
               onClick={addLineItem}
               variant="secondary"
@@ -357,7 +376,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                       className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-none"
                       required
                     />
-                                        <Button
+                    <Button
                       type="button"
                       onClick={() => duplicateLineItem(index)}
                       variant="secondary"
@@ -390,10 +409,16 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                             Unit Price
                           </th>
                           <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Discount %
+                          </th>
+                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             VAT %
                           </th>
                           <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Subtotal
+                          </th>
+                          <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Discount
                           </th>
                           <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                             VAT
@@ -409,10 +434,9 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                             <input
                               type="number"
                               min="0"
-                              step="0.5"
                               value={item.quantity}
                               onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
-                              className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               required
                             />
                           </td>
@@ -420,11 +444,20 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                             <input
                               type="number"
                               min="0"
-                              step="0.5"
                               value={item.unitPrice}
                               onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                              className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               required
+                            />
+                          </td>
+                          <td className="px-2 py-1">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={item.discount || 0}
+                              onChange={(e) => updateLineItem(index, 'discount', parseFloat(e.target.value) || 0)}
+                              className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                             />
                           </td>
                           <td className="px-2 py-1">
@@ -440,13 +473,16 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                             </select>
                           </td>
                           <td className="px-2 py-1 text-right text-sm text-gray-900">
-                            {item.lineSubtotal.toFixed(2)}
+                            {(item.lineSubtotal || 0).toFixed(2)}
                           </td>
                           <td className="px-2 py-1 text-right text-sm text-gray-900">
-                            {item.vatAmount.toFixed(2)}
+                            -{(item.discountAmount || 0).toFixed(2)}
+                          </td>
+                          <td className="px-2 py-1 text-right text-sm text-gray-900">
+                            {(item.vatAmount || 0).toFixed(2)}
                           </td>
                           <td className="px-2 py-1 text-right text-sm font-medium text-gray-900">
-                            {item.lineTotal.toFixed(2)}
+                            {(item.lineTotal || 0).toFixed(2)}
                           </td>
                         </tr>
                       </tbody>
@@ -458,26 +494,34 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
           )}
         </Card>
 
-        {/* Totals Summary */}
-        {formData.lineItems.length > 0 && (
-          <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3">Summary</Heading>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Subtotal:</span>
-                <span className="font-medium">{totals.subtotal.toFixed(2)} {formData.currency}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Total VAT:</span>
-                <span className="font-medium">{totals.totalVat.toFixed(2)} {formData.currency}</span>
-              </div>
-              <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-2">
-                <span>Total:</span>
-                <span>{totals.total.toFixed(2)} {formData.currency}</span>
-              </div>
-            </div>
-          </Card>
-        )}
+{/* Totals Summary */}
+{formData.lineItems.length > 0 && (
+  <Card padding="sm" className="shadow-none px-0">
+    <Heading level={3} className="mb-3">Summary</Heading>
+    <div className="space-y-2">
+      <div className="flex justify-between">
+        <span className="text-sm text-gray-600">Subtotal:</span>
+        <span className="text-sm font-medium text-gray-900">{(totals.subtotal || 0).toFixed(2)} {formData.currency}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-sm text-gray-600">Total Discount:</span>
+        <span className="text-sm font-medium text-gray-900">-{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}</span>
+      </div>
+      <div className="flex justify-between border-t border-gray-200 pt-2">
+        <span className="text-sm text-gray-600">Subtotal after discount:</span>
+        <span className="text-sm font-medium text-gray-900">{(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-sm text-gray-600">Total VAT:</span>
+        <span className="text-sm font-medium text-gray-900">{(totals.totalVat || 0).toFixed(2)} {formData.currency}</span>
+      </div>
+      <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-2">
+        <span>Total:</span>
+        <span>{(totals.total || 0).toFixed(2)} {formData.currency}</span>
+      </div>
+    </div>
+  </Card>
+)}
 
         {/* Notes */}
         <Card padding="sm" className="shadow-none px-0">

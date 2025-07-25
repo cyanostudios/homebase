@@ -5,7 +5,7 @@ import { Calendar, User, FileText, Calculator } from 'lucide-react';
 import { Card } from '@/core/ui/Card';
 import { Button } from '@/core/ui/Button';
 import { Heading } from '@/core/ui/Typography';
-import { Estimate } from '../types/estimate';
+import { Estimate, calculateEstimateTotals } from '../types/estimate';
 
 interface EstimateViewProps {
   estimate: Estimate;
@@ -16,6 +16,9 @@ export function EstimateView({ estimate }: EstimateViewProps) {
   const { saveEstimate, duplicateEstimate } = useEstimates(); // Use EstimateContext for updates
 
   if (!estimate) return null;
+
+  // Calculate totals from line items
+  const totals = calculateEstimateTotals(estimate.lineItems || []);
 
   // Handle status change using EstimateContext
   const handleStatusChange = async (newStatus: string) => {
@@ -100,10 +103,16 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                   Unit Price
                 </th>
                 <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Discount %
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   VAT %
                 </th>
                 <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Subtotal
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Discount
                 </th>
                 <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   VAT
@@ -123,19 +132,25 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                     {item.quantity}
                   </td>
                   <td className="px-4 py-3 text-right text-sm text-gray-900">
-                    {item.unitPrice.toFixed(2)}
+                    {(item.unitPrice || 0).toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-sm text-gray-900">
+                    {(item.discount || 0).toFixed(1)}%
                   </td>
                   <td className="px-4 py-3 text-right text-sm text-gray-900">
                     {item.vatRate}%
                   </td>
                   <td className="px-4 py-3 text-right text-sm text-gray-900">
-                    {item.lineSubtotal.toFixed(2)}
+                    {(item.lineSubtotal || 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 text-right text-sm text-gray-900">
-                    {item.vatAmount.toFixed(2)}
+                    -{(item.discountAmount || 0).toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-sm text-gray-900">
+                    {(item.vatAmount || 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                    {item.lineTotal.toFixed(2)}
+                    {(item.lineTotal || 0).toFixed(2)}
                   </td>
                 </tr>
               ))}
@@ -151,17 +166,27 @@ export function EstimateView({ estimate }: EstimateViewProps) {
         <div className="space-y-3">
           <div className="flex justify-between">
             <span className="text-sm text-gray-600">Subtotal:</span>
-            <span className="text-sm font-medium text-gray-900">{estimate.subtotal.toFixed(2)} {estimate.currency}</span>
+            <span className="text-sm font-medium text-gray-900">{totals.subtotal.toFixed(2)} {estimate.currency}</span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-600">Total Discount:</span>
+            <span className="text-sm font-medium text-gray-900">-{totals.totalDiscount.toFixed(2)} {estimate.currency}</span>
+          </div>
+          
+          <div className="flex justify-between border-t border-gray-200 pt-3">
+            <span className="text-sm text-gray-600">Subtotal after discount:</span>
+            <span className="text-sm font-medium text-gray-900">{totals.subtotalAfterDiscount.toFixed(2)} {estimate.currency}</span>
           </div>
           
           <div className="flex justify-between">
             <span className="text-sm text-gray-600">Total VAT:</span>
-            <span className="text-sm font-medium text-gray-900">{estimate.totalVat.toFixed(2)} {estimate.currency}</span>
+            <span className="text-sm font-medium text-gray-900">{totals.totalVat.toFixed(2)} {estimate.currency}</span>
           </div>
           
           <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-3">
             <span>Total:</span>
-            <span>{estimate.total.toFixed(2)} {estimate.currency}</span>
+            <span>{totals.total.toFixed(2)} {estimate.currency}</span>
           </div>
         </div>
       </Card>
