@@ -2,7 +2,7 @@
 
 ## Overview
 
-This style guide defines the visual and interaction patterns for Homebase's plugin-based architecture. All components should follow these patterns to maintain consistency across the application.
+This guide defines visual and interaction standards for Homebase's plugin-based architecture. All components follow standardized patterns to maintain consistency and optimize user experience across desktop and mobile devices.
 
 ## Design System
 
@@ -10,503 +10,588 @@ This style guide defines the visual and interaction patterns for Homebase's plug
 
 #### Primary Colors
 ```css
-/* Blue (Primary) */
-blue-50: #eff6ff    /* Light backgrounds, selected states */
+/* Blue (Primary Brand) */
+blue-50: #eff6ff    /* Light backgrounds, hover states */
 blue-500: #3b82f6   /* Primary buttons, focus rings */
-blue-600: #2563eb   /* Brand elements, icons */
-blue-700: #1d4ed8   /* Active states, hover */
-blue-800: #1e40af   /* Text on light blue backgrounds */
+blue-600: #2563eb   /* Brand elements, active states */
+blue-700: #1d4ed8   /* Hover states, emphasis */
 
-/* Gray Scale */
+/* Gray Scale (Interface) */
 gray-50: #f9fafb    /* Table headers, disabled backgrounds */
-gray-100: #f3f4f6   /* Borders, dividers */
+gray-100: #f3f4f6   /* Subtle borders, dividers */
 gray-200: #e5e7eb   /* Input borders, card borders */
-gray-300: #d1d5db   /* Default input borders */
-gray-400: #9ca3af   /* Icons, placeholder text */
-gray-500: #6b7280   /* Secondary text, muted content */
+gray-300: #d1d5db   /* Default borders */
+gray-500: #6b7280   /* Secondary text, placeholders */
 gray-600: #4b5563   /* Body text */
-gray-700: #374151   /* Headings, labels */
-gray-800: #1f2937   /* Primary text */
-gray-900: #111827   /* High emphasis text */
+gray-700: #374151   /* Labels, emphasis */
+gray-900: #111827   /* High emphasis text, headings */
 ```
 
 #### Status Colors
 ```css
-/* Success/Green */
-green-100: #dcfce7  /* Success background */
-green-500: #22c55e  /* Success icons */
-green-600: #16a34a  /* Success text */
-green-800: #166534  /* Success emphasis */
+/* Success (Green) */
+green-50: #f0fdf4   /* Success button backgrounds */
+green-500: #22c55e  /* Success icons, accepted states */
+green-700: #15803d  /* Success text */
 
-/* Warning/Yellow */
-yellow-50: #fefce8  /* Warning background */
-yellow-100: #fef3c7 /* Warning background */
-yellow-600: #ca8a04 /* Warning text */
-yellow-700: #a16207 /* Warning emphasis */
+/* Warning (Yellow) */
+yellow-50: #fefce8  /* Warning backgrounds */
+yellow-600: #ca8a04 /* Warning text and icons */
 
-/* Error/Red */
-red-50: #fef2f2     /* Error background */
-red-200: #fecaca    /* Error border */
-red-400: #f87171    /* Error icons */
-red-500: #ef4444    /* Error borders */
+/* Error (Red) */
+red-50: #fef2f2     /* Error backgrounds */
+red-500: #ef4444    /* Error borders, rejected states */
 red-600: #dc2626    /* Error text */
-red-700: #b91c1c    /* Error emphasis */
-red-800: #991b1b    /* Error on light backgrounds */
 ```
 
 ### Typography
 
-#### Font Sizes
+#### Font Sizes (Standardized Hierarchy)
 ```css
-text-xs: 12px       /* Captions, badges, meta info */
-text-sm: 14px       /* Body text, table cells, buttons */
+text-xs: 12px       /* Labels, metadata, table data */
+text-sm: 14px       /* Body text, content, buttons */
 text-base: 16px     /* Form inputs, primary content */
-text-lg: 18px       /* Subheadings */
-text-xl: 20px       /* Section headings */
-text-2xl: 24px      /* Page titles */
+text-2xl: 24px      /* Page titles only */
 ```
 
 #### Font Weights
 ```css
-font-medium: 500    /* Labels, table headers, emphasis */
-font-semibold: 600  /* Headings, important text */
-font-bold: 700      /* Major headings (rare) */
+font-medium: 500    /* Table headers, emphasis */
+font-semibold: 600  /* Section headings, important text */
 ```
 
-#### Line Heights
-```css
-leading-tight: 1.25 /* Headings */
-leading-normal: 1.5 /* Body text, paragraphs */
+#### Typography Patterns
+```typescript
+// Page titles
+<Heading level={1}>Page Title</Heading>
+
+// Section titles (standardized)
+<Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+  Section Title
+</Heading>
+
+// Labels and content in views
+<div className="text-xs text-gray-500">Label</div>
+<div className="text-sm text-gray-900">Content</div>
 ```
 
 ### Spacing
 
-#### Padding & Margins
+#### Component Spacing (Contact-Standard)
 ```css
-/* Component Spacing */
-p-4: 16px          /* Card padding (mobile) */
-p-6: 24px          /* Card padding (desktop), form padding */
-px-3: 12px         /* Input horizontal padding */
-py-1.5: 6px        /* Input vertical padding */
-py-2: 8px          /* Textarea padding */
-mb-1: 4px          /* Label margin bottom */
-mb-3: 12px         /* Section spacing */
-gap-3: 12px        /* Grid gaps */
-space-y-3: 12px    /* Vertical spacing between elements */
-space-y-4: 16px    /* Section spacing */
+/* Card Structure */
+Card padding="sm" className="shadow-none px-0"
+
+/* Section Spacing */
+space-y-4: 16px     /* Between major sections */
+mb-3: 12px          /* Section heading margin */
+
+/* Grid Spacing (Responsive) */
+space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3
+
+/* Page Padding */
+p-4 sm:p-8          /* Page content padding */
 ```
 
-#### Layout Spacing
-```css
-/* Page Layout */
-p-4: 16px          /* Mobile page padding */
-p-6: 24px          /* Desktop page padding */
-mb-6: 24px         /* Page header margin */
-mb-8: 32px         /* Large section spacing */
-```
+## Component Standards
 
-## Components
-
-### Buttons
-
-#### Variants
-```tsx
-// Primary - Main actions
-<Button variant="primary" icon={Plus}>Save</Button>
-// Classes: bg-blue-500 text-white hover:bg-blue-600
-
-// Secondary - Secondary actions  
-<Button variant="secondary" icon={Edit}>Edit</Button>
-// Classes: bg-gray-100 text-gray-700 hover:bg-gray-200
-
-// Danger - Destructive actions
-<Button variant="danger" icon={Trash2}>Delete</Button>
-// Classes: bg-red-500 text-white hover:bg-red-600
-
-// Ghost - Subtle actions
-<Button variant="ghost" icon={Eye}>View</Button>
-// Classes: bg-transparent text-gray-600 hover:bg-gray-100
-```
-
-#### Sizes
-```tsx
-// Default size
-<Button>Normal Button</Button>
-
-// Small size - for table actions, secondary actions
-<Button size="sm">Small Button</Button>
-```
-
-### Form Elements
-
-#### Input Fields
-```tsx
-// Standard input styling
-<input
-  type="text"
-  className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-/>
-
-// Error state
-<input
-  className="w-full px-3 py-1.5 text-base border border-red-500 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-/>
-```
-
-#### Select Dropdowns
-```tsx
-<select className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-  <option>Option 1</option>
-</select>
-```
-
-#### Textareas
-```tsx
-<textarea
-  rows={4}
-  className="w-full px-3 py-2 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
-/>
-```
-
-#### Labels
-```tsx
-<label className="block text-sm font-medium text-gray-700 mb-1">
-  Field Label
-</label>
-```
-
-#### Error Messages
-```tsx
-// Error text
-<p className="mt-1 text-sm text-red-600">This field is required</p>
-
-// Warning text  
-<p className="mt-1 text-sm text-yellow-600">Email already exists (Warning)</p>
-```
-
-### Cards
-
-#### Standard Card
-```tsx
-<Card padding="md">
-  <Heading level={3} className="mb-3">Section Title</Heading>
-  {/* Content */}
-</Card>
-```
-
-#### Card Classes
-```css
-/* Card base styling */
-.card {
-  background: white;
-  border: 1px solid #e5e7eb; /* gray-200 */
-  border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-/* Card padding variants */
-padding="md": 16px /* p-4 */
-```
-
-### Tables
-
-#### Desktop Table Structure
-```tsx
-<Card>
-  <div className="overflow-x-auto">
-    <table className="w-full">
-      <thead className="bg-gray-50">
-        <tr>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Header
-          </th>
-        </tr>
-      </thead>
-      <tbody className="bg-white divide-y divide-gray-200">
-        <tr className="hover:bg-gray-50">
-          <td className="px-6 py-4 whitespace-nowrap">
-            <div className="text-sm font-medium text-gray-900">Content</div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+### Card Structure (Standardized)
+```typescript
+<Card padding="sm" className="shadow-none px-0">
+  <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+    Section Title
+  </Heading>
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    {/* Content */}
   </div>
 </Card>
 ```
 
-#### Table Typography
-```css
-/* Headers */
-text-xs font-medium text-gray-500 uppercase tracking-wider
-
-/* Cell content - primary */
-text-sm font-medium text-gray-900
-
-/* Cell content - secondary */
-text-sm text-gray-500
-
-/* Cell spacing */
-px-6 py-4 /* Standard cell padding */
-px-6 py-3 /* Header padding */
+### Form Layout (Complete Pattern)
+```typescript
+<div className="space-y-4">
+  <form className="space-y-4">
+    {/* Validation Summary */}
+    {hasBlockingErrors && (
+      <Card padding="sm" className="shadow-none px-0">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-gray-900">{item.name}</h3>
+              <div className="text-xs text-gray-600">{item.details}</div>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              icon={Eye}
+              onClick={() => openForView(item)}
+              className="h-8 px-3"
+            >
+              View
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</Card>
 ```
 
-### Status Badges
-
-#### Badge Variants
-```tsx
-// Company/Success
-<span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-  Company
-</span>
-
-// Private/Info
-<span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-  Private
-</span>
-
-// Draft
-<span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-  Draft
-</span>
-
-// Sent
-<span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-  Sent
-</span>
-
-// Accepted
-<span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-  Accepted
-</span>
-
-// Rejected
-<span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
-  Rejected
-</span>
+### Form Field Patterns
+```typescript
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Field Label
+  </label>
+  <input
+    type="text"
+    value={value}
+    onChange={(e) => updateField('field', e.target.value)}
+    className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+      getFieldError('field') ? 'border-red-500' : 'border-gray-300'
+    }`}
+    required
+  />
+  {getFieldError('field') && (
+    <p className="mt-1 text-sm text-red-600">{getFieldError('field')?.message}</p>
+  )}
+</div>
 ```
 
-### Error/Validation States
+## Universal Keyboard Navigation
 
-#### Validation Summary
-```tsx
-<Card padding="md">
-  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-    <div className="flex items-center">
-      <div className="flex-shrink-0">
-        <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-          {/* Error icon */}
-        </svg>
+### Required Table Row Attributes
+All list components must support keyboard navigation:
+
+```typescript
+<tr 
+  className="hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer"
+  tabIndex={0}
+  data-list-item={JSON.stringify(item)}
+  data-plugin-name="plugin-name"
+  role="button"
+  aria-label={`Open ${item.title}`}
+  onClick={() => openForView(item)}
+>
+```
+
+### Color Themes by Plugin
+- **Contacts**: Blue (`hover:bg-blue-50 focus:bg-blue-100 focus:ring-blue-500`)
+- **Notes**: Yellow (`hover:bg-yellow-50 focus:bg-yellow-100 focus:ring-yellow-500`)  
+- **Estimates**: Blue (`hover:bg-blue-50 focus:bg-blue-100 focus:ring-blue-500`)
+
+### Navigation Features
+- **Space Key**: Opens focused item in view mode or closes open panel
+- **Arrow Keys**: Navigate up/down through table rows with wrapping
+- **Visual Feedback**: Clear focus indicators and hover states
+
+## Plugin-Specific Patterns
+
+### Status Management (Enhanced Pattern)
+```typescript
+<div className="flex flex-wrap gap-2">
+  <Button 
+    variant={status === 'draft' ? 'secondary' : 'ghost'} 
+    size="sm"
+    className={status === 'draft' 
+      ? 'bg-gray-100 text-gray-800 ring-2 ring-gray-300' 
+      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+    }
+    onClick={() => handleStatusChange('draft')}
+  >
+    Draft
+  </Button>
+  <Button 
+    variant={status === 'sent' ? 'primary' : 'ghost'} 
+    size="sm"
+    className={status === 'sent' 
+      ? 'bg-blue-500 text-white ring-2 ring-blue-300' 
+      : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+    }
+    onClick={() => handleStatusChange('sent')}
+  >
+    Sent
+  </Button>
+  <Button 
+    variant={status === 'accepted' ? 'primary' : 'ghost'} 
+    size="sm"
+    className={status === 'accepted' 
+      ? 'bg-green-500 text-white ring-2 ring-green-300' 
+      : 'bg-green-50 text-green-700 hover:bg-green-100'
+    }
+    onClick={() => handleStatusChange('accepted')}
+  >
+    Accepted
+  </Button>
+  <Button 
+    variant={status === 'rejected' ? 'danger' : 'ghost'} 
+    size="sm"
+    className={status === 'rejected' 
+      ? 'bg-red-500 text-white ring-2 ring-red-300' 
+      : 'bg-red-50 text-red-700 hover:bg-red-100'
+    }
+    onClick={() => handleStatusChange('rejected')}
+  >
+    Rejected
+  </Button>
+</div>
+```
+
+### Cross-Plugin Mentions
+```typescript
+// Notes list with mention display
+<td className="px-6 py-4 whitespace-nowrap">
+  {note.mentions && note.mentions.length > 0 && (
+    <div className="flex flex-col items-start gap-0.5">
+      {note.mentions.slice(0, 2).map((mention, index) => (
+        <span key={index} className="text-xs text-blue-600">
+          @{mention.contactName}
+        </span>
+      ))}
+      {note.mentions.length > 2 && (
+        <span className="text-xs text-gray-400">
+          +{note.mentions.length - 2} more
+        </span>
+      )}
+    </div>
+  )}
+</td>
+
+// Mobile mention display
+{note.mentions && note.mentions.length > 0 && (
+  <div className="flex items-center gap-1 flex-wrap">
+    {note.mentions.slice(0, 2).map((mention, index) => (
+      <span key={index} className="text-xs text-blue-600">
+        @{mention.contactName}
+      </span>
+    ))}
+    {note.mentions.length > 2 && (
+      <span className="text-xs text-gray-400">
+        +{note.mentions.length - 2} more
+      </span>
+    )}
+  </div>
+)}
+```
+
+### Dynamic Panel Headers
+```typescript
+// Enhanced panel titles with rich content
+const getPanelTitle = () => {
+  if (mode === 'view' && item) {
+    if (plugin.name === 'contacts') {
+      return `#${item.contactNumber} • ${item.companyName} • ${item.organizationNumber}`;
+    } else if (plugin.name === 'estimates') {
+      return `${item.estimateNumber} • ${item.contactName} • ${item.total} ${item.currency}`;
+    }
+  }
+  return mode === 'edit' ? `Edit ${itemType}` : `Create ${itemType}`;
+};
+
+// Dynamic panel subtitles with icons and status
+const getPanelSubtitle = () => {
+  if (mode === 'view' && item) {
+    if (plugin.name === 'estimates') {
+      return (
+        <div className="flex items-center gap-2">
+          <Calculator className="w-4 h-4 text-blue-600" />
+          <StatusBadge status={item.status} />
+          <span className="text-xs text-gray-600">• Valid to {validTo}</span>
+        </div>
+      );
+    }
+  }
+  return `${mode === 'edit' ? 'Update' : 'Enter new'} ${itemType} information`;
+};
+```
+
+## Page Layout Standards
+
+### Page Header Pattern
+```typescript
+<div className="p-4 sm:p-8">
+  <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <Heading level={1}>Page Title</Heading>
+      <Text variant="caption">Page description</Text>
+    </div>
+    <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+      {/* Search Controls */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        <input
+          type="text"
+          placeholder="Search items..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
       </div>
-      <div className="ml-3">
-        <h3 className="text-sm font-medium text-red-800">
-          Cannot save item
-        </h3>
-        <div className="mt-2 text-sm text-red-700">
-          <p>Please fix the following errors before saving:</p>
-          <ul className="list-disc list-inside mt-1">
-            <li>Error message 1</li>
-            <li>Error message 2</li>
-          </ul>
+      <Button
+        onClick={() => openPanel(null)}
+        variant="primary"
+        icon={Plus}
+      >
+        Add Item
+      </Button>
+    </div>
+  </div>
+</div>
+```
+
+### Global Form Functions (Required)
+All form components must implement global functions for the UniversalPanel:
+
+```typescript
+// Required in all form components (CRITICAL: Plural naming)
+useEffect(() => {
+  window.submitPluginNameForm = handleSubmit; // Must be plural!
+  window.cancelPluginNameForm = handleCancel; // Must be plural!
+  
+  return () => {
+    delete window.submitPluginNameForm;
+    delete window.cancelPluginNameForm;
+  };
+}, [handleSubmit, handleCancel]);
+```
+
+## Validation & Error Handling
+
+### Error Summary Pattern (Standardized)
+```typescript
+{hasBlockingErrors && (
+  <Card padding="sm" className="shadow-none px-0">
+    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+      <div className="flex items-center">
+        <div className="flex-shrink-0">
+          <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div className="ml-3">
+          <h3 className="text-sm font-medium text-red-800">
+            Cannot save item
+          </h3>
+          <div className="mt-2 text-sm text-red-700">
+            <p>Please fix the following errors before saving:</p>
+            <ul className="list-disc list-inside mt-1">
+              {validationErrors
+                .filter(error => !error.message.includes('Warning'))
+                .map((error, index) => (
+                  <li key={index}>{error.message}</li>
+                ))}
+            </ul>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-</Card>
+  </Card>
+)}
 ```
 
-## Layout Patterns
+### Field Validation Pattern
+```typescript
+// Helper function (required in all forms)
+const getFieldError = (fieldName: string) => {
+  return validationErrors.find(error => error.field === fieldName);
+};
 
-### Form Layout
+// Field with error display
+<input
+  className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+    getFieldError('fieldName') ? 'border-red-500' : 'border-gray-300'
+  }`}
+/>
+{getFieldError('fieldName') && (
+  <p className="mt-1 text-sm text-red-600">{getFieldError('fieldName')?.message}</p>
+)}
+```
 
-#### Standard Form Structure
-```tsx
-<div className="p-6 space-y-4">
-  <form className="space-y-4">
-    {/* Validation Summary */}
-    {hasErrors && <ValidationSummary />}
+## Performance Guidelines
+
+### Responsive Design Requirements
+```typescript
+// Required screen size detection in all list components
+const [isMobileView, setIsMobileView] = useState(false);
+
+useEffect(() => {
+  const checkScreenSize = () => {
+    setIsMobileView(window.innerWidth < 768);
+  };
+  checkScreenSize();
+  window.addEventListener('resize', checkScreenSize);
+  return () => window.removeEventListener('resize', checkScreenSize);
+}, []);
+```
+
+### Loading States
+```typescript
+// Empty state pattern
+{items.length === 0 ? (
+  <tr>
+    <td colSpan={columns} className="px-6 py-12 text-center text-gray-400">
+      {searchTerm ? 'No items found matching your search.' : 'No items yet. Click "Add Item" to get started.'}
+    </td>
+  </tr>
+) : (
+  // Render items
+)}
+```
+
+## Implementation Checklist
+
+### For New Components
+- ✅ Follow Card structure with `shadow-none px-0`
+- ✅ Implement mobile-first responsive design with conditional rendering
+- ✅ Use standardized typography (`text-xs` labels, `text-sm` content)
+- ✅ Include proper error handling and validation summary
+- ✅ Add keyboard navigation support with required attributes
+- ✅ Use plugin-specific color themes for focus states
+- ✅ Implement proper loading and empty states
+
+### For Forms
+- ✅ Use responsive grid layout (`space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3`)
+- ✅ Implement global form functions with plural naming
+- ✅ Add validation summary at top with error icon
+- ✅ Include unsaved changes protection
+- ✅ Use proper field validation patterns
+
+### For Lists
+- ✅ Implement mobile/desktop conditional rendering
+- ✅ Add sortable headers with icons where appropriate
+- ✅ Include search functionality with proper styling
+- ✅ Use alternating row colors and keyboard navigation
+- ✅ Add proper empty states with helpful messages
+
+### For Views
+- ✅ Use reduced typography hierarchy (`text-sm`, `text-xs`)
+- ✅ Section headers with `text-sm font-semibold text-gray-900`
+- ✅ Add `hr` dividers between major sections
+- ✅ Include cross-plugin references where applicable
+- ✅ Add metadata sections with consistent formatting
+
+## Quality Assurance
+
+### Testing Requirements
+- **Mobile Testing**: Verify functionality on devices with width < 768px
+- **Keyboard Navigation**: Test Tab and Space key navigation
+- **Cross-Plugin**: Verify @mentions and navigation work correctly
+- **Typography**: Check text sizes match standardized hierarchy
+- **Error Handling**: Test validation and loading states
+- **Responsive**: Confirm table/card switching works properly
+
+### Browser Compatibility
+- Chrome 90+ (primary development target)
+- Safari 14+ (production requirement)
+- Firefox 90+ (supported)
+- Mobile Safari and Chrome (full responsive support)
+
+---
+
+**Design Philosophy:** Mobile-first responsive design with consistent patterns  
+**Performance:** Optimized components with conditional rendering  
+**Accessibility:** Keyboard navigation and screen reader support  
+**Maintenance:** Standardized patterns reduce development time
+
+*Use contacts plugin components as reference implementation for all patterns.*
+
+*Last Updated: July 25, 2025*-medium text-red-800">Cannot save item</h3>
+              <ul className="list-disc list-inside mt-1 text-sm text-red-700">
+                {validationErrors.map((error, index) => (
+                  <li key={index}>{error.message}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </Card>
+    )}
     
     {/* Form Sections */}
-    <Card padding="md">
+    <Card padding="sm" className="shadow-none px-0">
       <Heading level={3} className="mb-3">Section Title</Heading>
       <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
-        {/* Form fields */}
+        {/* Form fields with responsive grid */}
       </div>
     </Card>
   </form>
 </div>
 ```
 
-#### Responsive Grid Pattern
-```tsx
-// Two-column responsive grid
-<div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
-  <div>Field 1</div>
-  <div>Field 2</div>
-</div>
-
-// Full-width field in grid
-<div className="md:col-span-2">
-  <input className="w-full" />
-</div>
-```
-
-### List/Table Layout
-
-#### Page Header Pattern
-```tsx
-<div className="p-4 sm:p-6">
-  <div className="mb-6 flex items-center justify-between">
-    <div>
-      <h1 className="text-2xl font-semibold text-gray-900">Page Title</h1>
-      <p className="text-gray-600">Page description</p>
+### View Layout (Standardized)
+```typescript
+<div className="space-y-4">
+  <Card padding="sm" className="shadow-none px-0">
+    <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+      Section Title
+    </Heading>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <div className="text-xs text-gray-500">Label</div>
+        <div className="text-sm text-gray-900">Content</div>
+      </div>
     </div>
-    <Button variant="primary" icon={Plus}>
-      Add Item
-    </Button>
-  </div>
-  
-  {/* Search and filters */}
-  <div className="mb-4 flex items-center gap-4">
-    {/* Search input and controls */}
-  </div>
-  
-  {/* Table/List content */}
-  <Card>
-    {/* Table or card list */}
   </Card>
+
+  <hr className="border-gray-100" />
+  
+  {/* Next section */}
 </div>
 ```
 
-### Mobile Responsive Patterns
+## Responsive Design
 
-#### Mobile Card List
-```tsx
-// Mobile-first responsive design
-const [isMobile, setIsMobile] = useState(false);
+### Mobile-First Approach
+All components must implement responsive design with conditional rendering:
+
+```typescript
+const [isMobileView, setIsMobileView] = useState(false);
 
 useEffect(() => {
-  const checkMobile = () => setIsMobile(window.innerWidth < 768);
-  checkMobile();
-  window.addEventListener('resize', checkMobile);
-  return () => window.removeEventListener('resize', checkMobile);
+  const checkScreenSize = () => {
+    setIsMobileView(window.innerWidth < 768); // md breakpoint
+  };
+  checkScreenSize();
+  window.addEventListener('resize', checkScreenSize);
+  return () => window.removeEventListener('resize', checkScreenSize);
 }, []);
-
-// Conditional rendering
-{isMobile ? (
-  <div className="space-y-3">
-    {items.map(item => (
-      <Card key={item.id} className="p-4">
-        {/* Mobile card content */}
-      </Card>
-    ))}
-  </div>
-) : (
-  <table className="w-full">
-    {/* Desktop table */}
-  </table>
-)}
 ```
 
-## Animation & Interactions
-
-### Hover States
-```css
-/* Buttons */
-hover:bg-blue-600   /* Primary button hover */
-hover:bg-gray-200   /* Secondary button hover */
-
-/* Table rows */
-hover:bg-gray-50    /* Table row hover */
-
-/* Interactive elements */
-hover:text-blue-800 /* Link hover */
-```
-
-### Focus States
-```css
-/* Form inputs */
-focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-
-/* Buttons */
-focus:outline-none focus:ring-2 focus:ring-blue-500
-```
-
-### Transitions
-```css
-/* Standard transition */
-transition-colors duration-200
-
-/* Button transitions */
-transition-all duration-200
-```
-
-## Accessibility
-
-### Color Contrast
-- Ensure text meets WCAG AA standards (4.5:1 ratio)
-- Use color + text/icons for status indication
-- Test with colorblind simulation
-
-### Focus Management
-- Visible focus indicators on all interactive elements
-- Logical tab order
-- Skip links for navigation
-
-### Semantic HTML
-- Use proper heading hierarchy (h1 → h2 → h3)
-- Form labels associated with inputs
-- ARIA labels for icon-only buttons
-
-## Usage Guidelines
-
-### DO
-- ✅ Use established component patterns
-- ✅ Follow responsive grid layouts
-- ✅ Maintain consistent spacing (space-y-3, space-y-4)
-- ✅ Use semantic HTML elements
-- ✅ Test on mobile devices
-- ✅ Include error states and validation
-- ✅ Use icons from Lucide React consistently
-
-### DON'T
-- ❌ Create custom styling outside the design system
-- ❌ Use arbitrary spacing values
-- ❌ Mix different input styling patterns
-- ❌ Skip error handling and validation states
-- ❌ Ignore mobile responsive design
-- ❌ Create inconsistent button variants
-
-## Plugin-Specific Guidelines
-
-### Form Plugins (Create/Edit)
-- Use Card structure with Heading for sections
-- Implement `space-y-4` between sections
-- Include validation summary at top
-- Use responsive grid for field layout
-- Add unsaved changes protection
-
-### List Plugins (Overview)
-- Implement mobile-first responsive design
-- Use search and sort controls
-- Include empty states with helpful messaging
-- Provide clear action buttons
-- Use status badges consistently
-
-### View Plugins (Detail)
-- Use Card sections for information groups
-- Include cross-plugin references where applicable
-- Show metadata (created/updated dates)
-- Provide clear action buttons for edit/delete
-
-## Future Enhancements
-
-This style guide will be updated as we:
-- Add new component patterns
-- Refine existing designs
-- Introduce new plugin types
-- Expand the design system
-
----
-
-*Last Updated: July 19, 2025*  
-*Version: 1.0 - Initial style guide based on contacts, notes, and estimates plugins*
+### Responsive Tables (Required Pattern)
+```typescript
+<Card>
+  {/* Desktop Table View */}
+  {!isMobileView ? (
+    <table className="w-full">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+              onClick={() => handleSort('field')}>
+            <div className="flex items-center gap-1">
+              Header
+              <SortIcon field="field" />
+            </div>
+          </th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {items.map((item, idx) => (
+          <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <div className="text-sm font-medium text-gray-900">{item.name}</div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ) : (
+    /* Mobile Card View */
+    <div className="divide-y divide-gray-200">
+      {items.map((item) => (
+        <div key={item.id} className="p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font
