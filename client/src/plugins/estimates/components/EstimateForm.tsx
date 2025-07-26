@@ -163,6 +163,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         currency: contact.currency || 'SEK'
       }));
       markDirty();
+      clearValidationErrors(); // Add this line to clear errors when customer changes
     }
   };
 

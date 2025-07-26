@@ -5,6 +5,7 @@ import { Button } from '@/core/ui/Button';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { calculateEstimateTotals } from '../types/estimate';
 
 type SortField = 'estimateNumber' | 'contactName' | 'total' | 'createdAt';
 type SortOrder = 'asc' | 'desc';
@@ -252,10 +253,10 @@ export function EstimateList() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {estimate.total.toFixed(2)} {estimate.currency}
+                        {calculateEstimateTotals(estimate.lineItems || []).total.toFixed(2)} {estimate.currency}
                       </div>
                       <div className="text-xs text-gray-500">
-                        VAT: {estimate.totalVat.toFixed(2)} {estimate.currency}
+                        VAT: {calculateEstimateTotals(estimate.lineItems || []).totalVat.toFixed(2)} {estimate.currency}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -337,7 +338,7 @@ export function EstimateList() {
                           {estimate.lineItems.length} item{estimate.lineItems.length !== 1 ? 's' : ''}
                         </div>
                         <div className="text-sm font-medium text-gray-900">
-                          {estimate.total.toFixed(2)} {estimate.currency}
+                          {calculateEstimateTotals(estimate.lineItems || []).total.toFixed(2)} {estimate.currency}
                         </div>
                       </div>
                     </div>

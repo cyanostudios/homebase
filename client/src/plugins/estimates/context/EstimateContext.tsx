@@ -68,15 +68,17 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
     }
   };
 
-  // Helper function to generate next estimate number
-  const generateNextEstimateNumber = (): string => {
-    const existingNumbers = estimates.map(estimate => {
-      const match = estimate.estimateNumber.match(/\d+/);
-      return match ? parseInt(match[0]) : 0;
-    });
-    const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
-    const nextNumber = maxNumber + 1;
-    return `EST-${nextNumber.toString().padStart(3, '0')}`;
+  // Helper function to generate next estimate number from database
+  const generateNextEstimateNumber = async (): Promise<string> => {
+    try {
+      const result = await estimatesApi.getNextEstimateNumber();
+      return result.estimateNumber;
+    } catch (error) {
+      console.error('Failed to get next estimate number:', error);
+      // Fallback to timestamp-based number if API fails
+      const timestamp = Date.now().toString().slice(-6);
+      return `2025-${timestamp}`;
+    }
   };
 
   const validateEstimate = (estimateData: any): ValidationError[] => {
@@ -202,8 +204,14 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
         setEstimatePanelMode('view');
         setValidationErrors([]);
       } else {
-        // Create new estimate
-        savedEstimate = await estimatesApi.createEstimate(estimateData);
+        // Create new estimate - get next number from database
+        const estimateNumber = await generateNextEstimateNumber();
+        const newEstimateData = {
+          ...estimateData,
+          estimateNumber
+        };
+        
+        savedEstimate = await estimatesApi.createEstimate(newEstimateData);
         setEstimates(prev => [...prev, {
           ...savedEstimate,
           validTo: new Date(savedEstimate.validTo),
@@ -237,14 +245,18 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
 
   const duplicateEstimate = async (originalEstimate: Estimate) => {
     try {
+      
+      const estimateNumber = await generateNextEstimateNumber();
+     
+      
       const duplicateData = {
         ...originalEstimate,
-        estimateNumber: generateNextEstimateNumber(),
+        estimateNumber, // Use database-generated number
         status: 'draft' as const,
-        validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         lineItems: originalEstimate.lineItems.map(item => ({
           ...item,
-          id: `${Date.now()}-${Math.random()}`, // New unique ID for each line item
+          id: `${Date.now()}-${Math.random()}`,
         })),
       };
       

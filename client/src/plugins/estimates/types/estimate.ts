@@ -89,28 +89,33 @@ export function calculateLineItem(item: Partial<LineItem>): LineItem {
 
 export function calculateEstimateTotals(lineItems: LineItem[]): {
   subtotal: number;
-  totalDiscount: number; // NEW
-  subtotalAfterDiscount: number; // NEW
+  totalDiscount: number;
+  subtotalAfterDiscount: number;
   totalVat: number;
   total: number;
 } {
   let subtotal = 0;
-  let totalDiscount = 0; // NEW
+  let totalDiscount = 0;
   let totalVat = 0;
   
   lineItems.forEach(item => {
-    subtotal += item.lineSubtotal;
-    totalDiscount += item.discountAmount; // NEW
-    totalVat += item.vatAmount;
+    // Handle old estimates that don't have discount fields
+    const lineSubtotal = item.lineSubtotal || ((item.quantity || 0) * (item.unitPrice || 0));
+    const discountAmount = item.discountAmount || 0;
+    const vatAmount = item.vatAmount || (lineSubtotal * ((item.vatRate || 25) / 100));
+    
+    subtotal += lineSubtotal;
+    totalDiscount += discountAmount;
+    totalVat += vatAmount;
   });
   
-  const subtotalAfterDiscount = subtotal - totalDiscount; // NEW
+  const subtotalAfterDiscount = subtotal - totalDiscount;
   const total = subtotalAfterDiscount + totalVat;
   
   return {
     subtotal: Math.round(subtotal * 100) / 100,
-    totalDiscount: Math.round(totalDiscount * 100) / 100, // NEW
-    subtotalAfterDiscount: Math.round(subtotalAfterDiscount * 100) / 100, // NEW
+    totalDiscount: Math.round(totalDiscount * 100) / 100,
+    subtotalAfterDiscount: Math.round(subtotalAfterDiscount * 100) / 100,
     totalVat: Math.round(totalVat * 100) / 100,
     total: Math.round(total * 100) / 100,
   };

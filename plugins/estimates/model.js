@@ -14,25 +14,74 @@ class EstimateModel {
   }
 
   async getNextEstimateNumber(userId) {
-    const currentYear = new Date().getFullYear();
-    const result = await this.pool.query(`
-      SELECT estimate_number FROM estimates 
-      WHERE user_id = $1 AND estimate_number LIKE $2 
-      ORDER BY estimate_number DESC LIMIT 1
-    `, [userId, `${currentYear}-%`]);
+    const client = await this.pool.connect();
     
-    if (!result.rows.length) {
-      return `${currentYear}-001`;
+    try {
+      await client.query('BEGIN');
+      
+      const currentYear = new Date().getFullYear();
+      let nextNumber;
+      let estimateNumber;
+      let attempts = 0;
+      const maxAttempts = 1000; // Säkerhet mot oändlig loop
+      
+      do {
+        // Get or create sequence for this user
+        let result = await client.query(
+          'SELECT last_estimate_number FROM estimate_sequences WHERE user_id = $1',
+          [userId]
+        );
+        
+        if (result.rows.length === 0) {
+          // First estimate for this user
+          await client.query(
+            'INSERT INTO estimate_sequences (user_id, last_estimate_number) VALUES ($1, 1)',
+            [userId]
+          );
+          nextNumber = 1;
+        } else {
+          // Increment existing sequence
+          nextNumber = result.rows[0].last_estimate_number + 1;
+          await client.query(
+            'UPDATE estimate_sequences SET last_estimate_number = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+            [nextNumber, userId]
+          );
+        }
+        
+        estimateNumber = `${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
+        
+        // Check if this number already exists
+        const existsResult = await client.query(
+          'SELECT id FROM estimates WHERE estimate_number = $1',
+          [estimateNumber]
+        );
+        
+        if (existsResult.rows.length === 0) {
+          // Number is available, we can use it
+          break;
+        }
+        
+        attempts++;
+        if (attempts >= maxAttempts) {
+          throw new Error('Could not find available estimate number');
+        }
+        
+      } while (true);
+      
+      await client.query('COMMIT');
+      return estimateNumber;
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
-    
-    const lastNumber = result.rows[0].estimate_number;
-    const numberPart = parseInt(lastNumber.split('-')[1]);
-    const nextNumber = (numberPart + 1).toString().padStart(3, '0');
-    return `${currentYear}-${nextNumber}`;
   }
 
   async create(userId, estimateData) {
-    const estimateNumber = await this.getNextEstimateNumber(userId);
+    // Only generate number if not provided (for backward compatibility)
+    const estimateNumber = estimateData.estimateNumber || await this.getNextEstimateNumber(userId);
     
     // Calculate totals with estimate discount
     const { subtotal, totalDiscount, subtotalAfterDiscount, estimateDiscountAmount, subtotalAfterEstimateDiscount, totalVat, total } = this.calculateTotals(estimateData.lineItems || [], estimateData.estimateDiscount || 0);
@@ -49,12 +98,12 @@ class EstimateModel {
     `, [
       userId,
       estimateNumber,
-      estimateData.contactId,
-      estimateData.contactName,
-      estimateData.organizationNumber,
+      estimateData.contactId || null,
+      estimateData.contactName || '',
+      estimateData.organizationNumber || '',
       estimateData.currency || 'SEK',
       JSON.stringify(estimateData.lineItems || []),
-      estimateData.estimateDiscount || 0, // NEW: Save estimate discount
+      estimateData.estimateDiscount || 0,
       estimateData.notes || '',
       estimateData.validTo,
       subtotal,
@@ -76,20 +125,34 @@ class EstimateModel {
     
     const result = await this.pool.query(`
       UPDATE estimates SET
-        contact_id = $1, contact_name = $2, organization_number = $3,
-        currency = $4, line_items = $5, estimate_discount = $6, notes = $7, valid_to = $8,
-        subtotal = $9, total_discount = $10, subtotal_after_discount = $11, 
-        estimate_discount_amount = $12, subtotal_after_estimate_discount = $13, 
-        total_vat = $14, total = $15, status = $16, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $17 AND user_id = $18
+        contact_id = $3,
+        contact_name = $4,
+        organization_number = $5,
+        currency = $6,
+        line_items = $7,
+        estimate_discount = $8,
+        notes = $9,
+        valid_to = $10,
+        subtotal = $11,
+        total_discount = $12,
+        subtotal_after_discount = $13,
+        estimate_discount_amount = $14,
+        subtotal_after_estimate_discount = $15,
+        total_vat = $16,
+        total = $17,
+        status = $18,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND user_id = $2
       RETURNING *
     `, [
-      estimateData.contactId,
-      estimateData.contactName,
-      estimateData.organizationNumber,
+      estimateId,
+      userId,
+      estimateData.contactId || null,
+      estimateData.contactName || '',
+      estimateData.organizationNumber || '',
       estimateData.currency || 'SEK',
       JSON.stringify(estimateData.lineItems || []),
-      estimateData.estimateDiscount || 0, // NEW: Save estimate discount
+      estimateData.estimateDiscount || 0,
       estimateData.notes || '',
       estimateData.validTo,
       subtotal,
@@ -99,9 +162,7 @@ class EstimateModel {
       subtotalAfterEstimateDiscount,
       totalVat,
       total,
-      estimateData.status || 'draft',
-      estimateId,
-      userId
+      estimateData.status || 'draft'
     ]);
     
     if (!result.rows.length) {
@@ -121,7 +182,7 @@ class EstimateModel {
       throw new Error('Estimate not found');
     }
     
-    return { id: estimateId };
+    return true;
   }
 
   calculateTotals(lineItems, estimateDiscount = 0) {
@@ -129,25 +190,27 @@ class EstimateModel {
     let totalDiscount = 0;
     let totalVat = 0;
     
+    // Calculate line item totals
     lineItems.forEach(item => {
-      const lineSubtotal = item.quantity * item.unitPrice;
-      const discountAmount = lineSubtotal * ((item.discount || 0) / 100);
-      const lineSubtotalAfterDiscount = lineSubtotal - discountAmount;
-      const vatAmount = lineSubtotalAfterDiscount * (item.vatRate / 100);
+      const lineSubtotal = (item.quantity || 0) * (item.unitPrice || 0);
+      const lineDiscountAmount = lineSubtotal * ((item.discount || 0) / 100);
+      const lineSubtotalAfterDiscount = lineSubtotal - lineDiscountAmount;
+      const lineVatAmount = lineSubtotalAfterDiscount * ((item.vatRate || 25) / 100);
       
       subtotal += lineSubtotal;
-      totalDiscount += discountAmount;
-      totalVat += vatAmount;
+      totalDiscount += lineDiscountAmount;
+      totalVat += lineVatAmount;
     });
     
     const subtotalAfterDiscount = subtotal - totalDiscount;
     
-    // NEW: Calculate estimate discount
+    // Apply estimate-level discount to the subtotal after line discounts
     const estimateDiscountAmount = subtotalAfterDiscount * (estimateDiscount / 100);
     const subtotalAfterEstimateDiscount = subtotalAfterDiscount - estimateDiscountAmount;
     
-    // Total VAT remains the same (VAT is calculated per line item, not affected by estimate discount)
-    const total = subtotalAfterEstimateDiscount + totalVat;
+    // Recalculate VAT on the final subtotal (after both line and estimate discounts)
+    const finalVatAmount = subtotalAfterEstimateDiscount * 0.25; // Assuming 25% VAT
+    const total = subtotalAfterEstimateDiscount + finalVatAmount;
     
     return {
       subtotal: Math.round(subtotal * 100) / 100,
@@ -155,8 +218,8 @@ class EstimateModel {
       subtotalAfterDiscount: Math.round(subtotalAfterDiscount * 100) / 100,
       estimateDiscountAmount: Math.round(estimateDiscountAmount * 100) / 100,
       subtotalAfterEstimateDiscount: Math.round(subtotalAfterEstimateDiscount * 100) / 100,
-      totalVat: Math.round(totalVat * 100) / 100,
-      total: Math.round(total * 100) / 100
+      totalVat: Math.round(finalVatAmount * 100) / 100,
+      total: Math.round(total * 100) / 100,
     };
   }
 
@@ -164,12 +227,12 @@ class EstimateModel {
     return {
       id: row.id.toString(),
       estimateNumber: row.estimate_number,
-      contactId: row.contact_id?.toString() || null,
+      contactId: row.contact_id ? row.contact_id.toString() : null,
       contactName: row.contact_name || '',
       organizationNumber: row.organization_number || '',
       currency: row.currency || 'SEK',
       lineItems: row.line_items || [],
-      estimateDiscount: parseFloat(row.estimate_discount || 0), // NEW: Include estimate discount
+      estimateDiscount: row.estimate_discount || 0,
       notes: row.notes || '',
       validTo: row.valid_to,
       subtotal: parseFloat(row.subtotal || 0),

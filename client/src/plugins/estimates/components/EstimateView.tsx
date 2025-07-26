@@ -100,22 +100,22 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                   Qty
                 </th>
                 <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Unit Price
+                  Price
                 </th>
                 <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Discount %
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  VAT %
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Subtotal
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Discount
+                  Disc
                 </th>
                 <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   VAT
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Sub
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  -Disc
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  +VAT
                 </th>
                 <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Total
@@ -135,10 +135,10 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                     {(item.unitPrice || 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 text-right text-sm text-gray-900">
-                    {(item.discount || 0).toFixed(1)}%
+                    {(item.discount || 0).toFixed(1)}
                   </td>
                   <td className="px-4 py-3 text-right text-sm text-gray-900">
-                    {item.vatRate}%
+                    {item.vatRate}
                   </td>
                   <td className="px-4 py-3 text-right text-sm text-gray-900">
                     {(item.lineSubtotal || 0).toFixed(2)}

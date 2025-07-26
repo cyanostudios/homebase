@@ -39,6 +39,7 @@ class EstimatesApi {
       return this.request(`/estimates/${id}`, { method: 'DELETE' });
     }
   
+    // NEW: Get next estimate number from database sequence
     async getNextEstimateNumber() {
       return this.request('/estimates/next-number');
     }
