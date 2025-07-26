@@ -55,8 +55,8 @@ async function setupDatabase() {
         organization_number VARCHAR(50),
         vat_number VARCHAR(50),
         personal_number VARCHAR(50),
-        contact_persons JSONB DEFAULT '[]'::jsonb,
-        addresses JSONB DEFAULT '[]'::jsonb,
+        contact_persons JSONB,
+        addresses JSONB,
         email VARCHAR(255),
         phone VARCHAR(50),
         phone2 VARCHAR(50),
@@ -78,7 +78,7 @@ async function setupDatabase() {
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         title VARCHAR(255) NOT NULL,
         content TEXT,
-        mentions JSONB DEFAULT '[]'::jsonb,
+        mentions JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -90,26 +90,44 @@ async function setupDatabase() {
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         estimate_number VARCHAR(20) UNIQUE NOT NULL,
-        contact_id INTEGER,
+        contact_id INTEGER REFERENCES contacts(id),
         contact_name VARCHAR(255),
         organization_number VARCHAR(50),
         currency VARCHAR(3) DEFAULT 'SEK',
         line_items JSONB DEFAULT '[]'::jsonb,
+        estimate_discount DECIMAL(5,2) DEFAULT 0,
         notes TEXT,
         valid_to DATE,
         subtotal DECIMAL(10,2) DEFAULT 0,
+        total_discount DECIMAL(10,2) DEFAULT 0,
+        subtotal_after_discount DECIMAL(10,2) DEFAULT 0,
+        estimate_discount_amount DECIMAL(10,2) DEFAULT 0,
+        subtotal_after_estimate_discount DECIMAL(10,2) DEFAULT 0,
         total_vat DECIMAL(10,2) DEFAULT 0,
         total DECIMAL(10,2) DEFAULT 0,
-        status VARCHAR(20) DEFAULT 'draft',
+        status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'accepted', 'rejected')),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Estimate public sharing table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS estimate_shares (
+        id SERIAL PRIMARY KEY,
+        estimate_id INTEGER NOT NULL REFERENCES estimates(id) ON DELETE CASCADE,
+        share_token VARCHAR(64) UNIQUE NOT NULL,
+        valid_until TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        accessed_count INTEGER DEFAULT 0,
+        last_accessed_at TIMESTAMP
       )
     `);
     
     // Sessions table for express-session
     await client.query(`
       CREATE TABLE IF NOT EXISTS sessions (
-        sid VARCHAR PRIMARY KEY,
+        sid VARCHAR NOT NULL COLLATE "default",
         sess JSONB NOT NULL,
         expire TIMESTAMP(6) NOT NULL
       )
@@ -123,6 +141,9 @@ async function setupDatabase() {
     await client.query('CREATE INDEX IF NOT EXISTS idx_estimates_number ON estimates(estimate_number)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_estimates_contact_id ON estimates(contact_id)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_estimates_status ON estimates(status)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_estimate_shares_token ON estimate_shares(share_token)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_estimate_shares_estimate_id ON estimate_shares(estimate_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_estimate_shares_valid_until ON estimate_shares(valid_until)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_sessions_expire ON sessions(expire)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_plugin_access_user ON user_plugin_access(user_id, plugin_name)');
     
@@ -153,6 +174,7 @@ async function setupDatabase() {
     console.log('✅ Default superuser created: admin@homebase.se / admin123');
     console.log('⚠️  CHANGE DEFAULT PASSWORD AFTER FIRST LOGIN!');
     console.log('✅ Plugin access granted: contacts, notes, estimates');
+    console.log('✅ Estimate sharing table created');
     
     return superuserId;
     
@@ -242,7 +264,9 @@ async function migrateMockData(userId) {
         user_id, title, content, mentions, created_at, updated_at
       ) VALUES (
         $1, 'Project Meeting Notes',
-        'Discussed the new project requirements with the team. Key points:
+        'Discussed the new project requirements with the team.
+
+Key points:
 
 - Budget: $50,000
 - Timeline: 3 months

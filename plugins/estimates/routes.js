@@ -1,32 +1,23 @@
-// plugins/estimates/routes.js
 const express = require('express');
-const router = express.Router();
 
 function createEstimateRoutes(controller, requirePlugin) {
-  // GET /api/estimates
-  router.get('/', requirePlugin('estimates'), (req, res) => {
-    controller.getAll(req, res);
-  });
+  const router = express.Router();
 
-  // GET /api/estimates/next-number
-  router.get('/next-number', requirePlugin('estimates'), (req, res) => {
-    controller.getNextNumber(req, res);
-  });
+  // Regular estimate routes (require authentication via requirePlugin middleware)
+  router.get('/', requirePlugin('estimates'), (req, res) => controller.getEstimates(req, res));
+  router.post('/', requirePlugin('estimates'), (req, res) => controller.createEstimate(req, res));
+  router.get('/number/next', requirePlugin('estimates'), (req, res) => controller.getNextEstimateNumber(req, res));
+  router.get('/:id', requirePlugin('estimates'), (req, res) => controller.getEstimate(req, res));
+  router.put('/:id', requirePlugin('estimates'), (req, res) => controller.updateEstimate(req, res));
+  router.delete('/:id', requirePlugin('estimates'), (req, res) => controller.deleteEstimate(req, res));
 
-  // POST /api/estimates
-  router.post('/', requirePlugin('estimates'), (req, res) => {
-    controller.create(req, res);
-  });
+  // Sharing routes (protected - require authentication)
+  router.post('/shares', requirePlugin('estimates'), (req, res) => controller.createShare(req, res));
+  router.get('/:estimateId/shares', requirePlugin('estimates'), (req, res) => controller.getShares(req, res));
+  router.delete('/shares/:shareId', requirePlugin('estimates'), (req, res) => controller.revokeShare(req, res));
 
-  // PUT /api/estimates/:id
-  router.put('/:id', requirePlugin('estimates'), (req, res) => {
-    controller.update(req, res);
-  });
-
-  // DELETE /api/estimates/:id
-  router.delete('/:id', requirePlugin('estimates'), (req, res) => {
-    controller.delete(req, res);
-  });
+  // Public routes (no authentication required)
+  router.get('/public/:token', (req, res) => controller.getPublicEstimate(req, res));
 
   return router;
 }

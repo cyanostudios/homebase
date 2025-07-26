@@ -1,18 +1,72 @@
-// plugins/estimates/model.js
+const crypto = require('crypto');
+
 class EstimateModel {
   constructor(pool) {
     this.pool = pool;
   }
 
-  async getAll(userId) {
-    const result = await this.pool.query(
-      'SELECT * FROM estimates WHERE user_id = $1 ORDER BY created_at DESC',
-      [userId]
-    );
-    
-    return result.rows.map(this.transformRow);
+  // Existing calculation method
+  calculateTotals(lineItems, estimateDiscount = 0) {
+    let subtotal = 0;
+    let totalDiscount = 0;
+    let totalVat = 0;
+
+    lineItems.forEach(item => {
+      const lineSubtotal = item.quantity * item.unitPrice;
+      const discountAmount = lineSubtotal * (item.discount / 100);
+      const lineSubtotalAfterDiscount = lineSubtotal - discountAmount;
+      const vatAmount = lineSubtotalAfterDiscount * (item.vatRate / 100);
+
+      subtotal += lineSubtotal;
+      totalDiscount += discountAmount;
+      totalVat += vatAmount;
+    });
+
+    const subtotalAfterDiscount = subtotal - totalDiscount;
+    const estimateDiscountAmount = subtotalAfterDiscount * (estimateDiscount / 100);
+    const subtotalAfterEstimateDiscount = subtotalAfterDiscount - estimateDiscountAmount;
+    const total = subtotalAfterEstimateDiscount + totalVat;
+
+    return {
+      subtotal: Math.round(subtotal * 100) / 100,
+      totalDiscount: Math.round(totalDiscount * 100) / 100,
+      subtotalAfterDiscount: Math.round(subtotalAfterDiscount * 100) / 100,
+      estimateDiscountAmount: Math.round(estimateDiscountAmount * 100) / 100,
+      subtotalAfterEstimateDiscount: Math.round(subtotalAfterEstimateDiscount * 100) / 100,
+      totalVat: Math.round(totalVat * 100) / 100,
+      total: Math.round(total * 100) / 100,
+    };
   }
 
+  // Transform database row to JS object
+  transformRow(row) {
+    if (!row) return null;
+    
+    return {
+      id: row.id.toString(),
+      estimateNumber: row.estimate_number,
+      contactId: row.contact_id ? row.contact_id.toString() : null,
+      contactName: row.contact_name || '',
+      organizationNumber: row.organization_number || '',
+      currency: row.currency || 'SEK',
+      lineItems: Array.isArray(row.line_items) ? row.line_items : [],
+      estimateDiscount: parseFloat(row.estimate_discount || 0),
+      notes: row.notes || '',
+      validTo: row.valid_to,
+      subtotal: parseFloat(row.subtotal || 0),
+      totalDiscount: parseFloat(row.total_discount || 0),
+      subtotalAfterDiscount: parseFloat(row.subtotal_after_discount || 0),
+      estimateDiscountAmount: parseFloat(row.estimate_discount_amount || 0),
+      subtotalAfterEstimateDiscount: parseFloat(row.subtotal_after_estimate_discount || 0),
+      totalVat: parseFloat(row.total_vat || 0),
+      total: parseFloat(row.total || 0),
+      status: row.status || 'draft',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  // Get next estimate number
   async getNextEstimateNumber(userId) {
     const client = await this.pool.connect();
     
@@ -20,45 +74,35 @@ class EstimateModel {
       await client.query('BEGIN');
       
       const currentYear = new Date().getFullYear();
-      let nextNumber;
-      let estimateNumber;
       let attempts = 0;
-      const maxAttempts = 1000; // Säkerhet mot oändlig loop
+      const maxAttempts = 100;
       
       do {
-        // Get or create sequence for this user
-        let result = await client.query(
-          'SELECT last_estimate_number FROM estimate_sequences WHERE user_id = $1',
-          [userId]
-        );
+        const result = await client.query(`
+          SELECT estimate_number 
+          FROM estimates 
+          WHERE user_id = $1 AND estimate_number LIKE $2
+          ORDER BY estimate_number DESC 
+          LIMIT 1
+        `, [userId, `${currentYear}-%`]);
         
-        if (result.rows.length === 0) {
-          // First estimate for this user
-          await client.query(
-            'INSERT INTO estimate_sequences (user_id, last_estimate_number) VALUES ($1, 1)',
-            [userId]
-          );
-          nextNumber = 1;
-        } else {
-          // Increment existing sequence
-          nextNumber = result.rows[0].last_estimate_number + 1;
-          await client.query(
-            'UPDATE estimate_sequences SET last_estimate_number = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
-            [nextNumber, userId]
-          );
+        let nextNumber = 1;
+        if (result.rows.length > 0) {
+          const lastNumber = result.rows[0].estimate_number;
+          const numberPart = parseInt(lastNumber.split('-')[1]);
+          nextNumber = numberPart + 1;
         }
         
-        estimateNumber = `${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
+        const estimateNumber = `${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
         
-        // Check if this number already exists
-        const existsResult = await client.query(
+        const checkResult = await client.query(
           'SELECT id FROM estimates WHERE estimate_number = $1',
           [estimateNumber]
         );
         
-        if (existsResult.rows.length === 0) {
-          // Number is available, we can use it
-          break;
+        if (checkResult.rows.length === 0) {
+          await client.query('COMMIT');
+          return estimateNumber;
         }
         
         attempts++;
@@ -68,9 +112,6 @@ class EstimateModel {
         
       } while (true);
       
-      await client.query('COMMIT');
-      return estimateNumber;
-      
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -79,11 +120,9 @@ class EstimateModel {
     }
   }
 
+  // Create estimate
   async create(userId, estimateData) {
-    // Only generate number if not provided (for backward compatibility)
     const estimateNumber = estimateData.estimateNumber || await this.getNextEstimateNumber(userId);
-    
-    // Calculate totals with estimate discount
     const { subtotal, totalDiscount, subtotalAfterDiscount, estimateDiscountAmount, subtotalAfterEstimateDiscount, totalVat, total } = this.calculateTotals(estimateData.lineItems || [], estimateData.estimateDiscount || 0);
     
     const result = await this.pool.query(`
@@ -119,8 +158,32 @@ class EstimateModel {
     return this.transformRow(result.rows[0]);
   }
 
+  // Get all estimates for user (keeping original method name)
+  async getAll(userId) {
+    const result = await this.pool.query(
+      'SELECT * FROM estimates WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+    
+    return result.rows.map(row => this.transformRow(row));
+  }
+
+  // Get single estimate by ID
+  async getById(userId, estimateId) {
+    const result = await this.pool.query(
+      'SELECT * FROM estimates WHERE id = $1 AND user_id = $2',
+      [estimateId, userId]
+    );
+    
+    if (!result.rows.length) {
+      return null;
+    }
+    
+    return this.transformRow(result.rows[0]);
+  }
+
+  // Update estimate
   async update(userId, estimateId, estimateData) {
-    // Calculate totals with estimate discount
     const { subtotal, totalDiscount, subtotalAfterDiscount, estimateDiscountAmount, subtotalAfterEstimateDiscount, totalVat, total } = this.calculateTotals(estimateData.lineItems || [], estimateData.estimateDiscount || 0);
     
     const result = await this.pool.query(`
@@ -172,6 +235,7 @@ class EstimateModel {
     return this.transformRow(result.rows[0]);
   }
 
+  // Delete estimate
   async delete(userId, estimateId) {
     const result = await this.pool.query(
       'DELETE FROM estimates WHERE id = $1 AND user_id = $2 RETURNING id',
@@ -185,67 +249,136 @@ class EstimateModel {
     return true;
   }
 
-  calculateTotals(lineItems, estimateDiscount = 0) {
-    let subtotal = 0;
-    let totalDiscount = 0;
-    let totalVat = 0;
+  // === SHARING METHODS ===
+
+  // Generate secure random token
+  generateShareToken() {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  // Create estimate share
+  async createShare(userId, estimateId, validUntil) {
+    // First verify user owns the estimate
+    const estimateCheck = await this.pool.query(
+      'SELECT id FROM estimates WHERE id = $1 AND user_id = $2',
+      [estimateId, userId]
+    );
     
-    // Calculate line item totals
-    lineItems.forEach(item => {
-      const lineSubtotal = (item.quantity || 0) * (item.unitPrice || 0);
-      const lineDiscountAmount = lineSubtotal * ((item.discount || 0) / 100);
-      const lineSubtotalAfterDiscount = lineSubtotal - lineDiscountAmount;
-      const lineVatAmount = lineSubtotalAfterDiscount * ((item.vatRate || 25) / 100);
-      
-      subtotal += lineSubtotal;
-      totalDiscount += lineDiscountAmount;
-      totalVat += lineVatAmount;
-    });
+    if (!estimateCheck.rows.length) {
+      throw new Error('Estimate not found or access denied');
+    }
+
+    const shareToken = this.generateShareToken();
     
-    const subtotalAfterDiscount = subtotal - totalDiscount;
-    
-    // Apply estimate-level discount to the subtotal after line discounts
-    const estimateDiscountAmount = subtotalAfterDiscount * (estimateDiscount / 100);
-    const subtotalAfterEstimateDiscount = subtotalAfterDiscount - estimateDiscountAmount;
-    
-    // Recalculate VAT on the final subtotal (after both line and estimate discounts)
-    const finalVatAmount = subtotalAfterEstimateDiscount * 0.25; // Assuming 25% VAT
-    const total = subtotalAfterEstimateDiscount + finalVatAmount;
+    const result = await this.pool.query(`
+      INSERT INTO estimate_shares (estimate_id, share_token, valid_until)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `, [estimateId, shareToken, validUntil]);
     
     return {
-      subtotal: Math.round(subtotal * 100) / 100,
-      totalDiscount: Math.round(totalDiscount * 100) / 100,
-      subtotalAfterDiscount: Math.round(subtotalAfterDiscount * 100) / 100,
-      estimateDiscountAmount: Math.round(estimateDiscountAmount * 100) / 100,
-      subtotalAfterEstimateDiscount: Math.round(subtotalAfterEstimateDiscount * 100) / 100,
-      totalVat: Math.round(finalVatAmount * 100) / 100,
-      total: Math.round(total * 100) / 100,
+      id: result.rows[0].id.toString(),
+      estimateId: result.rows[0].estimate_id.toString(),
+      shareToken: result.rows[0].share_token,
+      validUntil: result.rows[0].valid_until,
+      createdAt: result.rows[0].created_at,
+      accessedCount: result.rows[0].accessed_count,
+      lastAccessedAt: result.rows[0].last_accessed_at,
     };
   }
 
-  transformRow(row) {
-    return {
+  // Get estimate by share token (public access)
+  async getEstimateByShareToken(shareToken) {
+    const result = await this.pool.query(`
+      SELECT 
+        e.*,
+        es.accessed_count,
+        es.valid_until as share_valid_until
+      FROM estimates e
+      JOIN estimate_shares es ON e.id = es.estimate_id
+      WHERE es.share_token = $1 AND es.valid_until > NOW()
+    `, [shareToken]);
+    
+    if (!result.rows.length) {
+      return null;
+    }
+    
+    // Update access count
+    await this.pool.query(`
+      UPDATE estimate_shares 
+      SET accessed_count = accessed_count + 1, last_accessed_at = NOW()
+      WHERE share_token = $1
+    `, [shareToken]);
+    
+    const row = result.rows[0];
+    const estimate = this.transformRow(row);
+    
+    // Add sharing info
+    estimate.shareValidUntil = row.share_valid_until;
+    estimate.accessedCount = row.accessed_count + 1; // Include this access
+    
+    return estimate;
+  }
+
+  // Get all shares for an estimate
+  async getSharesForEstimate(userId, estimateId) {
+    // Verify user owns the estimate
+    const estimateCheck = await this.pool.query(
+      'SELECT id FROM estimates WHERE id = $1 AND user_id = $2',
+      [estimateId, userId]
+    );
+    
+    if (!estimateCheck.rows.length) {
+      throw new Error('Estimate not found or access denied');
+    }
+
+    const result = await this.pool.query(`
+      SELECT * FROM estimate_shares 
+      WHERE estimate_id = $1 
+      ORDER BY created_at DESC
+    `, [estimateId]);
+    
+    return result.rows.map(row => ({
       id: row.id.toString(),
-      estimateNumber: row.estimate_number,
-      contactId: row.contact_id ? row.contact_id.toString() : null,
-      contactName: row.contact_name || '',
-      organizationNumber: row.organization_number || '',
-      currency: row.currency || 'SEK',
-      lineItems: row.line_items || [],
-      estimateDiscount: row.estimate_discount || 0,
-      notes: row.notes || '',
-      validTo: row.valid_to,
-      subtotal: parseFloat(row.subtotal || 0),
-      totalDiscount: parseFloat(row.total_discount || 0),
-      subtotalAfterDiscount: parseFloat(row.subtotal_after_discount || 0),
-      estimateDiscountAmount: parseFloat(row.estimate_discount_amount || 0),
-      subtotalAfterEstimateDiscount: parseFloat(row.subtotal_after_estimate_discount || 0),
-      totalVat: parseFloat(row.total_vat || 0),
-      total: parseFloat(row.total || 0),
-      status: row.status || 'draft',
+      estimateId: row.estimate_id.toString(),
+      shareToken: row.share_token,
+      validUntil: row.valid_until,
       createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      accessedCount: row.accessed_count,
+      lastAccessedAt: row.last_accessed_at,
+    }));
+  }
+
+  // Revoke share (delete it)
+  async revokeShare(userId, shareId) {
+    // First verify user owns the estimate that this share belongs to
+    const result = await this.pool.query(`
+      DELETE FROM estimate_shares 
+      WHERE id = $1 
+      AND estimate_id IN (
+        SELECT id FROM estimates WHERE user_id = $2
+      )
+      RETURNING *
+    `, [shareId, userId]);
+    
+    if (!result.rows.length) {
+      throw new Error('Share not found or access denied');
+    }
+    
+    return {
+      id: result.rows[0].id.toString(),
+      estimateId: result.rows[0].estimate_id.toString(),
+      shareToken: result.rows[0].share_token,
     };
+  }
+
+  // Clean up expired shares (utility method)
+  async cleanExpiredShares() {
+    const result = await this.pool.query(
+      'DELETE FROM estimate_shares WHERE valid_until < NOW()'
+    );
+    
+    return result.rowCount;
   }
 }
 

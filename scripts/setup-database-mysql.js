@@ -99,15 +99,36 @@ async function setupDatabase() {
         organization_number VARCHAR(50),
         currency VARCHAR(3) DEFAULT 'SEK',
         line_items JSON,
+        estimate_discount DECIMAL(5,2) DEFAULT 0,
         notes TEXT,
         valid_to DATE,
         subtotal DECIMAL(10,2) DEFAULT 0,
+        total_discount DECIMAL(10,2) DEFAULT 0,
+        subtotal_after_discount DECIMAL(10,2) DEFAULT 0,
+        estimate_discount_amount DECIMAL(10,2) DEFAULT 0,
+        subtotal_after_estimate_discount DECIMAL(10,2) DEFAULT 0,
         total_vat DECIMAL(10,2) DEFAULT 0,
         total DECIMAL(10,2) DEFAULT 0,
         status VARCHAR(20) DEFAULT 'draft',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (contact_id) REFERENCES contacts(id),
+        CHECK (status IN ('draft', 'sent', 'accepted', 'rejected'))
+      )
+    `);
+    
+    // Estimate public sharing table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS estimate_shares (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        estimate_id INT NOT NULL,
+        share_token VARCHAR(64) UNIQUE NOT NULL,
+        valid_until DATETIME NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        accessed_count INT DEFAULT 0,
+        last_accessed_at DATETIME,
+        FOREIGN KEY (estimate_id) REFERENCES estimates(id) ON DELETE CASCADE
       )
     `);
     
@@ -129,6 +150,9 @@ async function setupDatabase() {
     await connection.execute('CREATE INDEX IF NOT EXISTS idx_estimates_number ON estimates(estimate_number)');
     await connection.execute('CREATE INDEX IF NOT EXISTS idx_estimates_contact_id ON estimates(contact_id)');
     await connection.execute('CREATE INDEX IF NOT EXISTS idx_estimates_status ON estimates(status)');
+    await connection.execute('CREATE INDEX IF NOT EXISTS idx_estimate_shares_token ON estimate_shares(share_token)');
+    await connection.execute('CREATE INDEX IF NOT EXISTS idx_estimate_shares_estimate_id ON estimate_shares(estimate_id)');
+    await connection.execute('CREATE INDEX IF NOT EXISTS idx_estimate_shares_valid_until ON estimate_shares(valid_until)');
     await connection.execute('CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires)');
     await connection.execute('CREATE INDEX IF NOT EXISTS idx_plugin_access_user ON user_plugin_access(user_id, plugin_name)');
     
@@ -160,6 +184,7 @@ async function setupDatabase() {
     console.log('✅ Default superuser created: admin@homebase.se / admin123');
     console.log('⚠️  CHANGE DEFAULT PASSWORD AFTER FIRST LOGIN!');
     console.log('✅ Plugin access granted: contacts, notes, estimates');
+    console.log('✅ Estimate sharing table created');
     
     return superuserId;
     
@@ -249,7 +274,9 @@ async function migrateMockData(userId) {
         user_id, title, content, mentions, created_at, updated_at
       ) VALUES (
         ?, 'Project Meeting Notes',
-        'Discussed the new project requirements with the team. Key points:
+        'Discussed the new project requirements with the team.
+
+Key points:
 
 - Budget: $50,000
 - Timeline: 3 months

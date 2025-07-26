@@ -1,3 +1,4 @@
+import { PublicRouteHandler } from '../components/PublicRouteHandler';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Estimate, ValidationError } from '../types/estimate';
 import { estimatesApi } from '../api/estimatesApi';
@@ -300,7 +301,9 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
 
   return (
     <EstimateContext.Provider value={value}>
-      {children}
+      <PublicRouteHandler>
+        {children}
+      </PublicRouteHandler>
     </EstimateContext.Provider>
   );
 }

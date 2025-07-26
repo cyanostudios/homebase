@@ -1,70 +1,181 @@
-// plugins/estimates/controller.js
+const EstimateModel = require('./model');
+
 class EstimateController {
-    constructor(model) {
-      this.model = model;
-    }
-  
-    async getAll(req, res) {
-      try {
-        const estimates = await this.model.getAll(req.session.user.id);
-        res.json(estimates);
-      } catch (error) {
-        console.error('Get estimates error:', error);
-        res.status(500).json({ error: 'Failed to fetch estimates' });
-      }
-    }
-  
-    async create(req, res) {
-      try {
-        const estimate = await this.model.create(req.session.user.id, req.body);
-        res.json(estimate);
-      } catch (error) {
-        console.error('Create estimate error:', error);
-        res.status(500).json({ error: 'Failed to create estimate' });
-      }
-    }
-  
-    async update(req, res) {
-      try {
-        const estimate = await this.model.update(
-          req.session.user.id,
-          req.params.id,
-          req.body
-        );
-        res.json(estimate);
-      } catch (error) {
-        console.error('Update estimate error:', error);
-        if (error.message === 'Estimate not found') {
-          res.status(404).json({ error: 'Estimate not found' });
-        } else {
-          res.status(500).json({ error: 'Failed to update estimate' });
-        }
-      }
-    }
-  
-    async delete(req, res) {
-      try {
-        await this.model.delete(req.session.user.id, req.params.id);
-        res.json({ message: 'Estimate deleted successfully' });
-      } catch (error) {
-        console.error('Delete estimate error:', error);
-        if (error.message === 'Estimate not found') {
-          res.status(404).json({ error: 'Estimate not found' });
-        } else {
-          res.status(500).json({ error: 'Failed to delete estimate' });
-        }
-      }
-    }
-  
-    async getNextNumber(req, res) {
-      try {
-        const nextNumber = await this.model.getNextEstimateNumber(req.session.user.id);
-        res.json({ estimateNumber: nextNumber });
-      } catch (error) {
-        console.error('Get next estimate number error:', error);
-        res.status(500).json({ error: 'Failed to get next estimate number' });
-      }
+  constructor(model) {
+    this.model = model;
+  }
+
+  // Get all estimates for user - matches model.getAll()
+  async getEstimates(req, res) {
+    try {
+      const estimates = await this.model.getAll(req.session.user.id);
+      res.json(estimates);
+    } catch (error) {
+      console.error('Error getting estimates:', error);
+      res.status(500).json({ error: 'Failed to get estimates' });
     }
   }
-  
-  module.exports = EstimateController;
+
+  // Get single estimate - now uses model.getById()
+  async getEstimate(req, res) {
+    try {
+      const { id } = req.params;
+      const estimate = await this.model.getById(req.session.user.id, id);
+      
+      if (!estimate) {
+        return res.status(404).json({ error: 'Estimate not found' });
+      }
+      
+      res.json(estimate);
+    } catch (error) {
+      console.error('Error getting estimate:', error);
+      res.status(500).json({ error: 'Failed to get estimate' });
+    }
+  }
+
+  // Create new estimate - matches model.create()
+  async createEstimate(req, res) {
+    try {
+      const estimate = await this.model.create(req.session.user.id, req.body);
+      res.status(201).json(estimate);
+    } catch (error) {
+      console.error('Error creating estimate:', error);
+      res.status(500).json({ error: 'Failed to create estimate' });
+    }
+  }
+
+  // Update estimate - matches model.update()
+  async updateEstimate(req, res) {
+    try {
+      const { id } = req.params;
+      const estimate = await this.model.update(req.session.user.id, id, req.body);
+      res.json(estimate);
+    } catch (error) {
+      console.error('Error updating estimate:', error);
+      if (error.message === 'Estimate not found') {
+        return res.status(404).json({ error: error.message });
+      }
+      res.status(500).json({ error: 'Failed to update estimate' });
+    }
+  }
+
+  // Delete estimate - matches model.delete()
+  async deleteEstimate(req, res) {
+    try {
+      const { id } = req.params;
+      await this.model.delete(req.session.user.id, id);
+      res.json({ message: 'Estimate deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting estimate:', error);
+      if (error.message === 'Estimate not found') {
+        return res.status(404).json({ error: error.message });
+      }
+      res.status(500).json({ error: 'Failed to delete estimate' });
+    }
+  }
+
+  // Get next estimate number - matches model.getNextEstimateNumber()
+  async getNextEstimateNumber(req, res) {
+    try {
+      const estimateNumber = await this.model.getNextEstimateNumber(req.session.user.id);
+      res.json({ estimateNumber });
+    } catch (error) {
+      console.error('Error getting next estimate number:', error);
+      res.status(500).json({ error: 'Failed to get next estimate number' });
+    }
+  }
+
+  // === SHARING ENDPOINTS ===
+
+  // Create share link
+  async createShare(req, res) {
+    try {
+      const { estimateId, validUntil } = req.body;
+      const userId = req.session.user.id;
+      
+      if (!estimateId || !validUntil) {
+        return res.status(400).json({ 
+          error: 'Estimate ID and valid until date are required' 
+        });
+      }
+
+      // Validate that validUntil is in the future
+      const validUntilDate = new Date(validUntil);
+      if (validUntilDate <= new Date()) {
+        return res.status(400).json({ 
+          error: 'Valid until date must be in the future' 
+        });
+      }
+
+      const share = await this.model.createShare(userId, estimateId, validUntilDate);
+      res.json(share);
+    } catch (error) {
+      console.error('Error creating estimate share:', error);
+      if (error.message === 'Estimate not found or access denied') {
+        return res.status(404).json({ error: error.message });
+      }
+      res.status(500).json({ error: 'Failed to create share link' });
+    }
+  }
+
+  // Get estimate by share token (public endpoint - no auth required)
+  async getPublicEstimate(req, res) {
+    try {
+      const { token } = req.params;
+      
+      if (!token) {
+        return res.status(400).json({ error: 'Share token is required' });
+      }
+
+      const estimate = await this.model.getEstimateByShareToken(token);
+      
+      if (!estimate) {
+        return res.status(404).json({ 
+          error: 'Estimate not found or share link has expired' 
+        });
+      }
+
+      // Return estimate data for public view
+      res.json(estimate);
+    } catch (error) {
+      console.error('Error getting public estimate:', error);
+      res.status(500).json({ error: 'Failed to load estimate' });
+    }
+  }
+
+  // Get shares for estimate
+  async getShares(req, res) {
+    try {
+      const { estimateId } = req.params;
+      const userId = req.session.user.id;
+      
+      const shares = await this.model.getSharesForEstimate(userId, estimateId);
+      res.json(shares);
+    } catch (error) {
+      console.error('Error getting estimate shares:', error);
+      if (error.message === 'Estimate not found or access denied') {
+        return res.status(404).json({ error: error.message });
+      }
+      res.status(500).json({ error: 'Failed to get shares' });
+    }
+  }
+
+  // Revoke share
+  async revokeShare(req, res) {
+    try {
+      const { shareId } = req.params;
+      const userId = req.session.user.id;
+      
+      const revokedShare = await this.model.revokeShare(userId, shareId);
+      res.json({ message: 'Share revoked successfully', share: revokedShare });
+    } catch (error) {
+      console.error('Error revoking share:', error);
+      if (error.message === 'Share not found or access denied') {
+        return res.status(404).json({ error: error.message });
+      }
+      res.status(500).json({ error: 'Failed to revoke share' });
+    }
+  }
+}
+
+module.exports = EstimateController;

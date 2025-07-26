@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '@/core/api/AppContext';
 import { useEstimates } from '../hooks/useEstimates';
-import { Calendar, User, FileText, Calculator } from 'lucide-react';
+import { Calendar, User, FileText, Calculator, Share, Copy, Check } from 'lucide-react';
 import { Card } from '@/core/ui/Card';
 import { Button } from '@/core/ui/Button';
 import { Heading } from '@/core/ui/Typography';
 import { Estimate, calculateEstimateTotals } from '../types/estimate';
+import { estimateShareApi } from '../api/estimatesApi';
 
 interface EstimateViewProps {
   estimate: Estimate;
@@ -14,6 +15,11 @@ interface EstimateViewProps {
 export function EstimateView({ estimate }: EstimateViewProps) {
   const { contacts } = useApp(); // Cross-plugin functions only
   const { saveEstimate, duplicateEstimate } = useEstimates(); // Use EstimateContext for updates
+
+  // Share state
+  const [isCreatingShare, setIsCreatingShare] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string>('');
+  const [copied, setCopied] = useState(false);
 
   if (!estimate) return null;
 
@@ -30,6 +36,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
         organizationNumber: estimate.organizationNumber,
         currency: estimate.currency,
         lineItems: estimate.lineItems,
+        estimateDiscount: estimate.estimateDiscount || 0,
         notes: estimate.notes,
         validTo: estimate.validTo,
         status: newStatus, // Update the status
@@ -59,6 +66,45 @@ export function EstimateView({ estimate }: EstimateViewProps) {
     } catch (error) {
       console.error('Failed to duplicate estimate:', error);
       alert('Failed to duplicate estimate. Please try again.');
+    }
+  };
+
+  // Handle share creation
+  const handleCreateShare = async () => {
+    try {
+      setIsCreatingShare(true);
+      
+      // Create share with same expiration as estimate
+      const share = await estimateShareApi.createShare({
+        estimateId: estimate.id,
+        validUntil: estimate.validTo,
+      });
+
+      // Generate and set the share URL
+      const url = estimateShareApi.generateShareUrl(share.shareToken);
+      setShareUrl(url);
+
+      // Auto-copy to clipboard
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+      
+    } catch (error) {
+      console.error('Failed to create share:', error);
+      alert(error instanceof Error ? error.message : 'Failed to create share link');
+    } finally {
+      setIsCreatingShare(false);
+    }
+  };
+
+  // Handle copy share URL
+  const handleCopyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy URL:', error);
     }
   };
 
@@ -157,6 +203,30 @@ export function EstimateView({ estimate }: EstimateViewProps) {
             </tbody>
           </table>
         </div>
+
+        {/* Share URL Display */}
+        {shareUrl && (
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="text-sm font-medium text-blue-900 mb-2">Share Link Created!</div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 p-2 bg-white rounded border text-sm font-mono break-all">
+                {shareUrl}
+              </div>
+              <Button 
+                variant="secondary" 
+                size="sm"
+                icon={copied ? Check : Copy}
+                onClick={handleCopyUrl}
+                className={copied ? 'bg-green-100 text-green-700' : ''}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
+            </div>
+            <div className="text-xs text-blue-700 mt-2">
+              This link expires on {new Date(estimate.validTo).toLocaleDateString()}
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Totals */}
@@ -204,7 +274,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
 
       <hr className="border-gray-100" />
 
-      {/* Quick Actions - UPDATED: Real status changes */}
+      {/* Quick Actions */}
       <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Quick Actions</Heading>
         
@@ -267,6 +337,16 @@ export function EstimateView({ estimate }: EstimateViewProps) {
         <div>
           <div className="text-xs font-medium text-gray-700 mb-2">Other Actions</div>
           <div className="flex flex-wrap gap-3">
+            <Button 
+              variant="secondary" 
+              size="sm"
+              icon={Share}
+              onClick={handleCreateShare}
+              disabled={isCreatingShare}
+            >
+              {isCreatingShare ? 'Creating Share...' : 'Share Estimate'}
+            </Button>
+            
             <Button variant="secondary" size="sm">
               Download PDF
             </Button>
@@ -286,6 +366,30 @@ export function EstimateView({ estimate }: EstimateViewProps) {
             )}
           </div>
         </div>
+
+        {/* Share URL Display */}
+        {shareUrl && (
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="text-sm font-medium text-blue-900 mb-2">Share Link Created!</div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 p-2 bg-white rounded border text-sm font-mono break-all">
+                {shareUrl}
+              </div>
+              <Button 
+                variant="secondary" 
+                size="sm"
+                icon={copied ? Check : Copy}
+                onClick={handleCopyUrl}
+                className={copied ? 'bg-green-100 text-green-700' : ''}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
+            </div>
+            <div className="text-xs text-blue-700 mt-2">
+              This link expires on {new Date(estimate.validTo).toLocaleDateString()}
+            </div>
+          </div>
+        )}
       </Card>
 
       <hr className="border-gray-100" />
