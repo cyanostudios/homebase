@@ -11,6 +11,9 @@ function createEstimateRoutes(controller, requirePlugin) {
   router.put('/:id', requirePlugin('estimates'), (req, res) => controller.updateEstimate(req, res));
   router.delete('/:id', requirePlugin('estimates'), (req, res) => controller.deleteEstimate(req, res));
 
+  // PDF generation route (requires authentication)
+  router.get('/:id/pdf', requirePlugin('estimates'), (req, res) => controller.generatePDF(req, res));
+
   // Sharing routes (protected - require authentication)
   router.post('/shares', requirePlugin('estimates'), (req, res) => controller.createShare(req, res));
   router.get('/:estimateId/shares', requirePlugin('estimates'), (req, res) => controller.getShares(req, res));

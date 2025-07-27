@@ -77,6 +77,53 @@ class EstimatesApi {
     return result.estimateNumber;
   }
 
+  // === FIXED PDF DOWNLOAD METHOD ===
+  async downloadPDF(id: string): Promise<void> {
+    try {
+      const response = await fetch(`/api/estimates/${id}/pdf`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to generate PDF';
+        try {
+          const text = await response.text();
+          const match = text.match(/"error"\s*:\s*"([^"]+)"/);
+          if (match) {
+            errorMessage = match[1];
+          }
+        } catch (_) {}
+        throw new Error(errorMessage);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = 'estimate.pdf';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename[^;=\n]*=(['"]?)([^'"]+)\1/);
+        if (match && match[2]) {
+          filename = match[2];
+        }
+      }
+
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      throw error;
+    }
+  }
+
   // Sharing API functions
   async createShare(request: CreateShareRequest): Promise<EstimateShare> {
     const share = await this.request('/estimates/shares', {
@@ -123,27 +170,22 @@ export const estimatesApi = new EstimatesApi();
 
 // Sharing API utilities
 export const estimateShareApi = {
-  // Create a share link
   async createShare(request: CreateShareRequest): Promise<EstimateShare> {
     return estimatesApi.createShare(request);
   },
 
-  // Get all shares for an estimate
   async getShares(estimateId: string): Promise<EstimateShare[]> {
     return estimatesApi.getShares(estimateId);
   },
 
-  // Revoke a share
   async revokeShare(shareId: string): Promise<void> {
     return estimatesApi.revokeShare(shareId);
   },
 
-  // Get public estimate (no auth required)
   async getPublicEstimate(token: string): Promise<PublicEstimate> {
     return estimatesApi.getPublicEstimate(token);
   },
 
-  // Generate share URL
   generateShareUrl(token: string): string {
     const baseUrl = window.location.origin;
     return `${baseUrl}/public/estimate/${token}`;

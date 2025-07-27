@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useApp } from '@/core/api/AppContext';
 import { useEstimates } from '../hooks/useEstimates';
-import { Calendar, User, FileText, Calculator, Share, Copy, Check } from 'lucide-react';
+import { Calendar, User, FileText, Calculator, Share, Copy, Check, Download } from 'lucide-react';
 import { Card } from '@/core/ui/Card';
 import { Button } from '@/core/ui/Button';
 import { Heading } from '@/core/ui/Typography';
 import { Estimate, calculateEstimateTotals } from '../types/estimate';
-import { estimateShareApi } from '../api/estimatesApi';
+import { estimateShareApi, estimatesApi } from '../api/estimatesApi';
 
 interface EstimateViewProps {
   estimate: Estimate;
@@ -20,6 +20,9 @@ export function EstimateView({ estimate }: EstimateViewProps) {
   const [isCreatingShare, setIsCreatingShare] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  
+  // PDF state
+  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
 
   if (!estimate) return null;
 
@@ -66,6 +69,24 @@ export function EstimateView({ estimate }: EstimateViewProps) {
     } catch (error) {
       console.error('Failed to duplicate estimate:', error);
       alert('Failed to duplicate estimate. Please try again.');
+    }
+  };
+
+  // Handle PDF download
+  const handleDownloadPDF = async () => {
+    console.log('📋 Downloading PDF for estimate:', {
+      id: estimate.id,
+      estimateNumber: estimate.estimateNumber,
+      idType: typeof estimate.id
+    });
+    setIsDownloadingPDF(true);
+    try {
+      await estimatesApi.downloadPDF(estimate.id);
+    } catch (error) {
+      console.error('Failed to download PDF:', error);
+      alert('Failed to download PDF. Please try again.');
+    } finally {
+      setIsDownloadingPDF(false);
     }
   };
 
@@ -347,8 +368,14 @@ export function EstimateView({ estimate }: EstimateViewProps) {
               {isCreatingShare ? 'Creating Share...' : 'Share Estimate'}
             </Button>
             
-            <Button variant="secondary" size="sm">
-              Download PDF
+            <Button 
+              variant="secondary" 
+              size="sm"
+              icon={Download}
+              onClick={handleDownloadPDF}
+              disabled={isDownloadingPDF}
+            >
+              {isDownloadingPDF ? 'Generating PDF...' : 'Download PDF'}
             </Button>
             
             <Button 
