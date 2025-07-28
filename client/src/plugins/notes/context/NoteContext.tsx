@@ -20,6 +20,7 @@ interface NoteContextType {
   closeNotePanel: () => void;
   saveNote: (noteData: any) => Promise<boolean>;
   deleteNote: (id: string) => Promise<void>;
+  duplicateNote: (note: Note) => Promise<void>;
   clearValidationErrors: () => void;
 }
 
@@ -222,6 +223,33 @@ useEffect(() => {
     }
   };
 
+  // Duplicate note function - similar to estimates
+  const duplicateNote = async (originalNote: Note) => {
+    try {
+      // Create duplicate data without ID and with updated title
+      const duplicateData = {
+        title: `${originalNote.title} (Copy)`,
+        content: originalNote.content,
+        mentions: originalNote.mentions || [] // Preserve mentions
+      };
+      
+      // Create the new note via API
+      const newNote = await notesApi.createNote(duplicateData);
+      
+      // Add to notes list
+      setNotes(prev => [{
+        ...newNote,
+        createdAt: new Date(newNote.createdAt),
+        updatedAt: new Date(newNote.updatedAt),
+      }, ...prev]); // Add to beginning of list
+      
+      console.log('Note duplicated successfully');
+    } catch (error) {
+      console.error('Failed to duplicate note:', error);
+      alert('Failed to duplicate note. Please try again.');
+    }
+  };
+
   const value: NoteContextType = {
     // Panel State
     isNotePanelOpen,
@@ -239,6 +267,7 @@ useEffect(() => {
     closeNotePanel,
     saveNote,
     deleteNote,
+    duplicateNote,
     clearValidationErrors,
   };
 

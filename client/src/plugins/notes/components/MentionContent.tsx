@@ -18,6 +18,32 @@ export const MentionContent: React.FC<MentionContentProps> = ({ content, mention
   // Get contacts from AppContext for cross-plugin references
   const { refreshData } = useApp();
 
+  // State to track which contacts exist
+  const [contactsData, setContactsData] = React.useState<any[]>([]);
+  const [contactsLoaded, setContactsLoaded] = React.useState(false);
+
+  // Load contacts data once
+  React.useEffect(() => {
+    const loadContacts = async () => {
+      try {
+        const response = await fetch('/api/contacts', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setContactsData(data);
+        }
+      } catch (error) {
+        console.error('Failed to load contacts data:', error);
+      } finally {
+        setContactsLoaded(true);
+      }
+    };
+
+    loadContacts();
+  }, []);
+
   const handleMentionClick = async (contactId: string) => {
     // Refresh data to get latest contacts
     await refreshData();
@@ -97,15 +123,31 @@ export const MentionContent: React.FC<MentionContentProps> = ({ content, mention
     // Render segments
     return segments.map((segment, index) => {
       if (segment.type === 'mention' && segment.mention) {
-        return (
-          <button
-            key={`mention-${segment.mention.contactId}-${index}`}
-            onClick={() => handleMentionClick(segment.mention.contactId)}
-            className="text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer bg-blue-50 px-1 rounded"
-          >
-            @{segment.mention.contactName}
-          </button>
-        );
+        // Check if contact still exists
+        const contactExists = contactsLoaded && contactsData.some(c => c.id === segment.mention.contactId);
+        
+        if (contactExists) {
+          // Active contact - clickable blue styling
+          return (
+            <button
+              key={`mention-${segment.mention.contactId}-${index}`}
+              onClick={() => handleMentionClick(segment.mention.contactId)}
+              className="text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer bg-blue-50 px-1 rounded"
+            >
+              @{segment.mention.contactName}
+            </button>
+          );
+        } else {
+          // Deleted contact - gray styling, not clickable
+          return (
+            <span
+              key={`mention-${segment.mention.contactId}-${index}`}
+              className="text-gray-500 bg-gray-100 px-1 rounded font-medium"
+            >
+              @{segment.mention.contactName} (deleted contact)
+            </span>
+          );
+        }
       } else {
         // Handle text segments with line breaks
         return segment.text.split('\n').map((line, lineIndex) => (

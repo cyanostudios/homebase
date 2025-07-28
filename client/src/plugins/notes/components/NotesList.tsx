@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, StickyNote, ChevronUp, ChevronDown, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, StickyNote, ChevronUp, ChevronDown, Search, Copy } from 'lucide-react';
 import { useNotes } from '../hooks/useNotes';
 import { Button } from '@/core/ui/Button';
 import { Heading, Text } from '@/core/ui/Typography';
@@ -10,7 +10,7 @@ type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
 export const NotesList: React.FC = () => {
-  const { notes, openNotePanel, openNoteForEdit, openNoteForView, deleteNote } = useNotes();
+  const { notes, openNotePanel, openNoteForEdit, openNoteForView, deleteNote, duplicateNote } = useNotes();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
@@ -117,6 +117,16 @@ export const NotesList: React.FC = () => {
       noteId: '',
       noteTitle: ''
     });
+  };
+
+  // Handle duplicate with event prevention
+  const handleDuplicate = async (e: React.MouseEvent, note: any) => {
+    e.stopPropagation(); // Prevent row click
+    try {
+      await duplicateNote(note);
+    } catch (error) {
+      console.error('Failed to duplicate note:', error);
+    }
   };
 
   const truncateContent = (content: string, maxLength: number = 100) => {
@@ -245,15 +255,30 @@ export const NotesList: React.FC = () => {
                           variant="ghost" 
                           size="sm" 
                           icon={Eye}
-                          onClick={() => openNoteForView(note)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openNoteForView(note);
+                          }}
                         >
                           View
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={Copy}
+                          onClick={(e) => handleDuplicate(e, note)}
+                          title="Duplicate note"
+                        >
+                          Duplicate
                         </Button>
                         <Button 
                           variant="secondary" 
                           size="sm" 
                           icon={Edit}
-                          onClick={() => openNoteForEdit(note)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openNoteForEdit(note);
+                          }}
                         >
                           Edit
                         </Button>
@@ -308,8 +333,8 @@ export const NotesList: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    {/* View button in top right */}
-                    <div>
+                    {/* Action buttons in mobile */}
+                    <div className="flex flex-col gap-2">
                       <Button 
                         variant="ghost" 
                         size="sm" 
