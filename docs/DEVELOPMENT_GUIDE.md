@@ -259,23 +259,6 @@ npm run test:db
 # Server logs will show: "🟢 Loaded plugin: [name] (/api/[route])"
 ```
 
-## Next Development Priorities
-
-### Immediate (1-2 weeks)
-1. **Plugin Templates** - Standardized scaffolding tools
-2. **Performance Analytics** - Plugin-specific monitoring
-3. **Advanced Cross-Plugin** - Enhanced reference systems
-
-### Medium Term (1-2 months)  
-1. **Invoice Plugin** - Convert estimates to invoices
-2. **Project Management** - Time tracking and project organization
-3. **Multi-Tenant Support** - Customer-specific installations
-
-### Long Term (3-6 months)
-1. **Equipment Management** - Asset and inventory tracking
-2. **Business Intelligence** - Analytics and reporting
-3. **API Integration** - External service connections
-
 ## Contributing Guidelines
 
 ### For New Team Members
