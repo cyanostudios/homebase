@@ -2,6 +2,7 @@ import { PublicRouteHandler } from '../components/PublicRouteHandler';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Estimate, ValidationError } from '../types/estimate';
 import { estimatesApi } from '../api/estimatesApi';
+import { useApp } from '@/core/api/AppContext';
 
 interface EstimateContextType {
   // Panel State - FIXED: Match App.tsx expectations
@@ -33,6 +34,9 @@ interface EstimateProviderProps {
 }
 
 export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels }: EstimateProviderProps) {
+  // ADDED: Get panel registration functions from AppContext
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  
   // Panel states - FIXED: Use estimatePanelMode to match App.tsx
   const [isEstimatePanelOpen, setIsEstimatePanelOpen] = useState(false);
   const [currentEstimate, setCurrentEstimate] = useState<Estimate | null>(null);
@@ -50,6 +54,35 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
       setEstimates([]);
     }
   }, [isAuthenticated]);
+
+// FIXED: Remove dependency array to avoid infinite loops
+useEffect(() => {
+    registerPanelCloseFunction('estimates', closeEstimatePanel);
+    return () => {
+      unregisterPanelCloseFunction('estimates');
+    };
+  }, []); // Empty dependency array - only run once
+
+  // ADDED: Global functions for form submission (required for global form handling)
+  useEffect(() => {
+    window.submitEstimatesForm = () => {
+      // Trigger form submission event
+      const event = new CustomEvent('submitEstimateForm');
+      window.dispatchEvent(event);
+    };
+
+    window.cancelEstimatesForm = () => {
+      // Trigger form cancel event
+      const event = new CustomEvent('cancelEstimateForm');
+      window.dispatchEvent(event);
+    };
+
+    // Cleanup
+    return () => {
+      delete window.submitEstimatesForm;
+      delete window.cancelEstimatesForm;
+    };
+  }, []);
 
   const loadEstimates = async () => {
     try {
@@ -246,9 +279,7 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
 
   const duplicateEstimate = async (originalEstimate: Estimate) => {
     try {
-      
       const estimateNumber = await generateNextEstimateNumber();
-     
       
       const duplicateData = {
         ...originalEstimate,

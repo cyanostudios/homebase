@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '@/core/api/AppContext';
 import { useEstimates } from '../hooks/useEstimates';
-import { Calendar, User, FileText, Calculator, Share, Copy, Check, Download } from 'lucide-react';
+import { Calendar, User, FileText, Calculator, Share, Copy, Check, Download, Copy as CopyIcon } from 'lucide-react';
 import { Card } from '@/core/ui/Card';
 import { Button } from '@/core/ui/Button';
 import { Heading } from '@/core/ui/Typography';
@@ -225,29 +225,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
           </table>
         </div>
 
-        {/* Share URL Display */}
-        {shareUrl && (
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="text-sm font-medium text-blue-900 mb-2">Share Link Created!</div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 p-2 bg-white rounded border text-sm font-mono break-all">
-                {shareUrl}
-              </div>
-              <Button 
-                variant="secondary" 
-                size="sm"
-                icon={copied ? Check : Copy}
-                onClick={handleCopyUrl}
-                className={copied ? 'bg-green-100 text-green-700' : ''}
-              >
-                {copied ? 'Copied!' : 'Copy'}
-              </Button>
-            </div>
-            <div className="text-xs text-blue-700 mt-2">
-              This link expires on {new Date(estimate.validTo).toLocaleDateString()}
-            </div>
-          </div>
-        )}
+        {/* 🗑️ REMOVED: Share URL Display - flyttad till Quick Actions */}
       </Card>
 
       {/* Totals */}
@@ -381,6 +359,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
             <Button 
               variant="secondary" 
               size="sm"
+              icon={CopyIcon}
               onClick={handleDuplicate}
             >
               Duplicate Estimate
@@ -394,7 +373,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
           </div>
         </div>
 
-        {/* Share URL Display */}
+        {/* ✅ KEPT: Share URL Display - only in Quick Actions section */}
         {shareUrl && (
           <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <div className="text-sm font-medium text-blue-900 mb-2">Share Link Created!</div>

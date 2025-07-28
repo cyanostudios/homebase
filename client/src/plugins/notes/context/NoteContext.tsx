@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Note, ValidationError } from '../types/notes';
 import { notesApi } from '../api/notesApi';
+import { useApp } from '@/core/api/AppContext';
 
 interface NoteContextType {
   // Note Panel State
@@ -31,6 +32,9 @@ interface NoteProviderProps {
 }
 
 export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: NoteProviderProps) {
+  // ADDED: Get panel registration functions from AppContext
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  
   // Panel states
   const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
@@ -48,6 +52,35 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setNotes([]);
     }
   }, [isAuthenticated]);
+
+// FIXED: Remove dependency array to avoid infinite loops
+useEffect(() => {
+  registerPanelCloseFunction('notes', closeNotePanel);
+  return () => {
+    unregisterPanelCloseFunction('notes');
+  };
+}, []); // Empty dependency array - only run once
+
+  // ADDED: Global functions for form submission (required for global form handling)
+  useEffect(() => {
+    window.submitNotesForm = () => {
+      // Trigger form submission event
+      const event = new CustomEvent('submitNoteForm');
+      window.dispatchEvent(event);
+    };
+
+    window.cancelNotesForm = () => {
+      // Trigger form cancel event
+      const event = new CustomEvent('cancelNoteForm');
+      window.dispatchEvent(event);
+    };
+
+    // Cleanup
+    return () => {
+      delete window.submitNotesForm;
+      delete window.cancelNotesForm;
+    };
+  }, []);
 
   const loadNotes = async () => {
     try {

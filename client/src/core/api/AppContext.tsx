@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Contact } from '@/plugins/contacts/types/contacts';
 import { Note } from '@/plugins/notes/types/notes';
 import { Estimate } from '@/plugins/estimates/types/estimates';
@@ -31,6 +31,10 @@ interface AppContextType {
   
   // Close other panels function (for plugin coordination)
   closeOtherPanels: (except?: 'contacts' | 'notes' | 'estimates') => void;
+  
+  // ADDED: Registry for plugin close functions
+  registerPanelCloseFunction: (pluginName: string, closeFunction: () => void) => void;
+  unregisterPanelCloseFunction: (pluginName: string) => void;
   
   // Data refresh
   refreshData: () => Promise<void>;
@@ -99,7 +103,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   
-  // REMOVED: estimates state - now managed by EstimateContext
+  // ADDED: Registry for plugin panel close functions
+  const [panelCloseFunctions, setPanelCloseFunctions] = useState<Map<string, () => void>>(new Map());
 
   // Check authentication on app start
   useEffect(() => {
@@ -113,7 +118,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } else {
       setContacts([]);
       setNotes([]);
-      // REMOVED: setEstimates([]);
     }
   }, [isAuthenticated]);
 
@@ -136,7 +140,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const [contactsData, notesData] = await Promise.all([
         api.getContacts(), // Only for cross-plugin references
         api.getNotes(), // Only for cross-plugin references
-        // REMOVED: api.getEstimates() - now managed by EstimateContext
       ]);
       
       // Transform API data to match interface
@@ -152,11 +155,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updatedAt: new Date(note.updatedAt),
       }));
 
-      // REMOVED: estimate transformation - now in EstimateContext
-
       setContacts(transformedContacts);
       setNotes(transformedNotes);
-      // REMOVED: setEstimates(transformedEstimates);
     } catch (error) {
       console.error('Failed to load data:', error);
     }
@@ -191,14 +191,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(false);
       setContacts([]);
       setNotes([]);
-      // REMOVED: setEstimates([]);
     }
   };
 
-  // Close other panels coordination function
+  // ADDED: Register plugin close functions
+  const registerPanelCloseFunction = (pluginName: string, closeFunction: () => void) => {
+    setPanelCloseFunctions(prev => {
+      const newMap = new Map(prev);
+      newMap.set(pluginName, closeFunction);
+      return newMap;
+    });
+  };
+
+  // ADDED: Unregister plugin close functions
+  const unregisterPanelCloseFunction = (pluginName: string) => {
+    setPanelCloseFunctions(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(pluginName);
+      return newMap;
+    });
+  };
+
+  // FIXED: Close other panels coordination function
   const closeOtherPanels = (except?: 'contacts' | 'notes' | 'estimates') => {
-    // Panel closing is now handled by individual plugin contexts
-    // This function exists for plugin coordination only
+    console.log('closeOtherPanels called, except:', except);
+    console.log('Available close functions:', Array.from(panelCloseFunctions.keys()));
+    
+    // Close all panels except the specified one
+    panelCloseFunctions.forEach((closeFunction, pluginName) => {
+      if (pluginName !== except) {
+        console.log(`Closing panel for plugin: ${pluginName}`);
+        closeFunction();
+      }
+    });
   };
 
   // Cross-plugin reference functions
@@ -247,15 +272,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Cross-plugin data (read-only)
       contacts,
       notes,
-      // REMOVED: estimates - now managed by EstimateContext
       
       // Cross-plugin references
       getNotesForContact,
       getContactsForNote,
-      getEstimatesForContact, // CHANGED: Now async API call
+      getEstimatesForContact,
       
       // Panel coordination
       closeOtherPanels,
+      registerPanelCloseFunction,
+      unregisterPanelCloseFunction,
       
       // Data refresh
       refreshData,

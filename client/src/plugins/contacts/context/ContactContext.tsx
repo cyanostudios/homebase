@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Contact, ValidationError } from '../types/contacts';
 import { contactsApi } from '../api/contactsApi';
+import { useApp } from '@/core/api/AppContext';
 
 interface ContactContextType {
   // Contact Panel State
@@ -31,6 +32,9 @@ interface ContactProviderProps {
 }
 
 export function ContactProvider({ children, isAuthenticated, onCloseOtherPanels }: ContactProviderProps) {
+  // ADDED: Get panel registration functions from AppContext
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  
   // Panel states
   const [isContactPanelOpen, setIsContactPanelOpen] = useState(false);
   const [currentContact, setCurrentContact] = useState<Contact | null>(null);
@@ -48,6 +52,35 @@ export function ContactProvider({ children, isAuthenticated, onCloseOtherPanels 
       setContacts([]);
     }
   }, [isAuthenticated]);
+
+// FIXED: Remove dependency array to avoid infinite loops  
+useEffect(() => {
+  registerPanelCloseFunction('contacts', closeContactPanel);
+  return () => {
+    unregisterPanelCloseFunction('contacts');
+  };
+}, []); // Empty dependency array - only run once
+
+  // ADDED: Global functions for form submission (required for global form handling)
+  useEffect(() => {
+    window.submitContactsForm = () => {
+      // Trigger form submission event
+      const event = new CustomEvent('submitContactForm');
+      window.dispatchEvent(event);
+    };
+
+    window.cancelContactsForm = () => {
+      // Trigger form cancel event
+      const event = new CustomEvent('cancelContactForm');
+      window.dispatchEvent(event);
+    };
+
+    // Cleanup
+    return () => {
+      delete window.submitContactsForm;
+      delete window.cancelContactsForm;
+    };
+  }, []);
 
   const loadContacts = async () => {
     try {
