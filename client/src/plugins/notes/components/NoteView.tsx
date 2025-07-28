@@ -190,23 +190,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Quick Actions</Heading>
         
-        {/* Task Conversion Actions */}
-        <div className="mb-4">
-          <div className="text-xs font-medium text-gray-700 mb-2">Convert & Transform</div>
-          <div className="flex flex-wrap gap-2">
-            <Button 
-              variant="primary" 
-              size="sm"
-              icon={CheckSquare}
-              onClick={handleConvertToTask}
-              className="bg-green-500 text-white hover:bg-green-600"
-            >
-              Convert to Task
-            </Button>
-          </div>
-        </div>
-
-        {/* General Actions */}
+        {/* Note Actions */}
         <div className="mb-4">
           <div className="text-xs font-medium text-gray-700 mb-2">Note Actions</div>
           <div className="flex flex-wrap gap-2">
@@ -235,6 +219,16 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
               onClick={handleDuplicateNote}
             >
               Duplicate Note
+            </Button>
+            
+            <Button 
+              variant="primary" 
+              size="sm"
+              icon={CheckSquare}
+              onClick={handleConvertToTask}
+              className="bg-green-500 text-white hover:bg-green-600"
+            >
+              Convert to Task
             </Button>
           </div>
         </div>
