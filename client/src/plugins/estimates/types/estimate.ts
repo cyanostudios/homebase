@@ -18,6 +18,37 @@ export interface LineItem {
   sortOrder: number; // For drag-drop ordering
 }
 
+// === STATUS REASON INTERFACES ===
+
+export interface StatusReason {
+  id: string;
+  label: string;
+  category: 'accepted' | 'rejected';
+}
+
+export const ACCEPTANCE_REASONS: StatusReason[] = [
+  { id: 'price_competitive', label: 'Competitive pricing', category: 'accepted' },
+  { id: 'good_value', label: 'Good value for money', category: 'accepted' },
+  { id: 'trusted_vendor', label: 'Trusted vendor/relationship', category: 'accepted' },
+  { id: 'quality_service', label: 'High quality service expected', category: 'accepted' },
+  { id: 'timeline_suitable', label: 'Timeline meets requirements', category: 'accepted' },
+  { id: 'recommended', label: 'Recommended by others', category: 'accepted' },
+  { id: 'urgent_need', label: 'Urgent business need', category: 'accepted' },
+  { id: 'scope_perfect', label: 'Scope matches perfectly', category: 'accepted' },
+];
+
+export const REJECTION_REASONS: StatusReason[] = [
+  { id: 'price_too_high', label: 'Price too high', category: 'rejected' },
+  { id: 'budget_constraints', label: 'Budget constraints', category: 'rejected' },
+  { id: 'timeline_too_long', label: 'Timeline too long', category: 'rejected' },
+  { id: 'scope_mismatch', label: 'Scope doesn\'t match needs', category: 'rejected' },
+  { id: 'found_alternative', label: 'Found better alternative', category: 'rejected' },
+  { id: 'project_cancelled', label: 'Project cancelled/postponed', category: 'rejected' },
+  { id: 'internal_solution', label: 'Decided on internal solution', category: 'rejected' },
+  { id: 'vendor_concerns', label: 'Concerns about vendor capability', category: 'rejected' },
+  { id: 'terms_unacceptable', label: 'Terms and conditions unacceptable', category: 'rejected' },
+];
+
 export interface Estimate {
   id: string;
   estimateNumber: string; // "2025-001" format
@@ -37,6 +68,10 @@ export interface Estimate {
   totalVat: number; // Auto-calculated (sum of vatAmount on final prices)
   total: number; // Auto-calculated (subtotalAfterEstimateDiscount + totalVat)
   status: 'draft' | 'sent' | 'accepted' | 'rejected';
+  // NEW: Status reason fields
+  acceptanceReasons?: string[]; // Array of reason IDs
+  rejectionReasons?: string[]; // Array of reason IDs
+  statusChangedAt?: Date; // When status was last changed
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +86,9 @@ export interface EstimateFormValues {
   notes: string;
   validTo: Date;
   status: 'draft' | 'sent' | 'accepted' | 'rejected';
+  // NEW: Include status reasons in form values
+  acceptanceReasons?: string[];
+  rejectionReasons?: string[];
 }
 
 // === SHARING INTERFACES ===

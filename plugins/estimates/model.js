@@ -61,6 +61,10 @@ class EstimateModel {
       totalVat: parseFloat(row.total_vat || 0),
       total: parseFloat(row.total || 0),
       status: row.status || 'draft',
+      // NEW: Add status reasons
+      acceptanceReasons: row.acceptance_reasons ? JSON.parse(row.acceptance_reasons) : [],
+      rejectionReasons: row.rejection_reasons ? JSON.parse(row.rejection_reasons) : [],
+      statusChangedAt: row.status_changed_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -130,9 +134,9 @@ class EstimateModel {
         user_id, estimate_number, contact_id, contact_name, organization_number,
         currency, line_items, estimate_discount, notes, valid_to, subtotal, total_discount, 
         subtotal_after_discount, estimate_discount_amount, subtotal_after_estimate_discount, 
-        total_vat, total, status
+        total_vat, total, status, acceptance_reasons, rejection_reasons, status_changed_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
       ) RETURNING *
     `, [
       userId,
@@ -152,7 +156,11 @@ class EstimateModel {
       subtotalAfterEstimateDiscount,
       totalVat,
       total,
-      estimateData.status || 'draft'
+      estimateData.status || 'draft',
+      // NEW: Handle status reasons
+      JSON.stringify(estimateData.acceptanceReasons || []),
+      JSON.stringify(estimateData.rejectionReasons || []),
+      (estimateData.status === 'accepted' || estimateData.status === 'rejected') ? 'NOW()' : null
     ]);
     
     return this.transformRow(result.rows[0]);
@@ -186,6 +194,11 @@ class EstimateModel {
   async update(userId, estimateId, estimateData) {
     const { subtotal, totalDiscount, subtotalAfterDiscount, estimateDiscountAmount, subtotalAfterEstimateDiscount, totalVat, total } = this.calculateTotals(estimateData.lineItems || [], estimateData.estimateDiscount || 0);
     
+    // NEW: Check if status is changing to accepted/rejected to update status_changed_at
+    const currentEstimate = await this.getById(userId, estimateId);
+    const isStatusChanging = currentEstimate && currentEstimate.status !== estimateData.status;
+    const isBecomingAcceptedOrRejected = (estimateData.status === 'accepted' || estimateData.status === 'rejected');
+    
     const result = await this.pool.query(`
       UPDATE estimates SET
         contact_id = $3,
@@ -204,6 +217,12 @@ class EstimateModel {
         total_vat = $16,
         total = $17,
         status = $18,
+        acceptance_reasons = $19,
+        rejection_reasons = $20,
+        status_changed_at = CASE 
+          WHEN $21 THEN CURRENT_TIMESTAMP 
+          ELSE status_changed_at 
+        END,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $1 AND user_id = $2
       RETURNING *
@@ -225,7 +244,11 @@ class EstimateModel {
       subtotalAfterEstimateDiscount,
       totalVat,
       total,
-      estimateData.status || 'draft'
+      estimateData.status || 'draft',
+      // NEW: Handle status reasons
+      JSON.stringify(estimateData.acceptanceReasons || []),
+      JSON.stringify(estimateData.rejectionReasons || []),
+      isStatusChanging && isBecomingAcceptedOrRejected
     ]);
     
     if (!result.rows.length) {
@@ -247,6 +270,77 @@ class EstimateModel {
     }
     
     return true;
+  }
+
+  // === NEW: STATISTICS METHODS ===
+
+  // Get status transition statistics
+  async getStatusStats(userId, startDate = null, endDate = null) {
+    let dateFilter = '';
+    let params = [userId];
+    
+    if (startDate && endDate) {
+      dateFilter = 'AND status_changed_at BETWEEN $2 AND $3';
+      params.push(startDate, endDate);
+    }
+    
+    const result = await this.pool.query(`
+      SELECT 
+        status,
+        acceptance_reasons,
+        rejection_reasons,
+        COUNT(*) as count,
+        status_changed_at
+      FROM estimates 
+      WHERE user_id = $1 
+        AND status IN ('accepted', 'rejected')
+        AND status_changed_at IS NOT NULL
+        ${dateFilter}
+      ORDER BY status_changed_at DESC
+    `, params);
+    
+    return result.rows.map(row => ({
+      status: row.status,
+      acceptanceReasons: row.acceptance_reasons ? JSON.parse(row.acceptance_reasons) : [],
+      rejectionReasons: row.rejection_reasons ? JSON.parse(row.rejection_reasons) : [],
+      count: parseInt(row.count),
+      statusChangedAt: row.status_changed_at
+    }));
+  }
+
+  // Get aggregated reason statistics
+  async getReasonStats(userId, status, startDate = null, endDate = null) {
+    let dateFilter = '';
+    let params = [userId, status];
+    
+    if (startDate && endDate) {
+      dateFilter = 'AND status_changed_at BETWEEN $3 AND $4';
+      params.push(startDate, endDate);
+    }
+    
+    const reasonField = status === 'accepted' ? 'acceptance_reasons' : 'rejection_reasons';
+    
+    const result = await this.pool.query(`
+      SELECT ${reasonField} as reasons
+      FROM estimates 
+      WHERE user_id = $1 
+        AND status = $2
+        AND status_changed_at IS NOT NULL
+        ${dateFilter}
+    `, params);
+    
+    // Aggregate reasons
+    const reasonCounts = {};
+    result.rows.forEach(row => {
+      if (row.reasons) {
+        const reasons = JSON.parse(row.reasons);
+        reasons.forEach(reason => {
+          reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
+        });
+      }
+    });
+    
+    return reasonCounts;
   }
 
   // === SHARING METHODS ===

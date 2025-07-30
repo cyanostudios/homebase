@@ -7,6 +7,11 @@ function createEstimateRoutes(controller, requirePlugin) {
   router.get('/', requirePlugin('estimates'), (req, res) => controller.getEstimates(req, res));
   router.post('/', requirePlugin('estimates'), (req, res) => controller.createEstimate(req, res));
   router.get('/number/next', requirePlugin('estimates'), (req, res) => controller.getNextEstimateNumber(req, res));
+  
+  // NEW: Statistics routes (must come before /:id to avoid conflicts)
+  router.get('/stats/status', requirePlugin('estimates'), (req, res) => controller.getStatusStats(req, res));
+  router.get('/stats/reasons/:status', requirePlugin('estimates'), (req, res) => controller.getReasonStats(req, res));
+  
   router.get('/:id', requirePlugin('estimates'), (req, res) => controller.getEstimate(req, res));
   router.put('/:id', requirePlugin('estimates'), (req, res) => controller.updateEstimate(req, res));
   router.delete('/:id', requirePlugin('estimates'), (req, res) => controller.deleteEstimate(req, res));

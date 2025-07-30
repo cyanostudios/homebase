@@ -1,13 +1,13 @@
 const EstimateModel = require('./model');
 const puppeteer = require('puppeteer');
-const { generatePDFHTML } = require('./pdfTemplate'); // 🆕 Import PDF template
+const { generatePDFHTML } = require('./pdfTemplate');
 
 class EstimateController {
   constructor(model) {
     this.model = model;
   }
 
-  // Get all estimates for user - matches model.getAll()
+  // Get all estimates for user
   async getEstimates(req, res) {
     try {
       const estimates = await this.model.getAll(req.session.user.id);
@@ -18,7 +18,7 @@ class EstimateController {
     }
   }
 
-  // Get single estimate - now uses model.getById()
+  // Get single estimate
   async getEstimate(req, res) {
     try {
       const { id } = req.params;
@@ -35,7 +35,7 @@ class EstimateController {
     }
   }
 
-  // Create new estimate - matches model.create()
+  // Create new estimate
   async createEstimate(req, res) {
     try {
       const estimate = await this.model.create(req.session.user.id, req.body);
@@ -46,11 +46,25 @@ class EstimateController {
     }
   }
 
-  // Update estimate - matches model.update()
+  // Update estimate with status reasons support
   async updateEstimate(req, res) {
     try {
       const { id } = req.params;
-      const estimate = await this.model.update(req.session.user.id, id, req.body);
+      
+      // Get current estimate to check status change
+      const currentEstimate = await this.model.getById(req.session.user.id, id);
+      if (!currentEstimate) {
+        return res.status(404).json({ error: 'Estimate not found' });
+      }
+      
+      // Ensure status reasons are properly formatted
+      const updateData = {
+        ...req.body,
+        acceptanceReasons: req.body.acceptanceReasons || [],
+        rejectionReasons: req.body.rejectionReasons || []
+      };
+      
+      const estimate = await this.model.update(req.session.user.id, id, updateData);
       res.json(estimate);
     } catch (error) {
       console.error('Error updating estimate:', error);
@@ -61,7 +75,7 @@ class EstimateController {
     }
   }
 
-  // Delete estimate - matches model.delete()
+  // Delete estimate
   async deleteEstimate(req, res) {
     try {
       const { id } = req.params;
@@ -76,7 +90,7 @@ class EstimateController {
     }
   }
 
-  // Get next estimate number - matches model.getNextEstimateNumber()
+  // Get next estimate number
   async getNextEstimateNumber(req, res) {
     try {
       const estimateNumber = await this.model.getNextEstimateNumber(req.session.user.id);
@@ -87,52 +101,68 @@ class EstimateController {
     }
   }
 
-  // === PDF GENERATION METHOD ===
+  // Get status statistics
+  async getStatusStats(req, res) {
+    try {
+      const userId = req.session.user.id;
+      const { startDate, endDate } = req.query;
+      
+      const stats = await this.model.getStatusStats(userId, startDate, endDate);
+      res.json(stats);
+    } catch (error) {
+      console.error('Error getting status stats:', error);
+      res.status(500).json({ error: 'Failed to get status statistics' });
+    }
+  }
+
+  // Get reason statistics
+  async getReasonStats(req, res) {
+    try {
+      const userId = req.session.user.id;
+      const { status } = req.params;
+      const { startDate, endDate } = req.query;
+      
+      if (!['accepted', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Status must be accepted or rejected' });
+      }
+      
+      const stats = await this.model.getReasonStats(userId, status, startDate, endDate);
+      res.json(stats);
+    } catch (error) {
+      console.error('Error getting reason stats:', error);
+      res.status(500).json({ error: 'Failed to get reason statistics' });
+    }
+  }
+
+  // Generate PDF
   async generatePDF(req, res) {
     let browser = null;
 
     try {
-      console.log('🚀 PDF Route params:', req.params);
-      console.log('🚀 PDF Route URL:', req.url);
       const { id } = req.params;
-      console.log('🚀 Extracted ID:', id, 'Type:', typeof id);
       const userId = req.session.user.id;
-      console.log('🚀 User ID:', userId);
-
-      console.log('📋 Getting estimate data for ID:', id);
 
       // Get estimate data
       const estimate = await this.model.getById(userId, id);
       if (!estimate) {
-        console.log('❌ Estimate not found');
         return res.status(404).json({ error: 'Estimate not found' });
       }
-
-      console.log('✅ Estimate found:', estimate.estimateNumber);
-      console.log('🌐 Launching Puppeteer browser...');
 
       // Launch Puppeteer browser
       browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
-      console.log('✅ Browser launched successfully');
 
       const page = await browser.newPage();
-      console.log('✅ Page created');
 
-      // 🆕 Generate HTML content using the new PDF template
-      console.log('📝 Generating HTML using pdfTemplate...');
+      // Generate HTML content using PDF template
       const html = generatePDFHTML(estimate);
-      console.log('✅ HTML generated, length:', html.length);
 
       // Set HTML content
-      console.log('📄 Setting page content...');
       await page.setContent(html, { waitUntil: 'networkidle0' });
-      console.log('✅ Page content set');
 
       // Generate PDF
-      console.log('📄 Generating PDF...');
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
@@ -143,33 +173,25 @@ class EstimateController {
           left: '1cm'
         }
       });
-      console.log('✅ PDF generated, size:', pdfBuffer.length, 'bytes');
 
       // Set response headers for download
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename=estimate-${estimate.estimateNumber}.pdf`);
       res.setHeader('Content-Length', pdfBuffer.length);
-      res.removeHeader('Content-Encoding'); // Prevent gzip issues
+      res.removeHeader('Content-Encoding');
 
-      console.log('📤 Sending PDF to client...');
       // Send PDF as binary
       res.end(pdfBuffer);
-      console.log('✅ PDF sent successfully');
 
     } catch (error) {
-      console.error('❌ Error generating PDF:', error);
+      console.error('Error generating PDF:', error);
       res.status(500).json({ error: 'Failed to generate PDF' });
     } finally {
       if (browser) {
-        console.log('🔒 Closing browser...');
         await browser.close();
-        console.log('✅ Browser closed');
       }
     }
   }
-
-  // 🗑️ REMOVED: generateEstimateHTML() - now in pdfTemplate.js
-  // 🗑️ REMOVED: calculateTotals() - now in pdfTemplate.js
 
   // === SHARING ENDPOINTS ===
 
@@ -204,7 +226,7 @@ class EstimateController {
     }
   }
 
-  // Get estimate by share token (public endpoint - no auth required)
+  // Get estimate by share token (public endpoint)
   async getPublicEstimate(req, res) {
     try {
       const { token } = req.params;
@@ -221,7 +243,6 @@ class EstimateController {
         });
       }
 
-      // Return estimate data for public view
       res.json(estimate);
     } catch (error) {
       console.error('Error getting public estimate:', error);

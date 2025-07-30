@@ -7,6 +7,7 @@ import { Button } from '@/core/ui/Button';
 import { Heading } from '@/core/ui/Typography';
 import { Estimate, calculateEstimateTotals } from '../types/estimate';
 import { estimateShareApi, estimatesApi } from '../api/estimatesApi';
+import { StatusReasonModal } from './StatusReasonModal';
 
 interface EstimateViewProps {
   estimate: Estimate;
@@ -24,15 +25,32 @@ export function EstimateView({ estimate }: EstimateViewProps) {
   // PDF state
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
 
+  // NEW: Status reason modal state
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<'accepted' | 'rejected' | null>(null);
+
   if (!estimate) return null;
 
   // Calculate totals from line items
   const totals = calculateEstimateTotals(estimate.lineItems || []);
 
-  // Handle status change using EstimateContext
+  // NEW: Handle status change with modal for accepted/rejected
   const handleStatusChange = async (newStatus: string) => {
+    // Show modal for accepted/rejected status changes
+    if ((newStatus === 'accepted' || newStatus === 'rejected') && estimate.status !== newStatus) {
+      setPendingStatus(newStatus);
+      setShowStatusModal(true);
+      return;
+    }
+
+    // Direct status change for draft/sent (no modal needed)
+    await performStatusChange(newStatus, []);
+  };
+
+  // NEW: Perform the actual status change with reasons
+  const performStatusChange = async (newStatus: string, reasons: string[] = []) => {
     try {
-      // Create updated estimate data with new status
+      // Create updated estimate data with new status and reasons
       const updatedData = {
         contactId: estimate.contactId,
         contactName: estimate.contactName,
@@ -42,14 +60,17 @@ export function EstimateView({ estimate }: EstimateViewProps) {
         estimateDiscount: estimate.estimateDiscount || 0,
         notes: estimate.notes,
         validTo: estimate.validTo,
-        status: newStatus, // Update the status
+        status: newStatus,
+        // NEW: Include status reasons
+        acceptanceReasons: newStatus === 'accepted' ? reasons : estimate.acceptanceReasons,
+        rejectionReasons: newStatus === 'rejected' ? reasons : estimate.rejectionReasons,
       };
 
       // Use EstimateContext's saveEstimate function for real updates
       const success = await saveEstimate(updatedData);
       
       if (success) {
-        console.log(`Status successfully changed to ${newStatus}`);
+        console.log(`Status successfully changed to ${newStatus}`, { reasons });
         // The EstimateContext will handle updating the state and switching to view mode
       } else {
         console.error('Failed to update status');
@@ -59,6 +80,21 @@ export function EstimateView({ estimate }: EstimateViewProps) {
       console.error('Failed to update status:', error);
       alert('Failed to update status. Please try again.');
     }
+  };
+
+  // NEW: Handle modal confirmation
+  const handleModalConfirm = async (reasons: string[]) => {
+    if (pendingStatus) {
+      await performStatusChange(pendingStatus, reasons);
+    }
+    setShowStatusModal(false);
+    setPendingStatus(null);
+  };
+
+  // NEW: Handle modal cancel
+  const handleModalCancel = () => {
+    setShowStatusModal(false);
+    setPendingStatus(null);
   };
 
   // Handle duplicate using EstimateContext
@@ -224,8 +260,6 @@ export function EstimateView({ estimate }: EstimateViewProps) {
             </tbody>
           </table>
         </div>
-
-        {/* 🗑️ REMOVED: Share URL Display - flyttad till Quick Actions */}
       </Card>
 
       {/* Totals */}
@@ -373,7 +407,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
           </div>
         </div>
 
-        {/* ✅ KEPT: Share URL Display - only in Quick Actions section */}
+        {/* Share URL Display */}
         {shareUrl && (
           <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <div className="text-sm font-medium text-blue-900 mb-2">Share Link Created!</div>
@@ -414,6 +448,15 @@ export function EstimateView({ estimate }: EstimateViewProps) {
           </div>
         </div>
       </Card>
+
+      {/* NEW: Status Reason Modal */}
+      <StatusReasonModal
+        isOpen={showStatusModal}
+        onClose={handleModalCancel}
+        onConfirm={handleModalConfirm}
+        status={pendingStatus || 'accepted'}
+        estimateNumber={estimate.estimateNumber}
+      />
     </div>
   );
 }

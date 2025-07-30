@@ -84,7 +84,7 @@ async function setupDatabase() {
       )
     `);
     
-    // Estimates table
+    // Estimates table with status reasons
     await client.query(`
       CREATE TABLE IF NOT EXISTS estimates (
         id SERIAL PRIMARY KEY,
@@ -106,6 +106,9 @@ async function setupDatabase() {
         total_vat DECIMAL(10,2) DEFAULT 0,
         total DECIMAL(10,2) DEFAULT 0,
         status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'accepted', 'rejected')),
+        acceptance_reasons TEXT DEFAULT '[]',
+        rejection_reasons TEXT DEFAULT '[]',
+        status_changed_at TIMESTAMP NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -141,6 +144,7 @@ async function setupDatabase() {
     await client.query('CREATE INDEX IF NOT EXISTS idx_estimates_number ON estimates(estimate_number)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_estimates_contact_id ON estimates(contact_id)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_estimates_status ON estimates(status)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_estimates_status_changed ON estimates(user_id, status, status_changed_at) WHERE status IN (\'accepted\', \'rejected\')');
     await client.query('CREATE INDEX IF NOT EXISTS idx_estimate_shares_token ON estimate_shares(share_token)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_estimate_shares_estimate_id ON estimate_shares(estimate_id)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_estimate_shares_valid_until ON estimate_shares(valid_until)');
@@ -175,11 +179,39 @@ async function setupDatabase() {
     console.log('⚠️  CHANGE DEFAULT PASSWORD AFTER FIRST LOGIN!');
     console.log('✅ Plugin access granted: contacts, notes, estimates');
     console.log('✅ Estimate sharing table created');
+    console.log('✅ Status reason tracking enabled for estimates');
     
     return superuserId;
     
   } catch (error) {
     console.error('❌ Database setup failed:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// Migrate existing estimates to have empty reason arrays
+async function migrateEstimateReasons() {
+  const client = await pool.connect();
+  
+  try {
+    console.log('🔄 Migrating existing estimates to support status reasons...');
+    
+    const result = await client.query(`
+      UPDATE estimates 
+      SET 
+        acceptance_reasons = COALESCE(acceptance_reasons, '[]'),
+        rejection_reasons = COALESCE(rejection_reasons, '[]')
+      WHERE 
+        acceptance_reasons IS NULL 
+        OR rejection_reasons IS NULL
+    `);
+    
+    console.log(`✅ Updated ${result.rowCount} estimates with empty reason arrays`);
+    
+  } catch (error) {
+    console.error('❌ Estimate reason migration failed:', error);
     throw error;
   } finally {
     client.release();
@@ -342,9 +374,11 @@ Note: @Jane Cooper mentioned she has contacts in the industry that could help wi
 async function main() {
   try {
     const userId = await setupDatabase();
+    await migrateEstimateReasons();
     await migrateMockData(userId);
     console.log('🚀 Homebase database ready!');
     console.log('🔗 All cross-plugin @mentions preserved');
+    console.log('📊 Status reason tracking ready for statistics');
   } catch (error) {
     console.error('Setup failed:', error);
     process.exit(1);
@@ -358,4 +392,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { setupDatabase, migrateMockData };
+module.exports = { setupDatabase, migrateMockData, migrateEstimateReasons };
