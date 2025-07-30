@@ -398,8 +398,8 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                     </Button>
                   </div>
 
-                  {/* Row 2: Numbers table */}
-                  <div className="overflow-x-auto">
+{/* Row 2: Numbers table */}
+<div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
@@ -414,9 +414,6 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                           </th>
                           <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             VAT %
-                          </th>
-                          <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Subtotal
                           </th>
                           <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Discount
@@ -472,9 +469,6 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                               <option value="12">12%</option>
                               <option value="25">25%</option>
                             </select>
-                          </td>
-                          <td className="px-2 py-1 text-right text-sm text-gray-900">
-                            {(item.lineSubtotal || 0).toFixed(2)}
                           </td>
                           <td className="px-2 py-1 text-right text-sm text-gray-900">
                             -{(item.discountAmount || 0).toFixed(2)}

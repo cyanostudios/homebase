@@ -88,11 +88,10 @@ export function StatusReasonModal({
             ))}
           </div>
 
-          {selectedReasons.length === 0 && (
-            <p className="text-xs text-gray-500 mt-4 italic">
-              You can proceed without selecting any reasons, but it helps with statistics.
-            </p>
-          )}
+          {/* FIX: Always show help message - removed condition */}
+          <p className="text-xs text-gray-500 mt-4 italic">
+            You can proceed without selecting any reasons, but it helps with statistics.
+          </p>
         </div>
 
         {/* Footer */}
