@@ -12,8 +12,8 @@ export const useSidebar = () => useContext(SidebarContext);
 
 interface MainLayoutProps {
   children: React.ReactNode;
-  currentPage: 'contacts' | 'notes';
-  onPageChange: (page: 'contacts' | 'notes') => void;
+  currentPage: 'contacts' | 'notes' | 'estimates' | 'tasks';
+  onPageChange: (page: 'contacts' | 'notes' | 'estimates' | 'tasks') => void;
 }
 
 export function MainLayout({ children, currentPage, onPageChange }: MainLayoutProps) {

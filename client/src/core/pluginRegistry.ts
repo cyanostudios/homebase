@@ -2,9 +2,11 @@
 import { ContactProvider } from '@/plugins/contacts/context/ContactContext';
 import { NoteProvider } from '@/plugins/notes/context/NoteContext';
 import { EstimateProvider } from '@/plugins/estimates/context/EstimateContext';
+import { TaskProvider } from '@/plugins/tasks/context/TaskContext';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';
+import { useTasks } from '@/plugins/tasks/hooks/useTasks';
 import { ContactList } from '@/plugins/contacts/components/ContactList';
 import { ContactForm } from '@/plugins/contacts/components/ContactForm';
 import { ContactView } from '@/plugins/contacts/components/ContactView';
@@ -14,6 +16,9 @@ import { NoteView } from '@/plugins/notes/components/NoteView';
 import { EstimateList } from '@/plugins/estimates/components/EstimateList';
 import { EstimateForm } from '@/plugins/estimates/components/EstimateForm';
 import { EstimateView } from '@/plugins/estimates/components/EstimateView';
+import { TaskList } from '@/plugins/tasks/components/TaskList';
+import { TaskForm } from '@/plugins/tasks/components/TaskForm';
+import { TaskView } from '@/plugins/tasks/components/TaskView';
 
 export interface PluginRegistryEntry {
   name: string;
@@ -27,7 +32,7 @@ export interface PluginRegistryEntry {
   components: {
     List: React.ComponentType;
     Form: React.ComponentType<{ currentItem?: any; onSave: (data: any) => void; onCancel: () => void; }>;
-    View: React.ComponentType<{ item?: any; contact?: any; note?: any; estimate?: any; }>;
+    View: React.ComponentType<{ item?: any; contact?: any; note?: any; estimate?: any; task?: any; }>;
   };
 }
 
@@ -63,6 +68,17 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       List: EstimateList,
       Form: EstimateForm,
       View: EstimateView,
+    }
+  },
+  {
+    name: 'tasks',
+    Provider: TaskProvider,
+    hook: useTasks,
+    panelKey: 'isTaskPanelOpen',
+    components: {
+      List: TaskList,
+      Form: TaskForm,
+      View: TaskView,
     }
   }
   // New plugins just add entry here - no App.tsx changes needed

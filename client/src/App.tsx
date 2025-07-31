@@ -90,7 +90,8 @@ function AppContent() {
   
   const currentItem = currentPluginContext?.currentContact || 
                      currentPluginContext?.currentNote || 
-                     currentPluginContext?.currentEstimate;
+                     currentPluginContext?.currentEstimate ||
+                     currentPluginContext?.currentTask;
   const currentMode = currentPluginContext?.panelMode || 
                      currentPluginContext?.contactPanelMode || 
                      currentPluginContext?.notePanelMode || 

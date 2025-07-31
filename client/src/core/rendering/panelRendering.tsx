@@ -23,6 +23,8 @@ export const createPanelRenderers = (
         return <ViewComponent note={currentItem} />;
       } else if (currentPlugin.name === 'estimates') {
         return <ViewComponent estimate={currentItem} />;
+      } else if (currentPlugin.name === 'tasks') {
+        return <ViewComponent task={currentItem} />;
       } else {
         return <ViewComponent item={currentItem} />;
       }
@@ -33,6 +35,7 @@ export const createPanelRenderers = (
           currentContact={currentPlugin.name === 'contacts' ? currentItem : undefined}
           currentNote={currentPlugin.name === 'notes' ? currentItem : undefined}
           currentEstimate={currentPlugin.name === 'estimates' ? currentItem : undefined}
+          currentTask={currentPlugin.name === 'tasks' ? currentItem : undefined}
           currentItem={currentItem}
           onSave={handleSave}
           onCancel={handleCancel}

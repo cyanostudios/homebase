@@ -13,6 +13,7 @@ import {
   Calendar,
   Package,
   StickyNote,
+  CheckSquare,
   ChevronLeft, 
   ChevronRight,
   LogOut
@@ -21,8 +22,8 @@ import { useSidebar } from './MainLayout';
 import { useApp } from '@/core/api/AppContext';
 
 interface SidebarProps {
-  currentPage: 'contacts' | 'notes' | 'estimates';
-  onPageChange: (page: 'contacts' | 'notes' | 'estimates') => void;
+  currentPage: 'contacts' | 'notes' | 'estimates' | 'tasks';
+  onPageChange: (page: 'contacts' | 'notes' | 'estimates' | 'tasks') => void;
 }
 
 const navCategories = [
@@ -32,6 +33,7 @@ const navCategories = [
       { label: 'Dashboard', icon: Home, page: null },
       { label: 'Contacts', icon: Users, page: 'contacts' },
       { label: 'Notes', icon: StickyNote, page: 'notes' },
+      { label: 'Tasks', icon: CheckSquare, page: 'tasks' },
       { label: 'Calendar', icon: Calendar, page: null },
       { label: 'Planner', icon: Calendar, page: null },
     ]
@@ -90,7 +92,7 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     }
     
     // Handle navigation
-    if (page === 'contacts' || page === 'notes' || page === 'estimates') {
+    if (page === 'contacts' || page === 'notes' || page === 'estimates' || page === 'tasks') {
       onPageChange(page);
     }
   };

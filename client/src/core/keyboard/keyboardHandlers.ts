@@ -33,7 +33,8 @@ export const createKeyboardHandler = (pluginContexts: any[]) => {
           if (openPluginData?.context) {
             const closeFunction = openPluginData.context.closeContactPanel || 
                                  openPluginData.context.closeNotePanel || 
-                                 openPluginData.context.closeEstimatePanel;
+                                 openPluginData.context.closeEstimatePanel ||
+                                 openPluginData.context.closeTaskPanel;
             if (closeFunction) closeFunction();
           }
           return;
@@ -56,7 +57,8 @@ export const createKeyboardHandler = (pluginContexts: any[]) => {
               // Open the item for view using the appropriate function
               const openForViewFunction = pluginData.context.openContactForView || 
                                          pluginData.context.openNoteForView || 
-                                         pluginData.context.openEstimateForView;
+                                         pluginData.context.openEstimateForView ||
+                                         pluginData.context.openTaskForView;
               if (openForViewFunction) {
                 openForViewFunction(itemData);
               }

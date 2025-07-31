@@ -96,7 +96,8 @@ export const createPanelFooter = (
     if (currentPluginContext && currentItem) {
       const editFunction = currentPluginContext.openContactForEdit || 
                          currentPluginContext.openNoteForEdit || 
-                         currentPluginContext.openEstimateForEdit;
+                         currentPluginContext.openEstimateForEdit ||
+                         currentPluginContext.openTaskForEdit;
       if (editFunction) editFunction(currentItem);
     }
   };

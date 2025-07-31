@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building, User, StickyNote, Calculator } from 'lucide-react';
+import { Building, User, StickyNote, Calculator, CheckSquare } from 'lucide-react';
 
 export const createPanelTitles = (
   currentPlugin: any,
@@ -69,6 +69,22 @@ export const createPanelTitles = (
             </div>
           );
         }
+      } else if (currentPlugin.name === 'tasks') {
+        const taskTitle = currentItem.title || `Task #${currentItem.id}`;
+        const dueDate = currentItem.dueDate ? new Date(currentItem.dueDate).toLocaleDateString() : null;
+        
+        if (isMobileView && dueDate) {
+          // Mobile: Split to multiple lines
+          return (
+            <div>
+              <div>{taskTitle}</div>
+              <div className="text-sm font-normal text-gray-600 mt-1">Due: {dueDate}</div>
+            </div>
+          );
+        } else {
+          // Desktop: Single line
+          return `${taskTitle}${dueDate ? ` • Due: ${dueDate}` : ''}`;
+        }
       }
       return `#${currentItem.id}`; // Fallback for other plugins
     }
@@ -127,6 +143,38 @@ export const createPanelTitles = (
               {status}
             </span>
             <span className="text-xs text-gray-600">• Valid to {validTo}</span>
+          </div>
+        );
+      } else if (currentPlugin.name === 'tasks') {
+        const status = currentItem.status;
+        const priority = currentItem.priority;
+        const createdDate = new Date(currentItem.createdAt).toLocaleDateString();
+        
+        const statusColors = {
+          'not started': 'bg-gray-100 text-gray-800',
+          'in progress': 'bg-blue-100 text-blue-800',
+          'Done': 'bg-green-100 text-green-800',
+          'Canceled': 'bg-red-100 text-red-800',
+        };
+        const priorityColors = {
+          'Low': 'bg-gray-100 text-gray-700',
+          'Medium': 'bg-yellow-100 text-yellow-800',
+          'High': 'bg-red-100 text-red-800',
+        };
+        
+        const statusBadgeColor = statusColors[status] || statusColors['not started'];
+        const priorityBadgeColor = priorityColors[priority] || priorityColors['Medium'];
+        
+        return (
+          <div className="flex items-center gap-2">
+            <CheckSquare className="w-4 h-4 text-blue-600" />
+            <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${statusBadgeColor}`}>
+              {status}
+            </span>
+            <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${priorityBadgeColor}`}>
+              {priority}
+            </span>
+            <span className="text-xs text-gray-600">• Created {createdDate}</span>
           </div>
         );
       }

@@ -14,10 +14,12 @@ export const createPanelHandlers = (
       if (currentPlugin && currentPluginContext) {
         const deleteFunction = currentPluginContext.deleteContact || 
                              currentPluginContext.deleteNote || 
-                             currentPluginContext.deleteEstimate;
+                             currentPluginContext.deleteEstimate ||
+                             currentPluginContext.deleteTask;
         const closeFunction = currentPluginContext.closeContactPanel || 
                              currentPluginContext.closeNotePanel || 
-                             currentPluginContext.closeEstimatePanel;
+                             currentPluginContext.closeEstimatePanel ||
+                             currentPluginContext.closeTaskPanel;
         
         if (deleteFunction && closeFunction && currentItem) {
           await deleteFunction(currentItem.id);
@@ -31,7 +33,8 @@ export const createPanelHandlers = (
       if (currentPluginContext) {
         const saveFunction = currentPluginContext.saveContact || 
                             currentPluginContext.saveNote || 
-                            currentPluginContext.saveEstimate;
+                            currentPluginContext.saveEstimate ||
+                            currentPluginContext.saveTask;
         return saveFunction ? await saveFunction(data) : false;
       }
       return false;
@@ -41,10 +44,12 @@ export const createPanelHandlers = (
       if (currentPluginContext) {
         const openForViewFunction = currentPluginContext.openContactForView || 
                                    currentPluginContext.openNoteForView || 
-                                   currentPluginContext.openEstimateForView;
+                                   currentPluginContext.openEstimateForView ||
+                                   currentPluginContext.openTaskForView;
         const closeFunction = currentPluginContext.closeContactPanel || 
                              currentPluginContext.closeNotePanel || 
-                             currentPluginContext.closeEstimatePanel;
+                             currentPluginContext.closeEstimatePanel ||
+                             currentPluginContext.closeTaskPanel;
   
         if (currentMode === 'edit' && currentItem && openForViewFunction) {
           openForViewFunction(currentItem);
@@ -73,7 +78,8 @@ export const createPanelHandlers = (
       if (currentPluginContext) {
         const closeFunction = currentPluginContext.closeContactPanel || 
                              currentPluginContext.closeNotePanel || 
-                             currentPluginContext.closeEstimatePanel;
+                             currentPluginContext.closeEstimatePanel ||
+                             currentPluginContext.closeTaskPanel;
         if (closeFunction) closeFunction();
       }
     };

@@ -30,7 +30,7 @@ interface AppContextType {
   getEstimatesForContact: (contactId: string) => Promise<Estimate[]>;
   
   // Close other panels function (for plugin coordination)
-  closeOtherPanels: (except?: 'contacts' | 'notes' | 'estimates') => void;
+  closeOtherPanels: (except?: 'contacts' | 'notes' | 'estimates' | 'tasks') => void;
   
   // ADDED: Registry for plugin close functions
   registerPanelCloseFunction: (pluginName: string, closeFunction: () => void) => void;
@@ -213,7 +213,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // FIXED: Close other panels coordination function
-  const closeOtherPanels = (except?: 'contacts' | 'notes' | 'estimates') => {
+  const closeOtherPanels = (except?: 'contacts' | 'notes' | 'estimates' | 'tasks') => {
     console.log('closeOtherPanels called, except:', except);
     console.log('Available close functions:', Array.from(panelCloseFunctions.keys()));
     
