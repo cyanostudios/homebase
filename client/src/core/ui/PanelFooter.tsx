@@ -85,6 +85,16 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   );
 };
 
+// DYNAMIC: Helper function to find plugin functions
+function findOpenFunction(context: any, mode: string, pluginName?: string): any {
+  if (!context || !pluginName) return null;
+  
+  const singular = pluginName.charAt(0).toUpperCase() + pluginName.slice(1, -1);
+  const functionName = `open${singular}For${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
+  
+  return context[functionName] || null;
+}
+
 export const createPanelFooter = (
   currentMode: string,
   currentItem: any,
@@ -92,13 +102,20 @@ export const createPanelFooter = (
   validationErrors: any[],
   handlers: any
 ) => {
+  // DYNAMIC: Find edit function automatically based on current plugin
   const handleEditItem = () => {
-    if (currentPluginContext && currentItem) {
-      const editFunction = currentPluginContext.openContactForEdit || 
-                         currentPluginContext.openNoteForEdit || 
-                         currentPluginContext.openEstimateForEdit ||
-                         currentPluginContext.openTaskForEdit;
-      if (editFunction) editFunction(currentItem);
+    if (currentPluginContext && currentItem && handlers.currentPlugin) {
+      const editFunction = findOpenFunction(
+        currentPluginContext,
+        'edit',
+        handlers.currentPlugin.name
+      );
+      
+      if (editFunction) {
+        editFunction(currentItem);
+      } else {
+        console.warn(`Edit function not found for plugin: ${handlers.currentPlugin?.name}`);
+      }
     }
   };
 
@@ -109,7 +126,7 @@ export const createPanelFooter = (
       currentPluginContext={currentPluginContext}
       validationErrors={validationErrors}
       onDeleteItem={() => handlers.handleDeleteItem()}
-      onClosePanel={handlers.handleClosePanel}
+      onClosePanel={handlers.getCloseHandler()} // FIXED: Use getCloseHandler() instead of handleClosePanel
       onEditItem={handleEditItem}
       onSaveClick={handlers.handleSaveClick}
       onCancelClick={handlers.handleCancelClick}

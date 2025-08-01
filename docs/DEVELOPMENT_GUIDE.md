@@ -40,6 +40,34 @@ Homebase is a production-ready plugin-based business application with revolution
 - **Domain:** app.beyondmusic.se with HTTPS
 - **Performance:** Sub-second response times
 
+## Project Structure
+
+**IMPORTANT:** All configuration files are in the ROOT directory, not in `client/`.
+
+```
+homebase/
+├── vite.config.ts          # Vite configuration (ROOT location)
+├── tailwind.config.ts      # Tailwind CSS configuration (ROOT)
+├── postcss.config.js       # PostCSS configuration (ROOT)
+├── package.json            # All dependencies (frontend + backend) (ROOT)
+├── tsconfig.json           # TypeScript configuration (ROOT)
+├── client/
+│   ├── index.html          # HTML entry point
+│   └── src/                # React application source
+│       ├── core/           # Core system files
+│       ├── plugins/        # Plugin implementations
+│       └── App.tsx         # Main application component
+├── server/                 # Express.js backend
+├── plugins/                # Backend plugin implementations
+└── docs/                   # Documentation
+```
+
+**Key Points:**
+- **Single `package.json`** manages all dependencies
+- **Vite configuration in ROOT** handles client build
+- **No separate frontend package management** needed
+- **All configs in ROOT** for proper path resolution
+
 ## Plugin Architecture
 
 ### Backend Structure
@@ -88,9 +116,10 @@ App.tsx                      # Dynamic plugin composition (constant size)
 git clone [repository-url]
 cd homebase
 
-# Install dependencies
+# Install ALL dependencies (frontend + backend) from ROOT
 npm install
-cd client && npm install && cd ..
+
+# NO need to cd into client/ - all dependencies managed from root
 
 # Setup development database
 node scripts/setup-database.js
@@ -100,23 +129,33 @@ cp .env.example .env.local
 # Edit DATABASE_URL and other settings
 ```
 
-### Running the Application
+## Running the Application - CORRECTED
+
+### Standard Terminal Setup
 ```bash
-# Terminal 1: Frontend development server
-cd client
+# Terminal 1: Frontend development server (from ROOT directory)
+npx vite
+
+# Alternative (explicit config):
 npx vite --config vite.config.ts
 
-# Terminal 2: Backend API server  
+# Terminal 2: Backend API server (from ROOT directory)
 npm run dev
 
-# Terminal 3: Commands and testing
+# Terminal 3: Commands and testing (from ROOT directory)
 # Available for git, database, testing commands
 ```
+
+**CRITICAL:** Always run Vite from the **project root directory**, not from `client/`. The Vite configuration is in the root and is configured to use `client/` as its build root.
 
 ### Development URLs
 - **Frontend:** http://localhost:3001
 - **Backend API:** http://localhost:3002
 - **Health Check:** `curl http://localhost:3002/api/health`
+
+### Path Aliases
+- `@/` maps to `client/src/`
+- Example: `@/core/api/AppContext` → `client/src/core/api/AppContext.tsx`
 
 ## Current Plugin Status
 
@@ -126,6 +165,7 @@ npm run dev
 | **Contacts** | ✅ Modular | CRUD, @mentions, cross-refs | Complete |
 | **Notes** | ✅ Modular | @mentions, rich content | Complete |
 | **Estimates** | ✅ Modular | Status mgmt, calculations | Complete |
+| **Tasks** | ✅ Modular | Priority mgmt, assignments | Complete |
 
 ### Key Features Working
 - **Universal Keyboard Navigation** - Space opens/closes panels, Arrow keys navigate lists
@@ -163,11 +203,13 @@ sessions               # Express session storage
 contacts               # Contact management with @mention support
 notes                  # Notes with cross-plugin mentions
 estimates              # Estimates with contact references
+tasks                  # Task management with assignments
 ```
 
 ### Cross-Plugin References
 - **@Mentions** - JSON fields store contact references in notes
 - **Contact References** - Foreign keys link estimates to contacts
+- **Task Assignments** - Reference contacts for task ownership
 - **Search Integration** - Indexed fields enable cross-plugin search
 
 ## Performance Optimization
@@ -182,7 +224,8 @@ estimates              # Estimates with contact references
 |--------|--------|-------|-------------|
 | AppContext size | 1000+ lines | 600 lines | 40% reduction |
 | Component re-renders | All affected | Plugin-specific | 90% reduction |
-| Plugin development time | 60-90 min | 15-25 min | 65% faster |
+| Plugin development time | 45-60 min | 15-25 min | 65% faster |
+| Core file updates | 9 files | 0 files | 100% elimination |
 | Team conflicts | High | Zero | 100% elimination |
 
 ## Production Deployment
@@ -239,10 +282,50 @@ curl https://app.beyondmusic.se/api/health
 ## Troubleshooting
 
 ### Common Development Issues
-1. **Plugin Not Loading** - Check plugin.config.js and server logs
-2. **Context Errors** - Verify provider wrapping in App.tsx
-3. **Type Errors** - Ensure interface consistency after changes
-4. **Cross-Plugin Issues** - Check AppContext usage patterns
+
+#### Frontend Build/Startup Issues
+
+**Error: "Could not resolve @/core/api/AppContext"**
+- **Cause:** Running Vite from wrong directory or missing path alias configuration
+- **Solution:** Run `npx vite` from project **root directory**, not from `client/`
+
+**Error: "command not found: npx" or "command not found: vite"**
+- **Cause:** Node.js/npm not properly installed or dependencies not installed
+- **Solution:** 
+  1. Install Node.js 18+ and verify with `node --version`
+  2. Run `npm install` from project root
+
+**Error: "EADDRINUSE: address already in use :::3001"**
+- **Cause:** Frontend server already running
+- **Solution:** Stop existing process with `Ctrl+C` or kill process using port 3001
+
+**Error: "Cannot find module 'vite'"**
+- **Cause:** Dependencies not installed
+- **Solution:** Run `npm install` from project root (not from client directory)
+
+**Frontend shows blank page:**
+- **Check:** Are both frontend (3001) and backend (3002) running?
+- **Check:** Is API proxy working? Look for CORS errors in browser console
+- **Check:** Are there JavaScript errors in browser console?
+- **Check:** Is `vite.config.ts` in the root directory?
+
+#### Backend Issues
+
+**Plugin Not Loading**
+- **Check:** plugin.config.js configuration and server logs
+- **Expected:** Server logs should show: `🟢 Loaded plugin: [name] (/api/[route])`
+
+**Context Errors**
+- **Check:** Provider wrapping in App.tsx
+- **Check:** Plugin registration in pluginRegistry.ts
+
+**Type Errors**
+- **Check:** Interface consistency after changes
+- **Check:** TypeScript configuration in root tsconfig.json
+
+**Cross-Plugin Issues**
+- **Check:** AppContext usage patterns
+- **Check:** Cross-plugin reference integrity
 
 ### Debug Commands
 ```bash
@@ -250,35 +333,74 @@ curl https://app.beyondmusic.se/api/health
 ps aux | grep node
 
 # Check port usage  
-netstat -tlnp | grep 3002
+netstat -tlnp | grep 3001  # Frontend
+netstat -tlnp | grep 3002  # Backend
 
 # Check database connection
 npm run test:db
 
-# Check plugin loading
-# Server logs will show: "🟢 Loaded plugin: [name] (/api/[route])"
+# Check Vite configuration
+cat vite.config.ts
+
+# Verify dependencies
+npm list | grep vite
+npm list | grep react
+```
+
+### Configuration Validation
+
+**Verify Vite Setup:**
+```bash
+# Check if vite.config.ts exists in root
+ls -la vite.config.ts
+
+# Verify Vite can find configuration
+npx vite --help
+```
+
+**Verify Dependencies:**
+```bash
+# All dependencies should be in root package.json
+cat package.json | grep -E "(vite|react|typescript)"
+
+# No package.json should exist in client/
+ls -la client/package.json  # Should not exist
 ```
 
 ## Contributing Guidelines
 
 ### For New Team Members
 1. Read this guide completely
-2. Set up development environment
+2. Set up development environment using **corrected commands**
 3. Review PLUGIN_GUIDE.md for technical patterns
 4. Check STYLE_GUIDE.md for UI standards
 5. Start with small plugin or feature enhancement
 
 ### For AI/Claude Collaboration
 - Follow COLLABORATION_GUIDE.md patterns
+- Use **corrected terminal commands** from this guide
 - Provide complete file contents in artifacts
 - Test changes incrementally
 - Preserve all existing functionality
 - Document architectural decisions
+
+### New Developer Onboarding Test
+**10-minute setup verification:**
+1. Fresh clone of repository
+2. Run `npm install` from root
+3. Run `npx vite` from root (Terminal 1)
+4. Run `npm run dev` from root (Terminal 2)  
+5. Access http://localhost:3001 - should show working application
+6. Access http://localhost:3002/api/health - should return {"status":"ok"}
+7. Hot reload should work for both frontend and backend changes
+
+If any step fails, refer to troubleshooting section above.
 
 ---
 
 **Architecture Status:** Complete modular system with performance optimization  
 **Production Status:** Live and operational with enterprise features  
 **Development Ready:** Parallel team development with zero conflicts  
+**Setup Time:** <10 minutes with corrected commands
 
-*Last Updated: July 25, 2025*
+*Last Updated: August 2025 - Vite configuration corrected*

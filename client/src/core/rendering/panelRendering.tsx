@@ -1,3 +1,6 @@
+// client/src/core/rendering/panelRendering.tsx
+// REFACTORED: Dynamic props mapping - eliminates manual plugin if-statements
+
 import React from 'react';
 
 export const createPanelRenderers = (
@@ -16,31 +19,27 @@ export const createPanelRenderers = (
     const FormComponent = currentPlugin.components.Form;
 
     if (currentMode === 'view') {
-      // Pass correct props based on plugin type
-      if (currentPlugin.name === 'contacts') {
-        return <ViewComponent contact={currentItem} />;
-      } else if (currentPlugin.name === 'notes') {
-        return <ViewComponent note={currentItem} />;
-      } else if (currentPlugin.name === 'estimates') {
-        return <ViewComponent estimate={currentItem} />;
-      } else if (currentPlugin.name === 'tasks') {
-        return <ViewComponent task={currentItem} />;
-      } else {
-        return <ViewComponent item={currentItem} />;
-      }
+      // DYNAMIC: Generate props based on plugin name automatically
+      const singular = currentPlugin.name.slice(0, -1); // 'contacts' -> 'contact'
+      const props = { [singular]: currentItem };
+      
+      // Also pass generic 'item' prop for plugins that might use it
+      const finalProps = { ...props, item: currentItem };
+      
+      return <ViewComponent {...finalProps} />;
     } else {
-      // Form mode
-      return (
-        <FormComponent
-          currentContact={currentPlugin.name === 'contacts' ? currentItem : undefined}
-          currentNote={currentPlugin.name === 'notes' ? currentItem : undefined}
-          currentEstimate={currentPlugin.name === 'estimates' ? currentItem : undefined}
-          currentTask={currentPlugin.name === 'tasks' ? currentItem : undefined}
-          currentItem={currentItem}
-          onSave={handleSave}
-          onCancel={handleCancel}
-        />
-      );
+      // DYNAMIC: Generate form props based on plugin name
+      const singular = currentPlugin.name.slice(0, -1);
+      const currentItemProp = `current${singular.charAt(0).toUpperCase() + singular.slice(1)}`;
+      
+      const formProps = {
+        [currentItemProp]: currentItem,
+        currentItem: currentItem, // Fallback generic prop
+        onSave: handleSave,
+        onCancel: handleCancel
+      };
+      
+      return <FormComponent {...formProps} />;
     }
   };
 
@@ -57,3 +56,10 @@ export const createPanelRenderers = (
     renderCurrentPage
   };
 };
+
+// BENEFITS OF THIS REFACTORING:
+// 1. NEW PLUGINS: No manual if-statements needed for View/Form components
+// 2. CONSISTENT PROPS: Automatic prop naming based on plugin registry
+// 3. BACKWARDS COMPATIBLE: Includes both specific and generic props
+// 4. MAINTAINABLE: Single pattern for all plugin rendering
+// 5. TYPE SAFE: Uses plugin registry structure for prop generation

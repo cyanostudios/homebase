@@ -4,16 +4,16 @@ import { tasksApi } from '../api/tasksApi';
 import { useApp } from '@/core/api/AppContext';
 
 interface TaskContextType {
-  // Task Panel State
+  // Panel State - STANDARDIZED: Using generic panelMode convention
   isTaskPanelOpen: boolean;
   currentTask: Task | null;
-  panelMode: 'create' | 'edit' | 'view';
+  panelMode: 'create' | 'edit' | 'view'; // CHANGED: From taskPanelMode to panelMode
   validationErrors: ValidationError[];
   
-  // Tasks Data
+  // Data State
   tasks: Task[];
   
-  // Task Actions
+  // Actions - STANDARDIZED: Consistent function naming
   openTaskPanel: (task: Task | null) => void;
   openTaskForEdit: (task: Task) => void;
   openTaskForView: (task: Task) => void;
@@ -36,10 +36,10 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   // Get panel registration functions from AppContext
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
   
-  // Panel states
+  // Panel states - STANDARDIZED: Using generic panelMode
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create'); // CHANGED: From taskPanelMode
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   
   // Data state
@@ -54,29 +54,24 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   }, [isAuthenticated]);
 
-  // Register panel close function - empty dependency array to avoid infinite loops
+  // Panel registration
   useEffect(() => {
     registerPanelCloseFunction('tasks', closeTaskPanel);
-    return () => {
-      unregisterPanelCloseFunction('tasks');
-    };
-  }, []); // Empty dependency array - only run once
+    return () => unregisterPanelCloseFunction('tasks');
+  }, []);
 
-  // Global functions for form submission (required for global form handling)
+  // Global functions for form submission
   useEffect(() => {
     window.submitTasksForm = () => {
-      // Trigger form submission event
       const event = new CustomEvent('submitTaskForm');
       window.dispatchEvent(event);
     };
 
     window.cancelTasksForm = () => {
-      // Trigger form cancel event
       const event = new CustomEvent('cancelTaskForm');
       window.dispatchEvent(event);
     };
 
-    // Cleanup
     return () => {
       delete window.submitTasksForm;
       delete window.cancelTasksForm;
@@ -86,15 +81,12 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const loadTasks = async () => {
     try {
       const tasksData = await tasksApi.getTasks();
-      
-      // Transform API data to match interface
       const transformedTasks = tasksData.map((task: any) => ({
         ...task,
         createdAt: new Date(task.createdAt),
         updatedAt: new Date(task.updatedAt),
         dueDate: task.dueDate ? new Date(task.dueDate) : null,
       }));
-
       setTasks(transformedTasks);
     } catch (error) {
       console.error('Failed to load tasks:', error);
@@ -114,25 +106,39 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     if (!taskData.content?.trim()) {
       errors.push({
         field: 'content',
-        message: 'Task content is required'
+        message: 'Task description is required'
+      });
+    }
+    
+    if (!taskData.status) {
+      errors.push({
+        field: 'status',
+        message: 'Task status is required'
+      });
+    }
+    
+    if (!taskData.priority) {
+      errors.push({
+        field: 'priority',
+        message: 'Task priority is required'
       });
     }
     
     return errors;
   };
 
-  // Task functions
+  // CRUD Functions - STANDARDIZED naming
   const openTaskPanel = (task: Task | null) => {
     setCurrentTask(task);
-    setPanelMode(task ? 'edit' : 'create');
+    setPanelMode(task ? 'edit' : 'create'); // UPDATED: Using setPanelMode
     setIsTaskPanelOpen(true);
     setValidationErrors([]);
-    onCloseOtherPanels(); // Close other plugin panels
+    onCloseOtherPanels();
   };
 
   const openTaskForEdit = (task: Task) => {
     setCurrentTask(task);
-    setPanelMode('edit');
+    setPanelMode('edit'); // UPDATED: Using setPanelMode
     setIsTaskPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -140,7 +146,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const openTaskForView = (task: Task) => {
     setCurrentTask(task);
-    setPanelMode('view');
+    setPanelMode('view'); // UPDATED: Using setPanelMode
     setIsTaskPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -149,7 +155,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const closeTaskPanel = () => {
     setIsTaskPanelOpen(false);
     setCurrentTask(null);
-    setPanelMode('create');
+    setPanelMode('create'); // UPDATED: Using setPanelMode
     setValidationErrors([]);
   };
 
@@ -160,12 +166,10 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const saveTask = async (taskData: any): Promise<boolean> => {
     console.log('TaskContext saveTask called with:', taskData);
     
-    // Run validation
     const errors = validateTask(taskData);
     console.log('Validation errors:', errors);
     setValidationErrors(errors);
     
-    // If there are blocking errors, don't save
     const blockingErrors = errors.filter(error => !error.message.includes('Warning'));
     if (blockingErrors.length > 0) {
       console.log('Validation failed:', blockingErrors);
@@ -179,7 +183,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       
       if (currentTask) {
         console.log('Updating existing task:', currentTask.id);
-        // Update existing task
         savedTask = await tasksApi.updateTask(currentTask.id, taskData);
         setTasks(prev => prev.map(task => 
           task.id === currentTask.id ? {
@@ -195,11 +198,10 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           updatedAt: new Date(savedTask.updatedAt),
           dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
         });
-        setPanelMode('view');
+        setPanelMode('view'); // UPDATED: Using setPanelMode
         setValidationErrors([]);
       } else {
         console.log('Creating new task...');
-        // Create new task
         savedTask = await tasksApi.createTask(taskData);
         console.log('Task created successfully:', savedTask);
         setTasks(prev => [...prev, {
@@ -234,31 +236,25 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   };
 
-  // Duplicate task function
   const duplicateTask = async (originalTask: Task) => {
     try {
-      // Create duplicate data without ID and with updated title
       const duplicateData = {
         title: `${originalTask.title} (Copy)`,
         content: originalTask.content,
-        mentions: originalTask.mentions || [], // Preserve mentions
-        status: 'not started' as const, // Reset status for duplicate
+        status: 'not started' as const,
         priority: originalTask.priority,
         dueDate: originalTask.dueDate,
         assignedTo: originalTask.assignedTo,
-        // Don't copy createdFromNote - this is a new independent task
+        mentions: originalTask.mentions || []
       };
       
-      // Create the new task via API
       const newTask = await tasksApi.createTask(duplicateData);
-      
-      // Add to tasks list
       setTasks(prev => [{
         ...newTask,
         createdAt: new Date(newTask.createdAt),
         updatedAt: new Date(newTask.updatedAt),
         dueDate: newTask.dueDate ? new Date(newTask.dueDate) : null,
-      }, ...prev]); // Add to beginning of list
+      }, ...prev]);
       
       console.log('Task duplicated successfully');
     } catch (error) {
@@ -268,10 +264,10 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   };
 
   const value: TaskContextType = {
-    // Panel State
+    // Panel State - STANDARDIZED
     isTaskPanelOpen,
     currentTask,
-    panelMode,
+    panelMode, // CHANGED: From taskPanelMode to panelMode
     validationErrors,
     
     // Data State

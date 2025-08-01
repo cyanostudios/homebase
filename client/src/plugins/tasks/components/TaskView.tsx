@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckSquare, User, Copy, Calendar, AlertCircle, Flag } from 'lucide-react';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
@@ -22,6 +22,40 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
   
   // Get contacts from AppContext for cross-plugin references
   const { refreshData, contacts } = useApp();
+
+  // FIXED: Move hooks outside of map - fetch ALL contact data at component level
+  const [mentionContactsData, setMentionContactsData] = useState<{[key: string]: any}>({});
+
+  // FIXED: Single useEffect to fetch all mentioned contacts data
+  useEffect(() => {
+    const fetchMentionContactsData = async () => {
+      if (!task.mentions || task.mentions.length === 0) return;
+      
+      try {
+        const response = await fetch('/api/contacts', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const contactsData = await response.json();
+          const mentionContactsMap: {[key: string]: any} = {};
+          
+          task.mentions.forEach((mention: any) => {
+            const contact = contactsData.find((c: any) => c.id === mention.contactId);
+            if (contact) {
+              mentionContactsMap[mention.contactId] = contact;
+            }
+          });
+          
+          setMentionContactsData(mentionContactsMap);
+        }
+      } catch (error) {
+        console.error('Failed to load contact data:', error);
+      }
+    };
+    
+    fetchMentionContactsData();
+  }, [task.mentions]);
 
   const handleContactClick = async (contactId: string) => {
     // Refresh data to get latest contacts
@@ -107,6 +141,24 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     return contacts.find(contact => contact.id === task.assignedTo);
   };
 
+  // FIXED: Helper function to get display text without hooks
+  const getDisplayText = (mention: any) => {
+    const contactData = mentionContactsData[mention.contactId];
+    
+    if (!contactData) {
+      // Contact was deleted or not found
+      const contactNumber = `#${mention.contactId}`;
+      const name = mention.contactName;
+      return `${contactNumber} • ${name} (deleted contact)`;
+    }
+    
+    const contactNumber = `#${contactData.contactNumber || contactData.id}`;
+    const name = mention.contactName;
+    const orgPersonNumber = contactData.organizationNumber || contactData.personalNumber || '';
+    
+    return `${contactNumber} • ${name}${orgPersonNumber ? ` • ${orgPersonNumber}` : ''}`;
+  };
+
   const assignedContact = getAssignedContact();
   const dueDateInfo = formatDueDate(task.dueDate);
 
@@ -175,50 +227,14 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
 
       <hr className="border-gray-100" />
 
-      {/* Mentioned Contacts - Updated with clickable cards */}
+      {/* Mentioned Contacts - FIXED: No hooks in map loop */}
       {task.mentions && task.mentions.length > 0 && (
         <>
           <Card padding="sm" className="shadow-none px-0">
             <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Mentioned Contacts</Heading>
             <div className="space-y-2">
               {task.mentions.map((mention: any, index: number) => {
-                // We need to fetch full contact data to get contactNumber and org/personal numbers
-                const [contactData, setContactData] = React.useState<any>(null);
-                
-                React.useEffect(() => {
-                  const fetchContactData = async () => {
-                    try {
-                      const response = await fetch('/api/contacts', {
-                        credentials: 'include'
-                      });
-                      
-                      if (response.ok) {
-                        const contactsData = await response.json();
-                        const contact = contactsData.find((c: any) => c.id === mention.contactId);
-                        setContactData(contact);
-                      }
-                    } catch (error) {
-                      console.error('Failed to load contact data:', error);
-                    }
-                  };
-                  
-                  fetchContactData();
-                }, [mention.contactId]);
-
-                const getDisplayText = () => {
-                  if (!contactData) {
-                    // Contact was deleted or not found
-                    const contactNumber = `#${mention.contactId}`;
-                    const name = mention.contactName;
-                    return `${contactNumber} • ${name} (deleted contact)`;
-                  }
-                  
-                  const contactNumber = `#${contactData.contactNumber || contactData.id}`;
-                  const name = mention.contactName;
-                  const orgPersonNumber = contactData.organizationNumber || contactData.personalNumber || '';
-                  
-                  return `${contactNumber} • ${name}${orgPersonNumber ? ` • ${orgPersonNumber}` : ''}`;
-                };
+                const contactData = mentionContactsData[mention.contactId];
 
                 return (
                   <div key={index} className={`flex items-center justify-between p-3 rounded-lg border ${
@@ -232,7 +248,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
                       }`} />
                       <div className="flex-1 min-w-0">
                         <span className="text-sm font-medium text-gray-900">
-                          {getDisplayText()}
+                          {getDisplayText(mention)}
                         </span>
                         {mention.companyName && mention.companyName !== mention.contactName && contactData && (
                           <div className="text-xs text-gray-500">({mention.companyName})</div>

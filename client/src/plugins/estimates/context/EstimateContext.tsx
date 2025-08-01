@@ -5,16 +5,16 @@ import { estimatesApi } from '../api/estimatesApi';
 import { useApp } from '@/core/api/AppContext';
 
 interface EstimateContextType {
-  // Panel State - FIXED: Match App.tsx expectations
+  // Panel State - STANDARDIZED: Using generic panelMode convention
   isEstimatePanelOpen: boolean;
   currentEstimate: Estimate | null;
-  estimatePanelMode: 'create' | 'edit' | 'view'; // FIXED: App.tsx expects estimatePanelMode, not panelMode
+  panelMode: 'create' | 'edit' | 'view'; // CHANGED: From estimatePanelMode to panelMode
   validationErrors: ValidationError[];
   
   // Data State
   estimates: Estimate[];
   
-  // Actions - FIXED: App.tsx expects these exact function names
+  // Actions - STANDARDIZED: Consistent function naming
   openEstimatePanel: (estimate: Estimate | null) => void;
   openEstimateForEdit: (estimate: Estimate) => void;
   openEstimateForView: (estimate: Estimate) => void;
@@ -34,13 +34,13 @@ interface EstimateProviderProps {
 }
 
 export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels }: EstimateProviderProps) {
-  // ADDED: Get panel registration functions from AppContext
+  // Get panel registration functions from AppContext
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
   
-  // Panel states - FIXED: Use estimatePanelMode to match App.tsx
+  // Panel states - STANDARDIZED: Using generic panelMode
   const [isEstimatePanelOpen, setIsEstimatePanelOpen] = useState(false);
   const [currentEstimate, setCurrentEstimate] = useState<Estimate | null>(null);
-  const [estimatePanelMode, setEstimatePanelMode] = useState<'create' | 'edit' | 'view'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create'); // CHANGED: From estimatePanelMode
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   
   // Data state
@@ -55,29 +55,24 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
     }
   }, [isAuthenticated]);
 
-// FIXED: Remove dependency array to avoid infinite loops
-useEffect(() => {
+  // Panel registration
+  useEffect(() => {
     registerPanelCloseFunction('estimates', closeEstimatePanel);
-    return () => {
-      unregisterPanelCloseFunction('estimates');
-    };
-  }, []); // Empty dependency array - only run once
+    return () => unregisterPanelCloseFunction('estimates');
+  }, []);
 
-  // ADDED: Global functions for form submission (required for global form handling)
+  // Global functions for form submission
   useEffect(() => {
     window.submitEstimatesForm = () => {
-      // Trigger form submission event
       const event = new CustomEvent('submitEstimateForm');
       window.dispatchEvent(event);
     };
 
     window.cancelEstimatesForm = () => {
-      // Trigger form cancel event
       const event = new CustomEvent('cancelEstimateForm');
       window.dispatchEvent(event);
     };
 
-    // Cleanup
     return () => {
       delete window.submitEstimatesForm;
       delete window.cancelEstimatesForm;
@@ -87,71 +82,35 @@ useEffect(() => {
   const loadEstimates = async () => {
     try {
       const estimatesData = await estimatesApi.getEstimates();
-      
-      // Transform API data to match interface
       const transformedEstimates = estimatesData.map((estimate: any) => ({
         ...estimate,
         validTo: new Date(estimate.validTo),
         createdAt: new Date(estimate.createdAt),
         updatedAt: new Date(estimate.updatedAt),
       }));
-
       setEstimates(transformedEstimates);
     } catch (error) {
       console.error('Failed to load estimates:', error);
     }
   };
 
-  // Helper function to generate next estimate number from database
   const generateNextEstimateNumber = async (): Promise<string> => {
     try {
-      const result = await estimatesApi.getNextEstimateNumber();
-      return result.estimateNumber;
+      const response = await estimatesApi.getNextEstimateNumber();
+      return response.estimateNumber;
     } catch (error) {
-      console.error('Failed to get next estimate number:', error);
-      // Fallback to timestamp-based number if API fails
-      const timestamp = Date.now().toString().slice(-6);
-      return `2025-${timestamp}`;
+      console.error('Failed to generate estimate number:', error);
+      return `EST-${Date.now()}`;
     }
   };
 
   const validateEstimate = (estimateData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
     
-    // Required fields
-    if (!estimateData.contactId?.trim()) {
+    if (!estimateData.contactId) {
       errors.push({
         field: 'contactId',
-        message: 'Customer is required'
-      });
-    }
-    
-    if (!estimateData.lineItems || estimateData.lineItems.length === 0) {
-      errors.push({
-        field: 'lineItems',
-        message: 'At least one line item is required'
-      });
-    } else {
-      // Validate each line item
-      estimateData.lineItems.forEach((item: any, index: number) => {
-        if (!item.description?.trim()) {
-          errors.push({
-            field: `lineItems.${index}.description`,
-            message: `Line item ${index + 1}: Description is required`
-          });
-        }
-        if (!item.quantity || item.quantity <= 0) {
-          errors.push({
-            field: `lineItems.${index}.quantity`,
-            message: `Line item ${index + 1}: Quantity must be greater than 0`
-          });
-        }
-        if (item.unitPrice === undefined || item.unitPrice < 0) {
-          errors.push({
-            field: `lineItems.${index}.unitPrice`,
-            message: `Line item ${index + 1}: Unit price must be 0 or greater`
-          });
-        }
+        message: 'Contact selection is required'
       });
     }
     
@@ -162,21 +121,28 @@ useEffect(() => {
       });
     }
     
+    if (!estimateData.lineItems || estimateData.lineItems.length === 0) {
+      errors.push({
+        field: 'lineItems',
+        message: 'At least one line item is required'
+      });
+    }
+    
     return errors;
   };
 
-  // Estimate functions
+  // CRUD Functions - STANDARDIZED naming
   const openEstimatePanel = (estimate: Estimate | null) => {
     setCurrentEstimate(estimate);
-    setEstimatePanelMode(estimate ? 'edit' : 'create');
+    setPanelMode(estimate ? 'edit' : 'create'); // UPDATED: Using setPanelMode
     setIsEstimatePanelOpen(true);
     setValidationErrors([]);
-    onCloseOtherPanels(); // Close other plugin panels
+    onCloseOtherPanels();
   };
 
   const openEstimateForEdit = (estimate: Estimate) => {
     setCurrentEstimate(estimate);
-    setEstimatePanelMode('edit');
+    setPanelMode('edit'); // UPDATED: Using setPanelMode
     setIsEstimatePanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -184,7 +150,7 @@ useEffect(() => {
 
   const openEstimateForView = (estimate: Estimate) => {
     setCurrentEstimate(estimate);
-    setEstimatePanelMode('view');
+    setPanelMode('view'); // UPDATED: Using setPanelMode
     setIsEstimatePanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -193,7 +159,7 @@ useEffect(() => {
   const closeEstimatePanel = () => {
     setIsEstimatePanelOpen(false);
     setCurrentEstimate(null);
-    setEstimatePanelMode('create');
+    setPanelMode('create'); // UPDATED: Using setPanelMode
     setValidationErrors([]);
   };
 
@@ -202,24 +168,24 @@ useEffect(() => {
   };
 
   const saveEstimate = async (estimateData: any): Promise<boolean> => {
-    console.log('Validating estimate data:', estimateData);
+    console.log('EstimateContext saveEstimate called with:', estimateData);
     
-    // Run validation
     const errors = validateEstimate(estimateData);
+    console.log('Validation errors:', errors);
     setValidationErrors(errors);
     
-    // If there are blocking errors, don't save
-    const blockingErrors = errors.filter(error => !error.message.includes('Warning'));
-    if (blockingErrors.length > 0) {
-      console.log('Validation failed:', blockingErrors);
+    if (errors.length > 0) {
+      console.log('Validation failed:', errors);
       return false;
     }
+    
+    console.log('Validation passed, attempting to save...');
     
     try {
       let savedEstimate: Estimate;
       
       if (currentEstimate) {
-        // Update existing estimate
+        console.log('Updating existing estimate:', currentEstimate.id);
         savedEstimate = await estimatesApi.updateEstimate(currentEstimate.id, estimateData);
         setEstimates(prev => prev.map(estimate => 
           estimate.id === currentEstimate.id ? {
@@ -235,17 +201,12 @@ useEffect(() => {
           createdAt: new Date(savedEstimate.createdAt),
           updatedAt: new Date(savedEstimate.updatedAt),
         });
-        setEstimatePanelMode('view');
+        setPanelMode('view'); // UPDATED: Using setPanelMode
         setValidationErrors([]);
       } else {
-        // Create new estimate - get next number from database
-        const estimateNumber = await generateNextEstimateNumber();
-        const newEstimateData = {
-          ...estimateData,
-          estimateNumber
-        };
-        
-        savedEstimate = await estimatesApi.createEstimate(newEstimateData);
+        console.log('Creating new estimate...');
+        savedEstimate = await estimatesApi.createEstimate(estimateData);
+        console.log('Estimate created successfully:', savedEstimate);
         setEstimates(prev => [...prev, {
           ...savedEstimate,
           validTo: new Date(savedEstimate.validTo),
@@ -255,9 +216,10 @@ useEffect(() => {
         closeEstimatePanel();
       }
       
+      console.log('Estimate saved successfully');
       return true;
     } catch (error) {
-      console.error('Failed to save estimate:', error);
+      console.error('API Error when saving estimate:', error);
       setValidationErrors([{ field: 'general', message: 'Failed to save estimate. Please try again.' }]);
       return false;
     }
@@ -283,7 +245,7 @@ useEffect(() => {
       
       const duplicateData = {
         ...originalEstimate,
-        estimateNumber, // Use database-generated number
+        estimateNumber,
         status: 'draft' as const,
         validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         lineItems: originalEstimate.lineItems.map(item => ({
@@ -292,7 +254,6 @@ useEffect(() => {
         })),
       };
       
-      // Remove fields that should not be duplicated
       delete (duplicateData as any).id;
       delete (duplicateData as any).createdAt;
       delete (duplicateData as any).updatedAt;
@@ -310,10 +271,10 @@ useEffect(() => {
   };
 
   const value: EstimateContextType = {
-    // Panel State - FIXED: Match App.tsx expectations
+    // Panel State - STANDARDIZED
     isEstimatePanelOpen,
     currentEstimate,
-    estimatePanelMode, // FIXED: Changed from panelMode
+    panelMode, // CHANGED: From estimatePanelMode to panelMode
     validationErrors,
     
     // Data State

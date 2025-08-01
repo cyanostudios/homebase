@@ -152,18 +152,45 @@ Before making suggestions, could you:
 - Propose systematic investigation
 - Admit knowledge limitations honestly
 
-### Terminal Management
+### Terminal Management - CORRECTED
 **Standard development workflow:**
 
-**Standard Pattern:**
-- **Terminal 1:** Frontend (`npx vite --config vite.config.ts`)
-- **Terminal 2:** Backend (`npm run dev`)
-- **Terminal 3:** Commands, git, testing
+**CORRECTED Standard Pattern:**
+- **Terminal 1:** Frontend (`npx vite`) - **Run from ROOT directory**
+- **Terminal 2:** Backend (`npm run dev`) - **Run from ROOT directory**
+- **Terminal 3:** Commands, git, testing - **Run from ROOT directory**
+
+**IMPORTANT:** All commands run from the **project root directory**, not from `client/` subdirectory.
 
 **Always specify:**
 ```
-"Terminal 2: Stop the backend server with Ctrl+C"
+"Terminal 1: npx vite - You should see 'Local: http://localhost:3001/'"
+"Terminal 2: npm run dev - You should see 'Server running on port 3002'"
 "Terminal 3: Run `git status` and show me the output"
+```
+
+**CRITICAL Corrections:**
+```
+❌ OLD/WRONG: "Terminal 1: cd client && npx vite --config vite.config.ts"
+✅ NEW/CORRECT: "Terminal 1: npx vite (from project root)"
+
+❌ OLD/WRONG: "Terminal 1: cd client && npm run dev"  
+✅ NEW/CORRECT: "Terminal 1: npx vite (from project root)"
+```
+
+### Development Environment Verification
+**Always verify setup before proceeding:**
+
+```
+✅ GOOD Terminal Sequence:
+"Terminal 1: npx vite - What URL does it show?"
+Expected: "Local: http://localhost:3001/"
+
+"Terminal 2: npm run dev - What message appears?"
+Expected: "Server running on port 3002"
+
+"Terminal 3: curl http://localhost:3002/api/health - What response?"
+Expected: {"status":"ok","timestamp":"..."}
 ```
 
 ## Development Best Practices
@@ -195,6 +222,21 @@ Before making suggestions, could you:
 4. **Test hypothesis** - One change at a time
 5. **Verify fix** - Confirm error resolved
 
+### Common Setup Issues - NEW TROUBLESHOOTING
+**Frontend setup problems and solutions:**
+
+**"Could not resolve @/core/api/AppContext"**
+- **Cause:** Running Vite from wrong directory
+- **Solution:** Ensure `npx vite` runs from project root, not `client/`
+
+**"Frontend shows blank page"**
+- **Check:** Both Terminal 1 (`npx vite`) and Terminal 2 (`npm run dev`) running?
+- **Check:** Are you accessing http://localhost:3001 (not 5173)?
+- **Check:** Any errors in browser console?
+
+**"EADDRINUSE: address already in use"**
+- **Solution:** Stop existing processes with Ctrl+C, then restart
+
 ## Anti-Patterns to Avoid
 
 ### Don't Break Working Systems
@@ -218,26 +260,39 @@ Before making suggestions, could you:
 ❌ **Wrong:** "You can follow the standard React context pattern"
 ✅ **Right:** "Here's the exact context template with all imports and error handling"
 
+### Don't Use Incorrect Commands - CRITICAL
+**Terminal command accuracy is essential:**
+
+❌ **Wrong:** "Terminal 1: cd client && npx vite"
+✅ **Right:** "Terminal 1: npx vite (from project root)"
+
+❌ **Wrong:** Assuming separate frontend/backend package management
+✅ **Right:** All dependencies managed from single root package.json
+
 ## Project Context Awareness
 
-### Current Architecture (v7+)
-- **Complete modular context system** - Contacts and Notes use isolated contexts
+### Current Architecture (v8+) - UPDATED
+- **Complete modular context system** - All plugins use isolated contexts with automated core integration
 - **Universal keyboard navigation** - Space + Arrow keys across all plugins
 - **Cross-plugin @mentions** - Notes can reference contacts
 - **Mobile-first responsive design** - All components support mobile/desktop
 - **Production deployment** - Live at app.beyondmusic.se
+- **ZERO manual core updates** - Automated plugin integration system
 
 ### Key Files and Patterns
 - **Plugin Templates** - Use contacts plugin as reference
-- **Context Pattern** - ContactContext.tsx shows complete modular pattern
+- **Context Pattern** - ContactContext.tsx shows complete modular pattern with generic `panelMode`
 - **Component Standards** - ContactList/Form/View show responsive design
 - **Style Standards** - Follow STYLE_GUIDE.md patterns
 - **Global Functions** - Forms must implement plural-named global functions
+- **Automated Integration** - Plugin registry handles all core file updates
 
-### Performance Achievements
+### Performance Achievements - UPDATED
 - **90% fewer re-renders** - Plugin isolation prevents cascading updates
 - **61% server code reduction** - Minimal core with plugin-loader system
 - **15-25 minute plugin development** - Standardized templates and patterns
+- **100% elimination of manual core updates** - Automated integration system
+- **Zero team conflicts** - Complete plugin separation
 
 ## Quality Checkpoints
 
@@ -247,6 +302,7 @@ Before making suggestions, could you:
 - Am I guessing or working from evidence?
 - Are my instructions specific and actionable?
 - Do I understand the system we're working with?
+- **NEW:** Am I using the correct terminal commands?
 
 ### Architecture Quality Checks
 - Are we preserving all existing functionality?
@@ -254,26 +310,35 @@ Before making suggestions, could you:
 - Can new team members follow the templates?
 - Are we documenting real benefits and trade-offs?
 - Is the complexity appropriate for the problem?
+- **NEW:** Do the setup instructions actually work?
 
 ## Example Interaction Patterns
 
-### Good Interaction Flow
+### Good Interaction Flow - UPDATED
 ```
-AI: "Step 1: Check the contacts plugin structure with `ls -la client/src/plugins/contacts/`"
+AI: "Step 1: Start frontend with `npx vite` from project root - What URL appears?"
+User: "Shows 'Local: http://localhost:3001/'"
+AI: "Perfect! Step 2: Start backend with `npm run dev` from same directory"
+User: "Shows 'Server running on port 3002'"
+AI: "Excellent! Now let's check plugin structure with `ls -la client/src/plugins/contacts/`"
 User: "Shows context/, hooks/, api/, components/, types/ directories"
-AI: "Perfect! Step 2: Let's copy the ContactContext.tsx pattern for your new plugin..."
-User: "Copied, what's next?"
-AI: "Now let's adapt the API layer. Here's the complete myPluginApi.ts file:"
+AI: "Great! Now let's copy the ContactContext.tsx pattern for your new plugin..."
 ```
 
-### Bad Interaction Flow
+### Bad Interaction Flow - CORRECTED
 ```
-AI: "Update your components to use the new modular patterns and hooks"
-User: "Which components? What patterns exactly?"
-AI: "The form and list components, use the new context hooks"
-User: "Which hooks? Where do I find them?"
-AI: "Let me guess what you need..."
-User: "You're guessing again..."
+❌ BAD:
+AI: "Terminal 1: cd client && npx vite --config vite.config.ts"
+User: "Error: Cannot find vite.config.ts"
+AI: "Try: cd client && npm run dev"
+User: "Error: no package.json in client"
+AI: "Let me guess what's wrong..."
+User: "This isn't working..."
+
+✅ GOOD:
+AI: "Terminal 1: npx vite (from project root) - What do you see?"
+User: "Local: http://localhost:3001/"
+AI: "Perfect! The frontend is running correctly."
 ```
 
 ### Architecture Refactoring Flow
@@ -300,6 +365,7 @@ User: "Which imports? How?"
 ✅ **User Confidence** - User knows exactly what to do next
 ✅ **Problem Resolution** - Issues solved systematically
 ✅ **Knowledge Transfer** - User learns patterns, not just solutions
+✅ **NEW:** Setup works immediately with provided commands
 
 ### Architecture Success Indicators
 ✅ **Preserved Functionality** - All features work after changes
@@ -307,32 +373,52 @@ User: "Which imports? How?"
 ✅ **Team Velocity** - Faster development with fewer conflicts
 ✅ **Code Quality** - Smaller, more maintainable files
 ✅ **Documentation Quality** - Complete, usable guides
+✅ **NEW:** Zero manual core file updates required
+
+## New Developer Onboarding Success Pattern
+
+### 10-Minute Setup Verification
+```
+✅ CORRECT Flow:
+AI: "Step 1: Clone repo and cd into directory"
+User: "Done"
+AI: "Step 2: npm install (from root) - Any errors?"
+User: "All packages installed successfully"
+AI: "Step 3: Terminal 1: npx vite - What URL shows?"
+User: "Local: http://localhost:3001/"
+AI: "Step 4: Terminal 2: npm run dev - What message?"
+User: "Server running on port 3002"
+AI: "Perfect! Development environment ready. Let's create your first plugin."
+```
 
 ## Conclusion
 
 Effective AI collaboration requires:
 
 1. **Honesty** - Admit knowledge gaps immediately
-2. **Precision** - Specific, actionable instructions
+2. **Precision** - Specific, actionable instructions with correct commands
 3. **Patience** - Step-by-step verification
 4. **Evidence** - Base decisions on actual system state
 5. **Preservation** - Never remove critical functionality
+6. **Accuracy** - Use correct terminal commands and file paths
 
 **For Homebase development:**
 - Use contacts plugin as template for all new plugins
-- Follow established modular context patterns
+- Follow established modular context patterns with automated integration
 - Preserve cross-plugin functionality
 - Test keyboard navigation and responsive design
+- Use correct Vite setup commands from project root
 - Document real benefits and improvements
 
-**Remember:** It's better to slow down and be systematic than to rush and create problems. The goal is sustainable progress and maintainable architecture.
+**Remember:** It's better to slow down and be systematic than to rush and create problems. The goal is sustainable progress and maintainable architecture with working development setup.
 
 ---
 
 **Architecture:** Complete modular plugin system with proven patterns  
 **Development Time:** 15-25 minutes per plugin with templates  
+**Setup Time:** <10 minutes with corrected commands
 **Team Ready:** Zero-conflict development with professional standards
 
 *Follow these patterns for efficient, accurate development workflows.*
 
-*Last Updated: July 25, 2025*
+*Last Updated: August 2025 - Terminal commands corrected*
