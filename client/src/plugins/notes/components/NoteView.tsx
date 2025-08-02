@@ -6,6 +6,7 @@ import { Button } from '@/core/ui/Button';
 import { MentionContent } from './MentionContent';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
+import { useTasks } from '@/plugins/tasks/hooks/useTasks';
 import { useApp } from '@/core/api/AppContext';
 
 interface NoteViewProps {
@@ -19,11 +20,15 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   // Use NoteContext to close note panel when navigating
   const { closeNotePanel, duplicateNote } = useNotes();
   
+  // Use TaskContext for creating tasks
+  const { saveTask, openTaskForView } = useTasks();
+  
   // Get contacts from AppContext for cross-plugin references
   const { refreshData } = useApp();
 
   // FIXED: Move state to component level, outside of loops
   const [contactsData, setContactsData] = useState<any[]>([]);
+  const [showTaskCreated, setShowTaskCreated] = useState(false);
 
   // FIXED: Single useEffect to load all contacts
   useEffect(() => {
@@ -78,10 +83,31 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     }
   };
 
-  // Mock functions for future implementation
-  const handleConvertToTask = () => {
-    // Future: Integration with tasks plugin
-    alert('Convert to Task feature will be implemented when the tasks plugin is developed.');
+  // IMPLEMENTED: Convert note to task functionality
+  const handleConvertToTask = async () => {
+    try {
+      // Create task data from note
+      const taskData = {
+        title: note.title,
+        content: note.content,
+        mentions: note.mentions || [],
+        status: 'not started',
+        priority: 'Medium',
+        dueDate: null,
+        assignedTo: null,
+        createdFromNote: note.id,
+      };
+
+      // Save the new task
+      const success = await saveTask(taskData);
+      
+      if (success) {
+        // Show success notification
+        setShowTaskCreated(true);
+      }
+    } catch (error) {
+      console.error('Failed to convert note to task:', error);
+    }
   };
 
   const handleShareNote = () => {
@@ -117,8 +143,10 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       {/* Note Content with clickable mentions */}
       <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Content</Heading>
-        <div className="prose prose-sm max-w-none text-sm">
-          <MentionContent content={note.content} mentions={note.mentions || []} />
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div className="prose prose-sm max-w-none text-sm">
+            <MentionContent content={note.content} mentions={note.mentions || []} />
+          </div>
         </div>
       </Card>
 
@@ -155,22 +183,12 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                       ? 'bg-blue-50 border-blue-200' 
                       : 'bg-gray-50 border-gray-200'
                   }`}>
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <User className={`w-4 h-4 flex-shrink-0 ${
-                        contactData ? 'text-blue-600' : 'text-gray-400'
-                      }`} />
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm font-medium text-gray-900">
-                          {getDisplayText()}
-                        </span>
-                        {mention.companyName && mention.companyName !== mention.contactName && contactData && (
-                          <div className="text-xs text-gray-500">({mention.companyName})</div>
-                        )}
-                      </div>
+                    <div className="text-sm">
+                      <span className="font-medium text-gray-900">{getDisplayText()}</span>
                     </div>
                     <Button
-                      variant="ghost"
                       size="sm"
+                      variant="secondary"
                       onClick={() => contactData ? handleContactClick(mention.contactId) : null}
                       disabled={!contactData}
                       className={`ml-3 flex-shrink-0 ${
@@ -255,6 +273,43 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
           </div>
         </div>
       </Card>
+
+      {/* Task Created Notification */}
+      {showTaskCreated && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">Task Created Successfully!</h2>
+                <p className="text-xs text-gray-500">From note: {note.title}</p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-4">
+              <p className="text-sm text-gray-600 mb-4">
+                Your note has been converted to a task and is ready to be worked on.
+              </p>
+              <p className="text-xs text-gray-500 italic">
+                You can find the new task in the Tasks section with status "Not started".
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end space-x-3 p-4 border-t border-gray-100">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setShowTaskCreated(false)}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Got it!
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

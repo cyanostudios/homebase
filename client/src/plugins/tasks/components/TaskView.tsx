@@ -4,10 +4,12 @@ import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
 import { Button } from '@/core/ui/Button';
 import { MentionContent } from './MentionContent';
+import { TaskStatusButtons } from './TaskStatusButtons';
+import { TaskPriorityButtons } from './TaskPriorityButtons';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useTasks } from '../hooks/useTasks';
 import { useApp } from '@/core/api/AppContext';
-import { TASK_STATUS_COLORS, TASK_PRIORITY_COLORS } from '../types/tasks';
+import { TASK_STATUS_COLORS, TASK_PRIORITY_COLORS, TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS, formatStatusForDisplay } from '../types/tasks';
 
 interface TaskViewProps {
   task: any;
@@ -18,7 +20,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
   const { openContactForView } = useContacts();
   
   // Use TaskContext to close task panel when navigating
-  const { closeTaskPanel, duplicateTask } = useTasks();
+  const { closeTaskPanel, duplicateTask, saveTask } = useTasks();
   
   // Get contacts from AppContext for cross-plugin references
   const { refreshData, contacts } = useApp();
@@ -61,102 +63,123 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     // Refresh data to get latest contacts
     await refreshData();
     
-    // Get contact data via fetch since AppContext has the data but doesn't expose it directly
-    try {
-      const response = await fetch('/api/contacts', {
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const contactsData = await response.json();
-        const contact = contactsData.find((c: any) => c.id === contactId);
-        
-        if (contact) {
-          // Transform the contact data to match expected format
-          const transformedContact = {
-            ...contact,
-            createdAt: new Date(contact.createdAt),
-            updatedAt: new Date(contact.updatedAt),
-          };
-          
-          closeTaskPanel(); // Close task panel first
-          openContactForView(transformedContact); // Then open contact panel with full data
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load contact data:', error);
-    }
+    // Close task panel
+    closeTaskPanel();
+    
+    // Open contact
+    openContactForView(contactId);
   };
 
-  const handleDuplicateTask = async () => {
-    try {
-      await duplicateTask(task);
-    } catch (error) {
-      console.error('Failed to duplicate task:', error);
-      alert('Failed to duplicate task. Please try again.');
-    }
+  const handleDuplicateTask = () => {
+    duplicateTask(task);
   };
 
-  const formatDueDate = (dueDate: Date | null) => {
+  // Format due date
+  const formatDueDate = (dueDate: any) => {
     if (!dueDate) return null;
-    const today = new Date();
+    
+    const now = new Date();
     const due = new Date(dueDate);
-    const diffTime = due.getTime() - today.getTime();
+    const diffTime = due.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
+    const dateString = due.toLocaleDateString();
+    
     if (diffDays < 0) {
-      return { 
-        text: `${Math.abs(diffDays)} days overdue`, 
+      return {
+        text: `${dateString} (${Math.abs(diffDays)} days overdue)`,
         className: 'text-red-600 font-medium',
         icon: AlertCircle,
         iconClass: 'text-red-500'
       };
     } else if (diffDays === 0) {
-      return { 
-        text: 'Due today', 
+      return {
+        text: `${dateString} (Due today)`,
         className: 'text-orange-600 font-medium',
         icon: AlertCircle,
         iconClass: 'text-orange-500'
       };
-    } else if (diffDays === 1) {
-      return { 
-        text: 'Due tomorrow', 
-        className: 'text-yellow-600',
+    } else if (diffDays <= 3) {
+      return {
+        text: `${dateString} (Due in ${diffDays} day${diffDays === 1 ? '' : 's'})`,
+        className: 'text-yellow-600 font-medium',
         icon: Calendar,
         iconClass: 'text-yellow-500'
       };
     } else {
-      return { 
-        text: due.toLocaleDateString(), 
-        className: 'text-gray-600',
+      return {
+        text: dateString,
+        className: 'text-gray-900',
         icon: Calendar,
         iconClass: 'text-gray-500'
       };
     }
   };
 
-  // Get assigned contact information
+  // Get assigned contact details
   const getAssignedContact = () => {
     if (!task.assignedTo) return null;
-    return contacts.find(contact => contact.id === task.assignedTo);
+    
+    const contact = contacts.find((c: any) => c.id === task.assignedTo);
+    if (!contact) return null;
+    
+    return {
+      id: contact.id,
+      companyName: contact.companyName,
+      orgPersonNumber: contact.orgPersonNumber
+    };
   };
 
-  // FIXED: Helper function to get display text without hooks
-  const getDisplayText = (mention: any) => {
-    const contactData = mentionContactsData[mention.contactId];
+  // Handle status change
+  const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === task.status) return;
     
-    if (!contactData) {
-      // Contact was deleted or not found
-      const contactNumber = `#${mention.contactId}`;
-      const name = mention.contactName;
-      return `${contactNumber} • ${name} (deleted contact)`;
+    try {
+      const updatedData = {
+        title: task.title,
+        content: task.content,
+        mentions: task.mentions,
+        status: newStatus,
+        priority: task.priority,
+        dueDate: task.dueDate,
+        assignedTo: task.assignedTo,
+      };
+
+      const success = await saveTask(updatedData);
+      
+      if (!success) {
+        alert('Failed to update status. Please try again.');
+      }
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      alert('Failed to update status. Please try again.');
     }
+  };
+
+  // Handle priority change
+  const handlePriorityChange = async (newPriority: string) => {
+    if (newPriority === task.priority) return;
     
-    const contactNumber = `#${contactData.contactNumber || contactData.id}`;
-    const name = mention.contactName;
-    const orgPersonNumber = contactData.organizationNumber || contactData.personalNumber || '';
-    
-    return `${contactNumber} • ${name}${orgPersonNumber ? ` • ${orgPersonNumber}` : ''}`;
+    try {
+      const updatedData = {
+        title: task.title,
+        content: task.content,
+        mentions: task.mentions,
+        status: task.status,
+        priority: newPriority,
+        dueDate: task.dueDate,
+        assignedTo: task.assignedTo,
+      };
+
+      const success = await saveTask(updatedData);
+      
+      if (!success) {
+        alert('Failed to update priority. Please try again.');
+      }
+    } catch (error) {
+      console.error('Failed to update priority:', error);
+      alert('Failed to update priority. Please try again.');
+    }
   };
 
   const assignedContact = getAssignedContact();
@@ -166,26 +189,6 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
 
   return (
     <div className="space-y-4">
-      {/* Task Status and Priority */}
-      <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Task Status</Heading>
-        <div className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Status:</span>
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${TASK_STATUS_COLORS[task.status]}`}>
-              {task.status}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Priority:</span>
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${TASK_PRIORITY_COLORS[task.priority]}`}>
-              <Flag className="w-3 h-3 mr-1" />
-              {task.priority}
-            </span>
-          </div>
-        </div>
-      </Card>
-
       {/* Task Scheduling Information */}
       {(task.dueDate || assignedContact) && (
         <Card padding="sm" className="shadow-none px-0">
@@ -210,6 +213,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
                   className="text-sm text-blue-600 hover:text-blue-800 underline"
                 >
                   {assignedContact.companyName}
+                  {assignedContact.orgPersonNumber ? ` • ${assignedContact.orgPersonNumber}` : ''}
                 </button>
               </div>
             )}
@@ -217,47 +221,37 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         </Card>
       )}
 
-      {/* Task Content with clickable mentions */}
+      {/* Task Content */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Description</Heading>
-        <div className="prose prose-sm max-w-none text-sm">
-          <MentionContent content={task.content} mentions={task.mentions || []} />
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Content</Heading>
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div className="text-sm text-gray-900 whitespace-pre-wrap">
+            <MentionContent content={task.content} mentions={task.mentions} />
+          </div>
         </div>
       </Card>
 
-      <hr className="border-gray-100" />
-
-      {/* Mentioned Contacts - FIXED: No hooks in map loop */}
+      {/* Cross-references */}
       {task.mentions && task.mentions.length > 0 && (
         <>
+          <hr className="border-gray-100" />
           <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Mentioned Contacts</Heading>
-            <div className="space-y-2">
+            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Referenced Contacts</Heading>
+            <div className="space-y-3">
               {task.mentions.map((mention: any, index: number) => {
                 const contactData = mentionContactsData[mention.contactId];
-
+                
                 return (
-                  <div key={index} className={`flex items-center justify-between p-3 rounded-lg border ${
-                    contactData 
-                      ? 'bg-blue-50 border-blue-200' 
-                      : 'bg-gray-50 border-gray-200'
-                  }`}>
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <User className={`w-4 h-4 flex-shrink-0 ${
-                        contactData ? 'text-blue-600' : 'text-gray-400'
-                      }`} />
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm font-medium text-gray-900">
-                          {getDisplayText(mention)}
-                        </span>
-                        {mention.companyName && mention.companyName !== mention.contactName && contactData && (
-                          <div className="text-xs text-gray-500">({mention.companyName})</div>
-                        )}
-                      </div>
+                  <div key={index} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                    <div className="text-sm">
+                      <span className="font-medium text-gray-900">{mention.contactName}</span>
+                      {mention.companyName && mention.companyName !== mention.contactName && (
+                        <span className="text-gray-500 ml-2">• {mention.companyName}</span>
+                      )}
                     </div>
                     <Button
-                      variant="ghost"
                       size="sm"
+                      variant="secondary"
                       onClick={() => contactData ? handleContactClick(mention.contactId) : null}
                       disabled={!contactData}
                       className={`ml-3 flex-shrink-0 ${
@@ -281,6 +275,18 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
       {/* Quick Actions */}
       <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Quick Actions</Heading>
+        
+        {/* Status Actions */}
+        <TaskStatusButtons 
+          task={task} 
+          onStatusChange={handleStatusChange} 
+        />
+
+        {/* Priority Actions */}
+        <TaskPriorityButtons 
+          task={task} 
+          onPriorityChange={handlePriorityChange} 
+        />
         
         {/* Task Actions */}
         <div className="mb-4">

@@ -5,7 +5,7 @@ import { Button } from '@/core/ui/Button';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { TASK_STATUS_COLORS, TASK_PRIORITY_COLORS } from '../types/tasks';
+import { TASK_STATUS_COLORS, TASK_PRIORITY_COLORS, formatStatusForDisplay } from '../types/tasks';
 
 type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
@@ -285,7 +285,7 @@ export const TaskList: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${TASK_STATUS_COLORS[task.status]}`}>
-                        {task.status}
+                        {formatStatusForDisplay(task.status)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -385,7 +385,7 @@ export const TaskList: React.FC = () => {
                         <h3 className="text-sm font-medium text-gray-900">{task.title}</h3>
                         <div className="flex items-center gap-2 mt-1">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${TASK_STATUS_COLORS[task.status]}`}>
-                            {task.status}
+                            {formatStatusForDisplay(task.status)}
                           </span>
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${TASK_PRIORITY_COLORS[task.priority]}`}>
                             {task.priority}
