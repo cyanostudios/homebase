@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StickyNote, User, CheckSquare, Share, Copy, Download } from 'lucide-react';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
@@ -21,6 +21,31 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   
   // Get contacts from AppContext for cross-plugin references
   const { refreshData } = useApp();
+
+  // FIXED: Move state to component level, outside of loops
+  const [contactsData, setContactsData] = useState<any[]>([]);
+
+  // FIXED: Single useEffect to load all contacts
+  useEffect(() => {
+    const fetchContactsData = async () => {
+      try {
+        const response = await fetch('/api/contacts', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setContactsData(data);
+        }
+      } catch (error) {
+        console.error('Failed to load contacts data:', error);
+      }
+    };
+    
+    if (note?.mentions && note.mentions.length > 0) {
+      fetchContactsData();
+    }
+  }, [note?.mentions]);
 
   const handleContactClick = async (contactId: string) => {
     // Refresh data to get latest contacts
@@ -99,35 +124,15 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
 
       <hr className="border-gray-100" />
 
-      {/* Mentioned Contacts - Updated with clickable cards */}
+      {/* Mentioned Contacts - FIXED: No hooks in loops */}
       {note.mentions && note.mentions.length > 0 && (
         <>
           <Card padding="sm" className="shadow-none px-0">
             <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Mentioned Contacts</Heading>
             <div className="space-y-2">
               {note.mentions.map((mention: any, index: number) => {
-                // We need to fetch full contact data to get contactNumber and org/personal numbers
-                const [contactData, setContactData] = React.useState<any>(null);
-                
-                React.useEffect(() => {
-                  const fetchContactData = async () => {
-                    try {
-                      const response = await fetch('/api/contacts', {
-                        credentials: 'include'
-                      });
-                      
-                      if (response.ok) {
-                        const contactsData = await response.json();
-                        const contact = contactsData.find((c: any) => c.id === mention.contactId);
-                        setContactData(contact);
-                      }
-                    } catch (error) {
-                      console.error('Failed to load contact data:', error);
-                    }
-                  };
-                  
-                  fetchContactData();
-                }, [mention.contactId]);
+                // FIXED: Find contact data from state instead of using hooks in loop
+                const contactData = contactsData.find((c: any) => c.id === mention.contactId);
 
                 const getDisplayText = () => {
                   if (!contactData) {

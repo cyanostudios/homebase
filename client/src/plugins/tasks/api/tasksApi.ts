@@ -1,9 +1,7 @@
-import { Task } from '../types/tasks';
-
 const API_BASE = '/api/tasks';
 
 export const tasksApi = {
-  async getTasks(): Promise<Task[]> {
+  async getTasks() {
     const response = await fetch(API_BASE, {
       credentials: 'include',
     });
@@ -12,18 +10,10 @@ export const tasksApi = {
       throw new Error('Failed to fetch tasks');
     }
     
-    const data = await response.json();
-    
-    // Transform API data to match interface
-    return data.map((task: any) => ({
-      ...task,
-      createdAt: new Date(task.createdAt),
-      updatedAt: new Date(task.updatedAt),
-      dueDate: task.dueDate ? new Date(task.dueDate) : null,
-    }));
+    return response.json();
   },
 
-  async createTask(taskData: Partial<Task>): Promise<Task> {
+  async createTask(taskData: any) {
     const response = await fetch(API_BASE, {
       method: 'POST',
       headers: {
@@ -42,17 +32,10 @@ export const tasksApi = {
       throw new Error('Failed to create task');
     }
     
-    const data = await response.json();
-    
-    return {
-      ...data,
-      createdAt: new Date(data.createdAt),
-      updatedAt: new Date(data.updatedAt),
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-    };
+    return response.json();
   },
 
-  async updateTask(id: string, taskData: Partial<Task>): Promise<Task> {
+  async updateTask(id: string, taskData: any) {
     const response = await fetch(`${API_BASE}/${id}`, {
       method: 'PUT',
       headers: {
@@ -70,17 +53,10 @@ export const tasksApi = {
       throw new Error('Failed to update task');
     }
     
-    const data = await response.json();
-    
-    return {
-      ...data,
-      createdAt: new Date(data.createdAt),
-      updatedAt: new Date(data.updatedAt),
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-    };
+    return response.json();
   },
 
-  async deleteTask(id: string): Promise<void> {
+  async deleteTask(id: string) {
     const response = await fetch(`${API_BASE}/${id}`, {
       method: 'DELETE',
       credentials: 'include',

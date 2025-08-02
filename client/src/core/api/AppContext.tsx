@@ -194,23 +194,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // ADDED: Register plugin close functions
-  const registerPanelCloseFunction = (pluginName: string, closeFunction: () => void) => {
-    setPanelCloseFunctions(prev => {
-      const newMap = new Map(prev);
-      newMap.set(pluginName, closeFunction);
-      return newMap;
-    });
-  };
+// FIXED: Memoize functions to prevent infinite re-renders
+const registerPanelCloseFunction = useCallback((pluginName: string, closeFunction: () => void) => {
+  setPanelCloseFunctions(prev => {
+    const newMap = new Map(prev);
+    newMap.set(pluginName, closeFunction);
+    return newMap;
+  });
+}, []);
 
-  // ADDED: Unregister plugin close functions
-  const unregisterPanelCloseFunction = (pluginName: string) => {
-    setPanelCloseFunctions(prev => {
-      const newMap = new Map(prev);
-      newMap.delete(pluginName);
-      return newMap;
-    });
-  };
+const unregisterPanelCloseFunction = useCallback((pluginName: string) => {
+  setPanelCloseFunctions(prev => {
+    const newMap = new Map(prev);
+    newMap.delete(pluginName);
+    return newMap;
+  });
+}, []);
 
   // FIXED: Close other panels coordination function
   const closeOtherPanels = (except?: 'contacts' | 'notes' | 'estimates' | 'tasks') => {

@@ -33,7 +33,6 @@ interface NoteProviderProps {
 }
 
 export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: NoteProviderProps) {
-  // ADDED: Get panel registration functions from AppContext
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
   
   // Panel states
@@ -54,29 +53,26 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   }, [isAuthenticated]);
 
-// FIXED: Remove dependency array to avoid infinite loops
-useEffect(() => {
-  registerPanelCloseFunction('notes', closeNotePanel);
-  return () => {
-    unregisterPanelCloseFunction('notes');
-  };
-}, []); // Empty dependency array - only run once
+  // Panel registration
+  useEffect(() => {
+    registerPanelCloseFunction('notes', closeNotePanel);
+    return () => {
+      unregisterPanelCloseFunction('notes');
+    };
+  }, []);
 
-  // ADDED: Global functions for form submission (required for global form handling)
+  // Global functions for form submission
   useEffect(() => {
     window.submitNotesForm = () => {
-      // Trigger form submission event
       const event = new CustomEvent('submitNoteForm');
       window.dispatchEvent(event);
     };
 
     window.cancelNotesForm = () => {
-      // Trigger form cancel event
       const event = new CustomEvent('cancelNoteForm');
       window.dispatchEvent(event);
     };
 
-    // Cleanup
     return () => {
       delete window.submitNotesForm;
       delete window.cancelNotesForm;
@@ -87,7 +83,6 @@ useEffect(() => {
     try {
       const notesData = await notesApi.getNotes();
       
-      // Transform API data to match interface
       const transformedNotes = notesData.map((note: any) => ({
         ...note,
         createdAt: new Date(note.createdAt),
@@ -120,13 +115,12 @@ useEffect(() => {
     return errors;
   };
 
-  // Note functions
   const openNotePanel = (note: Note | null) => {
     setCurrentNote(note);
     setPanelMode(note ? 'edit' : 'create');
     setIsNotePanelOpen(true);
     setValidationErrors([]);
-    onCloseOtherPanels(); // Close other plugin panels
+    onCloseOtherPanels();
   };
 
   const openNoteForEdit = (note: Note) => {
@@ -159,11 +153,9 @@ useEffect(() => {
   const saveNote = async (noteData: any): Promise<boolean> => {
     console.log('Validating note data:', noteData);
     
-    // Run validation
     const errors = validateNote(noteData);
     setValidationErrors(errors);
     
-    // If there are blocking errors, don't save
     const blockingErrors = errors.filter(error => !error.message.includes('Warning'));
     if (blockingErrors.length > 0) {
       console.log('Validation failed:', blockingErrors);
@@ -223,25 +215,21 @@ useEffect(() => {
     }
   };
 
-  // Duplicate note function - similar to estimates
   const duplicateNote = async (originalNote: Note) => {
     try {
-      // Create duplicate data without ID and with updated title
       const duplicateData = {
         title: `${originalNote.title} (Copy)`,
         content: originalNote.content,
-        mentions: originalNote.mentions || [] // Preserve mentions
+        mentions: originalNote.mentions || []
       };
       
-      // Create the new note via API
       const newNote = await notesApi.createNote(duplicateData);
       
-      // Add to notes list
       setNotes(prev => [{
         ...newNote,
         createdAt: new Date(newNote.createdAt),
         updatedAt: new Date(newNote.updatedAt),
-      }, ...prev]); // Add to beginning of list
+      }, ...prev]);
       
       console.log('Note duplicated successfully');
     } catch (error) {

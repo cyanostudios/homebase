@@ -4,16 +4,16 @@ import { tasksApi } from '../api/tasksApi';
 import { useApp } from '@/core/api/AppContext';
 
 interface TaskContextType {
-  // Panel State - STANDARDIZED: Using generic panelMode convention
+  // Panel State
   isTaskPanelOpen: boolean;
   currentTask: Task | null;
-  panelMode: 'create' | 'edit' | 'view'; // CHANGED: From taskPanelMode to panelMode
+  panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
   
   // Data State
   tasks: Task[];
   
-  // Actions - STANDARDIZED: Consistent function naming
+  // Actions
   openTaskPanel: (task: Task | null) => void;
   openTaskForEdit: (task: Task) => void;
   openTaskForView: (task: Task) => void;
@@ -33,13 +33,12 @@ interface TaskProviderProps {
 }
 
 export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: TaskProviderProps) {
-  // Get panel registration functions from AppContext
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
   
-  // Panel states - STANDARDIZED: Using generic panelMode
+  // Panel states
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create'); // CHANGED: From taskPanelMode
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   
   // Data state
@@ -57,7 +56,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   // Panel registration
   useEffect(() => {
     registerPanelCloseFunction('tasks', closeTaskPanel);
-    return () => unregisterPanelCloseFunction('tasks');
+    return () => {
+      unregisterPanelCloseFunction('tasks');
+    };
   }, []);
 
   // Global functions for form submission
@@ -127,10 +128,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return errors;
   };
 
-  // CRUD Functions - STANDARDIZED naming
   const openTaskPanel = (task: Task | null) => {
     setCurrentTask(task);
-    setPanelMode(task ? 'edit' : 'create'); // UPDATED: Using setPanelMode
+    setPanelMode(task ? 'edit' : 'create');
     setIsTaskPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -138,7 +138,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const openTaskForEdit = (task: Task) => {
     setCurrentTask(task);
-    setPanelMode('edit'); // UPDATED: Using setPanelMode
+    setPanelMode('edit');
     setIsTaskPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -146,7 +146,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const openTaskForView = (task: Task) => {
     setCurrentTask(task);
-    setPanelMode('view'); // UPDATED: Using setPanelMode
+    setPanelMode('view');
     setIsTaskPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -155,7 +155,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const closeTaskPanel = () => {
     setIsTaskPanelOpen(false);
     setCurrentTask(null);
-    setPanelMode('create'); // UPDATED: Using setPanelMode
+    setPanelMode('create');
     setValidationErrors([]);
   };
 
@@ -198,7 +198,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           updatedAt: new Date(savedTask.updatedAt),
           dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
         });
-        setPanelMode('view'); // UPDATED: Using setPanelMode
+        setPanelMode('view');
         setValidationErrors([]);
       } else {
         console.log('Creating new task...');
@@ -264,10 +264,10 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   };
 
   const value: TaskContextType = {
-    // Panel State - STANDARDIZED
+    // Panel State
     isTaskPanelOpen,
     currentTask,
-    panelMode, // CHANGED: From taskPanelMode to panelMode
+    panelMode,
     validationErrors,
     
     // Data State

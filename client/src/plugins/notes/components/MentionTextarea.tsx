@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useApp } from '@/core/api/AppContext';
 
 interface MentionTextareaProps {
   value: string;
@@ -16,9 +15,6 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   rows = 12,
   className = ''
 }) => {
-  // Use AppContext to get contacts for cross-plugin @mentions
-  // We need contacts from AppContext since this is cross-plugin functionality
-  const { refreshData } = useApp();
   const [contacts, setContacts] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -31,12 +27,6 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   useEffect(() => {
     const loadContacts = async () => {
       try {
-        await refreshData(); // This will load contacts into AppContext
-        // For now, we'll use a workaround to get contacts
-        // In a full implementation, we'd expose contacts through AppContext
-        // or create a dedicated cross-plugin contacts service
-        
-        // Temporary: we'll fetch contacts directly
         const response = await fetch('/api/contacts', {
           credentials: 'include'
         });
@@ -50,7 +40,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     };
     
     loadContacts();
-  }, [refreshData]);
+  }, []);
 
   const extractMentions = (text: string) => {
     const mentions: any[] = [];
