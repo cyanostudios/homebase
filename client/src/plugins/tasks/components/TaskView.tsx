@@ -8,6 +8,7 @@ import { TaskStatusButtons } from './TaskStatusButtons';
 import { TaskPriorityButtons } from './TaskPriorityButtons';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useTasks } from '../hooks/useTasks';
+import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import { useApp } from '@/core/api/AppContext';
 import { TASK_STATUS_COLORS, TASK_PRIORITY_COLORS, TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS, formatStatusForDisplay } from '../types/tasks';
 
@@ -16,19 +17,15 @@ interface TaskViewProps {
 }
 
 export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
-  // Use ContactContext for opening contacts
   const { openContactForView } = useContacts();
-  
-  // Use TaskContext to close task panel when navigating
   const { closeTaskPanel, duplicateTask, saveTask } = useTasks();
-  
-  // Get contacts from AppContext for cross-plugin references
+  const { openNoteForView } = useNotes();
   const { refreshData, contacts } = useApp();
 
-  // FIXED: Move hooks outside of map - fetch ALL contact data at component level
   const [mentionContactsData, setMentionContactsData] = useState<{[key: string]: any}>({});
+  const [sourceNote, setSourceNote] = useState<any>(null);
+  const [noteLoaded, setNoteLoaded] = useState(false);
 
-  // FIXED: Single useEffect to fetch all mentioned contacts data
   useEffect(() => {
     const fetchMentionContactsData = async () => {
       if (!task.mentions || task.mentions.length === 0) return;
@@ -59,22 +56,49 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     fetchMentionContactsData();
   }, [task.mentions]);
 
+  useEffect(() => {
+    const fetchSourceNote = async () => {
+      if (!task.createdFromNote) {
+        setNoteLoaded(true);
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/notes', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const notesData = await response.json();
+          const note = notesData.find((n: any) => n.id === task.createdFromNote || n.id.toString() === task.createdFromNote.toString());
+          setSourceNote(note);
+        }
+      } catch (error) {
+        console.error('Failed to load source note:', error);
+      }
+      
+      setNoteLoaded(true);
+    };
+    
+    fetchSourceNote();
+  }, [task.createdFromNote]);
+
   const handleContactClick = async (contactId: string) => {
-    // Refresh data to get latest contacts
     await refreshData();
-    
-    // Close task panel
     closeTaskPanel();
-    
-    // Open contact
     openContactForView(contactId);
+  };
+
+  const handleNoteClick = async () => {
+    if (!sourceNote) return;
+    closeTaskPanel();
+    openNoteForView(sourceNote);
   };
 
   const handleDuplicateTask = () => {
     duplicateTask(task);
   };
 
-  // Format due date
   const formatDueDate = (dueDate: any) => {
     if (!dueDate) return null;
     
@@ -116,7 +140,6 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     }
   };
 
-  // Get assigned contact details
   const getAssignedContact = () => {
     if (!task.assignedTo) return null;
     
@@ -130,7 +153,6 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     };
   };
 
-  // Handle status change
   const handleStatusChange = async (newStatus: string) => {
     if (newStatus === task.status) return;
     
@@ -156,7 +178,6 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     }
   };
 
-  // Handle priority change
   const handlePriorityChange = async (newPriority: string) => {
     if (newPriority === task.priority) return;
     
@@ -276,19 +297,16 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
       <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Quick Actions</Heading>
         
-        {/* Status Actions */}
         <TaskStatusButtons 
           task={task} 
           onStatusChange={handleStatusChange} 
         />
 
-        {/* Priority Actions */}
         <TaskPriorityButtons 
           task={task} 
           onPriorityChange={handlePriorityChange} 
         />
         
-        {/* Task Actions */}
         <div className="mb-4">
           <div className="text-xs font-medium text-gray-700 mb-2">Task Actions</div>
           <div className="flex flex-wrap gap-2">
@@ -318,10 +336,21 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
             <div className="text-xs text-gray-500">Last Updated</div>
             <div className="text-sm text-gray-900">{new Date(task.updatedAt).toLocaleDateString()}</div>
           </div>
-          {task.createdFromNote && (
+          {task.createdFromNote && noteLoaded && (
             <div className="sm:col-span-2">
               <div className="text-xs text-gray-500">Created from Note</div>
-              <div className="text-sm text-blue-600">Note ID: {task.createdFromNote}</div>
+              {sourceNote ? (
+                <button
+                  onClick={handleNoteClick}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  {sourceNote.title}
+                </button>
+              ) : (
+                <div className="text-sm text-gray-500">
+                  Note ID: {task.createdFromNote} (Deleted Note)
+                </div>
+              )}
             </div>
           )}
         </div>
