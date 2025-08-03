@@ -259,10 +259,14 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
 
       <hr className="border-gray-100" />
 
-      {/* Metadata */}
-      <Card padding="sm" className="shadow-none px-0">
+{/* Metadata */}
+<Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Note Information</Heading>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <div className="text-xs text-gray-500">System ID</div>
+            <div className="text-sm font-mono text-gray-900">{note.id}</div>
+          </div>
           <div>
             <div className="text-xs text-gray-500">Created</div>
             <div className="text-sm text-gray-900">{new Date(note.createdAt).toLocaleDateString()}</div>

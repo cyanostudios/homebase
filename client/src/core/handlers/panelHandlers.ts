@@ -123,8 +123,8 @@ export const createPanelHandlers = (
         }
       };
     } else {
-      // Use cancel handler for form modes (checks unsaved changes)
-      return handleCancel;
+      // FIXED: Use handleCancelClick for form modes (includes unsaved changes check)
+      return handleCancelClick;
     }
   };
 

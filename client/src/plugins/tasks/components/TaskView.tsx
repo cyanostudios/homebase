@@ -84,9 +84,35 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
   }, [task.createdFromNote]);
 
   const handleContactClick = async (contactId: string) => {
-    await refreshData();
-    closeTaskPanel();
-    openContactForView(contactId);
+    try {
+      // Fetch fresh contact data to ensure we have complete object
+      const response = await fetch('/api/contacts', {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const contactsData = await response.json();
+        const contact = contactsData.find((c: any) => c.id === contactId);
+        
+        if (contact) {
+          // Transform contact data to match expected format
+          const transformedContact = {
+            ...contact,
+            createdAt: new Date(contact.createdAt),
+            updatedAt: new Date(contact.updatedAt),
+          };
+          
+          closeTaskPanel(); // Close task panel first
+          openContactForView(transformedContact); // Pass complete contact object
+        } else {
+          console.error('Contact not found:', contactId);
+          alert('Contact not found. It may have been deleted.');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load contact data:', error);
+      alert('Failed to load contact data. Please try again.');
+    }
   };
 
   const handleNoteClick = async () => {
@@ -261,14 +287,30 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
             <div className="space-y-3">
               {task.mentions.map((mention: any, index: number) => {
                 const contactData = mentionContactsData[mention.contactId];
+
+                const getDisplayText = () => {
+                  if (!contactData) {
+                    // Contact was deleted or not found
+                    const contactNumber = `#${mention.contactId}`;
+                    const name = mention.contactName;
+                    return `${contactNumber} • ${name} (deleted contact)`;
+                  }
+                  
+                  const contactNumber = `#${contactData.contactNumber || contactData.id}`;
+                  const name = mention.contactName;
+                  const orgPersonNumber = contactData.organizationNumber || contactData.personalNumber || '';
+                  
+                  return `${contactNumber} • ${name}${orgPersonNumber ? ` • ${orgPersonNumber}` : ''}`;
+                };
                 
                 return (
-                  <div key={index} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                  <div key={index} className={`flex items-center justify-between p-3 rounded-lg border ${
+                    contactData 
+                      ? 'bg-blue-50 border-blue-200' 
+                      : 'bg-gray-50 border-gray-200'
+                  }`}>
                     <div className="text-sm">
-                      <span className="font-medium text-gray-900">{mention.contactName}</span>
-                      {mention.companyName && mention.companyName !== mention.contactName && (
-                        <span className="text-gray-500 ml-2">• {mention.companyName}</span>
-                      )}
+                      <span className="font-medium text-gray-900">{getDisplayText()}</span>
                     </div>
                     <Button
                       size="sm"
@@ -324,10 +366,14 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
 
       <hr className="border-gray-100" />
 
-      {/* Metadata */}
-      <Card padding="sm" className="shadow-none px-0">
+{/* Metadata */}
+<Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Task Information</Heading>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <div className="text-xs text-gray-500">System ID</div>
+            <div className="text-sm font-mono text-gray-900">{task.id}</div>
+          </div>
           <div>
             <div className="text-xs text-gray-500">Created</div>
             <div className="text-sm text-gray-900">{new Date(task.createdAt).toLocaleDateString()}</div>
@@ -337,7 +383,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
             <div className="text-sm text-gray-900">{new Date(task.updatedAt).toLocaleDateString()}</div>
           </div>
           {task.createdFromNote && noteLoaded && (
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-3">
               <div className="text-xs text-gray-500">Created from Note</div>
               {sourceNote ? (
                 <button

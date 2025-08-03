@@ -42,6 +42,9 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
     status: 'draft' as 'draft' | 'sent' | 'accepted' | 'rejected'
   });
 
+  // NEW: Track which items are recently duplicated for visual feedback
+  const [duplicatedItemIds, setDuplicatedItemIds] = useState<Set<string>>(new Set());
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [totals, setTotals] = useState({ 
     subtotal: 0, 
@@ -77,6 +80,8 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         status: currentEstimate.status || 'draft'
       });
       markClean();
+      // Clear duplicated items when loading existing estimate
+      setDuplicatedItemIds(new Set());
     } else {
       resetForm();
     }
@@ -100,6 +105,8 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
       status: 'draft'
     });
     markClean();
+    // Clear duplicated items when resetting form
+    setDuplicatedItemIds(new Set());
   }, [markClean]);
 
   const handleSubmit = useCallback(async () => {
@@ -110,6 +117,8 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
       const success = await onSave(formData);
       if (success) {
         markClean();
+        // Clear duplicated items visual feedback after successful save
+        setDuplicatedItemIds(new Set());
         if (!currentEstimate) {
           resetForm();
         }
@@ -121,6 +130,8 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
   const handleCancel = useCallback(() => {
     attemptAction(() => {
+      // Clear duplicated items when canceling (resetForm will also handle this)
+      setDuplicatedItemIds(new Set());
       onCancel();
     });
   }, [attemptAction, onCancel]);
@@ -195,16 +206,28 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
   const duplicateLineItem = (index: number) => {
     const itemToDuplicate = formData.lineItems[index];
+    const newItemId = Date.now().toString();
     const newItem = calculateLineItem({
       ...itemToDuplicate,
-      id: Date.now().toString(),
+      id: newItemId,
       sortOrder: formData.lineItems.length
     });
+    
+    // Add the new item to duplicated items set for visual feedback
+    setDuplicatedItemIds(prev => new Set([...prev, newItemId]));
     
     updateField('lineItems', [...formData.lineItems, newItem]);
   };
 
   const removeLineItem = (index: number) => {
+    const itemToRemove = formData.lineItems[index];
+    // Remove from duplicated items set if it was duplicated
+    setDuplicatedItemIds(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(itemToRemove.id);
+      return newSet;
+    });
+    
     const updatedItems = formData.lineItems.filter((_, i) => i !== index);
     updateField('lineItems', updatedItems);
   };
@@ -363,7 +386,12 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
           ) : (
             <div className="space-y-3">
               {formData.lineItems.map((item, index) => (
-                <div key={item.id} className="border border-gray-200 rounded-lg p-3">
+                <div 
+                  key={item.id} 
+                  className={`border border-gray-200 rounded-lg p-3 ${
+                    duplicatedItemIds.has(item.id) ? 'bg-green-50' : ''
+                  }`}
+                >
                   {/* Row 1: Item number + Description + Action */}
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-sm font-medium text-gray-700 flex-shrink-0 w-12">
