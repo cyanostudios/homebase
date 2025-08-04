@@ -237,24 +237,198 @@ tasks                  # Task management with assignments
 - **SSL:** HTTPS enabled with proper certificates
 - **Authentication:** Production user management active
 
+### Complete Deployment Process
+
+#### 1. Pre-Deployment Checklist
+```bash
+# Verify you're on correct branch
+git status
+git branch
+
+# Ensure all changes are committed
+git add .
+git commit -m "Release: [description]"
+git push origin production-v7
+```
+
+#### 2. Local Build Process
+```bash
+# Build backend for production
+npm run build
+
+# Build frontend for production  
+npx vite build
+
+# Verify both builds completed
+ls -la dist/
+# Should contain: index.js (backend) + assets/ (frontend) + index.html
+```
+
+#### 3. Package and Upload
+```bash
+# Create deployment package (excludes development files)
+tar --exclude='node_modules' --exclude='.git' --exclude='.env.local' -czf homebase-deploy.tar.gz .
+
+# Upload to production server
+scp -P 2020 homebase-deploy.tar.gz s122463@prime6.inleed.net:~/
+
+# Clean up local tar file
+rm homebase-deploy.tar.gz
+```
+
+#### 4. Server Deployment
+```bash
+# SSH to production server
+ssh -p 2020 s122463@prime6.inleed.net
+
+# Navigate to application directory
+cd ~/app.beyondmusic.se/public_html
+
+# Backup current version (optional but recommended)
+tar -czf backup-$(date +%Y%m%d-%H%M).tar.gz . --exclude='homebase-deploy.tar.gz'
+
+# Remove old files and extract new version
+rm -rf client plugins server docs scripts *.js *.json *.ts *.md
+tar -xzf ~/homebase-deploy.tar.gz
+
+# Clean up deployment file
+rm ~/homebase-deploy.tar.gz
+```
+
+#### 5. Environment Setup and Dependencies
+```bash
+# Activate Node.js environment
+source ~/nodevenv/app.beyondmusic.se/public_html/22/bin/activate
+
+# Install/update dependencies
+npm install
+
+# Verify Node.js version
+node --version  # Should show v22.16.0
+```
+
+#### 6. Application Startup
+```bash
+# Stop any existing processes (if running)
+jobs
+# If processes exist: kill %1 %2 etc.
+
+# Start application in background
+node server/index.ts &
+
+# Verify startup
+jobs  # Should show running process
+```
+
+#### 7. Deployment Verification
+```bash
+# Check local health endpoint
+curl http://localhost:3002/api/health
+# Expected: {"status":"ok","database":"connected","environment":"production","plugins":[...]}
+
+# Check public health endpoint
+curl https://app.beyondmusic.se/api/health
+# Expected: {"status":"ok","database":"connected","environment":"production"}
+
+# Exit server
+exit
+```
+
+#### 8. Final Testing
+```bash
+# From local machine, test application in browser
+open https://app.beyondmusic.se
+
+# Login credentials:
+# Email: admin@homebase.se
+# Password: admin123
+
+# Verify core functionality:
+# - All plugins load (contacts, notes, estimates, tasks)
+# - CRUD operations work
+# - Cross-plugin @mentions function
+# - Mobile responsive design
+# - Keyboard navigation (Space + Arrow keys)
+```
+
+### Deployment Troubleshooting
+
+#### Common Issues
+
+**"Cannot find module '../plugin-loader'"**
+- **Cause:** Incomplete file upload
+- **Solution:** Re-run tar extraction process, ensure all files uploaded
+
+**"node: command not found"**
+- **Cause:** Node.js environment not activated
+- **Solution:** Run `source ~/nodevenv/app.beyondmusic.se/public_html/22/bin/activate`
+
+**Application not accessible via HTTPS**
+- **Cause:** Application not running or wrong port
+- **Solution:** Verify `node server/index.ts &` is running and check `jobs`
+
+**Database connection errors**
+- **Cause:** Production database credentials or connectivity
+- **Solution:** Check server logs, verify MySQL service running
+
+**Frontend shows blank page**
+- **Cause:** Static files not serving correctly
+- **Solution:** Verify `dist/` contains `index.html` and `assets/` directory
+
+#### Health Check Commands
+```bash
+# On production server
+ps aux | grep node                    # Check if Node.js running
+netstat -tlnp | grep 3002            # Verify port 3002 in use
+curl http://localhost:3002/api/health # Test local endpoint
+
+# From local machine  
+curl https://app.beyondmusic.se/api/health # Test public endpoint
+```
+
+### Rollback Procedure
+```bash
+# SSH to server
+ssh -p 2020 s122463@prime6.inleed.net
+cd ~/app.beyondmusic.se/public_html
+
+# Stop current application
+jobs
+kill %1  # or appropriate job number
+
+# Restore from backup
+tar -xzf backup-YYYYMMDD-HHMM.tar.gz
+
+# Restart application
+source ~/nodevenv/app.beyondmusic.se/public_html/22/bin/activate
+node server/index.ts &
+```
+
 ### Production Database Access
 ```bash
 # SSH to production server
 ssh -p 2020 s122463@prime6.inleed.net
 
-# Database connection (if needed)
+# Database connection details:
 # Host: localhost
 # Database: s122463_homebase_prod  
 # Username: s122463_homebase_prod
-# Password: [see deployment docs]
+# Password: [see server configuration]
 ```
 
-### Health Monitoring
+### Monitoring and Maintenance
 ```bash
-# Check application status
+# Regular health checks
 curl https://app.beyondmusic.se/api/health
 
-# Expected response: {"status":"ok","timestamp":"..."}
+# Expected response
+{"status":"ok","database":"connected","environment":"production"}
+
+# Plugin verification
+curl https://app.beyondmusic.se/api/plugins
+
+# Check application logs (if logging implemented)
+tail -f stderr.log  # or appropriate log file
 ```
 
 ## Development Best Practices
@@ -403,4 +577,4 @@ If any step fails, refer to troubleshooting section above.
 **Development Ready:** Parallel team development with zero conflicts  
 **Setup Time:** <10 minutes with corrected commands
 
-*Last Updated: August 2025 - Vite configuration corrected*
+*Last Updated: August 2025 - Complete deployment process documented*
