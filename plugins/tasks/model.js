@@ -25,6 +25,12 @@ class TaskModel {
       created_from_note 
     } = taskData;
     
+    console.log('Creating task with data:', { 
+      assigned_to, 
+      title, 
+      userId 
+    });
+    
     const result = await this.pool.query(`
       INSERT INTO tasks (
         user_id, title, content, mentions, status, priority, 
@@ -97,11 +103,22 @@ class TaskModel {
   }
 
   transformRow(row) {
+    // Parse mentions from JSONB string (same as notes plugin)
+    let mentions = row.mentions || [];
+    if (typeof mentions === 'string') {
+      try {
+        mentions = JSON.parse(mentions);
+      } catch (e) {
+        console.warn('Failed to parse task mentions:', mentions);
+        mentions = [];
+      }
+    }
+
     return {
       id: row.id.toString(),
       title: row.title,
       content: row.content || '',
-      mentions: row.mentions || [],
+      mentions: mentions,
       status: row.status || 'not started',
       priority: row.priority || 'Medium',
       dueDate: row.due_date,

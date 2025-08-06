@@ -82,6 +82,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const loadTasks = async () => {
     try {
       const tasksData = await tasksApi.getTasks();
+      console.log('First task from API:', tasksData[0]);
       const transformedTasks = tasksData.map((task: any) => ({
         ...task,
         createdAt: new Date(task.createdAt),

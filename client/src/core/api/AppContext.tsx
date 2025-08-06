@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { Contact } from '@/plugins/contacts/types/contacts';
 import { Note } from '@/plugins/notes/types/notes';
 import { Estimate } from '@/plugins/estimates/types/estimates';
+import { Task } from '@/plugins/tasks/types/task';
 
 interface User {
   id: number;
@@ -28,11 +29,13 @@ interface AppContextType {
   getNotesForContact: (contactId: string) => Promise<Note[]>;
   getContactsForNote: (noteId: string) => Contact[];
   getEstimatesForContact: (contactId: string) => Promise<Estimate[]>;
+  getTasksForContact: (contactId: string) => Promise<Task[]>;
+  getTasksWithMentionsForContact: (contactId: string) => Promise<Task[]>;
   
   // Close other panels function (for plugin coordination)
   closeOtherPanels: (except?: 'contacts' | 'notes' | 'estimates' | 'tasks') => void;
   
-  // ADDED: Registry for plugin close functions
+  // Registry for plugin close functions
   registerPanelCloseFunction: (pluginName: string, closeFunction: () => void) => void;
   unregisterPanelCloseFunction: (pluginName: string) => void;
   
@@ -87,9 +90,14 @@ const api = {
     return this.request('/notes');
   },
 
-  // CHANGED: Estimates API calls only for cross-plugin references
+  // Estimates API calls only for cross-plugin references
   async getEstimates() {
     return this.request('/estimates');
+  },
+
+  // Tasks API calls only for cross-plugin references
+  async getTasks() {
+    return this.request('/tasks');
   },
 };
 
@@ -103,7 +111,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   
-  // ADDED: Registry for plugin panel close functions
+  // Registry for plugin panel close functions
   const [panelCloseFunctions, setPanelCloseFunctions] = useState<Map<string, () => void>>(new Map());
 
   // Check authentication on app start
@@ -136,7 +144,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadData = async () => {
     try {
-      // CHANGED: Only load contacts and notes for cross-plugin references
+      // Only load contacts and notes for cross-plugin references
       const [contactsData, notesData] = await Promise.all([
         api.getContacts(), // Only for cross-plugin references
         api.getNotes(), // Only for cross-plugin references
@@ -194,24 +202,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-// FIXED: Memoize functions to prevent infinite re-renders
-const registerPanelCloseFunction = useCallback((pluginName: string, closeFunction: () => void) => {
-  setPanelCloseFunctions(prev => {
-    const newMap = new Map(prev);
-    newMap.set(pluginName, closeFunction);
-    return newMap;
-  });
-}, []);
+  // Memoize functions to prevent infinite re-renders
+  const registerPanelCloseFunction = useCallback((pluginName: string, closeFunction: () => void) => {
+    setPanelCloseFunctions(prev => {
+      const newMap = new Map(prev);
+      newMap.set(pluginName, closeFunction);
+      return newMap;
+    });
+  }, []);
 
-const unregisterPanelCloseFunction = useCallback((pluginName: string) => {
-  setPanelCloseFunctions(prev => {
-    const newMap = new Map(prev);
-    newMap.delete(pluginName);
-    return newMap;
-  });
-}, []);
+  const unregisterPanelCloseFunction = useCallback((pluginName: string) => {
+    setPanelCloseFunctions(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(pluginName);
+      return newMap;
+    });
+  }, []);
 
-  // FIXED: Close other panels coordination function
+  // Close other panels coordination function
   const closeOtherPanels = (except?: 'contacts' | 'notes' | 'estimates' | 'tasks') => {
     console.log('closeOtherPanels called, except:', except);
     console.log('Available close functions:', Array.from(panelCloseFunctions.keys()));
@@ -227,7 +235,7 @@ const unregisterPanelCloseFunction = useCallback((pluginName: string) => {
 
   // Cross-plugin reference functions
   const getNotesForContact = async (contactId: string): Promise<Note[]> => {
-    // CHANGED: Use current notes state for cross-plugin references
+    // Use current notes state for cross-plugin references
     return notes.filter(note => 
       note.mentions && note.mentions.some(mention => mention.contactId === contactId)
     );
@@ -242,7 +250,7 @@ const unregisterPanelCloseFunction = useCallback((pluginName: string) => {
     ).filter(Boolean) as Contact[];
   };
 
-  // CHANGED: getEstimatesForContact now fetches fresh data via API
+  // getEstimatesForContact now fetches fresh data via API
   const getEstimatesForContact = async (contactId: string): Promise<Estimate[]> => {
     try {
       const estimatesData = await api.getEstimates();
@@ -255,6 +263,30 @@ const unregisterPanelCloseFunction = useCallback((pluginName: string) => {
       return transformedEstimates.filter((estimate: Estimate) => estimate.contactId === contactId);
     } catch (error) {
       console.error('Failed to fetch estimates for contact:', error);
+      return [];
+    }
+  };
+
+  // Tasks for contact (assigned_to = contactId)
+  const getTasksForContact = async (contactId: string): Promise<Task[]> => {
+    try {
+      const tasksData = await api.getTasks();
+      return tasksData.filter((task: Task) => task.assignedTo === contactId);
+    } catch (error) {
+      console.error('Failed to fetch tasks for contact:', error);
+      return [];
+    }
+  };
+
+  // Tasks with mentions (contact mentioned in task)
+  const getTasksWithMentionsForContact = async (contactId: string): Promise<Task[]> => {
+    try {
+      const tasksData = await api.getTasks();
+      return tasksData.filter((task: Task) => 
+        task.mentions && task.mentions.some(mention => mention.contactId === contactId)
+      );
+    } catch (error) {
+      console.error('Failed to fetch task mentions for contact:', error);
       return [];
     }
   };
@@ -276,6 +308,8 @@ const unregisterPanelCloseFunction = useCallback((pluginName: string) => {
       getNotesForContact,
       getContactsForNote,
       getEstimatesForContact,
+      getTasksForContact,
+      getTasksWithMentionsForContact,
       
       // Panel coordination
       closeOtherPanels,
