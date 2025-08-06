@@ -1,4 +1,5 @@
 import React from 'react';
+import { Badge } from '@/core/ui/Badge';
 import { Estimate } from '../types/estimate';
 
 interface EstimateStatusButtonsProps {
@@ -6,7 +7,6 @@ interface EstimateStatusButtonsProps {
   onStatusChange: (status: string) => void;
 }
 
-// Status color mapping to match badge styling
 const ESTIMATE_STATUS_COLORS = {
   'draft': 'bg-gray-100 text-gray-800 border-gray-200',
   'sent': 'bg-blue-100 text-blue-800 border-blue-200',
@@ -25,18 +25,18 @@ export function EstimateStatusButtons({ estimate, onStatusChange }: EstimateStat
           const isActive = estimate.status === status;
           
           return (
-            <button
+            <Badge
               key={status}
               onClick={() => onStatusChange(status)}
               disabled={isActive}
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+              className={
                 isActive 
-                  ? `${ESTIMATE_STATUS_COLORS[status]} cursor-default` 
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 cursor-pointer'
-              }`}
+                  ? ESTIMATE_STATUS_COLORS[status] 
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }
             >
               {status.charAt(0).toUpperCase() + status.slice(1)}
-            </button>
+            </Badge>
           );
         })}
       </div>

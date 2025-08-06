@@ -103,7 +103,6 @@ class TaskModel {
   }
 
   transformRow(row) {
-    // Parse mentions from JSONB string (same as notes plugin)
     let mentions = row.mentions || [];
     if (typeof mentions === 'string') {
       try {
@@ -121,11 +120,11 @@ class TaskModel {
       mentions: mentions,
       status: row.status || 'not started',
       priority: row.priority || 'Medium',
-      dueDate: row.due_date,
-      assignedTo: row.assigned_to,
-      createdFromNote: row.created_from_note,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      due_date: row.due_date, // Keep backend format for API consistency
+      assigned_to: row.assigned_to, // Keep backend format for API consistency
+      created_from_note: row.created_from_note, // Keep backend format for API consistency
+      created_at: row.created_at, // Keep backend format - frontend will transform
+      updated_at: row.updated_at, // Keep backend format - frontend will transform
     };
   }
 }

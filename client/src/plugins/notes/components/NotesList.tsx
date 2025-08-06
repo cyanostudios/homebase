@@ -26,10 +26,9 @@ export const NotesList: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [isMobileView, setIsMobileView] = useState(false);
 
-  // Check screen size for responsive view
   useEffect(() => {
     const checkScreenSize = () => {
-      setIsMobileView(window.innerWidth < 768); // md breakpoint
+      setIsMobileView(window.innerWidth < 768);
     };
     
     checkScreenSize();
@@ -66,7 +65,7 @@ export const NotesList: React.FC = () => {
       } else if (sortField === 'createdAt') {
         aValue = a.createdAt;
         bValue = b.createdAt;
-      } else { // updatedAt
+      } else {
         aValue = a.updatedAt;
         bValue = b.updatedAt;
       }
@@ -119,9 +118,8 @@ export const NotesList: React.FC = () => {
     });
   };
 
-  // Handle duplicate with event prevention
   const handleDuplicate = async (e: React.MouseEvent, note: any) => {
-    e.stopPropagation(); // Prevent row click
+    e.stopPropagation();
     try {
       await duplicateNote(note);
     } catch (error) {
@@ -142,7 +140,6 @@ export const NotesList: React.FC = () => {
           <Text variant="caption">Manage your notes and ideas</Text>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          {/* Search Controls */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <input
@@ -164,7 +161,6 @@ export const NotesList: React.FC = () => {
       </div>
 
       <Card>
-        {/* Desktop Table View */}
         {!isMobileView ? (
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -290,7 +286,6 @@ export const NotesList: React.FC = () => {
             </tbody>
           </table>
         ) : (
-          /* Mobile Card View */
           <div className="divide-y divide-gray-200">
             {sortedNotes.length === 0 ? (
               <div className="p-6 text-center text-gray-400">
@@ -311,12 +306,10 @@ export const NotesList: React.FC = () => {
                         <h3 className="text-sm font-medium text-gray-900">{note.title}</h3>
                       </div>
                       
-                      {/* Note content preview */}
                       <div className="space-y-1">
                         <div className="text-xs text-gray-600">
                           {truncateContent(note.content, 80)}
                         </div>
-                        {/* Mobile @mention indicator */}
                         {note.mentions && note.mentions.length > 0 && (
                           <div className="flex items-center gap-1 flex-wrap">
                             {note.mentions.slice(0, 2).map((mention: any, index: number) => (
@@ -333,7 +326,6 @@ export const NotesList: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    {/* Action buttons in mobile */}
                     <div className="flex flex-col gap-2">
                       <Button 
                         variant="ghost" 
@@ -353,7 +345,6 @@ export const NotesList: React.FC = () => {
         )}
       </Card>
 
-      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         title="Delete Note"

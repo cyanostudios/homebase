@@ -74,15 +74,60 @@ class ImportModel {
     validateCsvStructure(csvData, pluginType) {
       const validationRules = {
         contacts: {
-          required: ['name'],
-          optional: ['email', 'phone', 'company', 'notes'],
+          required: ['companyName', 'contactType', 'email'],
+          optional: ['phone', 'organizationNumber', 'personalNumber', 'website', 'notes', 'phone2', 'companyType', 'vatNumber', 'taxRate', 'paymentTerms', 'currency', 'fTax'],
           transform: (row) => ({
-            name: row.name?.trim(),
+            companyName: row.companyName?.trim(),
+            contactType: row.contactType?.trim().toLowerCase(),
             email: row.email?.trim().toLowerCase(),
-            phone: row.phone?.trim(),
-            company: row.company?.trim(),
-            notes: row.notes?.trim()
-          })
+            phone: row.phone?.trim() || '',
+            phone2: row.phone2?.trim() || '',
+            organizationNumber: row.organizationNumber?.trim() || '',
+            personalNumber: row.personalNumber?.trim() || '',
+            website: row.website?.trim() || '',
+            notes: row.notes?.trim() || '',
+            companyType: row.companyType?.trim() || '',
+            vatNumber: row.vatNumber?.trim() || '',
+            taxRate: row.taxRate?.trim() || '',
+            paymentTerms: row.paymentTerms?.trim() || '',
+            currency: row.currency?.trim() || 'SEK',
+            fTax: row.fTax?.trim() || '',
+            // These will be auto-generated
+            contactPersons: [],
+            addresses: []
+          }),
+          validate: (transformedRow) => {
+            const errors = [];
+            
+            // Validate contactType
+            if (!['company', 'private'].includes(transformedRow.contactType)) {
+              errors.push('contactType must be "company" or "private"');
+            }
+            
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(transformedRow.email)) {
+              errors.push('Invalid email format');
+            }
+            
+            // Validate organization number for companies
+            if (transformedRow.contactType === 'company' && transformedRow.organizationNumber) {
+              const orgRegex = /^\d{6}-\d{4}$/;
+              if (!orgRegex.test(transformedRow.organizationNumber)) {
+                errors.push('Organization number must be format: 123456-7890');
+              }
+            }
+            
+            // Validate personal number for private persons
+            if (transformedRow.contactType === 'private' && transformedRow.personalNumber) {
+              const personalRegex = /^\d{8}-\d{4}$/;
+              if (!personalRegex.test(transformedRow.personalNumber)) {
+                errors.push('Personal number must be format: 19801201-1234');
+              }
+            }
+            
+            return errors;
+          }
         }
         // Add more plugin types as needed
       };
@@ -107,6 +152,14 @@ class ImportModel {
   
         // Transform and clean data
         const transformedRow = rules.transform(row);
+        
+        // Validate transformed data if validation function exists
+        if (rules.validate) {
+          const validationErrors = rules.validate(transformedRow);
+          validationErrors.forEach(error => {
+            rowErrors.push(`Row ${index + 1}: ${error}`);
+          });
+        }
         
         if (rowErrors.length === 0) {
           validatedData.push(transformedRow);

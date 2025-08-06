@@ -4,16 +4,13 @@ import { tasksApi } from '../api/tasksApi';
 import { useApp } from '@/core/api/AppContext';
 
 interface TaskContextType {
-  // Panel State
   isTaskPanelOpen: boolean;
   currentTask: Task | null;
   panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
   
-  // Data State
   tasks: Task[];
   
-  // Actions
   openTaskPanel: (task: Task | null) => void;
   openTaskForEdit: (task: Task) => void;
   openTaskForView: (task: Task) => void;
@@ -35,16 +32,13 @@ interface TaskProviderProps {
 export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: TaskProviderProps) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
   
-  // Panel states
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   
-  // Data state
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  // Load data when authenticated
   useEffect(() => {
     if (isAuthenticated) {
       loadTasks();
@@ -53,7 +47,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   }, [isAuthenticated]);
 
-  // Panel registration
   useEffect(() => {
     registerPanelCloseFunction('tasks', closeTaskPanel);
     return () => {
@@ -61,7 +54,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     };
   }, []);
 
-  // Global functions for form submission
   useEffect(() => {
     window.submitTasksForm = () => {
       const event = new CustomEvent('submitTaskForm');
@@ -82,7 +74,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const loadTasks = async () => {
     try {
       const tasksData = await tasksApi.getTasks();
-      console.log('First task from API:', tasksData[0]);
       const transformedTasks = tasksData.map((task: any) => ({
         ...task,
         createdAt: new Date(task.createdAt),
@@ -265,16 +256,13 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   };
 
   const value: TaskContextType = {
-    // Panel State
     isTaskPanelOpen,
     currentTask,
     panelMode,
     validationErrors,
     
-    // Data State
     tasks,
     
-    // Actions
     openTaskPanel,
     openTaskForEdit,
     openTaskForView,

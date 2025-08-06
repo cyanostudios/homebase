@@ -1,7 +1,7 @@
 import React from 'react';
 import { Building, User, StickyNote, Calculator, CheckSquare, Upload } from 'lucide-react';
+import { Badge } from '@/core/ui/Badge';
 
-// DYNAMIC: Plugin-specific configurations moved to registry-based approach
 const PLUGIN_CONFIGS = {
   contacts: {
     icon: (item: any) => item.contactType === 'company' ? Building : User,
@@ -138,13 +138,11 @@ export const createPanelTitles = (
     if (!currentPlugin) return '';
     
     if (currentMode === 'view' && currentItem) {
-      // DYNAMIC: Get plugin configuration
       const config = PLUGIN_CONFIGS[currentPlugin.name];
       
       if (config && config.getTitle) {
         const titleData = config.getTitle(currentItem);
         
-        // Handle different plugin title formats dynamically
         if (currentPlugin.name === 'contacts') {
           const { contactNumber, name, orgNumber } = titleData;
           if (isMobileView && orgNumber) {
@@ -208,7 +206,6 @@ export const createPanelTitles = (
         }
       }
       
-      // IMPROVED FALLBACK: More robust fallback for any plugin
       if (currentItem.title) return currentItem.title;
       if (currentItem.name) return currentItem.name;
       if (currentItem.companyName) return currentItem.companyName;
@@ -217,7 +214,6 @@ export const createPanelTitles = (
       return `${currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1)} #${currentItem.id}`;
     }
     
-    // DYNAMIC: Generate create/edit titles based on plugin name
     if (currentPlugin.name === 'import') {
       switch (currentMode) {
         case 'select': return 'Import Data';
@@ -240,36 +236,32 @@ export const createPanelTitles = (
     if (!currentPlugin) return '';
     
     if (currentMode === 'view' && currentItem) {
-      // DYNAMIC: Get plugin configuration
       const config = PLUGIN_CONFIGS[currentPlugin.name];
       
       if (config && config.getSubtitle) {
         const subtitleData = config.getSubtitle(currentItem);
         const Icon = subtitleData.icon;
         
-        // Handle different subtitle formats
         if (subtitleData.badge && !subtitleData.badges) {
-          // Single badge format (contacts, notes, estimates, import)
           return (
             <div className="flex items-center gap-2">
               <Icon className="w-4 h-4" style={{ color: subtitleData.iconColor }} />
-              <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${subtitleData.badge.color}`}>
+              <Badge className={subtitleData.badge.color}>
                 {subtitleData.badge.text}
-              </span>
+              </Badge>
               {subtitleData.text && (
                 <span className="text-xs text-gray-600">• {subtitleData.text}</span>
               )}
             </div>
           );
         } else if (subtitleData.badges) {
-          // Multiple badges format (tasks)
           return (
             <div className="flex items-center gap-2">
               <Icon className="w-4 h-4" style={{ color: subtitleData.iconColor }} />
               {subtitleData.badges.map((badge: any, index: number) => (
-                <span key={index} className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${badge.color}`}>
+                <Badge key={index} className={badge.color}>
                   {badge.text}
-                </span>
+                </Badge>
               ))}
               {subtitleData.text && (
                 <span className="text-xs text-gray-600">• {subtitleData.text}</span>
@@ -277,7 +269,6 @@ export const createPanelTitles = (
             </div>
           );
         } else if (subtitleData.text) {
-          // Text only format (notes fallback, import default)
           return (
             <div className="flex items-center gap-2">
               <Icon className="w-4 h-4" style={{ color: subtitleData.iconColor }} />
@@ -287,11 +278,9 @@ export const createPanelTitles = (
         }
       }
       
-      // IMPROVED FALLBACK: More robust fallback for any plugin  
       return 'View details';
     }
     
-    // DYNAMIC: Generate create/edit subtitles based on plugin name
     if (currentPlugin.name === 'import') {
       switch (currentMode) {
         case 'select': return 'Choose file and plugin type to import';
@@ -302,7 +291,7 @@ export const createPanelTitles = (
       }
     }
     
-    const itemType = currentPlugin.name.slice(0, -1); // contacts -> contact
+    const itemType = currentPlugin.name.slice(0, -1);
     switch (currentMode) {
       case 'edit': return `Update ${itemType} information`;
       case 'create': return `Enter new ${itemType} details`;
@@ -313,7 +302,6 @@ export const createPanelTitles = (
   const getDeleteMessage = () => {
     if (!currentItem || !currentPlugin) return "Are you sure you want to delete this item?";
     
-    // DYNAMIC: Try to get a meaningful name from common properties
     const itemName = currentItem.companyName || 
                      currentItem.title || 
                      currentItem.estimateNumber || 
@@ -330,11 +318,3 @@ export const createPanelTitles = (
     getDeleteMessage
   };
 };
-
-// BENEFITS OF THIS REFACTORING:
-// 1. NEW PLUGINS: Easy to add new plugin configs without touching core logic
-// 2. MAINTAINABLE: Plugin-specific logic centralized in PLUGIN_CONFIGS
-// 3. EXTENSIBLE: New plugins can define their own title/subtitle patterns
-// 4. CONSISTENT: Same pattern for all plugins with fallbacks
-// 5. BACKWARDS COMPATIBLE: All existing functionality preserved
-// 6. TYPE SAFE: Clear structure for plugin configuration

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Badge } from '@/core/ui/Badge';
 import { TASK_STATUS_COLORS, TASK_STATUS_OPTIONS, formatStatusForDisplay } from '../types/tasks';
 
 interface TaskStatusButtonsProps {
@@ -15,18 +16,18 @@ export function TaskStatusButtons({ task, onStatusChange }: TaskStatusButtonsPro
           const isActive = task.status === status;
           
           return (
-            <button
+            <Badge
               key={status}
               onClick={() => onStatusChange(status)}
               disabled={isActive}
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+              className={
                 isActive 
-                  ? `${TASK_STATUS_COLORS[status]} cursor-default` 
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 cursor-pointer'
-              }`}
+                  ? TASK_STATUS_COLORS[status] 
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }
             >
               {formatStatusForDisplay(status)}
-            </button>
+            </Badge>
           );
         })}
       </div>

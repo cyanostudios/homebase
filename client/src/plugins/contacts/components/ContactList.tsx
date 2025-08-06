@@ -3,6 +3,7 @@ import { Plus, Upload, Users, Mail, Phone, Edit, Trash2, Eye, Building, User, Ch
 import { useContacts } from '../hooks/useContacts';
 import { useImport } from '@/plugins/import/hooks/useImport';
 import { Button } from '@/core/ui/Button';
+import { Badge } from '@/core/ui/Badge';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -28,10 +29,9 @@ export const ContactList: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [isMobileView, setIsMobileView] = useState(false);
 
-  // Check screen size for responsive view
   useEffect(() => {
     const checkScreenSize = () => {
-      setIsMobileView(window.innerWidth < 768); // md breakpoint
+      setIsMobileView(window.innerWidth < 768);
     };
     
     checkScreenSize();
@@ -68,7 +68,7 @@ export const ContactList: React.FC = () => {
       } else if (sortField === 'type') {
         aValue = a.contactType;
         bValue = b.contactType;
-      } else { // contactNumber
+      } else {
         aValue = a.contactNumber;
         bValue = b.contactNumber;
       }
@@ -125,7 +125,6 @@ export const ContactList: React.FC = () => {
           <Text variant="caption">Manage your business contacts</Text>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          {/* Search Controls */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <input
@@ -156,7 +155,6 @@ export const ContactList: React.FC = () => {
       </div>
 
       <Card>
-        {/* Desktop Table View */}
         {!isMobileView ? (
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -240,13 +238,13 @@ export const ContactList: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                      <Badge className={
                         contact.contactType === 'company' 
                           ? 'bg-blue-100 text-blue-800' 
                           : 'bg-green-100 text-green-800'
-                      }`}>
+                      }>
                         {contact.contactType === 'company' ? 'Company' : 'Private'}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
@@ -288,7 +286,6 @@ export const ContactList: React.FC = () => {
             </tbody>
           </table>
         ) : (
-          /* Mobile Card View */
           <div className="divide-y divide-gray-200">
             {sortedContacts.length === 0 ? (
               <div className="p-6 text-center text-gray-400">
@@ -311,7 +308,6 @@ export const ContactList: React.FC = () => {
                         <h3 className="text-sm font-medium text-gray-900">{contact.companyName}</h3>
                       </div>
                       
-                      {/* Contact details in mobile */}
                       <div className="space-y-1">
                         {contact.contactType === 'company' && contact.organizationNumber && (
                           <div className="text-xs text-gray-500">{contact.organizationNumber}</div>
@@ -330,7 +326,6 @@ export const ContactList: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    {/* View button in top right */}
                     <div>
                       <Button 
                         variant="ghost" 
@@ -350,7 +345,6 @@ export const ContactList: React.FC = () => {
         )}
       </Card>
 
-      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         title="Delete Contact"

@@ -10,7 +10,6 @@ import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useTasks } from '../hooks/useTasks';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import { useApp } from '@/core/api/AppContext';
-import { TASK_STATUS_COLORS, TASK_PRIORITY_COLORS, TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS, formatStatusForDisplay } from '../types/tasks';
 
 interface TaskViewProps {
   task: any;
@@ -85,7 +84,6 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
 
   const handleContactClick = async (contactId: string) => {
     try {
-      // Fetch fresh contact data to ensure we have complete object
       const response = await fetch('/api/contacts', {
         credentials: 'include'
       });
@@ -95,15 +93,14 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         const contact = contactsData.find((c: any) => c.id === contactId);
         
         if (contact) {
-          // Transform contact data to match expected format
           const transformedContact = {
             ...contact,
             createdAt: new Date(contact.createdAt),
             updatedAt: new Date(contact.updatedAt),
           };
           
-          closeTaskPanel(); // Close task panel first
-          openContactForView(transformedContact); // Pass complete contact object
+          closeTaskPanel();
+          openContactForView(transformedContact);
         } else {
           console.error('Contact not found:', contactId);
           alert('Contact not found. It may have been deleted.');
@@ -236,7 +233,6 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
 
   return (
     <div className="space-y-4">
-      {/* Task Scheduling Information */}
       {(task.dueDate || assignedContact) && (
         <Card padding="sm" className="shadow-none px-0">
           <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Scheduling</Heading>
@@ -268,7 +264,6 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         </Card>
       )}
 
-      {/* Task Content */}
       <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Content</Heading>
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -278,7 +273,6 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         </div>
       </Card>
 
-      {/* Cross-references */}
       {task.mentions && task.mentions.length > 0 && (
         <>
           <hr className="border-gray-100" />
@@ -290,7 +284,6 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
 
                 const getDisplayText = () => {
                   if (!contactData) {
-                    // Contact was deleted or not found
                     const contactNumber = `#${mention.contactId}`;
                     const name = mention.contactName;
                     return `${contactNumber} • ${name} (deleted contact)`;
@@ -335,7 +328,6 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         </>
       )}
 
-      {/* Quick Actions */}
       <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Quick Actions</Heading>
         
@@ -366,8 +358,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
 
       <hr className="border-gray-100" />
 
-{/* Metadata */}
-<Card padding="sm" className="shadow-none px-0">
+      <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Task Information</Heading>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>

@@ -14,23 +14,14 @@ interface NoteViewProps {
 }
 
 export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
-  // Use ContactContext for opening contacts
   const { openContactForView } = useContacts();
-  
-  // Use NoteContext to close note panel when navigating
   const { closeNotePanel, duplicateNote } = useNotes();
-  
-  // Use TaskContext for creating tasks
   const { saveTask, openTaskForView } = useTasks();
-  
-  // Get contacts from AppContext for cross-plugin references
   const { refreshData } = useApp();
 
-  // FIXED: Move state to component level, outside of loops
   const [contactsData, setContactsData] = useState<any[]>([]);
   const [showTaskCreated, setShowTaskCreated] = useState(false);
 
-  // FIXED: Single useEffect to load all contacts
   useEffect(() => {
     const fetchContactsData = async () => {
       try {
@@ -53,10 +44,8 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   }, [note?.mentions]);
 
   const handleContactClick = async (contactId: string) => {
-    // Refresh data to get latest contacts
     await refreshData();
     
-    // Get contact data via fetch since AppContext has the data but doesn't expose it directly
     try {
       const response = await fetch('/api/contacts', {
         credentials: 'include'
@@ -67,15 +56,14 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         const contact = contactsData.find((c: any) => c.id === contactId);
         
         if (contact) {
-          // Transform the contact data to match expected format
           const transformedContact = {
             ...contact,
             createdAt: new Date(contact.createdAt),
             updatedAt: new Date(contact.updatedAt),
           };
           
-          closeNotePanel(); // Close note panel first
-          openContactForView(transformedContact); // Then open contact panel with full data
+          closeNotePanel();
+          openContactForView(transformedContact);
         }
       }
     } catch (error) {
@@ -83,10 +71,8 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     }
   };
 
-  // IMPLEMENTED: Convert note to task functionality
   const handleConvertToTask = async () => {
     try {
-      // Create task data from note
       const taskData = {
         title: note.title,
         content: note.content,
@@ -98,11 +84,9 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         createdFromNote: note.id,
       };
 
-      // Save the new task
       const success = await saveTask(taskData);
       
       if (success) {
-        // Show success notification
         setShowTaskCreated(true);
       }
     } catch (error) {
@@ -111,7 +95,6 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   };
 
   const handleShareNote = () => {
-    // Future: Share functionality
     alert('Share Note feature coming soon!');
   };
 
@@ -125,7 +108,6 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   };
 
   const handleExportNote = () => {
-    // Simple text export for now
     const content = `${note.title}\n\n${note.content}\n\nCreated: ${new Date(note.createdAt).toLocaleDateString()}`;
     const element = document.createElement('a');
     const file = new Blob([content], { type: 'text/plain' });
@@ -140,7 +122,6 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
 
   return (
     <div className="space-y-4">
-      {/* Note Content with clickable mentions */}
       <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Content</Heading>
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -152,19 +133,16 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
 
       <hr className="border-gray-100" />
 
-      {/* Mentioned Contacts - FIXED: No hooks in loops */}
       {note.mentions && note.mentions.length > 0 && (
         <>
           <Card padding="sm" className="shadow-none px-0">
             <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Mentioned Contacts</Heading>
             <div className="space-y-2">
               {note.mentions.map((mention: any, index: number) => {
-                // FIXED: Find contact data from state instead of using hooks in loop
                 const contactData = contactsData.find((c: any) => c.id === mention.contactId);
 
                 const getDisplayText = () => {
                   if (!contactData) {
-                    // Contact was deleted or not found
                     const contactNumber = `#${mention.contactId}`;
                     const name = mention.contactName;
                     return `${contactNumber} • ${name} (deleted contact)`;
@@ -209,11 +187,9 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         </>
       )}
 
-      {/* Quick Actions */}
       <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Quick Actions</Heading>
         
-        {/* Note Actions */}
         <div className="mb-4">
           <div className="text-xs font-medium text-gray-700 mb-2">Note Actions</div>
           <div className="flex flex-wrap gap-2">
@@ -259,8 +235,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
 
       <hr className="border-gray-100" />
 
-{/* Metadata */}
-<Card padding="sm" className="shadow-none px-0">
+      <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Note Information</Heading>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
@@ -278,11 +253,9 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         </div>
       </Card>
 
-      {/* Task Created Notification */}
       {showTaskCreated && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <div>
                 <h2 className="text-sm font-semibold text-gray-900">Task Created Successfully!</h2>
@@ -290,7 +263,6 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
               </div>
             </div>
 
-            {/* Content */}
             <div className="p-4">
               <p className="text-sm text-gray-600 mb-4">
                 Your note has been converted to a task and is ready to be worked on.
@@ -300,7 +272,6 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
               </p>
             </div>
 
-            {/* Footer */}
             <div className="flex justify-end space-x-3 p-4 border-t border-gray-100">
               <Button
                 variant="primary"

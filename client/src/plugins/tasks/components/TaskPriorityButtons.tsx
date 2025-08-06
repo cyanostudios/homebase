@@ -1,4 +1,5 @@
 import React from 'react';
+import { Badge } from '@/core/ui/Badge';
 import { TASK_PRIORITY_COLORS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
 
 interface TaskPriorityButtonsProps {
@@ -15,18 +16,18 @@ export function TaskPriorityButtons({ task, onPriorityChange }: TaskPriorityButt
           const isActive = task.priority === priority;
           
           return (
-            <button
+            <Badge
               key={priority}
               onClick={() => onPriorityChange(priority)}
               disabled={isActive}
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+              className={
                 isActive 
-                  ? `${TASK_PRIORITY_COLORS[priority]} cursor-default` 
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 cursor-pointer'
-              }`}
+                  ? TASK_PRIORITY_COLORS[priority] 
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }
             >
               {priority}
-            </button>
+            </Badge>
           );
         })}
       </div>

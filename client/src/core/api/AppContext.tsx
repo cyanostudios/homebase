@@ -12,7 +12,7 @@ interface User {
 }
 
 interface AppContextType {
-  // Auth State (Core responsibility)
+  // Auth State
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
@@ -25,14 +25,14 @@ interface AppContextType {
   contacts: Contact[];
   notes: Note[];
 
-  // Cross-plugin references (read-only data for cross-references)
+  // Cross-plugin references
   getNotesForContact: (contactId: string) => Promise<Note[]>;
   getContactsForNote: (noteId: string) => Contact[];
   getEstimatesForContact: (contactId: string) => Promise<Estimate[]>;
   getTasksForContact: (contactId: string) => Promise<Task[]>;
   getTasksWithMentionsForContact: (contactId: string) => Promise<Task[]>;
   
-  // Close other panels function (for plugin coordination)
+  // Close other panels function
   closeOtherPanels: (except?: 'contacts' | 'notes' | 'estimates' | 'tasks') => void;
   
   // Registry for plugin close functions
@@ -45,7 +45,6 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// API helper functions
 const api = {
   async request(endpoint: string, options: RequestInit = {}) {
     const response = await fetch(`/api${endpoint}`, {
@@ -65,7 +64,6 @@ const api = {
     return response.json();
   },
 
-  // Auth endpoints
   async login(email: string, password: string) {
     return this.request('/auth/login', {
       method: 'POST',
@@ -81,7 +79,6 @@ const api = {
     return this.request('/auth/me');
   },
 
-  // Cross-plugin data endpoints (read-only for references)
   async getContacts() {
     return this.request('/contacts');
   },
@@ -90,36 +87,29 @@ const api = {
     return this.request('/notes');
   },
 
-  // Estimates API calls only for cross-plugin references
   async getEstimates() {
     return this.request('/estimates');
   },
 
-  // Tasks API calls only for cross-plugin references
   async getTasks() {
     return this.request('/tasks');
   },
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Auth state (core responsibility)
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Cross-plugin data (read-only for references)
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   
-  // Registry for plugin panel close functions
   const [panelCloseFunctions, setPanelCloseFunctions] = useState<Map<string, () => void>>(new Map());
 
-  // Check authentication on app start
   useEffect(() => {
     checkAuth();
   }, []);
 
-  // Load data when authenticated
   useEffect(() => {
     if (isAuthenticated) {
       loadData();
@@ -144,13 +134,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadData = async () => {
     try {
-      // Only load contacts and notes for cross-plugin references
       const [contactsData, notesData] = await Promise.all([
-        api.getContacts(), // Only for cross-plugin references
-        api.getNotes(), // Only for cross-plugin references
+        api.getContacts(),
+        api.getNotes(),
       ]);
       
-      // Transform API data to match interface
       const transformedContacts = contactsData.map((contact: any) => ({
         ...contact,
         createdAt: new Date(contact.createdAt),
@@ -176,7 +164,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Auth functions
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       const response = await api.login(email, password);
@@ -202,7 +189,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Memoize functions to prevent infinite re-renders
   const registerPanelCloseFunction = useCallback((pluginName: string, closeFunction: () => void) => {
     setPanelCloseFunctions(prev => {
       const newMap = new Map(prev);
@@ -219,12 +205,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Close other panels coordination function
   const closeOtherPanels = (except?: 'contacts' | 'notes' | 'estimates' | 'tasks') => {
     console.log('closeOtherPanels called, except:', except);
     console.log('Available close functions:', Array.from(panelCloseFunctions.keys()));
     
-    // Close all panels except the specified one
     panelCloseFunctions.forEach((closeFunction, pluginName) => {
       if (pluginName !== except) {
         console.log(`Closing panel for plugin: ${pluginName}`);
@@ -233,9 +217,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  // Cross-plugin reference functions
   const getNotesForContact = async (contactId: string): Promise<Note[]> => {
-    // Use current notes state for cross-plugin references
     return notes.filter(note => 
       note.mentions && note.mentions.some(mention => mention.contactId === contactId)
     );
@@ -250,7 +232,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ).filter(Boolean) as Contact[];
   };
 
-  // getEstimatesForContact now fetches fresh data via API
   const getEstimatesForContact = async (contactId: string): Promise<Estimate[]> => {
     try {
       const estimatesData = await api.getEstimates();
@@ -267,22 +248,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Tasks for contact (assigned_to = contactId)
   const getTasksForContact = async (contactId: string): Promise<Task[]> => {
     try {
       const tasksData = await api.getTasks();
-      return tasksData.filter((task: Task) => task.assignedTo === contactId);
+      const transformedTasks = tasksData.map((task: any) => ({
+        ...task,
+        assignedTo: task.assigned_to,
+        createdFromNote: task.created_from_note,
+        dueDate: task.due_date ? new Date(task.due_date) : null,
+        createdAt: new Date(task.created_at),
+        updatedAt: new Date(task.updated_at),
+      }));
+      return transformedTasks.filter((task: Task) => task.assignedTo === contactId);
     } catch (error) {
       console.error('Failed to fetch tasks for contact:', error);
       return [];
     }
   };
 
-  // Tasks with mentions (contact mentioned in task)
   const getTasksWithMentionsForContact = async (contactId: string): Promise<Task[]> => {
     try {
       const tasksData = await api.getTasks();
-      return tasksData.filter((task: Task) => 
+      const transformedTasks = tasksData.map((task: any) => ({
+        ...task,
+        assignedTo: task.assigned_to,
+        createdFromNote: task.created_from_note,
+        dueDate: task.due_date ? new Date(task.due_date) : null,
+        createdAt: new Date(task.created_at),
+        updatedAt: new Date(task.updated_at),
+      }));
+      return transformedTasks.filter((task: Task) => 
         task.mentions && task.mentions.some(mention => mention.contactId === contactId)
       );
     } catch (error) {
@@ -293,30 +288,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      // Auth state
       user,
       isAuthenticated,
       login,
       logout,
       isLoading,
       
-      // Cross-plugin data (read-only)
       contacts,
       notes,
       
-      // Cross-plugin references
       getNotesForContact,
       getContactsForNote,
       getEstimatesForContact,
       getTasksForContact,
       getTasksWithMentionsForContact,
       
-      // Panel coordination
       closeOtherPanels,
       registerPanelCloseFunction,
       unregisterPanelCloseFunction,
       
-      // Data refresh
       refreshData,
     }}>
       {children}

@@ -223,16 +223,26 @@ class ImportController {
       const templates = {
         contacts: {
           name: 'Contacts Import',
-          description: 'Import contacts with name, email, phone, company, and notes',
-          requiredFields: ['name'],
-          optionalFields: ['email', 'phone', 'company', 'notes'],
+          description: 'Import business contacts with company or private person information',
+          requiredFields: ['companyName', 'contactType', 'email'],
+          optionalFields: ['phone', 'organizationNumber', 'personalNumber', 'website', 'notes', 'phone2', 'companyType', 'vatNumber', 'taxRate', 'paymentTerms', 'currency', 'fTax'],
           sampleData: [
             {
-              name: 'John Doe',
-              email: 'john@example.com',
-              phone: '+46 70 123 4567',
-              company: 'Acme Corp',
+              companyName: 'Acme Corporation',
+              contactType: 'company',
+              email: 'info@acme.com',
+              phone: '08-123 45 67',
+              organizationNumber: '556677-8899',
+              website: 'www.acme.com',
               notes: 'Important client'
+            },
+            {
+              companyName: 'John Doe',
+              contactType: 'private',
+              email: 'john@example.com', 
+              phone: '070-123 45 67',
+              personalNumber: '19801201-1234',
+              notes: 'Consultant'
             }
           ]
         }

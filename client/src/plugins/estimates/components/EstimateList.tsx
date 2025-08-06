@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Edit, Trash2, Eye, Search, Calculator, ChevronUp, ChevronDown, Copy } from 'lucide-react';
 import { useEstimates } from '../hooks/useEstimates';
 import { Button } from '@/core/ui/Button';
+import { Badge } from '@/core/ui/Badge';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -34,10 +35,9 @@ export function EstimateList() {
   });
   const [isMobileView, setIsMobileView] = useState(false);
 
-  // Check screen size for responsive view
   useEffect(() => {
     const checkScreenSize = () => {
-      setIsMobileView(window.innerWidth < 768); // md breakpoint
+      setIsMobileView(window.innerWidth < 768);
     };
     
     checkScreenSize();
@@ -55,7 +55,6 @@ export function EstimateList() {
     }
   };
 
-  // Filter and sort estimates
   const sortedEstimates = useMemo(() => {
     const filtered = estimates.filter(estimate => 
       estimate.estimateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -133,9 +132,9 @@ export function EstimateList() {
     const colorClass = statusColors[status as keyof typeof statusColors] || statusColors.draft;
     
     return (
-      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${colorClass}`}>
+      <Badge className={colorClass}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
+      </Badge>
     );
   };
 
@@ -147,7 +146,6 @@ export function EstimateList() {
           <Text variant="caption">Manage your customer estimates</Text>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          {/* Search Controls */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <input
@@ -169,7 +167,6 @@ export function EstimateList() {
       </div>
 
       <Card>
-        {/* Desktop Table View */}
         {!isMobileView ? (
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -306,7 +303,6 @@ export function EstimateList() {
             </tbody>
           </table>
         ) : (
-          /* Mobile Card View */
           <div className="divide-y divide-gray-200">
             {sortedEstimates.length === 0 ? (
               <div className="p-6 text-center text-gray-400">
@@ -328,7 +324,6 @@ export function EstimateList() {
                         {getStatusBadge(estimate.status)}
                       </div>
                       
-                      {/* Estimate details in mobile */}
                       <div className="space-y-1">
                         <div className="text-sm text-gray-600">{estimate.contactName}</div>
                         {estimate.organizationNumber && (
@@ -342,7 +337,6 @@ export function EstimateList() {
                         </div>
                       </div>
                     </div>
-                    {/* Action buttons in mobile */}
                     <div className="flex flex-col gap-2">
                       <Button 
                         variant="ghost" 
@@ -362,7 +356,6 @@ export function EstimateList() {
         )}
       </Card>
 
-      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         title="Delete Estimate"

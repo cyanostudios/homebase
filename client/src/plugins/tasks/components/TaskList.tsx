@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Edit, Trash2, Eye, CheckSquare, ChevronUp, ChevronDown, Search, Copy } from 'lucide-react';
 import { useTasks } from '../hooks/useTasks';
 import { Button } from '@/core/ui/Button';
+import { Badge } from '@/core/ui/Badge';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -27,10 +28,9 @@ export const TaskList: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [isMobileView, setIsMobileView] = useState(false);
 
-  // Check screen size for responsive view
   useEffect(() => {
     const checkScreenSize = () => {
-      setIsMobileView(window.innerWidth < 768); // md breakpoint
+      setIsMobileView(window.innerWidth < 768);
     };
     
     checkScreenSize();
@@ -79,7 +79,7 @@ export const TaskList: React.FC = () => {
       } else if (sortField === 'createdAt') {
         aValue = a.createdAt;
         bValue = b.createdAt;
-      } else { // updatedAt
+      } else {
         aValue = a.updatedAt;
         bValue = b.updatedAt;
       }
@@ -91,7 +91,6 @@ export const TaskList: React.FC = () => {
           return (bValue as string).localeCompare(aValue as string);
         }
       } else {
-        // Handle null dates by putting them at the end
         if (!aValue && !bValue) return 0;
         if (!aValue) return sortOrder === 'asc' ? 1 : -1;
         if (!bValue) return sortOrder === 'asc' ? -1 : 1;
@@ -137,9 +136,8 @@ export const TaskList: React.FC = () => {
     });
   };
 
-  // Handle duplicate with event prevention
   const handleDuplicate = async (e: React.MouseEvent, task: any) => {
-    e.stopPropagation(); // Prevent row click
+    e.stopPropagation();
     try {
       await duplicateTask(task);
     } catch (error) {
@@ -178,7 +176,6 @@ export const TaskList: React.FC = () => {
           <Text variant="caption">Manage your tasks and projects</Text>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          {/* Search Controls */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <input
@@ -186,7 +183,7 @@ export const TaskList: React.FC = () => {
               placeholder="Search tasks..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             />
           </div>
           <Button
@@ -200,7 +197,6 @@ export const TaskList: React.FC = () => {
       </div>
 
       <Card>
-        {/* Desktop Table View */}
         {!isMobileView ? (
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -269,7 +265,7 @@ export const TaskList: React.FC = () => {
                 sortedTasks.map((task, idx) => (
                   <tr 
                     key={task.id} 
-                    className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer`}
+                    className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-purple-50 focus:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-inset cursor-pointer`}
                     tabIndex={0}
                     data-list-item={JSON.stringify(task)}
                     data-plugin-name="tasks"
@@ -279,19 +275,19 @@ export const TaskList: React.FC = () => {
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <CheckSquare className="w-5 h-5 text-blue-500" />
+                        <CheckSquare className="w-5 h-5 text-purple-500" />
                         <div className="text-sm font-medium text-gray-900">{task.title}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${TASK_STATUS_COLORS[task.status]}`}>
+                      <Badge className={TASK_STATUS_COLORS[task.status]}>
                         {formatStatusForDisplay(task.status)}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${TASK_PRIORITY_COLORS[task.priority]}`}>
+                      <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
                         {task.priority}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {task.dueDate ? (
@@ -364,7 +360,6 @@ export const TaskList: React.FC = () => {
             </tbody>
           </table>
         ) : (
-          /* Mobile Card View */
           <div className="divide-y divide-gray-200">
             {sortedTasks.length === 0 ? (
               <div className="p-6 text-center text-gray-400">
@@ -375,7 +370,7 @@ export const TaskList: React.FC = () => {
                 <div key={task.id} className="p-4">
                   <div className="flex items-start gap-3">
                     <div className="flex flex-col items-center gap-1">
-                      <CheckSquare className="w-4 h-4 text-blue-500" />
+                      <CheckSquare className="w-4 h-4 text-purple-500" />
                       <div className="text-xs text-gray-500">
                         {new Date(task.updatedAt).toLocaleDateString()}
                       </div>
@@ -384,16 +379,15 @@ export const TaskList: React.FC = () => {
                       <div className="mb-2">
                         <h3 className="text-sm font-medium text-gray-900">{task.title}</h3>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${TASK_STATUS_COLORS[task.status]}`}>
+                          <Badge className={TASK_STATUS_COLORS[task.status]}>
                             {formatStatusForDisplay(task.status)}
-                          </span>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${TASK_PRIORITY_COLORS[task.priority]}`}>
+                          </Badge>
+                          <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
                             {task.priority}
-                          </span>
+                          </Badge>
                         </div>
                       </div>
                       
-                      {/* Task content and details */}
                       <div className="space-y-1">
                         <div className="text-xs text-gray-600">
                           {truncateContent(task.content, 80)}
@@ -403,7 +397,6 @@ export const TaskList: React.FC = () => {
                             📅 {formatDueDate(task.dueDate)?.text}
                           </div>
                         )}
-                        {/* Mobile @mention indicator */}
                         {task.mentions && task.mentions.length > 0 && (
                           <div className="flex items-center gap-1 flex-wrap">
                             {task.mentions.slice(0, 2).map((mention: any, index: number) => (
@@ -420,7 +413,6 @@ export const TaskList: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    {/* Action buttons in mobile */}
                     <div className="flex flex-col gap-2">
                       <Button 
                         variant="ghost" 
@@ -440,11 +432,10 @@ export const TaskList: React.FC = () => {
         )}
       </Card>
 
-      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         title="Delete Task"
-        message={`Are you sure you want to delete "${deleteConfirm.taskTitle}"? This action cannot be undone.`}
+        message={`Are you sure you want to delete "${deleteConfirm.taskTitle}"? This action cannot undone.`}
         confirmText="Delete"
         cancelText="Cancel"
         onConfirm={confirmDelete}
