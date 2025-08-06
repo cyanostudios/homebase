@@ -60,16 +60,6 @@ export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }
   const [availableTemplates, setAvailableTemplates] = useState<Record<string, ImportTemplate>>({});
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Load templates when authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadTemplates();
-    } else {
-      setAvailableTemplates({});
-      setImportHistory([]);
-    }
-  }, [isAuthenticated]);
-
   // Register/unregister panel close function - Following ContactContext pattern
   useEffect(() => {
     registerPanelCloseFunction('import', closeImportPanel);
@@ -92,13 +82,17 @@ export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }
     };
   }, []);
 
-  // Load available templates
+  // Load templates when needed (lazy loading)
   const loadTemplates = async () => {
+    if (!isAuthenticated) return;
+    
     try {
       const templates = await importApi.getTemplates();
       setAvailableTemplates(templates);
     } catch (error) {
       console.error('Error loading import templates:', error);
+      // Don't show error to user - templates are not critical for basic functionality
+      setAvailableTemplates({});
     }
   };
 
@@ -109,6 +103,11 @@ export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }
     setIsImportPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
+    
+    // Load templates when panel opens (lazy loading)
+    if (isAuthenticated && Object.keys(availableTemplates).length === 0) {
+      loadTemplates();
+    }
   };
 
   const openImportForPreview = (file: File, pluginType: string) => {

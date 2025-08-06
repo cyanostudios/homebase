@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building, User, StickyNote, Calculator, CheckSquare } from 'lucide-react';
+import { Building, User, StickyNote, Calculator, CheckSquare, Upload } from 'lucide-react';
 
 // DYNAMIC: Plugin-specific configurations moved to registry-based approach
 const PLUGIN_CONFIGS = {
@@ -93,6 +93,36 @@ const PLUGIN_CONFIGS = {
         text: `Created ${new Date(item.createdAt).toLocaleDateString()}`
       };
     }
+  },
+  import: {
+    icon: Upload,
+    getTitle: (item: any) => ({
+      title: item?.fileName ? `Import: ${item.fileName}` : 'Import Data'
+    }),
+    getSubtitle: (item: any) => {
+      if (item?.status) {
+        const statusColors = {
+          pending: 'bg-yellow-100 text-yellow-800',
+          processing: 'bg-blue-100 text-blue-800',
+          success: 'bg-green-100 text-green-800',
+          error: 'bg-red-100 text-red-800',
+        };
+        return {
+          icon: Upload,
+          iconColor: '#2563eb',
+          badge: {
+            text: item.status.charAt(0).toUpperCase() + item.status.slice(1),
+            color: statusColors[item.status] || statusColors.pending
+          },
+          text: item.pluginType ? `Target: ${item.pluginType}` : ''
+        };
+      }
+      return {
+        icon: Upload,
+        iconColor: '#2563eb',
+        text: 'Import data from CSV files'
+      };
+    }
   }
 };
 
@@ -172,6 +202,9 @@ export const createPanelTitles = (
           } else {
             return `${title}${dueDate ? ` • Due: ${dueDate}` : ''}`;
           }
+        } else if (currentPlugin.name === 'import') {
+          const { title } = titleData;
+          return title;
         }
       }
       
@@ -180,10 +213,21 @@ export const createPanelTitles = (
       if (currentItem.name) return currentItem.name;
       if (currentItem.companyName) return currentItem.companyName;
       if (currentItem.estimateNumber) return currentItem.estimateNumber;
+      if (currentItem.fileName) return `Import: ${currentItem.fileName}`;
       return `${currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1)} #${currentItem.id}`;
     }
     
     // DYNAMIC: Generate create/edit titles based on plugin name
+    if (currentPlugin.name === 'import') {
+      switch (currentMode) {
+        case 'select': return 'Import Data';
+        case 'preview': return 'Preview Import';
+        case 'import': return 'Importing...';
+        case 'results': return 'Import Results';
+        default: return 'Import';
+      }
+    }
+    
     const itemType = currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1);
     switch (currentMode) {
       case 'edit': return `Edit ${itemType}`;
@@ -205,7 +249,7 @@ export const createPanelTitles = (
         
         // Handle different subtitle formats
         if (subtitleData.badge && !subtitleData.badges) {
-          // Single badge format (contacts, notes, estimates)
+          // Single badge format (contacts, notes, estimates, import)
           return (
             <div className="flex items-center gap-2">
               <Icon className="w-4 h-4" style={{ color: subtitleData.iconColor }} />
@@ -233,11 +277,11 @@ export const createPanelTitles = (
             </div>
           );
         } else if (subtitleData.text) {
-          // Text only format (notes fallback)
+          // Text only format (notes fallback, import default)
           return (
             <div className="flex items-center gap-2">
               <Icon className="w-4 h-4" style={{ color: subtitleData.iconColor }} />
-              <span>{subtitleData.text}</span>
+              <span className="text-xs text-gray-600">{subtitleData.text}</span>
             </div>
           );
         }
@@ -248,6 +292,16 @@ export const createPanelTitles = (
     }
     
     // DYNAMIC: Generate create/edit subtitles based on plugin name
+    if (currentPlugin.name === 'import') {
+      switch (currentMode) {
+        case 'select': return 'Choose file and plugin type to import';
+        case 'preview': return 'Review data before importing';
+        case 'import': return 'Processing your data...';
+        case 'results': return 'Import operation completed';
+        default: return 'Import data from CSV files';
+      }
+    }
+    
     const itemType = currentPlugin.name.slice(0, -1); // contacts -> contact
     switch (currentMode) {
       case 'edit': return `Update ${itemType} information`;
@@ -263,6 +317,7 @@ export const createPanelTitles = (
     const itemName = currentItem.companyName || 
                      currentItem.title || 
                      currentItem.estimateNumber || 
+                     currentItem.fileName ||
                      currentItem.name ||
                      'this item';
     

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Users, Mail, Phone, Edit, Trash2, Eye, Building, User, ChevronUp, ChevronDown, Search } from 'lucide-react';
+import { Plus, Upload, Users, Mail, Phone, Edit, Trash2, Eye, Building, User, ChevronUp, ChevronDown, Search } from 'lucide-react';
 import { useContacts } from '../hooks/useContacts';
+import { useImport } from '@/plugins/import/hooks/useImport';
 import { Button } from '@/core/ui/Button';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
@@ -11,6 +12,7 @@ type SortOrder = 'asc' | 'desc';
 
 export const ContactList: React.FC = () => {
   const { contacts, openContactPanel, openContactForEdit, openContactForView, deleteContact } = useContacts();
+  const { openImportPanel } = useImport();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
@@ -111,6 +113,10 @@ export const ContactList: React.FC = () => {
     });
   };
 
+  const handleImportClick = () => {
+    openImportPanel(null);
+  };
+
   return (
     <div className="p-4 sm:p-8">
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -130,13 +136,22 @@ export const ContactList: React.FC = () => {
               className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <Button
-            onClick={() => openContactPanel(null)}
-            variant="primary"
-            icon={Plus}
-          >
-            Add Contact
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleImportClick}
+              variant="secondary"
+              icon={Upload}
+            >
+              Import
+            </Button>
+            <Button
+              onClick={() => openContactPanel(null)}
+              variant="primary"
+              icon={Plus}
+            >
+              Add Contact
+            </Button>
+          </div>
         </div>
       </div>
 

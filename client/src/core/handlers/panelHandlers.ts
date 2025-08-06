@@ -19,6 +19,12 @@ function findPluginFunction(context: any, action: string, pluginName?: string): 
 function findPanelFunction(context: any, action: string, pluginName?: string): any {
   if (!context || !pluginName) return null;
   
+  // Special case for Import plugin which doesn't follow singular naming
+  if (pluginName === 'import') {
+    const functionName = `${action}ImportPanel`;
+    return context[functionName] || null;
+  }
+  
   // Convert plugin name to singular for function naming
   const singular = pluginName.charAt(0).toUpperCase() + pluginName.slice(1, -1);
   const functionName = `${action}${singular}Panel`;
@@ -29,6 +35,12 @@ function findPanelFunction(context: any, action: string, pluginName?: string): a
 // Utility function to find open functions
 function findOpenFunction(context: any, mode: string, pluginName?: string): any {
   if (!context || !pluginName) return null;
+  
+  // Special case for Import plugin
+  if (pluginName === 'import') {
+    const functionName = `openImportFor${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
+    return context[functionName] || null;
+  }
   
   const singular = pluginName.charAt(0).toUpperCase() + pluginName.slice(1, -1);
   const functionName = `open${singular}For${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
