@@ -14,6 +14,7 @@ import {
   Package,
   StickyNote,
   CheckSquare,
+  Upload,
   ChevronLeft, 
   ChevronRight,
   LogOut
@@ -22,8 +23,8 @@ import { useSidebar } from './MainLayout';
 import { useApp } from '@/core/api/AppContext';
 
 interface SidebarProps {
-  currentPage: 'contacts' | 'notes' | 'estimates' | 'tasks';
-  onPageChange: (page: 'contacts' | 'notes' | 'estimates' | 'tasks') => void;
+  currentPage: 'contacts' | 'notes' | 'estimates' | 'tasks' | 'import';
+  onPageChange: (page: 'contacts' | 'notes' | 'estimates' | 'tasks' | 'import') => void;
 }
 
 const navCategories = [
@@ -47,6 +48,12 @@ const navCategories = [
       { label: 'Bookkeeping', icon: Calculator, page: null },
       { label: 'Projects', icon: FolderOpen, page: null },
       { label: 'Equipment', icon: Package, page: null },
+    ]
+  },
+  {
+    title: 'Tools',
+    items: [
+      { label: 'Import', icon: Upload, page: 'import' },
     ]
   },
   {
@@ -92,8 +99,8 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     }
     
     // Handle navigation
-    if (page === 'contacts' || page === 'notes' || page === 'estimates' || page === 'tasks') {
-      onPageChange(page);
+    if (page === 'contacts' || page === 'notes' || page === 'estimates' || page === 'tasks' || page === 'import') {
+      onPageChange(page as 'contacts' | 'notes' | 'estimates' | 'tasks' | 'import');
     }
   };
 

@@ -3,10 +3,12 @@ import { ContactProvider } from '@/plugins/contacts/context/ContactContext';
 import { NoteProvider } from '@/plugins/notes/context/NoteContext';
 import { EstimateProvider } from '@/plugins/estimates/context/EstimateContext';
 import { TaskProvider } from '@/plugins/tasks/context/TaskContext';
+import { ImportProvider } from '@/plugins/import/context/ImportContext';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
+import { useImport } from '@/plugins/import/hooks/useImport';
 import { ContactList } from '@/plugins/contacts/components/ContactList';
 import { ContactForm } from '@/plugins/contacts/components/ContactForm';
 import { ContactView } from '@/plugins/contacts/components/ContactView';
@@ -19,6 +21,9 @@ import { EstimateView } from '@/plugins/estimates/components/EstimateView';
 import { TaskList } from '@/plugins/tasks/components/TaskList';
 import { TaskForm } from '@/plugins/tasks/components/TaskForm';
 import { TaskView } from '@/plugins/tasks/components/TaskView';
+import { ImportList } from '@/plugins/import/components/ImportList';
+import { ImportPanel } from '@/plugins/import/components/ImportPanel';
+import { ImportView } from '@/plugins/import/components/ImportView';
 
 export interface PluginRegistryEntry {
   name: string;
@@ -79,6 +84,17 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       List: TaskList,
       Form: TaskForm,
       View: TaskView,
+    }
+  },
+  {
+    name: 'import',
+    Provider: ImportProvider,
+    hook: useImport,
+    panelKey: 'isImportPanelOpen',
+    components: {
+      List: ImportList,
+      Form: ImportPanel,
+      View: ImportView,
     }
   }
   // New plugins just add entry here - no App.tsx changes needed

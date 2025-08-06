@@ -1,19 +1,21 @@
-import React, { useState, createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 
-const SidebarContext = createContext({
-  isCollapsed: false,
-  setIsCollapsed: (collapsed: boolean) => {},
-  isMobileOverlay: false,
-  setIsMobileOverlay: (overlay: boolean) => {}
-});
+interface SidebarContextType {
+  isCollapsed: boolean;
+  setIsCollapsed: (collapsed: boolean) => void;
+  isMobileOverlay: boolean;
+  setIsMobileOverlay: (open: boolean) => void;
+}
+
+const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
 export const useSidebar = () => useContext(SidebarContext);
 
 interface MainLayoutProps {
   children: React.ReactNode;
-  currentPage: 'contacts' | 'notes' | 'estimates' | 'tasks';
-  onPageChange: (page: 'contacts' | 'notes' | 'estimates' | 'tasks') => void;
+  currentPage: 'contacts' | 'notes' | 'estimates' | 'tasks' | 'import';
+  onPageChange: (page: 'contacts' | 'notes' | 'estimates' | 'tasks' | 'import') => void;
 }
 
 export function MainLayout({ children, currentPage, onPageChange }: MainLayoutProps) {
@@ -22,25 +24,30 @@ export function MainLayout({ children, currentPage, onPageChange }: MainLayoutPr
 
   // Auto-collapse on mobile
   useEffect(() => {
-    const checkScreenSize = () => {
-      const isMobile = window.innerWidth < 768; // md breakpoint
-      if (isMobile && !isCollapsed) {
-        setIsCollapsed(true);
+    const handleResize = () => {
+      if (window.innerWidth < 768 && !isCollapsed) {
+        setIsCollapsed(false);
+        setIsMobileOverlay(false);
       }
     };
-    
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    
-    return () => window.removeEventListener('resize', checkScreenSize);
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, [isCollapsed]);
 
+  const contextValue: SidebarContextType = {
+    isCollapsed,
+    setIsCollapsed,
+    isMobileOverlay,
+    setIsMobileOverlay,
+  };
+
   return (
-    <SidebarContext.Provider value={{ isCollapsed, setIsCollapsed, isMobileOverlay, setIsMobileOverlay }}>
-      <div className="flex h-screen">
-        {/* Mobile Backdrop */}
+    <SidebarContext.Provider value={contextValue}>
+      <div className="flex h-screen bg-gray-50">
+        {/* Mobile overlay */}
         {isMobileOverlay && (
-          <div 
+          <div
             className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
             onClick={() => setIsMobileOverlay(false)}
           />
