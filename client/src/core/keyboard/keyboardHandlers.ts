@@ -1,5 +1,5 @@
 // client/src/core/keyboard/keyboardHandlers.ts
-// REFACTORED: Dynamic plugin function discovery - eliminates manual plugin additions
+// REFACTORED: Dynamic plugin function discovery with navigation guard protection
 
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 
@@ -34,7 +34,10 @@ function findOpenFunction(context: any, mode: string, pluginName?: string): any 
   return context[functionName] || null;
 }
 
-export const createKeyboardHandler = (pluginContexts: any[]) => {
+export const createKeyboardHandler = (
+  pluginContexts: any[], 
+  attemptNavigation?: (action: () => void) => void
+) => {
   return (e: KeyboardEvent) => {
     // Don't interfere with form inputs, textareas, etc.
     const target = e.target as HTMLElement;
@@ -42,9 +45,9 @@ export const createKeyboardHandler = (pluginContexts: any[]) => {
       return;
     }
 
-    // Handle Space key (existing functionality)
+    // Handle Space key
     if (e.code === 'Space') {
-      // DYNAMIC: Check if any panel is currently open
+      // Check if any panel is currently open
       const isAnyPanelOpen = pluginContexts.some(({ plugin, context }) => {
         if (!context) return false;
         try {
@@ -54,7 +57,7 @@ export const createKeyboardHandler = (pluginContexts: any[]) => {
         }
       });
 
-      // If a panel is open, close it
+      // If a panel is open, close it (no navigation guard needed for closing)
       if (isAnyPanelOpen) {
         e.preventDefault();
         const openPluginData = pluginContexts.find(({ plugin, context }) => {
@@ -67,7 +70,6 @@ export const createKeyboardHandler = (pluginContexts: any[]) => {
         });
 
         if (openPluginData?.context) {
-          // DYNAMIC: Find close function automatically
           const closeFunction = findPanelFunction(
             openPluginData.context, 
             'close', 
@@ -83,7 +85,7 @@ export const createKeyboardHandler = (pluginContexts: any[]) => {
         return;
       }
 
-      // If no panel is open, check if a table row is focused and open it
+      // If no panel is open, check if a table row is focused and open it with navigation guard
       const focusedElement = document.activeElement as HTMLElement;
       if (focusedElement && focusedElement.dataset.listItem) {
         e.preventDefault();
@@ -97,7 +99,6 @@ export const createKeyboardHandler = (pluginContexts: any[]) => {
           const pluginData = pluginContexts.find(({ plugin }) => plugin.name === pluginName);
           
           if (pluginData?.context) {
-            // DYNAMIC: Find open for view function automatically
             const openForViewFunction = findOpenFunction(
               pluginData.context,
               'view',
@@ -105,7 +106,14 @@ export const createKeyboardHandler = (pluginContexts: any[]) => {
             );
             
             if (openForViewFunction) {
-              openForViewFunction(itemData);
+              // Use navigation guard if available, otherwise open directly
+              if (attemptNavigation) {
+                attemptNavigation(() => {
+                  openForViewFunction(itemData);
+                });
+              } else {
+                openForViewFunction(itemData);
+              }
             } else {
               console.warn(`OpenForView function not found for plugin: ${pluginData.plugin.name}`);
             }
@@ -152,11 +160,3 @@ export const createKeyboardHandler = (pluginContexts: any[]) => {
     }
   };
 };
-
-// BENEFITS OF THIS REFACTORING:
-// 1. NEW PLUGINS: No manual function additions needed
-// 2. CONSISTENT NAMING: Enforces standardized plugin function names
-// 3. ERROR HANDLING: Console warnings for missing functions help debugging
-// 4. MAINTAINABLE: Single pattern for all plugin keyboard handling
-// 5. REGISTRY-BASED: Uses plugin registry for type-safe operations
-// 6. BACKWARDS COMPATIBLE: Graceful fallbacks for missing functions

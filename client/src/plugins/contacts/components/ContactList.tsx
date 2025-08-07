@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Upload, Users, Mail, Phone, Edit, Trash2, Eye, Building, User, ChevronUp, ChevronDown, Search } from 'lucide-react';
 import { useContacts } from '../hooks/useContacts';
 import { useImport } from '@/plugins/import/hooks/useImport';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { Button } from '@/core/ui/Button';
 import { Badge } from '@/core/ui/Badge';
 import { Heading, Text } from '@/core/ui/Typography';
@@ -14,6 +15,7 @@ type SortOrder = 'asc' | 'desc';
 export const ContactList: React.FC = () => {
   const { contacts, openContactPanel, openContactForEdit, openContactForView, deleteContact } = useContacts();
   const { openImportPanel } = useImport();
+  const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
@@ -117,6 +119,25 @@ export const ContactList: React.FC = () => {
     openImportPanel(null);
   };
 
+  // Protected navigation handlers
+  const handleOpenForView = (contact: any) => {
+    attemptNavigation(() => {
+      openContactForView(contact);
+    });
+  };
+
+  const handleOpenForEdit = (contact: any) => {
+    attemptNavigation(() => {
+      openContactForEdit(contact);
+    });
+  };
+
+  const handleOpenPanel = () => {
+    attemptNavigation(() => {
+      openContactPanel(null);
+    });
+  };
+
   return (
     <div className="p-4 sm:p-8">
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -144,7 +165,7 @@ export const ContactList: React.FC = () => {
               Import
             </Button>
             <Button
-              onClick={() => openContactPanel(null)}
+              onClick={handleOpenPanel}
               variant="primary"
               icon={Plus}
             >
@@ -214,7 +235,10 @@ export const ContactList: React.FC = () => {
                     data-plugin-name="contacts"
                     role="button"
                     aria-label={`Open contact ${contact.companyName}`}
-                    onClick={() => openContactForView(contact)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleOpenForView(contact);
+                    }}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-mono font-medium text-gray-900">#{contact.contactNumber}</div>
@@ -266,7 +290,10 @@ export const ContactList: React.FC = () => {
                           variant="ghost" 
                           size="sm" 
                           icon={Eye}
-                          onClick={() => openContactForView(contact)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenForView(contact);
+                          }}
                         >
                           View
                         </Button>
@@ -274,7 +301,10 @@ export const ContactList: React.FC = () => {
                           variant="secondary" 
                           size="sm" 
                           icon={Edit}
-                          onClick={() => openContactForEdit(contact)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenForEdit(contact);
+                          }}
                         >
                           Edit
                         </Button>
@@ -331,7 +361,7 @@ export const ContactList: React.FC = () => {
                         variant="ghost" 
                         size="sm" 
                         icon={Eye}
-                        onClick={() => openContactForView(contact)}
+                        onClick={() => handleOpenForView(contact)}
                         className="h-8 px-3"
                       >
                         View

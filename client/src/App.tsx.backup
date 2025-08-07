@@ -180,10 +180,10 @@ function AppContent() {
 
   // Keyboard handler
   useEffect(() => {
-    const keyboardHandler = createKeyboardHandler(pluginContexts, attemptNavigation);
+    const keyboardHandler = createKeyboardHandler(pluginContexts);
     document.addEventListener('keydown', keyboardHandler);
     return () => document.removeEventListener('keydown', keyboardHandler);
-  }, [pluginContexts, attemptNavigation]);
+  }, [pluginContexts]);
 
   if (isLoading) {
     return (

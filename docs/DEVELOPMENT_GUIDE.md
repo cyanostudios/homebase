@@ -2,9 +2,7 @@
 
 ## Project Overview
 
-Homebase is a production-ready plugin-based business application with revolutionary modular architecture. The system enables parallel team development with zero conflicts while maintaining enterprise-grade performance and user experience.
-
-**Live System:** [app.beyondmusic.se](https://app.beyondmusic.se) (admin@homebase.se / admin123)
+Homebase is a modular plugin-based business application with revolutionary architecture. The system enables parallel team development with zero conflicts while maintaining enterprise-grade performance and user experience.
 
 ## Architecture Philosophy
 
@@ -18,7 +16,7 @@ Homebase is a production-ready plugin-based business application with revolution
 - **61% Server Code Reduction** - Minimal core with automatic plugin discovery
 - **90% Fewer Re-renders** - Context isolation prevents cascading updates
 - **15-25 Minute Plugin Development** - Standardized templates and patterns
-- **Enterprise Ready** - Production deployment with professional UI/UX
+- **Enterprise Ready** - Professional UI/UX standards
 
 ## Tech Stack
 
@@ -29,15 +27,13 @@ Homebase is a production-ready plugin-based business application with revolution
 - **Universal Keyboard Navigation** - Space + Arrow keys across all plugins
 
 ### Backend  
-- **Express.js** + MySQL (production) / PostgreSQL (development)
+- **Express.js** + PostgreSQL (development)
 - **Plugin-loader System** - Automatic plugin discovery and registration
 - **Authentication** - bcrypt + express-session with plugin access control
 - **Security** - Production-grade middleware and validation
 
 ### Infrastructure
-- **Production:** Inleed Prime 3 hosting (Node.js 22.16.0)
-- **Database:** MySQL 8.0 with cross-plugin references
-- **Domain:** app.beyondmusic.se with HTTPS
+- **Development:** PostgreSQL with session store
 - **Performance:** Sub-second response times
 
 ## Project Structure
@@ -100,14 +96,27 @@ client/src/core/
 ├── pluginRegistry.ts        # Plugin registration and metadata
 └── ui/                      # Shared UI components
 
-App.tsx                      # Dynamic plugin composition (constant size)
+App.tsx                      # Plugin composition and routing
+```
+
+### Plugin Isolation Architecture
+```
+Before (Single Context):
+AppContext.tsx (1000+ lines) → All components re-render on any change
+
+After (Modular Contexts):
+AppContext.tsx (600 lines)   → Auth + minimal coordination only
+ContactContext.tsx (200 lines) → Contact operations only  
+NoteContext.tsx (200 lines)    → Note operations only
+EstimateContext.tsx (250 lines) → Estimate operations only
+                 # Dynamic plugin composition (constant size)
 ```
 
 ## Development Environment Setup
 
 ### Prerequisites
 - Node.js 18+ 
-- PostgreSQL (development) or MySQL 8.0 (production)
+- PostgreSQL (development)
 - Git
 
 ### Installation
@@ -159,7 +168,7 @@ npm run dev
 
 ## Current Plugin Status
 
-### Production Plugins
+### Development Plugins
 | Plugin | Context | Features | Status |
 |--------|---------|----------|---------|
 | **Contacts** | ✅ Modular | CRUD, @mentions, cross-refs | Complete |
@@ -228,230 +237,26 @@ tasks                  # Task management with assignments
 | Core file updates | 9 files | 0 files | 100% elimination |
 | Team conflicts | High | Zero | 100% elimination |
 
-## Production Deployment
-
-### Current Production Environment
-- **URL:** app.beyondmusic.se
-- **Server:** Inleed Prime 3 (Node.js 22.16.0)
-- **Database:** MySQL 8.0 s122463_homebase_prod
-- **SSL:** HTTPS enabled with proper certificates
-- **Authentication:** Production user management active
-
-### Complete Deployment Process
-
-#### 1. Pre-Deployment Checklist
-```bash
-# Verify you're on correct branch
-git status
-git branch
-
-# Ensure all changes are committed
-git add .
-git commit -m "Release: [description]"
-git push origin production-v7
-```
-
-#### 2. Local Build Process
-```bash
-# Build backend for production
-npm run build
-
-# Build frontend for production  
-npx vite build
-
-# Verify both builds completed
-ls -la dist/
-# Should contain: index.js (backend) + assets/ (frontend) + index.html
-```
-
-#### 3. Package and Upload
-```bash
-# Create deployment package (excludes development files)
-tar --exclude='node_modules' --exclude='.git' --exclude='.env.local' -czf homebase-deploy.tar.gz .
-
-# Upload to production server
-scp -P 2020 homebase-deploy.tar.gz s122463@prime6.inleed.net:~/
-
-# Clean up local tar file
-rm homebase-deploy.tar.gz
-```
-
-#### 4. Server Deployment
-```bash
-# SSH to production server
-ssh -p 2020 s122463@prime6.inleed.net
-
-# Navigate to application directory
-cd ~/app.beyondmusic.se/public_html
-
-# Backup current version (optional but recommended)
-tar -czf backup-$(date +%Y%m%d-%H%M).tar.gz . --exclude='homebase-deploy.tar.gz'
-
-# Remove old files and extract new version
-rm -rf client plugins server docs scripts *.js *.json *.ts *.md
-tar -xzf ~/homebase-deploy.tar.gz
-
-# Clean up deployment file
-rm ~/homebase-deploy.tar.gz
-```
-
-#### 5. Environment Setup and Dependencies
-```bash
-# Activate Node.js environment
-source ~/nodevenv/app.beyondmusic.se/public_html/22/bin/activate
-
-# Install/update dependencies
-npm install
-
-# Verify Node.js version
-node --version  # Should show v22.16.0
-```
-
-#### 6. Application Startup
-```bash
-# Stop any existing processes (if running)
-jobs
-# If processes exist: kill %1 %2 etc.
-
-# Start application in background
-node server/index.ts &
-
-# Verify startup
-jobs  # Should show running process
-```
-
-#### 7. Deployment Verification
-```bash
-# Check local health endpoint
-curl http://localhost:3002/api/health
-# Expected: {"status":"ok","database":"connected","environment":"production","plugins":[...]}
-
-# Check public health endpoint
-curl https://app.beyondmusic.se/api/health
-# Expected: {"status":"ok","database":"connected","environment":"production"}
-
-# Exit server
-exit
-```
-
-#### 8. Final Testing
-```bash
-# From local machine, test application in browser
-open https://app.beyondmusic.se
-
-# Login credentials:
-# Email: admin@homebase.se
-# Password: admin123
-
-# Verify core functionality:
-# - All plugins load (contacts, notes, estimates, tasks)
-# - CRUD operations work
-# - Cross-plugin @mentions function
-# - Mobile responsive design
-# - Keyboard navigation (Space + Arrow keys)
-```
-
-### Deployment Troubleshooting
-
-#### Common Issues
-
-**"Cannot find module '../plugin-loader'"**
-- **Cause:** Incomplete file upload
-- **Solution:** Re-run tar extraction process, ensure all files uploaded
-
-**"node: command not found"**
-- **Cause:** Node.js environment not activated
-- **Solution:** Run `source ~/nodevenv/app.beyondmusic.se/public_html/22/bin/activate`
-
-**Application not accessible via HTTPS**
-- **Cause:** Application not running or wrong port
-- **Solution:** Verify `node server/index.ts &` is running and check `jobs`
-
-**Database connection errors**
-- **Cause:** Production database credentials or connectivity
-- **Solution:** Check server logs, verify MySQL service running
-
-**Frontend shows blank page**
-- **Cause:** Static files not serving correctly
-- **Solution:** Verify `dist/` contains `index.html` and `assets/` directory
-
-#### Health Check Commands
-```bash
-# On production server
-ps aux | grep node                    # Check if Node.js running
-netstat -tlnp | grep 3002            # Verify port 3002 in use
-curl http://localhost:3002/api/health # Test local endpoint
-
-# From local machine  
-curl https://app.beyondmusic.se/api/health # Test public endpoint
-```
-
-### Rollback Procedure
-```bash
-# SSH to server
-ssh -p 2020 s122463@prime6.inleed.net
-cd ~/app.beyondmusic.se/public_html
-
-# Stop current application
-jobs
-kill %1  # or appropriate job number
-
-# Restore from backup
-tar -xzf backup-YYYYMMDD-HHMM.tar.gz
-
-# Restart application
-source ~/nodevenv/app.beyondmusic.se/public_html/22/bin/activate
-node server/index.ts &
-```
-
-### Production Database Access
-```bash
-# SSH to production server
-ssh -p 2020 s122463@prime6.inleed.net
-
-# Database connection details:
-# Host: localhost
-# Database: s122463_homebase_prod  
-# Username: s122463_homebase_prod
-# Password: [see server configuration]
-```
-
-### Monitoring and Maintenance
-```bash
-# Regular health checks
-curl https://app.beyondmusic.se/api/health
-
-# Expected response
-{"status":"ok","database":"connected","environment":"production"}
-
-# Plugin verification
-curl https://app.beyondmusic.se/api/plugins
-
-# Check application logs (if logging implemented)
-tail -f stderr.log  # or appropriate log file
-```
-
 ## Development Best Practices
 
 ### Plugin Development Standards
-- **Isolation** - No direct dependencies between plugin contexts
-- **TypeScript** - Complete type safety with proper interfaces
-- **Mobile-First** - Responsive design in all components
-- **Error Handling** - Validation and user feedback
-- **Keyboard Navigation** - Support for universal Space + Arrow patterns
+- Use contacts plugin as template - demonstrates ALL patterns
+- Follow guides exactly - tested in development
+- Copy complete templates - backend/frontend available
+- Test each step before proceeding
 
 ### Code Quality Requirements
-- Follow established component templates
-- Maintain cross-plugin functionality where relevant
-- Include proper loading and empty states
-- Implement unsaved changes protection
-- Add comprehensive error handling
+- **Type Safety** - Full TypeScript coverage with strict mode
+- **Error Handling** - Comprehensive try/catch and user feedback
+- **Mobile First** - Responsive design required for all components
+- **Keyboard Navigation** - Space + Arrow keys must work across all plugins
+- **Cross-Plugin Integration** - Preserve @mention and reference functionality
 
-### Testing Approach
-- **Plugin Isolation** - Mock individual plugin contexts for testing
-- **Integration Testing** - Verify cross-plugin features work correctly
-- **Responsive Testing** - Test mobile and desktop experiences
-- **Keyboard Testing** - Verify universal navigation works
+### Development Workflow
+- **Terminal Management** - Use 3 terminals as specified
+- **File Organization** - Follow established directory structure exactly
+- **Testing Approach** - Test each component individually before integration
+- **Documentation Updates** - Update relevant docs for any changes
 
 ## Troubleshooting
 
@@ -467,114 +272,89 @@ tail -f stderr.log  # or appropriate log file
 - **Cause:** Node.js/npm not properly installed or dependencies not installed
 - **Solution:** 
   1. Install Node.js 18+ and verify with `node --version`
-  2. Run `npm install` from project root
+  2. Run `npm install` from root directory
+  3. Verify Vite is installed: `npx vite --version`
 
-**Error: "EADDRINUSE: address already in use :::3001"**
-- **Cause:** Frontend server already running
-- **Solution:** Stop existing process with `Ctrl+C` or kill process using port 3001
+**Frontend shows blank page**
+- **Check:** Both Terminal 1 (`npx vite`) and Terminal 2 (`npm run dev`) running?
+- **Check:** Are you accessing http://localhost:3001 (not 5173)?
+- **Check:** Any errors in browser console (F12)?
 
-**Error: "Cannot find module 'vite'"**
-- **Cause:** Dependencies not installed
-- **Solution:** Run `npm install` from project root (not from client directory)
-
-**Frontend shows blank page:**
-- **Check:** Are both frontend (3001) and backend (3002) running?
-- **Check:** Is API proxy working? Look for CORS errors in browser console
-- **Check:** Are there JavaScript errors in browser console?
-- **Check:** Is `vite.config.ts` in the root directory?
+**"EADDRINUSE: address already in use"**
+- **Cause:** Port already occupied by another process
+- **Solution:** Stop existing processes with Ctrl+C, then restart
 
 #### Backend Issues
 
-**Plugin Not Loading**
-- **Check:** plugin.config.js configuration and server logs
-- **Expected:** Server logs should show: `🟢 Loaded plugin: [name] (/api/[route])`
+**"Database connection failed"**
+- **Cause:** PostgreSQL not running or wrong connection settings
+- **Solution:** 
+  1. Start PostgreSQL service
+  2. Verify DATABASE_URL in .env.local
+  3. Run setup: `node scripts/setup-database.js`
 
-**Context Errors**
-- **Check:** Provider wrapping in App.tsx
-- **Check:** Plugin registration in pluginRegistry.ts
+**"Plugin not found" errors**
+- **Cause:** Plugin structure incorrect or missing files
+- **Solution:** Verify plugin.config.js exists and follows template structure
 
-**Type Errors**
-- **Check:** Interface consistency after changes
-- **Check:** TypeScript configuration in root tsconfig.json
+#### Integration Issues
 
-**Cross-Plugin Issues**
-- **Check:** AppContext usage patterns
-- **Check:** Cross-plugin reference integrity
+**Cross-plugin @mentions not working**
+- **Check:** Contact references properly stored in database
+- **Check:** Notes context correctly loading mentions
+- **Solution:** Verify getNotesForContact function in AppContext
 
-### Debug Commands
+**Keyboard navigation broken**
+- **Check:** Proper data-keyboard-nav attributes on components
+- **Check:** Universal keyboard listener in App.tsx
+- **Solution:** Follow ContactList.tsx pattern exactly
+
+### Environment Setup Verification
+
+#### Quick Setup Test (10 minutes)
 ```bash
-# Check server status
-ps aux | grep node
+# Step 1: Dependencies
+npm install
+# Expected: "added X packages" with no errors
 
-# Check port usage  
-netstat -tlnp | grep 3001  # Frontend
-netstat -tlnp | grep 3002  # Backend
+# Step 2: Database
+node scripts/setup-database.js
+# Expected: "Database setup complete" or similar
 
-# Check database connection
-npm run test:db
+# Step 3: Frontend
+npx vite
+# Expected: "Local: http://localhost:3001/"
 
-# Check Vite configuration
-cat vite.config.ts
+# Step 4: Backend (new terminal)
+npm run dev  
+# Expected: "Server running on port 3002"
 
-# Verify dependencies
-npm list | grep vite
-npm list | grep react
+# Step 5: Health check
+curl http://localhost:3002/api/health
+# Expected: {"status":"ok","database":"connected"}
 ```
 
-### Configuration Validation
+If any step fails, check specific error solutions above.
 
-**Verify Vite Setup:**
+#### Development Environment Verification
 ```bash
-# Check if vite.config.ts exists in root
-ls -la vite.config.ts
-
-# Verify Vite can find configuration
-npx vite --help
+# Verify all systems working:
+# 1. Fresh clone of repository
+# 2. Run `npm install` from root
+# 3. Run `npx vite` from root (Terminal 1)
+# 4. Run `npm run dev` from root (Terminal 2)  
+# 5. Access http://localhost:3001 - should show working application
+# 6. Access http://localhost:3002/api/health - should return {"status":"ok"}
+# 7. Hot reload should work for both frontend and backend changes
 ```
-
-**Verify Dependencies:**
-```bash
-# All dependencies should be in root package.json
-cat package.json | grep -E "(vite|react|typescript)"
-
-# No package.json should exist in client/
-ls -la client/package.json  # Should not exist
-```
-
-## Contributing Guidelines
-
-### For New Team Members
-1. Read this guide completely
-2. Set up development environment using **corrected commands**
-3. Review PLUGIN_GUIDE.md for technical patterns
-4. Check STYLE_GUIDE.md for UI standards
-5. Start with small plugin or feature enhancement
-
-### For AI/Claude Collaboration
-- Follow COLLABORATION_GUIDE.md patterns
-- Use **corrected terminal commands** from this guide
-- Provide complete file contents in artifacts
-- Test changes incrementally
-- Preserve all existing functionality
-- Document architectural decisions
-
-### New Developer Onboarding Test
-**10-minute setup verification:**
-1. Fresh clone of repository
-2. Run `npm install` from root
-3. Run `npx vite` from root (Terminal 1)
-4. Run `npm run dev` from root (Terminal 2)  
-5. Access http://localhost:3001 - should show working application
-6. Access http://localhost:3002/api/health - should return {"status":"ok"}
-7. Hot reload should work for both frontend and backend changes
 
 If any step fails, refer to troubleshooting section above.
 
 ---
 
-**Architecture Status:** Complete modular system with performance optimization  
-**Production Status:** Live and operational with enterprise features  
-**Development Ready:** Parallel team development with zero conflicts  
-**Setup Time:** <10 minutes with corrected commands
+**Architecture:** Complete modular plugin system with proven patterns  
+**Development Time:** 15-25 minutes per plugin with templates  
+**Setup Time:** <10 minutes with correct commands
+**Team Ready:** Zero-conflict development with professional standards
 
-*Last Updated: August 2025 - Complete deployment process documented*
+*Follow these patterns for efficient, accurate development workflows.*

@@ -6,6 +6,7 @@ import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContacts } from '../hooks/useContacts';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
 interface ContactPerson {
   id: string;
@@ -50,6 +51,8 @@ export const ContactForm: React.FC<ContactFormProps> = ({
     confirmDiscard, 
     cancelDiscard 
   } = useUnsavedChanges();
+  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } = useGlobalNavigationGuard();
+  
   const [formData, setFormData] = useState({
     // Contact Number & Type
     contactNumber: '',
@@ -83,6 +86,16 @@ export const ContactForm: React.FC<ContactFormProps> = ({
     // Notes
     notes: ''
   });
+
+  // Register this form's unsaved changes state globally
+  useEffect(() => {
+    const formKey = `contact-form-${currentContact?.id || 'new'}`;
+    registerUnsavedChangesChecker(formKey, () => isDirty);
+    
+    return () => {
+      unregisterUnsavedChangesChecker(formKey);
+    };
+  }, [isDirty, currentContact, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
   // Load currentContact data when editing
   useEffect(() => {
@@ -160,7 +173,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
     });
   }, [attemptAction, onCancel]);
 
-  // FIXED: Global functions with correct plural naming
+  // Global functions with correct plural naming
   useEffect(() => {
     window.submitContactsForm = handleSubmit; // PLURAL!
     window.cancelContactsForm = handleCancel; // PLURAL!

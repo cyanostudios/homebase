@@ -1,12 +1,11 @@
-# Homebase - Enterprise Plugin-Based Business Application
+# Homebase Documentation Index
 
-## PROJECT OVERVIEW
+## Project Overview
 
-Homebase is a production-ready business application with revolutionary modular plugin architecture. The system enables parallel team development with zero conflicts while maintaining enterprise-grade performance and user experience.
+Homebase is a revolutionary modular plugin-based business application. The system enables parallel team development with zero conflicts while maintaining enterprise-grade performance and user experience.
 
-**🚀 LIVE PRODUCTION SYSTEM:** [app.beyondmusic.se](https://app.beyondmusic.se)  
-**📊 STATUS:** Operational with enterprise-grade functionality  
 **🏗️ ARCHITECTURE:** Complete modular context system (v7+)  
+**📊 STATUS:** Proven in development with enterprise-grade functionality  
 
 ## KEY ACHIEVEMENTS
 
@@ -14,7 +13,7 @@ Homebase is a production-ready business application with revolutionary modular p
 - **61% Server Code Reduction** - Minimal core with automatic plugin discovery  
 - **15-25 Minute Plugin Development** - Standardized templates and patterns
 - **Zero Team Conflicts** - Parallel plugin development with complete isolation
-- **Enterprise Production** - Live system with professional UI/UX standards
+- **Enterprise Standards** - Professional UI/UX with modern architecture
 
 ## CURRENT PLUGIN ECOSYSTEM
 
@@ -32,18 +31,18 @@ Homebase is a production-ready business application with revolutionary modular p
 ## COMPLETE DOCUMENTATION MATRIX
 
 ### 📚 Development Guides
-- **[DEVELOPMENT_GUIDE.md](./docs/DEVELOPMENT_GUIDE.md)** - Project architecture, setup, and production deployment
-- **[PLUGIN_GUIDE.md](./docs/PLUGIN_GUIDE.md)** - Complete plugin development workflow (15-25 min per plugin)
-- **[PLUGIN_OVERVIEW.md](./docs/PLUGIN_OVERVIEW.md)** - Plugin system architecture and performance metrics
-- **[BACKEND_PLUGIN_GUIDE.md](./docs/BACKEND_PLUGIN_GUIDE.md)** - Backend plugin development templates and patterns
-- **[FRONTEND_PLUGIN_GUIDE.md](./docs/FRONTEND_PLUGIN_GUIDE.md)** - Frontend plugin development with modular contexts
+- **[DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md)** - Project architecture, setup, and deployment
+- **[PLUGIN_GUIDE.md](./PLUGIN_GUIDE.md)** - Complete plugin development workflow (15-25 min per plugin)
+- **[PLUGIN_OVERVIEW.md](./PLUGIN_OVERVIEW.md)** - Plugin system architecture and performance metrics
+- **[BACKEND_PLUGIN_GUIDE.md](./BACKEND_PLUGIN_GUIDE.md)** - Backend plugin development templates and patterns
+- **[FRONTEND_PLUGIN_GUIDE.md](./FRONTEND_PLUGIN_GUIDE.md)** - Frontend plugin development with modular contexts
 
 ### 🎨 UI/UX Standards
-- **[STYLE_GUIDE.md](./docs/STYLE_GUIDE.md)** - Complete UI component patterns and responsive design standards
+- **[STYLE_GUIDE.md](./STYLE_GUIDE.md)** - Complete UI component patterns and responsive design standards
 
 ### 🤖 AI Collaboration & Enforcement
-- **[COLLABORATION_GUIDE.md](./docs/COLLABORATION_GUIDE.md)** - Proven patterns for effective AI/Claude collaboration
-- **[AI_AGENT_INSTRUCTIONS.md](./docs/AI_AGENT_INSTRUCTIONS.md)** - **CRITICAL: Absolute rules and enforcement for AI development**
+- **[COLLABORATION_GUIDE.md](./COLLABORATION_GUIDE.md)** - Proven patterns for effective AI/Claude collaboration
+- **[AI_AGENT_INSTRUCTIONS.md](./AI_AGENT_INSTRUCTIONS.md)** - **CRITICAL: Absolute rules and enforcement for AI development**
 
 ### 📋 Documentation Index
 - **[docs/README.md](./docs/README.md)** - Documentation overview and project roadmap
@@ -51,8 +50,8 @@ Homebase is a production-ready business application with revolutionary modular p
 ## TECH STACK
 
 **Frontend:** React 18 + TypeScript + Vite + Modular Contexts  
-**Backend:** Express.js + MySQL (prod) / PostgreSQL (dev) + Plugin-loader system  
-**Infrastructure:** Node.js 22.16.0 on Inleed Prime 3 hosting  
+**Backend:** Express.js + PostgreSQL + Plugin-loader system  
+**Infrastructure:** Node.js with professional development standards  
 **Performance:** Sub-second response times with 90% fewer unnecessary re-renders  
 
 ## 🚨 ABSOLUTE RULES FOR AI AGENTS
@@ -87,7 +86,7 @@ Format: "Step X: [Specific action] - What result do you get?"
 
 ### PLUGIN DEVELOPMENT STANDARDS
 - Use contacts plugin as template - demonstrates ALL patterns
-- Follow guides exactly - tested in production
+- Follow guides exactly - tested in development
 - Copy complete templates - backend/frontend available
 - Test each step before proceeding
 
@@ -139,118 +138,26 @@ Terminal 3: git, commands, testing              # General commands
 ```
 
 ### Plugin Development Process (Tested Pattern)
-1. **Backend Plugin** (5 min) - Copy contacts template from [BACKEND_PLUGIN_GUIDE.md](./docs/BACKEND_PLUGIN_GUIDE.md)
-2. **Frontend Context** (5 min) - Copy ContactContext.tsx pattern from [FRONTEND_PLUGIN_GUIDE.md](./docs/FRONTEND_PLUGIN_GUIDE.md)
-3. **UI Components** (8 min) - Follow ContactList/Form/View patterns from [STYLE_GUIDE.md](./docs/STYLE_GUIDE.md)
-4. **Registration** (5 min) - Add to pluginRegistry.ts following [PLUGIN_GUIDE.md](./docs/PLUGIN_GUIDE.md)
-5. **Testing** (2 min) - Verify CRUD operations + keyboard navigation
+1. **Create Backend Plugin** (5 min) - Copy contacts template exactly
+2. **Test Backend API** (2 min) - Verify endpoints work with curl
+3. **Create Frontend Context** (5 min) - Copy ContactContext pattern exactly
+4. **Build UI Components** (8 min) - Copy ContactList/Form/View patterns
+5. **Register Plugin** (3 min) - Add to pluginRegistry.ts with plural naming
+6. **Integration Testing** (2 min) - Verify keyboard navigation + responsive design
 
-## CRITICAL NAMING CONVENTIONS
-
-### Context Properties (REQUIRED)
-- **Panel state:** `is[Plugin]PanelOpen` (e.g., `isContactsPanelOpen`)
-- **Panel mode:** `[plugin]PanelMode` (e.g., `contactsPanelMode`)
-- **Current item:** `current[Plugin]Item` (e.g., `currentContactsItem`)
-
-### Global Functions (REQUIRED)
-- **Submit function:** `submit[Plugin]sForm` (e.g., `submitContactsForm`) - PLURAL!
-- **Cancel function:** `cancel[Plugin]sForm` (e.g., `cancelContactsForm`) - PLURAL!
-
-### Plugin Registry (REQUIRED)
-- **Plugin name:** Use plural form (e.g., `'contacts'`, `'notes'`, `'estimates'`)
-- **Panel key:** Must match context boolean exactly
-
-## PERFORMANCE CONSIDERATIONS
-
-### Context Isolation Benefits
-- Plugin changes only affect that plugin's components
-- Other plugins remain completely unaffected
-- 90% reduction in unnecessary re-renders achieved
-- Parallel team development with zero conflicts
-
-### Mobile-First Requirements
-- ALL components must support mobile/desktop conditional rendering
-- Use `isMobileView` state with window resize listener
-- Desktop: Table layout with sortable headers
-- Mobile: Card layout with touch-friendly interactions
-
-## QUALITY ASSURANCE
-
-### Before Making Any Changes
-1. **Read the relevant documentation** completely
-2. **Ask for current file contents** before modifying
-3. **Understand the plugin structure** you're working with
-4. **Identify dependencies** that might be affected
-5. **Plan changes systematically** - one component at a time
-
-### Testing Requirements
-- **CRUD operations** - Create, read, update, delete must all work
-- **Keyboard navigation** - Tab through lists, Space to open items
-- **Responsive design** - Test mobile and desktop layouts
-- **Cross-plugin features** - Ensure @mentions and references work
-- **Error handling** - Test validation and network error scenarios
-
-## SUCCESS METRICS
-
-### Architecture Quality
-✅ **All existing functionality preserved** after changes  
-✅ **Performance improvements measurable** (re-render reduction)  
-✅ **Development time reduced** (15-25 minutes per plugin)  
-✅ **Zero team conflicts** during parallel development  
-✅ **Production stability maintained** throughout development  
-
-### Code Quality  
-✅ **Follow established patterns** documented in guides  
-✅ **Complete TypeScript coverage** with proper interfaces  
-✅ **Mobile-first responsive design** in all components  
-✅ **Universal keyboard navigation** support  
-✅ **Comprehensive error handling** and validation  
-
-## PRODUCTION ENVIRONMENT
-
-**Database:** MySQL 8.0 with cross-plugin reference tables  
-**Authentication:** bcrypt + express-session with role-based access  
-**Security:** Production-grade middleware and input validation  
-**Performance:** Sub-second response times across all features  
-**Monitoring:** Health check endpoint and error logging  
+### Quality Checkpoints
+- Backend API responds correctly to all CRUD operations
+- Frontend context manages state without breaking other plugins
+- UI components are responsive and follow style guide
+- Keyboard navigation works (Space + Arrow keys)
+- Cross-plugin features preserved (@mentions, references)
+- No performance regressions (check re-render behavior)
 
 ---
 
-## 🔑 AI ASSISTANT REQUIREMENTS
+**System Status:** ✅ Complete Modular Architecture Implemented  
+**Development Ready:** Templates and patterns proven in development  
+**Performance:** 90% fewer re-renders, 61% server code reduction  
+**Team Ready:** Zero-conflict parallel development workflow
 
-### MANDATORY RESPONSE CHECKS:
-1. Do I know current file contents? → Request if NO
-2. Following exact template? → Copy contacts plugin if NO  
-3. One specific action? → Break down if NO
-4. Preserves functionality? → Ask user if UNSURE
-5. Under 3 paragraphs? → Shorten if NO
-
-### REQUIRED FORMAT:
-```
-"Show me complete contents of: [full/path/to/file]
-Once I see current implementation, I'll [next action]."
-```
-
-### FORBIDDEN:
-❌ "Let me update your files..."  
-❌ "The problem might be..."  
-❌ "This should work"  
-❌ Long explanations without actions
-
-### WHEN STUCK (after 2 attempts):
-```
-"Need to see [specific file/state] for accurate guidance."
-```
-
-### STOP IMMEDIATELY IF:
-- User says "not working" repeatedly
-- Guessing at file contents
-- Repeating failed solutions  
-- User frustrated with progress
-
----
-
-**PRODUCTION SYSTEM - Accuracy over helpfulness**  
-**Violating rules wastes user time**
-
-*Last Updated: July 28, 2025*
+*Use these standards for efficient, professional development.*
