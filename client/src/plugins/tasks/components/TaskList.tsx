@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Edit, Trash2, Eye, CheckSquare, ChevronUp, ChevronDown, Search, Copy } from 'lucide-react';
 import { useTasks } from '../hooks/useTasks';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { Button } from '@/core/ui/Button';
 import { Badge } from '@/core/ui/Badge';
 import { Heading, Text } from '@/core/ui/Typography';
@@ -13,6 +14,7 @@ type SortOrder = 'asc' | 'desc';
 
 export const TaskList: React.FC = () => {
   const { tasks, openTaskPanel, openTaskForEdit, openTaskForView, deleteTask, duplicateTask } = useTasks();
+  const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
@@ -168,6 +170,25 @@ export const TaskList: React.FC = () => {
     }
   };
 
+  // Protected navigation handlers
+  const handleOpenForView = (task: any) => {
+    attemptNavigation(() => {
+      openTaskForView(task);
+    });
+  };
+
+  const handleOpenForEdit = (task: any) => {
+    attemptNavigation(() => {
+      openTaskForEdit(task);
+    });
+  };
+
+  const handleOpenPanel = () => {
+    attemptNavigation(() => {
+      openTaskPanel(null);
+    });
+  };
+
   return (
     <div className="p-4 sm:p-8">
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -187,7 +208,7 @@ export const TaskList: React.FC = () => {
             />
           </div>
           <Button
-            onClick={() => openTaskPanel(null)}
+            onClick={handleOpenPanel}
             variant="primary"
             icon={Plus}
           >
@@ -271,7 +292,10 @@ export const TaskList: React.FC = () => {
                     data-plugin-name="tasks"
                     role="button"
                     aria-label={`Open task ${task.title}`}
-                    onClick={() => openTaskForView(task)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleOpenForView(task);
+                    }}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
@@ -327,7 +351,7 @@ export const TaskList: React.FC = () => {
                           icon={Eye}
                           onClick={(e) => {
                             e.stopPropagation();
-                            openTaskForView(task);
+                            handleOpenForView(task);
                           }}
                         >
                           View
@@ -347,7 +371,7 @@ export const TaskList: React.FC = () => {
                           icon={Edit}
                           onClick={(e) => {
                             e.stopPropagation();
-                            openTaskForEdit(task);
+                            handleOpenForEdit(task);
                           }}
                         >
                           Edit
@@ -418,7 +442,7 @@ export const TaskList: React.FC = () => {
                         variant="ghost" 
                         size="sm" 
                         icon={Eye}
-                        onClick={() => openTaskForView(task)}
+                        onClick={() => handleOpenForView(task)}
                         className="h-8 px-3"
                       >
                         View

@@ -4,6 +4,7 @@ import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useTasks } from '../hooks/useTasks';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useApp } from '@/core/api/AppContext';
 import { MentionTextarea } from './MentionTextarea';
 import { TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
@@ -32,6 +33,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     confirmDiscard, 
     cancelDiscard 
   } = useUnsavedChanges();
+  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } = useGlobalNavigationGuard();
 
   const [formData, setFormData] = useState({
     title: '',
@@ -42,6 +44,16 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     dueDate: null as Date | null,
     assignedTo: null as string | null,
   });
+
+  // Register this form's unsaved changes state globally
+  useEffect(() => {
+    const formKey = `task-form-${currentTask?.id || 'new'}`;
+    registerUnsavedChangesChecker(formKey, () => isDirty);
+    
+    return () => {
+      unregisterUnsavedChangesChecker(formKey);
+    };
+  }, [isDirty, currentTask, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
   // Load currentTask data when editing
   useEffect(() => {
