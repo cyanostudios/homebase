@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Edit, Trash2, Eye, StickyNote, ChevronUp, ChevronDown, Search, Copy } from 'lucide-react';
 import { useNotes } from '../hooks/useNotes';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { Button } from '@/core/ui/Button';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
@@ -11,6 +12,7 @@ type SortOrder = 'asc' | 'desc';
 
 export const NotesList: React.FC = () => {
   const { notes, openNotePanel, openNoteForEdit, openNoteForView, deleteNote, duplicateNote } = useNotes();
+  const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
@@ -132,6 +134,25 @@ export const NotesList: React.FC = () => {
     return content.substring(0, maxLength) + '...';
   };
 
+  // Protected navigation handlers
+  const handleOpenForView = (note: any) => {
+    attemptNavigation(() => {
+      openNoteForView(note);
+    });
+  };
+
+  const handleOpenForEdit = (note: any) => {
+    attemptNavigation(() => {
+      openNoteForEdit(note);
+    });
+  };
+
+  const handleOpenPanel = () => {
+    attemptNavigation(() => {
+      openNotePanel(null);
+    });
+  };
+
   return (
     <div className="p-4 sm:p-8">
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -151,7 +172,7 @@ export const NotesList: React.FC = () => {
             />
           </div>
           <Button
-            onClick={() => openNotePanel(null)}
+            onClick={handleOpenPanel}
             variant="primary"
             icon={Plus}
           >
@@ -211,7 +232,10 @@ export const NotesList: React.FC = () => {
                     data-plugin-name="notes"
                     role="button"
                     aria-label={`Open note ${note.title}`}
-                    onClick={() => openNoteForView(note)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleOpenForView(note);
+                    }}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
@@ -253,7 +277,7 @@ export const NotesList: React.FC = () => {
                           icon={Eye}
                           onClick={(e) => {
                             e.stopPropagation();
-                            openNoteForView(note);
+                            handleOpenForView(note);
                           }}
                         >
                           View
@@ -273,7 +297,7 @@ export const NotesList: React.FC = () => {
                           icon={Edit}
                           onClick={(e) => {
                             e.stopPropagation();
-                            openNoteForEdit(note);
+                            handleOpenForEdit(note);
                           }}
                         >
                           Edit
@@ -331,7 +355,7 @@ export const NotesList: React.FC = () => {
                         variant="ghost" 
                         size="sm" 
                         icon={Eye}
-                        onClick={() => openNoteForView(note)}
+                        onClick={() => handleOpenForView(note)}
                         className="h-8 px-3"
                       >
                         View

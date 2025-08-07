@@ -4,6 +4,7 @@ import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useNotes } from '../hooks/useNotes';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { MentionTextarea } from './MentionTextarea';
 
 interface NoteFormProps {
@@ -29,12 +30,23 @@ export const NoteForm: React.FC<NoteFormProps> = ({
     confirmDiscard, 
     cancelDiscard 
   } = useUnsavedChanges();
+  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } = useGlobalNavigationGuard();
 
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     mentions: []
   });
+
+  // Register this form's unsaved changes state globally
+  useEffect(() => {
+    const formKey = `note-form-${currentNote?.id || 'new'}`;
+    registerUnsavedChangesChecker(formKey, () => isDirty);
+    
+    return () => {
+      unregisterUnsavedChangesChecker(formKey);
+    };
+  }, [isDirty, currentNote, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
   // Load currentNote data when editing
   useEffect(() => {
@@ -81,7 +93,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
     });
   }, [attemptAction, onCancel]);
 
-  // FIXED: Global functions with correct plural naming
+  // Global functions with correct plural naming
   useEffect(() => {
     window.submitNotesForm = handleSubmit; // PLURAL!
     window.cancelNotesForm = handleCancel; // PLURAL!
@@ -106,7 +118,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
-    // FIXED: Clear validation errors when user starts typing
+    // Clear validation errors when user starts typing
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
@@ -117,7 +129,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   const handleContentChange = (content: string, mentions: any[]) => {
     setFormData(prev => ({ ...prev, content, mentions }));
     
-    // FIXED: Clear validation errors when user starts typing
+    // Clear validation errors when user starts typing
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
