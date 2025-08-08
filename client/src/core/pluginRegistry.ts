@@ -24,6 +24,9 @@ import { TaskView } from '@/plugins/tasks/components/TaskView';
 import { ImportList } from '@/plugins/import/components/ImportList';
 import { ImportPanel } from '@/plugins/import/components/ImportPanel';
 import { ImportView } from '@/plugins/import/components/ImportView';
+import { RailProvider } from '@/plugins/rail/context/RailContext';
+import { useRails } from '@/plugins/rail/hooks/useRails';
+import { RailStationBoard } from '@/plugins/rail/components/RailStationBoard';
 
 export interface PluginRegistryEntry {
   name: string;
@@ -95,6 +98,17 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       List: ImportList,
       Form: ImportPanel,
       View: ImportView,
+    }
+  },
+  {
+    name: 'rails',
+    Provider: RailProvider,
+    hook: useRails,
+    panelKey: 'isRailPanelOpen',
+    components: {
+      List: RailStationBoard,
+      Form: (() => null) as React.ComponentType<{ currentItem?: any; onSave: (data: any) => void; onCancel: () => void; }>,
+      View: (() => null) as React.ComponentType<{ item?: any; contact?: any; note?: any; estimate?: any; task?: any; }>,
     }
   }
   // New plugins just add entry here - no App.tsx changes needed

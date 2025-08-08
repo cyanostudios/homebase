@@ -17,14 +17,17 @@ import {
   Upload,
   ChevronLeft, 
   ChevronRight,
-  LogOut
+  LogOut,
+  Train
 } from 'lucide-react';
 import { useSidebar } from './MainLayout';
 import { useApp } from '@/core/api/AppContext';
 
+type NavPage = 'contacts' | 'notes' | 'estimates' | 'tasks' | 'import' | 'rails';
+
 interface SidebarProps {
-  currentPage: 'contacts' | 'notes' | 'estimates' | 'tasks' | 'import';
-  onPageChange: (page: 'contacts' | 'notes' | 'estimates' | 'tasks' | 'import') => void;
+  currentPage: NavPage;
+  onPageChange: (page: NavPage) => void;
 }
 
 const navCategories = [
@@ -32,9 +35,9 @@ const navCategories = [
     title: 'Main',
     items: [
       { label: 'Dashboard', icon: Home, page: null },
-      { label: 'Contacts', icon: Users, page: 'contacts' },
-      { label: 'Notes', icon: StickyNote, page: 'notes' },
-      { label: 'Tasks', icon: CheckSquare, page: 'tasks' },
+      { label: 'Contacts', icon: Users, page: 'contacts' as NavPage },
+      { label: 'Notes', icon: StickyNote, page: 'notes' as NavPage },
+      { label: 'Tasks', icon: CheckSquare, page: 'tasks' as NavPage },
       { label: 'Calendar', icon: Calendar, page: null },
       { label: 'Planner', icon: Calendar, page: null },
     ]
@@ -42,7 +45,7 @@ const navCategories = [
   {
     title: 'Business',
     items: [
-      { label: 'Estimates', icon: Calculator, page: 'estimates' },
+      { label: 'Estimates', icon: Calculator, page: 'estimates' as NavPage },
       { label: 'Invoice', icon: FileText, page: null },
       { label: 'Journal', icon: BookOpen, page: null },
       { label: 'Bookkeeping', icon: Calculator, page: null },
@@ -53,7 +56,8 @@ const navCategories = [
   {
     title: 'Tools',
     items: [
-      { label: 'Import', icon: Upload, page: 'import' },
+      { label: 'Import', icon: Upload, page: 'import' as NavPage },
+      { label: 'Rail', icon: Train, page: 'rails' as NavPage },
     ]
   },
   {
@@ -92,15 +96,15 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     await logout();
   };
 
-  const handleMenuItemClick = (page: string | null) => {
+  const handleMenuItemClick = (page: NavPage | null) => {
     // Close mobile overlay when menu item is clicked
     if (isMobile && isMobileOverlay) {
       setIsMobileOverlay(false);
     }
     
     // Handle navigation
-    if (page === 'contacts' || page === 'notes' || page === 'estimates' || page === 'tasks' || page === 'import') {
-      onPageChange(page as 'contacts' | 'notes' | 'estimates' | 'tasks' | 'import');
+    if (page === 'contacts' || page === 'notes' || page === 'estimates' || page === 'tasks' || page === 'import' || page === 'rails') {
+      onPageChange(page);
     }
   };
 
