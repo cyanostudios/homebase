@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StickyNote, User, CheckSquare, Share, Copy, Download } from 'lucide-react';
+import { StickyNote, User, CheckSquare, Copy, Download } from 'lucide-react';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
 import { Button } from '@/core/ui/Button';
@@ -92,10 +92,6 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     } catch (error) {
       console.error('Failed to convert note to task:', error);
     }
-  };
-
-  const handleShareNote = () => {
-    alert('Share Note feature coming soon!');
   };
 
   const handleDuplicateNote = async () => {
@@ -193,14 +189,6 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         <div className="mb-4">
           <div className="text-xs font-medium text-gray-700 mb-2">Note Actions</div>
           <div className="flex flex-wrap gap-2">
-            <Button 
-              variant="secondary" 
-              size="sm"
-              icon={Share}
-              onClick={handleShareNote}
-            >
-              Share Note
-            </Button>
             
             <Button 
               variant="secondary" 
