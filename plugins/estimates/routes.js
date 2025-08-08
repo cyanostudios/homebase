@@ -12,6 +12,9 @@ function createEstimateRoutes(controller, requirePlugin) {
   router.get('/stats/status', requirePlugin('estimates'), (req, res) => controller.getStatusStats(req, res));
   router.get('/stats/reasons/:status', requirePlugin('estimates'), (req, res) => controller.getReasonStats(req, res));
   
+  // Public routes (no authentication required) - MOVED BEFORE /:id to prevent conflicts
+  router.get('/public/:token', (req, res) => controller.getPublicEstimate(req, res));
+  
   router.get('/:id', requirePlugin('estimates'), (req, res) => controller.getEstimate(req, res));
   router.put('/:id', requirePlugin('estimates'), (req, res) => controller.updateEstimate(req, res));
   router.delete('/:id', requirePlugin('estimates'), (req, res) => controller.deleteEstimate(req, res));
@@ -23,9 +26,6 @@ function createEstimateRoutes(controller, requirePlugin) {
   router.post('/shares', requirePlugin('estimates'), (req, res) => controller.createShare(req, res));
   router.get('/:estimateId/shares', requirePlugin('estimates'), (req, res) => controller.getShares(req, res));
   router.delete('/shares/:shareId', requirePlugin('estimates'), (req, res) => controller.revokeShare(req, res));
-
-  // Public routes (no authentication required)
-  router.get('/public/:token', (req, res) => controller.getPublicEstimate(req, res));
 
   return router;
 }

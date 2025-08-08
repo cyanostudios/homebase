@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useEstimates } from '../hooks/useEstimates';
 import { useApp } from '@/core/api/AppContext';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Button } from '@/core/ui/Button';
 import { Card } from '@/core/ui/Card';
@@ -18,6 +19,7 @@ interface EstimateFormProps {
 export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateFormProps) {
   const { validationErrors, clearValidationErrors } = useEstimates();
   const { contacts } = useApp(); // Cross-plugin data access
+  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } = useGlobalNavigationGuard();
   
   // Safety check for contacts
   const safeContacts = contacts || [];
@@ -37,22 +39,35 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
     organizationNumber: '',
     currency: 'SEK',
     lineItems: [] as LineItem[],
+    estimateDiscount: 0, // NEW: Estimate-level discount percentage
     notes: '',
     validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
     status: 'draft' as 'draft' | 'sent' | 'accepted' | 'rejected'
   });
 
-  // NEW: Track which items are recently duplicated for visual feedback
+  // Track which items are recently duplicated for visual feedback
   const [duplicatedItemIds, setDuplicatedItemIds] = useState<Set<string>>(new Set());
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [totals, setTotals] = useState({ 
     subtotal: 0, 
-    totalDiscount: 0, // NEW
-    subtotalAfterDiscount: 0, // NEW
+    totalDiscount: 0,
+    subtotalAfterDiscount: 0,
+    estimateDiscountAmount: 0, // NEW
+    subtotalAfterEstimateDiscount: 0, // NEW
     totalVat: 0, 
     total: 0 
   });
+
+  // Register this form's unsaved changes state globally
+  useEffect(() => {
+    const formKey = `estimate-form-${currentEstimate?.id || 'new'}`;
+    registerUnsavedChangesChecker(formKey, () => isDirty);
+    
+    return () => {
+      unregisterUnsavedChangesChecker(formKey);
+    };
+  }, [isDirty, currentEstimate, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
   // Load currentEstimate data when editing
   useEffect(() => {
@@ -75,23 +90,23 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         organizationNumber: currentEstimate.organizationNumber || '',
         currency: currentEstimate.currency || 'SEK',
         lineItems: migratedLineItems,
+        estimateDiscount: currentEstimate.estimateDiscount || 0, // NEW: Load estimate discount
         notes: currentEstimate.notes || '',
         validTo: new Date(currentEstimate.validTo),
         status: currentEstimate.status || 'draft'
       });
       markClean();
-      // Clear duplicated items when loading existing estimate
       setDuplicatedItemIds(new Set());
     } else {
       resetForm();
     }
   }, [currentEstimate, markClean]);
 
-  // Calculate totals when line items change
+  // Calculate totals when line items OR estimate discount changes
   useEffect(() => {
-    const newTotals = calculateEstimateTotals(formData.lineItems);
+    const newTotals = calculateEstimateTotals(formData.lineItems, formData.estimateDiscount);
     setTotals(newTotals);
-  }, [formData.lineItems]);
+  }, [formData.lineItems, formData.estimateDiscount]);
 
   const resetForm = useCallback(() => {
     setFormData({
@@ -100,12 +115,12 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
       organizationNumber: '',
       currency: 'SEK',
       lineItems: [],
+      estimateDiscount: 0, // NEW: Reset estimate discount
       notes: '',
       validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       status: 'draft'
     });
     markClean();
-    // Clear duplicated items when resetting form
     setDuplicatedItemIds(new Set());
   }, [markClean]);
 
@@ -117,7 +132,6 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
       const success = await onSave(formData);
       if (success) {
         markClean();
-        // Clear duplicated items visual feedback after successful save
         setDuplicatedItemIds(new Set());
         if (!currentEstimate) {
           resetForm();
@@ -130,16 +144,15 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
   const handleCancel = useCallback(() => {
     attemptAction(() => {
-      // Clear duplicated items when canceling (resetForm will also handle this)
       setDuplicatedItemIds(new Set());
       onCancel();
     });
   }, [attemptAction, onCancel]);
 
-  // Global functions for UniversalPanel footer
+  // Global functions with correct plural naming
   useEffect(() => {
-    window.submitEstimatesForm = handleSubmit; // FIXED: Plural form
-    window.cancelEstimatesForm = handleCancel; // FIXED: Plural form
+    window.submitEstimatesForm = handleSubmit; // PLURAL!
+    window.cancelEstimatesForm = handleCancel; // PLURAL!
     
     return () => {
       delete window.submitEstimatesForm;
@@ -160,9 +173,15 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
   const updateField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Clear validation errors when user starts typing
+    if (validationErrors.length > 0) {
+      clearValidationErrors();
+    }
+    
     markDirty();
-    clearValidationErrors();
   };
+
   const handleContactChange = (contactId: string) => {
     const contact = safeContacts.find(c => c.id === contactId);
     if (contact) {
@@ -174,7 +193,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         currency: contact.currency || 'SEK'
       }));
       markDirty();
-      clearValidationErrors(); // Add this line to clear errors when customer changes
+      clearValidationErrors();
     }
   };
 
@@ -184,7 +203,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
       description: '',
       quantity: 1,
       unitPrice: 0,
-      discount: 0, // NEW: Default 0% discount
+      discount: 0,
       vatRate: 25,
       sortOrder: formData.lineItems.length
     });
@@ -213,15 +232,12 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
       sortOrder: formData.lineItems.length
     });
     
-    // Add the new item to duplicated items set for visual feedback
     setDuplicatedItemIds(prev => new Set([...prev, newItemId]));
-    
     updateField('lineItems', [...formData.lineItems, newItem]);
   };
 
   const removeLineItem = (index: number) => {
     const itemToRemove = formData.lineItems[index];
-    // Remove from duplicated items set if it was duplicated
     setDuplicatedItemIds(prev => {
       const newSet = new Set(prev);
       newSet.delete(itemToRemove.id);
@@ -426,8 +442,8 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                     </Button>
                   </div>
 
-{/* Row 2: Numbers table */}
-<div className="overflow-x-auto">
+                  {/* Row 2: Numbers table */}
+                  <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
@@ -517,34 +533,73 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
           )}
         </Card>
 
-{/* Totals Summary */}
-{formData.lineItems.length > 0 && (
-  <Card padding="sm" className="shadow-none px-0">
-    <Heading level={3} className="mb-3">Summary</Heading>
-    <div className="space-y-2">
-      <div className="flex justify-between">
-        <span className="text-sm text-gray-600">Subtotal:</span>
-        <span className="text-sm font-medium text-gray-900">{(totals.subtotal || 0).toFixed(2)} {formData.currency}</span>
-      </div>
-      <div className="flex justify-between">
-        <span className="text-sm text-gray-600">Total Discount:</span>
-        <span className="text-sm font-medium text-gray-900">-{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}</span>
-      </div>
-      <div className="flex justify-between border-t border-gray-200 pt-2">
-        <span className="text-sm text-gray-600">Subtotal after discount:</span>
-        <span className="text-sm font-medium text-gray-900">{(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}</span>
-      </div>
-      <div className="flex justify-between">
-        <span className="text-sm text-gray-600">Total VAT:</span>
-        <span className="text-sm font-medium text-gray-900">{(totals.totalVat || 0).toFixed(2)} {formData.currency}</span>
-      </div>
-      <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-2">
-        <span>Total:</span>
-        <span>{(totals.total || 0).toFixed(2)} {formData.currency}</span>
-      </div>
-    </div>
-  </Card>
-)}
+        {/* NEW: Estimate Discount - After line items, before totals */}
+        {formData.lineItems.length > 0 && (
+          <Card padding="sm" className="shadow-none px-0">
+            <div className="flex items-center gap-4 mb-2">
+              <label className="text-sm font-medium text-gray-700">
+                Estimate Discount (%)
+              </label>
+              <div className="max-w-xs">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={formData.estimateDiscount || 0}
+                  onChange={(e) => updateField('estimateDiscount', parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500">
+              Discount applied to subtotal after line item discounts
+            </p>
+          </Card>
+        )}
+
+        {/* Totals Summary - UPDATED to show all discount steps */}
+        {formData.lineItems.length > 0 && (
+          <Card padding="sm" className="shadow-none px-0">
+            <Heading level={3} className="mb-3">Summary</Heading>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Subtotal:</span>
+                <span className="text-sm font-medium text-gray-900">{(totals.subtotal || 0).toFixed(2)} {formData.currency}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Total Line Item Discounts:</span>
+                <span className="text-sm font-medium text-gray-900">-{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}</span>
+              </div>
+              <div className="flex justify-between border-t border-gray-200 pt-2">
+                <span className="text-sm text-gray-600">Subtotal after line discounts:</span>
+                <span className="text-sm font-medium text-gray-900">{(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}</span>
+              </div>
+              {/* NEW: Show estimate discount if applied */}
+              {formData.estimateDiscount > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Estimate Discount ({formData.estimateDiscount}%):</span>
+                    <span className="text-sm font-medium text-gray-900">-{(totals.estimateDiscountAmount || 0).toFixed(2)} {formData.currency}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-gray-200 pt-2">
+                    <span className="text-sm text-gray-600">Subtotal after estimate discount:</span>
+                    <span className="text-sm font-medium text-gray-900">{(totals.subtotalAfterEstimateDiscount || 0).toFixed(2)} {formData.currency}</span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Total VAT:</span>
+                <span className="text-sm font-medium text-gray-900">{(totals.totalVat || 0).toFixed(2)} {formData.currency}</span>
+              </div>
+              <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-2">
+                <span>Total:</span>
+                <span>{(totals.total || 0).toFixed(2)} {formData.currency}</span>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Notes */}
         <Card padding="sm" className="shadow-none px-0">

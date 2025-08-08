@@ -158,34 +158,61 @@ export function calculateLineItem(item: Partial<LineItem>): LineItem {
   };
 }
 
-export function calculateEstimateTotals(lineItems: LineItem[]): {
+export function calculateEstimateTotals(lineItems: LineItem[], estimateDiscount: number = 0): {
   subtotal: number;
   totalDiscount: number;
   subtotalAfterDiscount: number;
+  estimateDiscountAmount: number;
+  subtotalAfterEstimateDiscount: number;
   totalVat: number;
   total: number;
 } {
   let subtotal = 0;
   let totalDiscount = 0;
-  let totalVat = 0;
   
+  // Calculate line item totals first
   lineItems.forEach(item => {
     const lineSubtotal = item.lineSubtotal || ((item.quantity || 0) * (item.unitPrice || 0));
     const discountAmount = item.discountAmount || 0;
-    const vatAmount = item.vatAmount || (lineSubtotal * ((item.vatRate || 25) / 100));
     
     subtotal += lineSubtotal;
     totalDiscount += discountAmount;
-    totalVat += vatAmount;
   });
   
+  // Calculate subtotal after line item discounts
   const subtotalAfterDiscount = subtotal - totalDiscount;
-  const total = subtotalAfterDiscount + totalVat;
+  
+  // NEW: Calculate estimate-level discount
+  const estimateDiscountAmount = subtotalAfterDiscount * (estimateDiscount / 100);
+  const subtotalAfterEstimateDiscount = subtotalAfterDiscount - estimateDiscountAmount;
+  
+  // Calculate VAT on the final amount (after all discounts)
+  let totalVat = 0;
+  lineItems.forEach(item => {
+    // Recalculate VAT based on proportional share of final subtotal
+    const lineSubtotal = item.lineSubtotal || ((item.quantity || 0) * (item.unitPrice || 0));
+    const lineDiscountAmount = item.discountAmount || 0;
+    const lineAfterDiscount = lineSubtotal - lineDiscountAmount;
+    
+    if (subtotalAfterDiscount > 0) {
+      // Calculate this line's proportion of the subtotal after line discounts
+      const proportion = lineAfterDiscount / subtotalAfterDiscount;
+      // Apply that proportion to the final subtotal after estimate discount
+      const finalLineAmount = subtotalAfterEstimateDiscount * proportion;
+      // Calculate VAT on the final amount
+      const vatAmount = finalLineAmount * ((item.vatRate || 25) / 100);
+      totalVat += vatAmount;
+    }
+  });
+  
+  const total = subtotalAfterEstimateDiscount + totalVat;
   
   return {
     subtotal: Math.round(subtotal * 100) / 100,
     totalDiscount: Math.round(totalDiscount * 100) / 100,
     subtotalAfterDiscount: Math.round(subtotalAfterDiscount * 100) / 100,
+    estimateDiscountAmount: Math.round(estimateDiscountAmount * 100) / 100,
+    subtotalAfterEstimateDiscount: Math.round(subtotalAfterEstimateDiscount * 100) / 100,
     totalVat: Math.round(totalVat * 100) / 100,
     total: Math.round(total * 100) / 100,
   };

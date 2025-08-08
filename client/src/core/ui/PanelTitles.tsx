@@ -1,6 +1,7 @@
 import React from 'react';
 import { Building, User, StickyNote, Calculator, CheckSquare, Upload } from 'lucide-react';
 import { Badge } from '@/core/ui/Badge';
+import { calculateEstimateTotals } from '@/plugins/estimates/types/estimate'; // NEW: Import calculation function
 
 const PLUGIN_CONFIGS = {
   contacts: {
@@ -34,13 +35,18 @@ const PLUGIN_CONFIGS = {
   },
   estimates: {
     icon: Calculator,
-    getTitle: (item: any) => ({
-      estimateNumber: item.estimateNumber || `#${item.id}`,
-      total: `${item.total?.toFixed(2) || '0.00'}`,
-      currency: item.currency || 'SEK',
-      contactId: item.contactId,
-      contactName: item.contactName
-    }),
+    getTitle: (item: any) => {
+      // NEW: Calculate correct total with estimate discount
+      const totals = calculateEstimateTotals(item.lineItems || [], item.estimateDiscount || 0);
+      
+      return {
+        estimateNumber: item.estimateNumber || `#${item.id}`,
+        total: totals.total.toFixed(2), // Use calculated total, not database total
+        currency: item.currency || 'SEK',
+        contactId: item.contactId,
+        contactName: item.contactName
+      };
+    },
     getSubtitle: (item: any) => {
       const statusColors = {
         draft: 'bg-gray-100 text-gray-800',

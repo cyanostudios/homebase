@@ -345,11 +345,26 @@ class EstimateModel {
 
   // === SHARING METHODS ===
 
-  // Generate secure random token
-  generateShareToken() {
-    return crypto.randomBytes(32).toString('hex');
-  }
+// Generate secure random token with base62 encoding
+generateShareToken() {
+  const bytes = crypto.randomBytes(24); // 24 bytes = 192 bits of entropy
+  return this.base62Encode(bytes);
+}
 
+// Base62 encoding for shorter URLs
+base62Encode(buffer) {
+  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  let result = '';
+  let num = BigInt('0x' + buffer.toString('hex'));
+  
+  while (num > 0) {
+    result = chars[num % 62n] + result;
+    num = num / 62n;
+  }
+  
+  // Pad to ensure consistent length (32 characters for 24 bytes)
+  return result.padStart(32, '0');
+}
   // Create estimate share
   async createShare(userId, estimateId, validUntil) {
     // First verify user owns the estimate
@@ -382,37 +397,39 @@ class EstimateModel {
   }
 
   // Get estimate by share token (public access)
-  async getEstimateByShareToken(shareToken) {
-    const result = await this.pool.query(`
-      SELECT 
-        e.*,
-        es.accessed_count,
-        es.valid_until as share_valid_until
-      FROM estimates e
-      JOIN estimate_shares es ON e.id = es.estimate_id
-      WHERE es.share_token = $1 AND es.valid_until > NOW()
-    `, [shareToken]);
-    
-    if (!result.rows.length) {
-      return null;
-    }
-    
-    // Update access count
-    await this.pool.query(`
-      UPDATE estimate_shares 
-      SET accessed_count = accessed_count + 1, last_accessed_at = NOW()
-      WHERE share_token = $1
-    `, [shareToken]);
-    
-    const row = result.rows[0];
-    const estimate = this.transformRow(row);
-    
-    // Add sharing info
-    estimate.shareValidUntil = row.share_valid_until;
-    estimate.accessedCount = row.accessed_count + 1; // Include this access
-    
-    return estimate;
+async getEstimateByShareToken(shareToken) {
+  const result = await this.pool.query(`
+    SELECT 
+      e.*,
+      es.accessed_count,
+      es.valid_until as share_valid_until
+    FROM estimates e
+    JOIN estimate_shares es ON e.id = es.estimate_id
+    WHERE es.share_token = $1 AND es.valid_until > NOW()
+  `, [shareToken]);
+  
+  if (!result.rows.length) {
+    return null;
   }
+  
+  const row = result.rows[0];
+  const currentAccessCount = row.accessed_count;
+  
+  // Update access count
+  await this.pool.query(`
+    UPDATE estimate_shares 
+    SET accessed_count = accessed_count + 1, last_accessed_at = NOW()
+    WHERE share_token = $1
+  `, [shareToken]);
+  
+  const estimate = this.transformRow(row);
+  
+  // Add sharing info with the NEW access count (including this access)
+  estimate.shareValidUntil = row.share_valid_until;
+  estimate.accessedCount = currentAccessCount + 1;
+  
+  return estimate;
+ }
 
   // Get all shares for an estimate
   async getSharesForEstimate(userId, estimateId) {

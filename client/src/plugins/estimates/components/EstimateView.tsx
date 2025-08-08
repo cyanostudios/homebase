@@ -26,8 +26,8 @@ export function EstimateView({ estimate }: EstimateViewProps) {
 
   if (!estimate) return null;
 
-  // Calculate totals from line items
-  const totals = calculateEstimateTotals(estimate.lineItems || []);
+  // Calculate totals from line items WITH estimate discount
+  const totals = calculateEstimateTotals(estimate.lineItems || [], estimate.estimateDiscount || 0);
 
   return (
     <div className="space-y-4">
@@ -71,7 +71,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
         </div>
       </Card>
 
-      {/* Summary */}
+      {/* Summary - UPDATED to show estimate discount */}
       <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Summary</Heading>
         
@@ -81,13 +81,26 @@ export function EstimateView({ estimate }: EstimateViewProps) {
             <span className="text-sm font-medium text-gray-900">{totals.subtotal.toFixed(2)} {estimate.currency}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-sm text-gray-600">Total Discount:</span>
+            <span className="text-sm text-gray-600">Total Line Item Discounts:</span>
             <span className="text-sm font-medium text-gray-900">-{totals.totalDiscount.toFixed(2)} {estimate.currency}</span>
           </div>
           <div className="flex justify-between border-t border-gray-200 pt-3">
-            <span className="text-sm text-gray-600">Subtotal after discount:</span>
+            <span className="text-sm text-gray-600">Subtotal after line discounts:</span>
             <span className="text-sm font-medium text-gray-900">{totals.subtotalAfterDiscount.toFixed(2)} {estimate.currency}</span>
           </div>
+          {/* NEW: Show estimate discount if applied */}
+          {(estimate.estimateDiscount || 0) > 0 && (
+            <>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Estimate Discount ({(estimate.estimateDiscount || 0).toFixed(1)}%):</span>
+                <span className="text-sm font-medium text-gray-900">-{totals.estimateDiscountAmount.toFixed(2)} {estimate.currency}</span>
+              </div>
+              <div className="flex justify-between border-t border-gray-200 pt-3">
+                <span className="text-sm text-gray-600">Subtotal after estimate discount:</span>
+                <span className="text-sm font-medium text-gray-900">{totals.subtotalAfterEstimateDiscount.toFixed(2)} {estimate.currency}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between">
             <span className="text-sm text-gray-600">Total VAT:</span>
             <span className="text-sm font-medium text-gray-900">{totals.totalVat.toFixed(2)} {estimate.currency}</span>
@@ -98,6 +111,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
           </div>
         </div>
       </Card>
+
 
       {/* Notes */}
       {estimate.notes && (

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Edit, Trash2, Eye, Search, Calculator, ChevronUp, ChevronDown, Copy } from 'lucide-react';
 import { useEstimates } from '../hooks/useEstimates';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { Button } from '@/core/ui/Button';
 import { Badge } from '@/core/ui/Badge';
 import { Heading, Text } from '@/core/ui/Typography';
@@ -20,6 +21,7 @@ export function EstimateList() {
     deleteEstimate,
     duplicateEstimate
   } = useEstimates();
+  const { attemptNavigation } = useGlobalNavigationGuard();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('createdAt');
@@ -116,9 +118,13 @@ export function EstimateList() {
     });
   };
 
-  const handleDuplicate = (e: React.MouseEvent, estimate: any) => {
+  const handleDuplicate = async (e: React.MouseEvent, estimate: any) => {
     e.stopPropagation();
-    duplicateEstimate(estimate);
+    try {
+      await duplicateEstimate(estimate);
+    } catch (error) {
+      console.error('Failed to duplicate estimate:', error);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -136,6 +142,25 @@ export function EstimateList() {
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
+  };
+
+  // Protected navigation handlers
+  const handleOpenForView = (estimate: any) => {
+    attemptNavigation(() => {
+      openEstimateForView(estimate);
+    });
+  };
+
+  const handleOpenForEdit = (estimate: any) => {
+    attemptNavigation(() => {
+      openEstimateForEdit(estimate);
+    });
+  };
+
+  const handleOpenPanel = () => {
+    attemptNavigation(() => {
+      openEstimatePanel(null);
+    });
   };
 
   return (
@@ -157,7 +182,7 @@ export function EstimateList() {
             />
           </div>
           <Button
-            onClick={() => openEstimatePanel(null)}
+            onClick={handleOpenPanel}
             variant="primary"
             icon={Plus}
           >
@@ -229,7 +254,10 @@ export function EstimateList() {
                     data-plugin-name="estimates"
                     role="button"
                     aria-label={`Open estimate ${estimate.estimateNumber}`}
-                    onClick={() => openEstimateForView(estimate)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleOpenForView(estimate);
+                    }}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
@@ -249,13 +277,13 @@ export function EstimateList() {
                       {estimate.lineItems.length} item{estimate.lineItems.length !== 1 ? 's' : ''}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {calculateEstimateTotals(estimate.lineItems || []).total.toFixed(2)} {estimate.currency}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        VAT: {calculateEstimateTotals(estimate.lineItems || []).totalVat.toFixed(2)} {estimate.currency}
-                      </div>
-                    </td>
+  <div className="text-sm font-medium text-gray-900">
+    {calculateEstimateTotals(estimate.lineItems || [], estimate.estimateDiscount || 0).total.toFixed(2)} {estimate.currency}
+  </div>
+  <div className="text-xs text-gray-500">
+    VAT: {calculateEstimateTotals(estimate.lineItems || [], estimate.estimateDiscount || 0).totalVat.toFixed(2)} {estimate.currency}
+  </div>
+</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(estimate.status)}
                     </td>
@@ -270,7 +298,7 @@ export function EstimateList() {
                           icon={Eye}
                           onClick={(e) => {
                             e.stopPropagation();
-                            openEstimateForView(estimate);
+                            handleOpenForView(estimate);
                           }}
                         >
                           View
@@ -290,7 +318,7 @@ export function EstimateList() {
                           icon={Edit}
                           onClick={(e) => {
                             e.stopPropagation();
-                            openEstimateForEdit(estimate);
+                            handleOpenForEdit(estimate);
                           }}
                         >
                           Edit
@@ -333,8 +361,8 @@ export function EstimateList() {
                           {estimate.lineItems.length} item{estimate.lineItems.length !== 1 ? 's' : ''}
                         </div>
                         <div className="text-sm font-medium text-gray-900">
-                          {calculateEstimateTotals(estimate.lineItems || []).total.toFixed(2)} {estimate.currency}
-                        </div>
+  {calculateEstimateTotals(estimate.lineItems || [], estimate.estimateDiscount || 0).total.toFixed(2)} {estimate.currency}
+</div>
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
@@ -342,7 +370,7 @@ export function EstimateList() {
                         variant="ghost" 
                         size="sm" 
                         icon={Eye}
-                        onClick={() => openEstimateForView(estimate)}
+                        onClick={() => handleOpenForView(estimate)}
                         className="h-8 px-3"
                       >
                         View

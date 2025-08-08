@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PublicEstimate } from '../types/estimate';
 import { estimateShareApi } from '../api/estimatesApi';
-import { generateWebHTML } from '../webTemplate'; // 🆕 Import från samma nivå som components
+import { generateWebHTML } from '../webTemplate';
 
 interface PublicEstimateViewProps {
   token: string;
@@ -11,6 +11,30 @@ export function PublicEstimateView({ token }: PublicEstimateViewProps) {
   const [estimate, setEstimate] = useState<PublicEstimate | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  const loadEstimate = async () => {
+    if (hasLoaded) return; // Simple guard
+    
+    console.log('loadEstimate called with token:', token);
+    
+    try {
+      console.log('Starting API call...');
+      setLoading(true);
+      setError(null);
+
+      const publicEstimate = await estimateShareApi.getPublicEstimate(token);
+      console.log('API call successful:', publicEstimate);
+
+      setEstimate(publicEstimate);
+      setLoading(false);
+    } catch (error) {
+      console.log('API call failed:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load estimate');
+      setHasLoaded(false); // Allow retry on error
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!token) {
@@ -19,21 +43,11 @@ export function PublicEstimateView({ token }: PublicEstimateViewProps) {
       return;
     }
 
-    loadEstimate();
-  }, [token]);
-
-  const loadEstimate = async () => {
-    try {
-      setLoading(true);
-      const publicEstimate = await estimateShareApi.getPublicEstimate(token);
-      setEstimate(publicEstimate);
-    } catch (error) {
-      console.error('Failed to load public estimate:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load estimate');
-    } finally {
-      setLoading(false);
+    if (!hasLoaded) {
+      setHasLoaded(true);
+      loadEstimate();
     }
-  };
+  }, [token, hasLoaded]);
 
   if (loading) {
     return (
@@ -62,9 +76,19 @@ export function PublicEstimateView({ token }: PublicEstimateViewProps) {
             <p className="text-gray-600 mb-4">
               {error || 'This estimate could not be found or the share link has expired.'}
             </p>
+            <button
+              onClick={() => {
+                setHasLoaded(false);
+                setError(null);
+                loadEstimate();
+              }}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors mr-2"
+            >
+              Try Again
+            </button>
             <a 
               href="/"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
             >
               Go to Homepage
             </a>
@@ -74,7 +98,7 @@ export function PublicEstimateView({ token }: PublicEstimateViewProps) {
     );
   }
 
-  // 🆕 Generate HTML using webTemplate.ts
+  // Generate HTML using webTemplate.ts
   const webHTML = generateWebHTML(estimate);
 
   return (
