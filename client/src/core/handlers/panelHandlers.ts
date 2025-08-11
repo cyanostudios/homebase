@@ -99,8 +99,15 @@ export const createPanelHandlers = (
 
   const handleSaveClick = () => {
     if (currentPlugin) {
-      // DYNAMIC: Generate global function name from plugin registry
-      const functionName = `submit${currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1)}Form`;
+      // Special case for import plugin (submitImportsForm not submitImportForm)
+      let functionName;
+      if (currentPlugin.name === 'import') {
+        functionName = 'submitImportsForm';
+      } else {
+        const pluginNameCapitalized = currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1);
+        functionName = `submit${pluginNameCapitalized}Form`;
+      }
+      
       const submitFunction = (window as any)[functionName];
       
       if (submitFunction) {
@@ -113,8 +120,15 @@ export const createPanelHandlers = (
 
   const handleCancelClick = () => {
     if (currentPlugin) {
-      // DYNAMIC: Generate global function name from plugin registry
-      const functionName = `cancel${currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1)}Form`;
+      // Special case for import plugin (cancelImportsForm not cancelImportForm)
+      let functionName;
+      if (currentPlugin.name === 'import') {
+        functionName = 'cancelImportsForm';
+      } else {
+        const pluginNameCapitalized = currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1);
+        functionName = `cancel${pluginNameCapitalized}Form`;
+      }
+      
       const cancelFunction = (window as any)[functionName];
       
       if (cancelFunction) {

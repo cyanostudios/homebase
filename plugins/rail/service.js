@@ -49,20 +49,18 @@ async function tvFetch(xmlBody) {
 async function fetchAnnouncements(stationCode) {
   const key = getApiKey();
   
-  // Get current time and 4 hours ahead for future trains
+  // Get current time and extended time range for more data
   const now = new Date();
-  const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
-  const eightHoursFromNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+  const twelveHoursFromNow = new Date(now.getTime() + 12 * 60 * 60 * 1000);
   
-  const fromTime = fourHoursAgo.toISOString();
-  const toTime = eightHoursFromNow.toISOString();
-  
-  console.log(`RAIL: Fetching announcements for ${stationCode} from ${fromTime} to ${toTime}`);
+  const fromTime = sixHoursAgo.toISOString();
+  const toTime = twelveHoursFromNow.toISOString();
   
   const xml = `
 <REQUEST>
   <LOGIN authenticationkey="${key}"/>
-  <QUERY objecttype="TrainAnnouncement" schemaversion="1.9" limit="200">
+  <QUERY objecttype="TrainAnnouncement" schemaversion="1.9" limit="500">
     <FILTER>
       <EQ name="LocationSignature" value="${stationCode}"/>
       <EQ name="Advertised" value="true"/>
@@ -81,7 +79,7 @@ async function fetchAnnouncements(stationCode) {
 </REQUEST>`;
   const result = await tvFetch(xml);
   const announcements = result.TrainAnnouncement || [];
-  console.log(`RAIL: Got ${announcements.length} announcements for ${stationCode}`);
+  
   return announcements;
 }
 

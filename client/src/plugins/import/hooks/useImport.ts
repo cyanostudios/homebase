@@ -1,2 +1,2 @@
-// Re-export useImport from context for consistency with other plugins
-export { useImport } from '../context/ImportContext';
+// Re-export useImportContext from context for consistency with other plugins
+export { useImportContext as useImport } from '../context/ImportContext';

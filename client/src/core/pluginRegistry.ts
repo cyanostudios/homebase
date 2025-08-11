@@ -22,7 +22,7 @@ import { TaskList } from '@/plugins/tasks/components/TaskList';
 import { TaskForm } from '@/plugins/tasks/components/TaskForm';
 import { TaskView } from '@/plugins/tasks/components/TaskView';
 import { ImportList } from '@/plugins/import/components/ImportList';
-import { ImportPanel } from '@/plugins/import/components/ImportPanel';
+import { ImportForm } from '@/plugins/import/components/ImportForm';
 import { ImportView } from '@/plugins/import/components/ImportView';
 import { RailProvider } from '@/plugins/rail/context/RailContext';
 import { useRails } from '@/plugins/rail/hooks/useRails';
@@ -40,7 +40,7 @@ export interface PluginRegistryEntry {
   components: {
     List: React.ComponentType;
     Form: React.ComponentType<{ currentItem?: any; onSave: (data: any) => void; onCancel: () => void; }>;
-    View: React.ComponentType<{ item?: any; contact?: any; note?: any; estimate?: any; task?: any; }>;
+    View: React.ComponentType<{ item?: any; contact?: any; note?: any; estimate?: any; task?: any; import?: any; }>;
   };
 }
 
@@ -96,7 +96,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     panelKey: 'isImportPanelOpen',
     components: {
       List: ImportList,
-      Form: ImportPanel,
+      Form: ImportForm,
       View: ImportView,
     }
   },

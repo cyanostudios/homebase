@@ -56,6 +56,9 @@ export const RailStationBoard: React.FC = () => {
   const [timeOffset, setTimeOffset] = useState(0); // Hours offset from current time
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Konsekvent tid med offset som används överallt
+  const currentTime = Date.now() + (timeOffset * 60 * 60 * 1000);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -108,11 +111,17 @@ export const RailStationBoard: React.FC = () => {
     if (!timeString) return null;
     
     const trainTime = new Date(timeString).getTime();
-    const now = Date.now() + (timeOffset * 60 * 60 * 1000); // Adjust for time offset
-    const diffMinutes = Math.round((trainTime - now) / (1000 * 60));
+    const diffMinutes = Math.round((trainTime - Date.now()) / (1000 * 60)); // Använd verklig tid för relativ visning
     
     if (diffMinutes < -5) {
-      return { text: `${Math.abs(diffMinutes)}m ago`, className: 'text-gray-500' };
+      const absDiff = Math.abs(diffMinutes);
+      if (absDiff >= 60) {
+        const hours = Math.floor(absDiff / 60);
+        const mins = absDiff % 60;
+        const timeText = mins > 0 ? `${hours}h ${mins}m ago` : `${hours}h ago`;
+        return { text: timeText, className: 'text-gray-500' };
+      }
+      return { text: `${absDiff}m ago`, className: 'text-gray-500' };
     } else if (diffMinutes < 0) {
       return { text: 'Just left', className: 'text-orange-600' };
     } else if (diffMinutes === 0) {
@@ -123,8 +132,13 @@ export const RailStationBoard: React.FC = () => {
       return { text: `${diffMinutes}m`, className: 'text-orange-600 font-medium' };
     } else if (diffMinutes <= 15) {
       return { text: `${diffMinutes}m`, className: 'text-yellow-600' };
+    } else if (diffMinutes >= 60) {
+      const hours = Math.floor(diffMinutes / 60);
+      const mins = diffMinutes % 60;
+      const timeText = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+      return { text: timeText, className: 'text-gray-600' };
     } else {
-      return null; // Don't show for trains far in future
+      return null; // Don't show for trains far in future (16-59 minutes)
     }
   };
 
@@ -225,34 +239,24 @@ export const RailStationBoard: React.FC = () => {
     return `${m}m sedan`;
   }, [lastUpdated]);
 
-  const now = Date.now();
   const sorted = [...(ann ?? [])].sort((x, y) => {
     const tx = nextTime(x.AdvertisedTimeAtLocation, x.EstimatedTimeAtLocation);
     const ty = nextTime(y.AdvertisedTimeAtLocation, y.EstimatedTimeAtLocation);
     return tx - ty;
   });
 
-  // Show 3 past + 5 future trains around current time
-  const getTrainsAroundNow = (trains: Announcement[]) => {
-    const currentIndex = trains.findIndex(train => {
+  // Show next 8 upcoming trains only (ignore past trains)
+  const getUpcomingTrains = (trains: Announcement[]) => {
+    const upcomingTrains = trains.filter(train => {
       const trainTime = nextTime(train.AdvertisedTimeAtLocation, train.EstimatedTimeAtLocation);
-      return trainTime >= now;
+      return trainTime >= currentTime;
     });
     
-    if (currentIndex === -1) {
-      // All trains are in the past, show last 8
-      return trains.slice(-8);
-    }
-    
-    // Show 3 past + 5 future trains (8 total)
-    const startIndex = Math.max(0, currentIndex - 3);
-    const endIndex = Math.min(trains.length, startIndex + 8);
-    
-    return trains.slice(startIndex, endIndex);
+    return upcomingTrains.slice(0, 8);
   };
 
-  const departures = getTrainsAroundNow(sorted.filter(a => a.ActivityType === 'Avgang'));
-  const arrivals = getTrainsAroundNow(sorted.filter(a => a.ActivityType === 'Ankomst'));
+  const departures = getUpcomingTrains(sorted.filter(a => a.ActivityType === 'Avgang'));
+  const arrivals = getUpcomingTrains(sorted.filter(a => a.ActivityType === 'Ankomst'));
 
   const filteredStations = stations.filter(
     (s) =>
@@ -401,7 +405,7 @@ export const RailStationBoard: React.FC = () => {
         <div className="bg-white border rounded-lg">
           <div className="px-4 py-3 border-b">
             <h3 className="text-sm font-semibold text-gray-900">
-              Avgångar (3 tidigare + 5 kommande) - {departures.length} st
+              Avgångar (nästa 8 kommande) - {departures.length} st
             </h3>
           </div>
           <div className="bg-gray-50 px-4 py-2 border-b">
@@ -418,7 +422,9 @@ export const RailStationBoard: React.FC = () => {
           </div>
           <div className="divide-y">
             {departures.length === 0 ? (
-              <div className="p-4 text-sm text-gray-500">Inga kommande avgångar</div>
+              <div className="p-4 text-sm text-gray-500">
+                Inga kommande avgångar tillgängliga för denna station.
+              </div>
             ) : (
               departures.map((a, i) => {
                 const time = a.EstimatedTimeAtLocation ?? a.AdvertisedTimeAtLocation;
@@ -486,7 +492,7 @@ export const RailStationBoard: React.FC = () => {
         <div className="bg-white border rounded-lg">
           <div className="px-4 py-3 border-b">
             <h3 className="text-sm font-semibold text-gray-900">
-              Ankomster (3 tidigare + 5 kommande) - {arrivals.length} st
+              Ankomster (nästa 8 kommande) - {arrivals.length} st
             </h3>
           </div>
           <div className="bg-gray-50 px-4 py-2 border-b">

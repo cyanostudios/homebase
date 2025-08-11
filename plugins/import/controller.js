@@ -2,7 +2,6 @@ const ImportModel = require('./model');
 const ContactsModel = require('../contacts/model');
 const multer = require('multer');
 const csvParser = require('csv-parser');
-const fs = require('fs');
 const { Readable } = require('stream');
 
 // Configure multer for file uploads
@@ -92,7 +91,7 @@ class ImportController {
       }
 
       const { pluginType = 'contacts', skipValidation = false } = req.body;
-      const userId = req.user.id;
+      const userId = req.session.user.id;
       
       // Log import start
       const logId = await ImportModel.logImportOperation(userId, {
@@ -178,24 +177,20 @@ class ImportController {
 
     for (const contactData of contactsData) {
       try {
-        // Check if contact exists by email or name
-        const existingContact = await ContactsModel.findByEmailOrName(
-          contactData.email, 
-          contactData.name
-        );
+        // Check if contact exists by email
+        const existingContact = await ContactsModel.findByEmail(contactData.email, userId);
 
         if (existingContact) {
           // Update existing contact
-          await ContactsModel.updateContact(existingContact.id, {
+          await ContactsModel.updateContact(userId, existingContact.id, {
             ...contactData,
             updatedAt: new Date()
           });
           updated++;
         } else {
           // Create new contact
-          await ContactsModel.createContact({
+          await ContactsModel.createContact(userId, {
             ...contactData,
-            userId,
             createdAt: new Date(),
             updatedAt: new Date()
           });

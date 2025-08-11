@@ -7,7 +7,7 @@ interface ImportContextType {
   // Panel State - Following exact ContactContext pattern
   isImportPanelOpen: boolean;
   currentImport: ImportOperation | null;
-  panelMode: 'select' | 'preview' | 'import' | 'results';
+  panelMode: 'create' | 'edit' | 'view'; // Generic panelMode
   validationErrors: ValidationError[];
   
   // Data State
@@ -20,8 +20,8 @@ interface ImportContextType {
   
   // Actions - Following exact ContactContext naming pattern
   openImportPanel: (operation: ImportOperation | null) => void;
-  openImportForPreview: (file: File, pluginType: string) => void;
-  openImportForResults: (operation: ImportOperation) => void;
+  openImportForEdit: (operation: ImportOperation) => void;
+  openImportForView: (operation: ImportOperation) => void;
   closeImportPanel: () => void;
   saveImport: (data: any) => Promise<boolean>;
   deleteImport: (id: string) => Promise<void>;
@@ -49,7 +49,7 @@ export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }
   // Panel states - Following ContactContext pattern exactly
   const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
   const [currentImport, setCurrentImport] = useState<ImportOperation | null>(null);
-  const [panelMode, setPanelMode] = useState<'select' | 'preview' | 'import' | 'results'>('select');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create'); // Generic panelMode
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   
   // Data states
@@ -62,23 +62,23 @@ export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }
 
   // Register/unregister panel close function - Following ContactContext pattern
   useEffect(() => {
-    registerPanelCloseFunction('import', closeImportPanel);
+    registerPanelCloseFunction('import', closeImportPanel); // Match plugin name
     return () => unregisterPanelCloseFunction('import');
   }, []);
 
   // Global form functions - Following ContactContext pattern (plural naming)
   useEffect(() => {
-    window.submitImportForm = () => {
+    window.submitImportsForm = () => {
       const event = new CustomEvent('submitImportForm');
       window.dispatchEvent(event);
     };
-    window.cancelImportForm = () => {
+    window.cancelImportsForm = () => {
       const event = new CustomEvent('cancelImportForm');
       window.dispatchEvent(event);
     };
     return () => {
-      delete window.submitImportForm;
-      delete window.cancelImportForm;
+      delete window.submitImportsForm;
+      delete window.cancelImportsForm;
     };
   }, []);
 
@@ -99,7 +99,7 @@ export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }
   // Panel actions - Following ContactContext pattern exactly
   const openImportPanel = (operation: ImportOperation | null) => {
     setCurrentImport(operation);
-    setPanelMode(operation ? 'results' : 'select');
+    setPanelMode(operation ? 'view' : 'create'); // View results or create new import
     setIsImportPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -110,19 +110,17 @@ export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }
     }
   };
 
-  const openImportForPreview = (file: File, pluginType: string) => {
-    setSelectedFile(file);
-    setSelectedPluginType(pluginType as 'contacts' | 'notes' | 'estimates');
-    setCurrentImport(null);
-    setPanelMode('preview');
+  const openImportForEdit = (operation: ImportOperation) => {
+    setCurrentImport(operation);
+    setPanelMode('edit'); // Preview/configure import
     setIsImportPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
   };
 
-  const openImportForResults = (operation: ImportOperation) => {
+  const openImportForView = (operation: ImportOperation) => {
     setCurrentImport(operation);
-    setPanelMode('results');
+    setPanelMode('view'); // View import results
     setIsImportPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -131,7 +129,7 @@ export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }
   const closeImportPanel = () => {
     setIsImportPanelOpen(false);
     setCurrentImport(null);
-    setPanelMode('select');
+    setPanelMode('create');
     setSelectedFile(null);
     setImportPreview(null);
     setValidationErrors([]);
@@ -156,7 +154,7 @@ export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }
     try {
       const preview = await importApi.previewCsv(selectedFile, selectedPluginType);
       setImportPreview(preview);
-      setPanelMode('preview');
+      setPanelMode('edit'); // Switch to preview/edit mode
     } catch (error: any) {
       setValidationErrors([{
         field: 'file',
@@ -194,7 +192,7 @@ export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }
       
       setCurrentImport(importOperation);
       setImportHistory(prev => [importOperation, ...prev]);
-      setPanelMode('results');
+      setPanelMode('view'); // Switch to results view
       
       return true;
     } catch (error: any) {
@@ -210,8 +208,145 @@ export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }
 
   // Following ContactContext pattern for consistency
   const saveImport = async (data: any): Promise<boolean> => {
-    // This would be used for saving import configurations/templates
-    return true;
+    console.log('saveImport called with data:', data);
+    
+    if (data.textData) {
+      console.log('Processing text import:', data);
+      
+      try {
+        // Parse CSV text data
+        const lines = data.textData.trim().split('\n');
+        console.log('Parsed lines:', lines);
+        
+        if (lines.length < 2) {
+          console.log('Not enough lines:', lines.length);
+          setValidationErrors([{ field: 'textData', message: 'Need at least header row and one data row' }]);
+          return false;
+        }
+        
+        const headers = lines[0].split(',').map(h => h.trim());
+        const rows = lines.slice(1).map(line => {
+          const values = line.split(',').map(v => v.trim());
+          const row: any = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index] || '';
+          });
+          return row;
+        });
+        
+        console.log('Parsed data:', { headers, rows });
+        
+        // Simple validation for contacts
+        if (data.pluginType === 'contacts') {
+          const required = ['companyName', 'contactType', 'email'];
+          const missingFields = required.filter(field => !headers.includes(field));
+          
+          if (missingFields.length > 0) {
+            setValidationErrors([{ 
+              field: 'textData', 
+              message: `Missing required fields: ${missingFields.join(', ')}` 
+            }]);
+            return false;
+          }
+          
+          // FIXED: Actually call the backend to import contacts
+          console.log('Importing contacts to backend...');
+          try {
+            const results = await importContacts(rows);
+            console.log('Backend import results:', results);
+            
+            // Create import operation with real results
+            const importOperation: ImportOperation = {
+              id: Date.now().toString(),
+              type: 'csv_import',
+              fileName: 'text-import.csv',
+              pluginType: data.pluginType,
+              status: 'success',
+              totalRows: rows.length,
+              validRows: rows.length,
+              createdCount: results.created || 0,
+              updatedCount: results.updated || 0,
+              errorCount: results.errors?.length || 0,
+              errors: results.errors || [],
+              createdAt: new Date()
+            };
+            
+            setCurrentImport(importOperation);
+            setImportHistory(prev => [importOperation, ...prev]);
+            setPanelMode('view');
+            
+            console.log('Import successful:', importOperation);
+            console.log('Panel mode set to:', 'view');
+            console.log('Current import set to:', importOperation);
+            return true;
+            
+          } catch (error: any) {
+            console.error('Backend import failed:', error);
+            setValidationErrors([{ field: 'textData', message: 'Failed to import to backend' }]);
+            return false;
+          }
+        }
+        
+      } catch (error: any) {
+        console.error('Import error:', error);
+        setValidationErrors([{ field: 'textData', message: 'Failed to parse CSV data' }]);
+        return false;
+      }
+    } else {
+      console.log('No textData in data object:', data);
+    }
+    
+    return false;
+  };
+
+  // Helper function to import contacts to backend
+  const importContacts = async (contactsData: any[]) => {
+    // For now, create contacts one by one using the contacts API
+    let created = 0;
+    let updated = 0;
+    let errors = [];
+    
+    for (const contactData of contactsData) {
+      try {
+        const response = await fetch('/api/contacts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            contactNumber: Date.now().toString(), // Generate unique contact number
+            contactType: contactData.contactType,
+            companyName: contactData.companyName,
+            email: contactData.email,
+            phone: contactData.phone || '',
+            organizationNumber: contactData.organizationNumber || '',
+            personalNumber: contactData.personalNumber || '',
+            website: contactData.website || '',
+            notes: contactData.notes || '',
+            // Add default values
+            companyType: '',
+            vatNumber: '',
+            taxRate: '25',
+            paymentTerms: '30', 
+            currency: 'SEK',
+            fTax: 'no',
+            contactPersons: [],
+            addresses: []
+          })
+        });
+        
+        if (response.ok) {
+          created++;
+          console.log('Created contact:', contactData.companyName);
+        } else {
+          const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+          errors.push({ data: contactData, error: error.error });
+        }
+      } catch (error: any) {
+        errors.push({ data: contactData, error: error.message });
+      }
+    }
+    
+    return { created, updated, errors };
   };
 
   const deleteImport = async (id: string): Promise<void> => {
@@ -239,8 +374,8 @@ export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }
     
     // Actions
     openImportPanel,
-    openImportForPreview,
-    openImportForResults,
+    openImportForEdit,
+    openImportForView,
     closeImportPanel,
     saveImport,
     deleteImport,
@@ -260,10 +395,10 @@ export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }
   );
 }
 
-export function useImport() {
+export function useImportContext() {
   const context = useContext(ImportContext);
   if (!context) {
-    throw new Error('useImport must be used within ImportProvider');
+    throw new Error('useImportContext must be used within an ImportProvider');
   }
   return context;
 }

@@ -1,35 +1,34 @@
 const express = require('express');
 const ImportController = require('./controller');
 
-const router = express.Router();
+function createImportRoutes(controller, requirePlugin) {
+  const router = express.Router();
 
-// Apply authentication middleware to all routes
-router.use((req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  next();
-});
+  // POST /api/import/preview - Preview CSV data before import
+  router.post('/preview', 
+    requirePlugin('import'),
+    ImportController.uploadMiddleware,
+    ImportController.previewImport
+  );
 
-// POST /api/import/preview - Preview CSV data before import
-router.post('/preview', 
-  ImportController.uploadMiddleware,
-  ImportController.previewImport
-);
+  // POST /api/import/csv - Import CSV data
+  router.post('/csv',
+    requirePlugin('import'),
+    ImportController.uploadMiddleware, 
+    ImportController.importCsv
+  );
 
-// POST /api/import/csv - Import CSV data
-router.post('/csv',
-  ImportController.uploadMiddleware, 
-  ImportController.importCsv
-);
+  // POST /api/import/validate - Validate CSV data without importing
+  router.post('/validate',
+    requirePlugin('import'),
+    ImportController.uploadMiddleware,
+    ImportController.validateImportData
+  );
 
-// POST /api/import/validate - Validate CSV data without importing
-router.post('/validate',
-  ImportController.uploadMiddleware,
-  ImportController.validateImportData
-);
+  // GET /api/import/templates - Get available import templates
+  router.get('/templates', requirePlugin('import'), ImportController.getImportTemplates);
 
-// GET /api/import/templates - Get available import templates
-router.get('/templates', ImportController.getImportTemplates);
+  return router;
+}
 
-module.exports = router;
+module.exports = createImportRoutes;
