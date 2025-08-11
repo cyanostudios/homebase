@@ -70,6 +70,138 @@ curl http://localhost:3002/api/health   # Should return {"status":"ok"}
 
 **CRITICAL:** Run all commands from **project root directory**, not from `client/` subdirectory.
 
+## Automated Plugin Template Creation
+
+### Quick Template Copy Commands
+
+Instead of manually copying files one by one, use these terminal commands to quickly create a new plugin structure:
+
+#### Backend Plugin Template
+```bash
+# Navigate to plugins directory
+cd plugins
+
+# Copy contacts plugin and rename to your new plugin
+cp -r contacts my-plugin
+
+# Rename all files to match new plugin (optional but recommended)
+cd my-plugin
+for file in *contact*; do
+    if [[ -f "$file" ]]; then
+        mv "$file" "${file//contact/myplugin}"
+    fi
+done
+
+# Clear file contents (keep structure, empty implementation)
+> plugin.config.js
+> model.js  
+> controller.js
+> routes.js
+> index.js
+
+# Return to project root
+cd ../..
+```
+
+#### Frontend Plugin Template
+```bash
+# Navigate to frontend plugins directory
+cd client/src/plugins
+
+# Copy contacts plugin structure
+cp -r contacts my-plugin
+
+# Rename contact-specific files
+cd my-plugin
+mv types/contacts.ts types/my-plugin.ts
+mv context/ContactContext.tsx context/MyPluginContext.tsx
+mv hooks/useContacts.ts hooks/useMyPlugin.ts
+mv api/contactsApi.ts api/myPluginApi.ts
+
+# Rename component files
+cd components
+mv ContactList.tsx MyPluginList.tsx
+mv ContactForm.tsx MyPluginForm.tsx  
+mv ContactView.tsx MyPluginView.tsx
+cd ..
+
+# Clear all file contents (keep structure)
+> types/my-plugin.ts
+> context/MyPluginContext.tsx
+> hooks/useMyPlugin.ts
+> api/myPluginApi.ts
+> components/MyPluginList.tsx
+> components/MyPluginForm.tsx
+> components/MyPluginView.tsx
+
+# Return to project root
+cd ../../../..
+```
+
+#### Complete Plugin Scaffold (Backend + Frontend)
+```bash
+#!/bin/bash
+# Quick script to create complete plugin scaffold
+
+PLUGIN_NAME="my-plugin"
+PLUGIN_CAMEL="MyPlugin"
+
+echo "Creating plugin: $PLUGIN_NAME"
+
+# Backend
+cd plugins
+cp -r contacts $PLUGIN_NAME
+cd $PLUGIN_NAME
+> plugin.config.js
+> model.js
+> controller.js  
+> routes.js
+> index.js
+cd ../..
+
+# Frontend
+cd client/src/plugins
+cp -r contacts $PLUGIN_NAME
+cd $PLUGIN_NAME
+
+# Rename files
+mv types/contacts.ts types/$PLUGIN_NAME.ts
+mv context/ContactContext.tsx context/${PLUGIN_CAMEL}Context.tsx
+mv hooks/useContacts.ts hooks/use${PLUGIN_CAMEL}.ts
+mv api/contactsApi.ts api/${PLUGIN_NAME}Api.ts
+mv components/ContactList.tsx components/${PLUGIN_CAMEL}List.tsx
+mv components/ContactForm.tsx components/${PLUGIN_CAMEL}Form.tsx
+mv components/ContactView.tsx components/${PLUGIN_CAMEL}View.tsx
+
+# Clear contents
+> types/$PLUGIN_NAME.ts
+> context/${PLUGIN_CAMEL}Context.tsx
+> hooks/use${PLUGIN_CAMEL}.ts
+> api/${PLUGIN_NAME}Api.ts
+> components/${PLUGIN_CAMEL}List.tsx
+> components/${PLUGIN_CAMEL}Form.tsx
+> components/${PLUGIN_CAMEL}View.tsx
+
+cd ../../../..
+
+echo "Plugin scaffold created! Now implement according to templates."
+echo "Next: Follow BACKEND_PLUGIN_GUIDE.md and FRONTEND_PLUGIN_GUIDE.md"
+```
+
+### Usage Tips
+
+1. **Save the complete script** above as `create-plugin.sh` in project root
+2. **Make it executable:** `chmod +x create-plugin.sh`
+3. **Edit PLUGIN_NAME** and **PLUGIN_CAMEL** variables 
+4. **Run:** `./create-plugin.sh`
+5. **Follow templates** to implement functionality
+
+**Benefits:**
+- ⚡ **30 seconds** to create complete file structure
+- 🎯 **Zero missed files** - perfect template copy
+- 🏗️ **Proper naming** - consistent with conventions
+- ✨ **Clean slate** - empty files ready for implementation
+
 ## Architecture Benefits
 
 - **90% fewer re-renders** - Plugin isolation prevents cascading updates
@@ -255,7 +387,7 @@ window.submitMyPluginsForm = handleSubmit;
 ## Development Guides
 
 - **[PLUGIN_DEVELOPMENT_STANDARDS.md](./PLUGIN_DEVELOPMENT_STANDARDS.md)** - **Complete conventions reference**
-- **[PLUGIN_GUIDE.md](./PLUGIN_GUIDE.md)** - **Overall automated development process**
+- **[PLUGIN_OVERVIEW.md](./PLUGIN_OVERVIEW.md)** - **Overall automated development process**
 - **[FRONTEND_PLUGIN_GUIDE.md](./FRONTEND_PLUGIN_GUIDE.md)** - **Detailed frontend patterns**
 - **[BACKEND_PLUGIN_GUIDE.md](./BACKEND_PLUGIN_GUIDE.md)** - Server-side development
 - **[CORE_ARCHITECTURE.md](./CORE_ARCHITECTURE.md)** - System integration
@@ -359,7 +491,7 @@ window.submitMyPluginsForm = handleSubmit;
 ## Maintenance
 
 ### Adding New Plugins
-1. Copy templates (contacts plugin)
+1. Use automated template creation commands
 2. Follow naming conventions exactly
 3. Add to plugin registry
 4. Test integration

@@ -44,7 +44,7 @@ interface ImportProviderProps {
 
 export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }: ImportProviderProps) {
   // Get panel registration functions from AppContext
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData } = useApp();
   
   // Panel states - Following ContactContext pattern exactly
   const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
@@ -274,6 +274,15 @@ export function ImportProvider({ children, isAuthenticated, onCloseOtherPanels }
             setCurrentImport(importOperation);
             setImportHistory(prev => [importOperation, ...prev]);
             setPanelMode('view');
+            
+            // ADDED: Refresh all data after successful import
+            console.log('Refreshing data after import...');
+            if (refreshData) {
+              await refreshData();
+              console.log('RefreshData completed');
+            } else {
+              console.log('RefreshData function not available');
+            }
             
             console.log('Import successful:', importOperation);
             console.log('Panel mode set to:', 'view');

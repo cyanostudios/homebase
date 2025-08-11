@@ -1,3 +1,44 @@
+/**
+ * ⚠️  CRITICAL SYSTEM FILE - HANDLE WITH EXTREME CARE ⚠️
+ * 
+ * This is the core AppContext that manages global state for all plugins.
+ * It provides authentication, cross-plugin data, and panel coordination.
+ * 
+ * 🚨 BEFORE MAKING ANY CHANGES:
+ * 1. Read COLLABORATION_GUIDE.md and AI_AGENT_INSTRUCTIONS.md
+ * 2. Understand that changes here affect ALL plugins
+ * 3. Test thoroughly with all existing plugins (contacts, notes, estimates, tasks)
+ * 4. Verify cross-plugin features still work (@mentions, references)
+ * 5. Check that panel coordination system works
+ * 6. Ensure authentication flow remains secure
+ * 
+ * 📋 WHAT THIS FILE MANAGES:
+ * - Authentication state and login/logout functions
+ * - Cross-plugin data (contacts, notes) for references
+ * - Panel coordination system (registerPanelCloseFunction)
+ * - Cross-plugin API functions (getNotesForContact, etc.)
+ * - Global data refresh functionality
+ * 
+ * ❌ NEVER CHANGE WITHOUT EXPLICIT NEED:
+ * - Authentication interface or state management
+ * - Panel registration system (registerPanelCloseFunction)
+ * - Cross-plugin data structure (contacts, notes arrays)
+ * - API request wrapper or error handling
+ * - Provider component structure
+ * 
+ * ✅ SAFE TO MODIFY (with care):
+ * - Adding new cross-plugin reference functions
+ * - Adding new API endpoints (following existing patterns)
+ * - Adding new shared data types (with backward compatibility)
+ * 
+ * 🔧 FOR NEW PLUGINS:
+ * - Add cross-plugin functions if needed (getXForContact pattern)
+ * - Register panel close functions in plugin contexts
+ * - NO changes to core authentication or data loading
+ * 
+ * Last Modified: August 2025 - Critical Rules Added
+ */
+
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Contact } from '@/plugins/contacts/types/contacts';
 import { Note } from '@/plugins/notes/types/notes';

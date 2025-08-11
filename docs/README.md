@@ -32,7 +32,7 @@ Homebase is a revolutionary modular plugin-based business application. The syste
 
 ### 📚 Development Guides
 - **[DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md)** - Project architecture, setup, and deployment
-- **[PLUGIN_GUIDE.md](./PLUGIN_GUIDE.md)** - Complete plugin development workflow (15-25 min per plugin)
+- **[PLUGIN_OVERVIEW.md](./PLUGIN_OVERVIEW.md)** - Complete plugin development workflow (15-25 min per plugin)
 - **[PLUGIN_OVERVIEW.md](./PLUGIN_OVERVIEW.md)** - Plugin system architecture and performance metrics
 - **[BACKEND_PLUGIN_GUIDE.md](./BACKEND_PLUGIN_GUIDE.md)** - Backend plugin development templates and patterns
 - **[FRONTEND_PLUGIN_GUIDE.md](./FRONTEND_PLUGIN_GUIDE.md)** - Frontend plugin development with modular contexts
@@ -93,7 +93,7 @@ Format: "Step X: [Specific action] - What result do you get?"
 ### MANDATORY READING ORDER
 1. **AI_AGENT_INSTRUCTIONS.md** - Absolute rules
 2. **COLLABORATION_GUIDE.md** - Systematic workflow  
-3. **PLUGIN_GUIDE.md** - Implementation patterns
+3. **PLUGIN_OVERVIEW.md** - Implementation patterns
 4. **STYLE_GUIDE.md** - Component standards
 5. Specific plugin template - Exact code to copy
 
