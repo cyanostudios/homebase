@@ -1,6 +1,5 @@
-// client/src/plugins/rail/components/RailStationBoard.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, RefreshCw, Train, Clock } from 'lucide-react';
+import { Search, RefreshCw, Train, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { railApi } from '../api/railApi';
 import { useRails } from '../hooks/useRails';
 import { Heading, Text } from '@/core/ui/Typography';
@@ -26,9 +25,27 @@ type Announcement = {
   Deviation?: Array<{ Code?: string; Description?: string }>;
 };
 
+// Rail status badge colors
+const RAIL_STATUS_COLORS = {
+  on_time: 'bg-green-100 text-green-800 border-green-200',
+  delayed: 'bg-red-100 text-red-800 border-red-200',
+  cancelled: 'bg-red-100 text-red-800 border-red-200',
+  no_service: 'bg-gray-100 text-gray-700 border-gray-200',
+} as const;
+
+// Operator colors based on train number patterns
+const OPERATOR_COLORS = {
+  'SJ': 'bg-blue-100 text-blue-800 border-blue-200',
+  'Öresundståg': 'bg-green-100 text-green-800 border-green-200', 
+  'SL': 'bg-purple-100 text-purple-800 border-purple-200',
+  'Västtrafik': 'bg-orange-100 text-orange-800 border-orange-200',
+  'Skånetrafiken': 'bg-red-100 text-red-800 border-red-200',
+  'Tågab': 'bg-gray-100 text-gray-700 border-gray-200',
+  'Unknown': 'bg-gray-100 text-gray-600 border-gray-200',
+} as const;
+
 export const RailStationBoard: React.FC = () => {
   const { stations, loadingStations, codeToName, refreshStations } = useRails();
-
   const [query, setQuery] = useState('');
   const [selectedCode, setSelectedCode] = useState<string>('Cst');
   const [loading, setLoading] = useState(false);
@@ -36,7 +53,7 @@ export const RailStationBoard: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-
+  const [timeOffset, setTimeOffset] = useState(0); // Hours offset from current time
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,6 +65,120 @@ export const RailStationBoard: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const getTrainOperator = (trainIdent?: string) => {
+    if (!trainIdent) return 'Unknown';
+    
+    const num = parseInt(trainIdent);
+    
+    // SJ (Statens Järnvägar) - Long distance trains
+    if ((num >= 400 && num <= 599) || (num >= 1400 && num <= 1599)) {
+      return 'SJ';
+    }
+    
+    // Öresundståg (cross-border Denmark-Sweden)
+    if ((num >= 1000 && num <= 1099) || (num >= 1300 && num <= 1399)) {
+      return 'Öresundståg';
+    }
+    
+    // SL (Storstockholms Lokaltrafik) - Stockholm area
+    if (num >= 40000 && num <= 49999) {
+      return 'SL';
+    }
+    
+    // Västtrafik - Gothenburg area
+    if ((num >= 2000 && num <= 2999) || (num >= 3000 && num <= 3999)) {
+      return 'Västtrafik';
+    }
+    
+    // Skånetrafiken - Skåne region
+    if ((num >= 1100 && num <= 1299) || (num >= 7000 && num <= 7999)) {
+      return 'Skånetrafiken';
+    }
+    
+    // Tågab and other regional
+    if ((num >= 800 && num <= 999) || (num >= 8000 && num <= 8999)) {
+      return 'Tågab';
+    }
+    
+    return 'Unknown';
+  };
+
+  const getTimeUntil = (timeString?: string) => {
+    if (!timeString) return null;
+    
+    const trainTime = new Date(timeString).getTime();
+    const now = Date.now() + (timeOffset * 60 * 60 * 1000); // Adjust for time offset
+    const diffMinutes = Math.round((trainTime - now) / (1000 * 60));
+    
+    if (diffMinutes < -5) {
+      return { text: `${Math.abs(diffMinutes)}m ago`, className: 'text-gray-500' };
+    } else if (diffMinutes < 0) {
+      return { text: 'Just left', className: 'text-orange-600' };
+    } else if (diffMinutes === 0) {
+      return { text: 'Now', className: 'text-red-600 font-medium' };
+    } else if (diffMinutes === 1) {
+      return { text: '1m', className: 'text-red-600 font-medium' };
+    } else if (diffMinutes <= 5) {
+      return { text: `${diffMinutes}m`, className: 'text-orange-600 font-medium' };
+    } else if (diffMinutes <= 15) {
+      return { text: `${diffMinutes}m`, className: 'text-yellow-600' };
+    } else {
+      return null; // Don't show for trains far in future
+    }
+  };
+
+  const getTrainStatus = (announcement: Announcement) => {
+    // Check if train is cancelled
+    if (
+      announcement.Deviation?.some(
+        (d) =>
+          d.Code === 'CANCELLED' ||
+          d.Description?.toLowerCase().includes('cancel') ||
+          d.Description?.toLowerCase().includes('inställd')
+      )
+    ) {
+      return { status: 'cancelled', text: 'Cancelled' };
+    }
+
+    // Check for service disruptions
+    if (
+      announcement.Deviation?.some(
+        (d) =>
+          d.Description?.toLowerCase().includes('no service') ||
+          d.Description?.toLowerCase().includes('trafik inställd')
+      )
+    ) {
+      return { status: 'no_service', text: 'No Service' };
+    }
+
+    // Check for track changes and other deviations
+    if (announcement.Deviation && announcement.Deviation.length > 0) {
+      const deviation = announcement.Deviation[0];
+      if (
+        deviation.Description?.toLowerCase().includes('spärändrat') ||
+        deviation.Description?.toLowerCase().includes('spårändrat')
+      ) {
+        return { status: 'delayed', text: 'Track Change' };
+      }
+    }
+
+    // Check for delays (compare Estimated vs Advertised)
+    if (announcement.EstimatedTimeAtLocation && announcement.AdvertisedTimeAtLocation) {
+      const advertised = new Date(announcement.AdvertisedTimeAtLocation).getTime();
+      const estimated = new Date(announcement.EstimatedTimeAtLocation).getTime();
+      const delayMinutes = Math.round((estimated - advertised) / (1000 * 60));
+
+      if (delayMinutes > 2) {
+        return { status: 'delayed', text: `+${delayMinutes}m` };
+      } else if (delayMinutes < -2) {
+        return { status: 'on_time', text: `${delayMinutes}m early` };
+      }
+    }
+
+    // Default to on time
+    return { status: 'on_time', text: 'On Time' };
+  };
 
   const fmtTime = (iso?: string) => {
     if (!iso) return '—';
@@ -62,6 +193,8 @@ export const RailStationBoard: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
+      // Ensure proper encoding for Swedish characters
+      const encodedStation = encodeURIComponent(station);
       const res = await railApi.getAnnouncements(station);
       const data = (res.announcements || []) as Announcement[];
       data.sort((a, b) => {
@@ -79,8 +212,9 @@ export const RailStationBoard: React.FC = () => {
   };
 
   useEffect(() => {
-    if (selectedCode) load(selectedCode);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (selectedCode) {
+      load(selectedCode);
+    }
   }, [selectedCode]);
 
   const lastUpdatedLabel = useMemo(() => {
@@ -98,15 +232,51 @@ export const RailStationBoard: React.FC = () => {
     return tx - ty;
   });
 
-  const future = sorted.filter(a => nextTime(a.AdvertisedTimeAtLocation, a.EstimatedTimeAtLocation) >= now);
-  const departures = future.filter(a => a.ActivityType === 'Avgang').slice(0, 20);
-  const arrivals = future.filter(a => a.ActivityType === 'Ankomst').slice(0, 20);
+  // Show 3 past + 5 future trains around current time
+  const getTrainsAroundNow = (trains: Announcement[]) => {
+    const currentIndex = trains.findIndex(train => {
+      const trainTime = nextTime(train.AdvertisedTimeAtLocation, train.EstimatedTimeAtLocation);
+      return trainTime >= now;
+    });
+    
+    if (currentIndex === -1) {
+      // All trains are in the past, show last 8
+      return trains.slice(-8);
+    }
+    
+    // Show 3 past + 5 future trains (8 total)
+    const startIndex = Math.max(0, currentIndex - 3);
+    const endIndex = Math.min(trains.length, startIndex + 8);
+    
+    return trains.slice(startIndex, endIndex);
+  };
+
+  const departures = getTrainsAroundNow(sorted.filter(a => a.ActivityType === 'Avgang'));
+  const arrivals = getTrainsAroundNow(sorted.filter(a => a.ActivityType === 'Ankomst'));
 
   const filteredStations = stations.filter(
     (s) =>
       s.name.toLowerCase().includes(query.toLowerCase()) ||
       s.code.toLowerCase().includes(query.toLowerCase())
   );
+
+  const getTimeLabel = () => {
+    if (timeOffset === 0) return 'Nu';
+    if (timeOffset > 0) return `+${timeOffset}h`;
+    return `${timeOffset}h`;
+  };
+
+  const handleTimeNavigation = (direction: 'prev' | 'next') => {
+    if (direction === 'prev') {
+      setTimeOffset(prev => prev - 1);
+    } else {
+      setTimeOffset(prev => prev + 1);
+    }
+  };
+
+  const resetToNow = () => {
+    setTimeOffset(0);
+  };
 
   return (
     <div className="p-4 sm:p-8">
@@ -116,46 +286,20 @@ export const RailStationBoard: React.FC = () => {
           <Heading level={1}>Rail – Station Board</Heading>
           <Text variant="caption">Realtid: avgångar/ankomster</Text>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="secondary"
-            icon={RefreshCw}
-            onClick={() => load(selectedCode)}
-            disabled={loading}
-          >
-            Uppdatera
-          </Button>
-          <Button
-            variant="ghost"
-            icon={RefreshCw}
-            onClick={() => refreshStations()}
-            disabled={loadingStations}
-            title="Uppdatera stationsindex"
-          >
-            Uppd. stationer
-          </Button>
-        </div>
-      </div>
-
-      {/* Station picker */}
-      <Card padding="sm">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
-          <div className="md:col-span-1 relative" ref={dropdownRef}>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Station</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <input
-                type="text"
-                placeholder="Sök namn eller kod (t.ex. Cst)"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setDropdownOpen(true);
-                }}
-                onFocus={() => setDropdownOpen(true)}
-                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <input
+              type="text"
+              placeholder="Sök station..."
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setDropdownOpen(true);
+              }}
+              onFocus={() => setDropdownOpen(true)}
+              className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
             {dropdownOpen && (
               <ul className="absolute z-10 mt-1 w-full max-h-60 overflow-auto bg-white border border-gray-200 rounded-lg shadow">
                 {filteredStations.length === 0 ? (
@@ -167,7 +311,7 @@ export const RailStationBoard: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setSelectedCode(s.code);
-                          setQuery(s.name + " (" + s.code + ")");
+                          setQuery(s.name + ' (' + s.code + ')');
                           setDropdownOpen(false);
                         }}
                         className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${
@@ -183,37 +327,94 @@ export const RailStationBoard: React.FC = () => {
               </ul>
             )}
           </div>
+          <Button variant="secondary" icon={RefreshCw} onClick={() => load(selectedCode)} disabled={loading}>
+            Uppdatera
+          </Button>
+        </div>
+      </div>
 
-          {/* Station meta */}
-          <div className="md:col-span-2">
-            <div className="flex items-center gap-3">
-              <Train className="w-5 h-5 text-gray-500" />
-              <div className="text-sm">
-                <div className="text-gray-900 font-medium">
-                  {codeToName(selectedCode)}{' '}
-                  <span className="text-gray-500 font-normal">({selectedCode})</span>
-                </div>
-                <div className="text-xs text-gray-500 flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" />
-                  {lastUpdated ? `Uppdaterad ${lastUpdatedLabel}` : '—'}
-                </div>
-              </div>
+      {/* Station info */}
+      <Card padding="sm" className="mb-6">
+        <div className="flex items-center gap-3">
+          <Train className="w-5 h-5 text-gray-500" />
+          <div className="text-sm">
+            <div className="text-gray-900 font-medium">
+              {codeToName(selectedCode)}{' '}
+              <span className="text-gray-500 font-normal">({selectedCode})</span>
             </div>
-            {error && (
-              <div className="mt-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
-                {error}
-              </div>
-            )}
+            <div className="text-xs text-gray-500 flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5" />
+              {lastUpdated ? `Uppdaterad ${lastUpdatedLabel}` : '—'}
+            </div>
           </div>
         </div>
+        {error && (
+          <div className="mt-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+            {error}
+          </div>
+        )}
       </Card>
 
       {/* Board */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Time Navigation */}
+        <div className="lg:col-span-2 flex items-center justify-center gap-4 mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={ChevronLeft}
+            onClick={() => handleTimeNavigation('prev')}
+            title="Visa tidigare tåg"
+          >
+            Tidigare
+          </Button>
+          
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">
+              {timeOffset === 0 ? 'Nu' : `${getTimeLabel()} från nu`}
+            </span>
+            {timeOffset !== 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={resetToNow}
+                className="text-xs"
+              >
+                Tillbaka till nu
+              </Button>
+            )}
+          </div>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={ChevronRight}
+            onClick={() => handleTimeNavigation('next')}
+            title="Visa senare tåg"
+          >
+            Senare
+          </Button>
+        </div>
+
         {/* Avgångar */}
         <div className="bg-white border rounded-lg">
           <div className="px-4 py-3 border-b">
-            <h3 className="text-sm font-semibold text-gray-900">Avgångar (nästa 10)</h3>
+            <h3 className="text-sm font-semibold text-gray-900">
+              Avgångar (3 tidigare + 5 kommande) - {departures.length} st
+            </h3>
+          </div>
+          <div className="bg-gray-50 px-4 py-2 border-b">
+            <div className="flex items-center justify-between text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="w-16">Tid</div>
+                <div className="flex-1">Destination</div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div>Tåg</div>
+                <div>Spår</div>
+              </div>
+            </div>
           </div>
           <div className="divide-y">
             {departures.length === 0 ? (
@@ -222,14 +423,58 @@ export const RailStationBoard: React.FC = () => {
               departures.map((a, i) => {
                 const time = a.EstimatedTimeAtLocation ?? a.AdvertisedTimeAtLocation;
                 const dest = a.ToLocation?.[0]?.LocationName;
+                const trainStatus = getTrainStatus(a);
+                const timeUntil = getTimeUntil(time);
+                const operator = getTrainOperator(a.AdvertisedTrainIdent);
+                const hasDeviation = a.Deviation && a.Deviation.length > 0;
+                
                 return (
-                  <div key={i} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="text-sm font-medium tabular-nums">{fmtTime(time)}</div>
-                      <div className="text-sm text-gray-700">{a.AdvertisedTrainIdent ?? '—'}</div>
-                      <div className="text-sm text-gray-600">{dest ? codeToName(dest) : '—'}</div>
+                  <div key={i} className="p-4">
+                    {/* Första raden */}
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="text-sm font-medium tabular-nums w-16">{fmtTime(time)}</div>
+                        <div className="text-sm text-gray-600 truncate flex-1 font-medium">
+                          {dest ? codeToName(dest) : '—'}
+                          {hasDeviation && (
+                            <div className="text-xs text-orange-600 mt-0.5 font-normal" title={a.Deviation?.[0]?.Description}>
+                              {a.Deviation?.[0]?.Description}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm text-gray-700">{a.AdvertisedTrainIdent ?? '—'}</div>
+                        <div className="text-sm text-gray-600">Spår {a.TrackAtLocation ?? '—'}</div>
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-600">{a.TrackAtLocation ?? '—'}</div>
+                    
+                    {/* Andra raden */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="w-16">
+                          {timeUntil && (
+                            <div className={`text-xs ${timeUntil.className}`}>{timeUntil.text}</div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
+                              OPERATOR_COLORS[operator]
+                            }`}
+                          >
+                            {operator}
+                          </span>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                              RAIL_STATUS_COLORS[trainStatus.status]
+                            }`}
+                          >
+                            {trainStatus.text}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 );
               })
@@ -240,7 +485,21 @@ export const RailStationBoard: React.FC = () => {
         {/* Ankomster */}
         <div className="bg-white border rounded-lg">
           <div className="px-4 py-3 border-b">
-            <h3 className="text-sm font-semibold text-gray-900">Ankomster (nästa 10)</h3>
+            <h3 className="text-sm font-semibold text-gray-900">
+              Ankomster (3 tidigare + 5 kommande) - {arrivals.length} st
+            </h3>
+          </div>
+          <div className="bg-gray-50 px-4 py-2 border-b">
+            <div className="flex items-center justify-between text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="w-16">Tid</div>
+                <div className="flex-1">Från</div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div>Tåg</div>
+                <div>Spår</div>
+              </div>
+            </div>
           </div>
           <div className="divide-y">
             {arrivals.length === 0 ? (
@@ -249,14 +508,58 @@ export const RailStationBoard: React.FC = () => {
               arrivals.map((a, i) => {
                 const time = a.EstimatedTimeAtLocation ?? a.AdvertisedTimeAtLocation;
                 const from = a.FromLocation?.[0]?.LocationName;
+                const trainStatus = getTrainStatus(a);
+                const timeUntil = getTimeUntil(time);
+                const operator = getTrainOperator(a.AdvertisedTrainIdent);
+                const hasDeviation = a.Deviation && a.Deviation.length > 0;
+                
                 return (
-                  <div key={i} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="text-sm font-medium tabular-nums">{fmtTime(time)}</div>
-                      <div className="text-sm text-gray-700">{a.AdvertisedTrainIdent ?? '—'}</div>
-                      <div className="text-sm text-gray-600">{from ? codeToName(from) : '—'}</div>
+                  <div key={i} className="p-4">
+                    {/* Första raden */}
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="text-sm font-medium tabular-nums w-16">{fmtTime(time)}</div>
+                        <div className="text-sm text-gray-600 truncate flex-1 font-medium">
+                          {from ? codeToName(from) : '—'}
+                          {hasDeviation && (
+                            <div className="text-xs text-orange-600 mt-0.5 font-normal" title={a.Deviation?.[0]?.Description}>
+                              {a.Deviation?.[0]?.Description}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm text-gray-700">{a.AdvertisedTrainIdent ?? '—'}</div>
+                        <div className="text-sm text-gray-600">Spår {a.TrackAtLocation ?? '—'}</div>
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-600">{a.TrackAtLocation ?? '—'}</div>
+                    
+                    {/* Andra raden */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="w-16">
+                          {timeUntil && (
+                            <div className={`text-xs ${timeUntil.className}`}>{timeUntil.text}</div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
+                              OPERATOR_COLORS[operator]
+                            }`}
+                          >
+                            {operator}
+                          </span>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                              RAIL_STATUS_COLORS[trainStatus.status]
+                            }`}
+                          >
+                            {trainStatus.text}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 );
               })

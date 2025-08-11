@@ -1,5 +1,5 @@
 // client/src/plugins/rail/context/RailContext.tsx
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { useApp } from '@/core/api/AppContext';
 import { railApi, type RailStation } from '../api/railApi';
 
@@ -69,12 +69,35 @@ export function RailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const [announcementsByStation, setAnnouncementsByStation] = useState<Record<string, Announcement[]>>({});
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
 
+  // ---- Rail-specifika helpers (MEMOIZED) ----
+  const refreshStations = useCallback(async (force = false) => {
+    setLoadingStations(true);
+    try {
+      const res = await railApi.getStations(force);
+      const list = Array.isArray((res as any)?.stations) ? (res as any).stations : (Array.isArray(res) ? (res as any) : []);
+      setStations(list);
+    } finally {
+      setLoadingStations(false);
+    }
+  }, []); // Empty deps - function stable
+
+  const loadAnnouncements = useCallback(async (stationCode: string) => {
+    setLoadingAnnouncements(true);
+    try {
+      const res = await railApi.getAnnouncements(stationCode);
+      const data = (res as any)?.announcements ?? [];
+      setAnnouncementsByStation((prev) => ({ ...prev, [stationCode]: data }));
+      return data;
+    } finally {
+      setLoadingAnnouncements(false);
+    }
+  }, []);
+
   // Panel registration (krav)
   useEffect(() => {
     registerPanelCloseFunction('rails', closeRailPanel);
     return () => unregisterPanelCloseFunction('rails');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // Empty deps critical
 
   // Globala form-funktioner (krav, även om vi inte använder formulär ännu)
   useEffect(() => {
@@ -92,7 +115,7 @@ export function RailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     };
   }, []);
 
-  // Init data
+  // Init data - FIXED: now uses memoized refreshStations
   useEffect(() => {
     if (!isAuthenticated) {
       setStations([]);
@@ -101,73 +124,49 @@ export function RailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
     // hämta stationsindex vid inloggning
     refreshStations().catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [isAuthenticated, refreshStations]); // Now includes refreshStations in deps
 
   // ---- Actions (core-krav) ----
-  const openRailPanel = (item: any | null) => {
+  const openRailPanel = useCallback((item: any | null) => {
     setCurrentRail(item);
     setPanelMode(item ? 'edit' : 'create');
     setIsRailPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
-  };
+  }, [onCloseOtherPanels]);
 
-  const openRailForEdit = (item: any) => {
+  const openRailForEdit = useCallback((item: any) => {
     setCurrentRail(item);
     setPanelMode('edit');
     setIsRailPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
-  };
+  }, [onCloseOtherPanels]);
 
-  const openRailForView = (item: any) => {
+  const openRailForView = useCallback((item: any) => {
     setCurrentRail(item);
     setPanelMode('view');
     setIsRailPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
-  };
+  }, [onCloseOtherPanels]);
 
-  const closeRailPanel = () => {
+  const closeRailPanel = useCallback(() => {
     setIsRailPanelOpen(false);
     setCurrentRail(null);
     setPanelMode('create');
     setValidationErrors([]);
-  };
+  }, []);
 
-  const clearValidationErrors = () => setValidationErrors([]);
+  const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
 
   // MVP: inga CRUD – returnera no-op som uppfyller gränssnittet
-  const saveRail = async () => {
+  const saveRail = useCallback(async () => {
     setValidationErrors([{ field: 'general', message: 'Save not implemented in Rail MVP' }]);
     return false;
-  };
-  const deleteRail = async () => Promise.resolve();
+  }, []);
 
-  // ---- Rail-specifika helpers ----
-  const refreshStations = async (force = false) => {
-    setLoadingStations(true);
-    try {
-      const res = await railApi.getStations(force);
-      const list = Array.isArray((res as any)?.stations) ? (res as any).stations : (Array.isArray(res) ? (res as any) : []);
-      setStations(list);
-    } finally {
-      setLoadingStations(false);
-    }
-  };
-
-  const loadAnnouncements = async (stationCode: string) => {
-    setLoadingAnnouncements(true);
-    try {
-      const res = await railApi.getAnnouncements(stationCode);
-      const data = (res as any)?.announcements ?? [];
-      setAnnouncementsByStation((prev) => ({ ...prev, [stationCode]: data }));
-      return data;
-    } finally {
-      setLoadingAnnouncements(false);
-    }
-  };
+  const deleteRail = useCallback(async () => Promise.resolve(), []);
 
   const codeMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -175,7 +174,7 @@ export function RailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return m;
   }, [stations]);
 
-  const codeToName = (code?: string) => (code ? codeMap.get(code) ?? code : '');
+  const codeToName = useCallback((code?: string) => (code ? codeMap.get(code) ?? code : ''), [codeMap]);
 
   const value: RailContextType = {
     // Panel
