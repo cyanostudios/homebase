@@ -56,7 +56,7 @@ export const RailStationBoard: React.FC = () => {
   const [timeOffset, setTimeOffset] = useState(0); // Hours offset from current time
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Konsekvent tid med offset som används överallt
+  // Consistent time with offset used globally
   const currentTime = Date.now() + (timeOffset * 60 * 60 * 1000);
 
   useEffect(() => {
@@ -111,7 +111,7 @@ export const RailStationBoard: React.FC = () => {
     if (!timeString) return null;
     
     const trainTime = new Date(timeString).getTime();
-    const diffMinutes = Math.round((trainTime - Date.now()) / (1000 * 60)); // Använd verklig tid för relativ visning
+    const diffMinutes = Math.round((trainTime - Date.now()) / (1000 * 60)); // Use real time for relative display
     
     if (diffMinutes < -5) {
       const absDiff = Math.abs(diffMinutes);
@@ -206,10 +206,7 @@ export const RailStationBoard: React.FC = () => {
   const load = async (station: string) => {
     setLoading(true);
     setError(null);
-    try {
-      // Ensure proper encoding for Swedish characters
-      const encodedStation = encodeURIComponent(station);
-      const res = await railApi.getAnnouncements(station);
+    try {      const res = await railApi.getAnnouncements(station);
       const data = (res.announcements || []) as Announcement[];
       data.sort((a, b) => {
         const atA = new Date(a.EstimatedTimeAtLocation || a.AdvertisedTimeAtLocation || 0).getTime();
@@ -245,18 +242,38 @@ export const RailStationBoard: React.FC = () => {
     return tx - ty;
   });
 
-  // Show next 8 upcoming trains only (ignore past trains)
-  const getUpcomingTrains = (trains: Announcement[]) => {
-    const upcomingTrains = trains.filter(train => {
-      const trainTime = nextTime(train.AdvertisedTimeAtLocation, train.EstimatedTimeAtLocation);
-      return trainTime >= currentTime;
-    });
-    
-    return upcomingTrains.slice(0, 8);
-  };
+  // Fallback window when no upcoming items
+const LOOKBACK_MS = 60 * 60 * 1000; // 1h fallback
 
-  const departures = getUpcomingTrains(sorted.filter(a => a.ActivityType === 'Avgang'));
-  const arrivals = getUpcomingTrains(sorted.filter(a => a.ActivityType === 'Ankomst'));
+  // Picks up to 8 trains with tiered strategy: upcoming -> recent (lookback) -> nearest by absolute time
+const pickTrains = (trains: Announcement[]) => {
+  const toMs = (t: Announcement) => nextTime(t.AdvertisedTimeAtLocation, t.EstimatedTimeAtLocation);
+
+  // 1) Upcoming
+  const upcoming = trains.filter((t) => toMs(t) >= currentTime);
+  if (upcoming.length > 0) return { list: upcoming.slice(0, 8), mode: 'upcoming' as const };
+
+  // 2) Recent within lookback window
+  const windowStart = currentTime - LOOKBACK_MS;
+  const recent = trains.filter((t) => {
+    const tt = toMs(t);
+    return tt >= windowStart && tt < currentTime;
+  });
+  if (recent.length > 0) return { list: recent.slice(-8), mode: 'recent' as const };
+
+  // 3) Nearest by absolute distance to now (ensures we always show something meaningful)
+  const nearest = [...trains]
+    .sort((a, b) => Math.abs(toMs(a) - currentTime) - Math.abs(toMs(b) - currentTime))
+    .slice(0, 8);
+  return { list: nearest, mode: 'nearest' as const };
+};
+  
+  
+
+  const depPick = pickTrains(sorted.filter(a => a.ActivityType === 'Avgang'));
+  const arrPick = pickTrains(sorted.filter(a => a.ActivityType === 'Ankomst'));
+  const departures = depPick.list;
+  const arrivals = arrPick.list;
 
   const filteredStations = stations.filter(
     (s) =>
@@ -357,7 +374,7 @@ export const RailStationBoard: React.FC = () => {
             {error}
           </div>
         )}
-      </Card>
+        </Card>
 
       {/* Board */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -401,11 +418,13 @@ export const RailStationBoard: React.FC = () => {
           </Button>
         </div>
 
-        {/* Avgångar */}
+        {/* Departures */}
         <div className="bg-white border rounded-lg">
           <div className="px-4 py-3 border-b">
             <h3 className="text-sm font-semibold text-gray-900">
-              Avgångar (nästa 8 kommande) - {departures.length} st
+              Avgångar (nästa 8 kommande) - {departures.length} st {depPick.mode !== 'upcoming' && (
+              <span className="ml-2 text-xs italic text-gray-500">(visar {depPick.mode === 'recent' ? 'senaste inom ' + (LOOKBACK_MS/3600000) + 'h' : 'närmast i tid'})</span>
+            )}
             </h3>
           </div>
           <div className="bg-gray-50 px-4 py-2 border-b">
@@ -436,7 +455,7 @@ export const RailStationBoard: React.FC = () => {
                 
                 return (
                   <div key={i} className="p-4">
-                    {/* Första raden */}
+                    {/* First row */}
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-3 flex-1">
                         <div className="text-sm font-medium tabular-nums w-16">{fmtTime(time)}</div>
@@ -455,7 +474,7 @@ export const RailStationBoard: React.FC = () => {
                       </div>
                     </div>
                     
-                    {/* Andra raden */}
+                    {/* Second row */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">
                         <div className="w-16">
@@ -488,7 +507,7 @@ export const RailStationBoard: React.FC = () => {
           </div>
         </div>
 
-        {/* Ankomster */}
+        {/* Arrivals */}
         <div className="bg-white border rounded-lg">
           <div className="px-4 py-3 border-b">
             <h3 className="text-sm font-semibold text-gray-900">
@@ -521,7 +540,7 @@ export const RailStationBoard: React.FC = () => {
                 
                 return (
                   <div key={i} className="p-4">
-                    {/* Första raden */}
+                    {/* First row */}
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-3 flex-1">
                         <div className="text-sm font-medium tabular-nums w-16">{fmtTime(time)}</div>
@@ -540,7 +559,7 @@ export const RailStationBoard: React.FC = () => {
                       </div>
                     </div>
                     
-                    {/* Andra raden */}
+                    {/* Second row */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">
                         <div className="w-16">
