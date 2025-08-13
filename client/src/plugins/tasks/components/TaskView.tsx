@@ -118,8 +118,14 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     openNoteForView(sourceNote);
   };
 
-  const handleDuplicateTask = () => {
-    duplicateTask(task);
+  const handleDuplicateTask = async () => {
+    try {
+      await duplicateTask(task);   // create the copy
+      closeTaskPanel();            // close the panel when duplicating from View
+    } catch (error) {
+      console.error('Failed to duplicate task:', error);
+      alert('Failed to duplicate task. Please try again.');
+    }
   };
 
   const formatDueDate = (dueDate: any) => {

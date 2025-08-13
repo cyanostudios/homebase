@@ -10,8 +10,8 @@ interface EstimateActionsProps {
 }
 
 export function EstimateActions({ estimate }: EstimateActionsProps) {
-  const { duplicateEstimate } = useEstimates();
-  
+  const { duplicateEstimate, closeEstimatePanel } = useEstimates();
+
   // Share state
   const [isCreatingShare, setIsCreatingShare] = useState(false);
   const [existingShare, setExistingShare] = useState<EstimateShare | null>(null);
@@ -41,13 +41,14 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
 
   // Handle duplicate
   const handleDuplicate = async () => {
-    try {
-      await duplicateEstimate(estimate);
-    } catch (error) {
-      console.error('Failed to duplicate estimate:', error);
-      alert('Failed to duplicate estimate. Please try again.');
-    }
-  };
+  try {
+    await duplicateEstimate(estimate);
+    closeEstimatePanel(); // close panel when duplicating from View
+  } catch (error) {
+    console.error('Failed to duplicate estimate:', error);
+    alert('Failed to duplicate estimate. Please try again.');
+  }
+};
 
   // Handle PDF download
   const handleDownloadPDF = async () => {

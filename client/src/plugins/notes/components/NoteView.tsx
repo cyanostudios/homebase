@@ -96,12 +96,14 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
 
   const handleDuplicateNote = async () => {
     try {
-      await duplicateNote(note);
+      await duplicateNote(note); // creates the copy (keeps list behavior unchanged)
+      closeNotePanel();          // close panel when duplicating from View
     } catch (error) {
       console.error('Failed to duplicate note:', error);
       alert('Failed to duplicate note. Please try again.');
     }
   };
+  
 
   const handleExportNote = () => {
     const content = `${note.title}\n\n${note.content}\n\nCreated: ${new Date(note.createdAt).toLocaleDateString()}`;
