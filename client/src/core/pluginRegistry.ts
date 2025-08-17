@@ -3,12 +3,10 @@ import { ContactProvider } from '@/plugins/contacts/context/ContactContext';
 import { NoteProvider } from '@/plugins/notes/context/NoteContext';
 import { EstimateProvider } from '@/plugins/estimates/context/EstimateContext';
 import { TaskProvider } from '@/plugins/tasks/context/TaskContext';
-import { ImportProvider } from '@/plugins/import/context/ImportContext';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
-import { useImport } from '@/plugins/import/hooks/useImport';
 import { ContactList } from '@/plugins/contacts/components/ContactList';
 import { ContactForm } from '@/plugins/contacts/components/ContactForm';
 import { ContactView } from '@/plugins/contacts/components/ContactView';
@@ -21,12 +19,16 @@ import { EstimateView } from '@/plugins/estimates/components/EstimateView';
 import { TaskList } from '@/plugins/tasks/components/TaskList';
 import { TaskForm } from '@/plugins/tasks/components/TaskForm';
 import { TaskView } from '@/plugins/tasks/components/TaskView';
-import { ImportList } from '@/plugins/import/components/ImportList';
-import { ImportForm } from '@/plugins/import/components/ImportForm';
-import { ImportView } from '@/plugins/import/components/ImportView';
 import { RailProvider } from '@/plugins/rail/context/RailContext';
 import { useRails } from '@/plugins/rail/hooks/useRails';
 import { RailStationBoard } from '@/plugins/rail/components/RailStationBoard';
+
+// products plugin imports
+import { ProductProvider } from '@/plugins/products/context/ProductContext';
+import { useProducts } from '@/plugins/products/hooks/useProducts';
+import { ProductList } from '@/plugins/products/components/ProductList';
+import { ProductForm } from '@/plugins/products/components/ProductForm';
+import { ProductView } from '@/plugins/products/components/ProductView';
 
 export interface PluginRegistryEntry {
   name: string;
@@ -50,55 +52,35 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     Provider: ContactProvider,
     hook: useContacts,
     panelKey: 'isContactPanelOpen',
-    components: {
-      List: ContactList,
-      Form: ContactForm,
-      View: ContactView,
-    }
+    components: { List: ContactList, Form: ContactForm, View: ContactView }
   },
   {
     name: 'notes',
     Provider: NoteProvider,
     hook: useNotes,
     panelKey: 'isNotePanelOpen',
-    components: {
-      List: NotesList,
-      Form: NoteForm,
-      View: NoteView,
-    }
+    components: { List: NotesList, Form: NoteForm, View: NoteView }
   },
   {
     name: 'estimates',
     Provider: EstimateProvider,
     hook: useEstimates,
     panelKey: 'isEstimatePanelOpen',
-    components: {
-      List: EstimateList,
-      Form: EstimateForm,
-      View: EstimateView,
-    }
+    components: { List: EstimateList, Form: EstimateForm, View: EstimateView }
   },
   {
     name: 'tasks',
     Provider: TaskProvider,
     hook: useTasks,
     panelKey: 'isTaskPanelOpen',
-    components: {
-      List: TaskList,
-      Form: TaskForm,
-      View: TaskView,
-    }
+    components: { List: TaskList, Form: TaskForm, View: TaskView }
   },
   {
-    name: 'import',
-    Provider: ImportProvider,
-    hook: useImport,
-    panelKey: 'isImportPanelOpen',
-    components: {
-      List: ImportList,
-      Form: ImportForm,
-      View: ImportView,
-    }
+    name: 'products',
+    Provider: ProductProvider,
+    hook: useProducts,
+    panelKey: 'isProductPanelOpen',
+    components: { List: ProductList, Form: ProductForm, View: ProductView }
   },
   {
     name: 'rails',

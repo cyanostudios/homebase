@@ -14,7 +14,6 @@ import {
   Package,
   StickyNote,
   CheckSquare,
-  Upload,
   ChevronLeft, 
   ChevronRight,
   LogOut,
@@ -23,13 +22,15 @@ import {
 import { useSidebar } from './MainLayout';
 import { useApp } from '@/core/api/AppContext';
 
-type NavPage = 'contacts' | 'notes' | 'estimates' | 'tasks' | 'import' | 'rails';
+// Added 'products', removed 'import'
+type NavPage = 'contacts' | 'notes' | 'estimates' | 'tasks' | 'products' | 'rails';
 
 interface SidebarProps {
   currentPage: NavPage;
   onPageChange: (page: NavPage) => void;
 }
 
+// Added "Products" under Business, removed "Import" under Tools
 const navCategories = [
   {
     title: 'Main',
@@ -45,6 +46,7 @@ const navCategories = [
   {
     title: 'Business',
     items: [
+      { label: 'Products', icon: Package, page: 'products' as NavPage }, // new
       { label: 'Estimates', icon: Calculator, page: 'estimates' as NavPage },
       { label: 'Invoice', icon: FileText, page: null },
       { label: 'Journal', icon: BookOpen, page: null },
@@ -56,8 +58,7 @@ const navCategories = [
   {
     title: 'Tools',
     items: [
-      { label: 'Import', icon: Upload, page: 'import' as NavPage },
-      { label: 'Rail', icon: Train, page: 'rails' as NavPage },
+      { label: 'Rail', icon: Train, page: 'rails' as NavPage }, // removed Import
     ]
   },
   {
@@ -85,10 +86,8 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
-    
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
@@ -96,14 +95,10 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     await logout();
   };
 
+  // Updated to include 'products' and remove 'import'
   const handleMenuItemClick = (page: NavPage | null) => {
-    // Close mobile overlay when menu item is clicked
-    if (isMobile && isMobileOverlay) {
-      setIsMobileOverlay(false);
-    }
-    
-    // Handle navigation
-    if (page === 'contacts' || page === 'notes' || page === 'estimates' || page === 'tasks' || page === 'import' || page === 'rails') {
+    if (isMobile && isMobileOverlay) setIsMobileOverlay(false);
+    if (page === 'contacts' || page === 'notes' || page === 'estimates' || page === 'tasks' || page === 'products' || page === 'rails') {
       onPageChange(page);
     }
   };
