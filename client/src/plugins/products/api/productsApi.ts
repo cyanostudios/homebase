@@ -1,4 +1,4 @@
-// Dedicated API client for Products (mirrors Contacts API shape)
+// Dedicated API client for Products (with 409-aware error handling)
 class ProductsApi {
   private async request(endpoint: string, options: RequestInit = {}) {
     let response: Response;
@@ -15,19 +15,24 @@ class ProductsApi {
     }
 
     if (!response.ok) {
-      // Try to parse JSON error, otherwise fall back to status text
       let payload: any = null;
       try { payload = await response.json(); } catch {}
-      const msg =
-        (payload && payload.error) ||
-        (response.status === 401 ? 'Unauthorized' : response.statusText) ||
-        'Request failed';
-      const err: any = new Error(msg);
+
+      // Build an error object and attach details
+      const err: any = new Error(
+        response.status === 409 && payload?.errors?.[0]?.message
+          ? payload.errors[0].message
+          : (payload?.error || response.statusText || 'Request failed')
+      );
       err.status = response.status;
+      if (payload?.errors) err.errors = payload.errors; // [{ field, message }]
       throw err;
     }
 
-    return response.json();
+    // success
+    // Some DELETE endpoints may return empty body; guard for that if needed.
+    const text = await response.text();
+    return text ? JSON.parse(text) : {};
   }
 
   async getProducts() {

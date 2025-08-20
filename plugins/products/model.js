@@ -1,6 +1,6 @@
 // plugins/products/model.js
-// NOTE: This model supports both legacy contact-like fields and the new Product MVP fields.
-//       We write both sets on create/update, and read both sets on getAll.
+// Clean MVP writer: stop persisting legacy contact-like columns.
+// Still orders by COALESCE(product_number, contact_number) for legacy rows.
 
 class ProductModel {
   constructor(pool) {
@@ -9,75 +9,37 @@ class ProductModel {
 
   async getAll(userId) {
     const result = await this.pool.query(
-      'SELECT * FROM products WHERE user_id = $1 ORDER BY COALESCE(product_number, contact_number)',
+      `SELECT * FROM products
+       WHERE user_id = $1
+       ORDER BY product_number NULLS LAST, id`,
       [userId]
     );
     return result.rows.map(this.transformRow);
   }
+  
 
   async create(userId, productData) {
-    // Normalize incoming data: prefer new fields, fall back to legacy
-    const normalized = this.normalizeInput(productData);
+    const d = this.normalizeInput(productData);
 
     const result = await this.pool.query(
       `
       INSERT INTO products (
         user_id,
-        -- legacy columns
-        contact_number, contact_type, company_name, company_type,
-        organization_number, vat_number, personal_number, contact_persons, addresses,
-        email, phone, phone2, website, tax_rate, payment_terms, currency, f_tax, notes,
-        -- new MVP columns
         product_number, sku, title, description, status, quantity,
-        price_amount, vat_rate, main_image, images, categories, brand, gtin
-      )
-      VALUES (
+        price_amount, currency, vat_rate, main_image, images, categories, brand, gtin
+      ) VALUES (
         $1,
-        -- legacy
-        $2, $3, $4, $5,
-        $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17, $18, $19,
-        -- new
-        $20, $21, $22, $23, $24, $25,
-        $26, $27, $28, $29, $30, $31, $32
+        $2, $3, $4, $5, $6, $7,
+        $8, $9, $10, $11, $12, $13, $14, $15
       )
       RETURNING *
       `,
       [
         userId,
-        // legacy
-        normalized.contactNumber,
-        normalized.contactType,
-        normalized.companyName,
-        normalized.companyType,
-        normalized.organizationNumber,
-        normalized.vatNumber,
-        normalized.personalNumber,
-        JSON.stringify(normalized.contactPersons || []),
-        JSON.stringify(normalized.addresses || []),
-        normalized.email,
-        normalized.phone,
-        normalized.phone2,
-        normalized.website,
-        normalized.taxRate,
-        normalized.paymentTerms,
-        normalized.currency,
-        normalized.fTax,
-        normalized.notes,
-        // new
-        normalized.productNumber,
-        normalized.sku,
-        normalized.title,
-        normalized.description,
-        normalized.status,
-        normalized.quantity,
-        normalized.priceAmount,
-        normalized.vatRate,
-        normalized.mainImage,
-        JSON.stringify(normalized.images || []),
-        JSON.stringify(normalized.categories || []),
-        normalized.brand,
-        normalized.gtin
+        d.productNumber, d.sku, d.title, d.description, d.status, d.quantity,
+        d.priceAmount, d.currency, d.vatRate, d.mainImage,
+        JSON.stringify(d.images || []), JSON.stringify(d.categories || []),
+        d.brand, d.gtin
       ]
     );
 
@@ -85,95 +47,39 @@ class ProductModel {
   }
 
   async update(userId, productId, productData) {
-    const normalized = this.normalizeInput(productData);
+    const d = this.normalizeInput(productData);
 
     const result = await this.pool.query(
       `
       UPDATE products SET
-        -- legacy fields
-        contact_number = $1,
-        contact_type = $2,
-        company_name = $3,
-        company_type = $4,
-        organization_number = $5,
-        vat_number = $6,
-        personal_number = $7,
-        contact_persons = $8,
-        addresses = $9,
-        email = $10,
-        phone = $11,
-        phone2 = $12,
-        website = $13,
-        tax_rate = $14,
-        payment_terms = $15,
-        currency = $16,
-        f_tax = $17,
-        notes = $18,
-
-        -- new MVP fields
-        product_number = $19,
-        sku = $20,
-        title = $21,
-        description = $22,
-        status = $23,
-        quantity = $24,
-        price_amount = $25,
-        vat_rate = $26,
-        main_image = $27,
-        images = $28,
-        categories = $29,
-        brand = $30,
-        gtin = $31,
-
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $32 AND user_id = $33
+        product_number = $1,
+        sku            = $2,
+        title          = $3,
+        description    = $4,
+        status         = $5,
+        quantity       = $6,
+        price_amount   = $7,
+        currency       = $8,
+        vat_rate       = $9,
+        main_image     = $10,
+        images         = $11,
+        categories     = $12,
+        brand          = $13,
+        gtin           = $14,
+        updated_at     = CURRENT_TIMESTAMP
+      WHERE id = $15 AND user_id = $16
       RETURNING *
       `,
       [
-        // legacy
-        normalized.contactNumber,
-        normalized.contactType,
-        normalized.companyName,
-        normalized.companyType,
-        normalized.organizationNumber,
-        normalized.vatNumber,
-        normalized.personalNumber,
-        JSON.stringify(normalized.contactPersons || []),
-        JSON.stringify(normalized.addresses || []),
-        normalized.email,
-        normalized.phone,
-        normalized.phone2,
-        normalized.website,
-        normalized.taxRate,
-        normalized.paymentTerms,
-        normalized.currency,
-        normalized.fTax,
-        normalized.notes,
-
-        // new
-        normalized.productNumber,
-        normalized.sku,
-        normalized.title,
-        normalized.description,
-        normalized.status,
-        normalized.quantity,
-        normalized.priceAmount,
-        normalized.vatRate,
-        normalized.mainImage,
-        JSON.stringify(normalized.images || []),
-        JSON.stringify(normalized.categories || []),
-        normalized.brand,
-        normalized.gtin,
-
-        // ids
-        productId,
-        userId
+        d.productNumber, d.sku, d.title, d.description, d.status, d.quantity,
+        d.priceAmount, d.currency, d.vatRate, d.mainImage,
+        JSON.stringify(d.images || []), JSON.stringify(d.categories || []),
+        d.brand, d.gtin,
+        productId, userId
       ]
     );
 
-    if (!result.rows.length) {
-      throw new Error('Product not found');
-    }
+    if (!result.rows.length) throw new Error('Product not found');
     return this.transformRow(result.rows[0]);
   }
 
@@ -182,68 +88,56 @@ class ProductModel {
       'DELETE FROM products WHERE id = $1 AND user_id = $2 RETURNING id',
       [productId, userId]
     );
-    if (!result.rows.length) {
-      throw new Error('Product not found');
-    }
+    if (!result.rows.length) throw new Error('Product not found');
     return { id: productId };
   }
 
-  normalizeInput(data = {}) {
-    // Derive new fields from either new inputs or legacy ones
-    const productNumber = data.productNumber ?? data.contactNumber ?? null;
-    const title = data.title ?? data.companyName ?? '';
-    const currency = data.currency ?? 'SEK';
+  // Accept legacy inputs as fallbacks but only persist MVP columns
 
-    return {
-      // legacy-compatible
-      contactNumber: data.contactNumber ?? productNumber ?? '',
-      contactType: data.contactType ?? 'company',
-      companyName: data.companyName ?? title,
-      companyType: data.companyType ?? '',
-      organizationNumber: data.organizationNumber ?? '',
-      vatNumber: data.vatNumber ?? '',
-      personalNumber: data.personalNumber ?? '',
-      contactPersons: data.contactPersons ?? [],
-      addresses: data.addresses ?? [],
-      email: data.email ?? '',
-      phone: data.phone ?? '',
-      phone2: data.phone2 ?? '',
-      website: data.website ?? '',
-      taxRate: data.taxRate ?? '', // legacy string
-      paymentTerms: data.paymentTerms ?? '',
-      currency,
-      fTax: data.fTax ?? '',
-      notes: data.notes ?? '',
+normalizeInput(data = {}) {
+  // Normalize empties -> null
+  const clean = (v) => (typeof v === 'string' && v.trim() === '' ? null : v);
 
-      // new MVP
-      productNumber,
-      sku: data.sku ?? null,
-      title,
-      description: data.description ?? null,
-      status: data.status ?? 'for sale',
-      quantity: typeof data.quantity === 'number' ? data.quantity : 0,
-      priceAmount: typeof data.priceAmount === 'number' ? data.priceAmount : 0,
-      vatRate: typeof data.vatRate === 'number' ? data.vatRate : 25,
-      mainImage: data.mainImage ?? null,
-      images: Array.isArray(data.images) ? data.images : [],
-      categories: Array.isArray(data.categories) ? data.categories : [],
-      brand: data.brand ?? null,
-      gtin: data.gtin ?? null
-    };
-  }
+  const productNumberRaw = data.productNumber ?? data.contactNumber ?? null;
+  const productNumber = clean(productNumberRaw);
+
+  const title = data.title ?? data.companyName ?? '';
+
+  const skuRaw = data.sku ?? null;
+  const sku = clean(skuRaw);
+
+  return {
+    productNumber,
+    sku,
+    title,
+    description: clean(data.description) ?? null,
+    status: data.status ?? 'for sale',
+    quantity: Number.isFinite(data.quantity) ? Number(data.quantity) : 0,
+    priceAmount: Number.isFinite(data.priceAmount) ? Number(data.priceAmount) : 0,
+    currency: (data.currency ?? 'SEK').toUpperCase(),
+    vatRate: Number.isFinite(data.vatRate) ? Number(data.vatRate) : 25,
+    mainImage: clean(data.mainImage),
+    images: Array.isArray(data.images) ? data.images : [],
+    categories: Array.isArray(data.categories) ? data.categories : [],
+    brand: clean(data.brand),
+    gtin: clean(data.gtin),
+  };
+}
+
 
   transformRow(row) {
-    // Ensure arrays are arrays
-    const images = Array.isArray(row.images) ? row.images : (row.images ? row.images : []);
-    const categories = Array.isArray(row.categories) ? row.categories : (row.categories ? row.categories : []);
+    const parseJson = (v) => {
+      if (Array.isArray(v)) return v;
+      if (v == null) return [];
+      try { return typeof v === 'string' ? JSON.parse(v) : v; }
+      catch { return []; }
+    };
 
     return {
-      id: row.id.toString(),
-
-      // New MVP fields
+      id: String(row.id),
       productNumber: row.product_number ?? null,
       sku: row.sku ?? null,
-      title: row.title ?? row.company_name ?? '',
+      title: row.title ?? row.company_name ?? '', // fallback for legacy rows
       description: row.description ?? null,
       status: row.status ?? 'for sale',
       quantity: row.quantity ?? 0,
@@ -251,32 +145,12 @@ class ProductModel {
       currency: row.currency ?? 'SEK',
       vatRate: row.vat_rate != null ? Number(row.vat_rate) : 25,
       mainImage: row.main_image ?? null,
-      images,
-      categories,
+      images: parseJson(row.images),
+      categories: parseJson(row.categories),
       brand: row.brand ?? null,
       gtin: row.gtin ?? null,
-
       createdAt: row.created_at,
-      updatedAt: row.updated_at,
-
-      // Legacy fields (kept during migration)
-      contactNumber: row.contact_number,
-      contactType: row.contact_type,
-      companyName: row.company_name,
-      companyType: row.company_type || '',
-      organizationNumber: row.organization_number || '',
-      vatNumber: row.vat_number || '',
-      personalNumber: row.personal_number || '',
-      contactPersons: row.contact_persons || [],
-      addresses: row.addresses || [],
-      email: row.email || '',
-      phone: row.phone || '',
-      phone2: row.phone2 || '',
-      website: row.website || '',
-      taxRate: row.tax_rate || '',
-      paymentTerms: row.payment_terms || '',
-      fTax: row.f_tax || '',
-      notes: row.notes || ''
+      updatedAt: row.updated_at
     };
   }
 }

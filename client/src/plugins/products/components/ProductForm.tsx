@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Building, User, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/core/ui/Button';
 import { Heading } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
@@ -8,32 +8,29 @@ import { useProducts } from '../hooks/useProducts';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
-interface ContactPerson {
-  id: string;
-  name: string;
-  title: string;
-  email: string;
-  phone: string;
-}
-
-interface Address {
-  id: string;
-  type: string;
-  addressLine1: string;
-  addressLine2: string;
-  postalCode: string;
-  city: string;
-  region: string;
-  country: string;
-  email: string;
-}
-
 interface ProductFormProps {
   currentItem?: any; // must match pluginRegistry expected prop
-  onSave: (data: any) => void;
+  onSave: (data: any) => Promise<boolean> | boolean;
   onCancel: () => void;
   isSubmitting?: boolean;
 }
+
+type FormData = {
+  productNumber: string;
+  title: string;
+  status: 'for sale' | 'draft' | 'archived';
+  quantity: number;
+  priceAmount: number;
+  currency: string;
+  vatRate: number;
+  sku: string;
+  description: string;
+  mainImage: string;
+  images: string[];
+  categories: string[];
+  brand: string;
+  gtin: string;
+};
 
 export const ProductForm: React.FC<ProductFormProps> = ({
   currentItem,
@@ -53,42 +50,28 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   } = useUnsavedChanges();
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } = useGlobalNavigationGuard();
 
-  // Alias current item to product for clarity
   const currentProduct = currentItem;
 
-  const [formData, setFormData] = useState({
-    // Product number & type (TEMP: still using contact fields until real product schema)
-    contactNumber: '',
-    contactType: 'company',
-
-    // Basic Information
-    companyName: '',
-    companyType: 'AB',
-    organizationNumber: '',
-    vatNumber: '',
-    personalNumber: '',
-
-    // Contact Persons
-    contactPersons: [] as ContactPerson[],
-
-    // Addresses
-    addresses: [] as Address[],
-
-    // Contact Details
-    email: '',
-    phone: '',
-    phone2: '',
-    website: '',
-
-    // Tax & Legal
-    taxRate: '25',
-    paymentTerms: '30',
+  const initialState: FormData = {
+    productNumber: '',
+    title: '',
+    status: 'for sale',
+    quantity: 0,
+    priceAmount: 0,
     currency: 'SEK',
-    fTax: 'yes',
+    vatRate: 25,
+    sku: '',
+    description: '',
+    mainImage: '',
+    images: [],
+    categories: [],
+    brand: '',
+    gtin: ''
+  };
 
-    // Notes
-    notes: ''
-  });
+  const [formData, setFormData] = useState<FormData>(initialState);
+  const [newImage, setNewImage] = useState('');
+  const [newCategory, setNewCategory] = useState('');
 
   // Register this form's unsaved changes state globally
   useEffect(() => {
@@ -97,58 +80,47 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     return () => { unregisterUnsavedChangesChecker(formKey); };
   }, [isDirty, currentProduct, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
-  // Load currentProduct data when editing
+  // Load current product (support legacy fallbacks during transition)
   useEffect(() => {
     if (currentProduct) {
       setFormData({
-        contactNumber: currentProduct.contactNumber || '',
-        contactType: currentProduct.contactType || 'company',
-        companyName: currentProduct.companyName || '',
-        companyType: currentProduct.companyType || 'AB',
-        organizationNumber: currentProduct.organizationNumber || '',
-        vatNumber: currentProduct.vatNumber || '',
-        personalNumber: currentProduct.personalNumber || '',
-        contactPersons: currentProduct.contactPersons || [],
-        addresses: currentProduct.addresses || [],
-        email: currentProduct.email || '',
-        phone: currentProduct.phone || '',
-        phone2: currentProduct.phone2 || '',
-        website: currentProduct.website || '',
-        taxRate: currentProduct.taxRate || '25',
-        paymentTerms: currentProduct.paymentTerms || '30',
-        currency: currentProduct.currency || 'SEK',
-        fTax: currentProduct.fTax || 'yes',
-        notes: currentProduct.notes || ''
+        productNumber: currentProduct.productNumber ?? currentProduct.contactNumber ?? '',
+        title: currentProduct.title ?? currentProduct.companyName ?? '',
+        status: (currentProduct.status as FormData['status']) ?? 'for sale',
+        quantity: Number.isFinite(currentProduct.quantity) ? Number(currentProduct.quantity) : 0,
+        priceAmount: Number.isFinite(currentProduct.priceAmount) ? Number(currentProduct.priceAmount) : 0,
+        currency: currentProduct.currency ?? 'SEK',
+        vatRate: Number.isFinite(currentProduct.vatRate) ? Number(currentProduct.vatRate) : 25,
+        sku: currentProduct.sku ?? '',
+        description: currentProduct.description ?? '',
+        mainImage: currentProduct.mainImage ?? '',
+        images: Array.isArray(currentProduct.images) ? currentProduct.images : [],
+        categories: Array.isArray(currentProduct.categories) ? currentProduct.categories : [],
+        brand: currentProduct.brand ?? '',
+        gtin: currentProduct.gtin ?? ''
       });
-      markClean(); // mark clean after loading
+      markClean();
     } else {
       resetForm();
     }
   }, [currentProduct, markClean]);
 
   const resetForm = useCallback(() => {
-    setFormData({
-      contactNumber: '',
-      contactType: 'company',
-      companyName: '',
-      companyType: 'AB',
-      organizationNumber: '',
-      vatNumber: '',
-      personalNumber: '',
-      contactPersons: [],
-      addresses: [],
-      email: '',
-      phone: '',
-      phone2: '',
-      website: '',
-      taxRate: '25',
-      paymentTerms: '30',
-      currency: 'SEK',
-      fTax: 'yes',
-      notes: ''
-    });
+    setFormData(initialState);
+    setNewImage('');
+    setNewCategory('');
     markClean();
   }, [markClean]);
+
+  const updateField = (field: keyof FormData, value: string | number | string[]) => {
+    setFormData(prev => ({ ...prev, [field]: value } as FormData));
+    markDirty();
+    clearValidationErrors();
+  };
+  const updateNumber = (field: 'quantity' | 'priceAmount' | 'vatRate', raw: string) => {
+    const n = raw === '' ? NaN : Number(raw.replace(',', '.'));
+    updateField(field, Number.isFinite(n) ? n : (field === 'vatRate' ? 25 : 0));
+  };
 
   const handleSubmit = useCallback(async () => {
     const success = await onSave(formData);
@@ -162,10 +134,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     attemptAction(() => { onCancel(); });
   }, [attemptAction, onCancel]);
 
-  // Global functions with correct plural naming for this plugin
+  // Global functions (PLURAL)
   useEffect(() => {
-    (window as any).submitProductsForm = handleSubmit; // PLURAL!
-    (window as any).cancelProductsForm = handleCancel; // PLURAL!
+    (window as any).submitProductsForm = handleSubmit;
+    (window as any).cancelProductsForm = handleCancel;
     return () => {
       delete (window as any).submitProductsForm;
       delete (window as any).cancelProductsForm;
@@ -181,66 +153,31 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     }
   };
 
-  const updateField = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    markDirty();
-    clearValidationErrors();
+  const getFieldError = (fieldName: string) => validationErrors.find(e => e.field === fieldName);
+  const hasBlockingErrors = validationErrors.some(e => !e.message.includes('Warning'));
+
+  // Array helpers
+  const addImage = () => {
+    const v = newImage.trim();
+    if (!v) return;
+    updateField('images', [...formData.images, v]);
+    setNewImage('');
   };
-
-  // Helper to get error for a specific field
-  const getFieldError = (fieldName: string) => validationErrors.find(error => error.field === fieldName);
-
-  // Any blocking errors (non-warning)?
-  const hasBlockingErrors = validationErrors.some(error => !error.message.includes('Warning'));
-
-  // Contact Person Functions
-  const addContactPerson = () => {
-    const newPerson: ContactPerson = { id: Date.now().toString(), name: '', title: '', email: '', phone: '' };
-    setFormData(prev => ({ ...prev, contactPersons: [...prev.contactPersons, newPerson] }));
-    markDirty();
+  const removeImage = (idx: number) => {
+    const next = formData.images.slice();
+    next.splice(idx, 1);
+    updateField('images', next);
   };
-
-  const removeContactPerson = (id: string) => {
-    setFormData(prev => ({ ...prev, contactPersons: prev.contactPersons.filter(person => person.id !== id) }));
-    markDirty();
+  const addCategory = () => {
+    const v = newCategory.trim();
+    if (!v) return;
+    updateField('categories', [...formData.categories, v]);
+    setNewCategory('');
   };
-
-  const updateContactPerson = (id: string, field: keyof ContactPerson, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      contactPersons: prev.contactPersons.map(person => (person.id === id ? { ...person, [field]: value } : person))
-    }));
-    markDirty();
-  };
-
-  // Address Functions
-  const addAddress = () => {
-    const newAddress: Address = {
-      id: Date.now().toString(),
-      type: 'Main Office',
-      addressLine1: '',
-      addressLine2: '',
-      postalCode: '',
-      city: '',
-      region: '',
-      country: 'Sweden',
-      email: ''
-    };
-    setFormData(prev => ({ ...prev, addresses: [...prev.addresses, newAddress] }));
-    markDirty();
-  };
-
-  const removeAddress = (id: string) => {
-    setFormData(prev => ({ ...prev, addresses: prev.addresses.filter(address => address.id !== id) }));
-    markDirty();
-  };
-
-  const updateAddress = (id: string, field: keyof Address, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      addresses: prev.addresses.map(address => (address.id === id ? { ...address, [field]: value } : address))
-    }));
-    markDirty();
+  const removeCategory = (idx: number) => {
+    const next = formData.categories.slice();
+    next.splice(idx, 1);
+    updateField('categories', next);
   };
 
   return (
@@ -250,368 +187,281 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         {hasBlockingErrors && (
           <Card padding="sm" className="shadow-none px-0">
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">Cannot save product</h3>
-                  <div className="mt-2 text-sm text-red-700">
-                    <p>Please fix the following errors before saving:</p>
-                    <ul className="list-disc list-inside mt-1">
-                      {validationErrors
-                        .filter(error => !error.message.includes('Warning'))
-                        .map((error, index) => (<li key={index}>{error.message}</li>))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
+              <h3 className="text-sm font-medium text-red-800">Cannot save product</h3>
+              <ul className="mt-2 list-disc list-inside text-sm text-red-700">
+                {validationErrors
+                  .filter(e => !e.message.includes('Warning'))
+                  .map((e, i) => (<li key={i}>{e.message}</li>))}
+              </ul>
             </div>
           </Card>
         )}
 
-        {/* Product Number & Type (TEMP: contact fields kept) */}
+        {/* Identity */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">Product Number & Type</Heading>
-          <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
+          <Heading level={3} className="mb-3">Identity</Heading>
+          <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-3 md:gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Number</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Product Number</label>
               <input
                 type="text"
-                value={formData.contactNumber}
-                onChange={(e) => updateField('contactNumber', e.target.value)}
-                placeholder="01"
+                value={formData.productNumber}
+                onChange={(e) => updateField('productNumber', e.target.value)}
+                placeholder="P-0001"
                 className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  getFieldError('contactNumber') ? 'border-red-500' : 'border-gray-300'
+                  getFieldError('productNumber') ? 'border-red-500' : 'border-gray-300'
                 }`}
-                required
               />
-              {getFieldError('contactNumber') && (
-                <p className="mt-1 text-sm text-red-600">{getFieldError('contactNumber')?.message}</p>
+              {getFieldError('productNumber') && (
+                <p className="mt-1 text-sm text-red-600">{getFieldError('productNumber')?.message}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => updateField('contactType', 'company')}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md border-2 transition-colors text-sm flex-1 justify-center ${
-                    formData.contactType === 'company' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 hover:border-gray-400'
-                  }`}
-                >
-                  <Building className="w-4 h-4" />
-                  <span className="hidden sm:inline">Company</span>
-                  <span className="sm:hidden">Co.</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => updateField('contactType', 'private')}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md border-2 transition-colors text-sm flex-1 justify-center ${
-                    formData.contactType === 'private' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 hover:border-gray-400'
-                  }`}
-                >
-                  <User className="w-4 h-4" />
-                  <span className="hidden sm:inline">Private</span>
-                  <span className="sm:hidden">Priv.</span>
-                </button>
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+              <input
+                type="text"
+                value={formData.sku}
+                onChange={(e) => updateField('sku', e.target.value)}
+                placeholder="SKU-ABC-123"
+                className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  getFieldError('sku') ? 'border-red-500' : 'border-gray-300'
+                }`}
+              />
+              {getFieldError('sku') && (
+                <p className="mt-1 text-sm text-red-600">{getFieldError('sku')?.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                value={formData.status}
+                onChange={(e) => updateField('status', e.target.value as FormData['status'])}
+                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="for sale">For sale</option>
+                <option value="draft">Draft</option>
+                <option value="archived">Archived</option>
+              </select>
             </div>
           </div>
         </Card>
 
-        {/* Basic Information */}
+        {/* Basic info */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">
-            {formData.contactType === 'company' ? 'Company Information' : 'Personal Information'}
-          </Heading>
-
-          {formData.contactType === 'company' ? (
-            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                <input
-                  type="text"
-                  value={formData.companyName}
-                  onChange={(e) => updateField('companyName', e.target.value)}
-                  className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    getFieldError('companyName') ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  required
-                />
-                {getFieldError('companyName') && (
-                  <p className="mt-1 text-sm text-red-600">{getFieldError('companyName')?.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company Type</label>
-                <select
-                  value={formData.companyType}
-                  onChange={(e) => updateField('companyType', e.target.value)}
-                  className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="AB">AB (Aktiebolag)</option>
-                  <option value="HB">HB (Handelsbolag)</option>
-                  <option value="KB">KB (Kommanditbolag)</option>
-                  <option value="EF">Enskild Firma</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Organization Number</label>
-                <input
-                  type="text"
-                  value={formData.organizationNumber}
-                  onChange={(e) => updateField('organizationNumber', e.target.value)}
-                  placeholder="XXXXXX-XXXX"
-                  className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    getFieldError('organizationNumber') ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {getFieldError('organizationNumber') && (
-                  <p className="mt-1 text-sm text-red-600">{getFieldError('organizationNumber')?.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">VAT Number</label>
-                <input
-                  type="text"
-                  value={formData.vatNumber}
-                  onChange={(e) => updateField('vatNumber', e.target.value)}
-                  placeholder="SE123456789001"
-                  className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+          <Heading level={3} className="mb-3">Basic Information</Heading>
+          <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => updateField('title', e.target.value)}
+                className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  getFieldError('title') ? 'border-red-500' : 'border-gray-300'
+                }`}
+                required
+              />
+              {getFieldError('title') && (
+                <p className="mt-1 text-sm text-red-600">{getFieldError('title')?.message}</p>
+              )}
             </div>
-          ) : (
-            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  value={formData.companyName}
-                  onChange={(e) => updateField('companyName', e.target.value)}
-                  className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    getFieldError('companyName') ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  required
-                />
-                {getFieldError('companyName') && (
-                  <p className="mt-1 text-sm text-red-600">{getFieldError('companyName')?.message}</p>
-                )}
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Personal Number</label>
-                <input
-                  type="text"
-                  value={formData.personalNumber}
-                  onChange={(e) => updateField('personalNumber', e.target.value)}
-                  placeholder="YYYYMMDD-XXXX"
-                  className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    getFieldError('personalNumber') ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {getFieldError('personalNumber') && (
-                  <p className="mt-1 text-sm text-red-600">{getFieldError('personalNumber')?.message}</p>
-                )}
-              </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                rows={4}
+                value={formData.description}
+                onChange={(e) => updateField('description', e.target.value)}
+                placeholder="Describe your product..."
+                className="w-full px-3 py-2 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
+              />
             </div>
-          )}
+          </div>
         </Card>
 
-        {/* Contact Details */}
+        {/* Pricing */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">General Contact Details</Heading>
-          <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
+          <Heading level={3} className="mb-3">Pricing</Heading>
+          <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-4 md:gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
               <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => updateField('email', e.target.value)}
+                inputMode="decimal"
+                type="text"
+                value={String(formData.priceAmount)}
+                onChange={(e) => updateNumber('priceAmount', e.target.value)}
+                placeholder="0.00"
                 className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  getFieldError('email') ? 'border-yellow-500' : 'border-gray-300'
+                  getFieldError('priceAmount') ? 'border-red-500' : 'border-gray-300'
+                }`}
+                required
+              />
+              {getFieldError('priceAmount') && (
+                <p className="mt-1 text-sm text-red-600">{getFieldError('priceAmount')?.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+              <select
+                value={formData.currency}
+                onChange={(e) => updateField('currency', e.target.value)}
+                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="SEK">SEK</option>
+                <option value="EUR">EUR</option>
+                <option value="USD">USD</option>
+                <option value="NOK">NOK</option>
+                <option value="DKK">DKK</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">VAT rate (%)</label>
+              <input
+                inputMode="decimal"
+                type="text"
+                value={String(formData.vatRate)}
+                onChange={(e) => updateNumber('vatRate', e.target.value)}
+                placeholder="25"
+                className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  getFieldError('vatRate') ? 'border-red-500' : 'border-gray-300'
+                }`}
+                required
+              />
+              {getFieldError('vatRate') && (
+                <p className="mt-1 text-sm text-red-600">{getFieldError('vatRate')?.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+              <input
+                inputMode="numeric"
+                type="text"
+                value={String(formData.quantity)}
+                onChange={(e) => updateNumber('quantity', e.target.value)}
+                placeholder="0"
+                className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  getFieldError('quantity') ? 'border-red-500' : 'border-gray-300'
+                }`}
+                required
+              />
+              {getFieldError('quantity') && (
+                <p className="mt-1 text-sm text-red-600">{getFieldError('quantity')?.message}</p>
+              )}
+            </div>
+          </div>
+        </Card>
+
+        {/* Media */}
+        <Card padding="sm" className="shadow-none px-0">
+          <Heading level={3} className="mb-3">Media</Heading>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Main image URL</label>
+              <input
+                type="url"
+                value={formData.mainImage}
+                onChange={(e) => updateField('mainImage', e.target.value)}
+                placeholder="https://…"
+                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Add image URL</label>
+                  <input
+                    type="url"
+                    value={newImage}
+                    onChange={(e) => setNewImage(e.target.value)}
+                    placeholder="https://…"
+                    className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <Button type="button" variant="secondary" icon={Plus} onClick={addImage}>Add</Button>
+              </div>
+
+              {formData.images.length > 0 && (
+                <ul className="mt-3 space-y-2">
+                  {formData.images.map((url, i) => (
+                    <li key={`${url}-${i}`} className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm">{url}</span>
+                      <Button type="button" size="sm" variant="danger" icon={Trash2} onClick={() => removeImage(i)} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </Card>
+
+        {/* Classification */}
+        <Card padding="sm" className="shadow-none px-0">
+          <Heading level={3} className="mb-3">Classification</Heading>
+          <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-3 md:gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+              <input
+                type="text"
+                value={formData.brand}
+                onChange={(e) => updateField('brand', e.target.value)}
+                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">GTIN</label>
+              <input
+                type="text"
+                value={formData.gtin}
+                onChange={(e) => updateField('gtin', e.target.value)}
+                placeholder="EAN/UPC (8–14 digits)"
+                className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  getFieldError('gtin') ? 'border-yellow-500' : 'border-gray-300'
                 }`}
               />
-              {getFieldError('email') && (
-                <p className={`mt-1 text-sm ${getFieldError('email')?.message.includes('Warning') ? 'text-yellow-600' : 'text-red-600'}`}>
-                  {getFieldError('email')?.message}
+              {getFieldError('gtin') && (
+                <p className={`mt-1 text-sm ${getFieldError('gtin')?.message.includes('Warning') ? 'text-yellow-600' : 'text-red-600'}`}>
+                  {getFieldError('gtin')?.message}
                 </p>
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-              <input
-                type="url"
-                value={formData.website}
-                onChange={(e) => updateField('website', e.target.value)}
-                placeholder="https://"
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone 1</label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => updateField('phone', e.target.value)}
-                placeholder="+46 70 123 45 67"
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone 2</label>
-              <input
-                type="tel"
-                value={formData.phone2}
-                onChange={(e) => updateField('phone2', e.target.value)}
-                placeholder="+46 8 123 456 78"
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-        </Card>
-
-        {/* Addresses */}
-        <Card padding="sm" className="shadow-none px-0">
-          <div className="flex items-center justify-between mb-3">
-            <Heading level={3}>Addresses</Heading>
-            <Button type="button" onClick={addAddress} variant="secondary" icon={Plus} size="sm">
-              Add Address
-            </Button>
-          </div>
-
-          {formData.addresses.length === 0 ? (
-            <p className="text-gray-500 text-sm">No addresses added yet.</p>
-          ) : (
-            <div className="space-y-4">
-              {formData.addresses.map((address, index) => (
-                <div key={address.id} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-gray-700">Address {index + 1}</span>
-                    <Button type="button" onClick={() => removeAddress(address.id)} variant="danger" icon={Trash2} size="sm" />
-                  </div>
-
-                  <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Address Type</label>
-                      <select
-                        value={address.type}
-                        onChange={(e) => updateAddress(address.id, 'type', e.target.value)}
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="Main Office">Main Office</option>
-                        <option value="Billing Address">Billing Address</option>
-                        <option value="Shipping Address">Shipping Address</option>
-                        <option value="Branch Office">Branch Office</option>
-                        <option value="Home Address">Home Address</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email for this address</label>
-                      <input
-                        type="email"
-                        value={address.email}
-                        onChange={(e) => updateAddress(address.id, 'email', e.target.value)}
-                        placeholder="contact@company.com"
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
-                      <input
-                        type="text"
-                        value={address.addressLine1}
-                        onChange={(e) => updateAddress(address.id, 'addressLine1', e.target.value)}
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
-                      <input
-                        type="text"
-                        value={address.addressLine2}
-                        onChange={(e) => updateAddress(address.id, 'addressLine2', e.target.value)}
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
-                      <input
-                        type="text"
-                        value={address.postalCode}
-                        onChange={(e) => updateAddress(address.id, 'postalCode', e.target.value)}
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                      <input
-                        type="text"
-                        value={address.city}
-                        onChange={(e) => updateAddress(address.id, 'city', e.target.value)}
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Region</label>
-                      <input
-                        type="text"
-                        value={address.region}
-                        onChange={(e) => updateAddress(address.id, 'region', e.target.value)}
-                        placeholder="e.g. Skåne"
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-                      <select
-                        value={address.country}
-                        onChange={(e) => updateAddress(address.id, 'country', e.target.value)}
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="Sweden">Sweden</option>
-                        <option value="Norway">Norway</option>
-                        <option value="Denmark">Denmark</option>
-                        <option value="Finland">Finland</option>
-                      </select>
-                    </div>
-                  </div>
+            <div className="md:col-span-3">
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Add category</label>
+                  <input
+                    type="text"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    placeholder="e.g. Accessories"
+                    className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
                 </div>
-              ))}
-            </div>
-          )}
-        </Card>
+                <Button type="button" variant="secondary" icon={Plus} onClick={addCategory}>Add</Button>
+              </div>
 
-        {/* Notes */}
-        <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">Notes</Heading>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => updateField('notes', e.target.value)}
-              rows={4}
-              placeholder="Add any additional notes about this product..."
-              className="w-full px-3 py-2 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
-            />
+              {formData.categories.length > 0 && (
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {formData.categories.map((c, i) => (
+                    <li key={`${c}-${i}`} className="flex items-center gap-2 px-2 py-1 rounded-full border text-sm">
+                      <span>{c}</span>
+                      <button type="button" onClick={() => removeCategory(i)} aria-label={`Remove ${c}`}>
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </Card>
       </form>

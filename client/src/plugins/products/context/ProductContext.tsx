@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Product, ValidationError } from '../types/products'; // TEMP: will migrate to ../types/products
+import { Product, ValidationError } from '../types/products';
 import { productsApi } from '../api/productsApi';
 import { useApp } from '@/core/api/AppContext';
-
 
 interface ProductContextType {
   isProductPanelOpen: boolean;
@@ -57,7 +56,7 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Global form actions (plural naming)
+  // Global form actions (plural naming) - kept for keyboard/guard integration
   useEffect(() => {
     (window as any).submitProductsForm = () => {
       const event = new CustomEvent('submitProductForm');
@@ -78,8 +77,8 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
       const data = await productsApi.getProducts();
       const transformed = data.map((item: any) => ({
         ...item,
-        createdAt: new Date(item.createdAt),
-        updatedAt: new Date(item.updatedAt),
+        createdAt: item.createdAt ? new Date(item.createdAt) : null,
+        updatedAt: item.updatedAt ? new Date(item.updatedAt) : null,
       }));
       setProducts(transformed);
     } catch (error) {
@@ -87,32 +86,75 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     }
   };
 
-  // TEMP: keep contact-number generator logic until we define real product fields
+  // Generate next product number (numeric, zero-padded) with legacy fallback support
   const generateNextProductNumber = (): string => {
-    const existingNumbers = products.map((p: any) => parseInt(p.contactNumber) || 0);
+    const toNum = (val: any) => {
+      if (!val) return 0;
+      const s = String(val);
+      // take trailing number if present, else parseInt
+      const m = s.match(/(\d+)\s*$/);
+      return m ? parseInt(m[1], 10) : parseInt(s, 10) || 0;
+    };
+    const existingNumbers = products.map((p: any) =>
+      toNum(p.productNumber ?? p.contactNumber)
+    );
     const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
-    return (maxNumber + 1).toString().padStart(2, '0');
+    return String(maxNumber + 1).padStart(2, '0'); // e.g. "01", "02", …
   };
 
-  // TEMP: validation structure; field names will be updated later
+  // MVP validation (no legacy fields)
   const validateProduct = (data: any): ValidationError[] => {
     const errors: ValidationError[] = [];
-    if (!data.contactNumber?.trim()) {
-      errors.push({ field: 'contactNumber', message: 'Contact number is required' });
+
+    const add = (field: string, message: string) => errors.push({ field, message });
+    const isFiniteNumber = (n: any) => typeof n === 'number' && Number.isFinite(n);
+
+    // Required
+    if (!data.title?.trim()) add('title', 'Title is required');
+    if (!data.status || !['for sale', 'draft', 'archived'].includes(String(data.status))) {
+      add('status', 'Status must be one of: for sale, draft, archived');
+    }
+
+    // Numbers
+    if (!isFiniteNumber(data.quantity) || data.quantity < 0 || !Number.isInteger(data.quantity)) {
+      add('quantity', 'Quantity must be a non-negative integer');
+    }
+    if (!isFiniteNumber(data.priceAmount) || data.priceAmount < 0) {
+      add('priceAmount', 'Price must be a non-negative number');
+    }
+    if (!isFiniteNumber(data.vatRate) || data.vatRate < 0 || data.vatRate > 50) {
+      add('vatRate', 'VAT rate must be between 0 and 50');
+    }
+
+    // Currency
+    if (!data.currency?.trim()) {
+      add('currency', 'Currency is required');
     } else {
-      const existing = (products as any).find((p: any) =>
-        p.id !== currentProduct?.id && p.contactNumber === data.contactNumber.trim()
+      const c = String(data.currency).toUpperCase();
+      if (!/^[A-Z]{3}$/.test(c)) add('currency', 'Currency must be a 3-letter code (e.g., SEK)');
+    }
+
+    // Uniqueness (scoped to current user list we have in memory)
+    if (data.productNumber?.trim()) {
+      const pn = data.productNumber.trim();
+      const clash = (products as any).find((p: any) =>
+        p.id !== currentProduct?.id && String(p.productNumber ?? p.contactNumber) === pn
       );
-      if (existing) {
-        errors.push({
-          field: 'contactNumber',
-          message: `Contact number "${data.contactNumber}" already exists for "${existing.companyName}"`
-        });
-      }
+      if (clash) add('productNumber', `Product number "${pn}" already exists (used by "${clash.title ?? clash.companyName ?? 'another product'}")`);
     }
-    if (!data.companyName?.trim()) {
-      errors.push({ field: 'companyName', message: data.contactType === 'company' ? 'Company name is required' : 'Full name is required' });
+    if (data.sku?.trim()) {
+      const sku = data.sku.trim();
+      const clash = (products as any).find((p: any) =>
+        p.id !== currentProduct?.id && String(p.sku || '') === sku
+      );
+      if (clash) add('sku', `SKU "${sku}" already exists (used by "${clash.title ?? clash.companyName ?? 'another product'}")`);
     }
+
+    // GTIN soft warning (format only, not blocking)
+    if (data.gtin?.trim() && !/^\d{8,14}$/.test(String(data.gtin).trim())) {
+      errors.push({ field: 'gtin', message: 'Warning: GTIN should be 8–14 digits' });
+    }
+
     return errors;
   };
 
@@ -150,10 +192,28 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
 
   const clearValidationErrors = () => setValidationErrors([]);
 
-  const saveProduct = async (data: any): Promise<boolean> => {
-    // TEMP: auto-number until proper product schema is defined
-    if (!currentProduct && !data.contactNumber?.trim()) {
-      data.contactNumber = generateNextProductNumber();
+  const saveProduct = async (raw: any): Promise<boolean> => {
+    const data = {
+      // Only send MVP fields; backend still tolerates legacy if present
+      productNumber: (raw.productNumber ?? '').trim(),
+      title: (raw.title ?? '').trim(),
+      status: raw.status,
+      quantity: Number(raw.quantity ?? 0),
+      priceAmount: Number(raw.priceAmount ?? 0),
+      currency: (raw.currency ?? 'SEK').toUpperCase(),
+      vatRate: Number(raw.vatRate ?? 25),
+      sku: (raw.sku ?? '').trim(),
+      description: raw.description ?? '',
+      mainImage: raw.mainImage ?? '',
+      images: Array.isArray(raw.images) ? raw.images : [],
+      categories: Array.isArray(raw.categories) ? raw.categories : [],
+      brand: (raw.brand ?? '').trim(),
+      gtin: (raw.gtin ?? '').trim(),
+    };
+
+    // Auto-generate productNumber on create if missing
+    if (!currentProduct && !data.productNumber) {
+      data.productNumber = generateNextProductNumber();
     }
 
     const errors = validateProduct(data);
@@ -164,15 +224,15 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     try {
       if (currentProduct) {
         const saved = await productsApi.updateProduct((currentProduct as any).id, data);
-        setProducts(prev => prev.map(p => (p.id === (currentProduct as any).id
-          ? { ...saved, createdAt: new Date(saved.createdAt), updatedAt: new Date(saved.updatedAt) }
-          : p)));
-        setCurrentProduct({ ...saved, createdAt: new Date(saved.createdAt), updatedAt: new Date(saved.updatedAt) } as any);
+        const normalized = { ...saved, createdAt: saved.createdAt ? new Date(saved.createdAt) : null, updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null };
+        setProducts(prev => prev.map(p => (p.id === (currentProduct as any).id ? normalized : p)));
+        setCurrentProduct(normalized as any);
         setPanelMode('view');
         setValidationErrors([]);
       } else {
         const saved = await productsApi.createProduct(data);
-        setProducts(prev => [...prev, { ...saved, createdAt: new Date(saved.createdAt), updatedAt: new Date(saved.updatedAt) }]);
+        const normalized = { ...saved, createdAt: saved.createdAt ? new Date(saved.createdAt) : null, updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null };
+        setProducts(prev => [...prev, normalized]);
         closeProductPanel();
       }
       return true;
