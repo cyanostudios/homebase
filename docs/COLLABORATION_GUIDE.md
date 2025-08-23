@@ -67,7 +67,7 @@ This guide documents proven patterns for effective technical collaboration with 
 **Key principles for plugin development:**
 
 **When Creating New Plugins:**
-1. **Copy Complete Templates** - Use contacts plugin as reference
+1. **Copy Complete Templates** - Use templates from `templates/` directory
 2. **Preserve All Functionality** - Never assume what can be removed
 3. **Test Integration** - Verify cross-plugin features work
 4. **One Component at a Time** - Update files systematically
@@ -75,9 +75,9 @@ This guide documents proven patterns for effective technical collaboration with 
 **Example Workflow:**
 ```
 ✅ GOOD:
-1. Create backend plugin structure (copy contacts template)
+1. Create backend plugin structure (copy templates/plugin-backend-template)
 2. Test backend API endpoints work
-3. Create frontend context (copy ContactContext pattern)
+3. Create frontend context (copy templates/plugin-frontend-template pattern)
 4. Update one component at a time
 5. Test keyboard navigation and responsive design
 
@@ -97,9 +97,9 @@ This guide documents proven patterns for effective technical collaboration with 
 **Example:**
 ```
 ✅ GOOD: 
-"I'll create updated ContactForm.tsx that uses useContacts hook"
+"I'll create updated MyPluginContext.tsx using the template pattern"
 [Creates complete artifact with all imports and functions]
-"Copy this file, test it works, then we'll update ContactList.tsx"
+"Copy this file, test it works, then we'll update MyPluginList.tsx"
 
 ❌ BAD:
 "Update your form components to use the new hooks and patterns"
@@ -198,8 +198,8 @@ Expected: {"status":"ok","timestamp":"..."}
 ### Plugin Development Workflow
 **Proven 15-25 minute pattern:**
 
-1. **Backend Plugin** (5 min) - Copy templates, customize data model
-2. **Frontend Context** (5 min) - Create isolated state management
+1. **Backend Plugin** (5 min) - Copy templates/plugin-backend-template, customize data model
+2. **Frontend Context** (5 min) - Copy templates/plugin-frontend-template, create isolated state management
 3. **UI Components** (8 min) - Build responsive components
 4. **Registration** (5 min) - Add to pluginRegistry.ts
 5. **Testing** (2 min) - Verify CRUD + keyboard navigation
@@ -207,7 +207,7 @@ Expected: {"status":"ok","timestamp":"..."}
 ### Code Quality Standards
 **Maintain high standards:**
 
-- Follow established component templates exactly
+- Follow established template patterns exactly
 - Maintain cross-plugin functionality where relevant
 - Include keyboard navigation support (required attributes)
 - Implement proper error handling and validation
@@ -258,7 +258,7 @@ Expected: {"status":"ok","timestamp":"..."}
 **Always provide complete context:**
 
 ❌ **Wrong:** "You can follow the standard React context pattern"
-✅ **Right:** "Here's the exact context template with all imports and error handling"
+✅ **Right:** "Here's the exact template pattern with all imports and error handling"
 
 ### Don't Use Incorrect Commands - CRITICAL
 **Terminal command accuracy is essential:**
@@ -280,9 +280,9 @@ Expected: {"status":"ok","timestamp":"..."}
 - **ZERO manual core updates** - Automated plugin integration system
 
 ### Key Files and Patterns
-- **Plugin Templates** - Use contacts plugin as reference
-- **Context Pattern** - ContactContext.tsx shows complete modular pattern with generic `panelMode`
-- **Component Standards** - ContactList/Form/View show responsive design
+- **Plugin Templates** - Use neutral templates from `templates/` directory
+- **Context Pattern** - templates/plugin-frontend-template shows complete modular pattern with generic `panelMode`
+- **Component Standards** - Template List/Form/View show responsive design
 - **Style Standards** - Follow STYLE_GUIDE.md patterns
 - **Global Functions** - Forms must implement plural-named global functions
 - **Automated Integration** - Plugin registry handles all core file updates
@@ -320,9 +320,9 @@ AI: "Step 1: Start frontend with `npx vite` from project root - What URL appears
 User: "Shows 'Local: http://localhost:3001/'"
 AI: "Perfect! Step 2: Start backend with `npm run dev` from same directory"
 User: "Shows 'Server running on port 3002'"
-AI: "Excellent! Now let's check plugin structure with `ls -la client/src/plugins/contacts/`"
+AI: "Excellent! Now let's check template structure with `ls -la templates/plugin-frontend-template/`"
 User: "Shows context/, hooks/, api/, components/, types/ directories"
-AI: "Great! Now let's copy the ContactContext.tsx pattern for your new plugin..."
+AI: "Great! Now let's copy the template pattern for your new plugin..."
 ```
 
 ### Bad Interaction Flow - CORRECTED
@@ -344,14 +344,14 @@ AI: "Perfect! The frontend is running correctly."
 ### Architecture Refactoring Flow
 ```
 ✅ GOOD:
-AI: "I'll create the complete EstimateContext.tsx using the ContactContext pattern"
+AI: "I'll create the complete MyPluginContext.tsx using the template pattern"
 User: "ok"
 AI: [Creates complete artifact with all functions and proper naming]
 User: "copied, works perfectly"
-AI: "Excellent! Now let's update EstimateForm.tsx to use useEstimates instead of useApp..."
+AI: "Excellent! Now let's update MyPluginForm.tsx to use the template pattern..."
 
 ❌ BAD:
-AI: "Refactor your estimate components to use modular contexts"
+AI: "Refactor your components to use modular contexts"
 User: "How exactly? What changes?"
 AI: "Update the imports and state management"
 User: "Which imports? How?"
@@ -403,7 +403,7 @@ Effective AI collaboration requires:
 6. **Accuracy** - Use correct terminal commands and file paths
 
 **For Homebase development:**
-- Use contacts plugin as template for all new plugins
+- Use neutral templates from `templates/` directory for all new plugins
 - Follow established modular context patterns with automated integration
 - Preserve cross-plugin functionality
 - Test keyboard navigation and responsive design
@@ -421,4 +421,4 @@ Effective AI collaboration requires:
 
 *Follow these patterns for efficient, accurate development workflows.*
 
-*Last Updated: August 2025 - Terminal commands corrected*
+*Last Updated: August 2025 - Updated with neutral templates*

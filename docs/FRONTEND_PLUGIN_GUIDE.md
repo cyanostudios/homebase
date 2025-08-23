@@ -6,7 +6,7 @@ Frontend plugins provide React contexts, UI components, and user interactions us
 
 **🎯 Key Achievement:** When conventions are followed exactly, NO manual updates needed to App.tsx, panelHandlers.ts, panelRendering.tsx, keyboardHandlers.ts, PanelTitles.tsx, or PanelFooter.tsx.
 
-**Template:** Copy `ContactContext.tsx` and contact components exactly.
+**Template:** Copy `templates/plugin-frontend-template` and customize exactly.
 
 ## 🎯 Automated Benefits
 
@@ -47,7 +47,27 @@ client/src/plugins/my-plugin/
 
 ## Step-by-Step Development
 
-### 1. TypeScript Types
+### 1. Copy Template Structure
+```bash
+# Copy frontend template
+cp -r templates/plugin-frontend-template client/src/plugins/my-plugin
+cd client/src/plugins/my-plugin
+
+# Rename template files to your plugin names
+mv context/TemplateContext.tsx context/MyPluginContext.tsx
+mv hooks/useYourItems.ts hooks/useMyPlugin.ts
+mv api/templateApi.ts api/myPluginApi.ts
+mv types/your-items.ts types/my-plugin.ts
+
+# Rename component files
+cd components
+mv YourItemList.tsx MyPluginList.tsx
+mv YourItemForm.tsx MyPluginForm.tsx  
+mv YourItemView.tsx MyPluginView.tsx
+cd ..
+```
+
+### 2. TypeScript Types
 **client/src/plugins/my-plugin/types/my-plugin.ts:**
 ```typescript
 export interface MyPluginItem {
@@ -64,7 +84,7 @@ export interface ValidationError {
 }
 ```
 
-### 2. API Layer
+### 3. API Layer
 **client/src/plugins/my-plugin/api/myPluginApi.ts:**
 ```typescript
 class MyPluginApi {
@@ -118,7 +138,7 @@ class MyPluginApi {
 export const myPluginApi = new MyPluginApi();
 ```
 
-### 3. Plugin Context (CRITICAL)
+### 4. Plugin Context (CRITICAL)
 **client/src/plugins/my-plugin/context/MyPluginContext.tsx:**
 ```typescript
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -364,7 +384,7 @@ export function useMyPluginContext() {
 }
 ```
 
-### 4. Plugin Hook
+### 5. Plugin Hook
 **client/src/plugins/my-plugin/hooks/useMyPlugin.ts:**
 ```typescript
 import { useMyPluginContext } from '../context/MyPluginContext';
@@ -374,399 +394,14 @@ export function useMyPlugin() {
 }
 ```
 
-### 5. List Component
-**client/src/plugins/my-plugin/components/MyPluginList.tsx:**
-```typescript
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, FileText } from 'lucide-react';
-import { Heading, Text } from '@/core/ui/Typography';
-import { Button } from '@/core/ui/Button';
-import { useMyPlugin } from '../hooks/useMyPlugin';
+### 6. List Component
+Update naming in `templates/plugin-frontend-template/components/YourItemList.tsx` to match your domain and copy the responsive patterns with keyboard navigation attributes.
 
-export const MyPluginList: React.FC = () => {
-  const { 
-    myPluginItems, 
-    openMyPluginPanel, 
-    openMyPluginForView 
-  } = useMyPlugin();
-  
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isMobileView, setIsMobileView] = useState(false);
+### 7. Form Component
+Update naming in `templates/plugin-frontend-template/components/YourItemForm.tsx` to include global function listeners and validation patterns.
 
-  useEffect(() => {
-    const checkScreenSize = () => setIsMobileView(window.innerWidth < 768);
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-
-  const filteredItems = myPluginItems.filter(item =>
-    item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.content.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  if (isMobileView) {
-    // Mobile card layout
-    return (
-      <div className="p-4">
-        {/* Header */}
-        <div className="mb-6">
-          <Heading level={1}>My Plugin Items</Heading>
-          <Text variant="caption">Manage your plugin items</Text>
-        </div>
-
-        {/* Search and Add */}
-        <div className="space-y-4 mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Search items..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <Button
-            onClick={() => openMyPluginPanel(null)}
-            variant="primary"
-            icon={Plus}
-            className="w-full"
-          >
-            Add Item
-          </Button>
-        </div>
-
-        {/* Items */}
-        <div className="space-y-3">
-          {filteredItems.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              {searchTerm ? 'No items found matching your search.' : 'No items yet. Click "Add Item" to get started.'}
-            </div>
-          ) : (
-            filteredItems.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white p-4 rounded-lg border hover:bg-gray-50 cursor-pointer"
-                onClick={() => openMyPluginForView(item)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText className="w-4 h-4 text-blue-500" />
-                      <h3 className="text-sm font-medium text-gray-900 truncate">
-                        {item.title}
-                      </h3>
-                    </div>
-                    <p className="text-sm text-gray-600 line-clamp-2">
-                      {item.content}
-                    </p>
-                    <div className="text-xs text-gray-500 mt-2">
-                      {new Date(item.updatedAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Desktop table layout
-  return (
-    <div className="p-4 sm:p-8">
-      {/* Header */}
-      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <Heading level={1}>My Plugin Items</Heading>
-          <Text variant="caption">Manage your plugin items</Text>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Search items..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <Button
-            onClick={() => openMyPluginPanel(null)}
-            variant="primary"
-            icon={Plus}
-          >
-            Add Item
-          </Button>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Title
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Content
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Updated
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredItems.length === 0 ? (
-              <tr>
-                <td colSpan={3} className="px-6 py-12 text-center text-gray-400">
-                  {searchTerm ? 'No items found matching your search.' : 'No items yet. Click "Add Item" to get started.'}
-                </td>
-              </tr>
-            ) : (
-              filteredItems.map((item, idx) => (
-                <tr 
-                  key={item.id} 
-                  className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer`}
-                  tabIndex={0}
-                  data-list-item={JSON.stringify(item)}
-                  data-plugin-name="my-plugins"
-                  role="button"
-                  aria-label={`Open item ${item.title}`}
-                  onClick={() => openMyPluginForView(item)}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-blue-500" />
-                      <div className="text-sm font-medium text-gray-900">{item.title}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-600 max-w-xs line-clamp-2">
-                      {item.content.substring(0, 100)}...
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">
-                      {new Date(item.updatedAt).toLocaleDateString()}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
-```
-
-### 6. Form Component
-**client/src/plugins/my-plugin/components/MyPluginForm.tsx:**
-```typescript
-import React, { useState, useEffect, useCallback } from 'react';
-import { Heading } from '@/core/ui/Typography';
-import { Card } from '@/core/ui/Card';
-import { useMyPlugin } from '../hooks/useMyPlugin';
-
-interface MyPluginFormProps {
-  currentMyPlugin?: MyPluginItem;  // Plugin-specific prop
-  currentItem?: any;               // Generic fallback prop
-  onSave: (data: any) => void;
-  onCancel: () => void;
-  isSubmitting?: boolean;
-}
-
-export const MyPluginForm: React.FC<MyPluginFormProps> = ({ 
-  currentMyPlugin,
-  currentItem, 
-  onSave, 
-  onCancel, 
-  isSubmitting = false 
-}) => {
-  const { validationErrors, clearValidationErrors } = useMyPlugin();
-  
-  // Support both prop types for automated system
-  const actualItem = currentMyPlugin || currentItem;
-  
-  const [formData, setFormData] = useState({
-    title: '',
-    content: '',
-  });
-
-  // Load actualItem data when editing
-  useEffect(() => {
-    if (actualItem) {
-      setFormData({
-        title: actualItem.title || '',
-        content: actualItem.content || '',
-      });
-    } else {
-      setFormData({
-        title: '',
-        content: '',
-      });
-    }
-  }, [actualItem]);
-
-  const handleSubmit = useCallback(async () => {
-    const success = await onSave(formData);
-    if (success && !actualItem) {
-      setFormData({ title: '', content: '' });
-    }
-  }, [formData, onSave, actualItem]);
-
-  const handleCancel = useCallback(() => {
-    onCancel();
-  }, [onCancel]);
-
-  // CRITICAL: Global functions for UniversalPanel footer
-  useEffect(() => {
-    window.submitMyPluginForm = handleSubmit;
-    window.cancelMyPluginForm = handleCancel;
-
-    return () => {
-      delete window.submitMyPluginForm;
-      delete window.cancelMyPluginForm;
-    };
-  }, [handleSubmit, handleCancel]);
-
-  // Listen for global form events
-  useEffect(() => {
-    const handleSubmitEvent = () => handleSubmit();
-    const handleCancelEvent = () => handleCancel();
-
-    window.addEventListener('submitMyPluginForm', handleSubmitEvent);
-    window.addEventListener('cancelMyPluginForm', handleCancelEvent);
-
-    return () => {
-      window.removeEventListener('submitMyPluginForm', handleSubmitEvent);
-      window.removeEventListener('cancelMyPluginForm', handleCancelEvent);
-    };
-  }, [handleSubmit, handleCancel]);
-
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    clearValidationErrors();
-  };
-
-  const getFieldError = (fieldName: string) => {
-    return validationErrors.find(error => error.field === fieldName);
-  };
-
-  return (
-    <div className="space-y-6">
-      <Card padding="lg" className="shadow-none">
-        <Heading level={3} className="mb-4 text-lg font-semibold text-gray-900">
-          {actualItem ? 'Edit Item' : 'Create New Item'}
-        </Heading>
-
-        <div className="space-y-4">
-          {/* Title Field */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Title *
-            </label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => handleInputChange('title', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                getFieldError('title') ? 'border-red-500' : 'border-gray-300'
-              }`}
-              required
-            />
-            {getFieldError('title') && (
-              <p className="mt-1 text-sm text-red-600">{getFieldError('title')?.message}</p>
-            )}
-          </div>
-
-          {/* Content Field */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Content *
-            </label>
-            <textarea
-              value={formData.content}
-              onChange={(e) => handleInputChange('content', e.target.value)}
-              rows={6}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                getFieldError('content') ? 'border-red-500' : 'border-gray-300'
-              }`}
-              required
-            />
-            {getFieldError('content') && (
-              <p className="mt-1 text-sm text-red-600">{getFieldError('content')?.message}</p>
-            )}
-          </div>
-
-          {/* General Errors */}
-          {getFieldError('general') && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-600">{getFieldError('general')?.message}</p>
-            </div>
-          )}
-        </div>
-      </Card>
-    </div>
-  );
-};
-```
-
-### 7. View Component
-**client/src/plugins/my-plugin/components/MyPluginView.tsx:**
-```typescript
-import React from 'react';
-import { FileText } from 'lucide-react';
-import { Heading } from '@/core/ui/Typography';
-import { Card } from '@/core/ui/Card';
-
-interface MyPluginViewProps {
-  myPlugin?: MyPluginItem;  // Plugin-specific prop
-  item?: any;               // Generic fallback prop
-}
-
-export const MyPluginView: React.FC<MyPluginViewProps> = ({ 
-  myPlugin,    // Plugin-specific prop
-  item         // Generic fallback
-}) => {
-  const actualItem = myPlugin || item;  // Support both prop types
-  
-  if (!actualItem) return null;
-
-  return (
-    <div className="space-y-4">
-      {/* Content */}
-      <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Content</Heading>
-        <div className="text-sm text-gray-900 whitespace-pre-wrap">{actualItem.content}</div>
-      </Card>
-
-      <hr className="border-gray-100" />
-
-      {/* Metadata */}
-      <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Information</Heading>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <div className="text-xs text-gray-500">Created</div>
-            <div className="text-sm text-gray-900">{new Date(actualItem.createdAt).toLocaleDateString()}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500">Last Updated</div>
-            <div className="text-sm text-gray-900">{new Date(actualItem.updatedAt).toLocaleDateString()}</div>
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
-};
-```
+### 8. View Component
+Update naming in `templates/plugin-frontend-template/components/YourItemView.tsx` to support both plugin-specific and generic props for automated system compatibility.
 
 ## Registration in Plugin Registry
 

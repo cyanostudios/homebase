@@ -6,7 +6,7 @@ Create complete plugins with CRUD functionality, responsive UI, and keyboard nav
 
 **🎯 Key Achievement:** **ZERO manual core file updates** required when following standardized conventions.
 
-**Reference:** Use `contacts` plugin as template - demonstrates all patterns correctly.
+**Reference:** Use neutral templates from `templates/` directory - demonstrates all patterns correctly.
 
 ## 🚀 Automated Benefits
 
@@ -33,13 +33,17 @@ When conventions are followed exactly, these files **automatically support your 
 
 ### 1. Backend (5 minutes)
 ```bash
-mkdir -p plugins/my-plugin
-# Copy all files from plugins/contacts/ and customize
+# Copy backend template
+cp -r templates/plugin-backend-template plugins/my-plugin
+cd plugins/my-plugin
+# Update plugin.config.js (name, routeBase)
+# Set table/columns in model.js
+# Keep structure (model/controller/routes/config)
 ```
 [→ See BACKEND_PLUGIN_GUIDE.md for details]
 
 ### 2. Frontend Context (5 minutes) 
-Copy `ContactContext.tsx` and customize with **UPDATED CONVENTIONS**:
+Copy `templates/plugin-frontend-template` and customize with **UPDATED CONVENTIONS**:
 - Panel registration system
 - Global form functions (plural naming)
 - **Generic `panelMode`** (not plugin-specific)
@@ -81,23 +85,15 @@ Instead of manually copying files one by one, use these terminal commands to qui
 # Navigate to plugins directory
 cd plugins
 
-# Copy contacts plugin and rename to your new plugin
-cp -r contacts my-plugin
+# Copy backend template and rename to your new plugin
+cp -r ../templates/plugin-backend-template my-plugin
 
-# Rename all files to match new plugin (optional but recommended)
+# Navigate to new plugin directory
 cd my-plugin
-for file in *contact*; do
-    if [[ -f "$file" ]]; then
-        mv "$file" "${file//contact/myplugin}"
-    fi
-done
 
-# Clear file contents (keep structure, empty implementation)
-> plugin.config.js
-> model.js  
-> controller.js
-> routes.js
-> index.js
+# Update plugin.config.js with your plugin name and route
+# Set table/columns in model.js
+# Customize controller logic for your domain
 
 # Return to project root
 cd ../..
@@ -108,31 +104,27 @@ cd ../..
 # Navigate to frontend plugins directory
 cd client/src/plugins
 
-# Copy contacts plugin structure
-cp -r contacts my-plugin
+# Copy frontend template structure
+cp -r ../../../templates/plugin-frontend-template my-plugin
 
-# Rename contact-specific files
+# Navigate to new plugin directory
 cd my-plugin
-mv types/contacts.ts types/my-plugin.ts
-mv context/ContactContext.tsx context/MyPluginContext.tsx
-mv hooks/useContacts.ts hooks/useMyPlugin.ts
-mv api/contactsApi.ts api/myPluginApi.ts
+
+# Rename template files to your plugin names
+mv context/TemplateContext.tsx context/MyPluginContext.tsx
+mv hooks/useYourItems.ts hooks/useMyPlugin.ts
+mv api/templateApi.ts api/myPluginApi.ts
+mv types/your-items.ts types/my-plugin.ts
 
 # Rename component files
 cd components
-mv ContactList.tsx MyPluginList.tsx
-mv ContactForm.tsx MyPluginForm.tsx  
-mv ContactView.tsx MyPluginView.tsx
+mv YourItemList.tsx MyPluginList.tsx
+mv YourItemForm.tsx MyPluginForm.tsx  
+mv YourItemView.tsx MyPluginView.tsx
 cd ..
 
-# Clear all file contents (keep structure)
-> types/my-plugin.ts
-> context/MyPluginContext.tsx
-> hooks/useMyPlugin.ts
-> api/myPluginApi.ts
-> components/MyPluginList.tsx
-> components/MyPluginForm.tsx
-> components/MyPluginView.tsx
+# Update imports and naming in all files to match your domain
+# Point TemplateApi to correct /api/<name>
 
 # Return to project root
 cd ../../../..
@@ -150,37 +142,28 @@ echo "Creating plugin: $PLUGIN_NAME"
 
 # Backend
 cd plugins
-cp -r contacts $PLUGIN_NAME
+cp -r ../templates/plugin-backend-template $PLUGIN_NAME
 cd $PLUGIN_NAME
-> plugin.config.js
-> model.js
-> controller.js  
-> routes.js
-> index.js
+# Update plugin.config.js with name: '$PLUGIN_NAME', routeBase: '/api/$PLUGIN_NAME'
+# Set table/columns in model.js
 cd ../..
 
 # Frontend
 cd client/src/plugins
-cp -r contacts $PLUGIN_NAME
+cp -r ../../../templates/plugin-frontend-template $PLUGIN_NAME
 cd $PLUGIN_NAME
 
 # Rename files
-mv types/contacts.ts types/$PLUGIN_NAME.ts
-mv context/ContactContext.tsx context/${PLUGIN_CAMEL}Context.tsx
-mv hooks/useContacts.ts hooks/use${PLUGIN_CAMEL}.ts
-mv api/contactsApi.ts api/${PLUGIN_NAME}Api.ts
-mv components/ContactList.tsx components/${PLUGIN_CAMEL}List.tsx
-mv components/ContactForm.tsx components/${PLUGIN_CAMEL}Form.tsx
-mv components/ContactView.tsx components/${PLUGIN_CAMEL}View.tsx
+mv context/TemplateContext.tsx context/${PLUGIN_CAMEL}Context.tsx
+mv hooks/useYourItems.ts hooks/use${PLUGIN_CAMEL}.ts
+mv api/templateApi.ts api/${PLUGIN_NAME}Api.ts
+mv types/your-items.ts types/$PLUGIN_NAME.ts
+mv components/YourItemList.tsx components/${PLUGIN_CAMEL}List.tsx
+mv components/YourItemForm.tsx components/${PLUGIN_CAMEL}Form.tsx
+mv components/YourItemView.tsx components/${PLUGIN_CAMEL}View.tsx
 
-# Clear contents
-> types/$PLUGIN_NAME.ts
-> context/${PLUGIN_CAMEL}Context.tsx
-> hooks/use${PLUGIN_CAMEL}.ts
-> api/${PLUGIN_NAME}Api.ts
-> components/${PLUGIN_CAMEL}List.tsx
-> components/${PLUGIN_CAMEL}Form.tsx
-> components/${PLUGIN_CAMEL}View.tsx
+# Update naming in TemplateContext/hook/types/components to domain name
+# Point TemplateApi to /api/$PLUGIN_NAME
 
 cd ../../../..
 
@@ -356,16 +339,17 @@ window.submitMyPluginsForm = handleSubmit;
 ## Files to Copy
 
 **Backend Templates:**
-- Copy entire `plugins/contacts/` directory
-- Customize model, controller, routes
-- Update plugin.config.js with new plugin name
+- Copy entire `templates/plugin-backend-template` directory
+- Update plugin.config.js (name, routeBase)
+- Set table/columns in model.js
+- Keep structure (model/controller/routes/config)
 
 **Frontend Templates:**
-- **Context:** Copy `ContactContext.tsx` structure (UPDATE to generic panelMode)
-- **Components:** Copy `ContactList.tsx`, `ContactForm.tsx`, `ContactView.tsx`
-- **Types:** Copy `types/contacts.ts` structure
-- **API:** Copy `api/contactsApi.ts` structure
-- **Hook:** Copy `hooks/useContacts.ts` structure
+- **Context:** Copy `templates/plugin-frontend-template/context/TemplateContext.tsx` structure (UPDATE to generic panelMode)
+- **Components:** Copy `YourItemList.tsx`, `YourItemForm.tsx`, `YourItemView.tsx`
+- **Types:** Copy `types/your-items.ts` structure
+- **API:** Copy `api/templateApi.ts` structure and point to correct /api/<name>
+- **Hook:** Copy `hooks/useYourItems.ts` structure
 
 ## Plugin Registry Integration
 

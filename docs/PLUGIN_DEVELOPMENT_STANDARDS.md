@@ -213,8 +213,8 @@ When these conventions are followed exactly:
 - Mobile-responsive rendering
 
 ### **✅ Development Speed**
-- **5 minutes:** Backend plugin (copy contacts template)
-- **10 minutes:** Frontend context (follow exact pattern)
+- **5 minutes:** Backend plugin (copy templates/plugin-backend-template)
+- **10 minutes:** Frontend context (follow exact pattern from templates/plugin-frontend-template)
 - **8 minutes:** UI components (copy and customize)
 - **2 minutes:** Registration and testing
 - **Total: 15-25 minutes** (verified across all current plugins)
@@ -270,22 +270,23 @@ interface MyPluginViewProps {
 ## 📋 DEVELOPMENT CHECKLIST
 
 ### **Backend Setup (5 minutes)**
-- [ ] Copy entire `plugins/contacts/` directory
-- [ ] Rename files and functions to match your plugin
-- [ ] Update database schema if needed
+- [ ] Copy entire `templates/plugin-backend-template/` directory
+- [ ] Update plugin.config.js (name, routeBase)
+- [ ] Set table/columns in model.js
+- [ ] Keep structure (model/controller/routes/config)
 - [ ] Test API endpoints
 
 ### **Frontend Context (10 minutes)**
-- [ ] Copy `ContactContext.tsx` structure exactly
+- [ ] Copy `templates/plugin-frontend-template/` structure exactly
 - [ ] Update interface with correct naming conventions
 - [ ] Implement all required functions
 - [ ] Add panel registration and global functions
 - [ ] Test context functions
 
 ### **UI Components (8 minutes)**
-- [ ] Copy `ContactList.tsx` - add keyboard navigation attributes
-- [ ] Copy `ContactForm.tsx` - add global function event listeners  
-- [ ] Copy `ContactView.tsx` - support both prop types
+- [ ] Copy template List component - add keyboard navigation attributes
+- [ ] Copy template Form component - add global function event listeners  
+- [ ] Copy template View component - support both prop types
 - [ ] Test responsive design and keyboard navigation
 
 ### **Registration (2 minutes)**
@@ -313,10 +314,11 @@ interface MyPluginViewProps {
 ## 🔄 MAINTENANCE
 
 ### **Adding New Plugins**
-1. Follow this guide exactly
-2. Add to plugin registry
-3. Test integration
-4. **No core file changes needed**
+1. Copy templates from `templates/` directory
+2. Follow naming conventions exactly
+3. Add to plugin registry
+4. Test integration
+5. **No core file changes needed**
 
 ### **Updating Existing Plugins**
 1. Verify current naming conventions

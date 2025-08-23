@@ -4,7 +4,7 @@
 
 Backend plugins provide database operations, API routes, and business logic. Development time: **5 minutes** using templates.
 
-**Template:** Copy entire `plugins/contacts/` directory and customize.
+**Template:** Copy entire `templates/plugin-backend-template/` directory and customize.
 
 ## Plugin Structure
 
@@ -21,10 +21,9 @@ plugins/my-plugin/
 
 ### 1. Create Plugin Structure
 ```bash
-mkdir -p plugins/my-plugin
+# Copy backend template
+cp -r templates/plugin-backend-template plugins/my-plugin
 cd plugins/my-plugin
-# Copy all files from plugins/contacts/
-cp -r ../contacts/* .
 ```
 
 ### 2. Plugin Configuration
@@ -369,4 +368,4 @@ SELECT * FROM user_plugin_access WHERE plugin_name = 'my-plugin';
 **Security:** Production-grade authentication and validation  
 **Performance:** Optimized queries with proper indexing  
 
-*Copy contacts plugin structure for fastest development.*
+*Copy `templates/plugin-backend-template` structure for fastest development.*

@@ -68,7 +68,7 @@ Homebase is a revolutionary modular plugin-based business application. The syste
 - Triple-check impact
 
 ### 3. TEMPLATE-ONLY DEVELOPMENT
-- **USE CONTACTS PLUGIN** as template for ALL new plugins
+- **USE NEUTRAL TEMPLATES** from `templates/` directory for ALL new plugins
 - **COPY COMPLETE IMPLEMENTATIONS** - no variations
 - **FOLLOW DOCS EXACTLY** - no improvisation
 
@@ -85,7 +85,7 @@ Format: "Step X: [Specific action] - What result do you get?"
 - Get to the point
 
 ### PLUGIN DEVELOPMENT STANDARDS
-- Use contacts plugin as template - demonstrates ALL patterns
+- Use neutral templates from `templates/` directory - demonstrates ALL patterns
 - Follow guides exactly - tested in development
 - Copy complete templates - backend/frontend available
 - Test each step before proceeding
@@ -103,9 +103,9 @@ Format: "Step X: [Specific action] - What result do you get?"
 ```
 plugins/[name]/
 ├── plugin.config.js    # Plugin metadata and routing
-├── model.js           # Database operations (copy from contacts)
-├── controller.js      # Business logic (copy from contacts)
-├── routes.js          # Express routes (copy from contacts)
+├── model.js           # Database operations (copy from templates)
+├── controller.js      # Business logic (copy from templates)
+├── routes.js          # Express routes (copy from templates)
 └── index.js          # Plugin initialization
 ```
 
@@ -113,7 +113,7 @@ plugins/[name]/
 ```
 client/src/plugins/[name]/
 ├── types/[name].ts           # TypeScript interfaces
-├── context/[Name]Context.tsx # CRITICAL: Copy ContactContext pattern exactly
+├── context/[Name]Context.tsx # CRITICAL: Copy template pattern exactly
 ├── hooks/use[Name].ts        # Plugin-specific hook
 ├── api/[name]Api.ts          # Isolated API calls
 └── components/               # Responsive React components
@@ -138,10 +138,10 @@ Terminal 3: git, commands, testing              # General commands
 ```
 
 ### Plugin Development Process (Tested Pattern)
-1. **Create Backend Plugin** (5 min) - Copy contacts template exactly
+1. **Create Backend Plugin** (5 min) - Copy templates/plugin-backend-template exactly
 2. **Test Backend API** (2 min) - Verify endpoints work with curl
-3. **Create Frontend Context** (5 min) - Copy ContactContext pattern exactly
-4. **Build UI Components** (8 min) - Copy ContactList/Form/View patterns
+3. **Create Frontend Context** (5 min) - Copy templates/plugin-frontend-template pattern exactly
+4. **Build UI Components** (8 min) - Copy template List/Form/View patterns
 5. **Register Plugin** (3 min) - Add to pluginRegistry.ts with plural naming
 6. **Integration Testing** (2 min) - Verify keyboard navigation + responsive design
 
