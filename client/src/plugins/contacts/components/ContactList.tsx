@@ -89,7 +89,10 @@ export const ContactList: React.FC = () => {
     <div className="p-4 sm:p-8">
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <Heading level={1}>Contacts</Heading>
+        <Heading level={1}>
+  Contacts ({searchTerm ? sortedContacts.length : contacts.length}
+  {searchTerm && sortedContacts.length !== contacts.length && ` of ${contacts.length}`})
+</Heading>
           <Text variant="caption">Manage your business contacts</Text>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">

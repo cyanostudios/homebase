@@ -1,4 +1,3 @@
-// client/src/core/pluginRegistry.ts
 import { ContactProvider } from '@/plugins/contacts/context/ContactContext';
 import { NoteProvider } from '@/plugins/notes/context/NoteContext';
 import { EstimateProvider } from '@/plugins/estimates/context/EstimateContext';
@@ -23,12 +22,24 @@ import { RailProvider } from '@/plugins/rail/context/RailContext';
 import { useRails } from '@/plugins/rail/hooks/useRails';
 import { RailStationBoard } from '@/plugins/rail/components/RailStationBoard';
 
+// channels plugin imports
+import { ChannelsProvider } from '@/plugins/channels/context/ChannelsContext';
+import { useChannels } from '@/plugins/channels/hooks/useChannels';
+import { ChannelsList } from '@/plugins/channels/components/ChannelsList';
+import { ChannelsView } from '@/plugins/channels/components/ChannelsView';
+
 // products plugin imports
 import { ProductProvider } from '@/plugins/products/context/ProductContext';
 import { useProducts } from '@/plugins/products/hooks/useProducts';
 import { ProductList } from '@/plugins/products/components/ProductList';
 import { ProductForm } from '@/plugins/products/components/ProductForm';
 import { ProductView } from '@/plugins/products/components/ProductView';
+
+// woocommerce-products plugin imports
+import { WooCommerceProvider } from '@/plugins/woocommerce-products/context/WooCommerceContext';
+import { useWooCommerce } from '@/plugins/woocommerce-products/context/WooCommerceContext';
+import { WooSettingsForm } from '@/plugins/woocommerce-products/components/WooSettingsForm';
+import { WooExportPanel } from '@/plugins/woocommerce-products/components/WooExportPanel';
 
 export interface PluginRegistryEntry {
   name: string;
@@ -52,35 +63,57 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     Provider: ContactProvider,
     hook: useContacts,
     panelKey: 'isContactPanelOpen',
-    components: { List: ContactList, Form: ContactForm, View: ContactView }
+    components: { List: ContactList, Form: ContactForm, View: ContactView },
   },
   {
     name: 'notes',
     Provider: NoteProvider,
     hook: useNotes,
     panelKey: 'isNotePanelOpen',
-    components: { List: NotesList, Form: NoteForm, View: NoteView }
+    components: { List: NotesList, Form: NoteForm, View: NoteView },
   },
   {
     name: 'estimates',
     Provider: EstimateProvider,
     hook: useEstimates,
     panelKey: 'isEstimatePanelOpen',
-    components: { List: EstimateList, Form: EstimateForm, View: EstimateView }
+    components: { List: EstimateList, Form: EstimateForm, View: EstimateView },
   },
   {
     name: 'tasks',
     Provider: TaskProvider,
     hook: useTasks,
     panelKey: 'isTaskPanelOpen',
-    components: { List: TaskList, Form: TaskForm, View: TaskView }
+    components: { List: TaskList, Form: TaskForm, View: TaskView },
   },
   {
     name: 'products',
     Provider: ProductProvider,
     hook: useProducts,
     panelKey: 'isProductPanelOpen',
-    components: { List: ProductList, Form: ProductForm, View: ProductView }
+    components: { List: ProductList, Form: ProductForm, View: ProductView },
+  },
+  {
+    name: 'woocommerce-products',
+    Provider: WooCommerceProvider,
+    hook: useWooCommerce,
+    panelKey: 'isWooSettingsPanelOpen',
+    components: {
+      List: WooExportPanel,
+      Form: WooSettingsForm as unknown as React.ComponentType<{ currentItem?: any; onSave: (data: any) => void; onCancel: () => void; }>,
+      View: (() => null) as React.ComponentType<{ item?: any; contact?: any; note?: any; estimate?: any; task?: any; import?: any; }>,
+    },
+  },
+  {
+    name: 'channels',
+    Provider: ChannelsProvider,
+    hook: useChannels,
+    panelKey: 'isChannelsPanelOpen',
+    components: {
+      List: ChannelsList,
+      Form: (() => null) as React.ComponentType<{ currentItem?: any; onSave: (data: any) => void; onCancel: () => void; }>,
+      View: ChannelsView,
+    },
   },
   {
     name: 'rails',
@@ -91,7 +124,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       List: RailStationBoard,
       Form: (() => null) as React.ComponentType<{ currentItem?: any; onSave: (data: any) => void; onCancel: () => void; }>,
       View: (() => null) as React.ComponentType<{ item?: any; contact?: any; note?: any; estimate?: any; task?: any; }>,
-    }
-  }
+    },
+  },
   // New plugins just add entry here - no App.tsx changes needed
 ];

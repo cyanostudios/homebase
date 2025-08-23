@@ -1,5 +1,4 @@
 // client/src/core/rendering/panelRendering.tsx
-// REFACTORED: Dynamic props mapping - eliminates manual plugin if-statements
 
 import React from 'react';
 
@@ -56,10 +55,3 @@ export const createPanelRenderers = (
     renderCurrentPage
   };
 };
-
-// BENEFITS OF THIS REFACTORING:
-// 1. NEW PLUGINS: No manual if-statements needed for View/Form components
-// 2. CONSISTENT PROPS: Automatic prop naming based on plugin registry
-// 3. BACKWARDS COMPATIBLE: Includes both specific and generic props
-// 4. MAINTAINABLE: Single pattern for all plugin rendering
-// 5. TYPE SAFE: Uses plugin registry structure for prop generation

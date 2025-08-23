@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { StickyNote } from 'lucide-react';
 import { Note, ValidationError } from '../types/notes';
 import { notesApi } from '../api/notesApi';
 import { useApp } from '@/core/api/AppContext';
@@ -22,6 +23,11 @@ interface NoteContextType {
   deleteNote: (id: string) => Promise<void>;
   duplicateNote: (note: Note) => Promise<void>;
   clearValidationErrors: () => void;
+  
+  // NEW: Panel Title Functions
+  getPanelTitle: (mode: string, item: Note | null, isMobileView: boolean) => any;
+  getPanelSubtitle: (mode: string, item: Note | null) => any;
+  getDeleteMessage: (item: Note | null) => string;
 }
 
 const NoteContext = createContext<NoteContextType | undefined>(undefined);
@@ -238,6 +244,47 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   };
 
+  // NEW: Panel Title Functions (moved from PanelTitles.tsx)
+  const getPanelTitle = (mode: string, item: Note | null, isMobileView: boolean) => {
+    // View mode with item
+    if (mode === 'view' && item) {
+      return item.title || `Note #${item.id}`;
+    }
+
+    // Non-view modes (create/edit)
+    switch (mode) {
+      case 'edit': return 'Edit Note';
+      case 'create': return 'Create Note';
+      default: return 'Note';
+    }
+  };
+
+  const getPanelSubtitle = (mode: string, item: Note | null) => {
+    // View mode with item
+    if (mode === 'view' && item) {
+      return (
+        <div className="flex items-center gap-2">
+          <StickyNote className="w-4 h-4" style={{ color: '#ca8a04' }} />
+          <span className="text-xs text-gray-600">Created {new Date(item.createdAt).toLocaleDateString()}</span>
+        </div>
+      );
+    }
+
+    // Non-view modes
+    switch (mode) {
+      case 'edit': return 'Update note information';
+      case 'create': return 'Enter new note details';
+      default: return '';
+    }
+  };
+
+  const getDeleteMessage = (item: Note | null) => {
+    if (!item) return 'Are you sure you want to delete this note?';
+    
+    const itemName = item.title || 'this note';
+    return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
+  };
+
   const value: NoteContextType = {
     // Panel State
     isNotePanelOpen,
@@ -257,6 +304,11 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     deleteNote,
     duplicateNote,
     clearValidationErrors,
+    
+    // NEW: Panel Title Functions
+    getPanelTitle,
+    getPanelSubtitle,
+    getDeleteMessage,
   };
 
   return (

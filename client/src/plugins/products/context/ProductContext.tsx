@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { ShoppingCart } from 'lucide-react';
+import { Badge } from '@/core/ui/Badge';
 import { Product, ValidationError } from '../types/products';
 import { productsApi } from '../api/productsApi';
 import { useApp } from '@/core/api/AppContext';
@@ -16,6 +18,11 @@ interface ProductContextType {
   saveProduct: (data: any) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<void>;
   clearValidationErrors: () => void;
+  
+  // NEW: Panel Title Functions
+  getPanelTitle: (mode: string, item: Product | null, isMobileView: boolean) => any;
+  getPanelSubtitle: (mode: string, item: Product | null) => any;
+  getDeleteMessage: (item: Product | null) => string;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -252,6 +259,70 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     }
   };
 
+  // NEW: Panel Title Functions (moved from PanelTitles.tsx)
+  const getPanelTitle = (mode: string, item: Product | null, isMobileView: boolean) => {
+    // View mode with item
+    if (mode === 'view' && item) {
+      const productNumber = `#${item.productNumber || item.id}`;
+      const title = item.title;
+      const price = `${item.priceAmount} ${item.currency}`;
+      
+      if (isMobileView && price) {
+        return (
+          <div>
+            <div>{productNumber} • {title}</div>
+            <div className="text-sm font-normal text-gray-600 mt-1">{price}</div>
+          </div>
+        );
+      }
+      return `${productNumber} • ${title}${price ? ` • ${price}` : ''}`;
+    }
+
+    // Non-view modes (create/edit)
+    switch (mode) {
+      case 'edit': return 'Edit Product';
+      case 'create': return 'Create Product';
+      default: return 'Product';
+    }
+  };
+
+  const getPanelSubtitle = (mode: string, item: Product | null) => {
+    // View mode with item
+    if (mode === 'view' && item) {
+      const statusColors: Record<string, string> = {
+        'for sale': 'bg-green-100 text-green-800',
+        'draft': 'bg-gray-100 text-gray-800',
+        'archived': 'bg-red-100 text-red-800',
+      };
+      
+      const badgeColor = statusColors[item.status] || statusColors.draft;
+      const badgeText = item.status?.charAt(0).toUpperCase() + item.status?.slice(1);
+      const quantityText = item.quantity !== undefined ? `Qty: ${item.quantity}` : '';
+
+      return (
+        <div className="flex items-center gap-2">
+          <ShoppingCart className="w-4 h-4" style={{ color: '#2563eb' }} />
+          <Badge className={badgeColor}>{badgeText}</Badge>
+          {quantityText && <span className="text-xs text-gray-600">• {quantityText}</span>}
+        </div>
+      );
+    }
+
+    // Non-view modes
+    switch (mode) {
+      case 'edit': return 'Update product information';
+      case 'create': return 'Enter new product details';
+      default: return '';
+    }
+  };
+
+  const getDeleteMessage = (item: Product | null) => {
+    if (!item) return 'Are you sure you want to delete this product?';
+    
+    const itemName = item.title || 'this product';
+    return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
+  };
+
   const value: ProductContextType = {
     isProductPanelOpen,
     currentProduct,
@@ -265,6 +336,11 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     saveProduct,
     deleteProduct,
     clearValidationErrors,
+    
+    // NEW: Panel Title Functions
+    getPanelTitle,
+    getPanelSubtitle,
+    getDeleteMessage,
   };
 
   return <ProductContext.Provider value={value}>{children}</ProductContext.Provider>;

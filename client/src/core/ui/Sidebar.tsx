@@ -17,20 +17,20 @@ import {
   ChevronLeft, 
   ChevronRight,
   LogOut,
-  Train
+  Train,
+  ShoppingCart, // + Woo
+  Globe // + Channels
 } from 'lucide-react';
 import { useSidebar } from './MainLayout';
 import { useApp } from '@/core/api/AppContext';
 
-// Added 'products', removed 'import'
-type NavPage = 'contacts' | 'notes' | 'estimates' | 'tasks' | 'products' | 'rails';
+type NavPage = 'contacts' | 'notes' | 'estimates' | 'tasks' | 'products' | 'rails' | 'woocommerce-products' | 'channels';
 
 interface SidebarProps {
   currentPage: NavPage;
   onPageChange: (page: NavPage) => void;
 }
 
-// Added "Products" under Business, removed "Import" under Tools
 const navCategories = [
   {
     title: 'Main',
@@ -46,7 +46,6 @@ const navCategories = [
   {
     title: 'Business',
     items: [
-      { label: 'Products', icon: Package, page: 'products' as NavPage }, // new
       { label: 'Estimates', icon: Calculator, page: 'estimates' as NavPage },
       { label: 'Invoice', icon: FileText, page: null },
       { label: 'Journal', icon: BookOpen, page: null },
@@ -56,9 +55,17 @@ const navCategories = [
     ]
   },
   {
+    title: 'E-commerce',
+    items: [
+      { label: 'Products', icon: Package, page: 'products' as NavPage },
+      { label: 'Channels', icon: Globe, page: 'channels' as NavPage },                // + NEW
+      { label: 'WooCommerce', icon: ShoppingCart, page: 'woocommerce-products' as NavPage }, // + NEW
+    ]
+  },
+  {
     title: 'Tools',
     items: [
-      { label: 'Rail', icon: Train, page: 'rails' as NavPage }, // removed Import
+      { label: 'Rail', icon: Train, page: 'rails' as NavPage },
     ]
   },
   {
@@ -95,10 +102,19 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     await logout();
   };
 
-  // Updated to include 'products' and remove 'import'
+  // Updated to include 'woocommerce-products' and 'channels'
   const handleMenuItemClick = (page: NavPage | null) => {
     if (isMobile && isMobileOverlay) setIsMobileOverlay(false);
-    if (page === 'contacts' || page === 'notes' || page === 'estimates' || page === 'tasks' || page === 'products' || page === 'rails') {
+    if (
+      page === 'contacts' ||
+      page === 'notes' ||
+      page === 'estimates' ||
+      page === 'tasks' ||
+      page === 'products' ||
+      page === 'rails' ||
+      page === 'woocommerce-products' ||
+      page === 'channels'
+    ) {
       onPageChange(page);
     }
   };

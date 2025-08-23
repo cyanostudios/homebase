@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { CheckSquare } from 'lucide-react';
+import { Badge } from '@/core/ui/Badge';
 import { Task, ValidationError } from '../types/tasks';
 import { tasksApi } from '../api/tasksApi';
 import { useApp } from '@/core/api/AppContext';
@@ -19,6 +21,11 @@ interface TaskContextType {
   deleteTask: (id: string) => Promise<void>;
   duplicateTask: (task: Task) => Promise<void>;
   clearValidationErrors: () => void;
+  
+  // NEW: Panel Title Functions
+  getPanelTitle: (mode: string, item: Task | null, isMobileView: boolean) => any;
+  getPanelSubtitle: (mode: string, item: Task | null) => any;
+  getDeleteMessage: (item: Task | null) => string;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -255,6 +262,84 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   };
 
+  // NEW: Panel Title Functions (moved from PanelTitles.tsx)
+  const getPanelTitle = (mode: string, item: Task | null, isMobileView: boolean) => {
+    // View mode with item
+    if (mode === 'view' && item) {
+      const title = item.title || `Task #${item.id}`;
+      const dueDate = item.dueDate ? new Date(item.dueDate).toLocaleDateString() : null;
+      
+      if (isMobileView && dueDate) {
+        return (
+          <div>
+            <div>{title}</div>
+            <div className="text-sm font-normal text-gray-600 mt-1">Due: {dueDate}</div>
+          </div>
+        );
+      }
+      return `${title}${dueDate ? ` • Due: ${dueDate}` : ''}`;
+    }
+
+    // Non-view modes (create/edit)
+    switch (mode) {
+      case 'edit': return 'Edit Task';
+      case 'create': return 'Create Task';
+      default: return 'Task';
+    }
+  };
+
+  const getPanelSubtitle = (mode: string, item: Task | null) => {
+    // View mode with item
+    if (mode === 'view' && item) {
+      const statusColors: Record<string, string> = {
+        'not started': 'bg-gray-100 text-gray-800',
+        'in progress': 'bg-blue-100 text-blue-800',
+        'Done': 'bg-green-100 text-green-800',
+        'Canceled': 'bg-red-100 text-red-800',
+      };
+      const priorityColors: Record<string, string> = {
+        'Low': 'bg-gray-100 text-gray-700',
+        'Medium': 'bg-yellow-100 text-yellow-800',
+        'High': 'bg-red-100 text-red-800',
+      };
+
+      const badges = [
+        { 
+          text: item.status, 
+          color: statusColors[item.status] || statusColors['not started'] 
+        },
+        { 
+          text: item.priority, 
+          color: priorityColors[item.priority] || priorityColors['Medium'] 
+        },
+      ];
+
+      return (
+        <div className="flex items-center gap-2">
+          <CheckSquare className="w-4 h-4" style={{ color: '#2563eb' }} />
+          {badges.map((badge, i) => (
+            <Badge key={i} className={badge.color}>{badge.text}</Badge>
+          ))}
+          <span className="text-xs text-gray-600">• Created {new Date(item.createdAt).toLocaleDateString()}</span>
+        </div>
+      );
+    }
+
+    // Non-view modes
+    switch (mode) {
+      case 'edit': return 'Update task information';
+      case 'create': return 'Enter new task details';
+      default: return '';
+    }
+  };
+
+  const getDeleteMessage = (item: Task | null) => {
+    if (!item) return 'Are you sure you want to delete this task?';
+    
+    const itemName = item.title || 'this task';
+    return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
+  };
+
   const value: TaskContextType = {
     isTaskPanelOpen,
     currentTask,
@@ -271,6 +356,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     deleteTask,
     duplicateTask,
     clearValidationErrors,
+    
+    // NEW: Panel Title Functions
+    getPanelTitle,
+    getPanelSubtitle,
+    getDeleteMessage,
   };
 
   return (

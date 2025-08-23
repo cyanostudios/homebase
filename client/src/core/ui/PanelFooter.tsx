@@ -25,35 +25,19 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   onSaveClick,
   onCancelClick
 }) => {
-  // Check if there are any blocking errors (non-warning)
-  const hasBlockingErrors = validationErrors.some((error: any) => !error.message.includes('Warning'));
+  const hasBlockingErrors = validationErrors.some((e: any) => !String(e?.message || '').includes('Warning'));
 
   if (currentMode === 'view') {
     return (
       <div className="flex items-center justify-between w-full">
-        <Button
-          type="button"
-          onClick={onDeleteItem}
-          variant="danger"
-          icon={Trash2}
-        >
+        <Button type="button" onClick={onDeleteItem} variant="danger" icon={Trash2}>
           Delete
         </Button>
         <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            onClick={onClosePanel}
-            variant="secondary"
-            icon={X}
-          >
+          <Button type="button" onClick={onClosePanel} variant="secondary" icon={X}>
             Close
           </Button>
-          <Button
-            type="button"
-            onClick={onEditItem}
-            variant="primary"
-            icon={Edit}
-          >
+          <Button type="button" onClick={onEditItem} variant="primary" icon={Edit}>
             Edit
           </Button>
         </div>
@@ -61,61 +45,82 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
     );
   }
 
-  // Form mode (create/edit)
   return (
     <div className="flex justify-end space-x-3">
-      <Button
-        type="button"
-        onClick={onCancelClick}
-        variant="danger"
-        icon={X}
-      >
+      <Button type="button" onClick={onCancelClick} variant="danger" icon={X}>
         Cancel
       </Button>
-      <Button
-        type="button"
-        onClick={onSaveClick}
-        variant="primary"
-        icon={Check}
-        disabled={hasBlockingErrors}
-      >
+      <Button type="button" onClick={onSaveClick} variant="primary" icon={Check} disabled={hasBlockingErrors}>
         {currentMode === 'edit' ? 'Update' : 'Save'}
       </Button>
     </div>
   );
 };
 
-// DYNAMIC: Helper function to find plugin functions
-function findOpenFunction(context: any, mode: string, pluginName?: string): any {
+// ---- Helpers ----
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/**
+ * Hyphen-safe opener resolver.
+ * Examples:
+ *  - 'products' + 'edit' -> context.openProductForEdit
+ *  - 'notes' + 'view' -> context.openNoteForView
+ *  - 'woocommerce-products' + 'edit' -> context.openWooSettingsForEdit (special case)
+ */
+function findOpenFunction(context: any, mode: 'edit' | 'view', pluginName?: string): any {
   if (!context || !pluginName) return null;
-  
-  const singular = pluginName.charAt(0).toUpperCase() + pluginName.slice(1, -1);
-  const functionName = `open${singular}For${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
-  
-  return context[functionName] || null;
+
+  // Special-case Woo settings (naming deviates by design)
+  if (pluginName === 'woocommerce-products') {
+    const fn = context[`openWooSettingsFor${cap(mode)}`];
+    return typeof fn === 'function' ? fn : null;
+  }
+
+  // Generic: convert kebab to camel, singularize trailing 's'
+  const camel = pluginName.replace(/-([a-z])/g, (_, c) => c.toUpperCase());    // e.g., woocommerceProducts
+  const singular = camel.endsWith('s') ? camel.slice(0, -1) : camel;           // products -> product
+  const fnName = `open${cap(singular)}For${cap(mode)}`;                         // openProductForEdit
+  const fn = context[fnName];
+  return typeof fn === 'function' ? fn : null;
 }
 
 export const createPanelFooter = (
-  currentMode: string,
+  currentMode: 'create' | 'edit' | 'view',
   currentItem: any,
   currentPluginContext: any,
   validationErrors: any[],
-  handlers: any
+  handlers: {
+    currentPlugin: { name: string } | null;
+    handleDeleteItem: () => void;
+    getCloseHandler: () => () => void;
+    handleSaveClick: () => void;     // generic (non-Woo) submit
+    handleCancelClick: () => void;   // generic (non-Woo) cancel
+  }
 ) => {
-  // DYNAMIC: Find edit function automatically based on current plugin
+  const pluginName = handlers.currentPlugin?.name;
+
+  // Route EDIT to the correct opener (hyphen-safe + Woo override)
   const handleEditItem = () => {
-    if (currentPluginContext && currentItem && handlers.currentPlugin) {
-      const editFunction = findOpenFunction(
-        currentPluginContext,
-        'edit',
-        handlers.currentPlugin.name
-      );
-      
-      if (editFunction) {
-        editFunction(currentItem);
-      } else {
-        console.warn(`Edit function not found for plugin: ${handlers.currentPlugin?.name}`);
-      }
+    if (!currentPluginContext || !currentItem || !pluginName) return;
+    const editFn = findOpenFunction(currentPluginContext, 'edit', pluginName);
+    if (editFn) editFn(currentItem);
+    else console.warn(`Edit function not found for plugin: ${pluginName}`);
+  };
+
+  // Wire Save/Cancel to Woo settings events when inside woocommerce-products
+  const handleSave = () => {
+    if (pluginName === 'woocommerce-products' && (window as any).submitWooSettingsForm) {
+      (window as any).submitWooSettingsForm();
+    } else {
+      handlers.handleSaveClick();
+    }
+  };
+
+  const handleCancel = () => {
+    if (pluginName === 'woocommerce-products' && (window as any).cancelWooSettingsForm) {
+      (window as any).cancelWooSettingsForm();
+    } else {
+      handlers.handleCancelClick();
     }
   };
 
@@ -125,11 +130,11 @@ export const createPanelFooter = (
       currentItem={currentItem}
       currentPluginContext={currentPluginContext}
       validationErrors={validationErrors}
-      onDeleteItem={() => handlers.handleDeleteItem()}
-      onClosePanel={handlers.getCloseHandler()} // FIXED: Use getCloseHandler() instead of handleClosePanel
+      onDeleteItem={handlers.handleDeleteItem}
+      onClosePanel={handlers.getCloseHandler()}
       onEditItem={handleEditItem}
-      onSaveClick={handlers.handleSaveClick}
-      onCancelClick={handlers.handleCancelClick}
+      onSaveClick={handleSave}
+      onCancelClick={handleCancel}
     />
   );
 };

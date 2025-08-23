@@ -1,6 +1,8 @@
 import { PublicRouteHandler } from '../components/PublicRouteHandler';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Estimate, ValidationError } from '../types/estimate';
+import { Calculator } from 'lucide-react';
+import { Badge } from '@/core/ui/Badge';
+import { Estimate, ValidationError, calculateEstimateTotals } from '../types/estimate';
 import { estimatesApi } from '../api/estimatesApi';
 import { useApp } from '@/core/api/AppContext';
 
@@ -23,6 +25,11 @@ interface EstimateContextType {
   deleteEstimate: (id: string) => Promise<void>;
   duplicateEstimate: (estimate: Estimate) => Promise<void>;
   clearValidationErrors: () => void;
+  
+  // NEW: Panel Title Functions
+  getPanelTitle: (mode: string, item: Estimate | null, isMobileView: boolean, handleEstimateContactClick: (contactId: string) => void) => any;
+  getPanelSubtitle: (mode: string, item: Estimate | null) => any;
+  getDeleteMessage: (item: Estimate | null) => string;
 }
 
 const EstimateContext = createContext<EstimateContextType | undefined>(undefined);
@@ -270,6 +277,93 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
     }
   };
 
+  // NEW: Panel Title Functions (moved from PanelTitles.tsx)
+  const getPanelTitle = (mode: string, item: Estimate | null, isMobileView: boolean, handleEstimateContactClick: (contactId: string) => void) => {
+    // View mode with item
+    if (mode === 'view' && item) {
+      const totals = calculateEstimateTotals(item.lineItems || [], item.estimateDiscount || 0);
+      const estimateNumber = item.estimateNumber || `#${item.id}`;
+      const total = totals.total.toFixed(2);
+      const currency = item.currency || 'SEK';
+      const contactId = item.contactId;
+      const contactName = item.contactName;
+      
+      if (isMobileView) {
+        return (
+          <div>
+            <div className="flex items-center gap-2">
+              <span>{estimateNumber} • </span>
+              <button
+                onClick={() => handleEstimateContactClick(contactId)}
+                className="text-blue-600 hover:text-blue-800 hover:underline font-medium px-1 rounded"
+              >
+                @{contactName}
+              </button>
+            </div>
+            <div className="text-sm font-normal text-gray-600 mt-1">{total} {currency}</div>
+          </div>
+        );
+      }
+      return (
+        <div className="flex items-center gap-2">
+          <span>{estimateNumber} • </span>
+          <button
+            onClick={() => handleEstimateContactClick(contactId)}
+            className="text-blue-600 hover:text-blue-800 hover:underline font-medium px-1 rounded"
+          >
+            @{contactName}
+          </button>
+          <span> • {total} {currency}</span>
+        </div>
+      );
+    }
+
+    // Non-view modes (create/edit)
+    switch (mode) {
+      case 'edit': return 'Edit Estimate';
+      case 'create': return 'Create Estimate';
+      default: return 'Estimate';
+    }
+  };
+
+  const getPanelSubtitle = (mode: string, item: Estimate | null) => {
+    // View mode with item
+    if (mode === 'view' && item) {
+      const statusColors: Record<string, string> = {
+        draft: 'bg-gray-100 text-gray-800',
+        sent: 'bg-blue-100 text-blue-800',
+        accepted: 'bg-green-100 text-green-800',
+        rejected: 'bg-red-100 text-red-800',
+      };
+      
+      const badgeColor = statusColors[item.status] || statusColors.draft;
+      const badgeText = item.status?.charAt(0).toUpperCase() + item.status?.slice(1);
+      const validToText = `Valid to ${new Date(item.validTo).toLocaleDateString()}`;
+
+      return (
+        <div className="flex items-center gap-2">
+          <Calculator className="w-4 h-4" style={{ color: '#2563eb' }} />
+          <Badge className={badgeColor}>{badgeText}</Badge>
+          <span className="text-xs text-gray-600">• {validToText}</span>
+        </div>
+      );
+    }
+
+    // Non-view modes
+    switch (mode) {
+      case 'edit': return 'Update estimate information';
+      case 'create': return 'Enter new estimate details';
+      default: return '';
+    }
+  };
+
+  const getDeleteMessage = (item: Estimate | null) => {
+    if (!item) return 'Are you sure you want to delete this estimate?';
+    
+    const itemName = item.estimateNumber || 'this estimate';
+    return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
+  };
+
   const value: EstimateContextType = {
     // Panel State - STANDARDIZED
     isEstimatePanelOpen,
@@ -289,6 +383,11 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
     deleteEstimate,
     duplicateEstimate,
     clearValidationErrors,
+    
+    // NEW: Panel Title Functions
+    getPanelTitle,
+    getPanelSubtitle,
+    getDeleteMessage,
   };
 
   return (

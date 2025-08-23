@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Building, User } from 'lucide-react';
+import { Badge } from '@/core/ui/Badge';
 import { Contact, ValidationError } from '../types/contacts';
 import { contactsApi } from '../api/contactsApi';
 import { useApp } from '@/core/api/AppContext';
@@ -21,6 +23,11 @@ interface ContactContextType {
   saveContact: (contactData: any) => Promise<boolean>;
   deleteContact: (id: string) => Promise<void>;
   clearValidationErrors: () => void;
+  
+  // NEW: Panel Title Functions
+  getPanelTitle: (mode: string, item: Contact | null, isMobileView: boolean) => any;
+  getPanelSubtitle: (mode: string, item: Contact | null) => any;
+  getDeleteMessage: (item: Contact | null) => string;
 }
 
 const ContactContext = createContext<ContactContextType | undefined>(undefined);
@@ -301,6 +308,65 @@ useEffect(() => {
     }
   };
 
+  // NEW: Panel Title Functions (moved from PanelTitles.tsx)
+  const getPanelTitle = (mode: string, item: Contact | null, isMobileView: boolean) => {
+    // View mode with item
+    if (mode === 'view' && item) {
+      const contactNumber = `#${item.contactNumber || item.id}`;
+      const name = item.companyName || `${item.firstName || ''} ${item.lastName || ''}`.trim();
+      const orgNumber = item.organizationNumber || item.personalNumber || '';
+      
+      if (isMobileView && orgNumber) {
+        return (
+          <div>
+            <div>{contactNumber} • {name}</div>
+            <div className="text-sm font-normal text-gray-600 mt-1">{orgNumber}</div>
+          </div>
+        );
+      }
+      return `${contactNumber} • ${name}${orgNumber ? ` • ${orgNumber}` : ''}`;
+    }
+
+    // Non-view modes (create/edit)
+    switch (mode) {
+      case 'edit': return 'Edit Contact';
+      case 'create': return 'Create Contact';
+      default: return 'Contact';
+    }
+  };
+
+  const getPanelSubtitle = (mode: string, item: Contact | null) => {
+    // View mode with item
+    if (mode === 'view' && item) {
+      const isCompany = item.contactType === 'company';
+      const Icon = isCompany ? Building : User;
+      const iconColor = isCompany ? '#2563eb' : '#16a34a';
+      const badgeText = isCompany ? 'Company' : 'Private Person';
+      const badgeColor = isCompany ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800';
+
+      return (
+        <div className="flex items-center gap-2">
+          <Icon className="w-4 h-4" style={{ color: iconColor }} />
+          <Badge className={badgeColor}>{badgeText}</Badge>
+        </div>
+      );
+    }
+
+    // Non-view modes
+    switch (mode) {
+      case 'edit': return 'Update contact information';
+      case 'create': return 'Enter new contact details';
+      default: return '';
+    }
+  };
+
+  const getDeleteMessage = (item: Contact | null) => {
+    if (!item) return 'Are you sure you want to delete this contact?';
+    
+    const itemName = item.companyName || 'this contact';
+    return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
+  };
+
   const value: ContactContextType = {
     // Contact Panel State
     isContactPanelOpen,
@@ -319,6 +385,11 @@ useEffect(() => {
     saveContact,
     deleteContact,
     clearValidationErrors,
+    
+    // NEW: Panel Title Functions
+    getPanelTitle,
+    getPanelSubtitle,
+    getDeleteMessage,
   };
 
   return (

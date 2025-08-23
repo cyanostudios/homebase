@@ -1,61 +1,87 @@
 // client/src/core/handlers/panelHandlers.ts
-// REFACTORED: Dynamic plugin function discovery - eliminates manual plugin additions
 
 import { PLUGIN_REGISTRY, type PluginRegistryEntry } from '@/core/pluginRegistry';
+
+// --- helpers: hyphen-safe singular + capitalization ---
+const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+const singularCap = (pluginName: string) => {
+  const camel = toCamel(pluginName);                              // e.g., "woocommerceProducts"
+  const base = camel.endsWith('s') ? camel.slice(0, -1) : camel;  // -> "woocommerceProduct"
+  return base.charAt(0).toUpperCase() + base.slice(1);            // -> "WoocommerceProduct"
+};
 
 // Utility function to find plugin functions dynamically
 function findPluginFunction(context: any, action: string, pluginName?: string): any {
   if (!context || !pluginName) return null;
-  
-  // Convert plugin name to singular for function naming
-  // 'contacts' -> 'Contact', 'tasks' -> 'Task'
-  const singular = pluginName.charAt(0).toUpperCase() + pluginName.slice(1, -1);
-  const functionName = `${action}${singular}`;
-  
-  return context[functionName] || null;
+
+  // Special case: Woo settings use domain-specific names
+  if (pluginName === 'woocommerce-products') {
+    const map: Record<string, string> = {
+      save: 'saveWooSettings',  // context.saveWooSettings(data)
+      delete: '',               // not applicable for settings
+    };
+    const fn = map[action];
+    return fn && typeof context[fn] === 'function' ? context[fn] : null;
+  }
+
+  // Generic: action + SingularCap
+  const fnName = `${action}${singularCap(pluginName)}`;
+  return typeof context[fnName] === 'function' ? context[fnName] : null;
 }
 
 // Utility function to find plugin panel functions
 function findPanelFunction(context: any, action: string, pluginName?: string): any {
   if (!context || !pluginName) return null;
-  
+
   // Special case for Import plugin which doesn't follow singular naming
   if (pluginName === 'import') {
     const functionName = `${action}ImportPanel`;
     return context[functionName] || null;
   }
-  
-  // Convert plugin name to singular for function naming
-  const singular = pluginName.charAt(0).toUpperCase() + pluginName.slice(1, -1);
-  const functionName = `${action}${singular}Panel`;
-  
-  return context[functionName] || null;
+
+  // Special case: Woo settings panel
+  if (pluginName === 'woocommerce-products') {
+    const map: Record<string, string> = {
+      close: 'closeWooSettingsPanel',
+    };
+    const fn = map[action];
+    return fn && typeof context[fn] === 'function' ? context[fn] : null;
+  }
+
+  // Generic: action + SingularCap + "Panel"
+  const fnName = `${action}${singularCap(pluginName)}Panel`;
+  return typeof context[fnName] === 'function' ? context[fnName] : null;
 }
 
 // Utility function to find open functions
 function findOpenFunction(context: any, mode: string, pluginName?: string): any {
   if (!context || !pluginName) return null;
-  
+
   // Special case for Import plugin
   if (pluginName === 'import') {
     const functionName = `openImportFor${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
     return context[functionName] || null;
   }
-  
-  const singular = pluginName.charAt(0).toUpperCase() + pluginName.slice(1, -1);
-  const functionName = `open${singular}For${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
-  
-  return context[functionName] || null;
+
+  // Special case: Woo settings
+  if (pluginName === 'woocommerce-products') {
+    const fn = `openWooSettingsFor${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
+    return typeof context[fn] === 'function' ? context[fn] : null;
+  }
+
+  // Generic: open + SingularCap + ForX
+  const functionName = `open${singularCap(pluginName)}For${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
+  return typeof context[functionName] === 'function' ? context[functionName] : null;
 }
 
 export const createPanelHandlers = (
-  pluginContexts: any[], 
-  currentPlugin: PluginRegistryEntry | null, 
-  currentPluginContext: any, 
-  currentMode: string, 
+  pluginContexts: any[],
+  currentPlugin: PluginRegistryEntry | null,
+  currentPluginContext: any,
+  currentMode: string,
   currentItem: any
 ) => {
-  
+
   const handleDeleteItem = (setShowDeleteConfirm: (show: boolean) => void) => {
     setShowDeleteConfirm(true);
   };
@@ -65,7 +91,7 @@ export const createPanelHandlers = (
       // DYNAMIC: Find delete and close functions automatically
       const deleteFunction = findPluginFunction(currentPluginContext, 'delete', currentPlugin.name);
       const closeFunction = findPanelFunction(currentPluginContext, 'close', currentPlugin.name);
-      
+
       if (deleteFunction && closeFunction && currentItem) {
         await deleteFunction(currentItem.id);
         closeFunction();
@@ -99,17 +125,20 @@ export const createPanelHandlers = (
 
   const handleSaveClick = () => {
     if (currentPlugin) {
-      // Special case for import plugin (submitImportsForm not submitImportForm)
+      // Special cases for global form submitters
       let functionName;
       if (currentPlugin.name === 'import') {
         functionName = 'submitImportsForm';
+      } else if (currentPlugin.name === 'woocommerce-products') {
+        functionName = 'submitWooSettingsForm';
       } else {
-        const pluginNameCapitalized = currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1);
-        functionName = `submit${pluginNameCapitalized}Form`;
+        const pluginNameCapitalized = toCamel(currentPlugin.name);
+        const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
+        functionName = `submit${cap}Form`;
       }
-      
+
       const submitFunction = (window as any)[functionName];
-      
+
       if (submitFunction) {
         submitFunction();
       } else {
@@ -120,17 +149,20 @@ export const createPanelHandlers = (
 
   const handleCancelClick = () => {
     if (currentPlugin) {
-      // Special case for import plugin (cancelImportsForm not cancelImportForm)
+      // Special cases for global form cancel
       let functionName;
       if (currentPlugin.name === 'import') {
         functionName = 'cancelImportsForm';
+      } else if (currentPlugin.name === 'woocommerce-products') {
+        functionName = 'cancelWooSettingsForm';
       } else {
-        const pluginNameCapitalized = currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1);
-        functionName = `cancel${pluginNameCapitalized}Form`;
+        const pluginNameCapitalized = toCamel(currentPlugin.name);
+        const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
+        functionName = `cancel${cap}Form`;
       }
-      
+
       const cancelFunction = (window as any)[functionName];
-      
+
       if (cancelFunction) {
         cancelFunction();
       } else {
@@ -149,7 +181,7 @@ export const createPanelHandlers = (
         }
       };
     } else {
-      // FIXED: Use handleCancelClick for form modes (includes unsaved changes check)
+      // Use handleCancelClick for form modes (includes unsaved changes check)
       return handleCancelClick;
     }
   };
@@ -158,21 +190,21 @@ export const createPanelHandlers = (
     // Find estimates plugin context dynamically
     const estimatesPlugin = PLUGIN_REGISTRY.find(p => p.name === 'estimates');
     if (!estimatesPlugin) return;
-    
+
     const estimatesContext = pluginContexts.find(({ plugin }) => plugin.name === 'estimates')?.context;
     const contactsContext = pluginContexts.find(({ plugin }) => plugin.name === 'contacts')?.context;
-    
+
     if (estimatesContext && contactsContext) {
       const closeContactPanel = findPanelFunction(contactsContext, 'close', 'contacts');
       const openEstimateForEdit = findOpenFunction(estimatesContext, 'edit', 'estimates');
-      
+
       if (closeContactPanel && openEstimateForEdit) {
         closeContactPanel();
         // Pass contact information for pre-filling estimate
-        const estimateData = { 
+        const estimateData = {
           contactId: contact.id,
           contactName: contact.name,
-          contactEmail: contact.email 
+          contactEmail: contact.email
         };
         openEstimateForEdit(estimateData);
       }
@@ -191,9 +223,3 @@ export const createPanelHandlers = (
   };
 };
 
-// BENEFITS OF THIS REFACTORING:
-// 1. NEW PLUGINS: No manual updates needed - automatic function discovery
-// 2. CONSISTENT NAMING: Enforces standardized plugin function names
-// 3. ERROR HANDLING: Console warnings for missing functions help debugging
-// 4. MAINTAINABILITY: Single place to update function discovery logic
-// 5. TYPE SAFETY: Uses plugin registry for type-safe operations

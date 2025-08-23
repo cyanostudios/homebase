@@ -277,11 +277,3 @@ function App() {
 }
 
 export default App;
-
-// BENEFITS OF THIS REFACTORING:
-// 1. NEW PLUGINS: Zero manual updates needed in App.tsx
-// 2. DYNAMIC DETECTION: Automatically finds current plugin/item/mode
-// 3. NAMING CONVENTION ENFORCEMENT: Uses plugin registry for consistent naming
-// 4. BACKWARDS COMPATIBLE: Falls back gracefully for edge cases
-// 5. MAINTAINABLE: Single pattern for all plugin state detection
-// 6. GLOBAL NAVIGATION GUARD: Protects against unsaved changes across all navigation

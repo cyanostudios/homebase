@@ -1,5 +1,4 @@
 // client/src/core/keyboard/keyboardHandlers.ts
-// REFACTORED: Dynamic plugin function discovery with navigation guard protection
 
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 

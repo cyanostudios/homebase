@@ -1,113 +1,21 @@
+// client/src/core/ui/PanelTitles.tsx
 import React from 'react';
-import { Building, User, StickyNote, Calculator, CheckSquare, Upload } from 'lucide-react';
-import { Badge } from '@/core/ui/Badge';
-import { calculateEstimateTotals } from '@/plugins/estimates/types/estimate'; // NEW: Import calculation function
+import { Upload, ShoppingCart } from 'lucide-react';
+import { useNoteContext } from '@/plugins/notes/context/NoteContext';
+import { useTaskContext } from '@/plugins/tasks/context/TaskContext';
+import { useContactContext } from '@/plugins/contacts/context/ContactContext';
+import { useEstimateContext } from '@/plugins/estimates/context/EstimateContext';
+import { useProductContext } from '@/plugins/products/context/ProductContext';
+import { useWooCommerce } from '@/plugins/woocommerce-products/context/WooCommerceContext';
 
-const PLUGIN_CONFIGS = {
-  contacts: {
-    icon: (item: any) => item.contactType === 'company' ? Building : User,
-    getTitle: (item: any) => {
-      const contactNumber = `#${item.contactNumber || item.id}`;
-      const name = item.companyName || `${item.firstName || ''} ${item.lastName || ''}`.trim();
-      const orgNumber = item.organizationNumber || item.personalNumber || '';
-      return { contactNumber, name, orgNumber };
-    },
-    getSubtitle: (item: any) => {
-      const isCompany = item.contactType === 'company';
-      return {
-        icon: isCompany ? Building : User,
-        iconColor: isCompany ? '#2563eb' : '#16a34a',
-        badge: {
-          text: isCompany ? 'Company' : 'Private Person',
-          color: isCompany ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-        }
-      };
-    }
-  },
-  notes: {
-    icon: StickyNote,
-    getTitle: (item: any) => ({ title: item.title || `Note #${item.id}` }),
-    getSubtitle: (item: any) => ({
-      icon: StickyNote,
-      iconColor: '#ca8a04',
-      text: `Created ${new Date(item.createdAt).toLocaleDateString()}`
-    })
-  },
-  estimates: {
-    icon: Calculator,
-    getTitle: (item: any) => {
-      // NEW: Calculate correct total with estimate discount
-      const totals = calculateEstimateTotals(item.lineItems || [], item.estimateDiscount || 0);
-      
-      return {
-        estimateNumber: item.estimateNumber || `#${item.id}`,
-        total: totals.total.toFixed(2), // Use calculated total, not database total
-        currency: item.currency || 'SEK',
-        contactId: item.contactId,
-        contactName: item.contactName
-      };
-    },
-    getSubtitle: (item: any) => {
-      const statusColors = {
-        draft: 'bg-gray-100 text-gray-800',
-        sent: 'bg-blue-100 text-blue-800',
-        accepted: 'bg-green-100 text-green-800',
-        rejected: 'bg-red-100 text-red-800',
-      };
-      return {
-        icon: Calculator,
-        iconColor: '#2563eb',
-        badge: {
-          text: item.status.charAt(0).toUpperCase() + item.status.slice(1),
-          color: statusColors[item.status] || statusColors.draft
-        },
-        text: `Valid to ${new Date(item.validTo).toLocaleDateString()}`
-      };
-    }
-  },
-  tasks: {
-    icon: CheckSquare,
-    getTitle: (item: any) => ({
-      title: item.title || `Task #${item.id}`,
-      dueDate: item.dueDate ? new Date(item.dueDate).toLocaleDateString() : null
-    }),
-    getSubtitle: (item: any) => {
-      const statusColors = {
-        'not started': 'bg-gray-100 text-gray-800',
-        'in progress': 'bg-blue-100 text-blue-800',
-        'Done': 'bg-green-100 text-green-800',
-        'Canceled': 'bg-red-100 text-red-800',
-      };
-      const priorityColors = {
-        'Low': 'bg-gray-100 text-gray-700',
-        'Medium': 'bg-yellow-100 text-yellow-800',
-        'High': 'bg-red-100 text-red-800',
-      };
-      return {
-        icon: CheckSquare,
-        iconColor: '#2563eb',
-        badges: [
-          {
-            text: item.status,
-            color: statusColors[item.status] || statusColors['not started']
-          },
-          {
-            text: item.priority,
-            color: priorityColors[item.priority] || priorityColors['Medium']
-          }
-        ],
-        text: `Created ${new Date(item.createdAt).toLocaleDateString()}`
-      };
-    }
-  },
+// Reduced PLUGIN_CONFIGS - only for plugins not yet migrated
+const PLUGIN_CONFIGS: Record<string, any> = {
   import: {
     icon: Upload,
-    getTitle: (item: any) => ({
-      title: item?.fileName ? `Import: ${item.fileName}` : 'Import Data'
-    }),
+    getTitle: (item: any) => ({ title: item?.fileName ? `Import: ${item.fileName}` : 'Import Data' }),
     getSubtitle: (item: any) => {
       if (item?.status) {
-        const statusColors = {
+        const statusColors: Record<string, string> = {
           pending: 'bg-yellow-100 text-yellow-800',
           processing: 'bg-blue-100 text-blue-800',
           success: 'bg-green-100 text-green-800',
@@ -118,18 +26,17 @@ const PLUGIN_CONFIGS = {
           iconColor: '#2563eb',
           badge: {
             text: item.status.charAt(0).toUpperCase() + item.status.slice(1),
-            color: statusColors[item.status] || statusColors.pending
+            color: statusColors[item.status] || statusColors.pending,
           },
-          text: item.pluginType ? `Target: ${item.pluginType}` : ''
+          text: item.pluginType ? `Target: ${item.pluginType}` : '',
         };
       }
-      return {
-        icon: Upload,
-        iconColor: '#2563eb',
-        text: 'Import data from CSV files'
-      };
-    }
-  }
+      return { icon: Upload, iconColor: '#2563eb', text: 'Import data from CSV files' };
+    },
+  },
+  
+  // Remove woocommerce-products since it's now migrated
+  // woocommerce-products: { ... } - REMOVED
 };
 
 export const createPanelTitles = (
@@ -139,79 +46,58 @@ export const createPanelTitles = (
   isMobileView: boolean,
   handleEstimateContactClick: (contactId: string) => void
 ) => {
+  // Plugin context hooks - only call when needed
+  let pluginContext: any = null;
   
+  try {
+    switch (currentPlugin?.name) {
+      case 'notes':
+        pluginContext = useNoteContext();
+        break;
+      case 'tasks':
+        pluginContext = useTaskContext();
+        break;
+      case 'contacts':
+        pluginContext = useContactContext();
+        break;
+      case 'estimates':
+        pluginContext = useEstimateContext();
+        break;
+      case 'products':
+        pluginContext = useProductContext();
+        break;
+      case 'woocommerce-products':
+        pluginContext = useWooCommerce();
+        break;
+    }
+  } catch {
+    // Hook not available or not in correct context
+  }
+
   const getPanelTitle = () => {
     if (!currentPlugin) return '';
-    
-    if (currentMode === 'view' && currentItem) {
-      const config = PLUGIN_CONFIGS[currentPlugin.name];
-      
-      if (config && config.getTitle) {
-        const titleData = config.getTitle(currentItem);
-        
-        if (currentPlugin.name === 'contacts') {
-          const { contactNumber, name, orgNumber } = titleData;
-          if (isMobileView && orgNumber) {
-            return (
-              <div>
-                <div>{contactNumber} • {name}</div>
-                <div className="text-sm font-normal text-gray-600 mt-1">{orgNumber}</div>
-              </div>
-            );
-          } else {
-            return `${contactNumber} • ${name}${orgNumber ? ` • ${orgNumber}` : ''}`;
-          }
-        } else if (currentPlugin.name === 'notes') {
-          return titleData.title;
-        } else if (currentPlugin.name === 'estimates') {
-          const { estimateNumber, total, currency, contactId, contactName } = titleData;
-          if (isMobileView) {
-            return (
-              <div>
-                <div className="flex items-center gap-2">
-                  <span>{estimateNumber} • </span>
-                  <button
-                    onClick={() => handleEstimateContactClick(contactId)}
-                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium px-1 rounded"
-                  >
-                    @{contactName}
-                  </button>
-                </div>
-                <div className="text-sm font-normal text-gray-600 mt-1">{total} {currency}</div>
-              </div>
-            );
-          } else {
-            return (
-              <div className="flex items-center gap-2">
-                <span>{estimateNumber} • </span>
-                <button
-                  onClick={() => handleEstimateContactClick(contactId)}
-                  className="text-blue-600 hover:text-blue-800 hover:underline font-medium px-1 rounded"
-                >
-                  @{contactName}
-                </button>
-                <span> • {total} {currency}</span>
-              </div>
-            );
-          }
-        } else if (currentPlugin.name === 'tasks') {
-          const { title, dueDate } = titleData;
-          if (isMobileView && dueDate) {
-            return (
-              <div>
-                <div>{title}</div>
-                <div className="text-sm font-normal text-gray-600 mt-1">Due: {dueDate}</div>
-              </div>
-            );
-          } else {
-            return `${title}${dueDate ? ` • Due: ${dueDate}` : ''}`;
-          }
-        } else if (currentPlugin.name === 'import') {
-          const { title } = titleData;
-          return title;
-        }
+
+    // Check if plugin has its own title functions
+    if (pluginContext && pluginContext.getPanelTitle) {
+      if (currentPlugin.name === 'estimates') {
+        // Estimates needs the handleEstimateContactClick function
+        return pluginContext.getPanelTitle(currentMode, currentItem, isMobileView, handleEstimateContactClick);
+      } else {
+        return pluginContext.getPanelTitle(currentMode, currentItem, isMobileView);
       }
-      
+    }
+
+    // Fallback to legacy PLUGIN_CONFIGS for non-migrated plugins
+    if (currentMode === 'view' && currentItem) {
+      const cfg = PLUGIN_CONFIGS[currentPlugin.name];
+      if (cfg?.getTitle) {
+        const titleData = cfg.getTitle(currentItem);
+        
+        if (currentPlugin.name === 'import') return titleData.title;
+        // woocommerce-products removed - now handled by plugin context
+      }
+
+      // Generic fallback fields
       if (currentItem.title) return currentItem.title;
       if (currentItem.name) return currentItem.name;
       if (currentItem.companyName) return currentItem.companyName;
@@ -219,7 +105,8 @@ export const createPanelTitles = (
       if (currentItem.fileName) return `Import: ${currentItem.fileName}`;
       return `${currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1)} #${currentItem.id}`;
     }
-    
+
+    // Non-view modes for non-migrated plugins
     if (currentPlugin.name === 'import') {
       switch (currentMode) {
         case 'select': return 'Import Data';
@@ -229,7 +116,12 @@ export const createPanelTitles = (
         default: return 'Import';
       }
     }
-    
+
+    if (currentPlugin.name === 'woocommerce-products') {
+      // Now handled by plugin context
+    }
+
+    // Generic fallback for unmigrated plugins
     const itemType = currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1);
     switch (currentMode) {
       case 'edit': return `Edit ${itemType}`;
@@ -240,38 +132,27 @@ export const createPanelTitles = (
 
   const getPanelSubtitle = () => {
     if (!currentPlugin) return '';
-    
+
+    // Check if plugin has its own subtitle functions
+    if (pluginContext && pluginContext.getPanelSubtitle) {
+      return pluginContext.getPanelSubtitle(currentMode, currentItem);
+    }
+
+    // Fallback to legacy PLUGIN_CONFIGS for non-migrated plugins
     if (currentMode === 'view' && currentItem) {
-      const config = PLUGIN_CONFIGS[currentPlugin.name];
-      
-      if (config && config.getSubtitle) {
-        const subtitleData = config.getSubtitle(currentItem);
+      const cfg = PLUGIN_CONFIGS[currentPlugin.name];
+      if (cfg?.getSubtitle) {
+        const subtitleData = cfg.getSubtitle(currentItem);
         const Icon = subtitleData.icon;
-        
-        if (subtitleData.badge && !subtitleData.badges) {
+
+        if (subtitleData.badge) {
           return (
             <div className="flex items-center gap-2">
               <Icon className="w-4 h-4" style={{ color: subtitleData.iconColor }} />
-              <Badge className={subtitleData.badge.color}>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${subtitleData.badge.color}`}>
                 {subtitleData.badge.text}
-              </Badge>
-              {subtitleData.text && (
-                <span className="text-xs text-gray-600">• {subtitleData.text}</span>
-              )}
-            </div>
-          );
-        } else if (subtitleData.badges) {
-          return (
-            <div className="flex items-center gap-2">
-              <Icon className="w-4 h-4" style={{ color: subtitleData.iconColor }} />
-              {subtitleData.badges.map((badge: any, index: number) => (
-                <Badge key={index} className={badge.color}>
-                  {badge.text}
-                </Badge>
-              ))}
-              {subtitleData.text && (
-                <span className="text-xs text-gray-600">• {subtitleData.text}</span>
-              )}
+              </span>
+              {subtitleData.text && <span className="text-xs text-gray-600">• {subtitleData.text}</span>}
             </div>
           );
         } else if (subtitleData.text) {
@@ -283,10 +164,10 @@ export const createPanelTitles = (
           );
         }
       }
-      
       return 'View details';
     }
-    
+
+    // Non-view modes for non-migrated plugins
     if (currentPlugin.name === 'import') {
       switch (currentMode) {
         case 'select': return 'Choose file and plugin type to import';
@@ -296,7 +177,14 @@ export const createPanelTitles = (
         default: return 'Import data from CSV files';
       }
     }
-    
+
+    if (currentPlugin.name === 'woocommerce-products') {
+      return currentMode === 'edit'
+        ? 'Update WooCommerce connection'
+        : 'Configure WooCommerce connection';
+    }
+
+    // Generic fallback for unmigrated plugins
     const itemType = currentPlugin.name.slice(0, -1);
     switch (currentMode) {
       case 'edit': return `Update ${itemType} information`;
@@ -306,21 +194,24 @@ export const createPanelTitles = (
   };
 
   const getDeleteMessage = () => {
-    if (!currentItem || !currentPlugin) return "Are you sure you want to delete this item?";
-    
-    const itemName = currentItem.companyName || 
-                     currentItem.title || 
-                     currentItem.estimateNumber || 
-                     currentItem.fileName ||
-                     currentItem.name ||
-                     'this item';
-    
+    if (!currentPlugin || !currentItem) return 'Are you sure you want to delete this item?';
+
+    // Check if plugin has its own delete message function
+    if (pluginContext && pluginContext.getDeleteMessage) {
+      return pluginContext.getDeleteMessage(currentItem);
+    }
+
+    // Generic fallback
+    const itemName =
+      currentItem.companyName ||
+      currentItem.title ||
+      currentItem.estimateNumber ||
+      currentItem.fileName ||
+      currentItem.name ||
+      'this item';
+
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 
-  return {
-    getPanelTitle,
-    getPanelSubtitle,
-    getDeleteMessage
-  };
+  return { getPanelTitle, getPanelSubtitle, getDeleteMessage };
 };

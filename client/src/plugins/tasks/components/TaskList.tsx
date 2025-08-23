@@ -193,7 +193,10 @@ export const TaskList: React.FC = () => {
     <div className="p-4 sm:p-8">
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <Heading level={1}>Tasks</Heading>
+        <Heading level={1}>
+  Tasks ({searchTerm ? sortedTasks.length : tasks.length}
+  {searchTerm && sortedTasks.length !== tasks.length && ` of ${tasks.length}`})
+</Heading>
           <Text variant="caption">Manage your tasks and projects</Text>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">

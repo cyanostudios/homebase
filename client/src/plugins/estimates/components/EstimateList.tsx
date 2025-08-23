@@ -167,7 +167,10 @@ export function EstimateList() {
     <div className="p-4 sm:p-8">
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <Heading level={1}>Estimates</Heading>
+        <Heading level={1}>
+  Estimates ({searchTerm ? sortedEstimates.length : estimates.length}
+  {searchTerm && sortedEstimates.length !== estimates.length && ` of ${estimates.length}`})
+</Heading>
           <Text variant="caption">Manage your customer estimates</Text>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">

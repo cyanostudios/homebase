@@ -81,7 +81,10 @@ export const YourItemList: React.FC = () => {
     <div className="p-4 sm:p-8">
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <Heading level={1}>Your Items</Heading>
+        <Heading level={1}>
+  Your Items ({searchTerm ? sortedItems.length : yourItems.length}
+  {searchTerm && sortedItems.length !== yourItems.length && ` of ${yourItems.length}`})
+</Heading>
           <Text variant="caption">Template list</Text>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">

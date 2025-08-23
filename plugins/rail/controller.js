@@ -15,10 +15,10 @@ module.exports = {
 
   async getStations(req, res) {
     try {
-      console.log('RAIL: /stations called, force=', req.query.force);
+      
       const force = req.query.force === '1' || req.query.force === 'true';
       const stations = await service.getStations({ force });
-      console.log('RAIL: /stations ok, count=', stations.length);
+      
       res.json({ count: stations.length, stations });
   
     } catch (err) {
