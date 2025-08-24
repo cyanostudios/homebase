@@ -2,35 +2,39 @@
 
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 
+// --- helpers: hyphen-safe singular + capitalization (same as panelHandlers.ts) ---
+const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+const singularCap = (pluginName: string) => {
+  const camel = toCamel(pluginName);                              // e.g., "woocommerceProducts"
+  const base = camel.endsWith('s') ? camel.slice(0, -1) : camel;  // -> "woocommerceProduct"
+  return base.charAt(0).toUpperCase() + base.slice(1);            // -> "WoocommerceProduct"
+};
+
 // Utility function to find plugin functions dynamically
 function findPluginFunction(context: any, action: string, pluginName?: string): any {
   if (!context || !pluginName) return null;
   
-  // Convert plugin name to singular for function naming
-  const singular = pluginName.charAt(0).toUpperCase() + pluginName.slice(1, -1);
-  const functionName = `${action}${singular}`;
-  
-  return context[functionName] || null;
+  // Generic: action + SingularCap
+  const fnName = `${action}${singularCap(pluginName)}`;
+  return typeof context[fnName] === 'function' ? context[fnName] : null;
 }
 
 // Utility function to find panel functions dynamically
 function findPanelFunction(context: any, action: string, pluginName?: string): any {
   if (!context || !pluginName) return null;
   
-  const singular = pluginName.charAt(0).toUpperCase() + pluginName.slice(1, -1);
-  const functionName = `${action}${singular}Panel`;
-  
-  return context[functionName] || null;
+  // Generic: action + SingularCap + "Panel"
+  const fnName = `${action}${singularCap(pluginName)}Panel`;
+  return typeof context[fnName] === 'function' ? context[fnName] : null;
 }
 
 // Utility function to find open functions dynamically
 function findOpenFunction(context: any, mode: string, pluginName?: string): any {
   if (!context || !pluginName) return null;
   
-  const singular = pluginName.charAt(0).toUpperCase() + pluginName.slice(1, -1);
-  const functionName = `open${singular}For${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
-  
-  return context[functionName] || null;
+  // Generic: open + SingularCap + ForX
+  const functionName = `open${singularCap(pluginName)}For${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
+  return typeof context[functionName] === 'function' ? context[functionName] : null;
 }
 
 export const createKeyboardHandler = (

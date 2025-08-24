@@ -2,6 +2,14 @@
 
 import React from 'react';
 
+// --- helpers: hyphen-safe singular + capitalization ---
+const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+const singularCap = (pluginName: string) => {
+  const camel = toCamel(pluginName);                              // e.g., "woocommerceProducts"
+  const base = camel.endsWith('s') ? camel.slice(0, -1) : camel;  // -> "woocommerceProduct"
+  return base.charAt(0).toUpperCase() + base.slice(1);            // -> "WoocommerceProduct"
+};
+
 export const createPanelRenderers = (
   currentPlugin: any, 
   currentPluginContext: any, 
@@ -18,18 +26,18 @@ export const createPanelRenderers = (
     const FormComponent = currentPlugin.components.Form;
 
     if (currentMode === 'view') {
-      // DYNAMIC: Generate props based on plugin name automatically
-      const singular = currentPlugin.name.slice(0, -1); // 'contacts' -> 'contact'
-      const props = { [singular]: currentItem };
+      // DYNAMIC: Generate props based on plugin name automatically using helper
+      const singularName = singularCap(currentPlugin.name).toLowerCase(); // 'woocommerceProduct' -> 'woocommerceproduct'
+      const props = { [singularName]: currentItem };
       
       // Also pass generic 'item' prop for plugins that might use it
       const finalProps = { ...props, item: currentItem };
       
       return <ViewComponent {...finalProps} />;
     } else {
-      // DYNAMIC: Generate form props based on plugin name
-      const singular = currentPlugin.name.slice(0, -1);
-      const currentItemProp = `current${singular.charAt(0).toUpperCase() + singular.slice(1)}`;
+      // DYNAMIC: Generate form props based on plugin name using helper
+      const singularCapName = singularCap(currentPlugin.name); // 'WoocommerceProduct'
+      const currentItemProp = `current${singularCapName}`;
       
       const formProps = {
         [currentItemProp]: currentItem,

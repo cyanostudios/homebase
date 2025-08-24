@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
+import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
+
+// Generate dynamic page type from plugin registry
+type PluginPage = typeof PLUGIN_REGISTRY[number]['name'];
+type PageType = PluginPage | 'import'; // Keep 'import' as special case
 
 interface SidebarContextType {
   isCollapsed: boolean;
@@ -14,8 +19,8 @@ export const useSidebar = () => useContext(SidebarContext);
 
 interface MainLayoutProps {
   children: React.ReactNode;
-  currentPage: 'contacts' | 'notes' | 'estimates' | 'tasks' | 'import';
-  onPageChange: (page: 'contacts' | 'notes' | 'estimates' | 'tasks' | 'import') => void;
+  currentPage: PageType;
+  onPageChange: (page: PageType) => void;
 }
 
 export function MainLayout({ children, currentPage, onPageChange }: MainLayoutProps) {
