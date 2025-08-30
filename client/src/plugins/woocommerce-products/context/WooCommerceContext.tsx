@@ -32,6 +32,7 @@ interface WooContextType {
   openWooSettingsForEdit: (settings: WooSettings) => void;
   openWooSettingsForView: (settings: WooSettings) => void;
   closeWooSettingsPanel: () => void;
+  closeWoocommerceProductPanel: () => void; // Add alias to interface
 
   loadWooSettings: () => Promise<void>;
   saveWooSettings: (data: Partial<WooSettings>) => Promise<boolean>;
@@ -124,17 +125,17 @@ export function WooCommerceProvider({
 
   // Expose global submit/cancel
   useEffect(() => {
-    (window as any).submitWooSettingsForm = () => {
+    (window as any).submitWoocommerceProductsForm = () => {
       const ev = new CustomEvent('submitWooSettingsForm');
       window.dispatchEvent(ev);
     };
-    (window as any).cancelWooSettingsForm = () => {
+    (window as any).cancelWoocommerceProductsForm = () => {
       const ev = new CustomEvent('cancelWooSettingsForm');
       window.dispatchEvent(ev);
     };
     return () => {
-      delete (window as any).submitWooSettingsForm;
-      delete (window as any).cancelWooSettingsForm;
+      delete (window as any).submitWoocommerceProductsForm;
+      delete (window as any).cancelWoocommerceProductsForm;
     };
   }, []);
 
@@ -257,6 +258,9 @@ export function WooCommerceProvider({
     setValidationErrors([]);
   };
 
+  // Alias for generic panel handlers compatibility
+  const closeWoocommerceProductPanel = closeWooSettingsPanel;
+
   // Panel Title Functions
   const getPanelTitle = (mode: string, item: WooSettings | null, isMobileView: boolean) => {
     return 'WooCommerce Settings';
@@ -286,6 +290,7 @@ export function WooCommerceProvider({
     openWooSettingsForEdit,
     openWooSettingsForView,
     closeWooSettingsPanel,
+    closeWoocommerceProductPanel,  // Add alias for generic handlers
     loadWooSettings,          // ← stable
     saveWooSettings,
     saveWoocommerceProduct,  // Alias for generic handlers
