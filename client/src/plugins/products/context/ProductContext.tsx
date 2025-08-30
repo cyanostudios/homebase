@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  ReactNode,
+} from 'react';
 import { ShoppingCart } from 'lucide-react';
 import { Badge } from '@/core/ui/Badge';
 import { Product, ValidationError } from '../types/products';
@@ -6,20 +14,34 @@ import { productsApi } from '../api/productsApi';
 import { useApp } from '@/core/api/AppContext';
 
 interface ProductContextType {
+  // Panel state
   isProductPanelOpen: boolean;
   currentProduct: Product | null;
   panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
+
+  // Data
   products: Product[];
+
+  // NEW: selection state (IDs as strings)
+  selectedProductIds: string[];
+  toggleProductSelected: (id: string) => void;
+  selectAllProducts: (ids: string[]) => void; // sets selection to provided list
+  clearProductSelection: () => void;
+
+  // Panel actions
   openProductPanel: (product: Product | null) => void;
   openProductForEdit: (product: Product) => void;
   openProductForView: (product: Product) => void;
   closeProductPanel: () => void;
+
+  // CRUD actions
   saveProduct: (data: any) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<void>;
+
   clearValidationErrors: () => void;
-  
-  // NEW: Panel Title Functions
+
+  // Panel Title Functions
   getPanelTitle: (mode: string, item: Product | null, isMobileView: boolean) => any;
   getPanelSubtitle: (mode: string, item: Product | null) => any;
   getDeleteMessage: (item: Product | null) => string;
@@ -45,14 +67,29 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
   // Data state
   const [products, setProducts] = useState<Product[]>([]);
 
+  // NEW: per-row selection state (IDs normalized to string)
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+
   // Load products when authenticated
   useEffect(() => {
     if (isAuthenticated) {
       loadProducts();
     } else {
       setProducts([]);
+      setSelectedProductIds([]); // clear selection on logout
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
+
+  // Keep selection valid when the product list changes (drop IDs that disappeared)
+  useEffect(() => {
+    if (!products?.length) {
+      if (selectedProductIds.length) setSelectedProductIds([]);
+      return;
+    }
+    const existing = new Set(products.map(p => String((p as any).id)));
+    setSelectedProductIds(prev => prev.filter(id => existing.has(id)));
+  }, [products]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Register panel-close with AppContext (only once)
   useEffect(() => {
@@ -63,7 +100,7 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Global form actions (plural naming) - kept for keyboard/guard integration
+  // Global form actions (PLURAL) - kept for keyboard/guard integration
   useEffect(() => {
     (window as any).submitProductsForm = () => {
       const event = new CustomEvent('submitProductForm');
@@ -98,7 +135,6 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     const toNum = (val: any) => {
       if (!val) return 0;
       const s = String(val);
-      // take trailing number if present, else parseInt
       const m = s.match(/(\d+)\s*$/);
       return m ? parseInt(m[1], 10) : parseInt(s, 10) || 0;
     };
@@ -254,19 +290,37 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     try {
       await productsApi.deleteProduct(id);
       setProducts(prev => prev.filter(p => p.id !== id));
+      setSelectedProductIds(prev => prev.filter(pid => pid !== String(id)));
     } catch (error) {
       console.error('Failed to delete product:', error);
     }
   };
 
-  // NEW: Panel Title Functions (moved from PanelTitles.tsx)
+  // ---------- Selection helpers ----------
+  const toggleProductSelected = useCallback((id: string) => {
+    const key = String(id);
+    setSelectedProductIds(prev =>
+      prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]
+    );
+  }, []);
+
+  const selectAllProducts = useCallback((ids: string[]) => {
+    // Sets selection to the provided list (IDs normalized to strings)
+    const norm = Array.isArray(ids) ? ids.map(String) : [];
+    setSelectedProductIds(norm);
+  }, []);
+
+  const clearProductSelection = useCallback(() => {
+    setSelectedProductIds([]);
+  }, []);
+  // --------------------------------------
+
+  // Panel titles/subtitles/delete message (kept inline per refactor)
   const getPanelTitle = (mode: string, item: Product | null, isMobileView: boolean) => {
-    // View mode with item
     if (mode === 'view' && item) {
       const productNumber = `#${item.productNumber || item.id}`;
       const title = item.title;
       const price = `${item.priceAmount} ${item.currency}`;
-      
       if (isMobileView && price) {
         return (
           <div>
@@ -277,8 +331,6 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
       }
       return `${productNumber} • ${title}${price ? ` • ${price}` : ''}`;
     }
-
-    // Non-view modes (create/edit)
     switch (mode) {
       case 'edit': return 'Edit Product';
       case 'create': return 'Create Product';
@@ -287,18 +339,15 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
   };
 
   const getPanelSubtitle = (mode: string, item: Product | null) => {
-    // View mode with item
     if (mode === 'view' && item) {
       const statusColors: Record<string, string> = {
         'for sale': 'bg-green-100 text-green-800',
         'draft': 'bg-gray-100 text-gray-800',
         'archived': 'bg-red-100 text-red-800',
       };
-      
       const badgeColor = statusColors[item.status] || statusColors.draft;
       const badgeText = item.status?.charAt(0).toUpperCase() + item.status?.slice(1);
       const quantityText = item.quantity !== undefined ? `Qty: ${item.quantity}` : '';
-
       return (
         <div className="flex items-center gap-2">
           <ShoppingCart className="w-4 h-4" style={{ color: '#2563eb' }} />
@@ -307,8 +356,6 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
         </div>
       );
     }
-
-    // Non-view modes
     switch (mode) {
       case 'edit': return 'Update product information';
       case 'create': return 'Enter new product details';
@@ -318,17 +365,24 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
 
   const getDeleteMessage = (item: Product | null) => {
     if (!item) return 'Are you sure you want to delete this product?';
-    
     const itemName = item.title || 'this product';
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 
-  const value: ProductContextType = {
+  const value: ProductContextType = useMemo(() => ({
     isProductPanelOpen,
     currentProduct,
     panelMode,
     validationErrors,
     products,
+
+    // selection
+    selectedProductIds,
+    toggleProductSelected,
+    selectAllProducts,
+    clearProductSelection,
+
+    // actions
     openProductPanel,
     openProductForEdit,
     openProductForView,
@@ -336,12 +390,22 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     saveProduct,
     deleteProduct,
     clearValidationErrors,
-    
-    // NEW: Panel Title Functions
+
+    // titles
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
-  };
+  }), [
+    isProductPanelOpen,
+    currentProduct,
+    panelMode,
+    validationErrors,
+    products,
+    selectedProductIds,
+    toggleProductSelected,
+    selectAllProducts,
+    clearProductSelection,
+  ]);
 
   return <ProductContext.Provider value={value}>{children}</ProductContext.Provider>;
 }

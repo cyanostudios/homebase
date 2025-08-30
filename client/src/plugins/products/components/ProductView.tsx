@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
-import { Heading } from '@/core/ui/Typography';
+import React, { useMemo, useState } from 'react';
+import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
+import { Button } from '@/core/ui/Button';
+import { useChannels } from '@/plugins/channels/hooks/useChannels';
 
 interface ProductViewProps {
   item?: any;      // preferred prop from panel renderer
@@ -31,6 +33,29 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, contact }) => {
     createdAt: src.createdAt,
     updatedAt: src.updatedAt,
   }), [src]);
+
+  // Channels integration (Woo toggle)
+  const { channels, setProductEnabled } = useChannels();
+  const wooSummary = (channels || []).find(c => String(c.channel).toLowerCase() === 'woocommerce');
+  const wooConfigured = !!wooSummary?.configured;
+
+  // We don't have per-product state yet from API; start undefined and reflect user action.
+  const [wooEnabled, setWooEnabled] = useState<boolean | null>(null);
+  const [wooPending, setWooPending] = useState(false);
+  const canToggleWoo = wooConfigured && !!product.id;
+
+  const handleWooToggle = async (next: boolean) => {
+    if (!canToggleWoo || !product.id) return;
+    setWooPending(true);
+    try {
+      await setProductEnabled({ productId: String(product.id), channel: 'woocommerce', enabled: next });
+      setWooEnabled(next);
+    } catch (e) {
+      console.error('Failed to toggle Woo mapping', e);
+    } finally {
+      setWooPending(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -140,6 +165,50 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, contact }) => {
           </div>
         </Card>
       )}
+
+      {/* Channels (Woo toggle) */}
+      <Card padding="sm" className="shadow-none px-0">
+        <Heading level={3} className="mb-3">Channels</Heading>
+
+        {!wooConfigured ? (
+          <div className="rounded-lg border border-dashed p-4 bg-gray-50">
+            <Text variant="body">
+              WooCommerce is not connected yet. Go to the <strong>WooCommerce</strong> plugin and add your store URL and API keys to enable per-product publishing.
+            </Text>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm font-medium text-gray-900">WooCommerce</div>
+              <div className="text-xs text-gray-600">
+                {wooEnabled === null ? 'Current status: unknown (first toggle will set it)' : wooEnabled ? 'Enabled for this product' : 'Disabled for this product'}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  disabled={!canToggleWoo || wooPending}
+                  checked={!!wooEnabled}
+                  onChange={(e) => handleWooToggle(e.target.checked)}
+                />
+                <span className="text-sm">{wooEnabled ? 'Enabled' : 'Disabled'}</span>
+              </label>
+              <Button
+                variant="secondary"
+                disabled={!canToggleWoo || wooPending}
+                onClick={() => handleWooToggle(!(wooEnabled ?? false))}
+              >
+                {wooPending ? 'Saving…' : (wooEnabled ? 'Disable' : 'Enable')}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-3 text-xs text-gray-500">
+          Note: enabling a channel here only marks the product as publishable for that channel. Use the <strong>WooCommerce</strong> panel to run an export/sync.
+        </div>
+      </Card>
 
       {/* Metadata */}
       <Card padding="sm" className="shadow-none px-0">

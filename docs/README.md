@@ -15,14 +15,8 @@ Homebase is a revolutionary modular plugin-based business application. The syste
 - **Zero Team Conflicts** - Parallel plugin development with complete isolation
 - **Enterprise Standards** - Professional UI/UX with modern architecture
 
-## CURRENT PLUGIN ECOSYSTEM
+## Core Features
 
-### Working Plugins
-- **Contacts** ✅ Complete modular context + enhanced responsive UI
-- **Notes** ✅ Complete modular context + cross-plugin @mention system
-- **Estimates** ✅ Complete modular context + status management workflow + PDF generation
-
-### Core Features
 - **Universal Keyboard Navigation** - Space + Arrow keys across all plugins
 - **Cross-Plugin @Mentions** - Seamless navigation between contacts and notes
 - **Mobile-First Design** - Responsive components with conditional rendering
@@ -68,7 +62,7 @@ Homebase is a revolutionary modular plugin-based business application. The syste
 - Triple-check impact
 
 ### 3. TEMPLATE-ONLY DEVELOPMENT
-- **USE NEUTRAL TEMPLATES** from `templates/` directory for ALL new plugins
+- **USE TEMPLATES** from `templates/` directory for ALL new plugins
 - **COPY COMPLETE IMPLEMENTATIONS** - no variations
 - **FOLLOW DOCS EXACTLY** - no improvisation
 
@@ -85,7 +79,7 @@ Format: "Step X: [Specific action] - What result do you get?"
 - Get to the point
 
 ### PLUGIN DEVELOPMENT STANDARDS
-- Use neutral templates from `templates/` directory - demonstrates ALL patterns
+- Use templates from `templates/` directory - demonstrates ALL patterns
 - Follow guides exactly - tested in development
 - Copy complete templates - backend/frontend available
 - Test each step before proceeding
@@ -138,9 +132,9 @@ Terminal 3: git, commands, testing              # General commands
 ```
 
 ### Plugin Development Process (Tested Pattern)
-1. **Create Backend Plugin** (5 min) - Copy templates/plugin-backend-template exactly
+1. **Create Backend Plugin** (5 min) - Copy `templates/plugin-backend-template` exactly
 2. **Test Backend API** (2 min) - Verify endpoints work with curl
-3. **Create Frontend Context** (5 min) - Copy templates/plugin-frontend-template pattern exactly
+3. **Create Frontend Context** (5 min) - Copy `templates/plugin-frontend-template` pattern exactly
 4. **Build UI Components** (8 min) - Copy template List/Form/View patterns
 5. **Register Plugin** (3 min) - Add to pluginRegistry.ts with plural naming
 6. **Integration Testing** (2 min) - Verify keyboard navigation + responsive design

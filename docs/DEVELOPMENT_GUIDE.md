@@ -166,23 +166,6 @@ npm run dev
 - `@/` maps to `client/src/`
 - Example: `@/core/api/AppContext` → `client/src/core/api/AppContext.tsx`
 
-## Current Plugin Status
-
-### Development Plugins
-| Plugin | Context | Features | Status |
-|--------|---------|----------|---------|
-| **Contacts** | ✅ Modular | CRUD, @mentions, cross-refs | Complete |
-| **Notes** | ✅ Modular | @mentions, rich content | Complete |
-| **Estimates** | ✅ Modular | Status mgmt, calculations | Complete |
-| **Tasks** | ✅ Modular | Priority mgmt, assignments | Complete |
-
-### Key Features Working
-- **Universal Keyboard Navigation** - Space opens/closes panels, Arrow keys navigate lists
-- **Cross-Plugin @Mentions** - Seamless navigation between contacts and notes
-- **Mobile Responsive Design** - Conditional rendering for mobile/desktop
-- **Real-Time Validation** - Context-aware error handling and feedback
-- **Status Management** - Visual feedback and workflow states
-
 ## Plugin Development Workflow
 
 ### Standard Development Process (15-25 minutes)
@@ -193,9 +176,9 @@ npm run dev
 5. **Integration Testing** (2 min) - Verify CRUD + keyboard navigation
 
 ### Template Usage
-- **Backend Templates** - Copy from existing plugins (contacts recommended)
-- **Frontend Context Template** - ContactContext.tsx as reference
-- **Component Templates** - Follow ContactList/Form/View patterns
+- **Backend Templates** - Copy from `templates/plugin-backend-template/`
+- **Frontend Context Template** - Copy from `templates/plugin-frontend-template/`
+- **Component Templates** - Use patterns from `templates/`
 - **Styling Standards** - Use STYLE_GUIDE.md for consistent UI
 
 ## Database Schema
@@ -228,19 +211,12 @@ tasks                  # Task management with assignments
 - **After:** Plugin contexts isolate re-renders to relevant components only
 - **Result:** 90% reduction in unnecessary re-renders
 
-### Measurement Results
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| AppContext size | 1000+ lines | 600 lines | 40% reduction |
-| Component re-renders | All affected | Plugin-specific | 90% reduction |
-| Plugin development time | 45-60 min | 15-25 min | 65% faster |
-| Core file updates | 9 files | 0 files | 100% elimination |
-| Team conflicts | High | Zero | 100% elimination |
+
 
 ## Development Best Practices
 
 ### Plugin Development Standards
-- Use contacts plugin as template - demonstrates ALL patterns
+- Use templates from `templates/` directory - demonstrates ALL patterns
 - Follow guides exactly - tested in development
 - Copy complete templates - backend/frontend available
 - Test each step before proceeding
@@ -307,7 +283,7 @@ tasks                  # Task management with assignments
 **Keyboard navigation broken**
 - **Check:** Proper data-keyboard-nav attributes on components
 - **Check:** Universal keyboard listener in App.tsx
-- **Solution:** Follow ContactList.tsx pattern exactly
+- **Solution:** Follow template patterns exactly
 
 ### Environment Setup Verification
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Plus, Edit, Eye, ChevronUp, ChevronDown, Search } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -19,7 +19,17 @@ const statusClass = (status?: string) => {
 };
 
 export const ProductList: React.FC = () => {
-  const { products, openProductPanel, openProductForEdit, openProductForView } = useProducts();
+  const {
+    products,
+    openProductPanel,
+    openProductForEdit,
+    openProductForView,
+    // selection API
+    selectedProductIds,
+    toggleProductSelected,
+    selectAllProducts,
+    clearProductSelection,
+  } = useProducts();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,19 +49,34 @@ export const ProductList: React.FC = () => {
     else { setSortField(field); setSortOrder('asc'); }
   };
 
-  const normalize = (p: any) => ({
-    id: p.id,
-    productNumber: p.productNumber || '',
-    title: p.title || '',
-    status: p.status || 'for sale',
-    quantity: Number.isFinite(p.quantity) ? p.quantity : 0,
-    priceAmount: Number.isFinite(p.priceAmount) ? p.priceAmount : 0,
-    currency: p.currency || 'SEK',
-    sku: p.sku || '',
-    createdAt: p.createdAt,
-    updatedAt: p.updatedAt,
-    raw: p
-  });
+  // Robust row ID: fall back through common fields when id is missing
+  const normalize = (p: any) => {
+    const rowId =
+      p?.id ??
+      p?._id ??
+      p?.uuid ??
+      p?.productId ??
+      p?.contactId ??
+      p?.contactNumber ??
+      p?.productNumber ??
+      p?.sku ??
+      // last resort: title+timestamps yields a stable-enough key for selection
+      `${p?.title || 'item'}|${p?.createdAt || ''}|${p?.updatedAt || ''}`;
+
+    return {
+      id: String(rowId),
+      productNumber: p.productNumber || '',
+      title: p.title || '',
+      status: p.status || 'for sale',
+      quantity: Number.isFinite(p.quantity) ? p.quantity : 0,
+      priceAmount: Number.isFinite(p.priceAmount) ? p.priceAmount : 0,
+      currency: p.currency || 'SEK',
+      sku: p.sku || '',
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      raw: p
+    };
+  };
 
   const filteredAndSorted = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
@@ -99,6 +124,36 @@ export const ProductList: React.FC = () => {
     return filtered.sort(cmp);
   }, [products, searchTerm, sortField, sortOrder]);
 
+  // ---------- Selection helpers ----------
+  const visibleIds = useMemo(() => filteredAndSorted.map((p: any) => String(p.id)), [filteredAndSorted]);
+  const allVisibleSelected = useMemo(
+    () => visibleIds.length > 0 && visibleIds.every(id => selectedProductIds.includes(id)),
+    [visibleIds, selectedProductIds]
+  );
+  const someVisibleSelected = useMemo(
+    () => visibleIds.some(id => selectedProductIds.includes(id)),
+    [visibleIds, selectedProductIds]
+  );
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!headerCheckboxRef.current) return;
+    headerCheckboxRef.current.indeterminate = !allVisibleSelected && someVisibleSelected;
+  }, [allVisibleSelected, someVisibleSelected]);
+
+  const onToggleAllVisible = () => {
+    if (allVisibleSelected) {
+      // unselect only the visible ones
+      const set = new Set(visibleIds);
+      const remaining = selectedProductIds.filter(id => !set.has(id));
+      selectAllProducts(remaining);
+    } else {
+      // select union of (existing selection ∪ visible)
+      const union = Array.from(new Set([...selectedProductIds, ...visibleIds]));
+      selectAllProducts(union);
+    }
+  };
+  // ---------------------------------------
+
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return null;
     return sortOrder === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />;
@@ -109,15 +164,30 @@ export const ProductList: React.FC = () => {
   const handleOpenForEdit = (product: any) => attemptNavigation(() => openProductForEdit(product));
   const handleOpenPanel = () => attemptNavigation(() => openProductPanel(null));
 
+  const total = products.length;
+  const filtered = filteredAndSorted.length;
+
   return (
     <div className="p-4 sm:p-8">
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-        <Heading level={1}>
-  Products ({searchTerm ? sortedProducts.length : products.length}
-  {searchTerm && sortedProducts.length !== products.length && ` of ${products.length}`})
-</Heading>
+          <Heading level={1}>
+            Products ({filtered}{filtered !== total ? ` of ${total}` : ''})
+          </Heading>
           <Text variant="caption">Manage your product catalog</Text>
+          {selectedProductIds.length > 0 && (
+            <div className="mt-2 text-sm">
+              <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                {selectedProductIds.length} selected
+              </span>
+              <button
+                className="ml-2 underline text-blue-700"
+                onClick={() => clearProductSelection()}
+              >
+                Clear selection
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative">
@@ -141,6 +211,17 @@ export const ProductList: React.FC = () => {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
+                {/* selection header */}
+                <th className="w-10 px-4 py-3">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    className="h-4 w-4"
+                    aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
+                    checked={allVisibleSelected}
+                    onChange={onToggleAllVisible}
+                  />
+                </th>
                 <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('productNumber')}
@@ -201,13 +282,14 @@ export const ProductList: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredAndSorted.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-400">
                     {searchTerm ? 'No products found matching your search.' : 'No products yet. Click "Add Product" to get started.'}
                   </td>
                 </tr>
               ) : (
                 filteredAndSorted.map((p: any, idx: number) => {
                   const raw = p.raw;
+                  const isSelected = selectedProductIds.includes(p.id);
                   return (
                     <tr
                       key={p.id}
@@ -219,6 +301,17 @@ export const ProductList: React.FC = () => {
                       aria-label={`Open product ${p.title}`}
                       onClick={(e) => { e.preventDefault(); handleOpenForView(raw); }}
                     >
+                      {/* row checkbox */}
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4"
+                          checked={isSelected}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => toggleProductSelected(p.id)}
+                          aria-label={isSelected ? 'Unselect product' : 'Select product'}
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-mono font-medium text-gray-900">#{p.productNumber}</div>
                       </td>
@@ -266,31 +359,43 @@ export const ProductList: React.FC = () => {
                 {searchTerm ? 'No products found matching your search.' : 'No products yet. Click "Add Product" to get started.'}
               </div>
             ) : (
-              filteredAndSorted.map((p: any) => (
-                <div key={p.id} className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-medium text-gray-900">{p.title}</h3>
-                      <div className="mt-1 space-y-1">
-                        <div className="text-xs text-gray-600">#{p.productNumber} · {p.sku || '—'}</div>
-                        <div className="text-xs text-gray-600">
-                          {p.priceAmount?.toFixed ? p.priceAmount.toFixed(2) : Number(p.priceAmount || 0).toFixed(2)} {p.currency}
-                        </div>
-                        <div>
-                          <Badge className={statusClass(p.status)}>{p.status}</Badge>
+              filteredAndSorted.map((p: any) => {
+                const isSelected = selectedProductIds.includes(p.id);
+                return (
+                  <div key={p.id} className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="pt-1">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4"
+                          checked={isSelected}
+                          onChange={() => toggleProductSelected(p.id)}
+                          aria-label={isSelected ? 'Unselect product' : 'Select product'}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-medium text-gray-900">{p.title}</h3>
+                        <div className="mt-1 space-y-1">
+                          <div className="text-xs text-gray-600">#{p.productNumber} · {p.sku || '—'}</div>
+                          <div className="text-xs text-gray-600">
+                            {p.priceAmount?.toFixed ? p.priceAmount.toFixed(2) : Number(p.priceAmount || 0).toFixed(2)} {p.currency}
+                          </div>
+                          <div>
+                            <Badge className={statusClass(p.status)}>{p.status}</Badge>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div>
-                      <Button
-                        variant="ghost" size="sm" icon={Eye}
-                        onClick={() => handleOpenForView(p.raw)} className="h-8 px-3">
-                        View
-                      </Button>
+                      <div>
+                        <Button
+                          variant="ghost" size="sm" icon={Eye}
+                          onClick={() => attemptNavigation(() => openProductForView(p.raw))} className="h-8 px-3">
+                          View
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}

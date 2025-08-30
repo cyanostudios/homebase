@@ -1,5 +1,5 @@
 // client/src/plugins/channels/api/channelsApi.ts
-// Kopierad från neutral TemplateApi – endast basvägen är satt till /api/channels.
+// Channels API client: lists channel summaries and toggles per-product enable/disable.
 
 export type ApiFieldError = { field: string; message: string };
 
@@ -38,10 +38,45 @@ export class TemplateApi {
     return text ? JSON.parse(text) : {};
   }
 
-  // Listar kanaler
+  // GET /api/channels — list channel summaries
   getChannels() {
     return this.request('/');
+  }
+
+  // PUT /api/channels/map — per-product enable/disable for a channel
+  // Body: { productId: string, channel: string, enabled: boolean }
+  setProductEnabled(body: { productId: string; channel: string; enabled: boolean }) {
+    return this.request('/map', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
   }
 }
 
 export const channelsApi = new TemplateApi('/api/channels');
+
+export interface ValidationError {
+  field: string;
+  message: string;
+}
+
+export interface ChannelSummary {
+  id: string;                     // same as 'channel'
+  channel: string;                // e.g., 'woocommerce', 'fyndiq', 'cdon'
+  configured: boolean;            // has required settings/credentials
+  mappedCount: number;            // rows in channel_product_map for this channel
+  enabledCount: number;           // products currently enabled for this channel
+  status: {
+    success: number;              // last sync successes
+    error: number;                // last sync errors
+    queued: number;               // queued sync jobs
+    idle: number;                 // no-op/unchanged
+  };
+  lastSyncedAt?: Date | string | null;
+}
+
+// Hook passthrough (kept for compatibility if some code imports it here)
+import { useChannelsContext } from '../context/ChannelsContext';
+export function useChannels() {
+  return useChannelsContext();
+}

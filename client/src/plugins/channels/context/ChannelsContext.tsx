@@ -18,12 +18,24 @@ interface ChannelsContextType {
   openChannelForEdit: (item: ChannelSummary) => void;
   openChannelForView: (item: ChannelSummary) => void;
   closeChannelsPanel: () => void;
+
+  // 🔹 Singular alias expected by the generic panel resolver (no core changes)
+  // Plugin "channels" -> generic looks for closeChannelPanel()
+  closeChannelPanel: () => void;
+
   saveChannel: (_data: any) => Promise<boolean>;
   deleteChannel: (_id: string) => Promise<void>;
   clearValidationErrors: () => void;
 
   // Loader
   loadChannels: () => Promise<void>;
+
+  // Per-product toggle (used by ProductView)
+  setProductEnabled: (args: { productId: string; channel: string; enabled: boolean }) => Promise<{
+    ok: boolean;
+    row: any;
+    summary: ChannelSummary | null;
+  }>;
 }
 
 const ChannelsContext = createContext<ChannelsContextType | undefined>(undefined);
@@ -90,6 +102,29 @@ export function ChannelsProvider({ children, isAuthenticated, onCloseOtherPanels
     }
   };
 
+  // Safe per-product enable/disable for a channel:
+  // - Calls backing API
+  // - Locally merges returned summary into `channels`
+  const setProductEnabled = async (args: { productId: string; channel: string; enabled: boolean }) => {
+    const res = await channelsApi.setProductEnabled({
+      productId: String(args.productId),
+      channel: String(args.channel).toLowerCase(),
+      enabled: !!args.enabled,
+    });
+    const summary: ChannelSummary | null = res?.summary ?? null;
+
+    if (summary) {
+      setChannels(prev => {
+        const idx = prev.findIndex(s => String(s.channel).toLowerCase() === String(summary.channel).toLowerCase());
+        if (idx === -1) return [...prev, summary];
+        const next = prev.slice();
+        next[idx] = { ...next[idx], ...summary };
+        return next;
+      });
+    }
+    return { ok: !!res?.ok, row: res?.row, summary: summary ?? null };
+  };
+
   const openChannelsPanel = (item: ChannelSummary | null) => {
     setCurrentChannel(item);
     setPanelMode(item ? 'view' : 'create');
@@ -117,6 +152,8 @@ export function ChannelsProvider({ children, isAuthenticated, onCloseOtherPanels
     setPanelMode('create');
     setValidationErrors([]);
   };
+  // Singular alias expected by the generic panel resolver
+  const closeChannelPanel = () => closeChannelsPanel();
 
   // MVP: read-only; no save/delete yet
   const saveChannel = async () => {
@@ -139,10 +176,12 @@ export function ChannelsProvider({ children, isAuthenticated, onCloseOtherPanels
     openChannelForEdit,
     openChannelForView,
     closeChannelsPanel,
+    closeChannelPanel, // singular alias used by the generic panel system
     saveChannel,
     deleteChannel,
     clearValidationErrors,
     loadChannels,
+    setProductEnabled,
   }), [isChannelsPanelOpen, currentChannel, panelMode, validationErrors, channels]);
 
   return <ChannelsContext.Provider value={value}>{children}</ChannelsContext.Provider>;
@@ -152,4 +191,10 @@ export function useChannelsContext() {
   const ctx = useContext(ChannelsContext);
   if (!ctx) throw new Error('useChannelsContext must be used within a ChannelsProvider');
   return ctx;
+}
+
+// (kept for compatibility if someone imports the hook from this file)
+import { useChannelsContext as _useCtx } from '../context/ChannelsContext';
+export function useChannels() {
+  return _useCtx();
 }

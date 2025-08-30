@@ -1,5 +1,6 @@
 // Derived from neutral template. Adds settings storage, connection test,
-// and batch export to WooCommerce.
+// batch export to WooCommerce (create OR update by SKU), and a read-only
+// import endpoint to fetch a Woo product by SKU and map it to MVP Product.
 
 class WooCommerceController {
   constructor(model) {
@@ -83,7 +84,34 @@ class WooCommerceController {
     }
   }
 
-  // ---- Batch export ----
+  // ---- IMPORT (read-only) by SKU ----
+  async importProductBySku(req, res) {
+    try {
+      const userId = req.session.user.id;
+      const settings = await this.model.getSettings(userId);
+      if (!settings) return res.status(400).json({ error: 'WooCommerce settings not found. Save settings first.' });
+
+      const sku = String(req.query?.sku || '').trim();
+      if (!sku) return res.status(400).json({ error: 'Missing required query param: sku' });
+
+      const base = this.normalizeBaseUrl(settings.storeUrl);
+      const found = await this.findWooProductBySku(base, sku, settings);
+      if (!found?.id) return res.status(404).json({ ok: false, sku, error: 'Product not found in WooCommerce' });
+
+      const mapped = this.mapWooToMvpProduct(found);
+      return res.json({
+        ok: true,
+        source: 'woocommerce',
+        wooId: found.id,
+        product: mapped,
+      });
+    } catch (error) {
+      console.error('Woo import error:', error);
+      res.status(502).json({ error: 'Import from WooCommerce failed', detail: String(error?.message || error) });
+    }
+  }
+
+  // ---- Batch export (create OR update by SKU) ----
   async exportProducts(req, res) {
     try {
       const userId = req.session.user.id;
@@ -97,29 +125,59 @@ class WooCommerceController {
         return res.status(400).json({ error: 'Request must include products: [] with MVP product fields.' });
       }
 
-      // 1) request: map SKU -> { productId, payloadForWoo }
-      const channel = 'woocommerce';
-      const bySku = new Map();
-      const createPayload = products.map((p) => {
-        const payload = this.mapProductToWoo(p);
-        const sku = (p?.sku || payload?.sku || '').trim();
-        if (sku) bySku.set(sku, { productId: p.id, input: p, payload });
-        return payload;
-      });
-
       const base = this.normalizeBaseUrl(settings.storeUrl);
+
+      // 1) Discover existing Woo product IDs by SKU (so edits become updates)
+      const existingBySku = new Map(); // sku -> wooId
+      for (const p of products) {
+        const sku = String(p?.sku || '').trim();
+        if (!sku) continue;
+        const found = await this.findWooProductBySku(base, sku, settings).catch(() => null);
+        if (found?.id) existingBySku.set(sku, found.id);
+      }
+
+      // 2) Build batch payloads
+      const createPayload = [];
+      const updatePayload = [];
+      for (const p of products) {
+        const payload = this.mapProductToWoo(p);
+        const sku = String(p?.sku || payload?.sku || '').trim();
+        const existingId = sku ? existingBySku.get(sku) : null;
+
+        if (existingId) {
+          updatePayload.push({ id: existingId, ...payload });
+        } else {
+          createPayload.push(payload);
+        }
+      }
+
+      // If nothing to send, short-circuit
+      if (createPayload.length === 0 && updatePayload.length === 0) {
+        return res.json({
+          ok: true,
+          endpoint: `${base}/wp-json/wc/v3/products/batch`,
+          result: { create: [], update: [], delete: [] },
+          counts: { requested: products.length, success: 0, error: 0 },
+          items: products.map(p => ({ productId: p.id, sku: p.sku || null, status: 'noop' })),
+        });
+      }
+
+      // 3) Send batch
       const endpoint = `${base}/wp-json/wc/v3/products/batch`;
       const response = await this.fetchWithWooAuth(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ create: createPayload }),
+        body: JSON.stringify({
+          create: createPayload.length ? createPayload : undefined,
+          update: updatePayload.length ? updatePayload : undefined,
+        }),
       }, settings);
 
       const rawText = await response.text().catch(() => '');
       let json;
       try { json = JSON.parse(rawText); } catch (_) { json = { raw: rawText }; }
 
-      // 2) Tolka svar – samla success via sku
+      // 4) Collect successes by SKU from Woo response
       const successes = new Map(); // sku -> { wooId }
       const markSuccess = (wooItem) => {
         const sku = (wooItem?.sku || '').trim();
@@ -129,7 +187,8 @@ class WooCommerceController {
       if (Array.isArray(json?.create)) json.create.forEach(markSuccess);
       if (Array.isArray(json?.update)) json.update.forEach(markSuccess);
 
-      // 3) Upsert per rad + eventuell fel-logg
+      // 5) Upsert channel map and build item summaries
+      const channel = 'woocommerce';
       const items = [];
       for (const p of products) {
         const sku = (p?.sku || '').trim();
@@ -169,6 +228,11 @@ class WooCommerceController {
       const summary = {
         ok: response.ok,
         endpoint,
+        result: {
+          create: Array.isArray(json?.create) ? json.create : [],
+          update: Array.isArray(json?.update) ? json.update : [],
+          delete: Array.isArray(json?.delete) ? json.delete : [],
+        },
         counts: {
           requested: products.length,
           success: items.filter(i => i.status === 'success').length,
@@ -203,7 +267,7 @@ class WooCommerceController {
   async create(req, res) {
     try {
       const item = await this.model.create(req.session.user.id, req.body);
-      res.json(item);
+    res.json(item);
     } catch (error) {
       console.error('Create item error:', error);
       const mapped = this.mapUniqueViolation(error);
@@ -273,6 +337,15 @@ class WooCommerceController {
     return fetchFn(finalUrl, { ...init, headers });
   }
 
+  async findWooProductBySku(base, sku, settings) {
+    const url = `${base}/wp-json/wc/v3/products?sku=${encodeURIComponent(sku)}`;
+    const resp = await this.fetchWithWooAuth(url, { method: 'GET' }, settings);
+    if (!resp.ok) return null;
+    const arr = await resp.json().catch(() => null);
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    return arr[0]; // expect unique SKU
+  }
+
   mapStatusToWoo(status) {
     switch (String(status || '').toLowerCase()) {
       case 'for sale':
@@ -286,6 +359,15 @@ class WooCommerceController {
         return 'private';
       default:
         return 'draft';
+    }
+  }
+
+  mapWooStatusToHomebase(status) {
+    switch (String(status || '').toLowerCase()) {
+      case 'publish': return 'for sale';
+      case 'draft': return 'draft';
+      case 'private': return 'archived';
+      default: return 'draft';
     }
   }
 
@@ -314,6 +396,40 @@ class WooCommerceController {
       description: p?.description || '',
       images: images.length ? images : undefined,
       attributes: attrs.length ? attrs : undefined,
+    };
+  }
+
+  // Transform Woo product -> MVP Product (read-only import mapping)
+  mapWooToMvpProduct(w) {
+    const images = Array.isArray(w?.images) ? w.images.map(i => i?.src).filter(Boolean) : [];
+    const mainImage = images.length ? images[0] : null;
+
+    // find brand attribute
+    let brand = null;
+    if (Array.isArray(w?.attributes)) {
+      const attr = w.attributes.find(a => String(a?.name || '').toLowerCase() === 'brand');
+      const opts = Array.isArray(attr?.options) ? attr.options : [];
+      brand = opts.length ? String(opts[0]) : null;
+    }
+
+    return {
+      id: undefined,
+      productNumber: null,
+      sku: w?.sku || null,
+      title: w?.name || '',
+      status: this.mapWooStatusToHomebase(w?.status),
+      quantity: Number.isFinite(w?.stock_quantity) ? Number(w.stock_quantity) : null,
+      priceAmount: w?.regular_price != null && w.regular_price !== '' ? Number(w.regular_price) : null,
+      currency: null, // store currency not present on product payload
+      vatRate: null,
+      description: w?.description || null,
+      mainImage,
+      images,
+      categories: Array.isArray(w?.categories) ? w.categories.map(c => c?.name).filter(Boolean) : [],
+      brand,
+      gtin: null,
+      createdAt: w?.date_created || null,
+      updatedAt: w?.date_modified || null,
     };
   }
 }

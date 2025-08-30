@@ -203,7 +203,7 @@ function AppContent() {
   // Create handlers and renderers
   const handlers = createPanelHandlers(pluginContexts, currentPlugin, currentPluginContext, currentMode, currentItem);
   const renderers = createPanelRenderers(currentPlugin, currentPluginContext, currentMode, currentItem, handlers.handleSave, handlers.handleCancel);
-  const panelTitles = createPanelTitles(currentPlugin, currentMode, currentItem, isMobileView, handlers.handleEstimateContactClick);
+  const panelTitles = createPanelTitles(currentPlugin, currentPluginContext, currentMode, currentItem, isMobileView, handlers.handleEstimateContactClick);
   
   // Footer with delete handler that includes setShowDeleteConfirm
   const panelFooter = createPanelFooter(

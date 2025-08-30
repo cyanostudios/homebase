@@ -1,12 +1,6 @@
 // client/src/core/ui/PanelTitles.tsx
 import React from 'react';
 import { Upload, ShoppingCart } from 'lucide-react';
-import { useNoteContext } from '@/plugins/notes/context/NoteContext';
-import { useTaskContext } from '@/plugins/tasks/context/TaskContext';
-import { useContactContext } from '@/plugins/contacts/context/ContactContext';
-import { useEstimateContext } from '@/plugins/estimates/context/EstimateContext';
-import { useProductContext } from '@/plugins/products/context/ProductContext';
-import { useWooCommerce } from '@/plugins/woocommerce-products/context/WooCommerceContext';
 
 // Reduced PLUGIN_CONFIGS - only for plugins not yet migrated
 const PLUGIN_CONFIGS: Record<string, any> = {
@@ -34,9 +28,6 @@ const PLUGIN_CONFIGS: Record<string, any> = {
       return { icon: Upload, iconColor: '#2563eb', text: 'Import data from CSV files' };
     },
   },
-  
-  // Remove woocommerce-products since it's now migrated
-  // woocommerce-products: { ... } - REMOVED
 };
 
 export const createPanelTitles = (
@@ -44,35 +35,9 @@ export const createPanelTitles = (
   currentMode: string,
   currentItem: any,
   isMobileView: boolean,
-  handleEstimateContactClick: (contactId: string) => void
+  handleEstimateContactClick: (contactId: string) => void,
+  pluginContext?: any  // ADDED: Accept plugin context as parameter
 ) => {
-  // Plugin context hooks - only call when needed
-  let pluginContext: any = null;
-  
-  try {
-    switch (currentPlugin?.name) {
-      case 'notes':
-        pluginContext = useNoteContext();
-        break;
-      case 'tasks':
-        pluginContext = useTaskContext();
-        break;
-      case 'contacts':
-        pluginContext = useContactContext();
-        break;
-      case 'estimates':
-        pluginContext = useEstimateContext();
-        break;
-      case 'products':
-        pluginContext = useProductContext();
-        break;
-      case 'woocommerce-products':
-        pluginContext = useWooCommerce();
-        break;
-    }
-  } catch {
-    // Hook not available or not in correct context
-  }
 
   const getPanelTitle = () => {
     if (!currentPlugin) return '';
@@ -94,7 +59,6 @@ export const createPanelTitles = (
         const titleData = cfg.getTitle(currentItem);
         
         if (currentPlugin.name === 'import') return titleData.title;
-        // woocommerce-products removed - now handled by plugin context
       }
 
       // Generic fallback fields
@@ -115,10 +79,6 @@ export const createPanelTitles = (
         case 'results': return 'Import Results';
         default: return 'Import';
       }
-    }
-
-    if (currentPlugin.name === 'woocommerce-products') {
-      // Now handled by plugin context
     }
 
     // Generic fallback for unmigrated plugins

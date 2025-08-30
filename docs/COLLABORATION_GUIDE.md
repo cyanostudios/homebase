@@ -280,7 +280,7 @@ Expected: {"status":"ok","timestamp":"..."}
 - **ZERO manual core updates** - Automated plugin integration system
 
 ### Key Files and Patterns
-- **Plugin Templates** - Use neutral templates from `templates/` directory
+- **Plugin Templates** - Use templates from `templates/` directory
 - **Context Pattern** - templates/plugin-frontend-template shows complete modular pattern with generic `panelMode`
 - **Component Standards** - Template List/Form/View show responsive design
 - **Style Standards** - Follow STYLE_GUIDE.md patterns
@@ -403,7 +403,7 @@ Effective AI collaboration requires:
 6. **Accuracy** - Use correct terminal commands and file paths
 
 **For Homebase development:**
-- Use neutral templates from `templates/` directory for all new plugins
+- Use templates from `templates/` directory for all new plugins
 - Follow established modular context patterns with automated integration
 - Preserve cross-plugin functionality
 - Test keyboard navigation and responsive design
@@ -421,4 +421,4 @@ Effective AI collaboration requires:
 
 *Follow these patterns for efficient, accurate development workflows.*
 
-*Last Updated: August 2025 - Updated with neutral templates*
+*Last Updated: August 2025 - Updated with templates references*

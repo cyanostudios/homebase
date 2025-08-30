@@ -184,6 +184,9 @@ export function WooCommerceProvider({
     }
   };
 
+  // Alias for generic panel handlers compatibility
+  const saveWoocommerceProduct = saveWooSettings;
+
   const testWooConnection = async (override?: Partial<WooSettings>) => {
     setIsTesting(true);
     setLastTestResult(null);
@@ -285,6 +288,7 @@ export function WooCommerceProvider({
     closeWooSettingsPanel,
     loadWooSettings,          // ← stable
     saveWooSettings,
+    saveWoocommerceProduct,  // Alias for generic handlers
     testWooConnection,
     exportProducts,
     clearValidationErrors,    // ← stable
