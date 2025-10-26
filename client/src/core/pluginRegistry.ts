@@ -41,6 +41,13 @@ import { useWooCommerce } from '@/plugins/woocommerce-products/context/WooCommer
 import { WooSettingsForm } from '@/plugins/woocommerce-products/components/WooSettingsForm';
 import { WooExportPanel } from '@/plugins/woocommerce-products/components/WooExportPanel';
 
+// invoices plugin imports
+import { InvoicesProvider } from '@/plugins/invoices/context/InvoicesContext';
+import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
+import { InvoicesList } from '@/plugins/invoices/components/InvoicesList';
+import { InvoicesForm } from '@/plugins/invoices/components/InvoicesForm';
+import { InvoicesView } from '@/plugins/invoices/components/InvoicesView';
+
 export interface PluginRegistryEntry {
   name: string;
   Provider: React.ComponentType<{
@@ -93,6 +100,14 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     panelKey: 'isProductPanelOpen',
     components: { List: ProductList, Form: ProductForm, View: ProductView },
   },
+  {
+    name: 'invoices',
+    Provider: InvoicesProvider,
+    hook: useInvoices,
+    panelKey: 'isInvoicesPanelOpen',
+    components: { List: InvoicesList, Form: InvoicesForm, View: InvoicesView },
+  },
+  
   {
     name: 'woocommerce-products',
     Provider: WooCommerceProvider,

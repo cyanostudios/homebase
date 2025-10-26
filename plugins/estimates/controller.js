@@ -1,10 +1,10 @@
-const EstimateModel = require('./model');
 const puppeteer = require('puppeteer');
 const { generatePDFHTML } = require('./pdfTemplate');
 
 class EstimateController {
-  constructor(model) {
+  constructor(model, invoiceModel) {
     this.model = model;
+    this.invoiceModel = invoiceModel; // <- needed for convert-to-invoice
   }
 
   // Get all estimates for user
@@ -23,11 +23,7 @@ class EstimateController {
     try {
       const { id } = req.params;
       const estimate = await this.model.getById(req.session.user.id, id);
-      
-      if (!estimate) {
-        return res.status(404).json({ error: 'Estimate not found' });
-      }
-      
+      if (!estimate) return res.status(404).json({ error: 'Estimate not found' });
       res.json(estimate);
     } catch (error) {
       console.error('Error getting estimate:', error);
@@ -50,27 +46,20 @@ class EstimateController {
   async updateEstimate(req, res) {
     try {
       const { id } = req.params;
-      
-      // Get current estimate to check status change
       const currentEstimate = await this.model.getById(req.session.user.id, id);
-      if (!currentEstimate) {
-        return res.status(404).json({ error: 'Estimate not found' });
-      }
-      
-      // Ensure status reasons are properly formatted
+      if (!currentEstimate) return res.status(404).json({ error: 'Estimate not found' });
+
       const updateData = {
         ...req.body,
         acceptanceReasons: req.body.acceptanceReasons || [],
         rejectionReasons: req.body.rejectionReasons || []
       };
-      
+
       const estimate = await this.model.update(req.session.user.id, id, updateData);
       res.json(estimate);
     } catch (error) {
       console.error('Error updating estimate:', error);
-      if (error.message === 'Estimate not found') {
-        return res.status(404).json({ error: error.message });
-      }
+      if (error.message === 'Estimate not found') return res.status(404).json({ error: error.message });
       res.status(500).json({ error: 'Failed to update estimate' });
     }
   }
@@ -83,9 +72,7 @@ class EstimateController {
       res.json({ message: 'Estimate deleted successfully' });
     } catch (error) {
       console.error('Error deleting estimate:', error);
-      if (error.message === 'Estimate not found') {
-        return res.status(404).json({ error: error.message });
-      }
+      if (error.message === 'Estimate not found') return res.status(404).json({ error: error.message });
       res.status(500).json({ error: 'Failed to delete estimate' });
     }
   }
@@ -106,7 +93,6 @@ class EstimateController {
     try {
       const userId = req.session.user.id;
       const { startDate, endDate } = req.query;
-      
       const stats = await this.model.getStatusStats(userId, startDate, endDate);
       res.json(stats);
     } catch (error) {
@@ -121,11 +107,11 @@ class EstimateController {
       const userId = req.session.user.id;
       const { status } = req.params;
       const { startDate, endDate } = req.query;
-      
+
       if (!['accepted', 'rejected'].includes(status)) {
         return res.status(400).json({ error: 'Status must be accepted or rejected' });
       }
-      
+
       const stats = await this.model.getReasonStats(userId, status, startDate, endDate);
       res.json(stats);
     } catch (error) {
@@ -137,111 +123,63 @@ class EstimateController {
   // Generate PDF
   async generatePDF(req, res) {
     let browser = null;
-
     try {
       const { id } = req.params;
       const userId = req.session.user.id;
 
-      // Get estimate data
       const estimate = await this.model.getById(userId, id);
-      if (!estimate) {
-        return res.status(404).json({ error: 'Estimate not found' });
-      }
+      if (!estimate) return res.status(404).json({ error: 'Estimate not found' });
 
-      // Launch Puppeteer browser
-      browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
-
+      browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
       const page = await browser.newPage();
-
-      // Generate HTML content using PDF template
       const html = generatePDFHTML(estimate);
-
-      // Set HTML content
       await page.setContent(html, { waitUntil: 'networkidle0' });
 
-      // Generate PDF
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: {
-          top: '1cm',
-          right: '1cm',
-          bottom: '1cm',
-          left: '1cm'
-        }
-      });
+      const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '1cm', right: '1cm', bottom: '1cm', left: '1cm' } });
 
-      // Set response headers for download
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename=estimate-${estimate.estimateNumber}.pdf`);
       res.setHeader('Content-Length', pdfBuffer.length);
       res.removeHeader('Content-Encoding');
-
-      // Send PDF as binary
       res.end(pdfBuffer);
-
     } catch (error) {
       console.error('Error generating PDF:', error);
       res.status(500).json({ error: 'Failed to generate PDF' });
     } finally {
-      if (browser) {
-        await browser.close();
-      }
+      if (browser) { try { await browser.close(); } catch {} }
     }
   }
 
   // === SHARING ENDPOINTS ===
-
-  // Create share link
   async createShare(req, res) {
     try {
       const { estimateId, validUntil } = req.body;
       const userId = req.session.user.id;
-      
-      if (!estimateId || !validUntil) {
-        return res.status(400).json({ 
-          error: 'Estimate ID and valid until date are required' 
-        });
-      }
 
-      // Validate that validUntil is in the future
+      if (!estimateId || !validUntil) {
+        return res.status(400).json({ error: 'Estimate ID and valid until date are required' });
+      }
       const validUntilDate = new Date(validUntil);
       if (validUntilDate <= new Date()) {
-        return res.status(400).json({ 
-          error: 'Valid until date must be in the future' 
-        });
+        return res.status(400).json({ error: 'Valid until date must be in the future' });
       }
 
       const share = await this.model.createShare(userId, estimateId, validUntilDate);
       res.json(share);
     } catch (error) {
       console.error('Error creating estimate share:', error);
-      if (error.message === 'Estimate not found or access denied') {
-        return res.status(404).json({ error: error.message });
-      }
+      if (error.message === 'Estimate not found or access denied') return res.status(404).json({ error: error.message });
       res.status(500).json({ error: 'Failed to create share link' });
     }
   }
 
-  // Get estimate by share token (public endpoint)
   async getPublicEstimate(req, res) {
     try {
       const { token } = req.params;
-      
-      if (!token) {
-        return res.status(400).json({ error: 'Share token is required' });
-      }
+      if (!token) return res.status(400).json({ error: 'Share token is required' });
 
       const estimate = await this.model.getEstimateByShareToken(token);
-      
-      if (!estimate) {
-        return res.status(404).json({ 
-          error: 'Estimate not found or share link has expired' 
-        });
-      }
+      if (!estimate) return res.status(404).json({ error: 'Estimate not found or share link has expired' });
 
       res.json(estimate);
     } catch (error) {
@@ -250,37 +188,82 @@ class EstimateController {
     }
   }
 
-  // Get shares for estimate
   async getShares(req, res) {
     try {
       const { estimateId } = req.params;
       const userId = req.session.user.id;
-      
       const shares = await this.model.getSharesForEstimate(userId, estimateId);
       res.json(shares);
     } catch (error) {
       console.error('Error getting estimate shares:', error);
-      if (error.message === 'Estimate not found or access denied') {
-        return res.status(404).json({ error: error.message });
-      }
+      if (error.message === 'Estimate not found or access denied') return res.status(404).json({ error: error.message });
       res.status(500).json({ error: 'Failed to get shares' });
     }
   }
 
-  // Revoke share
   async revokeShare(req, res) {
     try {
       const { shareId } = req.params;
       const userId = req.session.user.id;
-      
       const revokedShare = await this.model.revokeShare(userId, shareId);
       res.json({ message: 'Share revoked successfully', share: revokedShare });
     } catch (error) {
       console.error('Error revoking share:', error);
-      if (error.message === 'Share not found or access denied') {
-        return res.status(404).json({ error: error.message });
-      }
+      if (error.message === 'Share not found or access denied') return res.status(404).json({ error: error.message });
       res.status(500).json({ error: 'Failed to revoke share' });
+    }
+  }
+
+  // === CONVERT TO INVOICE ===
+  async convertToInvoice(req, res) {
+    try {
+      const userId = req.session.user.id;
+      const { id } = req.params;
+
+      // 1) Load estimate
+      const estimate = await this.model.getById(userId, id);
+      if (!estimate) return res.status(404).json({ error: 'Estimate not found' });
+      if (estimate.status !== 'accepted') {
+        return res.status(400).json({ error: 'Estimate must be accepted before converting to invoice' });
+      }
+
+      // 2) Create invoice in 'draft'
+      const invoiceData = {
+        contactId: estimate.contactId ? Number(estimate.contactId) : null,
+        contactName: estimate.contactName || '',
+        organizationNumber: estimate.organizationNumber || '',
+        currency: estimate.currency || 'SEK',
+        lineItems: estimate.lineItems || [],
+        invoiceDiscount: estimate.estimateDiscount || 0,
+        notes: estimate.notes || '',
+        paymentTerms: '', // fetched from contacts later in UI/API if needed
+        issueDate: new Date(),
+        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        status: 'draft',
+        estimateId: Number(estimate.id),
+      };
+
+      const invoice = await this.invoiceModel.create(userId, invoiceData);
+
+      // 3) Mark estimate as 'invoiced' (preserve totals/fields)
+      await this.model.update(userId, id, {
+        contactId: estimate.contactId,
+        contactName: estimate.contactName,
+        organizationNumber: estimate.organizationNumber,
+        currency: estimate.currency,
+        lineItems: estimate.lineItems,
+        estimateDiscount: estimate.estimateDiscount,
+        notes: estimate.notes,
+        validTo: estimate.validTo,
+        status: 'invoiced',
+        acceptanceReasons: estimate.acceptanceReasons || [],
+        rejectionReasons: estimate.rejectionReasons || [],
+      });
+
+      res.status(201).json(invoice);
+    } catch (error) {
+      console.error('Error converting estimate to invoice:', error);
+      res.status(500).json({ error: 'Failed to convert estimate to invoice' });
     }
   }
 }

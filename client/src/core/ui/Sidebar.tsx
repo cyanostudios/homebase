@@ -24,7 +24,7 @@ import {
 import { useSidebar } from './MainLayout';
 import { useApp } from '@/core/api/AppContext';
 
-type NavPage = 'contacts' | 'notes' | 'estimates' | 'tasks' | 'products' | 'rails' | 'woocommerce-products' | 'channels';
+type NavPage = 'contacts' | 'notes' | 'estimates' | 'invoices' | 'tasks' | 'products' | 'rails' | 'woocommerce-products' | 'channels';
 
 interface SidebarProps {
   currentPage: NavPage;
@@ -47,7 +47,7 @@ const navCategories = [
     title: 'Business',
     items: [
       { label: 'Estimates', icon: Calculator, page: 'estimates' as NavPage },
-      { label: 'Invoice', icon: FileText, page: null },
+      { label: 'Invoice', icon: FileText, page: 'invoices' as NavPage },
       { label: 'Journal', icon: BookOpen, page: null },
       { label: 'Bookkeeping', icon: Calculator, page: null },
       { label: 'Projects', icon: FolderOpen, page: null },
@@ -113,6 +113,7 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
       page === 'products' ||
       page === 'rails' ||
       page === 'woocommerce-products' ||
+      page === 'invoices' ||
       page === 'channels'
     ) {
       onPageChange(page);
