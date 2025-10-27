@@ -26,3 +26,6 @@ vite.config.ts.*
 # Optional extras
 coverage
 tools/codex-runner/tmp-codex-*
+
+# Uploaded files (should not be committed)
+server/uploads/
