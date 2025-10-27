@@ -1,8 +1,10 @@
 import React from 'react';
-import { useChannels } from '../hooks/useChannels';
+
 import { Card } from '@/core/ui/Card';
 import { Heading, Text } from '@/core/ui/Typography';
 import { useWooCommerce } from '@/plugins/woocommerce-products/context/WooCommerceContext';
+
+import { useChannels } from '../hooks/useChannels';
 
 export const ChannelsList: React.FC = () => {
   const { channels } = useChannels();

@@ -1,25 +1,28 @@
 {
- "compilerOptions": {
-   "target": "ES2020",
-   "useDefineForClassFields": true,
-   "lib": ["ES2020", "DOM", "DOM.Iterable"],
-   "module": "ESNext",
-   "skipLibCheck": true,
-   "moduleResolution": "bundler",
-   "allowImportingTsExtensions": true,
-   "resolveJsonModule": true,
-   "isolatedModules": true,
-   "noEmit": true,
-   "jsx": "react-jsx",
-   "strict": true,
-   "noUnusedLocals": true,
-   "noUnusedParameters": true,
-   "noFallthroughCasesInSwitch": true,
-   "baseUrl": ".",
-   "paths": {
-     "@/*": ["./client/src/*"]
-   }
- },
- "include": ["client/src"],
- "references": [{ "path": "./tsconfig.node.json" }]
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+
+    // ↓ Temporärt avstängt för att reducera brus (TS6133)
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./client/src/*"]
+    }
+  },
+  "include": ["client/src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }

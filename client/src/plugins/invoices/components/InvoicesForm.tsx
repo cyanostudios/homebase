@@ -47,6 +47,7 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
     issueDate: new Date(),
     dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     status: 'draft' as 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled',
+    invoiceType: 'invoice' as 'invoice' | 'credit_note' | 'cash_invoice' | 'receipt',
   });
 
   // Totals
@@ -66,7 +67,6 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
   useEffect(() => {
     if (currentInvoice) {
       const migrated = (currentInvoice.lineItems || []).map(li => {
-        // Ensure all calculated fields exist
         if (typeof li.lineSubtotal === 'number') return li;
         return calculateInvoiceLineItem({ ...li });
       });
@@ -83,6 +83,7 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
         issueDate: currentInvoice.issueDate ? new Date(currentInvoice.issueDate as any) : new Date(),
         dueDate: currentInvoice.dueDate ? new Date(currentInvoice.dueDate as any) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         status: (currentInvoice.status as any) || 'draft',
+        invoiceType: (currentInvoice.invoiceType as any) || 'invoice',
       });
       markClean();
       setDuplicatedItemIds(new Set());
@@ -105,6 +106,7 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
       issueDate: new Date(),
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       status: 'draft',
+      invoiceType: 'invoice',
     });
     markClean();
     setDuplicatedItemIds(new Set());
@@ -132,13 +134,15 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
     });
   }, [attemptAction, onCancel]);
 
-  // Global functions (PLURAL)
+  // Kopplad till panelfoten via custom events
   useEffect(() => {
-    (window as any).submitInvoicesForm = handleSubmit;
-    (window as any).cancelInvoicesForm = handleCancel;
+    const onSubmit = () => { void handleSubmit(); };
+    const onCancel = () => { handleCancel(); };
+    window.addEventListener('submitInvoiceForm', onSubmit as EventListener);
+    window.addEventListener('cancelInvoiceForm', onCancel as EventListener);
     return () => {
-      delete (window as any).submitInvoicesForm;
-      delete (window as any).cancelInvoicesForm;
+      window.removeEventListener('submitInvoiceForm', onSubmit as EventListener);
+      window.removeEventListener('cancelInvoiceForm', onCancel as EventListener);
     };
   }, [handleSubmit, handleCancel]);
 
@@ -156,7 +160,6 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
       updateField('contactName', contact.companyName);
       updateField('organizationNumber', contact.organizationNumber || '');
       updateField('currency', contact.currency || 'SEK');
-      // Optional: default payment terms from contact record
       if ((contact as any).paymentTerms) updateField('paymentTerms', (contact as any).paymentTerms);
     } else {
       updateField('contactId', '');
@@ -305,24 +308,26 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
                 className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+
             <div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Type</label>
-  <select
-    value={formData.invoiceType}
-    onChange={(e) => updateField('invoiceType', e.target.value)}
-    className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-  >
-    <option value="invoice">Faktura (Invoice)</option>
-    <option value="credit_note">Kreditfaktura (Credit Note)</option>
-    <option value="cash_invoice">Kontantfaktura (Cash Invoice)</option>
-    <option value="receipt">Kvitto (Receipt)</option>
-  </select>
-</div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Type</label>
+              <select
+                value={formData.invoiceType}
+                onChange={(e) => updateField('invoiceType', e.target.value as any)}
+                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="invoice">Faktura (Invoice)</option>
+                <option value="credit_note">Kreditfaktura (Credit Note)</option>
+                <option value="cash_invoice">Kontantfaktura (Cash Invoice)</option>
+                <option value="receipt">Kvitto (Receipt)</option>
+              </select>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select
                 value={formData.status}
-                onChange={(e) => updateField('status', e.target.value)}
+                onChange={(e) => updateField('status', e.target.value as any)}
                 className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="draft">Draft</option>
@@ -532,11 +537,7 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
           />
         </Card>
 
-        {/* Optional local buttons (panel has its own Save/Cancel) */}
-        <div className="flex gap-2">
-          <Button type="submit" variant="primary" disabled={isSubmitting}>Save</Button>
-          <Button type="button" variant="ghost" onClick={handleCancel}>Cancel</Button>
-        </div>
+        {/* ⬇️ Local Save/Cancel borttaget – panelfoten hanterar detta ⬇️ */}
       </form>
 
       {/* Unsaved Changes Warning */}

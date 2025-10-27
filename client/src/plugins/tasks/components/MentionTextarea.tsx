@@ -13,7 +13,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   onChange,
   placeholder,
   rows = 12,
-  className = ''
+  className = '',
 }) => {
   const [contacts, setContacts] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -28,7 +28,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     const loadContacts = async () => {
       try {
         const response = await fetch('/api/contacts', {
-          credentials: 'include'
+          credentials: 'include',
         });
         if (response.ok) {
           const contactsData = await response.json();
@@ -38,7 +38,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
         console.error('Failed to load contacts for mentions:', error);
       }
     };
-    
+
     loadContacts();
   }, []);
 
@@ -49,17 +49,17 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
 
     while ((match = mentionRegex.exec(text)) !== null) {
       const mentionText = match[1];
-      const contact = contacts.find(c => 
-        c.companyName.toLowerCase() === mentionText.toLowerCase()
+      const contact = contacts.find(
+        (c) => c.companyName.toLowerCase() === mentionText.toLowerCase(),
       );
-      
+
       if (contact) {
         mentions.push({
           contactId: contact.id,
           contactName: contact.companyName,
           companyName: contact.contactType === 'company' ? contact.companyName : undefined,
           position: match.index,
-          length: match[0].length
+          length: match[0].length,
         });
       }
     }
@@ -70,21 +70,21 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     const cursorPos = e.target.selectionStart;
-    
+
     // Check if user typed @
     const textBeforeCursor = newValue.substring(0, cursorPos);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    
+
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-      
+
       // Check if we're in a mention (no spaces except within a valid mention)
       if (!textAfterAt.includes('\n') && textAfterAt.length <= 50) {
         const query = textAfterAt.toLowerCase();
-        const filteredContacts = contacts.filter(contact =>
-          contact.companyName.toLowerCase().includes(query)
-        ).slice(0, 5);
-        
+        const filteredContacts = contacts
+          .filter((contact) => contact.companyName.toLowerCase().includes(query))
+          .slice(0, 5);
+
         if (filteredContacts.length > 0 && query.length > 0) {
           setSuggestions(filteredContacts);
           setShowSuggestions(true);
@@ -112,21 +112,23 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   };
 
   const insertMention = (contact: any) => {
-    if (!textareaRef.current) return;
+    if (!textareaRef.current) {
+      return;
+    }
 
     const textarea = textareaRef.current;
     const cursorPos = textarea.selectionStart;
     const beforeMention = value.substring(0, mentionStart);
     const afterCursor = value.substring(cursorPos);
-    
+
     const mentionText = `@${contact.companyName}`;
     const newValue = beforeMention + mentionText + ' ' + afterCursor;
-    
+
     const mentions = extractMentions(newValue);
     onChange(newValue, mentions);
-    
+
     setShowSuggestions(false);
-    
+
     // Set cursor position after the mention
     setTimeout(() => {
       const newCursorPos = mentionStart + mentionText.length + 1;
@@ -136,16 +138,18 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!showSuggestions) return;
+    if (!showSuggestions) {
+      return;
+    }
 
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setSelectedIndex(prev => (prev + 1) % suggestions.length);
+        setSelectedIndex((prev) => (prev + 1) % suggestions.length);
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setSelectedIndex(prev => (prev - 1 + suggestions.length) % suggestions.length);
+        setSelectedIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
         break;
       case 'Enter':
       case 'Tab':
@@ -178,7 +182,7 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
         rows={rows}
         className={`w-full px-3 py-2 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical ${className}`}
       />
-      
+
       {showSuggestions && suggestions.length > 0 && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
           {suggestions.map((contact, index) => (
@@ -195,7 +199,9 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
                 <div className="text-xs text-gray-500">{contact.organizationNumber}</div>
               )}
               {contact.contactType === 'private' && contact.personalNumber && (
-                <div className="text-xs text-gray-500">{contact.personalNumber.substring(0, 9)}XXXX</div>
+                <div className="text-xs text-gray-500">
+                  {contact.personalNumber.substring(0, 9)}XXXX
+                </div>
               )}
             </button>
           ))}

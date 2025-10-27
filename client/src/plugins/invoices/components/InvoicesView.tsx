@@ -21,6 +21,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
   const updated = actualItem.updatedAt ? new Date(actualItem.updatedAt) : null;
   const issueDate = actualItem.issueDate ? new Date(actualItem.issueDate) : null;
   const dueDate = actualItem.dueDate ? new Date(actualItem.dueDate) : null;
+  const paidAt = actualItem.paidAt ? new Date(actualItem.paidAt) : null;
 
   // Summary fields
   const invoiceNumber: string = actualItem.invoiceNumber ?? '';
@@ -184,7 +185,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
       {/* Metadata */}
       <Card padding="sm" className="shadow-none px-0">
         <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Invoice Information</Heading>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <div>
             <div className="text-xs text-gray-500">System ID</div>
             <div className="text-sm font-mono text-gray-900">{String(actualItem.id ?? '—')}</div>
@@ -201,6 +202,12 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({
               {updated ? updated.toLocaleDateString() : '—'}
             </div>
           </div>
+          <div>
+  <div className="text-xs text-gray-500">Paid At</div>
+  <div className="text-sm text-gray-900">
+    {paidAt ? paidAt.toLocaleDateString() : '—'}
+  </div>
+</div>
         </div>
       </Card>
     </div>

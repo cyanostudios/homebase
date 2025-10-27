@@ -1,6 +1,7 @@
-import React from 'react';
-import { Button } from '@/core/ui/Button';
 import { Check, X, Edit, Trash2 } from 'lucide-react';
+import React from 'react';
+
+import { Button } from '@/core/ui/Button';
 
 interface PanelFooterProps {
   currentMode: string;
@@ -23,9 +24,11 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   onClosePanel,
   onEditItem,
   onSaveClick,
-  onCancelClick
+  onCancelClick,
 }) => {
-  const hasBlockingErrors = validationErrors.some((e: any) => !String(e?.message || '').includes('Warning'));
+  const hasBlockingErrors = validationErrors.some(
+    (e: any) => !String(e?.message || '').includes('Warning'),
+  );
 
   if (currentMode === 'view') {
     return (
@@ -50,7 +53,13 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
       <Button type="button" onClick={onCancelClick} variant="danger" icon={X}>
         Cancel
       </Button>
-      <Button type="button" onClick={onSaveClick} variant="primary" icon={Check} disabled={hasBlockingErrors}>
+      <Button
+        type="button"
+        onClick={onSaveClick}
+        variant="primary"
+        icon={Check}
+        disabled={hasBlockingErrors}
+      >
         {currentMode === 'edit' ? 'Update' : 'Save'}
       </Button>
     </div>
@@ -68,7 +77,9 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
  *  - 'woocommerce-products' + 'edit' -> context.openWooSettingsForEdit (special case)
  */
 function findOpenFunction(context: any, mode: 'edit' | 'view', pluginName?: string): any {
-  if (!context || !pluginName) return null;
+  if (!context || !pluginName) {
+    return null;
+  }
 
   // Special-case Woo settings (naming deviates by design)
   if (pluginName === 'woocommerce-products') {
@@ -77,9 +88,9 @@ function findOpenFunction(context: any, mode: 'edit' | 'view', pluginName?: stri
   }
 
   // Generic: convert kebab to camel, singularize trailing 's'
-  const camel = pluginName.replace(/-([a-z])/g, (_, c) => c.toUpperCase());    // e.g., woocommerceProducts
-  const singular = camel.endsWith('s') ? camel.slice(0, -1) : camel;           // products -> product
-  const fnName = `open${cap(singular)}For${cap(mode)}`;                         // openProductForEdit
+  const camel = pluginName.replace(/-([a-z])/g, (_, c) => c.toUpperCase()); // e.g., woocommerceProducts
+  const singular = camel.endsWith('s') ? camel.slice(0, -1) : camel; // products -> product
+  const fnName = `open${cap(singular)}For${cap(mode)}`; // openProductForEdit
   const fn = context[fnName];
   return typeof fn === 'function' ? fn : null;
 }
@@ -93,18 +104,23 @@ export const createPanelFooter = (
     currentPlugin: { name: string } | null;
     handleDeleteItem: () => void;
     getCloseHandler: () => () => void;
-    handleSaveClick: () => void;     // generic (non-Woo) submit
-    handleCancelClick: () => void;   // generic (non-Woo) cancel
-  }
+    handleSaveClick: () => void; // generic (non-Woo) submit
+    handleCancelClick: () => void; // generic (non-Woo) cancel
+  },
 ) => {
   const pluginName = handlers.currentPlugin?.name;
 
   // Route EDIT to the correct opener (hyphen-safe + Woo override)
   const handleEditItem = () => {
-    if (!currentPluginContext || !currentItem || !pluginName) return;
+    if (!currentPluginContext || !currentItem || !pluginName) {
+      return;
+    }
     const editFn = findOpenFunction(currentPluginContext, 'edit', pluginName);
-    if (editFn) editFn(currentItem);
-    else console.warn(`Edit function not found for plugin: ${pluginName}`);
+    if (editFn) {
+      editFn(currentItem);
+    } else {
+      console.warn(`Edit function not found for plugin: ${pluginName}`);
+    }
   };
 
   // Wire Save/Cancel to Woo settings events when inside woocommerce-products

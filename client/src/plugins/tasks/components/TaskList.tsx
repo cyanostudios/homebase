@@ -1,19 +1,32 @@
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  CheckSquare,
+  ChevronUp,
+  ChevronDown,
+  Search,
+  Copy,
+} from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, CheckSquare, ChevronUp, ChevronDown, Search, Copy } from 'lucide-react';
-import { useTasks } from '../hooks/useTasks';
-import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
-import { Button } from '@/core/ui/Button';
+
 import { Badge } from '@/core/ui/Badge';
-import { Heading, Text } from '@/core/ui/Typography';
+import { Button } from '@/core/ui/Button';
 import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { Heading, Text } from '@/core/ui/Typography';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+
+import { useTasks } from '../hooks/useTasks';
 import { TASK_STATUS_COLORS, TASK_PRIORITY_COLORS, formatStatusForDisplay } from '../types/tasks';
 
 type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
 export const TaskList: React.FC = () => {
-  const { tasks, openTaskPanel, openTaskForEdit, openTaskForView, deleteTask, duplicateTask } = useTasks();
+  const { tasks, openTaskPanel, openTaskForEdit, openTaskForView, deleteTask, duplicateTask } =
+    useTasks();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -23,9 +36,9 @@ export const TaskList: React.FC = () => {
   }>({
     isOpen: false,
     taskId: '',
-    taskTitle: ''
+    taskTitle: '',
   });
-  
+
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [isMobileView, setIsMobileView] = useState(false);
@@ -34,10 +47,10 @@ export const TaskList: React.FC = () => {
     const checkScreenSize = () => {
       setIsMobileView(window.innerWidth < 768);
     };
-    
+
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
-    
+
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
@@ -51,20 +64,22 @@ export const TaskList: React.FC = () => {
   };
 
   const sortedTasks = useMemo(() => {
-    const filtered = tasks.filter(task => 
-      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.priority.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (task.mentions && task.mentions.some((mention: any) => 
-        mention.contactName.toLowerCase().includes(searchTerm.toLowerCase())
-      ))
+    const filtered = tasks.filter(
+      (task) =>
+        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.priority.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (task.mentions &&
+          task.mentions.some((mention: any) =>
+            mention.contactName.toLowerCase().includes(searchTerm.toLowerCase()),
+          )),
     );
 
     return [...filtered].sort((a, b) => {
       let aValue: string | Date | null;
       let bValue: string | Date | null;
-      
+
       if (sortField === 'title') {
         aValue = a.title.toLowerCase();
         bValue = b.title.toLowerCase();
@@ -72,7 +87,7 @@ export const TaskList: React.FC = () => {
         aValue = a.status;
         bValue = b.status;
       } else if (sortField === 'priority') {
-        const priorityOrder = { 'High': 3, 'Medium': 2, 'Low': 1 };
+        const priorityOrder = { High: 3, Medium: 2, Low: 1 };
         aValue = priorityOrder[a.priority].toString();
         bValue = priorityOrder[b.priority].toString();
       } else if (sortField === 'dueDate') {
@@ -85,7 +100,7 @@ export const TaskList: React.FC = () => {
         aValue = a.updatedAt;
         bValue = b.updatedAt;
       }
-      
+
       if (sortField === 'title' || sortField === 'status' || sortField === 'priority') {
         if (sortOrder === 'asc') {
           return (aValue as string).localeCompare(bValue as string);
@@ -93,10 +108,16 @@ export const TaskList: React.FC = () => {
           return (bValue as string).localeCompare(aValue as string);
         }
       } else {
-        if (!aValue && !bValue) return 0;
-        if (!aValue) return sortOrder === 'asc' ? 1 : -1;
-        if (!bValue) return sortOrder === 'asc' ? -1 : 1;
-        
+        if (!aValue && !bValue) {
+          return 0;
+        }
+        if (!aValue) {
+          return sortOrder === 'asc' ? 1 : -1;
+        }
+        if (!bValue) {
+          return sortOrder === 'asc' ? -1 : 1;
+        }
+
         if (sortOrder === 'asc') {
           return (aValue as Date).getTime() - (bValue as Date).getTime();
         } else {
@@ -107,17 +128,21 @@ export const TaskList: React.FC = () => {
   }, [tasks, searchTerm, sortField, sortOrder]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null;
-    return sortOrder === 'asc' ? 
-      <ChevronUp className="w-4 h-4" /> : 
-      <ChevronDown className="w-4 h-4" />;
+    if (sortField !== field) {
+      return null;
+    }
+    return sortOrder === 'asc' ? (
+      <ChevronUp className="w-4 h-4" />
+    ) : (
+      <ChevronDown className="w-4 h-4" />
+    );
   };
 
   const handleDelete = (id: string, title: string) => {
     setDeleteConfirm({
       isOpen: true,
       taskId: id,
-      taskTitle: title
+      taskTitle: title,
     });
   };
 
@@ -126,7 +151,7 @@ export const TaskList: React.FC = () => {
     setDeleteConfirm({
       isOpen: false,
       taskId: '',
-      taskTitle: ''
+      taskTitle: '',
     });
   };
 
@@ -134,7 +159,7 @@ export const TaskList: React.FC = () => {
     setDeleteConfirm({
       isOpen: false,
       taskId: '',
-      taskTitle: ''
+      taskTitle: '',
     });
   };
 
@@ -148,17 +173,21 @@ export const TaskList: React.FC = () => {
   };
 
   const truncateContent = (content: string, maxLength: number = 100) => {
-    if (content.length <= maxLength) return content;
+    if (content.length <= maxLength) {
+      return content;
+    }
     return content.substring(0, maxLength) + '...';
   };
 
   const formatDueDate = (dueDate: Date | null) => {
-    if (!dueDate) return null;
+    if (!dueDate) {
+      return null;
+    }
     const today = new Date();
     const due = new Date(dueDate);
     const diffTime = due.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) {
       return { text: `${Math.abs(diffDays)} days overdue`, className: 'text-red-600 font-medium' };
     } else if (diffDays === 0) {
@@ -193,10 +222,10 @@ export const TaskList: React.FC = () => {
     <div className="p-4 sm:p-8">
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-        <Heading level={1}>
-  Tasks ({searchTerm ? sortedTasks.length : tasks.length}
-  {searchTerm && sortedTasks.length !== tasks.length && ` of ${tasks.length}`})
-</Heading>
+          <Heading level={1}>
+            Tasks ({searchTerm ? sortedTasks.length : tasks.length}
+            {searchTerm && sortedTasks.length !== tasks.length && ` of ${tasks.length}`})
+          </Heading>
           <Text variant="caption">Manage your tasks and projects</Text>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
@@ -210,11 +239,7 @@ export const TaskList: React.FC = () => {
               className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             />
           </div>
-          <Button
-            onClick={handleOpenPanel}
-            variant="primary"
-            icon={Plus}
-          >
+          <Button onClick={handleOpenPanel} variant="primary" icon={Plus}>
             Add Task
           </Button>
         </div>
@@ -225,7 +250,7 @@ export const TaskList: React.FC = () => {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th 
+                <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('title')}
                 >
@@ -234,7 +259,7 @@ export const TaskList: React.FC = () => {
                     <SortIcon field="title" />
                   </div>
                 </th>
-                <th 
+                <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('status')}
                 >
@@ -243,7 +268,7 @@ export const TaskList: React.FC = () => {
                     <SortIcon field="status" />
                   </div>
                 </th>
-                <th 
+                <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('priority')}
                 >
@@ -252,7 +277,7 @@ export const TaskList: React.FC = () => {
                     <SortIcon field="priority" />
                   </div>
                 </th>
-                <th 
+                <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('dueDate')}
                 >
@@ -264,7 +289,7 @@ export const TaskList: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Mentions
                 </th>
-                <th 
+                <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('updatedAt')}
                 >
@@ -282,13 +307,15 @@ export const TaskList: React.FC = () => {
               {sortedTasks.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
-                    {searchTerm ? 'No tasks found matching your search.' : 'No tasks yet. Click "Add Task" to get started.'}
+                    {searchTerm
+                      ? 'No tasks found matching your search.'
+                      : 'No tasks yet. Click "Add Task" to get started.'}
                   </td>
                 </tr>
               ) : (
                 sortedTasks.map((task, idx) => (
-                  <tr 
-                    key={task.id} 
+                  <tr
+                    key={task.id}
                     className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-purple-50 focus:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-inset cursor-pointer`}
                     tabIndex={0}
                     data-list-item={JSON.stringify(task)}
@@ -312,9 +339,7 @@ export const TaskList: React.FC = () => {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
-                        {task.priority}
-                      </Badge>
+                      <Badge className={TASK_PRIORITY_COLORS[task.priority]}>{task.priority}</Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {task.dueDate ? (
@@ -348,9 +373,9 @@ export const TaskList: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           icon={Eye}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -368,9 +393,9 @@ export const TaskList: React.FC = () => {
                         >
                           Duplicate
                         </Button>
-                        <Button 
-                          variant="secondary" 
-                          size="sm" 
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           icon={Edit}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -390,7 +415,9 @@ export const TaskList: React.FC = () => {
           <div className="divide-y divide-gray-200">
             {sortedTasks.length === 0 ? (
               <div className="p-6 text-center text-gray-400">
-                {searchTerm ? 'No tasks found matching your search.' : 'No tasks yet. Click "Add Task" to get started.'}
+                {searchTerm
+                  ? 'No tasks found matching your search.'
+                  : 'No tasks yet. Click "Add Task" to get started.'}
               </div>
             ) : (
               sortedTasks.map((task) => (
@@ -414,7 +441,7 @@ export const TaskList: React.FC = () => {
                           </Badge>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-1">
                         <div className="text-xs text-gray-600">
                           {truncateContent(task.content, 80)}
@@ -441,9 +468,9 @@ export const TaskList: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         icon={Eye}
                         onClick={() => handleOpenForView(task)}
                         className="h-8 px-3"

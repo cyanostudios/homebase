@@ -7,7 +7,9 @@ import React, {
   ReactNode,
   useCallback, // ← NEW
 } from 'react';
+
 import { useApp } from '@/core/api/AppContext';
+
 import { woocommerceApi } from '../api/woocommerceApi';
 import type { WooSettings, WooTestResult, WooExportResult, MvpProduct } from '../types/woocommerce';
 
@@ -42,7 +44,7 @@ interface WooContextType {
 
   // Data
   settings: WooSettings | null;
-  
+
   // Panel Title Functions
   getPanelTitle: (mode: string, item: WooSettings | null, isMobileView: boolean) => any;
   getPanelSubtitle: (mode: string, item: WooSettings | null) => any;
@@ -144,16 +146,24 @@ export function WooCommerceProvider({
     const url = String(data.storeUrl ?? '').trim();
     const ck = String(data.consumerKey ?? '').trim();
     const cs = String(data.consumerSecret ?? '').trim();
-    if (!url) errs.push({ field: 'storeUrl', message: 'Store URL is required' });
-    if (!ck) errs.push({ field: 'consumerKey', message: 'Consumer key is required' });
-    if (!cs) errs.push({ field: 'consumerSecret', message: 'Consumer secret is required' });
+    if (!url) {
+      errs.push({ field: 'storeUrl', message: 'Store URL is required' });
+    }
+    if (!ck) {
+      errs.push({ field: 'consumerKey', message: 'Consumer key is required' });
+    }
+    if (!cs) {
+      errs.push({ field: 'consumerSecret', message: 'Consumer secret is required' });
+    }
     return errs;
   };
 
   const saveWooSettings = async (raw: Partial<WooSettings>): Promise<boolean> => {
     const errs = validate(raw);
     setValidationErrors(errs);
-    if (errs.length) return false;
+    if (errs.length) {
+      return false;
+    }
     setIsSaving(true);
     try {
       const saved = await api.putSettings({
@@ -177,7 +187,9 @@ export function WooCommerceProvider({
       if (err?.status === 409 && Array.isArray(err.errors)) {
         setValidationErrors(err.errors);
       } else {
-        setValidationErrors([{ field: 'general', message: 'Failed to save settings. Please try again.' }]);
+        setValidationErrors([
+          { field: 'general', message: 'Failed to save settings. Please try again.' },
+        ]);
       }
       return false;
     } finally {
@@ -210,7 +222,9 @@ export function WooCommerceProvider({
 
   const exportProducts = async (products: MvpProduct[]): Promise<boolean> => {
     if (!Array.isArray(products) || products.length === 0) {
-      setValidationErrors([{ field: 'products', message: 'Select at least one product to export' }]);
+      setValidationErrors([
+        { field: 'products', message: 'Select at least one product to export' },
+      ]);
       return false;
     }
     setExporting(true);
@@ -222,7 +236,9 @@ export function WooCommerceProvider({
     } catch (err) {
       console.error('Export to Woo failed:', err);
       setLastExportResult(null);
-      setValidationErrors([{ field: 'general', message: 'Export failed. See console for details.' }]);
+      setValidationErrors([
+        { field: 'general', message: 'Export failed. See console for details.' },
+      ]);
       return false;
     } finally {
       setExporting(false);
@@ -267,60 +283,63 @@ export function WooCommerceProvider({
   };
 
   const getPanelSubtitle = (mode: string, item: WooSettings | null) => {
-    return mode === 'edit'
-      ? 'Update WooCommerce connection'
-      : 'Configure WooCommerce connection';
+    return mode === 'edit' ? 'Update WooCommerce connection' : 'Configure WooCommerce connection';
   };
 
   const getDeleteMessage = (item: WooSettings | null) => {
     return 'Are you sure you want to delete WooCommerce settings? This action cannot be undone.';
   };
 
-  const value: WooContextType = useMemo(() => ({
-    isWooSettingsPanelOpen,
-    currentWooSettings,
-    panelMode,
-    validationErrors,
-    isSaving,
-    isTesting,
-    exporting,
-    lastTestResult,
-    lastExportResult,
-    openWooSettingsPanel,
-    openWooSettingsForEdit,
-    openWooSettingsForView,
-    closeWooSettingsPanel,
-    closeWoocommerceProductPanel,  // Add alias for generic handlers
-    loadWooSettings,          // ← stable
-    saveWooSettings,
-    saveWoocommerceProduct,  // Alias for generic handlers
-    testWooConnection,
-    exportProducts,
-    clearValidationErrors,    // ← stable
-    settings,
-    getPanelTitle,
-    getPanelSubtitle,
-    getDeleteMessage,
-  }), [
-    isWooSettingsPanelOpen,
-    currentWooSettings,
-    panelMode,
-    validationErrors,
-    isSaving,
-    isTesting,
-    exporting,
-    lastTestResult,
-    lastExportResult,
-    settings,
-    loadWooSettings,          // include stable fns in memo
-    clearValidationErrors,
-  ]);
+  const value: WooContextType = useMemo(
+    () => ({
+      isWooSettingsPanelOpen,
+      currentWooSettings,
+      panelMode,
+      validationErrors,
+      isSaving,
+      isTesting,
+      exporting,
+      lastTestResult,
+      lastExportResult,
+      openWooSettingsPanel,
+      openWooSettingsForEdit,
+      openWooSettingsForView,
+      closeWooSettingsPanel,
+      closeWoocommerceProductPanel, // Add alias for generic handlers
+      loadWooSettings, // ← stable
+      saveWooSettings,
+      saveWoocommerceProduct, // Alias for generic handlers
+      testWooConnection,
+      exportProducts,
+      clearValidationErrors, // ← stable
+      settings,
+      getPanelTitle,
+      getPanelSubtitle,
+      getDeleteMessage,
+    }),
+    [
+      isWooSettingsPanelOpen,
+      currentWooSettings,
+      panelMode,
+      validationErrors,
+      isSaving,
+      isTesting,
+      exporting,
+      lastTestResult,
+      lastExportResult,
+      settings,
+      loadWooSettings, // include stable fns in memo
+      clearValidationErrors,
+    ],
+  );
 
   return <WooContext.Provider value={value}>{children}</WooContext.Provider>;
 }
 
 export function useWooCommerce() {
   const ctx = useContext(WooContext);
-  if (!ctx) throw new Error('useWooCommerce must be used within WooCommerceProvider');
+  if (!ctx) {
+    throw new Error('useWooCommerce must be used within WooCommerceProvider');
+  }
   return ctx;
 }

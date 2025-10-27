@@ -1,20 +1,28 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Plus, Edit, Eye, ChevronUp, ChevronDown, Search } from 'lucide-react';
-import { useProducts } from '../hooks/useProducts';
-import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
-import { Button } from '@/core/ui/Button';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+
 import { Badge } from '@/core/ui/Badge';
-import { Heading, Text } from '@/core/ui/Typography';
+import { Button } from '@/core/ui/Button';
 import { Card } from '@/core/ui/Card';
+import { Heading, Text } from '@/core/ui/Typography';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+
+import { useProducts } from '../hooks/useProducts';
 
 type SortField = 'productNumber' | 'title' | 'status' | 'quantity' | 'price' | 'sku';
 type SortOrder = 'asc' | 'desc';
 
 const statusClass = (status?: string) => {
   const s = (status || '').toLowerCase();
-  if (s === 'for sale') return 'bg-green-100 text-green-800';
-  if (s === 'draft') return 'bg-yellow-100 text-yellow-800';
-  if (s === 'archived') return 'bg-gray-100 text-gray-700';
+  if (s === 'for sale') {
+    return 'bg-green-100 text-green-800';
+  }
+  if (s === 'draft') {
+    return 'bg-yellow-100 text-yellow-800';
+  }
+  if (s === 'archived') {
+    return 'bg-gray-100 text-gray-700';
+  }
   return 'bg-blue-100 text-blue-800';
 };
 
@@ -45,8 +53,12 @@ export const ProductList: React.FC = () => {
   }, []);
 
   const handleSort = (field: SortField) => {
-    if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    else { setSortField(field); setSortOrder('asc'); }
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
   };
 
   // Robust row ID: fall back through common fields when id is missing
@@ -74,23 +86,23 @@ export const ProductList: React.FC = () => {
       sku: p.sku || '',
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
-      raw: p
+      raw: p,
     };
   };
 
   const filteredAndSorted = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
 
-    const filtered = products
-      .map(normalize)
-      .filter((p: any) => {
-        if (!needle) return true;
-        return (
-          p.title.toLowerCase().includes(needle) ||
-          String(p.productNumber).toLowerCase().includes(needle) ||
-          String(p.sku).toLowerCase().includes(needle)
-        );
-      });
+    const filtered = products.map(normalize).filter((p: any) => {
+      if (!needle) {
+        return true;
+      }
+      return (
+        p.title.toLowerCase().includes(needle) ||
+        String(p.productNumber).toLowerCase().includes(needle) ||
+        String(p.sku).toLowerCase().includes(needle)
+      );
+    });
 
     const cmp = (a: any, b: any) => {
       let av: string | number = '';
@@ -98,15 +110,25 @@ export const ProductList: React.FC = () => {
 
       switch (sortField) {
         case 'title':
-          av = a.title.toLowerCase(); bv = b.title.toLowerCase(); break;
+          av = a.title.toLowerCase();
+          bv = b.title.toLowerCase();
+          break;
         case 'status':
-          av = a.status.toLowerCase(); bv = b.status.toLowerCase(); break;
+          av = a.status.toLowerCase();
+          bv = b.status.toLowerCase();
+          break;
         case 'quantity':
-          av = a.quantity; bv = b.quantity; break;
+          av = a.quantity;
+          bv = b.quantity;
+          break;
         case 'price':
-          av = a.priceAmount; bv = b.priceAmount; break;
+          av = a.priceAmount;
+          bv = b.priceAmount;
+          break;
         case 'sku':
-          av = (a.sku || '').toLowerCase(); bv = (b.sku || '').toLowerCase(); break;
+          av = (a.sku || '').toLowerCase();
+          bv = (b.sku || '').toLowerCase();
+          break;
         case 'productNumber':
         default:
           av = String(a.productNumber).toLowerCase();
@@ -117,7 +139,10 @@ export const ProductList: React.FC = () => {
       if (typeof av === 'number' && typeof bv === 'number') {
         return sortOrder === 'asc' ? av - bv : bv - av;
       }
-      const res = String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' });
+      const res = String(av).localeCompare(String(bv), undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      });
       return sortOrder === 'asc' ? res : -res;
     };
 
@@ -125,18 +150,23 @@ export const ProductList: React.FC = () => {
   }, [products, searchTerm, sortField, sortOrder]);
 
   // ---------- Selection helpers ----------
-  const visibleIds = useMemo(() => filteredAndSorted.map((p: any) => String(p.id)), [filteredAndSorted]);
+  const visibleIds = useMemo(
+    () => filteredAndSorted.map((p: any) => String(p.id)),
+    [filteredAndSorted],
+  );
   const allVisibleSelected = useMemo(
-    () => visibleIds.length > 0 && visibleIds.every(id => selectedProductIds.includes(id)),
-    [visibleIds, selectedProductIds]
+    () => visibleIds.length > 0 && visibleIds.every((id) => selectedProductIds.includes(id)),
+    [visibleIds, selectedProductIds],
   );
   const someVisibleSelected = useMemo(
-    () => visibleIds.some(id => selectedProductIds.includes(id)),
-    [visibleIds, selectedProductIds]
+    () => visibleIds.some((id) => selectedProductIds.includes(id)),
+    [visibleIds, selectedProductIds],
   );
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (!headerCheckboxRef.current) return;
+    if (!headerCheckboxRef.current) {
+      return;
+    }
     headerCheckboxRef.current.indeterminate = !allVisibleSelected && someVisibleSelected;
   }, [allVisibleSelected, someVisibleSelected]);
 
@@ -144,7 +174,7 @@ export const ProductList: React.FC = () => {
     if (allVisibleSelected) {
       // unselect only the visible ones
       const set = new Set(visibleIds);
-      const remaining = selectedProductIds.filter(id => !set.has(id));
+      const remaining = selectedProductIds.filter((id) => !set.has(id));
       selectAllProducts(remaining);
     } else {
       // select union of (existing selection ∪ visible)
@@ -155,8 +185,14 @@ export const ProductList: React.FC = () => {
   // ---------------------------------------
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null;
-    return sortOrder === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />;
+    if (sortField !== field) {
+      return null;
+    }
+    return sortOrder === 'asc' ? (
+      <ChevronUp className="w-4 h-4" />
+    ) : (
+      <ChevronDown className="w-4 h-4" />
+    );
   };
 
   // Protected navigation handlers
@@ -172,7 +208,8 @@ export const ProductList: React.FC = () => {
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <Heading level={1}>
-            Products ({filtered}{filtered !== total ? ` of ${total}` : ''})
+            Products ({filtered}
+            {filtered !== total ? ` of ${total}` : ''})
           </Heading>
           <Text variant="caption">Manage your product catalog</Text>
           {selectedProductIds.length > 0 && (
@@ -201,7 +238,9 @@ export const ProductList: React.FC = () => {
             />
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleOpenPanel} variant="primary" icon={Plus}>Add Product</Button>
+            <Button onClick={handleOpenPanel} variant="primary" icon={Plus}>
+              Add Product
+            </Button>
           </div>
         </div>
       </div>
@@ -276,14 +315,18 @@ export const ProductList: React.FC = () => {
                     <SortIcon field="price" />
                   </div>
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredAndSorted.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-12 text-center text-gray-400">
-                    {searchTerm ? 'No products found matching your search.' : 'No products yet. Click "Add Product" to get started.'}
+                    {searchTerm
+                      ? 'No products found matching your search.'
+                      : 'No products yet. Click "Add Product" to get started.'}
                   </td>
                 </tr>
               ) : (
@@ -299,7 +342,10 @@ export const ProductList: React.FC = () => {
                       data-plugin-name="products"
                       role="button"
                       aria-label={`Open product ${p.title}`}
-                      onClick={(e) => { e.preventDefault(); handleOpenForView(raw); }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleOpenForView(raw);
+                      }}
                     >
                       {/* row checkbox */}
                       <td className="px-4 py-4 whitespace-nowrap">
@@ -313,7 +359,9 @@ export const ProductList: React.FC = () => {
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-mono font-medium text-gray-900">#{p.productNumber}</div>
+                        <div className="text-sm font-mono font-medium text-gray-900">
+                          #{p.productNumber}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{p.title}</div>
@@ -329,19 +377,34 @@ export const ProductList: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {p.priceAmount?.toFixed ? p.priceAmount.toFixed(2) : Number(p.priceAmount || 0).toFixed(2)} {p.currency}
+                          {p.priceAmount?.toFixed
+                            ? p.priceAmount.toFixed(2)
+                            : Number(p.priceAmount || 0).toFixed(2)}{' '}
+                          {p.currency}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex justify-end gap-2">
                           <Button
-                            variant="ghost" size="sm" icon={Eye}
-                            onClick={(e) => { e.stopPropagation(); handleOpenForView(raw); }}>
+                            variant="ghost"
+                            size="sm"
+                            icon={Eye}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenForView(raw);
+                            }}
+                          >
                             View
                           </Button>
                           <Button
-                            variant="secondary" size="sm" icon={Edit}
-                            onClick={(e) => { e.stopPropagation(); handleOpenForEdit(raw); }}>
+                            variant="secondary"
+                            size="sm"
+                            icon={Edit}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenForEdit(raw);
+                            }}
+                          >
                             Edit
                           </Button>
                         </div>
@@ -356,7 +419,9 @@ export const ProductList: React.FC = () => {
           <div className="divide-y divide-gray-200">
             {filteredAndSorted.length === 0 ? (
               <div className="p-6 text-center text-gray-400">
-                {searchTerm ? 'No products found matching your search.' : 'No products yet. Click "Add Product" to get started.'}
+                {searchTerm
+                  ? 'No products found matching your search.'
+                  : 'No products yet. Click "Add Product" to get started.'}
               </div>
             ) : (
               filteredAndSorted.map((p: any) => {
@@ -376,9 +441,14 @@ export const ProductList: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-medium text-gray-900">{p.title}</h3>
                         <div className="mt-1 space-y-1">
-                          <div className="text-xs text-gray-600">#{p.productNumber} · {p.sku || '—'}</div>
                           <div className="text-xs text-gray-600">
-                            {p.priceAmount?.toFixed ? p.priceAmount.toFixed(2) : Number(p.priceAmount || 0).toFixed(2)} {p.currency}
+                            #{p.productNumber} · {p.sku || '—'}
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            {p.priceAmount?.toFixed
+                              ? p.priceAmount.toFixed(2)
+                              : Number(p.priceAmount || 0).toFixed(2)}{' '}
+                            {p.currency}
                           </div>
                           <div>
                             <Badge className={statusClass(p.status)}>{p.status}</Badge>
@@ -387,8 +457,12 @@ export const ProductList: React.FC = () => {
                       </div>
                       <div>
                         <Button
-                          variant="ghost" size="sm" icon={Eye}
-                          onClick={() => attemptNavigation(() => openProductForView(p.raw))} className="h-8 px-3">
+                          variant="ghost"
+                          size="sm"
+                          icon={Eye}
+                          onClick={() => attemptNavigation(() => openProductForView(p.raw))}
+                          className="h-8 px-3"
+                        >
                           View
                         </Button>
                       </div>

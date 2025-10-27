@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { StickyNote } from 'lucide-react';
-import { Note, ValidationError } from '../types/notes';
-import { notesApi } from '../api/notesApi';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
 import { useApp } from '@/core/api/AppContext';
+
+import { notesApi } from '../api/notesApi';
+import { Note, ValidationError } from '../types/notes';
 
 interface NoteContextType {
   // Note Panel State
@@ -10,10 +12,10 @@ interface NoteContextType {
   currentNote: Note | null;
   panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
-  
+
   // Notes Data
   notes: Note[];
-  
+
   // Note Actions
   openNotePanel: (note: Note | null) => void;
   openNoteForEdit: (note: Note) => void;
@@ -23,7 +25,7 @@ interface NoteContextType {
   deleteNote: (id: string) => Promise<void>;
   duplicateNote: (note: Note) => Promise<void>;
   clearValidationErrors: () => void;
-  
+
   // NEW: Panel Title Functions
   getPanelTitle: (mode: string, item: Note | null, isMobileView: boolean) => any;
   getPanelSubtitle: (mode: string, item: Note | null) => any;
@@ -40,13 +42,13 @@ interface NoteProviderProps {
 
 export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: NoteProviderProps) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
-  
+
   // Panel states
   const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-  
+
   // Data state
   const [notes, setNotes] = useState<Note[]>([]);
 
@@ -88,7 +90,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const loadNotes = async () => {
     try {
       const notesData = await notesApi.getNotes();
-      
+
       const transformedNotes = notesData.map((note: any) => ({
         ...note,
         createdAt: new Date(note.createdAt),
@@ -103,21 +105,21 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const validateNote = (noteData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
-    
+
     if (!noteData.title?.trim()) {
       errors.push({
         field: 'title',
-        message: 'Note title is required'
+        message: 'Note title is required',
       });
     }
-    
+
     if (!noteData.content?.trim()) {
       errors.push({
         field: 'content',
-        message: 'Note content is required'
+        message: 'Note content is required',
       });
     }
-    
+
     return errors;
   };
 
@@ -158,29 +160,33 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const saveNote = async (noteData: any): Promise<boolean> => {
     console.log('Validating note data:', noteData);
-    
+
     const errors = validateNote(noteData);
     setValidationErrors(errors);
-    
-    const blockingErrors = errors.filter(error => !error.message.includes('Warning'));
+
+    const blockingErrors = errors.filter((error) => !error.message.includes('Warning'));
     if (blockingErrors.length > 0) {
       console.log('Validation failed:', blockingErrors);
       return false;
     }
-    
+
     try {
       let savedNote: Note;
-      
+
       if (currentNote) {
         // Update existing note
         savedNote = await notesApi.updateNote(currentNote.id, noteData);
-        setNotes(prev => prev.map(note => 
-          note.id === currentNote.id ? {
-            ...savedNote,
-            createdAt: new Date(savedNote.createdAt),
-            updatedAt: new Date(savedNote.updatedAt),
-          } : note
-        ));
+        setNotes((prev) =>
+          prev.map((note) =>
+            note.id === currentNote.id
+              ? {
+                  ...savedNote,
+                  createdAt: new Date(savedNote.createdAt),
+                  updatedAt: new Date(savedNote.updatedAt),
+                }
+              : note,
+          ),
+        );
         setCurrentNote({
           ...savedNote,
           createdAt: new Date(savedNote.createdAt),
@@ -191,29 +197,34 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       } else {
         // Create new note
         savedNote = await notesApi.createNote(noteData);
-        setNotes(prev => [...prev, {
-          ...savedNote,
-          createdAt: new Date(savedNote.createdAt),
-          updatedAt: new Date(savedNote.updatedAt),
-        }]);
+        setNotes((prev) => [
+          ...prev,
+          {
+            ...savedNote,
+            createdAt: new Date(savedNote.createdAt),
+            updatedAt: new Date(savedNote.updatedAt),
+          },
+        ]);
         closeNotePanel();
       }
-      
+
       return true;
     } catch (error) {
       console.error('Failed to save note:', error);
-      setValidationErrors([{ field: 'general', message: 'Failed to save note. Please try again.' }]);
+      setValidationErrors([
+        { field: 'general', message: 'Failed to save note. Please try again.' },
+      ]);
       return false;
     }
   };
 
   const deleteNote = async (id: string) => {
-    console.log("Deleting note with id:", id);
+    console.log('Deleting note with id:', id);
     try {
       await notesApi.deleteNote(id);
-      setNotes(prev => {
-        const newNotes = prev.filter(note => note.id !== id);
-        console.log("Notes after delete:", newNotes);
+      setNotes((prev) => {
+        const newNotes = prev.filter((note) => note.id !== id);
+        console.log('Notes after delete:', newNotes);
         return newNotes;
       });
     } catch (error) {
@@ -226,17 +237,20 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       const duplicateData = {
         title: `${originalNote.title} (Copy)`,
         content: originalNote.content,
-        mentions: originalNote.mentions || []
+        mentions: originalNote.mentions || [],
       };
-      
+
       const newNote = await notesApi.createNote(duplicateData);
-      
-      setNotes(prev => [{
-        ...newNote,
-        createdAt: new Date(newNote.createdAt),
-        updatedAt: new Date(newNote.updatedAt),
-      }, ...prev]);
-      
+
+      setNotes((prev) => [
+        {
+          ...newNote,
+          createdAt: new Date(newNote.createdAt),
+          updatedAt: new Date(newNote.updatedAt),
+        },
+        ...prev,
+      ]);
+
       console.log('Note duplicated successfully');
     } catch (error) {
       console.error('Failed to duplicate note:', error);
@@ -253,9 +267,12 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
     // Non-view modes (create/edit)
     switch (mode) {
-      case 'edit': return 'Edit Note';
-      case 'create': return 'Create Note';
-      default: return 'Note';
+      case 'edit':
+        return 'Edit Note';
+      case 'create':
+        return 'Create Note';
+      default:
+        return 'Note';
     }
   };
 
@@ -265,22 +282,29 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       return (
         <div className="flex items-center gap-2">
           <StickyNote className="w-4 h-4" style={{ color: '#ca8a04' }} />
-          <span className="text-xs text-gray-600">Created {new Date(item.createdAt).toLocaleDateString()}</span>
+          <span className="text-xs text-gray-600">
+            Created {new Date(item.createdAt).toLocaleDateString()}
+          </span>
         </div>
       );
     }
 
     // Non-view modes
     switch (mode) {
-      case 'edit': return 'Update note information';
-      case 'create': return 'Enter new note details';
-      default: return '';
+      case 'edit':
+        return 'Update note information';
+      case 'create':
+        return 'Enter new note details';
+      default:
+        return '';
     }
   };
 
   const getDeleteMessage = (item: Note | null) => {
-    if (!item) return 'Are you sure you want to delete this note?';
-    
+    if (!item) {
+      return 'Are you sure you want to delete this note?';
+    }
+
     const itemName = item.title || 'this note';
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
@@ -291,10 +315,10 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     currentNote,
     panelMode,
     validationErrors,
-    
+
     // Data State
     notes,
-    
+
     // Actions
     openNotePanel,
     openNoteForEdit,
@@ -304,18 +328,14 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     deleteNote,
     duplicateNote,
     clearValidationErrors,
-    
+
     // NEW: Panel Title Functions
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
   };
 
-  return (
-    <NoteContext.Provider value={value}>
-      {children}
-    </NoteContext.Provider>
-  );
+  return <NoteContext.Provider value={value}>{children}</NoteContext.Provider>;
 }
 
 export function useNoteContext() {

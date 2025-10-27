@@ -1,4 +1,4 @@
-import { Task } from '../types/task';
+import { Task } from '../types/tasks';
 
 // Tasks API following same pattern as estimates
 class TasksApi {
@@ -67,9 +67,9 @@ class TasksApi {
   async updateTask(id: string, taskData: any): Promise<Task> {
     console.log('tasksApi sending to backend:', {
       assigned_to: taskData.assignedTo,
-      title: taskData.title
+      title: taskData.title,
     });
-    
+
     const task = await this.request(`/tasks/${id}`, {
       method: 'PUT',
       body: JSON.stringify({

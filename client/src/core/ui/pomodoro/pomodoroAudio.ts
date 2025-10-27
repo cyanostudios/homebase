@@ -11,7 +11,9 @@ class PomodoroAudio {
   playSessionComplete() {
     try {
       this.initAudioContext();
-      if (!this.audioContext) return;
+      if (!this.audioContext) {
+        return;
+      }
 
       const oscillator = this.audioContext.createOscillator();
       const gainNode = this.audioContext.createGain();
@@ -22,7 +24,7 @@ class PomodoroAudio {
       // Create a pleasant notification sound
       oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
       oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime + 0.1);
-      
+
       gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.5);
 
@@ -37,7 +39,9 @@ class PomodoroAudio {
   playBreakComplete() {
     try {
       this.initAudioContext();
-      if (!this.audioContext) return;
+      if (!this.audioContext) {
+        return;
+      }
 
       const oscillator = this.audioContext.createOscillator();
       const gainNode = this.audioContext.createGain();
@@ -48,7 +52,7 @@ class PomodoroAudio {
       // Higher pitch for break end
       oscillator.frequency.setValueAtTime(1000, this.audioContext.currentTime);
       oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime + 0.1);
-      
+
       gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
 
@@ -83,7 +87,7 @@ class PomodoroAudio {
       new Notification(title, {
         body,
         icon: '/favicon.ico', // Adjust path as needed
-        silent: false
+        silent: false,
       });
     }
   }

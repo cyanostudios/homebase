@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+
 import { Button } from '@/core/ui/Button';
-import { Heading } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { useProducts } from '../hooks/useProducts';
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+
+import { useProducts } from '../hooks/useProducts';
 
 interface ProductFormProps {
   currentItem?: any; // must match pluginRegistry expected prop
@@ -36,7 +38,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   currentItem,
   onSave,
   onCancel,
-  isSubmitting = false
+  isSubmitting = false,
 }) => {
   const { validationErrors, clearValidationErrors } = useProducts();
   const {
@@ -46,9 +48,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     markClean,
     attemptAction,
     confirmDiscard,
-    cancelDiscard
+    cancelDiscard,
   } = useUnsavedChanges();
-  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } = useGlobalNavigationGuard();
+  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
+    useGlobalNavigationGuard();
 
   const currentProduct = currentItem;
 
@@ -66,7 +69,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     images: [],
     categories: [],
     brand: '',
-    gtin: ''
+    gtin: '',
   };
 
   const [formData, setFormData] = useState<FormData>(initialState);
@@ -77,7 +80,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   useEffect(() => {
     const formKey = `product-form-${currentProduct?.id || 'new'}`;
     registerUnsavedChangesChecker(formKey, () => isDirty);
-    return () => { unregisterUnsavedChangesChecker(formKey); };
+    return () => {
+      unregisterUnsavedChangesChecker(formKey);
+    };
   }, [isDirty, currentProduct, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
   // Load current product (support legacy fallbacks during transition)
@@ -88,7 +93,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         title: currentProduct.title ?? currentProduct.companyName ?? '',
         status: (currentProduct.status as FormData['status']) ?? 'for sale',
         quantity: Number.isFinite(currentProduct.quantity) ? Number(currentProduct.quantity) : 0,
-        priceAmount: Number.isFinite(currentProduct.priceAmount) ? Number(currentProduct.priceAmount) : 0,
+        priceAmount: Number.isFinite(currentProduct.priceAmount)
+          ? Number(currentProduct.priceAmount)
+          : 0,
         currency: currentProduct.currency ?? 'SEK',
         vatRate: Number.isFinite(currentProduct.vatRate) ? Number(currentProduct.vatRate) : 25,
         sku: currentProduct.sku ?? '',
@@ -97,7 +104,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         images: Array.isArray(currentProduct.images) ? currentProduct.images : [],
         categories: Array.isArray(currentProduct.categories) ? currentProduct.categories : [],
         brand: currentProduct.brand ?? '',
-        gtin: currentProduct.gtin ?? ''
+        gtin: currentProduct.gtin ?? '',
       });
       markClean();
     } else {
@@ -113,25 +120,29 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   }, [markClean]);
 
   const updateField = (field: keyof FormData, value: string | number | string[]) => {
-    setFormData(prev => ({ ...prev, [field]: value } as FormData));
+    setFormData((prev) => ({ ...prev, [field]: value }) as FormData);
     markDirty();
     clearValidationErrors();
   };
   const updateNumber = (field: 'quantity' | 'priceAmount' | 'vatRate', raw: string) => {
     const n = raw === '' ? NaN : Number(raw.replace(',', '.'));
-    updateField(field, Number.isFinite(n) ? n : (field === 'vatRate' ? 25 : 0));
+    updateField(field, Number.isFinite(n) ? n : field === 'vatRate' ? 25 : 0);
   };
 
   const handleSubmit = useCallback(async () => {
     const success = await onSave(formData);
     if (success) {
       markClean();
-      if (!currentProduct) resetForm();
+      if (!currentProduct) {
+        resetForm();
+      }
     }
   }, [formData, onSave, markClean, currentProduct, resetForm]);
 
   const handleCancel = useCallback(() => {
-    attemptAction(() => { onCancel(); });
+    attemptAction(() => {
+      onCancel();
+    });
   }, [attemptAction, onCancel]);
 
   // Global functions (PLURAL)
@@ -147,19 +158,23 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const handleDiscardChanges = () => {
     if (!currentProduct) {
       resetForm();
-      setTimeout(() => { confirmDiscard(); }, 0);
+      setTimeout(() => {
+        confirmDiscard();
+      }, 0);
     } else {
       confirmDiscard();
     }
   };
 
-  const getFieldError = (fieldName: string) => validationErrors.find(e => e.field === fieldName);
-  const hasBlockingErrors = validationErrors.some(e => !e.message.includes('Warning'));
+  const getFieldError = (fieldName: string) => validationErrors.find((e) => e.field === fieldName);
+  const hasBlockingErrors = validationErrors.some((e) => !e.message.includes('Warning'));
 
   // Array helpers
   const addImage = () => {
     const v = newImage.trim();
-    if (!v) return;
+    if (!v) {
+      return;
+    }
     updateField('images', [...formData.images, v]);
     setNewImage('');
   };
@@ -170,7 +185,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   };
   const addCategory = () => {
     const v = newCategory.trim();
-    if (!v) return;
+    if (!v) {
+      return;
+    }
     updateField('categories', [...formData.categories, v]);
     setNewCategory('');
   };
@@ -182,7 +199,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   return (
     <div className="space-y-4">
-      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+      >
         {/* Validation Summary */}
         {hasBlockingErrors && (
           <Card padding="sm" className="shadow-none px-0">
@@ -190,8 +213,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               <h3 className="text-sm font-medium text-red-800">Cannot save product</h3>
               <ul className="mt-2 list-disc list-inside text-sm text-red-700">
                 {validationErrors
-                  .filter(e => !e.message.includes('Warning'))
-                  .map((e, i) => (<li key={i}>{e.message}</li>))}
+                  .filter((e) => !e.message.includes('Warning'))
+                  .map((e, i) => (
+                    <li key={i}>{e.message}</li>
+                  ))}
               </ul>
             </div>
           </Card>
@@ -199,7 +224,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
         {/* Identity */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">Identity</Heading>
+          <Heading level={3} className="mb-3">
+            Identity
+          </Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-3 md:gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Product Number</label>
@@ -213,7 +240,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 }`}
               />
               {getFieldError('productNumber') && (
-                <p className="mt-1 text-sm text-red-600">{getFieldError('productNumber')?.message}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {getFieldError('productNumber')?.message}
+                </p>
               )}
             </div>
 
@@ -251,7 +280,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
         {/* Basic info */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">Basic Information</Heading>
+          <Heading level={3} className="mb-3">
+            Basic Information
+          </Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
@@ -284,7 +315,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
         {/* Pricing */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">Pricing</Heading>
+          <Heading level={3} className="mb-3">
+            Pricing
+          </Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-4 md:gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
@@ -360,7 +393,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
         {/* Media */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">Media</Heading>
+          <Heading level={3} className="mb-3">
+            Media
+          </Heading>
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Main image URL</label>
@@ -376,7 +411,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             <div>
               <div className="flex items-end gap-2">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Add image URL</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Add image URL
+                  </label>
                   <input
                     type="url"
                     value={newImage}
@@ -385,7 +422,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
-                <Button type="button" variant="secondary" icon={Plus} onClick={addImage}>Add</Button>
+                <Button type="button" variant="secondary" icon={Plus} onClick={addImage}>
+                  Add
+                </Button>
               </div>
 
               {formData.images.length > 0 && (
@@ -393,7 +432,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   {formData.images.map((url, i) => (
                     <li key={`${url}-${i}`} className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm">{url}</span>
-                      <Button type="button" size="sm" variant="danger" icon={Trash2} onClick={() => removeImage(i)} />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="danger"
+                        icon={Trash2}
+                        onClick={() => removeImage(i)}
+                      />
                     </li>
                   ))}
                 </ul>
@@ -404,7 +449,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
         {/* Classification */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">Classification</Heading>
+          <Heading level={3} className="mb-3">
+            Classification
+          </Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-3 md:gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
@@ -428,7 +475,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 }`}
               />
               {getFieldError('gtin') && (
-                <p className={`mt-1 text-sm ${getFieldError('gtin')?.message.includes('Warning') ? 'text-yellow-600' : 'text-red-600'}`}>
+                <p
+                  className={`mt-1 text-sm ${getFieldError('gtin')?.message.includes('Warning') ? 'text-yellow-600' : 'text-red-600'}`}
+                >
                   {getFieldError('gtin')?.message}
                 </p>
               )}
@@ -437,7 +486,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             <div className="md:col-span-3">
               <div className="flex items-end gap-2">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Add category</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Add category
+                  </label>
                   <input
                     type="text"
                     value={newCategory}
@@ -446,15 +497,24 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
-                <Button type="button" variant="secondary" icon={Plus} onClick={addCategory}>Add</Button>
+                <Button type="button" variant="secondary" icon={Plus} onClick={addCategory}>
+                  Add
+                </Button>
               </div>
 
               {formData.categories.length > 0 && (
                 <ul className="mt-3 flex flex-wrap gap-2">
                   {formData.categories.map((c, i) => (
-                    <li key={`${c}-${i}`} className="flex items-center gap-2 px-2 py-1 rounded-full border text-sm">
+                    <li
+                      key={`${c}-${i}`}
+                      className="flex items-center gap-2 px-2 py-1 rounded-full border text-sm"
+                    >
                       <span>{c}</span>
-                      <button type="button" onClick={() => removeCategory(i)} aria-label={`Remove ${c}`}>
+                      <button
+                        type="button"
+                        onClick={() => removeCategory(i)}
+                        aria-label={`Remove ${c}`}
+                      >
                         ×
                       </button>
                     </li>
@@ -470,9 +530,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       <ConfirmDialog
         isOpen={showWarning}
         title="Unsaved Changes"
-        message={currentProduct
-          ? "You have unsaved changes. Discard changes and return to view mode?"
-          : "You have unsaved changes. Discard changes and close the form?"
+        message={
+          currentProduct
+            ? 'You have unsaved changes. Discard changes and return to view mode?'
+            : 'You have unsaved changes. Discard changes and close the form?'
         }
         confirmText="Discard Changes"
         cancelText="Continue Editing"

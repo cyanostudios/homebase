@@ -1,22 +1,24 @@
-import { PublicRouteHandler } from '../components/PublicRouteHandler';
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Calculator } from 'lucide-react';
-import { Badge } from '@/core/ui/Badge';
-import { Estimate, ValidationError, calculateEstimateTotals } from '../types/estimate';
-import { estimatesApi } from '../api/estimatesApi';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
 import { useApp } from '@/core/api/AppContext';
+import { Badge } from '@/core/ui/Badge';
+
+import { estimatesApi } from '../api/estimatesApi';
+import { PublicRouteHandler } from '../components/PublicRouteHandler';
+import { Estimate, ValidationError, calculateEstimateTotals } from '../types/estimate';
 
 interface EstimateContextType {
-  // Panel State - STANDARDIZED: Using generic panelMode convention
+  // Panel State
   isEstimatePanelOpen: boolean;
   currentEstimate: Estimate | null;
-  panelMode: 'create' | 'edit' | 'view'; // CHANGED: From estimatePanelMode to panelMode
+  panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
-  
+
   // Data State
   estimates: Estimate[];
-  
-  // Actions - STANDARDIZED: Consistent function naming
+
+  // Actions
   openEstimatePanel: (estimate: Estimate | null) => void;
   openEstimateForEdit: (estimate: Estimate) => void;
   openEstimateForView: (estimate: Estimate) => void;
@@ -25,9 +27,14 @@ interface EstimateContextType {
   deleteEstimate: (id: string) => Promise<void>;
   duplicateEstimate: (estimate: Estimate) => Promise<void>;
   clearValidationErrors: () => void;
-  
-  // NEW: Panel Title Functions
-  getPanelTitle: (mode: string, item: Estimate | null, isMobileView: boolean, handleEstimateContactClick: (contactId: string) => void) => any;
+
+  // Panel Title helpers
+  getPanelTitle: (
+    mode: string,
+    item: Estimate | null,
+    isMobileView: boolean,
+    handleEstimateContactClick: (contactId: string) => void,
+  ) => any;
   getPanelSubtitle: (mode: string, item: Estimate | null) => any;
   getDeleteMessage: (item: Estimate | null) => string;
 }
@@ -40,20 +47,23 @@ interface EstimateProviderProps {
   onCloseOtherPanels: () => void;
 }
 
-export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels }: EstimateProviderProps) {
-  // Get panel registration functions from AppContext
+export function EstimateProvider({
+  children,
+  isAuthenticated,
+  onCloseOtherPanels,
+}: EstimateProviderProps) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
-  
-  // Panel states - STANDARDIZED: Using generic panelMode
+
+  // Panel state
   const [isEstimatePanelOpen, setIsEstimatePanelOpen] = useState(false);
   const [currentEstimate, setCurrentEstimate] = useState<Estimate | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create'); // CHANGED: From estimatePanelMode
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-  
+
   // Data state
   const [estimates, setEstimates] = useState<Estimate[]>([]);
 
-  // Load data when authenticated
+  // Load on auth
   useEffect(() => {
     if (isAuthenticated) {
       loadEstimates();
@@ -62,86 +72,93 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
     }
   }, [isAuthenticated]);
 
-  // Panel registration
+  // Register panel close function once
   useEffect(() => {
     registerPanelCloseFunction('estimates', closeEstimatePanel);
     return () => unregisterPanelCloseFunction('estimates');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Global functions for form submission
+  // Global submit/cancel hooks (optional integration points)
   useEffect(() => {
-    window.submitEstimatesForm = () => {
+    (window as any).submitEstimatesForm = () => {
       const event = new CustomEvent('submitEstimateForm');
       window.dispatchEvent(event);
     };
-
-    window.cancelEstimatesForm = () => {
+    (window as any).cancelEstimatesForm = () => {
       const event = new CustomEvent('cancelEstimateForm');
       window.dispatchEvent(event);
     };
-
     return () => {
-      delete window.submitEstimatesForm;
-      delete window.cancelEstimatesForm;
+      delete (window as any).submitEstimatesForm;
+      delete (window as any).cancelEstimatesForm;
     };
   }, []);
 
   const loadEstimates = async () => {
     try {
       const estimatesData = await estimatesApi.getEstimates();
-      const transformedEstimates = estimatesData.map((estimate: any) => ({
-        ...estimate,
-        validTo: new Date(estimate.validTo),
-        createdAt: new Date(estimate.createdAt),
-        updatedAt: new Date(estimate.updatedAt),
-      }));
-      setEstimates(transformedEstimates);
+      const transformed = estimatesData.map((e: any) => ({
+        ...e,
+        validTo: new Date(e.validTo),
+        createdAt: new Date(e.createdAt),
+        updatedAt: new Date(e.updatedAt),
+      })) as Estimate[];
+      setEstimates(transformed);
     } catch (error) {
       console.error('Failed to load estimates:', error);
     }
   };
 
+  // ---- FIXED: robust parsing for both string and { estimateNumber } ----
   const generateNextEstimateNumber = async (): Promise<string> => {
     try {
-      const response = await estimatesApi.getNextEstimateNumber();
-      return response.estimateNumber;
+      const raw: unknown = await estimatesApi.getNextEstimateNumber();
+
+      if (typeof raw === 'string') {
+        return raw;
+      }
+
+      if (
+        raw !== null &&
+        typeof raw === 'object' &&
+        'estimateNumber' in raw &&
+        typeof (raw as { estimateNumber: unknown }).estimateNumber === 'string'
+      ) {
+        return (raw as { estimateNumber: string }).estimateNumber;
+      }
+
+      console.warn('Unexpected response from getNextEstimateNumber:', raw);
+      return `EST-${Date.now()}`;
     } catch (error) {
       console.error('Failed to generate estimate number:', error);
       return `EST-${Date.now()}`;
     }
   };
 
+  // ---- VALIDATION kept in module scope so it's always in scope where used ----
   const validateEstimate = (estimateData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
-    
+
     if (!estimateData.contactId) {
-      errors.push({
-        field: 'contactId',
-        message: 'Contact selection is required'
-      });
+      errors.push({ field: 'contactId', message: 'Contact selection is required' });
     }
-    
+
     if (!estimateData.validTo) {
-      errors.push({
-        field: 'validTo',
-        message: 'Valid to date is required'
-      });
+      errors.push({ field: 'validTo', message: 'Valid to date is required' });
     }
-    
+
     if (!estimateData.lineItems || estimateData.lineItems.length === 0) {
-      errors.push({
-        field: 'lineItems',
-        message: 'At least one line item is required'
-      });
+      errors.push({ field: 'lineItems', message: 'At least one line item is required' });
     }
-    
+
     return errors;
   };
 
-  // CRUD Functions - STANDARDIZED naming
+  // CRUD
   const openEstimatePanel = (estimate: Estimate | null) => {
     setCurrentEstimate(estimate);
-    setPanelMode(estimate ? 'edit' : 'create'); // UPDATED: Using setPanelMode
+    setPanelMode(estimate ? 'edit' : 'create');
     setIsEstimatePanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -149,7 +166,7 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
 
   const openEstimateForEdit = (estimate: Estimate) => {
     setCurrentEstimate(estimate);
-    setPanelMode('edit'); // UPDATED: Using setPanelMode
+    setPanelMode('edit');
     setIsEstimatePanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -157,7 +174,7 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
 
   const openEstimateForView = (estimate: Estimate) => {
     setCurrentEstimate(estimate);
-    setPanelMode('view'); // UPDATED: Using setPanelMode
+    setPanelMode('view');
     setIsEstimatePanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -166,120 +183,119 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
   const closeEstimatePanel = () => {
     setIsEstimatePanelOpen(false);
     setCurrentEstimate(null);
-    setPanelMode('create'); // UPDATED: Using setPanelMode
+    setPanelMode('create');
     setValidationErrors([]);
   };
 
-  const clearValidationErrors = () => {
-    setValidationErrors([]);
-  };
+  const clearValidationErrors = () => setValidationErrors([]);
 
   const saveEstimate = async (estimateData: any): Promise<boolean> => {
-    console.log('EstimateContext saveEstimate called with:', estimateData);
-    
     const errors = validateEstimate(estimateData);
-    console.log('Validation errors:', errors);
     setValidationErrors(errors);
-    
     if (errors.length > 0) {
-      console.log('Validation failed:', errors);
       return false;
     }
-    
-    console.log('Validation passed, attempting to save...');
-    
+
     try {
-      let savedEstimate: Estimate;
-      
+      let saved: Estimate;
+
       if (currentEstimate) {
-        console.log('Updating existing estimate:', currentEstimate.id);
-        savedEstimate = await estimatesApi.updateEstimate(currentEstimate.id, estimateData);
-        setEstimates(prev => prev.map(estimate => 
-          estimate.id === currentEstimate.id ? {
-            ...savedEstimate,
-            validTo: new Date(savedEstimate.validTo),
-            createdAt: new Date(savedEstimate.createdAt),
-            updatedAt: new Date(savedEstimate.updatedAt),
-          } : estimate
-        ));
+        saved = await estimatesApi.updateEstimate(currentEstimate.id, estimateData);
+        setEstimates((prev) =>
+          prev.map((e) =>
+            e.id === currentEstimate.id
+              ? {
+                  ...saved,
+                  validTo: new Date(saved.validTo),
+                  createdAt: new Date(saved.createdAt),
+                  updatedAt: new Date(saved.updatedAt),
+                }
+              : e,
+          ),
+        );
         setCurrentEstimate({
-          ...savedEstimate,
-          validTo: new Date(savedEstimate.validTo),
-          createdAt: new Date(savedEstimate.createdAt),
-          updatedAt: new Date(savedEstimate.updatedAt),
+          ...saved,
+          validTo: new Date(saved.validTo),
+          createdAt: new Date(saved.createdAt),
+          updatedAt: new Date(saved.updatedAt),
         });
-        setPanelMode('view'); // UPDATED: Using setPanelMode
+        setPanelMode('view');
         setValidationErrors([]);
       } else {
-        console.log('Creating new estimate...');
-        savedEstimate = await estimatesApi.createEstimate(estimateData);
-        console.log('Estimate created successfully:', savedEstimate);
-        setEstimates(prev => [...prev, {
-          ...savedEstimate,
-          validTo: new Date(savedEstimate.validTo),
-          createdAt: new Date(savedEstimate.createdAt),
-          updatedAt: new Date(savedEstimate.updatedAt),
-        }]);
+        saved = await estimatesApi.createEstimate(estimateData);
+        setEstimates((prev) => [
+          ...prev,
+          {
+            ...saved,
+            validTo: new Date(saved.validTo),
+            createdAt: new Date(saved.createdAt),
+            updatedAt: new Date(saved.updatedAt),
+          },
+        ]);
         closeEstimatePanel();
       }
-      
-      console.log('Estimate saved successfully');
+
       return true;
     } catch (error) {
       console.error('API Error when saving estimate:', error);
-      setValidationErrors([{ field: 'general', message: 'Failed to save estimate. Please try again.' }]);
+      setValidationErrors([
+        { field: 'general', message: 'Failed to save estimate. Please try again.' },
+      ]);
       return false;
     }
   };
 
   const deleteEstimate = async (id: string) => {
-    console.log("Deleting estimate with id:", id);
     try {
       await estimatesApi.deleteEstimate(id);
-      setEstimates(prev => {
-        const newEstimates = prev.filter(estimate => estimate.id !== id);
-        console.log("Estimates after delete:", newEstimates);
-        return newEstimates;
-      });
     } catch (error) {
       console.error('Failed to delete estimate:', error);
+    } finally {
+      setEstimates((prev) => prev.filter((e) => e.id !== id));
     }
   };
 
-  const duplicateEstimate = async (originalEstimate: Estimate) => {
+  const duplicateEstimate = async (original: Estimate) => {
     try {
       const estimateNumber = await generateNextEstimateNumber();
-      
-      const duplicateData = {
-        ...originalEstimate,
+
+      const duplicateData: any = {
+        ...original,
         estimateNumber,
         status: 'draft' as const,
         validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        lineItems: originalEstimate.lineItems.map(item => ({
+        lineItems: original.lineItems.map((item) => ({
           ...item,
           id: `${Date.now()}-${Math.random()}`,
         })),
       };
-      
-      delete (duplicateData as any).id;
-      delete (duplicateData as any).createdAt;
-      delete (duplicateData as any).updatedAt;
-      
-      const savedEstimate = await estimatesApi.createEstimate(duplicateData);
-      setEstimates(prev => [...prev, {
-        ...savedEstimate,
-        validTo: new Date(savedEstimate.validTo),
-        createdAt: new Date(savedEstimate.createdAt),
-        updatedAt: new Date(savedEstimate.updatedAt),
-      }]);
+
+      delete duplicateData.id;
+      delete duplicateData.createdAt;
+      delete duplicateData.updatedAt;
+
+      const saved = await estimatesApi.createEstimate(duplicateData);
+      setEstimates((prev) => [
+        ...prev,
+        {
+          ...saved,
+          validTo: new Date(saved.validTo),
+          createdAt: new Date(saved.createdAt),
+          updatedAt: new Date(saved.updatedAt),
+        },
+      ]);
     } catch (error) {
       console.error('Failed to duplicate estimate:', error);
     }
   };
 
-  // NEW: Panel Title Functions (moved from PanelTitles.tsx)
-  const getPanelTitle = (mode: string, item: Estimate | null, isMobileView: boolean, handleEstimateContactClick: (contactId: string) => void) => {
-    // View mode with item
+  // Titles / subtitles
+  const getPanelTitle = (
+    mode: string,
+    item: Estimate | null,
+    isMobileView: boolean,
+    handleEstimateContactClick: (contactId: string) => void,
+  ) => {
     if (mode === 'view' && item) {
       const totals = calculateEstimateTotals(item.lineItems || [], item.estimateDiscount || 0);
       const estimateNumber = item.estimateNumber || `#${item.id}`;
@@ -287,47 +303,56 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
       const currency = item.currency || 'SEK';
       const contactId = item.contactId;
       const contactName = item.contactName;
-      
-      if (isMobileView) {
-        return (
-          <div>
-            <div className="flex items-center gap-2">
-              <span>{estimateNumber} • </span>
-              <button
-                onClick={() => handleEstimateContactClick(contactId)}
-                className="text-blue-600 hover:text-blue-800 hover:underline font-medium px-1 rounded"
-              >
-                @{contactName}
-              </button>
-            </div>
-            <div className="text-sm font-normal text-gray-600 mt-1">{total} {currency}</div>
-          </div>
-        );
-      }
-      return (
-        <div className="flex items-center gap-2">
-          <span>{estimateNumber} • </span>
+
+      const ContactChunk =
+        typeof contactId === 'string' && contactId ? (
           <button
             onClick={() => handleEstimateContactClick(contactId)}
             className="text-blue-600 hover:text-blue-800 hover:underline font-medium px-1 rounded"
           >
             @{contactName}
           </button>
-          <span> • {total} {currency}</span>
+        ) : (
+          <span className="text-gray-600">@{contactName || 'Contact'}</span>
+        );
+
+      if (isMobileView) {
+        return (
+          <div>
+            <div className="flex items-center gap-2">
+              <span>{estimateNumber} • </span>
+              {ContactChunk}
+            </div>
+            <div className="text-sm font-normal text-gray-600 mt-1">
+              {total} {currency}
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex items-center gap-2">
+          <span>{estimateNumber} • </span>
+          {ContactChunk}
+          <span>
+            {' '}
+            • {total} {currency}
+          </span>
         </div>
       );
     }
 
-    // Non-view modes (create/edit)
     switch (mode) {
-      case 'edit': return 'Edit Estimate';
-      case 'create': return 'Create Estimate';
-      default: return 'Estimate';
+      case 'edit':
+        return 'Edit Estimate';
+      case 'create':
+        return 'Create Estimate';
+      default:
+        return 'Estimate';
     }
   };
 
   const getPanelSubtitle = (mode: string, item: Estimate | null) => {
-    // View mode with item
     if (mode === 'view' && item) {
       const statusColors: Record<string, string> = {
         draft: 'bg-gray-100 text-gray-800',
@@ -335,7 +360,7 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
         accepted: 'bg-green-100 text-green-800',
         rejected: 'bg-red-100 text-red-800',
       };
-      
+
       const badgeColor = statusColors[item.status] || statusColors.draft;
       const badgeText = item.status?.charAt(0).toUpperCase() + item.status?.slice(1);
       const validToText = `Valid to ${new Date(item.validTo).toLocaleDateString()}`;
@@ -349,32 +374,32 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
       );
     }
 
-    // Non-view modes
     switch (mode) {
-      case 'edit': return 'Update estimate information';
-      case 'create': return 'Enter new estimate details';
-      default: return '';
+      case 'edit':
+        return 'Update estimate information';
+      case 'create':
+        return 'Enter new estimate details';
+      default:
+        return '';
     }
   };
 
   const getDeleteMessage = (item: Estimate | null) => {
-    if (!item) return 'Are you sure you want to delete this estimate?';
-    
+    if (!item) {
+      return 'Are you sure you want to delete this estimate?';
+    }
     const itemName = item.estimateNumber || 'this estimate';
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 
   const value: EstimateContextType = {
-    // Panel State - STANDARDIZED
     isEstimatePanelOpen,
     currentEstimate,
-    panelMode, // CHANGED: From estimatePanelMode to panelMode
+    panelMode,
     validationErrors,
-    
-    // Data State
+
     estimates,
-    
-    // Actions
+
     openEstimatePanel,
     openEstimateForEdit,
     openEstimateForView,
@@ -383,8 +408,7 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
     deleteEstimate,
     duplicateEstimate,
     clearValidationErrors,
-    
-    // NEW: Panel Title Functions
+
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
@@ -392,9 +416,7 @@ export function EstimateProvider({ children, isAuthenticated, onCloseOtherPanels
 
   return (
     <EstimateContext.Provider value={value}>
-      <PublicRouteHandler>
-        {children}
-      </PublicRouteHandler>
+      <PublicRouteHandler>{children}</PublicRouteHandler>
     </EstimateContext.Provider>
   );
 }

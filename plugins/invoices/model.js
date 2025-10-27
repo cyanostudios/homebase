@@ -176,35 +176,48 @@ class InvoiceModel {
       dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       status = 'draft',
       estimateId = null,
+      invoiceType = 'invoice', // om du använder typen
     } = data || {};
-
+  
     const {
       subtotal, totalDiscount, subtotalAfterDiscount,
       invoiceDiscountAmount, subtotalAfterInvoiceDiscount,
       totalVat, total
     } = this.calculateTotals(lineItems, invoiceDiscount);
-
+  
+    const now = new Date();
+    const paidAt = status === 'paid' ? now : null;
+    const statusChangedAt = now;
+  
     const result = await this.pool.query(
       `
       INSERT INTO ${InvoiceModel.TABLE} (
-        user_id, invoice_number, contact_id, contact_name, organization_number,
-        currency, line_items, invoice_discount, notes, payment_terms, issue_date, due_date,
+        user_id, invoice_number,
+        contact_id, contact_name, organization_number,
+        currency, line_items, invoice_discount, notes, payment_terms,
+        issue_date, due_date,
         subtotal, total_discount, subtotal_after_discount, invoice_discount_amount,
         subtotal_after_invoice_discount, total_vat, total,
-        status, status_changed_at, paid_at, estimate_id, created_at, updated_at
+        status, status_changed_at, paid_at, estimate_id,
+        created_at, updated_at,
+        invoice_type
       ) VALUES (
-        $1, $2, $3, $4, $5,
-        $6, $7, $8, $9, $10, $11, $12,
+        $1, $2,
+        $3, $4, $5,
+        $6, $7, $8, $9, $10,
+        $11, $12,
         $13, $14, $15, $16,
         $17, $18, $19,
-        $20, NULL, NULL, $21, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        $20, $21, $22, $23,
+        NOW(), NOW(),
+        $24
       )
       RETURNING *
       `,
       [
         userId,
-        data.invoiceNumber || null, // number assigned later on 'sent'
-        contactId,
+        data.invoiceNumber || null,            // fakturanummer sätts senare vid "sent"
+        contactId ? Number(contactId) : null,
         contactName,
         organizationNumber,
         currency,
@@ -222,12 +235,16 @@ class InvoiceModel {
         totalVat,
         total,
         status,
-        estimateId,
+        statusChangedAt,
+        paidAt,
+        estimateId ? Number(estimateId) : null,
+        invoiceType
       ]
     );
-
+  
     return this.transformRow(result.rows[0]);
   }
+  
 
   async update(userId, invoiceId, data) {
     const current = await this.getById(userId, invoiceId);

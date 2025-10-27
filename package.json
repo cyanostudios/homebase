@@ -3,10 +3,23 @@
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
-    "dev": "NODE_ENV=development tsx server/index.ts",
+    "dev": "npm run dev:api",
+    "dev:api": "cross-env NODE_ENV=development tsx server/index.ts",
+    "dev:ui": "vite --port 3001",
+    "dev:all": "concurrently -k -n API,UI -c auto \"npm:dev:api\" \"npm:dev:ui\"",
     "build": "tsc server/index.ts --outDir dist --target es2020 --module commonjs",
-    "start": "NODE_ENV=production node dist/index.js",
-    "check": "tsc"
+    "start": "npm run start:api",
+    "start:api": "cross-env NODE_ENV=production node dist/index.js",
+    "check": "tsc",
+    "lint": "eslint \"client/src/**/*.{ts,tsx}\" \"server/**/*.ts\"",
+    "lint:fix": "eslint \"client/src/**/*.{ts,tsx}\" \"server/**/*.ts\" --fix",
+    "lint:errors": "eslint \"client/src/**/*.{ts,tsx}\" \"server/**/*.ts\" --quiet",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky",
+    "sync:down:stash": "git stash push -u -m \"sync-down\" && git pull --rebase && npm ci && git stash list",
+    "sync:down:force": "git reset --hard HEAD && git clean -fd && git pull --rebase && npm ci",
+    "sync:up": "git add -A && (git commit -m \"chore(sync): local save\" || ver > nul) && git pull --rebase && git push"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
@@ -104,10 +117,25 @@
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "@types/ws": "^8.5.13",
+    "@typescript-eslint/eslint-plugin": "^8.46.1",
+    "@typescript-eslint/parser": "^8.46.1",
     "@vitejs/plugin-react": "^4.6.0",
     "autoprefixer": "^10.4.20",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "esbuild": "^0.25.0",
+    "eslint": "^9.37.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-formatter-codeframe": "^7.32.1",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.4",
     "postcss": "^8.4.47",
+    "prettier": "^3.6.2",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3",
@@ -115,5 +143,21 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
-  }
+  },
+  "engines": {
+    "node": ">=22.18 <23"
+  },
+"lint-staged": {
+  "client/src/**/*.{ts,tsx}": [
+    "eslint --fix --max-warnings=0",
+    "prettier --write"
+  ],
+  "server/**/*.ts": [
+    "eslint --fix --max-warnings=0",
+    "prettier --write"
+  ],
+  "*.{js,css,md,json}": [
+    "prettier --write"
+  ]
+}
 }

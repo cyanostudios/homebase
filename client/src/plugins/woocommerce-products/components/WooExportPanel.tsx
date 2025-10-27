@@ -1,10 +1,12 @@
+import { ShoppingCart } from 'lucide-react';
 import React, { useMemo } from 'react';
-import { useWooCommerce } from '../context/WooCommerceContext';
-import { useProducts } from '../../products/hooks/useProducts';
+
+import { Button } from '@/core/ui/Button';
 import { Card } from '@/core/ui/Card';
 import { Heading, Text } from '@/core/ui/Typography';
-import { Button } from '@/core/ui/Button';
-import { ShoppingCart } from 'lucide-react';
+
+import { useProducts } from '../../products/hooks/useProducts';
+import { useWooCommerce } from '../context/WooCommerceContext';
 
 export const WooExportPanel: React.FC = () => {
   const {
@@ -16,11 +18,7 @@ export const WooExportPanel: React.FC = () => {
     lastExportResult,
   } = useWooCommerce();
 
-  const {
-    products,
-    selectedProductIds,
-    clearProductSelection,
-  } = useProducts();
+  const { products, selectedProductIds, clearProductSelection } = useProducts();
 
   // Configured only if all three are present
   const isConfigured = useMemo(() => {
@@ -30,14 +28,14 @@ export const WooExportPanel: React.FC = () => {
 
   // Selected products (from Products plugin)
   const selectedProducts = useMemo(
-    () => products.filter(p => selectedProductIds.includes(String(p.id))),
-    [products, selectedProductIds]
+    () => products.filter((p) => selectedProductIds.includes(String(p.id))),
+    [products, selectedProductIds],
   );
 
   // Minimal MVP payload mapping
   const mvpPayload = useMemo(
     () =>
-      selectedProducts.map(p => ({
+      selectedProducts.map((p) => ({
         id: p.id,
         productNumber: p.productNumber,
         sku: p.sku,
@@ -56,16 +54,18 @@ export const WooExportPanel: React.FC = () => {
         createdAt: p.createdAt as any,
         updatedAt: p.updatedAt as any,
       })),
-    [selectedProducts]
+    [selectedProducts],
   );
 
   const skuWarnings = useMemo(
-    () => selectedProducts.filter(p => !p.sku || !String(p.sku).trim()),
-    [selectedProducts]
+    () => selectedProducts.filter((p) => !p.sku || !String(p.sku).trim()),
+    [selectedProducts],
   );
 
   const handleExport = async () => {
-    if (!mvpPayload.length || !isConfigured) return;
+    if (!mvpPayload.length || !isConfigured) {
+      return;
+    }
     await exportProducts(mvpPayload as any);
   };
 
@@ -84,7 +84,9 @@ export const WooExportPanel: React.FC = () => {
           <Button
             variant="secondary"
             onClick={() => {
-              if (settings) openWooSettingsForEdit(settings);
+              if (settings) {
+                openWooSettingsForEdit(settings);
+              }
             }}
           >
             Settings
@@ -100,7 +102,9 @@ export const WooExportPanel: React.FC = () => {
               <ShoppingCart className="w-6 h-6 text-blue-600" />
             </div>
             <div className="flex-1">
-              <Heading level={3} className="mb-1">Connect your WooCommerce store</Heading>
+              <Heading level={3} className="mb-1">
+                Connect your WooCommerce store
+              </Heading>
               <Text variant="body" className="text-gray-600">
                 Add your store URL and API keys to enable product export and syncing.
               </Text>
@@ -123,13 +127,9 @@ export const WooExportPanel: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <div className="text-sm text-gray-500">Connected Store</div>
-              <div className="text-sm font-medium text-gray-900 truncate">
-                {settings?.storeUrl}
-              </div>
+              <div className="text-sm font-medium text-gray-900 truncate">{settings?.storeUrl}</div>
             </div>
-            <div className="text-xs text-gray-500">
-              Credentials saved in account settings.
-            </div>
+            <div className="text-xs text-gray-500">Credentials saved in account settings.</div>
           </div>
         </Card>
       )}
@@ -138,10 +138,17 @@ export const WooExportPanel: React.FC = () => {
       {isConfigured && (
         <Card padding="lg">
           <div className="flex flex-col gap-3">
-            <Heading level={3} className="mb-1">Export selected products</Heading>
+            <Heading level={3} className="mb-1">
+              Export selected products
+            </Heading>
             <Text variant="body" className="text-gray-600">
-              Select products in the <strong>Products</strong> list (checkboxes) and export them to WooCommerce.
-              Mapping (MVP): <code>sku, title, status, regular_price, manage_stock=true, stock_quantity, description, images, attributes(brand)</code>.
+              Select products in the <strong>Products</strong> list (checkboxes) and export them to
+              WooCommerce. Mapping (MVP):{' '}
+              <code>
+                sku, title, status, regular_price, manage_stock=true, stock_quantity, description,
+                images, attributes(brand)
+              </code>
+              .
             </Text>
 
             {/* Selection summary */}
@@ -176,7 +183,9 @@ export const WooExportPanel: React.FC = () => {
                 onClick={handleExport}
                 aria-label="Export selected products to WooCommerce"
               >
-                {exporting ? 'Exporting…' : `Export ${totalSelected || ''} ${totalSelected === 1 ? 'product' : 'products'}`}
+                {exporting
+                  ? 'Exporting…'
+                  : `Export ${totalSelected || ''} ${totalSelected === 1 ? 'product' : 'products'}`}
               </Button>
               <Text variant="caption" className="text-gray-500">
                 You can keep working while export runs.
@@ -187,10 +196,14 @@ export const WooExportPanel: React.FC = () => {
             {lastExportResult && (
               <div className="mt-3 rounded-xl border p-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <div className={`font-medium ${lastExportResult.ok ? 'text-green-700' : 'text-red-700'}`}>
+                  <div
+                    className={`font-medium ${lastExportResult.ok ? 'text-green-700' : 'text-red-700'}`}
+                  >
                     {lastExportResult.ok ? 'Export completed' : 'Export failed'}
                   </div>
-                  <div className="text-gray-600 break-all">Endpoint: {lastExportResult.endpoint}</div>
+                  <div className="text-gray-600 break-all">
+                    Endpoint: {lastExportResult.endpoint}
+                  </div>
                 </div>
                 <div className="mt-2 grid grid-cols-3 gap-3">
                   <div className="rounded-lg border p-2 text-center">

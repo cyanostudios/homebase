@@ -1,13 +1,12 @@
+// plugins/estimates/index.js
 const EstimateModel = require('./model');
-const InvoiceModel = require('../invoices/model');
 const EstimateController = require('./controller');
 const createEstimateRoutes = require('./routes');
 const config = require('./plugin.config');
 
 function initializeEstimatesPlugin(pool, requirePlugin) {
   const model = new EstimateModel(pool);
-  const invoiceModel = new InvoiceModel(pool); // pass to controller
-  const controller = new EstimateController(model, invoiceModel);
+  const controller = new EstimateController(model);
   const router = createEstimateRoutes(controller, requirePlugin);
 
   return {
@@ -15,7 +14,6 @@ function initializeEstimatesPlugin(pool, requirePlugin) {
     router,
     model,
     controller,
-    invoiceModel,
   };
 }
 

@@ -8,9 +8,7 @@ interface TableProps {
 export function Table({ children, className = '' }: TableProps) {
   return (
     <div className={`overflow-hidden ${className}`}>
-      <table className="w-full">
-        {children}
-      </table>
+      <table className="w-full">{children}</table>
     </div>
   );
 }
@@ -22,9 +20,7 @@ interface TableHeaderProps {
 export function TableHeader({ children }: TableHeaderProps) {
   return (
     <thead className="bg-gray-50">
-      <tr>
-        {children}
-      </tr>
+      <tr>{children}</tr>
     </thead>
   );
 }
@@ -34,11 +30,7 @@ interface TableBodyProps {
 }
 
 export function TableBody({ children }: TableBodyProps) {
-  return (
-    <tbody className="bg-white divide-y divide-gray-200">
-      {children}
-    </tbody>
-  );
+  return <tbody className="bg-white divide-y divide-gray-200">{children}</tbody>;
 }
 
 interface TableRowProps {
@@ -47,11 +39,7 @@ interface TableRowProps {
 }
 
 export function TableRow({ children, isEven = false }: TableRowProps) {
-  return (
-    <tr className={isEven ? 'bg-gray-50' : 'bg-white'}>
-      {children}
-    </tr>
-  );
+  return <tr className={isEven ? 'bg-gray-50' : 'bg-white'}>{children}</tr>;
 }
 
 interface TableHeadProps {
@@ -61,7 +49,9 @@ interface TableHeadProps {
 
 export function TableHead({ children, className = '' }: TableHeadProps) {
   return (
-    <th className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${className}`}>
+    <th
+      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${className}`}
+    >
       {children}
     </th>
   );
@@ -74,8 +64,6 @@ interface TableCellProps {
 
 export function TableCell({ children, className = '' }: TableCellProps) {
   return (
-    <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${className}`}>
-      {children}
-    </td>
+    <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${className}`}>{children}</td>
   );
 }

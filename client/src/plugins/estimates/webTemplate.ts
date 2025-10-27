@@ -27,14 +27,14 @@ interface Estimate {
 
 function calculateTotals(lineItems: LineItem[], discount = 0) {
   const subtotal = lineItems.reduce((sum, item) => {
-    return sum + (item.quantity * item.unitPrice);
+    return sum + item.quantity * item.unitPrice;
   }, 0);
-  
+
   const discountAmount = subtotal * (discount / 100);
   const discountedSubtotal = subtotal - discountAmount;
   const vatAmount = discountedSubtotal * 0.25;
   const total = discountedSubtotal + vatAmount;
-  
+
   return { subtotal, discountAmount, discountedSubtotal, vatAmount, total };
 }
 
@@ -45,14 +45,14 @@ function formatDate(date: string | Date) {
 function formatCurrency(amount: number, currency = 'SEK') {
   return new Intl.NumberFormat('sv-SE', {
     style: 'currency',
-    currency: currency
+    currency: currency,
   }).format(amount);
 }
 
 export function generateWebHTML(estimate: Estimate): string {
   const totals = calculateTotals(estimate.lineItems || []);
   const isExpired = new Date(estimate.shareValidUntil || estimate.validTo) < new Date();
-  
+
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -101,10 +101,15 @@ export function generateWebHTML(estimate: Estimate): string {
                 <div class="text-2xl font-bold">${estimate.estimateNumber}</div>
                 <div class="mt-2">
                   <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                    ${estimate.status === 'draft' ? 'bg-gray-100 text-gray-800' :
-                      estimate.status === 'sent' ? 'bg-blue-100 text-blue-800' :
-                      estimate.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                      'bg-red-100 text-red-800'}">
+                    ${
+                      estimate.status === 'draft'
+                        ? 'bg-gray-100 text-gray-800'
+                        : estimate.status === 'sent'
+                          ? 'bg-blue-100 text-blue-800'
+                          : estimate.status === 'accepted'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                    }">
                     ${estimate.status?.toUpperCase() || 'DRAFT'}
                   </span>
                 </div>
@@ -133,12 +138,16 @@ export function generateWebHTML(estimate: Estimate): string {
                   <div class="text-sm text-gray-500">Name</div>
                   <div class="font-medium text-gray-900">${estimate.contactName || 'Customer Name'}</div>
                 </div>
-                ${estimate.organizationNumber ? `
+                ${
+                  estimate.organizationNumber
+                    ? `
                 <div>
                   <div class="text-sm text-gray-500">Organization Number</div>
                   <div class="text-gray-900">${estimate.organizationNumber}</div>
                 </div>
-                ` : ''}
+                `
+                    : ''
+                }
               </div>
             </div>
 
@@ -192,14 +201,18 @@ export function generateWebHTML(estimate: Estimate): string {
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                  ${(estimate.lineItems || []).map((item, index) => `
+                  ${(estimate.lineItems || [])
+                    .map(
+                      (item, index) => `
                   <tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">
                     <td class="px-6 py-4 text-sm text-gray-900">${item.description || 'Service Item'}</td>
                     <td class="px-6 py-4 text-sm text-gray-900 text-right">${item.quantity || 1}</td>
                     <td class="px-6 py-4 text-sm text-gray-900 text-right">${formatCurrency(item.unitPrice || 0, estimate.currency)}</td>
                     <td class="px-6 py-4 text-sm font-medium text-gray-900 text-right">${formatCurrency(item.lineTotal || 0, estimate.currency)}</td>
                   </tr>
-                  `).join('')}
+                  `,
+                    )
+                    .join('')}
                 </tbody>
               </table>
             </div>
@@ -233,7 +246,9 @@ export function generateWebHTML(estimate: Estimate): string {
             </div>
           </div>
 
-          ${estimate.notes ? `
+          ${
+            estimate.notes
+              ? `
           <div class="bg-white rounded-xl shadow-lg p-6 hover-lift">
             <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <svg class="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
@@ -243,7 +258,9 @@ export function generateWebHTML(estimate: Estimate): string {
             </h3>
             <div class="bg-gray-50 rounded-lg p-4 whitespace-pre-wrap text-gray-900">${estimate.notes}</div>
           </div>
-          ` : ''}
+          `
+              : ''
+          }
 
           <!-- Footer -->
           <div class="text-center py-8 border-t border-gray-200">

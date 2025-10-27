@@ -1,26 +1,35 @@
-import React, { useState } from 'react';
 import { Play, Pause, RotateCcw, SkipForward, Timer, X, Settings } from 'lucide-react';
+import React, { useState } from 'react';
+
 import { Button } from '../Button';
 import { Heading, Text } from '../Typography';
-import { usePomodoroTimer } from './usePomodoroTimer';
-import { PomodoroSettings } from './pomodoroSettings';
+
 import { pomodoroAudio } from './pomodoroAudio';
+import { PomodoroSettings } from './pomodoroSettings';
+import { usePomodoroTimer } from './usePomodoroTimer';
 
 interface PomodoroTimerProps {
   compact?: boolean;
-  isExpanded?: boolean;
-  onToggle?: () => void;
-  onClose?: () => void;
+  isExpanded?: boolean; // extern kontroll (valfritt)
+  onToggle?: () => void; // extern toggler (valfritt)
+  onClose?: () => void; // extern stäng (valfritt)
 }
 
-export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, onClose }: PomodoroTimerProps) {
+export function PomodoroTimer({
+  compact = true,
+  isExpanded = false,
+  onToggle,
+  onClose,
+}: PomodoroTimerProps) {
+  // Intern expanded-state om ingen extern styrning används
   const [internalExpanded, setInternalExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  
-  // Use external state if provided, otherwise use internal state
+
+  // Använd extern state om onToggle finns, annars intern
   const expanded = onToggle ? isExpanded : internalExpanded;
-  const handleToggle = onToggle || (() => setInternalExpanded(!internalExpanded));
+  const handleToggle = onToggle || (() => setInternalExpanded((v) => !v));
   const handleClose = onClose || (() => setInternalExpanded(false));
+
   const {
     timeDisplay,
     state,
@@ -33,7 +42,7 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
     pause,
     reset,
     skip,
-    updateSettings
+    updateSettings,
   } = usePomodoroTimer();
 
   const getSessionColor = () => {
@@ -43,21 +52,21 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
           bg: 'bg-red-50',
           border: 'border-red-200',
           text: 'text-red-600',
-          ring: 'ring-red-300'
+          ring: 'ring-red-300',
         };
       case 'shortBreak':
         return {
           bg: 'bg-green-50',
           border: 'border-green-200',
           text: 'text-green-600',
-          ring: 'ring-green-300'
+          ring: 'ring-green-300',
         };
       case 'longBreak':
         return {
           bg: 'bg-blue-50',
           border: 'border-blue-200',
           text: 'text-blue-600',
-          ring: 'ring-blue-300'
+          ring: 'ring-blue-300',
         };
     }
   };
@@ -110,32 +119,37 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
         text: 'text-blue-600',
       };
     }
-    return colors;
+    return colors!;
   };
 
   const timerButtonColors = getTimerButtonColor();
 
-  // Compact view for TopBar - always show when compact=true
+  // Compact view för TopBar – visas när compact=true
   if (compact) {
     return (
       <div className="flex items-center gap-2 relative">
         <button
           onClick={handleToggle}
           className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors hover:bg-opacity-75 relative overflow-hidden ${timerButtonColors.bg} ${timerButtonColors.border} ${timerButtonColors.text}`}
+          aria-label="Toggle Pomodoro panel"
+          title="Toggle Pomodoro panel"
         >
           {settings.compactMode ? (
             <>
-              {/* Progress bar background */}
-              <div className="absolute inset-0 bg-gray-100"></div>
-              {/* Progress bar fill */}
-              <div 
+              {/* Progress bakgrund */}
+              <div className="absolute inset-0 bg-gray-100" />
+              {/* Progress fyllning */}
+              <div
                 className={`absolute inset-0 transition-all duration-1000 ${
-                  sessionType === 'work' ? 'bg-red-200' :
-                  sessionType === 'shortBreak' ? 'bg-green-200' : 'bg-blue-200'
+                  sessionType === 'work'
+                    ? 'bg-red-200'
+                    : sessionType === 'shortBreak'
+                      ? 'bg-green-200'
+                      : 'bg-blue-200'
                 }`}
                 style={{ width: `${progress}%` }}
-              ></div>
-              {/* Icon only */}
+              />
+              {/* Endast ikon */}
               <div className="relative z-10 flex items-center">
                 <Timer className="w-4 h-4" />
               </div>
@@ -147,8 +161,8 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
             </>
           )}
         </button>
-        
-        {/* Quick action buttons */}
+
+        {/* Snabbknappar */}
         {state === 'idle' || state === 'paused' ? (
           <Button
             onClick={start}
@@ -156,8 +170,9 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
             size="md"
             icon={Play}
             className="!bg-blue-50 text-blue-600 hover:bg-blue-100"
-          >
-          </Button>
+            aria-label="Start timer"
+            title="Start timer"
+          />
         ) : (
           <Button
             onClick={pause}
@@ -165,18 +180,21 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
             size="md"
             icon={Pause}
             className="!bg-orange-50 text-orange-600 hover:bg-orange-100"
-          >
-          </Button>
+            aria-label="Pause timer"
+            title="Pause timer"
+          />
         )}
 
-        {/* Expanded view */}
+        {/* Expanded panel */}
         {expanded && !showSettings && (
           <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Timer className="w-5 h-5 text-gray-600" />
-                <Heading level={3} className="mb-0">Pomodoro Timer</Heading>
+                <Heading level={3} className="mb-0">
+                  Pomodoro Timer
+                </Heading>
               </div>
               <div className="flex items-center gap-1">
                 <Button
@@ -184,21 +202,25 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
                   variant="ghost"
                   size="md"
                   icon={Settings}
-                >
-                </Button>
+                  aria-label="Open settings"
+                  title="Open settings"
+                />
                 <Button
                   onClick={handleClose}
                   variant="ghost"
                   size="md"
                   icon={X}
-                >
-                </Button>
+                  aria-label="Close panel"
+                  title="Close panel"
+                />
               </div>
             </div>
 
             {/* Session info */}
             <div className="text-center mb-4">
-              <div className={`inline-block px-3 py-1 rounded-full border text-sm font-medium ${colors.bg} ${colors.border} ${colors.text}`}>
+              <div
+                className={`inline-block px-3 py-1 rounded-full border text-sm font-medium ${colors!.bg} ${colors!.border} ${colors!.text}`}
+              >
                 {getSessionLabel()}
               </div>
               <Text variant="muted" className="mt-1 text-center">
@@ -206,11 +228,10 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
               </Text>
             </div>
 
-            {/* Timer display with progress ring */}
+            {/* Timer med ring */}
             <div className="flex justify-center mb-6">
               <div className="relative">
                 <svg width="120" height="120" className="transform -rotate-90">
-                  {/* Background circle */}
                   <circle
                     cx="60"
                     cy="60"
@@ -220,7 +241,6 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
                     fill="none"
                     className="text-gray-200"
                   />
-                  {/* Progress circle */}
                   <circle
                     cx="60"
                     cy="60"
@@ -239,7 +259,7 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
               </div>
             </div>
 
-            {/* Control buttons */}
+            {/* Kontroller */}
             <div className="flex justify-center gap-2">
               {state === 'idle' || state === 'paused' ? (
                 <Button
@@ -262,7 +282,7 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
                   Pause
                 </Button>
               )}
-              
+
               <Button
                 onClick={reset}
                 variant="primary"
@@ -272,7 +292,7 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
               >
                 Reset
               </Button>
-              
+
               <Button
                 onClick={skip}
                 variant="primary"
@@ -286,22 +306,25 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
           </div>
         )}
 
-        {/* Settings panel */}
+        {/* Settings-panel i compact-läge */}
         {expanded && showSettings && (
           <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50">
-            {/* Settings Header */}
+            {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Settings className="w-5 h-5 text-gray-600" />
-                <Heading level={3} className="mb-0">Pomodoro Settings</Heading>
+                <Heading level={3} className="mb-0">
+                  Pomodoro Settings
+                </Heading>
               </div>
               <Button
                 onClick={() => setShowSettings(false)}
                 variant="ghost"
                 size="md"
                 icon={X}
-              >
-              </Button>
+                aria-label="Close settings"
+                title="Close settings"
+              />
             </div>
 
             {/* Duration Settings */}
@@ -315,7 +338,9 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
                   min="1"
                   max="120"
                   value={settings.workDuration}
-                  onChange={(e) => handleSettingsChange('workDuration', parseInt(e.target.value) || 25)}
+                  onChange={(e) =>
+                    handleSettingsChange('workDuration', parseInt(e.target.value) || 25)
+                  }
                   className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -329,7 +354,9 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
                   min="1"
                   max="30"
                   value={settings.shortBreakDuration}
-                  onChange={(e) => handleSettingsChange('shortBreakDuration', parseInt(e.target.value) || 5)}
+                  onChange={(e) =>
+                    handleSettingsChange('shortBreakDuration', parseInt(e.target.value) || 5)
+                  }
                   className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -343,7 +370,9 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
                   min="1"
                   max="60"
                   value={settings.longBreakDuration}
-                  onChange={(e) => handleSettingsChange('longBreakDuration', parseInt(e.target.value) || 15)}
+                  onChange={(e) =>
+                    handleSettingsChange('longBreakDuration', parseInt(e.target.value) || 15)
+                  }
                   className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -357,7 +386,9 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
                   min="2"
                   max="10"
                   value={settings.sessionsUntilLongBreak}
-                  onChange={(e) => handleSettingsChange('sessionsUntilLongBreak', parseInt(e.target.value) || 4)}
+                  onChange={(e) =>
+                    handleSettingsChange('sessionsUntilLongBreak', parseInt(e.target.value) || 4)
+                  }
                   className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -367,14 +398,20 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
             <div className="space-y-3 mb-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <Text className="text-sm font-medium text-gray-700 mb-0">Sound Notifications</Text>
-                  <Text variant="muted" className="text-xs">Play sound when sessions complete</Text>
+                  <Text className="text-sm font-medium text-gray-700 mb-0">
+                    Sound Notifications
+                  </Text>
+                  <Text variant="muted" className="text-xs">
+                    Play sound when sessions complete
+                  </Text>
                 </div>
                 <button
                   onClick={() => handleSettingsChange('soundEnabled', !settings.soundEnabled)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.soundEnabled ? 'bg-blue-600' : 'bg-gray-200'
                   }`}
+                  aria-label="Toggle sound notifications"
+                  title="Toggle sound notifications"
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -386,14 +423,20 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
 
               <div className="flex items-center justify-between">
                 <div>
-                  <Text className="text-sm font-medium text-gray-700 mb-0">Browser Notifications</Text>
-                  <Text variant="muted" className="text-xs">Show desktop notifications</Text>
+                  <Text className="text-sm font-medium text-gray-700 mb-0">
+                    Browser Notifications
+                  </Text>
+                  <Text variant="muted" className="text-xs">
+                    Show desktop notifications
+                  </Text>
                 </div>
                 <button
                   onClick={handleNotificationsToggle}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.notificationsEnabled ? 'bg-blue-600' : 'bg-gray-200'
                   }`}
+                  aria-label="Toggle browser notifications"
+                  title="Toggle browser notifications"
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -405,14 +448,22 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
 
               <div className="flex items-center justify-between">
                 <div>
-                  <Text className="text-sm font-medium text-gray-700 mb-0">Auto-start Sessions</Text>
-                  <Text variant="muted" className="text-xs">Automatically start next session</Text>
+                  <Text className="text-sm font-medium text-gray-700 mb-0">
+                    Auto-start Sessions
+                  </Text>
+                  <Text variant="muted" className="text-xs">
+                    Automatically start next session
+                  </Text>
                 </div>
                 <button
-                  onClick={() => handleSettingsChange('autoStartSessions', !settings.autoStartSessions)}
+                  onClick={() =>
+                    handleSettingsChange('autoStartSessions', !settings.autoStartSessions)
+                  }
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.autoStartSessions ? 'bg-blue-600' : 'bg-gray-200'
                   }`}
+                  aria-label="Toggle auto-start sessions"
+                  title="Toggle auto-start sessions"
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -425,13 +476,17 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
               <div className="flex items-center justify-between">
                 <div>
                   <Text className="text-sm font-medium text-gray-700 mb-0">Compact Mode</Text>
-                  <Text variant="muted" className="text-xs">Show icon with progress bar only</Text>
+                  <Text variant="muted" className="text-xs">
+                    Show icon with progress bar only
+                  </Text>
                 </div>
                 <button
                   onClick={() => handleSettingsChange('compactMode', !settings.compactMode)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.compactMode ? 'bg-blue-600' : 'bg-gray-200'
                   }`}
+                  aria-label="Toggle compact mode"
+                  title="Toggle compact mode"
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -442,7 +497,6 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
               </div>
             </div>
 
-            {/* Back Button */}
             <Button
               onClick={() => setShowSettings(false)}
               variant="secondary"
@@ -457,26 +511,29 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
     );
   }
 
-  // Settings panel
+  // Full/expanded vy utanför compact-läget
   if (showSettings) {
     return (
       <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50">
-        {/* Settings Header */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Settings className="w-5 h-5 text-gray-600" />
-            <Heading level={3} className="mb-0">Pomodoro Settings</Heading>
+            <Heading level={3} className="mb-0">
+              Pomodoro Settings
+            </Heading>
           </div>
           <Button
             onClick={() => setShowSettings(false)}
             variant="ghost"
             size="md"
             icon={X}
-          >
-          </Button>
+            aria-label="Close settings"
+            title="Close settings"
+          />
         </div>
 
-        {/* Duration Settings */}
+        {/* Duration settings */}
         <div className="space-y-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -501,7 +558,9 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
               min="1"
               max="30"
               value={settings.shortBreakDuration}
-              onChange={(e) => handleSettingsChange('shortBreakDuration', parseInt(e.target.value) || 5)}
+              onChange={(e) =>
+                handleSettingsChange('shortBreakDuration', parseInt(e.target.value) || 5)
+              }
               className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -515,7 +574,9 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
               min="1"
               max="60"
               value={settings.longBreakDuration}
-              onChange={(e) => handleSettingsChange('longBreakDuration', parseInt(e.target.value) || 15)}
+              onChange={(e) =>
+                handleSettingsChange('longBreakDuration', parseInt(e.target.value) || 15)
+              }
               className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -529,73 +590,15 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
               min="2"
               max="10"
               value={settings.sessionsUntilLongBreak}
-              onChange={(e) => handleSettingsChange('sessionsUntilLongBreak', parseInt(e.target.value) || 4)}
+              onChange={(e) =>
+                handleSettingsChange('sessionsUntilLongBreak', parseInt(e.target.value) || 4)
+              }
               className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
         </div>
 
-        {/* Feature Settings */}
-        <div className="space-y-3 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <Text className="text-sm font-medium text-gray-700 mb-0">Sound Notifications</Text>
-              <Text variant="muted" className="text-xs">Play sound when sessions complete</Text>
-            </div>
-            <button
-              onClick={() => handleSettingsChange('soundEnabled', !settings.soundEnabled)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                settings.soundEnabled ? 'bg-blue-600' : 'bg-gray-200'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  settings.soundEnabled ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Text className="text-sm font-medium text-gray-700 mb-0">Browser Notifications</Text>
-              <Text variant="muted" className="text-xs">Show desktop notifications</Text>
-            </div>
-            <button
-              onClick={handleNotificationsToggle}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                settings.notificationsEnabled ? 'bg-blue-600' : 'bg-gray-200'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  settings.notificationsEnabled ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Text className="text-sm font-medium text-gray-700 mb-0">Auto-start Sessions</Text>
-              <Text variant="muted" className="text-xs">Automatically start next session</Text>
-            </div>
-            <button
-              onClick={() => handleSettingsChange('autoStartSessions', !settings.autoStartSessions)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                settings.autoStartSessions ? 'bg-blue-600' : 'bg-gray-200'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  settings.autoStartSessions ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
-        {/* Back Button */}
+        {/* Back */}
         <Button
           onClick={() => setShowSettings(false)}
           variant="secondary"
@@ -608,14 +611,16 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
     );
   }
 
-  // Expanded view
+  // Expanded vy (timer)
   return (
     <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Timer className="w-5 h-5 text-gray-600" />
-          <Heading level={3} className="mb-0">Pomodoro Timer</Heading>
+          <Heading level={3} className="mb-0">
+            Pomodoro Timer
+          </Heading>
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -623,21 +628,25 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
             variant="ghost"
             size="md"
             icon={Settings}
-          >
-          </Button>
+            aria-label="Open settings"
+            title="Open settings"
+          />
           <Button
-            onClick={() => setIsExpanded(false)}
+            onClick={handleClose}
             variant="ghost"
             size="md"
             icon={X}
-          >
-          </Button>
+            aria-label="Close panel"
+            title="Close panel"
+          />
         </div>
       </div>
 
       {/* Session info */}
       <div className="text-center mb-4">
-        <div className={`inline-block px-3 py-1 rounded-full border text-sm font-medium ${colors.bg} ${colors.border} ${colors.text}`}>
+        <div
+          className={`inline-block px-3 py-1 rounded-full border text-sm font-medium ${colors!.bg} ${colors!.border} ${colors!.text}`}
+        >
           {getSessionLabel()}
         </div>
         <Text variant="muted" className="mt-1 text-center">
@@ -645,11 +654,10 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
         </Text>
       </div>
 
-      {/* Timer display with progress ring */}
+      {/* Timer + progress ring */}
       <div className="flex justify-center mb-6">
         <div className="relative">
           <svg width="120" height="120" className="transform -rotate-90">
-            {/* Background circle */}
             <circle
               cx="60"
               cy="60"
@@ -659,7 +667,6 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
               fill="none"
               className="text-gray-200"
             />
-            {/* Progress circle */}
             <circle
               cx="60"
               cy="60"
@@ -678,7 +685,7 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
         </div>
       </div>
 
-      {/* Control buttons */}
+      {/* Kontroller */}
       <div className="flex justify-center gap-2">
         {state === 'idle' || state === 'paused' ? (
           <Button
@@ -701,7 +708,7 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
             Pause
           </Button>
         )}
-        
+
         <Button
           onClick={reset}
           variant="primary"
@@ -711,7 +718,7 @@ export function PomodoroTimer({ compact = true, isExpanded = false, onToggle, on
         >
           Reset
         </Button>
-        
+
         <Button
           onClick={skip}
           variant="primary"

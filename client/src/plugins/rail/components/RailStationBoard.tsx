@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, RefreshCw, Train, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+
+import { Button } from '@/core/ui/Button';
+import { Card } from '@/core/ui/Card';
+import { Heading, Text } from '@/core/ui/Typography';
+
 import { railApi } from '../api/railApi';
 import { useRails } from '../hooks/useRails';
-import { Heading, Text } from '@/core/ui/Typography';
-import { Card } from '@/core/ui/Card';
-import { Button } from '@/core/ui/Button';
 
 function parseTime(a?: string) {
   return a ? new Date(a).getTime() : 0;
@@ -25,27 +27,34 @@ type Announcement = {
   Deviation?: Array<{ Code?: string; Description?: string }>;
 };
 
+// Operator colors based on train number patterns
+const OPERATOR_COLORS: Record<
+  'SJ' | 'Öresundståg' | 'SL' | 'Västtrafik' | 'Skånetrafiken' | 'Tågab' | 'Unknown',
+  string
+> = {
+  SJ: 'bg-blue-100 text-blue-800 border-blue-200',
+  Öresundståg: 'bg-green-100 text-green-800 border-green-200',
+  SL: 'bg-purple-100 text-purple-800 border-purple-200',
+  Västtrafik: 'bg-orange-100 text-orange-800 border-orange-200',
+  Skånetrafiken: 'bg-red-100 text-red-800 border-red-200',
+  Tågab: 'bg-gray-100 text-gray-700 border-gray-200',
+  Unknown: 'bg-gray-100 text-gray-600 border-gray-200',
+} as const;
+
+type Operator = keyof typeof OPERATOR_COLORS;
+
 // Rail status badge colors
-const RAIL_STATUS_COLORS = {
+const RAIL_STATUS_COLORS: Record<'on_time' | 'delayed' | 'cancelled' | 'no_service', string> = {
   on_time: 'bg-green-100 text-green-800 border-green-200',
   delayed: 'bg-red-100 text-red-800 border-red-200',
   cancelled: 'bg-red-100 text-red-800 border-red-200',
   no_service: 'bg-gray-100 text-gray-700 border-gray-200',
 } as const;
 
-// Operator colors based on train number patterns
-const OPERATOR_COLORS = {
-  'SJ': 'bg-blue-100 text-blue-800 border-blue-200',
-  'Öresundståg': 'bg-green-100 text-green-800 border-green-200', 
-  'SL': 'bg-purple-100 text-purple-800 border-purple-200',
-  'Västtrafik': 'bg-orange-100 text-orange-800 border-orange-200',
-  'Skånetrafiken': 'bg-red-100 text-red-800 border-red-200',
-  'Tågab': 'bg-gray-100 text-gray-700 border-gray-200',
-  'Unknown': 'bg-gray-100 text-gray-600 border-gray-200',
-} as const;
+type RailStatus = keyof typeof RAIL_STATUS_COLORS;
 
 export const RailStationBoard: React.FC = () => {
-  const { stations, loadingStations, codeToName, refreshStations } = useRails();
+  const { stations, codeToName } = useRails();
   const [query, setQuery] = useState('');
   const [selectedCode, setSelectedCode] = useState<string>('Cst');
   const [loading, setLoading] = useState(false);
@@ -57,7 +66,7 @@ export const RailStationBoard: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Consistent time with offset used globally
-  const currentTime = Date.now() + (timeOffset * 60 * 60 * 1000);
+  const currentTime = Date.now() + timeOffset * 60 * 60 * 1000;
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -69,50 +78,54 @@ export const RailStationBoard: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getTrainOperator = (trainIdent?: string) => {
-    if (!trainIdent) return 'Unknown';
-    
+  const getTrainOperator = (trainIdent?: string): Operator => {
+    if (!trainIdent) {
+      return 'Unknown' as const;
+    }
+
     const num = parseInt(trainIdent);
-    
+
     // SJ (Statens Järnvägar) - Long distance trains
     if ((num >= 400 && num <= 599) || (num >= 1400 && num <= 1599)) {
       return 'SJ';
     }
-    
+
     // Öresundståg (cross-border Denmark-Sweden)
     if ((num >= 1000 && num <= 1099) || (num >= 1300 && num <= 1399)) {
       return 'Öresundståg';
     }
-    
+
     // SL (Storstockholms Lokaltrafik) - Stockholm area
     if (num >= 40000 && num <= 49999) {
       return 'SL';
     }
-    
+
     // Västtrafik - Gothenburg area
     if ((num >= 2000 && num <= 2999) || (num >= 3000 && num <= 3999)) {
       return 'Västtrafik';
     }
-    
+
     // Skånetrafiken - Skåne region
     if ((num >= 1100 && num <= 1299) || (num >= 7000 && num <= 7999)) {
       return 'Skånetrafiken';
     }
-    
+
     // Tågab and other regional
     if ((num >= 800 && num <= 999) || (num >= 8000 && num <= 8999)) {
       return 'Tågab';
     }
-    
-    return 'Unknown';
+
+    return 'Unknown' as const;
   };
 
   const getTimeUntil = (timeString?: string) => {
-    if (!timeString) return null;
-    
+    if (!timeString) {
+      return null;
+    }
+
     const trainTime = new Date(timeString).getTime();
     const diffMinutes = Math.round((trainTime - Date.now()) / (1000 * 60)); // Use real time for relative display
-    
+
     if (diffMinutes < -5) {
       const absDiff = Math.abs(diffMinutes);
       if (absDiff >= 60) {
@@ -142,17 +155,17 @@ export const RailStationBoard: React.FC = () => {
     }
   };
 
-  const getTrainStatus = (announcement: Announcement) => {
+  const getTrainStatus = (announcement: Announcement): { status: RailStatus; text: string } => {
     // Check if train is cancelled
     if (
       announcement.Deviation?.some(
         (d) =>
           d.Code === 'CANCELLED' ||
           d.Description?.toLowerCase().includes('cancel') ||
-          d.Description?.toLowerCase().includes('inställd')
+          d.Description?.toLowerCase().includes('inställd'),
       )
     ) {
-      return { status: 'cancelled', text: 'Cancelled' };
+      return { status: 'cancelled' as const, text: 'Cancelled' };
     }
 
     // Check for service disruptions
@@ -160,10 +173,10 @@ export const RailStationBoard: React.FC = () => {
       announcement.Deviation?.some(
         (d) =>
           d.Description?.toLowerCase().includes('no service') ||
-          d.Description?.toLowerCase().includes('trafik inställd')
+          d.Description?.toLowerCase().includes('trafik inställd'),
       )
     ) {
-      return { status: 'no_service', text: 'No Service' };
+      return { status: 'no_service' as const, text: 'No Service' };
     }
 
     // Check for track changes and other deviations
@@ -173,7 +186,7 @@ export const RailStationBoard: React.FC = () => {
         deviation.Description?.toLowerCase().includes('spärändrat') ||
         deviation.Description?.toLowerCase().includes('spårändrat')
       ) {
-        return { status: 'delayed', text: 'Track Change' };
+        return { status: 'delayed' as const, text: 'Track Change' };
       }
     }
 
@@ -184,18 +197,20 @@ export const RailStationBoard: React.FC = () => {
       const delayMinutes = Math.round((estimated - advertised) / (1000 * 60));
 
       if (delayMinutes > 2) {
-        return { status: 'delayed', text: `+${delayMinutes}m` };
+        return { status: 'delayed' as const, text: `+${delayMinutes}m` };
       } else if (delayMinutes < -2) {
-        return { status: 'on_time', text: `${delayMinutes}m early` };
+        return { status: 'on_time' as const, text: `${delayMinutes}m early` };
       }
     }
 
     // Default to on time
-    return { status: 'on_time', text: 'On Time' };
+    return { status: 'on_time' as const, text: 'On Time' };
   };
 
   const fmtTime = (iso?: string) => {
-    if (!iso) return '—';
+    if (!iso) {
+      return '—';
+    }
     try {
       return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch {
@@ -206,11 +221,16 @@ export const RailStationBoard: React.FC = () => {
   const load = async (station: string) => {
     setLoading(true);
     setError(null);
-    try {      const res = await railApi.getAnnouncements(station);
+    try {
+      const res = await railApi.getAnnouncements(station);
       const data = (res.announcements || []) as Announcement[];
       data.sort((a, b) => {
-        const atA = new Date(a.EstimatedTimeAtLocation || a.AdvertisedTimeAtLocation || 0).getTime();
-        const atB = new Date(b.EstimatedTimeAtLocation || b.AdvertisedTimeAtLocation || 0).getTime();
+        const atA = new Date(
+          a.EstimatedTimeAtLocation || a.AdvertisedTimeAtLocation || 0,
+        ).getTime();
+        const atB = new Date(
+          b.EstimatedTimeAtLocation || b.AdvertisedTimeAtLocation || 0,
+        ).getTime();
         return atA - atB;
       });
       setAnn(data);
@@ -229,9 +249,13 @@ export const RailStationBoard: React.FC = () => {
   }, [selectedCode]);
 
   const lastUpdatedLabel = useMemo(() => {
-    if (!lastUpdated) return '';
+    if (!lastUpdated) {
+      return '';
+    }
     const seconds = Math.max(0, Math.floor((Date.now() - lastUpdated) / 1000));
-    if (seconds < 60) return `${seconds}s sedan`;
+    if (seconds < 60) {
+      return `${seconds}s sedan`;
+    }
     const m = Math.floor(seconds / 60);
     return `${m}m sedan`;
   }, [lastUpdated]);
@@ -243,55 +267,62 @@ export const RailStationBoard: React.FC = () => {
   });
 
   // Fallback window when no upcoming items
-const LOOKBACK_MS = 60 * 60 * 1000; // 1h fallback
+  const LOOKBACK_MS = 60 * 60 * 1000; // 1h fallback
 
   // Picks up to 8 trains with tiered strategy: upcoming -> recent (lookback) -> nearest by absolute time
-const pickTrains = (trains: Announcement[]) => {
-  const toMs = (t: Announcement) => nextTime(t.AdvertisedTimeAtLocation, t.EstimatedTimeAtLocation);
+  const pickTrains = (trains: Announcement[]) => {
+    const toMs = (t: Announcement) =>
+      nextTime(t.AdvertisedTimeAtLocation, t.EstimatedTimeAtLocation);
 
-  // 1) Upcoming
-  const upcoming = trains.filter((t) => toMs(t) >= currentTime);
-  if (upcoming.length > 0) return { list: upcoming.slice(0, 8), mode: 'upcoming' as const };
+    // 1) Upcoming
+    const upcoming = trains.filter((t) => toMs(t) >= currentTime);
+    if (upcoming.length > 0) {
+      return { list: upcoming.slice(0, 8), mode: 'upcoming' as const };
+    }
 
-  // 2) Recent within lookback window
-  const windowStart = currentTime - LOOKBACK_MS;
-  const recent = trains.filter((t) => {
-    const tt = toMs(t);
-    return tt >= windowStart && tt < currentTime;
-  });
-  if (recent.length > 0) return { list: recent.slice(-8), mode: 'recent' as const };
+    // 2) Recent within lookback window
+    const windowStart = currentTime - LOOKBACK_MS;
+    const recent = trains.filter((t) => {
+      const tt = toMs(t);
+      return tt >= windowStart && tt < currentTime;
+    });
+    if (recent.length > 0) {
+      return { list: recent.slice(-8), mode: 'recent' as const };
+    }
 
-  // 3) Nearest by absolute distance to now (ensures we always show something meaningful)
-  const nearest = [...trains]
-    .sort((a, b) => Math.abs(toMs(a) - currentTime) - Math.abs(toMs(b) - currentTime))
-    .slice(0, 8);
-  return { list: nearest, mode: 'nearest' as const };
-};
-  
-  
+    // 3) Nearest by absolute distance to now (ensures we always show something meaningful)
+    const nearest = [...trains]
+      .sort((a, b) => Math.abs(toMs(a) - currentTime) - Math.abs(toMs(b) - currentTime))
+      .slice(0, 8);
+    return { list: nearest, mode: 'nearest' as const };
+  };
 
-  const depPick = pickTrains(sorted.filter(a => a.ActivityType === 'Avgang'));
-  const arrPick = pickTrains(sorted.filter(a => a.ActivityType === 'Ankomst'));
+  const depPick = pickTrains(sorted.filter((a) => a.ActivityType === 'Avgang'));
+  const arrPick = pickTrains(sorted.filter((a) => a.ActivityType === 'Ankomst'));
   const departures = depPick.list;
   const arrivals = arrPick.list;
 
   const filteredStations = stations.filter(
     (s) =>
       s.name.toLowerCase().includes(query.toLowerCase()) ||
-      s.code.toLowerCase().includes(query.toLowerCase())
+      s.code.toLowerCase().includes(query.toLowerCase()),
   );
 
   const getTimeLabel = () => {
-    if (timeOffset === 0) return 'Nu';
-    if (timeOffset > 0) return `+${timeOffset}h`;
+    if (timeOffset === 0) {
+      return 'Nu';
+    }
+    if (timeOffset > 0) {
+      return `+${timeOffset}h`;
+    }
     return `${timeOffset}h`;
   };
 
   const handleTimeNavigation = (direction: 'prev' | 'next') => {
     if (direction === 'prev') {
-      setTimeOffset(prev => prev - 1);
+      setTimeOffset((prev) => prev - 1);
     } else {
-      setTimeOffset(prev => prev + 1);
+      setTimeOffset((prev) => prev + 1);
     }
   };
 
@@ -308,7 +339,7 @@ const pickTrains = (trains: Announcement[]) => {
           <Text variant="caption">Realtid: avgångar/ankomster</Text>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <div className="relative">
+          <div ref={dropdownRef} className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <input
               type="text"
@@ -348,7 +379,12 @@ const pickTrains = (trains: Announcement[]) => {
               </ul>
             )}
           </div>
-          <Button variant="secondary" icon={RefreshCw} onClick={() => load(selectedCode)} disabled={loading}>
+          <Button
+            variant="secondary"
+            icon={RefreshCw}
+            onClick={() => load(selectedCode)}
+            disabled={loading}
+          >
             Uppdatera
           </Button>
         </div>
@@ -374,7 +410,7 @@ const pickTrains = (trains: Announcement[]) => {
             {error}
           </div>
         )}
-        </Card>
+      </Card>
 
       {/* Board */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -389,24 +425,19 @@ const pickTrains = (trains: Announcement[]) => {
           >
             Tidigare
           </Button>
-          
+
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-gray-500" />
             <span className="text-sm font-medium text-gray-700">
               {timeOffset === 0 ? 'Nu' : `${getTimeLabel()} från nu`}
             </span>
             {timeOffset !== 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={resetToNow}
-                className="text-xs"
-              >
+              <Button variant="ghost" size="sm" onClick={resetToNow} className="text-xs">
                 Tillbaka till nu
               </Button>
             )}
           </div>
-          
+
           <Button
             variant="ghost"
             size="sm"
@@ -422,9 +453,16 @@ const pickTrains = (trains: Announcement[]) => {
         <div className="bg-white border rounded-lg">
           <div className="px-4 py-3 border-b">
             <h3 className="text-sm font-semibold text-gray-900">
-              Avgångar (nästa 8 kommande) - {departures.length} st {depPick.mode !== 'upcoming' && (
-              <span className="ml-2 text-xs italic text-gray-500">(visar {depPick.mode === 'recent' ? 'senaste inom ' + (LOOKBACK_MS/3600000) + 'h' : 'närmast i tid'})</span>
-            )}
+              Avgångar (nästa 8 kommande) - {departures.length} st{' '}
+              {depPick.mode !== 'upcoming' && (
+                <span className="ml-2 text-xs italic text-gray-500">
+                  (visar{' '}
+                  {depPick.mode === 'recent'
+                    ? 'senaste inom ' + LOOKBACK_MS / 3600000 + 'h'
+                    : 'närmast i tid'}
+                  )
+                </span>
+              )}
             </h3>
           </div>
           <div className="bg-gray-50 px-4 py-2 border-b">
@@ -452,7 +490,7 @@ const pickTrains = (trains: Announcement[]) => {
                 const timeUntil = getTimeUntil(time);
                 const operator = getTrainOperator(a.AdvertisedTrainIdent);
                 const hasDeviation = a.Deviation && a.Deviation.length > 0;
-                
+
                 return (
                   <div key={i} className="p-4">
                     {/* First row */}
@@ -462,7 +500,10 @@ const pickTrains = (trains: Announcement[]) => {
                         <div className="text-sm text-gray-600 truncate flex-1 font-medium">
                           {dest ? codeToName(dest) : '—'}
                           {hasDeviation && (
-                            <div className="text-xs text-orange-600 mt-0.5 font-normal" title={a.Deviation?.[0]?.Description}>
+                            <div
+                              className="text-xs text-orange-600 mt-0.5 font-normal"
+                              title={a.Deviation?.[0]?.Description}
+                            >
                               {a.Deviation?.[0]?.Description}
                             </div>
                           )}
@@ -473,7 +514,7 @@ const pickTrains = (trains: Announcement[]) => {
                         <div className="text-sm text-gray-600">Spår {a.TrackAtLocation ?? '—'}</div>
                       </div>
                     </div>
-                    
+
                     {/* Second row */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">
@@ -537,7 +578,7 @@ const pickTrains = (trains: Announcement[]) => {
                 const timeUntil = getTimeUntil(time);
                 const operator = getTrainOperator(a.AdvertisedTrainIdent);
                 const hasDeviation = a.Deviation && a.Deviation.length > 0;
-                
+
                 return (
                   <div key={i} className="p-4">
                     {/* First row */}
@@ -547,7 +588,10 @@ const pickTrains = (trains: Announcement[]) => {
                         <div className="text-sm text-gray-600 truncate flex-1 font-medium">
                           {from ? codeToName(from) : '—'}
                           {hasDeviation && (
-                            <div className="text-xs text-orange-600 mt-0.5 font-normal" title={a.Deviation?.[0]?.Description}>
+                            <div
+                              className="text-xs text-orange-600 mt-0.5 font-normal"
+                              title={a.Deviation?.[0]?.Description}
+                            >
                               {a.Deviation?.[0]?.Description}
                             </div>
                           )}
@@ -558,7 +602,7 @@ const pickTrains = (trains: Announcement[]) => {
                         <div className="text-sm text-gray-600">Spår {a.TrackAtLocation ?? '—'}</div>
                       </div>
                     </div>
-                    
+
                     {/* Second row */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">

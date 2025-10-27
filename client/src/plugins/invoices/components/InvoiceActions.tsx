@@ -144,7 +144,7 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
 
   // Generate share URL
   const generateShareUrl = (shareToken: string) => {
-    return `${window.location.origin}/invoices/public/${shareToken}`;
+    return `${window.location.origin}/api/invoices/public/${shareToken}`;
   };
 
   const shareUrl = existingShare ? generateShareUrl(existingShare.shareToken) : '';

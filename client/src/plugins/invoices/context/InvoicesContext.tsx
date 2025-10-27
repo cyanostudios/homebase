@@ -43,6 +43,7 @@ interface InvoicesContextType {
   openInvoiceForEdit: (item: Invoice) => void;
   openInvoiceForView: (item: Invoice) => void;
   closeInvoicesPanel: () => void;
+  closeInvoicePanel: () => void; // ⬅️ singular alias for UniversalPanel handlers
   saveInvoice: (data: any) => Promise<boolean>;
   deleteInvoice: (id: string) => Promise<void>;
   clearValidationErrors: () => void;
@@ -58,7 +59,7 @@ const InvoicesContext = createContext<InvoicesContextType | undefined>(undefined
 interface ProviderProps {
   children: ReactNode;
   isAuthenticated: boolean;
-  onCloseOtherPanels: () => void;
+  onCloseOtherPanels: (except?: string) => void;
   api?: InvoicesApi;
 }
 
@@ -91,7 +92,6 @@ export function InvoicesProvider({
 
   // Register panel close once
   useEffect(() => {
-    console.log("Registering invoices close function"); 
     registerPanelCloseFunction('invoices', closeInvoicesPanel);
     return () => unregisterPanelCloseFunction('invoices');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -161,20 +161,22 @@ export function InvoicesProvider({
     onCloseOtherPanels();
   };
 
-  const closeInvoicesPanel = () => { 
-    console.log("closeInvoicesPanel called");
+  const closeInvoicesPanel = () => {
     setIsInvoicesPanelOpen(false);
     setCurrentInvoice(null);
     setPanelMode('create');
     setValidationErrors([]);
   };
 
+  // ⬇️ singular alias to satisfy UniversalPanel handler name inference (close + Singular + Panel)
+  const closeInvoicePanel = () => closeInvoicesPanel();
+
   const clearValidationErrors = () => setValidationErrors([]);
 
   const saveInvoice = async (raw: any): Promise<boolean> => {
     const errors = validate(raw);
     setValidationErrors(errors);
-    const blocking = errors.filter(e => !e.message.includes('Warning'));
+    const blocking = errors.filter((e) => !e.message.includes('Warning'));
     if (blocking.length > 0) return false;
 
     try {
@@ -187,7 +189,7 @@ export function InvoicesProvider({
           issueDate: saved.issueDate ? new Date(saved.issueDate) : null,
           dueDate: saved.dueDate ? new Date(saved.dueDate) : null,
         };
-        setInvoices(prev => prev.map(i => (i.id === (currentInvoice as any).id ? normalized : i)));
+        setInvoices((prev) => prev.map((i) => (i.id === (currentInvoice as any).id ? normalized : i)));
         setCurrentInvoice(normalized as any);
         setPanelMode('view');
         setValidationErrors([]);
@@ -200,7 +202,7 @@ export function InvoicesProvider({
           issueDate: saved.issueDate ? new Date(saved.issueDate) : null,
           dueDate: saved.dueDate ? new Date(saved.dueDate) : null,
         };
-        setInvoices(prev => [...prev, normalized]);
+        setInvoices((prev) => [...prev, normalized]);
         closeInvoicesPanel();
       }
       return true;
@@ -218,7 +220,7 @@ export function InvoicesProvider({
   const deleteInvoice = async (id: string) => {
     try {
       await api.deleteItem(id);
-      setInvoices(prev => prev.filter(i => i.id !== id));
+      setInvoices((prev) => prev.filter((i) => i.id !== id));
     } catch (err) {
       console.error('Failed to delete invoice:', err);
     }
@@ -231,14 +233,16 @@ export function InvoicesProvider({
       const total = (item.total || 0).toFixed(2);
       const currency = item.currency || 'SEK';
       const contactName = item.contactName || 'Customer';
-      
+
       if (isMobileView) {
         return (
           <div>
             <div className="flex items-center gap-2">
               <span>{invoiceNumber} • @{contactName}</span>
             </div>
-            <div className="text-sm font-normal text-gray-600 mt-1">{total} {currency}</div>
+            <div className="text-sm font-normal text-gray-600 mt-1">
+              {total} {currency}
+            </div>
           </div>
         );
       }
@@ -246,9 +250,12 @@ export function InvoicesProvider({
     }
 
     switch (mode) {
-      case 'edit': return 'Edit Invoice';
-      case 'create': return 'Create Invoice';
-      default: return 'Invoice';
+      case 'edit':
+        return 'Edit Invoice';
+      case 'create':
+        return 'Create Invoice';
+      default:
+        return 'Invoice';
     }
   };
 
@@ -256,26 +263,26 @@ export function InvoicesProvider({
     if (mode === 'view' && item) {
       const statusColors: Record<string, string> = {
         draft: 'bg-gray-100 text-gray-800',
-        sent: 'bg-blue-100 text-blue-800', 
+        sent: 'bg-blue-100 text-blue-800',
         paid: 'bg-green-100 text-green-800',
         overdue: 'bg-red-100 text-red-800',
         canceled: 'bg-gray-100 text-gray-800',
       };
-      
+
       const typeColors: Record<string, string> = {
         invoice: 'bg-blue-50 text-blue-700',
         credit_note: 'bg-orange-50 text-orange-700',
         cash_invoice: 'bg-green-50 text-green-700',
         receipt: 'bg-purple-50 text-purple-700',
       };
-      
+
       const typeLabels: Record<string, string> = {
         invoice: 'Faktura',
         credit_note: 'Kreditfaktura',
         cash_invoice: 'Kontantfaktura',
         receipt: 'Kvitto',
       };
-      
+
       const status = item.status || 'draft';
       const invoiceType = item.invoiceType || 'invoice';
       const badgeColor = statusColors[status] || statusColors.draft;
@@ -295,9 +302,12 @@ export function InvoicesProvider({
     }
 
     switch (mode) {
-      case 'edit': return 'Update invoice information';
-      case 'create': return 'Enter new invoice details';
-      default: return '';
+      case 'edit':
+        return 'Update invoice information';
+      case 'create':
+        return 'Enter new invoice details';
+      default:
+        return '';
     }
   };
 
@@ -317,6 +327,7 @@ export function InvoicesProvider({
     openInvoiceForEdit,
     openInvoiceForView,
     closeInvoicesPanel,
+    closeInvoicePanel, // ⬅️ include alias in context value
     saveInvoice,
     deleteInvoice,
     clearValidationErrors,

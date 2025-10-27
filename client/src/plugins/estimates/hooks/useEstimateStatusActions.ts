@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { useEstimates } from './useEstimates';
+
 import { Estimate } from '../types/estimate';
+
+import { useEstimates } from './useEstimates';
 
 export function useEstimateStatusActions() {
   const { saveEstimate } = useEstimates();
-  
+
   // Status modal states
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showSentConfirmation, setShowSentConfirmation] = useState(false);
@@ -12,13 +14,19 @@ export function useEstimateStatusActions() {
 
   // Format validTo date to prevent timezone issues
   const formatValidTo = (dateValue: any) => {
-    if (!dateValue) return null;
+    if (!dateValue) {
+      return null;
+    }
     const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
     return date.toLocaleDateString('sv-SE'); // Swedish locale gives YYYY-MM-DD format
   };
 
   // Perform status change with proper date handling
-  const performStatusChange = async (estimate: Estimate, newStatus: string, reasons: string[] = []) => {
+  const performStatusChange = async (
+    estimate: Estimate,
+    newStatus: string,
+    reasons: string[] = [],
+  ) => {
     try {
       const updatedData = {
         contactId: estimate.contactId,
@@ -35,7 +43,7 @@ export function useEstimateStatusActions() {
       };
 
       const success = await saveEstimate(updatedData);
-      
+
       if (!success) {
         alert('Failed to update status. Please try again.');
       }
@@ -91,7 +99,7 @@ export function useEstimateStatusActions() {
     showStatusModal,
     showSentConfirmation,
     pendingStatus,
-    
+
     // Actions
     handleStatusChange,
     handleSentConfirm,

@@ -1,10 +1,10 @@
 /**
  * Global Navigation Guard - Protects against unsaved changes during navigation
- * 
+ *
  * This hook provides system-wide protection against data loss when users navigate
  * away from forms with unsaved changes. All forms register their dirty state here,
  * and all navigation goes through the attemptNavigation function.
- * 
+ *
  * Used by: All form components, App.tsx, Sidebar.tsx, and any navigation triggers
  */
 
@@ -26,7 +26,9 @@ interface GlobalNavigationGuardContextType {
   warningMessage: string;
 }
 
-const GlobalNavigationGuardContext = createContext<GlobalNavigationGuardContextType | undefined>(undefined);
+const GlobalNavigationGuardContext = createContext<GlobalNavigationGuardContextType | undefined>(
+  undefined,
+);
 
 interface GlobalNavigationGuardProviderProps {
   children: ReactNode;
@@ -40,7 +42,7 @@ export function GlobalNavigationGuardProvider({ children }: GlobalNavigationGuar
 
   const hasUnsavedChanges = useCallback((): boolean => {
     const checkers = Array.from(unsavedChangesCheckersRef.current.values());
-    return checkers.some(checker => checker());
+    return checkers.some((checker) => checker());
   }, []);
 
   const registerUnsavedChangesChecker = useCallback((key: string, checker: () => boolean) => {
@@ -51,15 +53,20 @@ export function GlobalNavigationGuardProvider({ children }: GlobalNavigationGuar
     unsavedChangesCheckersRef.current.delete(key);
   }, []);
 
-  const attemptNavigation = useCallback((action: () => void) => {
-    if (hasUnsavedChanges()) {
-      pendingActionRef.current = action;
-      setWarningMessage("You have unsaved changes. Do you want to discard your changes and continue?");
-      setShowWarning(true);
-    } else {
-      action();
-    }
-  }, [hasUnsavedChanges]);
+  const attemptNavigation = useCallback(
+    (action: () => void) => {
+      if (hasUnsavedChanges()) {
+        pendingActionRef.current = action;
+        setWarningMessage(
+          'You have unsaved changes. Do you want to discard your changes and continue?',
+        );
+        setShowWarning(true);
+      } else {
+        action();
+      }
+    },
+    [hasUnsavedChanges],
+  );
 
   const confirmDiscard = useCallback(() => {
     if (pendingActionRef.current) {
@@ -82,7 +89,7 @@ export function GlobalNavigationGuardProvider({ children }: GlobalNavigationGuar
     showWarning,
     confirmDiscard,
     cancelDiscard,
-    warningMessage
+    warningMessage,
   };
 
   return (

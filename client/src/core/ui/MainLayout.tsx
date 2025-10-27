@@ -1,11 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+
 import { Sidebar } from './Sidebar';
-import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
+import type { NavPage } from './Sidebar'; // ⬅ viktigt: samma typ som Sidebar
 
-// Generate dynamic page type from plugin registry
-type PluginPage = typeof PLUGIN_REGISTRY[number]['name'];
-type PageType = PluginPage | 'import'; // Keep 'import' as special case
-
+// Kontext-typ för sidomenyn
 interface SidebarContextType {
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
@@ -15,30 +13,39 @@ interface SidebarContextType {
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
-export const useSidebar = () => useContext(SidebarContext);
+// Gör hooken typesafe (aldrig undefined när den används rätt)
+export const useSidebar = () => {
+  const ctx = useContext(SidebarContext);
+  if (!ctx) {
+    throw new Error('useSidebar must be used within MainLayout');
+  }
+  return ctx;
+};
 
 interface MainLayoutProps {
   children: React.ReactNode;
-  currentPage: PageType;
-  onPageChange: (page: PageType) => void;
+  currentPage: NavPage;
+  onPageChange: (page: NavPage) => void;
 }
 
 export function MainLayout({ children, currentPage, onPageChange }: MainLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOverlay, setIsMobileOverlay] = useState(false);
 
-  // Auto-collapse on mobile
+  // Auto-hantering mobil/desktop
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768 && !isCollapsed) {
+      const mobile = window.innerWidth < 768;
+      if (mobile) {
         setIsCollapsed(false);
         setIsMobileOverlay(false);
       }
     };
 
+    handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [isCollapsed]);
+  }, []);
 
   const contextValue: SidebarContextType = {
     isCollapsed,
@@ -57,12 +64,15 @@ export function MainLayout({ children, currentPage, onPageChange }: MainLayoutPr
             onClick={() => setIsMobileOverlay(false)}
           />
         )}
-        
+
         <Sidebar currentPage={currentPage} onPageChange={onPageChange} />
-        <main className={`flex-1 overflow-auto bg-gray-50 transition-all duration-300 
-          md:${isCollapsed ? 'ml-16' : 'ml-64'}
-          ml-0
-        `}>
+
+        <main
+          className={`flex-1 overflow-auto bg-gray-50 transition-all duration-300 
+            md:${isCollapsed ? 'ml-16' : 'ml-64'}
+            ml-0
+          `}
+        >
           {children}
         </main>
       </div>

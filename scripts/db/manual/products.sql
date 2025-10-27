@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS products (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  product_number TEXT,
+  sku TEXT,
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT DEFAULT 'for sale',
+  quantity INTEGER DEFAULT 0,
+  price_amount NUMERIC(12,2) DEFAULT 0,
+  currency TEXT DEFAULT 'SEK',
+  vat_rate NUMERIC(5,2) DEFAULT 25,
+  main_image TEXT,
+  images JSONB NOT NULL DEFAULT '[]',
+  categories JSONB NOT NULL DEFAULT '[]',
+  brand TEXT,
+  gtin TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
