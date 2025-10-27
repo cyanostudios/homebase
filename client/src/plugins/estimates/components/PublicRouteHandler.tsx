@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+
 import { PublicEstimateView } from './PublicEstimateView';
 
 /**
@@ -16,24 +17,24 @@ export function PublicRouteHandler({ children }: { children: React.ReactNode }) 
       // Extract token from URL
       const pathParts = currentPath.split('/');
       const token = pathParts[pathParts.length - 1];
-      
+
       if (token) {
         // Replace the entire body with our public view
         document.body.innerHTML = '';
         document.body.style.margin = '0';
         document.body.style.padding = '0';
-        
+
         // Create a container for our public view
         const container = document.createElement('div');
         container.id = 'public-estimate-root';
         document.body.appendChild(container);
-        
+
         // Import and render the public view
         import('react-dom/client').then(({ createRoot }) => {
           const root = createRoot(container);
           root.render(React.createElement(PublicEstimateView, { token }));
         });
-        
+
         return;
       }
     }

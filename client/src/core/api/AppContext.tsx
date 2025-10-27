@@ -1,49 +1,50 @@
 /**
  * ⚠️  CRITICAL SYSTEM FILE - HANDLE WITH EXTREME CARE ⚠️
- * 
+ *
  * This is the core AppContext that manages global state for all plugins.
  * It provides authentication, cross-plugin data, and panel coordination.
- * 
+ *
  * 🚨 BEFORE MAKING ANY CHANGES:
  * 1. Read COLLABORATION_GUIDE.md and AI_AGENT_INSTRUCTIONS.md
  * 2. Understand that changes here affect ALL plugins
- * 3. Test thoroughly with all existing plugins (contacts, notes, estimates, tasks)
+ * 3. Test thoroughly with all existing plugins (contacts, notes, estimates, tasks, products, channels)
  * 4. Verify cross-plugin features still work (@mentions, references)
  * 5. Check that panel coordination system works
  * 6. Ensure authentication flow remains secure
- * 
+ *
  * 📋 WHAT THIS FILE MANAGES:
  * - Authentication state and login/logout functions
  * - Cross-plugin data (contacts, notes) for references
  * - Panel coordination system (registerPanelCloseFunction)
  * - Cross-plugin API functions (getNotesForContact, etc.)
  * - Global data refresh functionality
- * 
+ *
  * ❌ NEVER CHANGE WITHOUT EXPLICIT NEED:
  * - Authentication interface or state management
  * - Panel registration system (registerPanelCloseFunction)
  * - Cross-plugin data structure (contacts, notes arrays)
  * - API request wrapper or error handling
  * - Provider component structure
- * 
+ *
  * ✅ SAFE TO MODIFY (with care):
  * - Adding new cross-plugin reference functions
  * - Adding new API endpoints (following existing patterns)
  * - Adding new shared data types (with backward compatibility)
- * 
+ *
  * 🔧 FOR NEW PLUGINS:
  * - Add cross-plugin functions if needed (getXForContact pattern)
  * - Register panel close functions in plugin contexts
  * - NO changes to core authentication or data loading
- * 
+ *
  * Last Modified: August 2025 - Critical Rules Added
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+
 import { Contact } from '@/plugins/contacts/types/contacts';
+import { Estimate } from '@/plugins/estimates/types/estimate';
 import { Note } from '@/plugins/notes/types/notes';
-import { Estimate } from '@/plugins/estimates/types/estimates';
-import { Task } from '@/plugins/tasks/types/task';
+import { Task } from '@/plugins/tasks/types/tasks';
 
 interface User {
   id: number;
@@ -52,13 +53,25 @@ interface User {
   plugins: string[];
 }
 
+type PluginNameUnion =
+  | 'contacts'
+  | 'notes'
+  | 'estimates'
+  | 'tasks'
+  | 'products'
+  | 'rails'
+  | 'woocommerce-products'
+  | 'channels'
+  | 'invoices'
+  | 'files';
+
 interface AppContextType {
   // Auth State
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
-  
+
   // Loading States
   isLoading: boolean;
 
@@ -72,14 +85,14 @@ interface AppContextType {
   getEstimatesForContact: (contactId: string) => Promise<Estimate[]>;
   getTasksForContact: (contactId: string) => Promise<Task[]>;
   getTasksWithMentionsForContact: (contactId: string) => Promise<Task[]>;
-  
-  // Close other panels function
-  closeOtherPanels: (except?: 'contacts' | 'notes' | 'estimates' | 'tasks') => void;
-  
+
+  // Close other panels function (typesafe across all registered plugins)
+  closeOtherPanels: (except?: PluginNameUnion) => void;
+
   // Registry for plugin close functions
   registerPanelCloseFunction: (pluginName: string, closeFunction: () => void) => void;
   unregisterPanelCloseFunction: (pluginName: string) => void;
-  
+
   // Data refresh
   refreshData: () => Promise<void>;
 }
@@ -141,11 +154,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
-  
-  const [panelCloseFunctions, setPanelCloseFunctions] = useState<Map<string, () => void>>(new Map());
+
+  const [panelCloseFunctions, setPanelCloseFunctions] = useState<Map<string, () => void>>(
+    new Map(),
+  );
 
   useEffect(() => {
     checkAuth();
@@ -175,11 +190,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadData = async () => {
     try {
-      const [contactsData, notesData] = await Promise.all([
-        api.getContacts(),
-        api.getNotes(),
-      ]);
-      
+      const [contactsData, notesData] = await Promise.all([api.getContacts(), api.getNotes()]);
+
       const transformedContacts = contactsData.map((contact: any) => ({
         ...contact,
         createdAt: new Date(contact.createdAt),
@@ -230,26 +242,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const registerPanelCloseFunction = useCallback((pluginName: string, closeFunction: () => void) => {
-    setPanelCloseFunctions(prev => {
-      const newMap = new Map(prev);
-      newMap.set(pluginName, closeFunction);
-      return newMap;
-    });
-  }, []);
+  const registerPanelCloseFunction = useCallback(
+    (pluginName: string, closeFunction: () => void) => {
+      setPanelCloseFunctions((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(pluginName, closeFunction);
+        return newMap;
+      });
+    },
+    [],
+  );
 
   const unregisterPanelCloseFunction = useCallback((pluginName: string) => {
-    setPanelCloseFunctions(prev => {
+    setPanelCloseFunctions((prev) => {
       const newMap = new Map(prev);
       newMap.delete(pluginName);
       return newMap;
     });
   }, []);
 
-  const closeOtherPanels = (except?: 'contacts' | 'notes' | 'estimates' | 'tasks') => {
+  const closeOtherPanels = (except?: PluginNameUnion) => {
     console.log('closeOtherPanels called, except:', except);
     console.log('Available close functions:', Array.from(panelCloseFunctions.keys()));
-    
+
     panelCloseFunctions.forEach((closeFunction, pluginName) => {
       if (pluginName !== except) {
         console.log(`Closing panel for plugin: ${pluginName}`);
@@ -259,18 +274,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const getNotesForContact = async (contactId: string): Promise<Note[]> => {
-    return notes.filter(note => 
-      note.mentions && note.mentions.some(mention => mention.contactId === contactId)
+    return notes.filter(
+      (note) =>
+        note.mentions && note.mentions.some((mention: any) => mention.contactId === contactId),
     );
   };
 
   const getContactsForNote = (noteId: string): Contact[] => {
-    const note = notes.find(n => n.id === noteId);
-    if (!note || !note.mentions) return [];
-    
-    return note.mentions.map(mention => 
-      contacts.find(contact => contact.id === mention.contactId)
-    ).filter(Boolean) as Contact[];
+    const note = notes.find((n) => n.id === noteId);
+    if (!note || !note.mentions) {
+      return [];
+    }
+
+    return note.mentions
+      .map((mention: any) => contacts.find((contact) => contact.id === mention.contactId))
+      .filter(Boolean) as Contact[];
   };
 
   const getEstimatesForContact = async (contactId: string): Promise<Estimate[]> => {
@@ -318,8 +336,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createdAt: new Date(task.created_at),
         updatedAt: new Date(task.updated_at),
       }));
-      return transformedTasks.filter((task: Task) => 
-        task.mentions && task.mentions.some(mention => mention.contactId === contactId)
+      return transformedTasks.filter(
+        (task: Task) =>
+          task.mentions && task.mentions.some((mention: any) => mention.contactId === contactId),
       );
     } catch (error) {
       console.error('Failed to fetch task mentions for contact:', error);
@@ -328,28 +347,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AppContext.Provider value={{
-      user,
-      isAuthenticated,
-      login,
-      logout,
-      isLoading,
-      
-      contacts,
-      notes,
-      
-      getNotesForContact,
-      getContactsForNote,
-      getEstimatesForContact,
-      getTasksForContact,
-      getTasksWithMentionsForContact,
-      
-      closeOtherPanels,
-      registerPanelCloseFunction,
-      unregisterPanelCloseFunction,
-      
-      refreshData,
-    }}>
+    <AppContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        login,
+        logout,
+        isLoading,
+
+        contacts,
+        notes,
+
+        getNotesForContact,
+        getContactsForNote,
+        getEstimatesForContact,
+        getTasksForContact,
+        getTasksWithMentionsForContact,
+
+        closeOtherPanels,
+        registerPanelCloseFunction,
+        unregisterPanelCloseFunction,
+
+        refreshData,
+      }}
+    >
       {children}
     </AppContext.Provider>
   );

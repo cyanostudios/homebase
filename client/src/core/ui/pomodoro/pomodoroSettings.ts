@@ -6,7 +6,8 @@ export interface PomodoroSettings {
   soundEnabled: boolean;
   notificationsEnabled: boolean;
   autoStartSessions: boolean;
-  compactMode: boolean;}
+  compactMode: boolean;
+}
 
 export const DEFAULT_SETTINGS: PomodoroSettings = {
   workDuration: 25,
@@ -16,7 +17,8 @@ export const DEFAULT_SETTINGS: PomodoroSettings = {
   soundEnabled: true,
   notificationsEnabled: false,
   autoStartSessions: false,
-  compactMode: false,};
+  compactMode: false,
+};
 
 const STORAGE_KEY = 'homebase-pomodoro-settings';
 

@@ -1,7 +1,8 @@
+import { LogIn } from 'lucide-react';
 import React, { useState } from 'react';
+
 import { useApp } from '@/core/api/AppContext';
 import { Button } from '@/core/ui/Button';
-import { LogIn } from 'lucide-react';
 
 export function LoginComponent() {
   const { login } = useApp();
@@ -35,9 +36,7 @@ export function LoginComponent() {
             <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
               Welcome to Homebase
             </h2>
-            <p className="mt-2 text-center text-sm text-gray-600">
-              Sign in to your account
-            </p>
+            <p className="mt-2 text-center text-sm text-gray-600">Sign in to your account</p>
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
@@ -108,8 +107,12 @@ export function LoginComponent() {
               </div>
             </div>
             <div className="mt-3 text-center text-sm text-gray-600">
-              <p><strong>Email:</strong> admin@homebase.se</p>
-              <p><strong>Password:</strong> admin123</p>
+              <p>
+                <strong>Email:</strong> admin@homebase.se
+              </p>
+              <p>
+                <strong>Password:</strong> admin123
+              </p>
             </div>
           </div>
         </div>

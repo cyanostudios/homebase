@@ -1,3 +1,5 @@
+// client/src/plugins/products/context/ProductContext.tsx
+import { ShoppingCart } from 'lucide-react';
 import React, {
   createContext,
   useContext,
@@ -5,13 +7,14 @@ import React, {
   useEffect,
   useMemo,
   useCallback,
-  ReactNode,
+  type ReactNode,
 } from 'react';
-import { ShoppingCart } from 'lucide-react';
-import { Badge } from '@/core/ui/Badge';
-import { Product, ValidationError } from '../types/products';
-import { productsApi } from '../api/productsApi';
+
 import { useApp } from '@/core/api/AppContext';
+import { Badge } from '@/core/ui/Badge';
+
+import { productsApi } from '../api/productsApi';
+import type { Product, ValidationError } from '../types/products';
 
 interface ProductContextType {
   // Panel state
@@ -52,10 +55,14 @@ const ProductContext = createContext<ProductContextType | undefined>(undefined);
 interface ProductProviderProps {
   children: ReactNode;
   isAuthenticated: boolean;
-  onCloseOtherPanels: () => void;
+  onCloseOtherPanels: () => void; // kept for API compatibility, not used in open*
 }
 
-export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels }: ProductProviderProps) {
+export function ProductProvider({
+  children,
+  isAuthenticated,
+  onCloseOtherPanels, // eslint-disable-line @typescript-eslint/no-unused-vars
+}: ProductProviderProps) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
 
   // Panel state
@@ -78,17 +85,18 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
       setProducts([]);
       setSelectedProductIds([]); // clear selection on logout
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   // Keep selection valid when the product list changes (drop IDs that disappeared)
   useEffect(() => {
     if (!products?.length) {
-      if (selectedProductIds.length) setSelectedProductIds([]);
+      if (selectedProductIds.length) {
+        setSelectedProductIds([]);
+      }
       return;
     }
-    const existing = new Set(products.map(p => String((p as any).id)));
-    setSelectedProductIds(prev => prev.filter(id => existing.has(id)));
+    const existing = new Set(products.map((p) => String((p as any).id)));
+    setSelectedProductIds((prev) => prev.filter((id) => existing.has(id)));
   }, [products]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Register panel-close with AppContext (only once)
@@ -138,9 +146,7 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
       const m = s.match(/(\d+)\s*$/);
       return m ? parseInt(m[1], 10) : parseInt(s, 10) || 0;
     };
-    const existingNumbers = products.map((p: any) =>
-      toNum(p.productNumber ?? p.contactNumber)
-    );
+    const existingNumbers = products.map((p: any) => toNum(p.productNumber ?? p.contactNumber));
     const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
     return String(maxNumber + 1).padStart(2, '0'); // e.g. "01", "02", …
   };
@@ -180,20 +186,28 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     // Uniqueness (scoped to current user list we have in memory)
     if (data.productNumber?.trim()) {
       const pn = data.productNumber.trim();
-      const clash = (products as any).find((p: any) =>
-        p.id !== currentProduct?.id && String(p.productNumber ?? p.contactNumber) === pn
+      const clash = (products as any).find(
+        (p: any) =>
+          p.id !== currentProduct?.id && String(p.productNumber ?? p.contactNumber) === pn,
       );
-      if (clash) add('productNumber', `Product number "${pn}" already exists (used by "${clash.title ?? clash.companyName ?? 'another product'}")`);
+      if (clash) {
+        add(
+          'productNumber',
+          `Product number "${pn}" already exists (used by "${clash.title ?? clash.companyName ?? 'another product'}")`,
+        );
+      }
     }
     if (data.sku?.trim()) {
       const sku = data.sku.trim();
-      const clash = (products as any).find((p: any) =>
-        p.id !== currentProduct?.id && String(p.sku || '') === sku
+      const clash = (products as any).find(
+        (p: any) => p.id !== currentProduct?.id && String(p.sku || '') === sku,
       );
-      if (clash) add('sku', `SKU "${sku}" already exists (used by "${clash.title ?? clash.companyName ?? 'another product'}")`);
+      if (clash) {
+        add('sku', `SKU "${sku}" already exists (used by "${clash.title ?? clash.companyName ?? 'another product'}")`);
+      }
     }
 
-    // GTIN soft warning (format only, not blocking)
+    // GTIN soft warning
     if (data.gtin?.trim() && !/^\d{8,14}$/.test(String(data.gtin).trim())) {
       errors.push({ field: 'gtin', message: 'Warning: GTIN should be 8–14 digits' });
     }
@@ -201,13 +215,12 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     return errors;
   };
 
-  // Panel actions
+  // Panel actions (NO onCloseOtherPanels here to avoid self-closing)
   const openProductPanel = (product: Product | null) => {
     setCurrentProduct(product);
     setPanelMode(product ? 'edit' : 'create');
     setIsProductPanelOpen(true);
     setValidationErrors([]);
-    onCloseOtherPanels();
   };
 
   const openProductForEdit = (product: Product) => {
@@ -215,7 +228,6 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     setPanelMode('edit');
     setIsProductPanelOpen(true);
     setValidationErrors([]);
-    onCloseOtherPanels();
   };
 
   const openProductForView = (product: Product) => {
@@ -223,7 +235,6 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     setPanelMode('view');
     setIsProductPanelOpen(true);
     setValidationErrors([]);
-    onCloseOtherPanels();
   };
 
   const closeProductPanel = () => {
@@ -237,7 +248,6 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
 
   const saveProduct = async (raw: any): Promise<boolean> => {
     const data = {
-      // Only send MVP fields; backend still tolerates legacy if present
       productNumber: (raw.productNumber ?? '').trim(),
       title: (raw.title ?? '').trim(),
       status: raw.status,
@@ -261,21 +271,31 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
 
     const errors = validateProduct(data);
     setValidationErrors(errors);
-    const blocking = errors.filter(e => !e.message.includes('Warning'));
+    const blocking = errors.filter((e) => !e.message.includes('Warning'));
     if (blocking.length > 0) return false;
 
     try {
       if (currentProduct) {
         const saved = await productsApi.updateProduct((currentProduct as any).id, data);
-        const normalized = { ...saved, createdAt: saved.createdAt ? new Date(saved.createdAt) : null, updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null };
-        setProducts(prev => prev.map(p => (p.id === (currentProduct as any).id ? normalized : p)));
+        const normalized = {
+          ...saved,
+          createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
+          updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
+        };
+        setProducts((prev) =>
+          prev.map((p) => (p.id === (currentProduct as any).id ? normalized : p)),
+        );
         setCurrentProduct(normalized as any);
         setPanelMode('view');
         setValidationErrors([]);
       } else {
         const saved = await productsApi.createProduct(data);
-        const normalized = { ...saved, createdAt: saved.createdAt ? new Date(saved.createdAt) : null, updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null };
-        setProducts(prev => [...prev, normalized]);
+        const normalized = {
+          ...saved,
+          createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
+          updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
+        };
+        setProducts((prev) => [...prev, normalized]);
         closeProductPanel();
       }
       return true;
@@ -289,8 +309,8 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
   const deleteProduct = async (id: string) => {
     try {
       await productsApi.deleteProduct(id);
-      setProducts(prev => prev.filter(p => p.id !== id));
-      setSelectedProductIds(prev => prev.filter(pid => pid !== String(id)));
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      setSelectedProductIds((prev) => prev.filter((pid) => pid !== String(id)));
     } catch (error) {
       console.error('Failed to delete product:', error);
     }
@@ -299,13 +319,12 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
   // ---------- Selection helpers ----------
   const toggleProductSelected = useCallback((id: string) => {
     const key = String(id);
-    setSelectedProductIds(prev =>
-      prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]
+    setSelectedProductIds((prev) =>
+      prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key],
     );
   }, []);
 
   const selectAllProducts = useCallback((ids: string[]) => {
-    // Sets selection to the provided list (IDs normalized to strings)
     const norm = Array.isArray(ids) ? ids.map(String) : [];
     setSelectedProductIds(norm);
   }, []);
@@ -315,7 +334,7 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
   }, []);
   // --------------------------------------
 
-  // Panel titles/subtitles/delete message (kept inline per refactor)
+  // Panel titles/subtitles/delete message
   const getPanelTitle = (mode: string, item: Product | null, isMobileView: boolean) => {
     if (mode === 'view' && item) {
       const productNumber = `#${item.productNumber || item.id}`;
@@ -324,7 +343,9 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
       if (isMobileView && price) {
         return (
           <div>
-            <div>{productNumber} • {title}</div>
+            <div>
+              {productNumber} • {title}
+            </div>
             <div className="text-sm font-normal text-gray-600 mt-1">{price}</div>
           </div>
         );
@@ -332,9 +353,12 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
       return `${productNumber} • ${title}${price ? ` • ${price}` : ''}`;
     }
     switch (mode) {
-      case 'edit': return 'Edit Product';
-      case 'create': return 'Create Product';
-      default: return 'Product';
+      case 'edit':
+        return 'Edit Product';
+      case 'create':
+        return 'Create Product';
+      default:
+        return 'Product';
     }
   };
 
@@ -342,8 +366,8 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     if (mode === 'view' && item) {
       const statusColors: Record<string, string> = {
         'for sale': 'bg-green-100 text-green-800',
-        'draft': 'bg-gray-100 text-gray-800',
-        'archived': 'bg-red-100 text-red-800',
+        draft: 'bg-gray-100 text-gray-800',
+        archived: 'bg-red-100 text-red-800',
       };
       const badgeColor = statusColors[item.status] || statusColors.draft;
       const badgeText = item.status?.charAt(0).toUpperCase() + item.status?.slice(1);
@@ -357,9 +381,12 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
       );
     }
     switch (mode) {
-      case 'edit': return 'Update product information';
-      case 'create': return 'Enter new product details';
-      default: return '';
+      case 'edit':
+        return 'Update product information';
+      case 'create':
+        return 'Enter new product details';
+      default:
+        return '';
     }
   };
 
@@ -369,43 +396,46 @@ export function ProductProvider({ children, isAuthenticated, onCloseOtherPanels 
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 
-  const value: ProductContextType = useMemo(() => ({
-    isProductPanelOpen,
-    currentProduct,
-    panelMode,
-    validationErrors,
-    products,
+  const value: ProductContextType = useMemo(
+    () => ({
+      isProductPanelOpen,
+      currentProduct,
+      panelMode,
+      validationErrors,
+      products,
 
-    // selection
-    selectedProductIds,
-    toggleProductSelected,
-    selectAllProducts,
-    clearProductSelection,
+      // selection
+      selectedProductIds,
+      toggleProductSelected,
+      selectAllProducts,
+      clearProductSelection,
 
-    // actions
-    openProductPanel,
-    openProductForEdit,
-    openProductForView,
-    closeProductPanel,
-    saveProduct,
-    deleteProduct,
-    clearValidationErrors,
+      // actions
+      openProductPanel,
+      openProductForEdit,
+      openProductForView,
+      closeProductPanel,
+      saveProduct,
+      deleteProduct,
+      clearValidationErrors,
 
-    // titles
-    getPanelTitle,
-    getPanelSubtitle,
-    getDeleteMessage,
-  }), [
-    isProductPanelOpen,
-    currentProduct,
-    panelMode,
-    validationErrors,
-    products,
-    selectedProductIds,
-    toggleProductSelected,
-    selectAllProducts,
-    clearProductSelection,
-  ]);
+      // titles
+      getPanelTitle,
+      getPanelSubtitle,
+      getDeleteMessage,
+    }),
+    [
+      isProductPanelOpen,
+      currentProduct,
+      panelMode,
+      validationErrors,
+      products,
+      selectedProductIds,
+      toggleProductSelected,
+      selectAllProducts,
+      clearProductSelection,
+    ],
+  );
 
   return <ProductContext.Provider value={value}>{children}</ProductContext.Provider>;
 }

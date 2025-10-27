@@ -41,7 +41,7 @@ export const REJECTION_REASONS: StatusReason[] = [
   { id: 'price_too_high', label: 'Price too high', category: 'rejected' },
   { id: 'budget_constraints', label: 'Budget constraints', category: 'rejected' },
   { id: 'timeline_too_long', label: 'Timeline too long', category: 'rejected' },
-  { id: 'scope_mismatch', label: 'Scope doesn\'t match needs', category: 'rejected' },
+  { id: 'scope_mismatch', label: "Scope doesn't match needs", category: 'rejected' },
   { id: 'found_alternative', label: 'Found better alternative', category: 'rejected' },
   { id: 'project_cancelled', label: 'Project cancelled/postponed', category: 'rejected' },
   { id: 'internal_solution', label: 'Decided on internal solution', category: 'rejected' },
@@ -135,13 +135,13 @@ export function calculateLineItem(item: Partial<LineItem>): LineItem {
   const unitPrice = item.unitPrice || 0;
   const discount = item.discount || 0;
   const vatRate = item.vatRate || 25;
-  
+
   const lineSubtotal = quantity * unitPrice;
   const discountAmount = lineSubtotal * (discount / 100);
   const lineSubtotalAfterDiscount = lineSubtotal - discountAmount;
   const vatAmount = lineSubtotalAfterDiscount * (vatRate / 100);
   const lineTotal = lineSubtotalAfterDiscount + vatAmount;
-  
+
   return {
     id: item.id || '',
     description: item.description || '',
@@ -158,7 +158,10 @@ export function calculateLineItem(item: Partial<LineItem>): LineItem {
   };
 }
 
-export function calculateEstimateTotals(lineItems: LineItem[], estimateDiscount: number = 0): {
+export function calculateEstimateTotals(
+  lineItems: LineItem[],
+  estimateDiscount: number = 0,
+): {
   subtotal: number;
   totalDiscount: number;
   subtotalAfterDiscount: number;
@@ -169,31 +172,31 @@ export function calculateEstimateTotals(lineItems: LineItem[], estimateDiscount:
 } {
   let subtotal = 0;
   let totalDiscount = 0;
-  
+
   // Calculate line item totals first
-  lineItems.forEach(item => {
-    const lineSubtotal = item.lineSubtotal || ((item.quantity || 0) * (item.unitPrice || 0));
+  lineItems.forEach((item) => {
+    const lineSubtotal = item.lineSubtotal || (item.quantity || 0) * (item.unitPrice || 0);
     const discountAmount = item.discountAmount || 0;
-    
+
     subtotal += lineSubtotal;
     totalDiscount += discountAmount;
   });
-  
+
   // Calculate subtotal after line item discounts
   const subtotalAfterDiscount = subtotal - totalDiscount;
-  
+
   // NEW: Calculate estimate-level discount
   const estimateDiscountAmount = subtotalAfterDiscount * (estimateDiscount / 100);
   const subtotalAfterEstimateDiscount = subtotalAfterDiscount - estimateDiscountAmount;
-  
+
   // Calculate VAT on the final amount (after all discounts)
   let totalVat = 0;
-  lineItems.forEach(item => {
+  lineItems.forEach((item) => {
     // Recalculate VAT based on proportional share of final subtotal
-    const lineSubtotal = item.lineSubtotal || ((item.quantity || 0) * (item.unitPrice || 0));
+    const lineSubtotal = item.lineSubtotal || (item.quantity || 0) * (item.unitPrice || 0);
     const lineDiscountAmount = item.discountAmount || 0;
     const lineAfterDiscount = lineSubtotal - lineDiscountAmount;
-    
+
     if (subtotalAfterDiscount > 0) {
       // Calculate this line's proportion of the subtotal after line discounts
       const proportion = lineAfterDiscount / subtotalAfterDiscount;
@@ -204,9 +207,9 @@ export function calculateEstimateTotals(lineItems: LineItem[], estimateDiscount:
       totalVat += vatAmount;
     }
   });
-  
+
   const total = subtotalAfterEstimateDiscount + totalVat;
-  
+
   return {
     subtotal: Math.round(subtotal * 100) / 100,
     totalDiscount: Math.round(totalDiscount * 100) / 100,

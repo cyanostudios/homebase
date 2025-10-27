@@ -1,28 +1,40 @@
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  Search,
+  Calculator,
+  ChevronUp,
+  ChevronDown,
+  Copy,
+} from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, Search, Calculator, ChevronUp, ChevronDown, Copy } from 'lucide-react';
-import { useEstimates } from '../hooks/useEstimates';
-import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
-import { Button } from '@/core/ui/Button';
+
 import { Badge } from '@/core/ui/Badge';
-import { Heading, Text } from '@/core/ui/Typography';
+import { Button } from '@/core/ui/Button';
 import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { Heading, Text } from '@/core/ui/Typography';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+
+import { useEstimates } from '../hooks/useEstimates';
 import { calculateEstimateTotals } from '../types/estimate';
 
 type SortField = 'estimateNumber' | 'contactName' | 'total' | 'createdAt';
 type SortOrder = 'asc' | 'desc';
 
 export function EstimateList() {
-  const { 
+  const {
     estimates,
     openEstimatePanel,
     openEstimateForEdit,
     openEstimateForView,
     deleteEstimate,
-    duplicateEstimate
+    duplicateEstimate,
   } = useEstimates();
   const { attemptNavigation } = useGlobalNavigationGuard();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -33,7 +45,7 @@ export function EstimateList() {
   }>({
     isOpen: false,
     estimateId: '',
-    estimateNumber: ''
+    estimateNumber: '',
   });
   const [isMobileView, setIsMobileView] = useState(false);
 
@@ -41,10 +53,10 @@ export function EstimateList() {
     const checkScreenSize = () => {
       setIsMobileView(window.innerWidth < 768);
     };
-    
+
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
-    
+
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
@@ -58,16 +70,17 @@ export function EstimateList() {
   };
 
   const sortedEstimates = useMemo(() => {
-    const filtered = estimates.filter(estimate => 
-      estimate.estimateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      estimate.contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      estimate.notes.toLowerCase().includes(searchTerm.toLowerCase())
+    const filtered = estimates.filter(
+      (estimate) =>
+        estimate.estimateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        estimate.contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        estimate.notes.toLowerCase().includes(searchTerm.toLowerCase()),
     );
 
     return [...filtered].sort((a, b) => {
       let aValue: any = a[sortField];
       let bValue: any = b[sortField];
-      
+
       if (sortField === 'createdAt') {
         aValue = new Date(aValue).getTime();
         bValue = new Date(bValue).getTime();
@@ -75,29 +88,31 @@ export function EstimateList() {
         aValue = parseFloat(aValue);
         bValue = parseFloat(bValue);
       }
-      
+
       if (typeof aValue === 'string') {
-        return sortOrder === 'asc' 
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
+        return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
       }
-      
+
       return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
     });
   }, [estimates, searchTerm, sortField, sortOrder]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null;
-    return sortOrder === 'asc' ? 
-      <ChevronUp className="w-4 h-4" /> : 
-      <ChevronDown className="w-4 h-4" />;
+    if (sortField !== field) {
+      return null;
+    }
+    return sortOrder === 'asc' ? (
+      <ChevronUp className="w-4 h-4" />
+    ) : (
+      <ChevronDown className="w-4 h-4" />
+    );
   };
 
   const handleDelete = (id: string, estimateNumber: string) => {
     setDeleteConfirm({
       isOpen: true,
       estimateId: id,
-      estimateNumber: estimateNumber
+      estimateNumber: estimateNumber,
     });
   };
 
@@ -106,7 +121,7 @@ export function EstimateList() {
     setDeleteConfirm({
       isOpen: false,
       estimateId: '',
-      estimateNumber: ''
+      estimateNumber: '',
     });
   };
 
@@ -114,7 +129,7 @@ export function EstimateList() {
     setDeleteConfirm({
       isOpen: false,
       estimateId: '',
-      estimateNumber: ''
+      estimateNumber: '',
     });
   };
 
@@ -134,14 +149,10 @@ export function EstimateList() {
       accepted: 'bg-green-100 text-green-800',
       rejected: 'bg-red-100 text-red-800',
     };
-    
+
     const colorClass = statusColors[status as keyof typeof statusColors] || statusColors.draft;
-    
-    return (
-      <Badge className={colorClass}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
+
+    return <Badge className={colorClass}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
   };
 
   // Protected navigation handlers
@@ -167,10 +178,11 @@ export function EstimateList() {
     <div className="p-4 sm:p-8">
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-        <Heading level={1}>
-  Estimates ({searchTerm ? sortedEstimates.length : estimates.length}
-  {searchTerm && sortedEstimates.length !== estimates.length && ` of ${estimates.length}`})
-</Heading>
+          <Heading level={1}>
+            Estimates ({searchTerm ? sortedEstimates.length : estimates.length}
+            {searchTerm && sortedEstimates.length !== estimates.length && ` of ${estimates.length}`}
+            )
+          </Heading>
           <Text variant="caption">Manage your customer estimates</Text>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
@@ -184,11 +196,7 @@ export function EstimateList() {
               className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <Button
-            onClick={handleOpenPanel}
-            variant="primary"
-            icon={Plus}
-          >
+          <Button onClick={handleOpenPanel} variant="primary" icon={Plus}>
             Add Estimate
           </Button>
         </div>
@@ -199,7 +207,7 @@ export function EstimateList() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th 
+                <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('estimateNumber')}
                 >
@@ -208,7 +216,7 @@ export function EstimateList() {
                     <SortIcon field="estimateNumber" />
                   </div>
                 </th>
-                <th 
+                <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('contactName')}
                 >
@@ -220,7 +228,7 @@ export function EstimateList() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Items
                 </th>
-                <th 
+                <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('total')}
                 >
@@ -244,13 +252,15 @@ export function EstimateList() {
               {sortedEstimates.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
-                    {searchTerm ? 'No estimates found matching your search.' : 'No estimates yet. Click "Add Estimate" to get started.'}
+                    {searchTerm
+                      ? 'No estimates found matching your search.'
+                      : 'No estimates yet. Click "Add Estimate" to get started.'}
                   </td>
                 </tr>
               ) : (
                 sortedEstimates.map((estimate, idx) => (
-                  <tr 
-                    key={estimate.id} 
+                  <tr
+                    key={estimate.id}
                     className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer`}
                     tabIndex={0}
                     data-list-item={JSON.stringify(estimate)}
@@ -265,12 +275,16 @@ export function EstimateList() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <Calculator className="w-5 h-5 text-blue-500" />
-                        <div className="text-sm font-medium text-gray-900">{estimate.estimateNumber}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {estimate.estimateNumber}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{estimate.contactName}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {estimate.contactName}
+                        </div>
                         {estimate.organizationNumber && (
                           <div className="text-xs text-gray-500">{estimate.organizationNumber}</div>
                         )}
@@ -280,13 +294,22 @@ export function EstimateList() {
                       {estimate.lineItems.length} item{estimate.lineItems.length !== 1 ? 's' : ''}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-  <div className="text-sm font-medium text-gray-900">
-    {calculateEstimateTotals(estimate.lineItems || [], estimate.estimateDiscount || 0).total.toFixed(2)} {estimate.currency}
-  </div>
-  <div className="text-xs text-gray-500">
-    VAT: {calculateEstimateTotals(estimate.lineItems || [], estimate.estimateDiscount || 0).totalVat.toFixed(2)} {estimate.currency}
-  </div>
-</td>
+                      <div className="text-sm font-medium text-gray-900">
+                        {calculateEstimateTotals(
+                          estimate.lineItems || [],
+                          estimate.estimateDiscount || 0,
+                        ).total.toFixed(2)}{' '}
+                        {estimate.currency}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        VAT:{' '}
+                        {calculateEstimateTotals(
+                          estimate.lineItems || [],
+                          estimate.estimateDiscount || 0,
+                        ).totalVat.toFixed(2)}{' '}
+                        {estimate.currency}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(estimate.status)}
                     </td>
@@ -337,7 +360,9 @@ export function EstimateList() {
           <div className="divide-y divide-gray-200">
             {sortedEstimates.length === 0 ? (
               <div className="p-6 text-center text-gray-400">
-                {searchTerm ? 'No estimates found matching your search.' : 'No estimates yet. Click "Add Estimate" to get started.'}
+                {searchTerm
+                  ? 'No estimates found matching your search.'
+                  : 'No estimates yet. Click "Add Estimate" to get started.'}
               </div>
             ) : (
               sortedEstimates.map((estimate) => (
@@ -351,27 +376,34 @@ export function EstimateList() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="mb-1 flex items-center gap-2">
-                        <h3 className="text-sm font-medium text-gray-900">{estimate.estimateNumber}</h3>
+                        <h3 className="text-sm font-medium text-gray-900">
+                          {estimate.estimateNumber}
+                        </h3>
                         {getStatusBadge(estimate.status)}
                       </div>
-                      
+
                       <div className="space-y-1">
                         <div className="text-sm text-gray-600">{estimate.contactName}</div>
                         {estimate.organizationNumber && (
                           <div className="text-xs text-gray-500">{estimate.organizationNumber}</div>
                         )}
                         <div className="text-xs text-gray-600">
-                          {estimate.lineItems.length} item{estimate.lineItems.length !== 1 ? 's' : ''}
+                          {estimate.lineItems.length} item
+                          {estimate.lineItems.length !== 1 ? 's' : ''}
                         </div>
                         <div className="text-sm font-medium text-gray-900">
-  {calculateEstimateTotals(estimate.lineItems || [], estimate.estimateDiscount || 0).total.toFixed(2)} {estimate.currency}
-</div>
+                          {calculateEstimateTotals(
+                            estimate.lineItems || [],
+                            estimate.estimateDiscount || 0,
+                          ).total.toFixed(2)}{' '}
+                          {estimate.currency}
+                        </div>
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         icon={Eye}
                         onClick={() => handleOpenForView(estimate)}
                         className="h-8 px-3"

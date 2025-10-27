@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { Badge } from '@/core/ui/Badge';
+
 import { TASK_STATUS_COLORS, TASK_STATUS_OPTIONS, formatStatusForDisplay } from '../types/tasks';
 
 interface TaskStatusButtonsProps {
@@ -14,15 +16,15 @@ export function TaskStatusButtons({ task, onStatusChange }: TaskStatusButtonsPro
       <div className="flex flex-wrap gap-2">
         {TASK_STATUS_OPTIONS.map((status) => {
           const isActive = task.status === status;
-          
+
           return (
             <Badge
               key={status}
               onClick={() => onStatusChange(status)}
               disabled={isActive}
               className={
-                isActive 
-                  ? TASK_STATUS_COLORS[status] 
+                isActive
+                  ? TASK_STATUS_COLORS[status]
                   : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
               }
             >

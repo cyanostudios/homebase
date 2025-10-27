@@ -13,14 +13,17 @@ export function useUnsavedChanges() {
     setIsDirty(false);
   }, []);
 
-  const attemptAction = useCallback((action: () => void) => {
-    if (isDirty) {
-      pendingActionRef.current = action;
-      setShowWarning(true);
-    } else {
-      action();
-    }
-  }, [isDirty]);
+  const attemptAction = useCallback(
+    (action: () => void) => {
+      if (isDirty) {
+        pendingActionRef.current = action;
+        setShowWarning(true);
+      } else {
+        action();
+      }
+    },
+    [isDirty],
+  );
 
   const confirmDiscard = useCallback(() => {
     if (pendingActionRef.current) {
@@ -43,6 +46,6 @@ export function useUnsavedChanges() {
     markClean,
     attemptAction,
     confirmDiscard,
-    cancelDiscard
+    cancelDiscard,
   };
 }

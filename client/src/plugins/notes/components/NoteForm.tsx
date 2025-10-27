@@ -1,48 +1,58 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Heading } from '@/core/ui/Typography';
+
 import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { useNotes } from '../hooks/useNotes';
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+
+import { useNotes } from '../hooks/useNotes';
+
 import { MentionTextarea } from './MentionTextarea';
+
+interface NoteFormState {
+  title: string;
+  content: string;
+  mentions: any[]; // If you have a Mention type, replace any[] with it
+}
 
 interface NoteFormProps {
   currentNote?: any;
-  onSave: (data: any) => void;
+  onSave: (data: NoteFormState) => Promise<boolean>;
   onCancel: () => void;
   isSubmitting?: boolean;
 }
 
-export const NoteForm: React.FC<NoteFormProps> = ({ 
-  currentNote, 
-  onSave, 
-  onCancel, 
-  isSubmitting = false 
+export const NoteForm: React.FC<NoteFormProps> = ({
+  currentNote,
+  onSave,
+  onCancel,
+  isSubmitting = false,
 }) => {
   const { validationErrors, clearValidationErrors } = useNotes();
-  const { 
-    isDirty, 
-    showWarning, 
-    markDirty, 
-    markClean, 
-    attemptAction, 
-    confirmDiscard, 
-    cancelDiscard 
+  const {
+    isDirty,
+    showWarning,
+    markDirty,
+    markClean,
+    attemptAction,
+    confirmDiscard,
+    cancelDiscard,
   } = useUnsavedChanges();
-  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } = useGlobalNavigationGuard();
+  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
+    useGlobalNavigationGuard();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<NoteFormState>({
     title: '',
     content: '',
-    mentions: []
+    mentions: [],
   });
 
   // Register this form's unsaved changes state globally
   useEffect(() => {
     const formKey = `note-form-${currentNote?.id || 'new'}`;
     registerUnsavedChangesChecker(formKey, () => isDirty);
-    
+
     return () => {
       unregisterUnsavedChangesChecker(formKey);
     };
@@ -55,7 +65,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
       setFormData({
         title: currentNote.title || '',
         content: currentNote.content || '',
-        mentions: currentNote.mentions || []
+        mentions: currentNote.mentions || [],
       });
       markClean();
     } else {
@@ -68,7 +78,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
     setFormData({
       title: '',
       content: '',
-      mentions: []
+      mentions: [],
     });
     markClean();
   }, [markClean]);
@@ -81,8 +91,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
       if (!currentNote) {
         resetForm();
       }
-    }
-    if (!success) {
+    } else {
       console.log('Save failed due to validation errors');
     }
   }, [formData, onSave, markClean, currentNote, resetForm]);
@@ -95,12 +104,12 @@ export const NoteForm: React.FC<NoteFormProps> = ({
 
   // Global functions with correct plural naming
   useEffect(() => {
-    window.submitNotesForm = handleSubmit; // PLURAL!
-    window.cancelNotesForm = handleCancel; // PLURAL!
-    
+    (window as any).submitNotesForm = handleSubmit; // PLURAL!
+    (window as any).cancelNotesForm = handleCancel; // PLURAL!
+
     return () => {
-      delete window.submitNotesForm;
-      delete window.cancelNotesForm;
+      delete (window as any).submitNotesForm;
+      delete (window as any).cancelNotesForm;
     };
   }, [handleSubmit, handleCancel]);
 
@@ -115,40 +124,41 @@ export const NoteForm: React.FC<NoteFormProps> = ({
     }
   };
 
-  const updateField = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
+  const updateField = (field: keyof NoteFormState, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear validation errors when user starts typing
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
-    
     markDirty();
   };
 
   const handleContentChange = (content: string, mentions: any[]) => {
-    setFormData(prev => ({ ...prev, content, mentions }));
-    
+    setFormData((prev) => ({ ...prev, content, mentions }));
     // Clear validation errors when user starts typing
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
-    
     markDirty();
   };
 
   // Helper function to get error for a specific field
   const getFieldError = (fieldName: string) => {
-    return validationErrors.find(error => error.field === fieldName);
+    return validationErrors.find((error) => error.field === fieldName);
   };
 
   // Check if there are any blocking errors (non-warning)
-  const hasBlockingErrors = validationErrors.some(error => !error.message.includes('Warning'));
+  const hasBlockingErrors = validationErrors.some((error) => !error.message.includes('Warning'));
 
   return (
     <div className="space-y-4">
-      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-        
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+      >
         {/* Validation Summary */}
         {hasBlockingErrors && (
           <Card padding="sm" className="shadow-none px-0">
@@ -156,18 +166,20 @@ export const NoteForm: React.FC<NoteFormProps> = ({
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">
-                    Cannot save note
-                  </h3>
+                  <h3 className="text-sm font-medium text-red-800">Cannot save note</h3>
                   <div className="mt-2 text-sm text-red-700">
                     <p>Please fix the following errors before saving:</p>
                     <ul className="list-disc list-inside mt-1">
                       {validationErrors
-                        .filter(error => !error.message.includes('Warning'))
+                        .filter((error) => !error.message.includes('Warning'))
                         .map((error, index) => (
                           <li key={index}>{error.message}</li>
                         ))}
@@ -178,14 +190,14 @@ export const NoteForm: React.FC<NoteFormProps> = ({
             </div>
           </Card>
         )}
-        
+
         {/* Note Title */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">Note Title</Heading>
+          <Heading level={3} className="mb-3">
+            Note Title
+          </Heading>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Title
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
             <input
               type="text"
               value={formData.title}
@@ -204,7 +216,9 @@ export const NoteForm: React.FC<NoteFormProps> = ({
 
         {/* Note Content with @mentions */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">Note Content</Heading>
+          <Heading level={3} className="mb-3">
+            Note Content
+          </Heading>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Content <span className="text-xs text-gray-500">(Type @ to mention contacts)</span>
@@ -219,14 +233,15 @@ export const NoteForm: React.FC<NoteFormProps> = ({
             {getFieldError('content') && (
               <p className="mt-1 text-sm text-red-600">{getFieldError('content')?.message}</p>
             )}
-            
-            {/* Show mentions preview */}
+
+            {/* Mentions preview */}
             {formData.mentions.length > 0 && (
               <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
                 <span className="font-medium text-blue-800">Mentions:</span>{' '}
                 {formData.mentions.map((mention: any, index: number) => (
                   <span key={index} className="text-blue-600">
-                    @{mention.contactName}{index < formData.length - 1 ? ', ' : ''}
+                    @{mention.contactName}
+                    {index < formData.mentions.length - 1 ? ', ' : ''}
                   </span>
                 ))}
               </div>
@@ -234,14 +249,15 @@ export const NoteForm: React.FC<NoteFormProps> = ({
           </div>
         </Card>
       </form>
-      
+
       {/* Unsaved Changes Warning Dialog */}
       <ConfirmDialog
         isOpen={showWarning}
         title="Unsaved Changes"
-        message={currentNote 
-          ? "You have unsaved changes. Do you want to discard your changes and return to view mode?" 
-          : "You have unsaved changes. Do you want to discard your changes and close the form?"
+        message={
+          currentNote
+            ? 'You have unsaved changes. Do you want to discard your changes and return to view mode?'
+            : 'You have unsaved changes. Do you want to discard your changes and close the form?'
         }
         confirmText="Discard Changes"
         cancelText="Continue Editing"

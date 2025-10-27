@@ -1,13 +1,15 @@
+import { Plus, Trash2, Copy } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
-import { useEstimates } from '../hooks/useEstimates';
+
 import { useApp } from '@/core/api/AppContext';
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
-import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Button } from '@/core/ui/Button';
 import { Card } from '@/core/ui/Card';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Heading } from '@/core/ui/Typography';
-import { Plus, Trash2, Copy } from 'lucide-react';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+
+import { useEstimates } from '../hooks/useEstimates';
 import { Estimate, LineItem, calculateLineItem, calculateEstimateTotals } from '../types/estimate';
 
 interface EstimateFormProps {
@@ -19,18 +21,19 @@ interface EstimateFormProps {
 export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateFormProps) {
   const { validationErrors, clearValidationErrors } = useEstimates();
   const { contacts } = useApp(); // Cross-plugin data access
-  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } = useGlobalNavigationGuard();
-  
+  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
+    useGlobalNavigationGuard();
+
   // Safety check for contacts
   const safeContacts = contacts || [];
-  const { 
-    isDirty, 
-    showWarning, 
-    markDirty, 
-    markClean, 
-    attemptAction, 
-    confirmDiscard, 
-    cancelDiscard 
+  const {
+    isDirty,
+    showWarning,
+    markDirty,
+    markClean,
+    attemptAction,
+    confirmDiscard,
+    cancelDiscard,
   } = useUnsavedChanges();
 
   const [formData, setFormData] = useState({
@@ -42,28 +45,28 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
     estimateDiscount: 0, // NEW: Estimate-level discount percentage
     notes: '',
     validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-    status: 'draft' as 'draft' | 'sent' | 'accepted' | 'rejected'
+    status: 'draft' as 'draft' | 'sent' | 'accepted' | 'rejected',
   });
 
   // Track which items are recently duplicated for visual feedback
   const [duplicatedItemIds, setDuplicatedItemIds] = useState<Set<string>>(new Set());
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [totals, setTotals] = useState({ 
-    subtotal: 0, 
+  const [totals, setTotals] = useState({
+    subtotal: 0,
     totalDiscount: 0,
     subtotalAfterDiscount: 0,
     estimateDiscountAmount: 0, // NEW
     subtotalAfterEstimateDiscount: 0, // NEW
-    totalVat: 0, 
-    total: 0 
+    totalVat: 0,
+    total: 0,
   });
 
   // Register this form's unsaved changes state globally
   useEffect(() => {
     const formKey = `estimate-form-${currentEstimate?.id || 'new'}`;
     registerUnsavedChangesChecker(formKey, () => isDirty);
-    
+
     return () => {
       unregisterUnsavedChangesChecker(formKey);
     };
@@ -73,9 +76,9 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
   useEffect(() => {
     if (currentEstimate) {
       // Migrate existing line items to include discount fields
-      const migratedLineItems = (currentEstimate.lineItems || []).map(item => {
+      const migratedLineItems = (currentEstimate.lineItems || []).map((item) => {
         // If item doesn't have discount fields, add them with defaults
-        if (!item.hasOwnProperty('discount')) {
+        if (!Object.prototype.hasOwnProperty.call(item, 'discount')) {
           return calculateLineItem({
             ...item,
             discount: 0, // Default 0% discount for existing items
@@ -93,7 +96,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         estimateDiscount: currentEstimate.estimateDiscount || 0, // NEW: Load estimate discount
         notes: currentEstimate.notes || '',
         validTo: new Date(currentEstimate.validTo),
-        status: currentEstimate.status || 'draft'
+        status: currentEstimate.status || 'draft',
       });
       markClean();
       setDuplicatedItemIds(new Set());
@@ -118,15 +121,17 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
       estimateDiscount: 0, // NEW: Reset estimate discount
       notes: '',
       validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      status: 'draft'
+      status: 'draft',
     });
     markClean();
     setDuplicatedItemIds(new Set());
   }, [markClean]);
 
   const handleSubmit = useCallback(async () => {
-    if (isSubmitting) return;
-    
+    if (isSubmitting) {
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const success = await onSave(formData);
@@ -153,7 +158,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
   useEffect(() => {
     window.submitEstimatesForm = handleSubmit; // PLURAL!
     window.cancelEstimatesForm = handleCancel; // PLURAL!
-    
+
     return () => {
       delete window.submitEstimatesForm;
       delete window.cancelEstimatesForm;
@@ -172,25 +177,25 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
   };
 
   const updateField = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
     // Clear validation errors when user starts typing
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
-    
+
     markDirty();
   };
 
   const handleContactChange = (contactId: string) => {
-    const contact = safeContacts.find(c => c.id === contactId);
+    const contact = safeContacts.find((c) => c.id === contactId);
     if (contact) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         contactId: contact.id,
         contactName: contact.companyName,
         organizationNumber: contact.organizationNumber || '',
-        currency: contact.currency || 'SEK'
+        currency: contact.currency || 'SEK',
       }));
       markDirty();
       clearValidationErrors();
@@ -205,9 +210,9 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
       unitPrice: 0,
       discount: 0,
       vatRate: 25,
-      sortOrder: formData.lineItems.length
+      sortOrder: formData.lineItems.length,
     });
-    
+
     updateField('lineItems', [...formData.lineItems, newItem]);
   };
 
@@ -219,7 +224,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
       }
       return item;
     });
-    
+
     updateField('lineItems', updatedItems);
   };
 
@@ -229,21 +234,21 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
     const newItem = calculateLineItem({
       ...itemToDuplicate,
       id: newItemId,
-      sortOrder: formData.lineItems.length
+      sortOrder: formData.lineItems.length,
     });
-    
-    setDuplicatedItemIds(prev => new Set([...prev, newItemId]));
+
+    setDuplicatedItemIds((prev) => new Set([...prev, newItemId]));
     updateField('lineItems', [...formData.lineItems, newItem]);
   };
 
   const removeLineItem = (index: number) => {
     const itemToRemove = formData.lineItems[index];
-    setDuplicatedItemIds(prev => {
+    setDuplicatedItemIds((prev) => {
       const newSet = new Set(prev);
       newSet.delete(itemToRemove.id);
       return newSet;
     });
-    
+
     const updatedItems = formData.lineItems.filter((_, i) => i !== index);
     updateField('lineItems', updatedItems);
   };
@@ -258,16 +263,21 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
   // Helper function to get error for a specific field
   const getFieldError = (fieldName: string) => {
-    return validationErrors.find(error => error.field === fieldName);
+    return validationErrors.find((error) => error.field === fieldName);
   };
 
   // Check if there are any blocking errors (non-warning)
-  const hasBlockingErrors = validationErrors.some(error => !error.message.includes('Warning'));
+  const hasBlockingErrors = validationErrors.some((error) => !error.message.includes('Warning'));
 
   return (
     <div className="space-y-4">
-      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-        
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+      >
         {/* Validation Summary */}
         {hasBlockingErrors && (
           <Card padding="sm" className="shadow-none px-0">
@@ -275,18 +285,20 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">
-                    Cannot save estimate
-                  </h3>
+                  <h3 className="text-sm font-medium text-red-800">Cannot save estimate</h3>
                   <div className="mt-2 text-sm text-red-700">
                     <p>Please fix the following errors before saving:</p>
                     <ul className="list-disc list-inside mt-1">
                       {validationErrors
-                        .filter(error => !error.message.includes('Warning'))
+                        .filter((error) => !error.message.includes('Warning'))
                         .map((error, index) => (
                           <li key={index}>{error.message}</li>
                         ))}
@@ -300,12 +312,12 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
         {/* Customer Selection */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">Customer Information</Heading>
+          <Heading level={3} className="mb-3">
+            Customer Information
+          </Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Customer
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
               <select
                 value={formData.contactId}
                 onChange={(e) => handleContactChange(e.target.value)}
@@ -315,23 +327,20 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                 required
               >
                 <option value="">Select a customer...</option>
-                {safeContacts.map(contact => (
+                {safeContacts.map((contact) => (
                   <option key={contact.id} value={contact.id}>
-                    {contact.companyName} {contact.organizationNumber && `(${contact.organizationNumber})`}
+                    {contact.companyName}{' '}
+                    {contact.organizationNumber && `(${contact.organizationNumber})`}
                   </option>
                 ))}
               </select>
               {getFieldError('contactId') && (
-                <p className="mt-1 text-sm text-red-600">
-                  {getFieldError('contactId')?.message}
-                </p>
+                <p className="mt-1 text-sm text-red-600">{getFieldError('contactId')?.message}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Currency
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
               <select
                 value={formData.currency}
                 onChange={(e) => updateField('currency', e.target.value)}
@@ -349,12 +358,12 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
         {/* Estimate Details */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">Estimate Details</Heading>
+          <Heading level={3} className="mb-3">
+            Estimate Details
+          </Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Valid To
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Valid To</label>
               <input
                 type="date"
                 value={formatValidToDate(formData.validTo)}
@@ -363,11 +372,9 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                 required
               />
             </div>
-            
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select
                 value={formData.status}
                 onChange={(e) => updateField('status', e.target.value)}
@@ -386,13 +393,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         <Card padding="sm" className="shadow-none px-0">
           <div className="flex items-center justify-between mb-3">
             <Heading level={3}>Line Items</Heading>
-            <Button
-              type="button"
-              onClick={addLineItem}
-              variant="secondary"
-              icon={Plus}
-              size="sm"
-            >
+            <Button type="button" onClick={addLineItem} variant="secondary" icon={Plus} size="sm">
               Add Item
             </Button>
           </div>
@@ -402,8 +403,8 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
           ) : (
             <div className="space-y-3">
               {formData.lineItems.map((item, index) => (
-                <div 
-                  key={item.id} 
+                <div
+                  key={item.id}
                   className={`border border-gray-200 rounded-lg p-3 ${
                     duplicatedItemIds.has(item.id) ? 'bg-green-50' : ''
                   }`}
@@ -429,8 +430,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                       size="sm"
                       className="h-8 w-8 p-0 flex-shrink-0"
                       title="Duplicate item"
-                    >
-                    </Button>
+                    ></Button>
                     <Button
                       type="button"
                       onClick={() => removeLineItem(index)}
@@ -438,8 +438,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                       icon={Trash2}
                       size="sm"
                       className="h-8 w-8 p-0 flex-shrink-0"
-                    >
-                    </Button>
+                    ></Button>
                   </div>
 
                   {/* Row 2: Numbers table */}
@@ -477,7 +476,9 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                               type="number"
                               min="0"
                               value={item.quantity}
-                              onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                              onChange={(e) =>
+                                updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)
+                              }
                               className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               required
                             />
@@ -487,7 +488,9 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                               type="number"
                               min="0"
                               value={item.unitPrice}
-                              onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                              onChange={(e) =>
+                                updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)
+                              }
                               className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               required
                             />
@@ -498,14 +501,18 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                               min="0"
                               max="100"
                               value={item.discount || 0}
-                              onChange={(e) => updateLineItem(index, 'discount', parseFloat(e.target.value) || 0)}
+                              onChange={(e) =>
+                                updateLineItem(index, 'discount', parseFloat(e.target.value) || 0)
+                              }
                               className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                             />
                           </td>
                           <td className="px-2 py-1">
                             <select
                               value={item.vatRate}
-                              onChange={(e) => updateLineItem(index, 'vatRate', parseFloat(e.target.value))}
+                              onChange={(e) =>
+                                updateLineItem(index, 'vatRate', parseFloat(e.target.value))
+                              }
                               className="w-16 px-1 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                             >
                               <option value="0">0%</option>
@@ -537,9 +544,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         {formData.lineItems.length > 0 && (
           <Card padding="sm" className="shadow-none px-0">
             <div className="flex items-center gap-4 mb-2">
-              <label className="text-sm font-medium text-gray-700">
-                Estimate Discount (%)
-              </label>
+              <label className="text-sm font-medium text-gray-700">Estimate Discount (%)</label>
               <div className="max-w-xs">
                 <input
                   type="number"
@@ -562,40 +567,58 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         {/* Totals Summary - UPDATED to show all discount steps */}
         {formData.lineItems.length > 0 && (
           <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3">Summary</Heading>
+            <Heading level={3} className="mb-3">
+              Summary
+            </Heading>
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Subtotal:</span>
-                <span className="text-sm font-medium text-gray-900">{(totals.subtotal || 0).toFixed(2)} {formData.currency}</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {(totals.subtotal || 0).toFixed(2)} {formData.currency}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Total Line Item Discounts:</span>
-                <span className="text-sm font-medium text-gray-900">-{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}</span>
+                <span className="text-sm font-medium text-gray-900">
+                  -{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}
+                </span>
               </div>
               <div className="flex justify-between border-t border-gray-200 pt-2">
                 <span className="text-sm text-gray-600">Subtotal after line discounts:</span>
-                <span className="text-sm font-medium text-gray-900">{(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}
+                </span>
               </div>
               {/* NEW: Show estimate discount if applied */}
               {formData.estimateDiscount > 0 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Estimate Discount ({formData.estimateDiscount}%):</span>
-                    <span className="text-sm font-medium text-gray-900">-{(totals.estimateDiscountAmount || 0).toFixed(2)} {formData.currency}</span>
+                    <span className="text-sm text-gray-600">
+                      Estimate Discount ({formData.estimateDiscount}%):
+                    </span>
+                    <span className="text-sm font-medium text-gray-900">
+                      -{(totals.estimateDiscountAmount || 0).toFixed(2)} {formData.currency}
+                    </span>
                   </div>
                   <div className="flex justify-between border-t border-gray-200 pt-2">
                     <span className="text-sm text-gray-600">Subtotal after estimate discount:</span>
-                    <span className="text-sm font-medium text-gray-900">{(totals.subtotalAfterEstimateDiscount || 0).toFixed(2)} {formData.currency}</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {(totals.subtotalAfterEstimateDiscount || 0).toFixed(2)} {formData.currency}
+                    </span>
                   </div>
                 </>
               )}
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Total VAT:</span>
-                <span className="text-sm font-medium text-gray-900">{(totals.totalVat || 0).toFixed(2)} {formData.currency}</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {(totals.totalVat || 0).toFixed(2)} {formData.currency}
+                </span>
               </div>
               <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-2">
                 <span>Total:</span>
-                <span>{(totals.total || 0).toFixed(2)} {formData.currency}</span>
+                <span>
+                  {(totals.total || 0).toFixed(2)} {formData.currency}
+                </span>
               </div>
             </div>
           </Card>
@@ -603,11 +626,11 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
         {/* Notes */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">Notes</Heading>
+          <Heading level={3} className="mb-3">
+            Notes
+          </Heading>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Additional Notes
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
             <textarea
               value={formData.notes}
               onChange={(e) => updateField('notes', e.target.value)}
@@ -617,16 +640,16 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
             />
           </div>
         </Card>
-
       </form>
 
       {/* Unsaved Changes Warning */}
       <ConfirmDialog
         isOpen={showWarning}
         title="Unsaved Changes"
-        message={currentEstimate 
-          ? "You have unsaved changes. Do you want to discard your changes and return to view mode?" 
-          : "You have unsaved changes. Do you want to discard your changes and close the form?"
+        message={
+          currentEstimate
+            ? 'You have unsaved changes. Do you want to discard your changes and return to view mode?'
+            : 'You have unsaved changes. Do you want to discard your changes and close the form?'
         }
         confirmText="Discard Changes"
         cancelText="Continue Editing"

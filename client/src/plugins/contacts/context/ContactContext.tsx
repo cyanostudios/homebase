@@ -1,9 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Building, User } from 'lucide-react';
-import { Badge } from '@/core/ui/Badge';
-import { Contact, ValidationError } from '../types/contacts';
-import { contactsApi } from '../api/contactsApi';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
 import { useApp } from '@/core/api/AppContext';
+import { Badge } from '@/core/ui/Badge';
+
+import { contactsApi } from '../api/contactsApi';
+import { Contact, ValidationError } from '../types/contacts';
 
 interface ContactContextType {
   // Contact Panel State
@@ -11,10 +13,10 @@ interface ContactContextType {
   currentContact: Contact | null;
   panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
-  
+
   // Contacts Data
   contacts: Contact[];
-  
+
   // Contact Actions
   openContactPanel: (contact: Contact | null) => void;
   openContactForEdit: (contact: Contact) => void;
@@ -23,8 +25,8 @@ interface ContactContextType {
   saveContact: (contactData: any) => Promise<boolean>;
   deleteContact: (id: string) => Promise<void>;
   clearValidationErrors: () => void;
-  
-  // NEW: Panel Title Functions
+
+  // Panel Title helpers
   getPanelTitle: (mode: string, item: Contact | null, isMobileView: boolean) => any;
   getPanelSubtitle: (mode: string, item: Contact | null) => any;
   getDeleteMessage: (item: Contact | null) => string;
@@ -38,16 +40,19 @@ interface ContactProviderProps {
   onCloseOtherPanels: () => void;
 }
 
-export function ContactProvider({ children, isAuthenticated, onCloseOtherPanels }: ContactProviderProps) {
-  // ADDED: Get panel registration functions from AppContext
+export function ContactProvider({
+  children,
+  isAuthenticated,
+  onCloseOtherPanels,
+}: ContactProviderProps) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
-  
+
   // Panel states
   const [isContactPanelOpen, setIsContactPanelOpen] = useState(false);
   const [currentContact, setCurrentContact] = useState<Contact | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-  
+
   // Data state
   const [contacts, setContacts] = useState<Contact[]>([]);
 
@@ -60,55 +65,50 @@ export function ContactProvider({ children, isAuthenticated, onCloseOtherPanels 
     }
   }, [isAuthenticated]);
 
-// FIXED: Remove dependency array to avoid infinite loops  
-useEffect(() => {
-  registerPanelCloseFunction('contacts', closeContactPanel);
-  return () => {
-    unregisterPanelCloseFunction('contacts');
-  };
-}, []); // Empty dependency array - only run once
-
-  // ADDED: Global functions for form submission (required for global form handling)
+  // Register a global close function for this panel once
   useEffect(() => {
-    window.submitContactsForm = () => {
-      // Trigger form submission event
+    registerPanelCloseFunction('contacts', closeContactPanel);
+    return () => {
+      unregisterPanelCloseFunction('contacts');
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Global functions for form submission (dispatch events)
+  useEffect(() => {
+    (window as any).submitContactsForm = () => {
       const event = new CustomEvent('submitContactForm');
       window.dispatchEvent(event);
     };
 
-    window.cancelContactsForm = () => {
-      // Trigger form cancel event
+    (window as any).cancelContactsForm = () => {
       const event = new CustomEvent('cancelContactForm');
       window.dispatchEvent(event);
     };
 
-    // Cleanup
     return () => {
-      delete window.submitContactsForm;
-      delete window.cancelContactsForm;
+      delete (window as any).submitContactsForm;
+      delete (window as any).cancelContactsForm;
     };
   }, []);
 
   const loadContacts = async () => {
     try {
       const contactsData = await contactsApi.getContacts();
-      
-      // Transform API data to match interface
-      const transformedContacts = contactsData.map((contact: any) => ({
+      const transformedContacts: Contact[] = contactsData.map((contact: any) => ({
         ...contact,
         createdAt: new Date(contact.createdAt),
         updatedAt: new Date(contact.updatedAt),
       }));
-
       setContacts(transformedContacts);
     } catch (error) {
       console.error('Failed to load contacts:', error);
     }
   };
 
-  // Helper function to generate next contact number
+  // Helper: next contact number
   const generateNextContactNumber = (): string => {
-    const existingNumbers = contacts.map(contact => parseInt(contact.contactNumber) || 0);
+    const existingNumbers = contacts.map((contact) => parseInt(contact.contactNumber, 10) || 0);
     const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
     const nextNumber = maxNumber + 1;
     return nextNumber.toString().padStart(2, '0');
@@ -116,91 +116,85 @@ useEffect(() => {
 
   const validateContact = (contactData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
-    
-    // Contact number validation
+
+    // Contact number
     if (!contactData.contactNumber?.trim()) {
       errors.push({
         field: 'contactNumber',
-        message: 'Contact number is required'
+        message: 'Contact number is required',
       });
     } else {
-      // Check for duplicate contact numbers
-      const existingContact = contacts.find(contact => 
-        contact.id !== currentContact?.id && 
-        contact.contactNumber === contactData.contactNumber.trim()
+      const existingContact = contacts.find(
+        (c) => c.id !== currentContact?.id && c.contactNumber === contactData.contactNumber.trim(),
       );
-      
       if (existingContact) {
         errors.push({
           field: 'contactNumber',
-          message: `Contact number "${contactData.contactNumber}" already exists for "${existingContact.companyName}"`
+          message: `Contact number "${contactData.contactNumber}" already exists for "${existingContact.companyName}"`,
         });
       }
     }
-    
-    // Required fields
+
+    // Required name (company or full name stored in companyName)
     if (!contactData.companyName?.trim()) {
       errors.push({
         field: 'companyName',
-        message: contactData.contactType === 'company' ? 'Company name is required' : 'Full name is required'
+        message:
+          contactData.contactType === 'company'
+            ? 'Company name is required'
+            : 'Full name is required',
       });
     }
-    
+
     // Company validations
-    if (contactData.contactType === 'company') {
-      if (contactData.organizationNumber?.trim()) {
-        const existingContact = contacts.find(contact => 
-          contact.id !== currentContact?.id && 
-          contact.contactType === 'company' &&
-          contact.organizationNumber === contactData.organizationNumber.trim()
-        );
-        
-        if (existingContact) {
-          errors.push({
-            field: 'organizationNumber',
-            message: `Organization number already exists for "${existingContact.companyName}"`
-          });
-        }
-      }
-    }
-    
-    // Private person validations
-    if (contactData.contactType === 'private') {
-      if (contactData.personalNumber?.trim()) {
-        const existingContact = contacts.find(contact => 
-          contact.id !== currentContact?.id && 
-          contact.contactType === 'private' &&
-          contact.personalNumber === contactData.personalNumber.trim()
-        );
-        
-        if (existingContact) {
-          errors.push({
-            field: 'personalNumber',
-            message: `Personal number already exists for "${existingContact.companyName}"`
-          });
-        }
-      }
-    }
-    
-    // Email validation (warning, not blocking)
-    if (contactData.email?.trim()) {
-      const existingContact = contacts.find(contact => 
-        contact.id !== currentContact?.id && 
-        contact.email === contactData.email.trim()
+    if (contactData.contactType === 'company' && contactData.organizationNumber?.trim()) {
+      const dup = contacts.find(
+        (c) =>
+          c.id !== currentContact?.id &&
+          c.contactType === 'company' &&
+          c.organizationNumber === contactData.organizationNumber.trim(),
       );
-      
-      if (existingContact) {
+      if (dup) {
         errors.push({
-          field: 'email',
-          message: `Email already exists for "${existingContact.companyName}" (Warning)`
+          field: 'organizationNumber',
+          message: `Organization number already exists for "${dup.companyName}"`,
         });
       }
     }
-    
+
+    // Private person validations
+    if (contactData.contactType === 'private' && contactData.personalNumber?.trim()) {
+      const dup = contacts.find(
+        (c) =>
+          c.id !== currentContact?.id &&
+          c.contactType === 'private' &&
+          c.personalNumber === contactData.personalNumber.trim(),
+      );
+      if (dup) {
+        errors.push({
+          field: 'personalNumber',
+          message: `Personal number already exists for "${dup.companyName}"`,
+        });
+      }
+    }
+
+    // Email (warning)
+    if (contactData.email?.trim()) {
+      const dup = contacts.find(
+        (c) => c.id !== currentContact?.id && c.email === contactData.email.trim(),
+      );
+      if (dup) {
+        errors.push({
+          field: 'email',
+          message: `Email already exists for "${dup.companyName}" (Warning)`,
+        });
+      }
+    }
+
     return errors;
   };
 
-  // Contact functions
+  // Panel actions
   const openContactPanel = (contact: Contact | null) => {
     setCurrentContact(contact);
     setPanelMode(contact ? 'edit' : 'create');
@@ -237,89 +231,81 @@ useEffect(() => {
   };
 
   const saveContact = async (contactData: any): Promise<boolean> => {
-    console.log('Validating contact data:', contactData);
-    
-    // Auto-generate contact number for new contacts if not provided
+    // Auto-number for new contacts when missing
     if (!currentContact && !contactData.contactNumber?.trim()) {
       contactData.contactNumber = generateNextContactNumber();
     }
-    
-    // Run validation
+
+    // Validate
     const errors = validateContact(contactData);
     setValidationErrors(errors);
-    
-    // If there are blocking errors, don't save
-    const blockingErrors = errors.filter(error => !error.message.includes('Warning'));
-    if (blockingErrors.length > 0) {
-      console.log('Validation failed:', blockingErrors);
+
+    // Blocking errors?
+    const blocking = errors.filter((e) => !e.message.includes('Warning'));
+    if (blocking.length > 0) {
       return false;
     }
-    
+
     try {
-      let savedContact: Contact;
-      
+      let saved: Contact;
+
       if (currentContact) {
-        // Update existing contact
-        savedContact = await contactsApi.updateContact(currentContact.id, contactData);
-        setContacts(prev => prev.map(contact => 
-          contact.id === currentContact.id ? {
-            ...savedContact,
-            createdAt: new Date(savedContact.createdAt),
-            updatedAt: new Date(savedContact.updatedAt),
-          } : contact
-        ));
-        setCurrentContact({
-          ...savedContact,
-          createdAt: new Date(savedContact.createdAt),
-          updatedAt: new Date(savedContact.updatedAt),
-        });
+        // Update
+        saved = await contactsApi.updateContact(currentContact.id, contactData);
+        const normalized: Contact = {
+          ...saved,
+          createdAt: new Date(saved.createdAt),
+          updatedAt: new Date(saved.updatedAt),
+        };
+        setContacts((prev) => prev.map((c) => (c.id === currentContact.id ? normalized : c)));
+        setCurrentContact(normalized);
         setPanelMode('view');
         setValidationErrors([]);
       } else {
-        // Create new contact
-        savedContact = await contactsApi.createContact(contactData);
-        setContacts(prev => [...prev, {
-          ...savedContact,
-          createdAt: new Date(savedContact.createdAt),
-          updatedAt: new Date(savedContact.updatedAt),
-        }]);
+        // Create
+        saved = await contactsApi.createContact(contactData);
+        const normalized: Contact = {
+          ...saved,
+          createdAt: new Date(saved.createdAt),
+          updatedAt: new Date(saved.updatedAt),
+        };
+        setContacts((prev) => [...prev, normalized]);
         closeContactPanel();
       }
-      
+
       return true;
     } catch (error) {
       console.error('Failed to save contact:', error);
-      setValidationErrors([{ field: 'general', message: 'Failed to save contact. Please try again.' }]);
+      setValidationErrors([
+        { field: 'general', message: 'Failed to save contact. Please try again.' },
+      ]);
       return false;
     }
   };
 
   const deleteContact = async (id: string) => {
-    console.log("Deleting contact with id:", id);
     try {
       await contactsApi.deleteContact(id);
-      setContacts(prev => {
-        const newContacts = prev.filter(contact => contact.id !== id);
-        console.log("Contacts after delete:", newContacts);
-        return newContacts;
-      });
+      setContacts((prev) => prev.filter((c) => c.id !== id));
     } catch (error) {
       console.error('Failed to delete contact:', error);
     }
   };
 
-  // NEW: Panel Title Functions (moved from PanelTitles.tsx)
+  // Panel title helpers
   const getPanelTitle = (mode: string, item: Contact | null, isMobileView: boolean) => {
-    // View mode with item
     if (mode === 'view' && item) {
       const contactNumber = `#${item.contactNumber || item.id}`;
-      const name = item.companyName || `${item.firstName || ''} ${item.lastName || ''}`.trim();
+      // För privatpersoner lagras fullständigt namn i companyName i vår typ
+      const name = item.companyName || '';
       const orgNumber = item.organizationNumber || item.personalNumber || '';
-      
+
       if (isMobileView && orgNumber) {
         return (
           <div>
-            <div>{contactNumber} • {name}</div>
+            <div>
+              {contactNumber} • {name}
+            </div>
             <div className="text-sm font-normal text-gray-600 mt-1">{orgNumber}</div>
           </div>
         );
@@ -327,16 +313,17 @@ useEffect(() => {
       return `${contactNumber} • ${name}${orgNumber ? ` • ${orgNumber}` : ''}`;
     }
 
-    // Non-view modes (create/edit)
     switch (mode) {
-      case 'edit': return 'Edit Contact';
-      case 'create': return 'Create Contact';
-      default: return 'Contact';
+      case 'edit':
+        return 'Edit Contact';
+      case 'create':
+        return 'Create Contact';
+      default:
+        return 'Contact';
     }
   };
 
   const getPanelSubtitle = (mode: string, item: Contact | null) => {
-    // View mode with item
     if (mode === 'view' && item) {
       const isCompany = item.contactType === 'company';
       const Icon = isCompany ? Building : User;
@@ -352,17 +339,20 @@ useEffect(() => {
       );
     }
 
-    // Non-view modes
     switch (mode) {
-      case 'edit': return 'Update contact information';
-      case 'create': return 'Enter new contact details';
-      default: return '';
+      case 'edit':
+        return 'Update contact information';
+      case 'create':
+        return 'Enter new contact details';
+      default:
+        return '';
     }
   };
 
   const getDeleteMessage = (item: Contact | null) => {
-    if (!item) return 'Are you sure you want to delete this contact?';
-    
+    if (!item) {
+      return 'Are you sure you want to delete this contact?';
+    }
     const itemName = item.companyName || 'this contact';
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
@@ -373,10 +363,10 @@ useEffect(() => {
     currentContact,
     panelMode,
     validationErrors,
-    
+
     // Contacts Data
     contacts,
-    
+
     // Contact Actions
     openContactPanel,
     openContactForEdit,
@@ -385,18 +375,14 @@ useEffect(() => {
     saveContact,
     deleteContact,
     clearValidationErrors,
-    
-    // NEW: Panel Title Functions
+
+    // Panel Title helpers
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
   };
 
-  return (
-    <ContactContext.Provider value={value}>
-      {children}
-    </ContactContext.Provider>
-  );
+  return <ContactContext.Provider value={value}>{children}</ContactContext.Provider>;
 }
 
 export function useContactContext() {

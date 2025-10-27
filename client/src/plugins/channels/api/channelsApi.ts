@@ -22,15 +22,22 @@ export class TemplateApi {
 
     if (!response.ok) {
       let payload: any = null;
-      try { payload = await response.json(); } catch {}
+      try {
+        payload = await response.json();
+      } catch (_err) {
+        // ESLint no-empty fix: om body inte är JSON/empty, ignorera parse-felet
+        void _err;
+      }
 
       const err: any = new Error(
         response.status === 409 && payload?.errors?.[0]?.message
           ? payload.errors[0].message
-          : (payload?.error || response.statusText || 'Request failed')
+          : payload?.error || response.statusText || 'Request failed',
       );
       err.status = response.status;
-      if (payload?.errors) err.errors = payload.errors as ApiFieldError[];
+      if (payload?.errors) {
+        err.errors = payload.errors as ApiFieldError[];
+      }
       throw err;
     }
 
@@ -61,16 +68,16 @@ export interface ValidationError {
 }
 
 export interface ChannelSummary {
-  id: string;                     // same as 'channel'
-  channel: string;                // e.g., 'woocommerce', 'fyndiq', 'cdon'
-  configured: boolean;            // has required settings/credentials
-  mappedCount: number;            // rows in channel_product_map for this channel
-  enabledCount: number;           // products currently enabled for this channel
+  id: string; // same as 'channel'
+  channel: string; // e.g., 'woocommerce', 'fyndiq', 'cdon'
+  configured: boolean; // has required settings/credentials
+  mappedCount: number; // rows in channel_product_map for this channel
+  enabledCount: number; // products currently enabled for this channel
   status: {
-    success: number;              // last sync successes
-    error: number;                // last sync errors
-    queued: number;               // queued sync jobs
-    idle: number;                 // no-op/unchanged
+    success: number; // last sync successes
+    error: number; // last sync errors
+    queued: number; // queued sync jobs
+    idle: number; // no-op/unchanged
   };
   lastSyncedAt?: Date | string | null;
 }

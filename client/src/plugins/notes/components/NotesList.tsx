@@ -1,17 +1,30 @@
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  StickyNote,
+  ChevronUp,
+  ChevronDown,
+  Search,
+  Copy,
+} from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, StickyNote, ChevronUp, ChevronDown, Search, Copy } from 'lucide-react';
-import { useNotes } from '../hooks/useNotes';
-import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+
 import { Button } from '@/core/ui/Button';
-import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { Heading, Text } from '@/core/ui/Typography';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+
+import { useNotes } from '../hooks/useNotes';
 
 type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
 export const NotesList: React.FC = () => {
-  const { notes, openNotePanel, openNoteForEdit, openNoteForView, deleteNote, duplicateNote } = useNotes();
+  const { notes, openNotePanel, openNoteForEdit, openNoteForView, deleteNote, duplicateNote } =
+    useNotes();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -21,9 +34,9 @@ export const NotesList: React.FC = () => {
   }>({
     isOpen: false,
     noteId: '',
-    noteTitle: ''
+    noteTitle: '',
   });
-  
+
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [isMobileView, setIsMobileView] = useState(false);
@@ -32,10 +45,10 @@ export const NotesList: React.FC = () => {
     const checkScreenSize = () => {
       setIsMobileView(window.innerWidth < 768);
     };
-    
+
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
-    
+
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
@@ -49,18 +62,20 @@ export const NotesList: React.FC = () => {
   };
 
   const sortedNotes = useMemo(() => {
-    const filtered = notes.filter(note => 
-      note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (note.mentions && note.mentions.some((mention: any) => 
-        mention.contactName.toLowerCase().includes(searchTerm.toLowerCase())
-      ))
+    const filtered = notes.filter(
+      (note) =>
+        note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (note.mentions &&
+          note.mentions.some((mention: any) =>
+            mention.contactName.toLowerCase().includes(searchTerm.toLowerCase()),
+          )),
     );
 
     return [...filtered].sort((a, b) => {
       let aValue: string | Date;
       let bValue: string | Date;
-      
+
       if (sortField === 'title') {
         aValue = a.title.toLowerCase();
         bValue = b.title.toLowerCase();
@@ -71,7 +86,7 @@ export const NotesList: React.FC = () => {
         aValue = a.updatedAt;
         bValue = b.updatedAt;
       }
-      
+
       if (sortField === 'title') {
         if (sortOrder === 'asc') {
           return (aValue as string).localeCompare(bValue as string);
@@ -89,17 +104,21 @@ export const NotesList: React.FC = () => {
   }, [notes, searchTerm, sortField, sortOrder]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null;
-    return sortOrder === 'asc' ? 
-      <ChevronUp className="w-4 h-4" /> : 
-      <ChevronDown className="w-4 h-4" />;
+    if (sortField !== field) {
+      return null;
+    }
+    return sortOrder === 'asc' ? (
+      <ChevronUp className="w-4 h-4" />
+    ) : (
+      <ChevronDown className="w-4 h-4" />
+    );
   };
 
   const handleDelete = (id: string, title: string) => {
     setDeleteConfirm({
       isOpen: true,
       noteId: id,
-      noteTitle: title
+      noteTitle: title,
     });
   };
 
@@ -108,7 +127,7 @@ export const NotesList: React.FC = () => {
     setDeleteConfirm({
       isOpen: false,
       noteId: '',
-      noteTitle: ''
+      noteTitle: '',
     });
   };
 
@@ -116,7 +135,7 @@ export const NotesList: React.FC = () => {
     setDeleteConfirm({
       isOpen: false,
       noteId: '',
-      noteTitle: ''
+      noteTitle: '',
     });
   };
 
@@ -130,7 +149,9 @@ export const NotesList: React.FC = () => {
   };
 
   const truncateContent = (content: string, maxLength: number = 100) => {
-    if (content.length <= maxLength) return content;
+    if (content.length <= maxLength) {
+      return content;
+    }
     return content.substring(0, maxLength) + '...';
   };
 
@@ -157,10 +178,10 @@ export const NotesList: React.FC = () => {
     <div className="p-4 sm:p-8">
       <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-        <Heading level={1}>
-  Notes ({searchTerm ? sortedNotes.length : notes.length}
-  {searchTerm && sortedNotes.length !== notes.length && ` of ${notes.length}`})
-</Heading>
+          <Heading level={1}>
+            Notes ({searchTerm ? sortedNotes.length : notes.length}
+            {searchTerm && sortedNotes.length !== notes.length && ` of ${notes.length}`})
+          </Heading>
           <Text variant="caption">Manage your notes and ideas</Text>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
@@ -174,11 +195,7 @@ export const NotesList: React.FC = () => {
               className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <Button
-            onClick={handleOpenPanel}
-            variant="primary"
-            icon={Plus}
-          >
+          <Button onClick={handleOpenPanel} variant="primary" icon={Plus}>
             Add Note
           </Button>
         </div>
@@ -189,7 +206,7 @@ export const NotesList: React.FC = () => {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th 
+                <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('title')}
                 >
@@ -204,7 +221,7 @@ export const NotesList: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Mentions
                 </th>
-                <th 
+                <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('updatedAt')}
                 >
@@ -222,13 +239,15 @@ export const NotesList: React.FC = () => {
               {sortedNotes.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                    {searchTerm ? 'No notes found matching your search.' : 'No notes yet. Click "Add Note" to get started.'}
+                    {searchTerm
+                      ? 'No notes found matching your search.'
+                      : 'No notes yet. Click "Add Note" to get started.'}
                   </td>
                 </tr>
               ) : (
                 sortedNotes.map((note, idx) => (
-                  <tr 
-                    key={note.id} 
+                  <tr
+                    key={note.id}
                     className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-yellow-50 focus:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-inset cursor-pointer`}
                     tabIndex={0}
                     data-list-item={JSON.stringify(note)}
@@ -274,9 +293,9 @@ export const NotesList: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           icon={Eye}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -294,9 +313,9 @@ export const NotesList: React.FC = () => {
                         >
                           Duplicate
                         </Button>
-                        <Button 
-                          variant="secondary" 
-                          size="sm" 
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           icon={Edit}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -316,7 +335,9 @@ export const NotesList: React.FC = () => {
           <div className="divide-y divide-gray-200">
             {sortedNotes.length === 0 ? (
               <div className="p-6 text-center text-gray-400">
-                {searchTerm ? 'No notes found matching your search.' : 'No notes yet. Click "Add Note" to get started.'}
+                {searchTerm
+                  ? 'No notes found matching your search.'
+                  : 'No notes yet. Click "Add Note" to get started.'}
               </div>
             ) : (
               sortedNotes.map((note) => (
@@ -332,7 +353,7 @@ export const NotesList: React.FC = () => {
                       <div className="mb-1">
                         <h3 className="text-sm font-medium text-gray-900">{note.title}</h3>
                       </div>
-                      
+
                       <div className="space-y-1">
                         <div className="text-xs text-gray-600">
                           {truncateContent(note.content, 80)}
@@ -354,9 +375,9 @@ export const NotesList: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         icon={Eye}
                         onClick={() => handleOpenForView(note)}
                         className="h-8 px-3"

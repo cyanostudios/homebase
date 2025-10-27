@@ -22,15 +22,22 @@ class WooApi {
 
     if (!response.ok) {
       let payload: any = null;
-      try { payload = await response.json(); } catch {}
+      try {
+        payload = await response.json();
+      } catch (_err) {
+        // payload saknas / ej JSON — helt ok
+        void _err;
+      }      
 
       const err: any = new Error(
         response.status === 409 && payload?.errors?.[0]?.message
           ? payload.errors[0].message
-          : (payload?.error || response.statusText || 'Request failed')
+          : payload?.error || response.statusText || 'Request failed',
       );
       err.status = response.status;
-      if (payload?.errors) err.errors = payload.errors as ApiFieldError[];
+      if (payload?.errors) {
+        err.errors = payload.errors as ApiFieldError[];
+      }
       throw err;
     }
 
@@ -43,12 +50,22 @@ class WooApi {
     return this.request('/settings');
   }
 
-  putSettings(data: { storeUrl: string; consumerKey: string; consumerSecret: string; useQueryAuth?: boolean }) {
+  putSettings(data: {
+    storeUrl: string;
+    consumerKey: string;
+    consumerSecret: string;
+    useQueryAuth?: boolean;
+  }) {
     return this.request('/settings', { method: 'PUT', body: JSON.stringify(data) });
   }
 
   // ---- Connection test ----
-  testConnection(data?: { storeUrl?: string; consumerKey?: string; consumerSecret?: string; useQueryAuth?: boolean }) {
+  testConnection(data?: {
+    storeUrl?: string;
+    consumerKey?: string;
+    consumerSecret?: string;
+    useQueryAuth?: boolean;
+  }) {
     return this.request('/test', { method: 'POST', body: JSON.stringify(data || {}) });
   }
 

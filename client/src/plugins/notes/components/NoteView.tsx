@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
 import { StickyNote, User, CheckSquare, Copy, Download } from 'lucide-react';
-import { Heading, Text } from '@/core/ui/Typography';
-import { Card } from '@/core/ui/Card';
+import React, { useState, useEffect } from 'react';
+
+import { useApp } from '@/core/api/AppContext';
 import { Button } from '@/core/ui/Button';
-import { MentionContent } from './MentionContent';
+import { Card } from '@/core/ui/Card';
+import { Heading, Text } from '@/core/ui/Typography';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
-import { useApp } from '@/core/api/AppContext';
+
+import { MentionContent } from './MentionContent';
 
 interface NoteViewProps {
   note: any;
@@ -26,9 +28,9 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     const fetchContactsData = async () => {
       try {
         const response = await fetch('/api/contacts', {
-          credentials: 'include'
+          credentials: 'include',
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           setContactsData(data);
@@ -37,7 +39,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         console.error('Failed to load contacts data:', error);
       }
     };
-    
+
     if (note?.mentions && note.mentions.length > 0) {
       fetchContactsData();
     }
@@ -45,23 +47,23 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
 
   const handleContactClick = async (contactId: string) => {
     await refreshData();
-    
+
     try {
       const response = await fetch('/api/contacts', {
-        credentials: 'include'
+        credentials: 'include',
       });
-      
+
       if (response.ok) {
         const contactsData = await response.json();
         const contact = contactsData.find((c: any) => c.id === contactId);
-        
+
         if (contact) {
           const transformedContact = {
             ...contact,
             createdAt: new Date(contact.createdAt),
             updatedAt: new Date(contact.updatedAt),
           };
-          
+
           closeNotePanel();
           openContactForView(transformedContact);
         }
@@ -85,7 +87,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       };
 
       const success = await saveTask(taskData);
-      
+
       if (success) {
         setShowTaskCreated(true);
       }
@@ -97,13 +99,12 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   const handleDuplicateNote = async () => {
     try {
       await duplicateNote(note); // creates the copy (keeps list behavior unchanged)
-      closeNotePanel();          // close panel when duplicating from View
+      closeNotePanel(); // close panel when duplicating from View
     } catch (error) {
       console.error('Failed to duplicate note:', error);
       alert('Failed to duplicate note. Please try again.');
     }
   };
-  
 
   const handleExportNote = () => {
     const content = `${note.title}\n\n${note.content}\n\nCreated: ${new Date(note.createdAt).toLocaleDateString()}`;
@@ -116,12 +117,16 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     document.body.removeChild(element);
   };
 
-  if (!note) return null;
+  if (!note) {
+    return null;
+  }
 
   return (
     <div className="space-y-4">
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Content</Heading>
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+          Content
+        </Heading>
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <div className="prose prose-sm max-w-none text-sm">
             <MentionContent content={note.content} mentions={note.mentions || []} />
@@ -134,7 +139,9 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       {note.mentions && note.mentions.length > 0 && (
         <>
           <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Mentioned Contacts</Heading>
+            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+              Mentioned Contacts
+            </Heading>
             <div className="space-y-2">
               {note.mentions.map((mention: any, index: number) => {
                 const contactData = contactsData.find((c: any) => c.id === mention.contactId);
@@ -145,31 +152,33 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                     const name = mention.contactName;
                     return `${contactNumber} • ${name} (deleted contact)`;
                   }
-                  
+
                   const contactNumber = `#${contactData.contactNumber || contactData.id}`;
                   const name = mention.contactName;
-                  const orgPersonNumber = contactData.organizationNumber || contactData.personalNumber || '';
-                  
+                  const orgPersonNumber =
+                    contactData.organizationNumber || contactData.personalNumber || '';
+
                   return `${contactNumber} • ${name}${orgPersonNumber ? ` • ${orgPersonNumber}` : ''}`;
                 };
 
                 return (
-                  <div key={index} className={`flex items-center justify-between p-3 rounded-lg border ${
-                    contactData 
-                      ? 'bg-blue-50 border-blue-200' 
-                      : 'bg-gray-50 border-gray-200'
-                  }`}>
+                  <div
+                    key={index}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                      contactData ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
                     <div className="text-sm">
                       <span className="font-medium text-gray-900">{getDisplayText()}</span>
                     </div>
                     <Button
                       size="sm"
                       variant="secondary"
-                      onClick={() => contactData ? handleContactClick(mention.contactId) : null}
+                      onClick={() => (contactData ? handleContactClick(mention.contactId) : null)}
                       disabled={!contactData}
                       className={`ml-3 flex-shrink-0 ${
-                        contactData 
-                          ? 'text-blue-700 hover:text-blue-800' 
+                        contactData
+                          ? 'text-blue-700 hover:text-blue-800'
                           : 'text-gray-400 cursor-not-allowed'
                       }`}
                     >
@@ -186,32 +195,23 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       )}
 
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Quick Actions</Heading>
-        
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+          Quick Actions
+        </Heading>
+
         <div className="mb-4">
           <div className="text-xs font-medium text-gray-700 mb-2">Note Actions</div>
           <div className="flex flex-wrap gap-2">
-            
-            <Button 
-              variant="secondary" 
-              size="sm"
-              icon={Download}
-              onClick={handleExportNote}
-            >
+            <Button variant="secondary" size="sm" icon={Download} onClick={handleExportNote}>
               Export as Text
             </Button>
-            
-            <Button 
-              variant="secondary" 
-              size="sm"
-              icon={Copy}
-              onClick={handleDuplicateNote}
-            >
+
+            <Button variant="secondary" size="sm" icon={Copy} onClick={handleDuplicateNote}>
               Duplicate Note
             </Button>
-            
-            <Button 
-              variant="primary" 
+
+            <Button
+              variant="primary"
               size="sm"
               icon={CheckSquare}
               onClick={handleConvertToTask}
@@ -226,7 +226,9 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       <hr className="border-gray-100" />
 
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">Note Information</Heading>
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+          Note Information
+        </Heading>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <div className="text-xs text-gray-500">System ID</div>
@@ -234,11 +236,15 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
           </div>
           <div>
             <div className="text-xs text-gray-500">Created</div>
-            <div className="text-sm text-gray-900">{new Date(note.createdAt).toLocaleDateString()}</div>
+            <div className="text-sm text-gray-900">
+              {new Date(note.createdAt).toLocaleDateString()}
+            </div>
           </div>
           <div>
             <div className="text-xs text-gray-500">Last Updated</div>
-            <div className="text-sm text-gray-900">{new Date(note.updatedAt).toLocaleDateString()}</div>
+            <div className="text-sm text-gray-900">
+              {new Date(note.updatedAt).toLocaleDateString()}
+            </div>
           </div>
         </div>
       </Card>

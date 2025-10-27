@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  Home, 
-  FileText, 
-  BookOpen, 
-  Calculator, 
-  Users, 
-  FolderOpen, 
-  Settings, 
+import {
+  Home,
+  FileText,
+  BookOpen,
+  Calculator,
+  Users,
+  FolderOpen,
+  Settings,
   User,
   UserCheck,
   Trophy,
@@ -14,17 +13,32 @@ import {
   Package,
   StickyNote,
   CheckSquare,
-  ChevronLeft, 
+  ChevronLeft,
   ChevronRight,
   LogOut,
   Train,
   ShoppingCart, // + Woo
-  Globe // + Channels
+  Globe, // + Channels
+  Files as FilesIcon, // + Files
 } from 'lucide-react';
-import { useSidebar } from './MainLayout';
+import React, { useEffect, useState } from 'react';
+
 import { useApp } from '@/core/api/AppContext';
 
-type NavPage = 'contacts' | 'notes' | 'estimates' | 'tasks' | 'products' | 'rails' | 'woocommerce-products' | 'channels';
+import { useSidebar } from './MainLayout';
+
+// ⬇⬇⬇ EXPORTERA NavPage ⬇⬇⬇
+export type NavPage =
+  | 'contacts'
+  | 'notes'
+  | 'estimates'
+  | 'invoices'        // <-- ADDED
+  | 'tasks'
+  | 'products'
+  | 'rails'
+  | 'woocommerce-products'
+  | 'channels'
+  | 'files';
 
 interface SidebarProps {
   currentPage: NavPage;
@@ -41,47 +55,48 @@ const navCategories = [
       { label: 'Tasks', icon: CheckSquare, page: 'tasks' as NavPage },
       { label: 'Calendar', icon: Calendar, page: null },
       { label: 'Planner', icon: Calendar, page: null },
-    ]
+    ],
   },
   {
     title: 'Business',
     items: [
       { label: 'Estimates', icon: Calculator, page: 'estimates' as NavPage },
-      { label: 'Invoice', icon: FileText, page: null },
+      { label: 'Invoice', icon: FileText, page: 'invoices' as NavPage }, // <-- CHANGED: now clickable
       { label: 'Journal', icon: BookOpen, page: null },
       { label: 'Bookkeeping', icon: Calculator, page: null },
       { label: 'Projects', icon: FolderOpen, page: null },
       { label: 'Equipment', icon: Package, page: null },
-    ]
+    ],
   },
   {
     title: 'E-commerce',
     items: [
       { label: 'Products', icon: Package, page: 'products' as NavPage },
-      { label: 'Channels', icon: Globe, page: 'channels' as NavPage },                // + NEW
+      { label: 'Channels', icon: Globe, page: 'channels' as NavPage }, // + NEW
       { label: 'WooCommerce', icon: ShoppingCart, page: 'woocommerce-products' as NavPage }, // + NEW
-    ]
+    ],
   },
   {
     title: 'Tools',
     items: [
       { label: 'Rail', icon: Train, page: 'rails' as NavPage },
-    ]
+      { label: 'Files', icon: FilesIcon, page: 'files' as NavPage }, // + NEW
+    ],
   },
   {
     title: 'Sports',
     items: [
       { label: 'Referee', icon: UserCheck, page: null },
       { label: 'Matches', icon: Trophy, page: null },
-    ]
+    ],
   },
   {
     title: 'Account',
     items: [
       { label: 'Settings', icon: Settings, page: null },
       { label: 'Profile', icon: User, page: null },
-    ]
-  }
+    ],
+  },
 ];
 
 export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
@@ -102,32 +117,42 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     await logout();
   };
 
-  // Updated to include 'woocommerce-products' and 'channels'
+  // Updated to include 'woocommerce-products', 'channels', 'files' and 'invoices'
   const handleMenuItemClick = (page: NavPage | null) => {
-    if (isMobile && isMobileOverlay) setIsMobileOverlay(false);
+    if (isMobile && isMobileOverlay) {
+      setIsMobileOverlay(false);
+    }
     if (
       page === 'contacts' ||
       page === 'notes' ||
       page === 'estimates' ||
+      page === 'invoices' || // <-- ADDED
       page === 'tasks' ||
       page === 'products' ||
       page === 'rails' ||
       page === 'woocommerce-products' ||
-      page === 'channels'
+      page === 'channels' ||
+      page === 'files'
     ) {
       onPageChange(page);
     }
   };
 
   return (
-    <aside className={`left-0 top-0 h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-40
+    <aside
+      className={`left-0 top-0 h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-40
       ${isMobile ? 'fixed' : 'sticky'}
-      ${isMobile ? (
-        isMobileOverlay ? 'translate-x-0 w-64' : '-translate-x-full w-64'
-      ) : (
-        isCollapsed ? 'w-16' : 'w-64'
-      )}
-    `}>
+      ${
+        isMobile
+          ? isMobileOverlay
+            ? 'translate-x-0 w-64'
+            : '-translate-x-full w-64'
+          : isCollapsed
+            ? 'w-16'
+            : 'w-64'
+      }
+    `}
+    >
       <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
         {(!isCollapsed || (isMobile && isMobileOverlay)) && (
           <span className="text-xl font-bold text-blue-600 tracking-tight">Homebase</span>
@@ -142,14 +167,14 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
           }}
           className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
         >
-          {(isCollapsed && !isMobileOverlay) ? (
+          {isCollapsed && !isMobileOverlay ? (
             <ChevronRight className="w-4 h-4 text-gray-600" />
           ) : (
             <ChevronLeft className="w-4 h-4 text-gray-600" />
           )}
         </button>
       </div>
-      
+
       <nav className="flex-1 py-6 px-2 space-y-6 overflow-y-auto">
         {navCategories.map((category) => (
           <div key={category.title}>
@@ -164,15 +189,13 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
                   key={item.label}
                   onClick={() => handleMenuItemClick(item.page)}
                   className={`w-full flex items-center px-3 py-2 rounded-lg transition-colors font-medium text-sm ${
-                    (isCollapsed && !(isMobile && isMobileOverlay)) ? 'justify-center' : 'gap-3'
+                    isCollapsed && !(isMobile && isMobileOverlay) ? 'justify-center' : 'gap-3'
                   } ${
-                    item.page === currentPage 
-                      ? 'bg-blue-50 text-blue-700' 
+                    item.page === currentPage
+                      ? 'bg-blue-50 text-blue-700'
                       : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
-                  } ${
-                    item.page === null ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                  }`}
-                  title={(isCollapsed && !(isMobile && isMobileOverlay)) ? item.label : undefined}
+                  } ${item.page === null ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  title={isCollapsed && !(isMobile && isMobileOverlay) ? item.label : undefined}
                   disabled={item.page === null}
                 >
                   <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -183,7 +206,7 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
           </div>
         ))}
       </nav>
-      
+
       {/* User info and Logout at bottom */}
       <div className="border-t border-gray-200">
         {/* User info */}
@@ -198,15 +221,15 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
             </div>
           </div>
         )}
-        
+
         {/* Logout button */}
         <div className="p-2">
           <button
             onClick={handleLogout}
             className={`w-full flex items-center px-3 py-2 rounded-lg transition-colors font-medium text-sm text-red-600 hover:bg-red-50 ${
-              (isCollapsed && !(isMobile && isMobileOverlay)) ? 'justify-center' : 'gap-3'
+              isCollapsed && !(isMobile && isMobileOverlay) ? 'justify-center' : 'gap-3'
             }`}
-            title={(isCollapsed && !(isMobile && isMobileOverlay)) ? 'Logout' : undefined}
+            title={isCollapsed && !(isMobile && isMobileOverlay) ? 'Logout' : undefined}
           >
             <LogOut className="w-5 h-5 flex-shrink-0" />
             {(!isCollapsed || (isMobile && isMobileOverlay)) && <span>Logout</span>}

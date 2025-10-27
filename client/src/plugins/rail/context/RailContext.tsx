@@ -1,6 +1,8 @@
 // client/src/plugins/rail/context/RailContext.tsx
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+
 import { useApp } from '@/core/api/AppContext';
+
 import { railApi, type RailStation } from '../api/railApi';
 
 type ValidationError = { field: string; message: string };
@@ -66,7 +68,9 @@ export function RailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const [stations, setStations] = useState<RailStation[]>([]);
   const [loadingStations, setLoadingStations] = useState(false);
 
-  const [announcementsByStation, setAnnouncementsByStation] = useState<Record<string, Announcement[]>>({});
+  const [announcementsByStation, setAnnouncementsByStation] = useState<
+    Record<string, Announcement[]>
+  >({});
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
 
   // ---- Rail-specifika helpers (MEMOIZED) ----
@@ -74,7 +78,11 @@ export function RailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setLoadingStations(true);
     try {
       const res = await railApi.getStations(force);
-      const list = Array.isArray((res as any)?.stations) ? (res as any).stations : (Array.isArray(res) ? (res as any) : []);
+      const list = Array.isArray((res as any)?.stations)
+        ? (res as any).stations
+        : Array.isArray(res)
+          ? (res as any)
+          : [];
       setStations(list);
     } finally {
       setLoadingStations(false);
@@ -127,29 +135,38 @@ export function RailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   }, [isAuthenticated, refreshStations]); // Now includes refreshStations in deps
 
   // ---- Actions (core-krav) ----
-  const openRailPanel = useCallback((item: any | null) => {
-    setCurrentRail(item);
-    setPanelMode(item ? 'edit' : 'create');
-    setIsRailPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+  const openRailPanel = useCallback(
+    (item: any | null) => {
+      setCurrentRail(item);
+      setPanelMode(item ? 'edit' : 'create');
+      setIsRailPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
-  const openRailForEdit = useCallback((item: any) => {
-    setCurrentRail(item);
-    setPanelMode('edit');
-    setIsRailPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+  const openRailForEdit = useCallback(
+    (item: any) => {
+      setCurrentRail(item);
+      setPanelMode('edit');
+      setIsRailPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
-  const openRailForView = useCallback((item: any) => {
-    setCurrentRail(item);
-    setPanelMode('view');
-    setIsRailPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+  const openRailForView = useCallback(
+    (item: any) => {
+      setCurrentRail(item);
+      setPanelMode('view');
+      setIsRailPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
   const closeRailPanel = useCallback(() => {
     setIsRailPanelOpen(false);
@@ -170,11 +187,16 @@ export function RailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const codeMap = useMemo(() => {
     const m = new Map<string, string>();
-    for (const s of stations) m.set(s.code, s.name);
+    for (const s of stations) {
+      m.set(s.code, s.name);
+    }
     return m;
   }, [stations]);
 
-  const codeToName = useCallback((code?: string) => (code ? codeMap.get(code) ?? code : ''), [codeMap]);
+  const codeToName = useCallback(
+    (code?: string) => (code ? (codeMap.get(code) ?? code) : ''),
+    [codeMap],
+  );
 
   const value: RailContextType = {
     // Panel
@@ -209,6 +231,8 @@ export function RailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
 export function useRail() {
   const ctx = useContext(RailContext);
-  if (!ctx) throw new Error('useRail must be used within a RailProvider');
+  if (!ctx) {
+    throw new Error('useRail must be used within a RailProvider');
+  }
   return ctx;
 }

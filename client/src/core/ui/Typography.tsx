@@ -9,31 +9,32 @@ interface HeadingProps {
   fontWeight?: 'normal' | 'medium' | 'semibold' | 'bold';
 }
 
-export function Heading({ 
-  level, 
-  className = '', 
+export function Heading({
+  level,
+  className = '',
   children,
   color = 'gray-900',
   size,
-  fontWeight = 'semibold'
+  fontWeight = 'semibold',
 }: HeadingProps) {
   const defaultLevelSizes = {
-    1: "text-2xl",
-    2: "text-lg", 
-    3: "text-base",
-    4: "text-sm"
+    1: 'text-2xl',
+    2: 'text-lg',
+    3: 'text-base',
+    4: 'text-sm',
   };
 
   const defaultLevelWeights = {
-    1: "font-bold",
-    2: "font-semibold",
-    3: "font-semibold", 
-    4: "font-semibold"
+    1: 'font-bold',
+    2: 'font-semibold',
+    3: 'font-semibold',
+    4: 'font-semibold',
   };
 
   // Build classes based on props or defaults
   const sizeClass = size ? `text-${size}` : defaultLevelSizes[level];
-  const weightClass = fontWeight === 'semibold' && !size ? defaultLevelWeights[level] : `font-${fontWeight}`;
+  const weightClass =
+    fontWeight === 'semibold' && !size ? defaultLevelWeights[level] : `font-${fontWeight}`;
   const colorClass = `text-${color}`;
 
   const Component = `h${level}` as keyof JSX.IntrinsicElements;
@@ -54,18 +55,18 @@ interface TextProps {
   element?: 'p' | 'span' | 'div';
 }
 
-export function Text({ 
-  variant = 'body', 
-  className = '', 
+export function Text({
+  variant = 'body',
+  className = '',
   children,
   size,
   color,
-  element = 'p'
+  element = 'p',
 }: TextProps) {
   const variantStyles = {
-    body: "text-gray-900",
-    caption: "text-gray-600",
-    muted: "text-sm text-gray-500",
+    body: 'text-gray-900',
+    caption: 'text-gray-600',
+    muted: 'text-sm text-gray-500',
   };
 
   // If size or color is provided, build custom classes

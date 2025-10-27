@@ -16,16 +16,23 @@ class ProductsApi {
 
     if (!response.ok) {
       let payload: any = null;
-      try { payload = await response.json(); } catch {}
+      try {
+        payload = await response.json();
+      } catch (_err) {
+        // payload saknas / ej JSON — helt ok
+        void _err;
+      }      
 
       // Build an error object and attach details
       const err: any = new Error(
         response.status === 409 && payload?.errors?.[0]?.message
           ? payload.errors[0].message
-          : (payload?.error || response.statusText || 'Request failed')
+          : payload?.error || response.statusText || 'Request failed',
       );
       err.status = response.status;
-      if (payload?.errors) err.errors = payload.errors; // [{ field, message }]
+      if (payload?.errors) {
+        err.errors = payload.errors;
+      } // [{ field, message }]
       throw err;
     }
 

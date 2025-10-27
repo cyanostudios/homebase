@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
+
 import { useApp } from '@/core/api/AppContext';
+
 import { channelsApi } from '../api/channelsApi';
 import type { ChannelSummary, ValidationError } from '../types/channels';
 
@@ -63,7 +65,6 @@ export function ChannelsProvider({ children, isAuthenticated, onCloseOtherPanels
     } else {
       setChannels([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   // Register panel close with App
@@ -105,7 +106,11 @@ export function ChannelsProvider({ children, isAuthenticated, onCloseOtherPanels
   // Safe per-product enable/disable for a channel:
   // - Calls backing API
   // - Locally merges returned summary into `channels`
-  const setProductEnabled = async (args: { productId: string; channel: string; enabled: boolean }) => {
+  const setProductEnabled = async (args: {
+    productId: string;
+    channel: string;
+    enabled: boolean;
+  }) => {
     const res = await channelsApi.setProductEnabled({
       productId: String(args.productId),
       channel: String(args.channel).toLowerCase(),
@@ -114,9 +119,13 @@ export function ChannelsProvider({ children, isAuthenticated, onCloseOtherPanels
     const summary: ChannelSummary | null = res?.summary ?? null;
 
     if (summary) {
-      setChannels(prev => {
-        const idx = prev.findIndex(s => String(s.channel).toLowerCase() === String(summary.channel).toLowerCase());
-        if (idx === -1) return [...prev, summary];
+      setChannels((prev) => {
+        const idx = prev.findIndex(
+          (s) => String(s.channel).toLowerCase() === String(summary.channel).toLowerCase(),
+        );
+        if (idx === -1) {
+          return [...prev, summary];
+        }
         const next = prev.slice();
         next[idx] = { ...next[idx], ...summary };
         return next;
@@ -166,30 +175,35 @@ export function ChannelsProvider({ children, isAuthenticated, onCloseOtherPanels
 
   const clearValidationErrors = () => setValidationErrors([]);
 
-  const value: ChannelsContextType = useMemo(() => ({
-    isChannelsPanelOpen,
-    currentChannel,
-    panelMode,
-    validationErrors,
-    channels,
-    openChannelsPanel,
-    openChannelForEdit,
-    openChannelForView,
-    closeChannelsPanel,
-    closeChannelPanel, // singular alias used by the generic panel system
-    saveChannel,
-    deleteChannel,
-    clearValidationErrors,
-    loadChannels,
-    setProductEnabled,
-  }), [isChannelsPanelOpen, currentChannel, panelMode, validationErrors, channels]);
+  const value: ChannelsContextType = useMemo(
+    () => ({
+      isChannelsPanelOpen,
+      currentChannel,
+      panelMode,
+      validationErrors,
+      channels,
+      openChannelsPanel,
+      openChannelForEdit,
+      openChannelForView,
+      closeChannelsPanel,
+      closeChannelPanel, // singular alias used by the generic panel system
+      saveChannel,
+      deleteChannel,
+      clearValidationErrors,
+      loadChannels,
+      setProductEnabled,
+    }),
+    [isChannelsPanelOpen, currentChannel, panelMode, validationErrors, channels],
+  );
 
   return <ChannelsContext.Provider value={value}>{children}</ChannelsContext.Provider>;
 }
 
 export function useChannelsContext() {
   const ctx = useContext(ChannelsContext);
-  if (!ctx) throw new Error('useChannelsContext must be used within a ChannelsProvider');
+  if (!ctx) {
+    throw new Error('useChannelsContext must be used within a ChannelsProvider');
+  }
   return ctx;
 }
 

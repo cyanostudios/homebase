@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
 import { Menu } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+
+import { ClockDisplay } from './clock/ClockDisplay';
 import { useSidebar } from './MainLayout';
 import { PomodoroTimer } from './pomodoro/PomodoroTimer';
-import { ClockDisplay } from './clock/ClockDisplay';
 
 interface TopBarProps {
   height?: number;
@@ -11,12 +12,7 @@ interface TopBarProps {
   children?: React.ReactNode;
 }
 
-export function TopBar({
-  height = 64,
-  showClock = true,
-  className = '',
-  children
-}: TopBarProps) {
+export function TopBar({ height = 64, showClock = true, className = '', children }: TopBarProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [openPanel, setOpenPanel] = useState<'pomodoro' | 'clock' | null>(null);
   const { isMobileOverlay, setIsMobileOverlay } = useSidebar();
@@ -25,10 +21,10 @@ export function TopBar({
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 768); // md breakpoint
     };
-    
+
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
-    
+
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
@@ -41,7 +37,7 @@ export function TopBar({
   };
 
   return (
-    <div 
+    <div
       className={`w-full bg-white border-b border-gray-200 flex items-center justify-between px-6 ${className}`}
       style={{ height: `${height}px` }}
     >
@@ -61,16 +57,16 @@ export function TopBar({
       {/* Right side - Pomodoro Timer + Clock */}
       <div className="flex items-center gap-4 relative">
         {/* Pomodoro Timer */}
-        <PomodoroTimer 
-          compact={true} 
+        <PomodoroTimer
+          compact={true}
           isExpanded={openPanel === 'pomodoro'}
           onToggle={() => handlePanelToggle('pomodoro')}
           onClose={handleClosePanel}
         />
-        
+
         {/* Clock */}
         {showClock && (
-          <ClockDisplay 
+          <ClockDisplay
             compact={true}
             isExpanded={openPanel === 'clock'}
             onToggle={() => handlePanelToggle('clock')}

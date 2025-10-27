@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { PomodoroSettings, DEFAULT_SETTINGS, loadSettings, saveSettings } from './pomodoroSettings';
+
 import { pomodoroAudio } from './pomodoroAudio';
+import { PomodoroSettings, DEFAULT_SETTINGS, loadSettings, saveSettings } from './pomodoroSettings';
 
 type TimerState = 'idle' | 'running' | 'paused';
 type SessionType = 'work' | 'shortBreak' | 'longBreak';
@@ -11,7 +12,7 @@ export function usePomodoroTimer() {
   const [state, setState] = useState<TimerState>('idle');
   const [sessionType, setSessionType] = useState<SessionType>('work');
   const [completedSessions, setCompletedSessions] = useState(0);
-  
+
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const autoStartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -49,20 +50,24 @@ export function usePomodoroTimer() {
   const progress = ((getCurrentDuration() - timeLeft) / getCurrentDuration()) * 100;
 
   // Update settings
-  const updateSettings = useCallback((newSettings: PomodoroSettings) => {
-    setSettings(newSettings);
-    saveSettings(newSettings);
-    
-    // Update timeLeft if we're idle
-    if (state === 'idle') {
-      const duration = sessionType === 'work' 
-        ? newSettings.workDuration * 60
-        : sessionType === 'shortBreak'
-        ? newSettings.shortBreakDuration * 60
-        : newSettings.longBreakDuration * 60;
-      setTimeLeft(duration);
-    }
-  }, [state, sessionType]);
+  const updateSettings = useCallback(
+    (newSettings: PomodoroSettings) => {
+      setSettings(newSettings);
+      saveSettings(newSettings);
+
+      // Update timeLeft if we're idle
+      if (state === 'idle') {
+        const duration =
+          sessionType === 'work'
+            ? newSettings.workDuration * 60
+            : sessionType === 'shortBreak'
+              ? newSettings.shortBreakDuration * 60
+              : newSettings.longBreakDuration * 60;
+        setTimeLeft(duration);
+      }
+    },
+    [state, sessionType],
+  );
 
   // Start timer
   const start = () => {
@@ -112,17 +117,15 @@ export function usePomodoroTimer() {
     // Show notification if enabled
     if (settings.notificationsEnabled) {
       if (sessionType === 'work') {
-        const isLongBreak = Math.ceil(newCompletedSessions / 2) % settings.sessionsUntilLongBreak === 0;
+        const isLongBreak =
+          Math.ceil(newCompletedSessions / 2) % settings.sessionsUntilLongBreak === 0;
         const breakType = isLongBreak ? 'long break' : 'short break';
         pomodoroAudio.showNotification(
           'Work Session Complete! 🍅',
-          `Time for a ${breakType}. Great job!`
+          `Time for a ${breakType}. Great job!`,
         );
       } else {
-        pomodoroAudio.showNotification(
-          'Break Time Over! ⚡',
-          'Ready to get back to work?'
-        );
+        pomodoroAudio.showNotification('Break Time Over! ⚡', 'Ready to get back to work?');
       }
     }
 
@@ -209,10 +212,10 @@ export function usePomodoroTimer() {
     totalSessions,
     progress,
     settings,
-    
+
     // Formatted data
     timeDisplay: formatTime(timeLeft),
-    
+
     // Actions
     start,
     pause,
