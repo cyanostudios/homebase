@@ -127,6 +127,20 @@ async function setupDatabase() {
       )
     `);
     
+    // User files table for files plugin (NEW)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_files (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        size BIGINT,
+        mime_type VARCHAR(255),
+        url VARCHAR(500),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
     // Sessions table for express-session
     await client.query(`
       CREATE TABLE IF NOT EXISTS sessions (
@@ -148,6 +162,7 @@ async function setupDatabase() {
     await client.query('CREATE INDEX IF NOT EXISTS idx_estimate_shares_token ON estimate_shares(share_token)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_estimate_shares_estimate_id ON estimate_shares(estimate_id)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_estimate_shares_valid_until ON estimate_shares(valid_until)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_user_files_user_id ON user_files(user_id)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_sessions_expire ON sessions(expire)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_plugin_access_user ON user_plugin_access(user_id, plugin_name)');
     
@@ -164,8 +179,8 @@ async function setupDatabase() {
     
     const superuserId = result.rows[0].id;
     
-    // Grant all plugin access to superuser
-    const plugins = ['contacts', 'notes', 'estimates'];
+    // Grant all plugin access to superuser (UPDATED with files)
+    const plugins = ['contacts', 'notes', 'estimates', 'files'];
     for (const plugin of plugins) {
       await client.query(`
         INSERT INTO user_plugin_access (user_id, plugin_name, granted_by)
@@ -177,8 +192,9 @@ async function setupDatabase() {
     console.log('✅ Database setup complete!');
     console.log('✅ Default superuser created: admin@homebase.se / admin123');
     console.log('⚠️  CHANGE DEFAULT PASSWORD AFTER FIRST LOGIN!');
-    console.log('✅ Plugin access granted: contacts, notes, estimates');
+    console.log('✅ Plugin access granted: contacts, notes, estimates, files');
     console.log('✅ Estimate sharing table created');
+    console.log('✅ Files upload table created');
     console.log('✅ Status reason tracking enabled for estimates');
     
     return superuserId;
