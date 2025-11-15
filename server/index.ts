@@ -169,6 +169,21 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ user: req.session.user });
 });
 
+// Serve static files from React build (production only)
+if (process.env.NODE_ENV === 'production') {
+  const buildPath = path.join(__dirname, 'public');
+  app.use(express.static(buildPath));
+  
+  // Serve index.html for all non-API routes (React Router support)
+  app.get('*', (req, res, next) => {
+    // Skip API routes
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(buildPath, 'index.html'));
+  });
+}
+
 // Load all plugins
 pluginLoader.loadPlugins(app);
 
