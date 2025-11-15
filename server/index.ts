@@ -16,6 +16,9 @@ require('dotenv').config({ path: '.env.local' });
 const app = express();
 const PORT = process.env.PORT || 3002;
 
+// Trust Railway proxy for secure cookies
+app.set('trust proxy', 1);
+
 // Database connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -57,6 +60,7 @@ app.use(
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     },
   }),
 );
