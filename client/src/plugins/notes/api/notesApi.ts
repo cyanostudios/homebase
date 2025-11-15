@@ -8,12 +8,10 @@ class NotesApi {
       credentials: 'include',
       ...options,
     });
-
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Network error' }));
       throw new Error(error.error || 'Request failed');
     }
-
     return response.json();
   }
 
@@ -36,7 +34,9 @@ class NotesApi {
   }
 
   async deleteNote(id: string) {
-    return this.request(`/notes/${id}`, { method: 'DELETE' });
+    return this.request(`/notes/${id}`, {
+      method: 'DELETE',
+    });
   }
 }
 
