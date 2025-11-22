@@ -1,8 +1,8 @@
 // server/neon-service.ts
 import axios from 'axios';
 import { Pool } from 'pg';
-import fs from 'fs';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 
 class NeonService {
   private apiKey: string;
