@@ -1,4 +1,4 @@
-// server/index-modular.ts
+// server/index.ts
 const express = require('express');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
@@ -7,11 +7,13 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const compression = require('compression');
 const cors = require('cors');
-
 const path = require('path');
-
 const PluginLoader = require('../plugin-loader');
 require('dotenv').config({ path: '.env.local' });
+
+// Initialize Neon Service
+const NeonService = require('./neon-service');
+const neonService = new NeonService(process.env.NEON_API_KEY);
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -19,7 +21,7 @@ const PORT = process.env.PORT || 3002;
 // Trust Railway proxy for secure cookies
 app.set('trust proxy', 1);
 
-// Database connection
+// Database connection (Railway PostgreSQL - for auth and tenant mapping)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
@@ -37,7 +39,6 @@ app.use(
     },
   }),
 );
-
 app.use(compression());
 app.use(
   cors({
@@ -169,6 +170,82 @@ app.post('/api/auth/logout', (req, res) => {
   });
 });
 
+// Signup endpoint with Neon tenant creation
+app.post('/api/auth/signup', async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    // Check if user exists
+    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Create user in Railway PostgreSQL
+    const userResult = await pool.query(
+      'INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role',
+      [email, passwordHash, 'user']
+    );
+
+    const user = userResult.rows[0];
+    console.log(`✅ Created user: ${user.email} (ID: ${user.id})`);
+
+    // Create Neon tenant database
+    console.log(`🏗️  Creating Neon database for user ${user.id}...`);
+    const tenantDb = await neonService.createTenantDatabase(user.id, user.email);
+
+    // Save tenant info in Railway PostgreSQL
+    await pool.query(
+      'INSERT INTO tenants (user_id, neon_project_id, neon_database_name, neon_connection_string) VALUES ($1, $2, $3, $4)',
+      [user.id, tenantDb.projectId, tenantDb.databaseName, tenantDb.connectionString]
+    );
+
+    console.log(`✅ Created Neon database: ${tenantDb.databaseName}`);
+
+    // Give default plugin access (contacts, notes)
+    const defaultPlugins = ['contacts', 'notes'];
+    for (const pluginName of defaultPlugins) {
+      await pool.query(
+        'INSERT INTO user_plugin_access (user_id, plugin_name, enabled) VALUES ($1, $2, true)',
+        [user.id, pluginName]
+      );
+    }
+
+    console.log(`✅ Granted access to ${defaultPlugins.length} plugins`);
+
+    // Auto-login
+    req.session.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      plugins: defaultPlugins,
+    };
+
+    res.status(201).json({
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        plugins: defaultPlugins,
+      },
+    });
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({ error: 'Failed to create account. Please try again.' });
+  }
+});
+
 app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ user: req.session.user });
 });
@@ -177,7 +254,7 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 if (process.env.NODE_ENV === 'production') {
   const buildPath = path.join(__dirname, 'public');
   app.use(express.static(buildPath));
-  
+
   // Serve index.html for all non-API routes (React Router support)
   app.get('*', (req, res, next) => {
     // Skip API routes
@@ -208,7 +285,5 @@ app.listen(PORT, () => {
   console.log(`🚀 Homebase server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
-  console.log(`🔌 Plugin system: Enabled`);
+  console.log(`🔌 Loaded ${pluginLoader.getAllPlugins().length} plugins`);
 });
-
-module.exports = app;
