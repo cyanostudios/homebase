@@ -42,7 +42,7 @@ class NeonService {
       {
         project: {
           name: projectName,
-          region_id: 'aws-eu-north-1', // Stockholm region
+          region_id: 'aws-eu-central-1', // Frankfurt region (closest to Sweden)
         },
       },
       {
