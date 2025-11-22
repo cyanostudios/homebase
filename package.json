@@ -9,7 +9,7 @@
     "dev:all": "concurrently -k -n API,UI -c auto \"npm:dev:api\" \"npm:dev:ui\"",
     "build": "npm run build:ui && npm run build:api && npm run copy:ui",
     "build:ui": "vite build",
-    "build:api": "tsc server/index.ts --outDir dist --target es2020 --module commonjs",
+    "build:api": "tsc server/index.ts --outDir dist --target es2020 --module commonjs && cp -r server/migrations dist/migrations",
     "copy:ui": "mkdir -p dist/public && cp -r client/dist/* dist/public/",
     "start": "npm run start:api",
     "start:api": "cross-env NODE_ENV=production node dist/index.js",
