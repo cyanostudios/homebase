@@ -1,16 +1,19 @@
-// server/neon-service.js
-const axios = require('axios');
-const { Pool } = require('pg');
-const fs = require('fs');
-const path = require('path');
+// server/neon-service.ts
+import axios from 'axios';
+import { Pool } from 'pg';
+import fs from 'fs';
+import path from 'path';
 
 class NeonService {
-  constructor(apiKey) {
+  private apiKey: string;
+  private baseUrl: string;
+
+  constructor(apiKey: string) {
     this.apiKey = apiKey;
     this.baseUrl = 'https://console.neon.tech/api/v2';
   }
 
-  async createTenantDatabase(userId, userEmail) {
+  async createTenantDatabase(userId: number, userEmail: string) {
     try {
       // 1. Create Neon project
       const projectName = `homebase-tenant-${userId}`;
@@ -27,13 +30,13 @@ class NeonService {
         databaseName: project.databases[0].name,
         connectionString: connectionString,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create tenant database:', error.response?.data || error.message);
       throw error;
     }
   }
 
-  async createProject(projectName) {
+  async createProject(projectName: string) {
     const response = await axios.post(
       `${this.baseUrl}/projects`,
       {
@@ -53,7 +56,7 @@ class NeonService {
     return response.data;
   }
 
-  async runMigrations(connectionString) {
+  async runMigrations(connectionString: string) {
     const pool = new Pool({ connectionString });
     
     try {
@@ -80,7 +83,7 @@ class NeonService {
     }
   }
 
-  async deleteTenantDatabase(projectId) {
+  async deleteTenantDatabase(projectId: string) {
     try {
       await axios.delete(
         `${this.baseUrl}/projects/${projectId}`,
@@ -91,7 +94,7 @@ class NeonService {
         }
       );
       console.log(`Deleted Neon project: ${projectId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete project:', error.response?.data || error.message);
       throw error;
     }
