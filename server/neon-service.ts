@@ -98,4 +98,4 @@ class NeonService {
   }
 }
 
-module.exports = NeonService;
+export default NeonService;

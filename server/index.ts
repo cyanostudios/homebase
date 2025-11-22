@@ -12,7 +12,7 @@ const PluginLoader = require('../plugin-loader');
 require('dotenv').config({ path: '.env.local' });
 
 // Initialize Neon Service
-const NeonService = require('./neon-service');
+import NeonService from './neon-service';
 const neonService = new NeonService(process.env.NEON_API_KEY);
 
 const app = express();
