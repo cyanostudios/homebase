@@ -42,7 +42,7 @@ class NeonService {
       {
         project: {
           name: projectName,
-          region_id: 'aws-eu-central-1', // Frankfurt region (closest to Sweden)
+          region_id: 'aws-eu-north-1', // Stockholm region
         },
       },
       {
@@ -62,6 +62,13 @@ class NeonService {
     try {
       // Get all migration files
       const migrationsDir = path.join(__dirname, 'migrations');
+      
+      // Skip if migrations folder doesn't exist
+      if (!fs.existsSync(migrationsDir)) {
+        console.log('⚠️  No migrations folder found, skipping migrations');
+        return;
+      }
+      
       const migrationFiles = fs.readdirSync(migrationsDir)
         .filter(f => f.endsWith('.sql'))
         .sort();
