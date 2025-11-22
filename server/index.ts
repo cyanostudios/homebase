@@ -170,9 +170,9 @@ app.post('/api/auth/logout', (req, res) => {
   });
 });
 
-// Signup endpoint with Neon tenant creation
+// Signup endpoint with Neon tenant creation and dynamic plugin selection
 app.post('/api/auth/signup', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, plugins } = req.body;
 
   try {
     // Validate input
@@ -181,6 +181,22 @@ app.post('/api/auth/signup', async (req, res) => {
     }
     if (password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    // Validate and set plugins (default to contacts and notes if not provided)
+    const availablePlugins = ['contacts', 'notes', 'estimates', 'tasks', 'invoices', 'products', 'channels', 'files', 'rail', 'woocommerce-products'];
+    let selectedPlugins = ['contacts', 'notes']; // Default plugins
+    
+    if (plugins && Array.isArray(plugins) && plugins.length > 0) {
+      // Validate that all requested plugins are available
+      const invalidPlugins = plugins.filter(p => !availablePlugins.includes(p));
+      if (invalidPlugins.length > 0) {
+        return res.status(400).json({ 
+          error: `Invalid plugins: ${invalidPlugins.join(', ')}`,
+          availablePlugins: availablePlugins
+        });
+      }
+      selectedPlugins = plugins;
     }
 
     // Check if user exists
@@ -213,23 +229,22 @@ app.post('/api/auth/signup', async (req, res) => {
 
     console.log(`✅ Created Neon database: ${tenantDb.databaseName}`);
 
-    // Give default plugin access (contacts, notes)
-    const defaultPlugins = ['contacts', 'notes'];
-    for (const pluginName of defaultPlugins) {
+    // Give selected plugin access
+    for (const pluginName of selectedPlugins) {
       await pool.query(
         'INSERT INTO user_plugin_access (user_id, plugin_name, enabled) VALUES ($1, $2, true)',
         [user.id, pluginName]
       );
     }
 
-    console.log(`✅ Granted access to ${defaultPlugins.length} plugins`);
+    console.log(`✅ Granted access to ${selectedPlugins.length} plugins: ${selectedPlugins.join(', ')}`);
 
     // Auto-login
     req.session.user = {
       id: user.id,
       email: user.email,
       role: user.role,
-      plugins: defaultPlugins,
+      plugins: selectedPlugins,
     };
 
     res.status(201).json({
@@ -237,7 +252,7 @@ app.post('/api/auth/signup', async (req, res) => {
         id: user.id,
         email: user.email,
         role: user.role,
-        plugins: defaultPlugins,
+        plugins: selectedPlugins,
       },
     });
   } catch (error) {
