@@ -22,7 +22,7 @@ import { useNotes } from '../hooks/useNotes';
 type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
-export const NotesList: React.FC = () => {
+export const NoteList: React.FC = () => {
   const { notes, openNotePanel, openNoteForEdit, openNoteForView, deleteNote, duplicateNote } =
     useNotes();
   const { attemptNavigation } = useGlobalNavigationGuard();
