@@ -363,15 +363,11 @@ app.get('/api/admin/tenants', requireAuth, async (req, res) => {
     }
 
     const result = await pool.query(`
-      SELECT 
-        u.id,
-        u.email,
-        u.role,
-        t.neon_database_name,
-        t.neon_connection_string
+      SELECT u.id, u.email, u.role, t.neon_database_name, t.neon_connection_string
       FROM users u
-      LEFT JOIN tenants t ON u.id = t.user_id
-      ORDER BY u.id ASC
+      INNER JOIN tenants t ON u.id = t.user_id
+      WHERE t.neon_connection_string IS NOT NULL
+      ORDER BY u.id
     `);
 
     res.json({ tenants: result.rows });

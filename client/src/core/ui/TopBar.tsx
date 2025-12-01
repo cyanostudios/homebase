@@ -87,15 +87,15 @@ export function TopBar({ height = 64, showClock = true, className = '', children
         credentials: 'include',
         body: JSON.stringify({ userId }),
       });
-
+  
       if (response.ok) {
         setCurrentTenantUserId(userId);
         setShowTenantDropdown(false);
         
-        // Refresh all data with new tenant context
-        await refreshData();
-        
         console.log(`✅ Switched to tenant: User ${userId}`);
+        
+        // Force full page reload to refresh all plugins
+        window.location.reload();
       } else {
         console.error('Failed to switch tenant');
       }
