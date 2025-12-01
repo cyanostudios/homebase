@@ -355,6 +355,73 @@ app.post('/api/admin/update-role', requireAuth, async (req, res) => {
   }
 });
 
+// Admin: Get all tenants
+app.get('/api/admin/tenants', requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== 'superuser') {
+      return res.status(403).json({ error: 'Forbidden: Superuser access required' });
+    }
+
+    const result = await pool.query(`
+      SELECT 
+        u.id,
+        u.email,
+        u.role,
+        t.neon_database_name,
+        t.neon_connection_string
+      FROM users u
+      LEFT JOIN tenants t ON u.id = t.user_id
+      ORDER BY u.id ASC
+    `);
+
+    res.json({ tenants: result.rows });
+  } catch (error) {
+    console.error('Error fetching tenants:', error);
+    res.status(500).json({ error: 'Failed to fetch tenants' });
+  }
+});
+
+// Admin: Switch to another tenant's database
+app.post('/api/admin/switch-tenant', requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== 'superuser') {
+      return res.status(403).json({ error: 'Forbidden: Superuser access required' });
+    }
+
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    const tenantResult = await pool.query(
+      'SELECT neon_connection_string FROM tenants WHERE user_id = $1',
+      [userId]
+    );
+
+    if (!tenantResult.rows.length) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    const newTenantConnectionString = tenantResult.rows[0].neon_connection_string;
+    
+    // Update session with new tenant connection
+    req.session.tenantConnectionString = newTenantConnectionString;
+    req.session.currentTenantUserId = userId;
+
+    const dbHost = newTenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
+    console.log(`🔄 Admin switched to tenant: User ${userId} → DB: ${dbHost}`);
+
+    res.json({ 
+      message: 'Switched tenant successfully',
+      tenantUserId: userId
+    });
+  } catch (error) {
+    console.error('Error switching tenant:', error);
+    res.status(500).json({ error: 'Failed to switch tenant' });
+  }
+});
+
 // Serve static files from React build (production only)
 if (process.env.NODE_ENV === 'production') {
   const buildPath = path.join(__dirname, 'public');
