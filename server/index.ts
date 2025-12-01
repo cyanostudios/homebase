@@ -1,3 +1,5 @@
+# server/index.ts - Complete Fixed Version
+```javascript
 // server/index.ts
 const express = require('express');
 const session = require('express-session');
@@ -137,7 +139,7 @@ app.get('/api/health', (req, res) => {
     database: 'connected',
     environment: process.env.NODE_ENV,
     plugins: loadedPlugins.map((p) => ({ name: p.name, route: p.routeBase })),
-    tenantPools: tenantPools.size, // 🆕 Show active tenant pools
+    tenantPools: tenantPools.size,
   });
 });
 
@@ -254,10 +256,13 @@ app.post('/api/auth/signup', async (req, res) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // Allow role to be set during signup (defaults to 'user')
+    const userRole = req.body.role === 'superuser' ? 'superuser' : 'user';
+
     // Create user in Railway PostgreSQL
     const userResult = await pool.query(
       'INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role',
-      [email, passwordHash, 'user']
+      [email, passwordHash, userRole]
     );
 
     const user = userResult.rows[0];
@@ -293,7 +298,7 @@ app.post('/api/auth/signup', async (req, res) => {
       plugins: selectedPlugins,
     };
 
-    // 🆕 Set tenant connection string for auto-login
+    // Set tenant connection string for auto-login
     req.session.tenantConnectionString = tenantDb.connectionString;
 
     res.status(201).json({
@@ -308,10 +313,6 @@ app.post('/api/auth/signup', async (req, res) => {
     console.error('Signup error:', error);
     res.status(500).json({ error: 'Failed to create account. Please try again.' });
   }
-});
-
-app.get('/api/auth/me', requireAuth, (req, res) => {
-  res.json({ user: req.session.user });
 });
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
