@@ -74,7 +74,7 @@ import { ProductView } from '@/plugins/products/components/ProductView';
 
 // Rail (custom structure)
 import { RailProvider } from '@/plugins/rail/context/RailContext';
-import { useRails } from '@/plugins/rail/hooks/useRails';
+import { useRail } from '@/plugins/rail/hooks/useRail';
 import { RailStationBoard } from '@/plugins/rail/components/RailStationBoard';
 
 // Channels
@@ -220,7 +220,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   {
     name: 'rail',
     Provider: RailProvider,
-    hook: useRails,
+    hook: useRail,
     panelKey: 'isRailPanelOpen',
     components: {
       View: RailStationBoard,

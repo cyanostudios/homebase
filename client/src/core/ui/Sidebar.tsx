@@ -69,7 +69,7 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     // Add plugin items (filtered by user access)
     PLUGIN_REGISTRY.forEach((plugin) => {
       // Only show plugins that user has access to
-      if (user?.plugins.includes(plugin.name)) {
+      if (user?.plugins.includes(plugin.name) && plugin.navigation) {
         const { category, label, icon, order } = plugin.navigation;
         if (!categoriesMap.has(category)) {
           categoriesMap.set(category, []);
