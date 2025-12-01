@@ -229,7 +229,7 @@ export function RailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   return <RailContext.Provider value={value}>{children}</RailContext.Provider>;
 }
 
-export function useRail() {
+export function useRailContext() {
   const ctx = useContext(RailContext);
   if (!ctx) {
     throw new Error('useRail must be used within a RailProvider');
