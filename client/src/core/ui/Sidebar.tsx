@@ -1,38 +1,17 @@
-import {
-  Home,
-  FileText,
-  BookOpen,
-  Calculator,
-  Users,
-  FolderOpen,
-  Settings,
-  User,
-  UserCheck,
-  Trophy,
-  Calendar,
-  Package,
-  StickyNote,
-  CheckSquare,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  Train,
-  ShoppingCart, // + Woo
-  Globe, // + Channels
-  Files as FilesIcon, // + Files
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, User } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import { staticNavItems, categoryOrder } from '@/core/navigationConfig';
+import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 
 import { useSidebar } from './MainLayout';
 
-// ⬇⬇⬇ EXPORTERA NavPage ⬇⬇⬇
 export type NavPage =
   | 'contacts'
   | 'notes'
   | 'estimates'
-  | 'invoices'        // <-- ADDED
+  | 'invoices'
   | 'tasks'
   | 'products'
   | 'rails'
@@ -44,60 +23,6 @@ interface SidebarProps {
   currentPage: NavPage;
   onPageChange: (page: NavPage) => void;
 }
-
-const navCategories = [
-  {
-    title: 'Main',
-    items: [
-      { label: 'Dashboard', icon: Home, page: null },
-      { label: 'Contacts', icon: Users, page: 'contacts' as NavPage },
-      { label: 'Notes', icon: StickyNote, page: 'notes' as NavPage },
-      { label: 'Tasks', icon: CheckSquare, page: 'tasks' as NavPage },
-      { label: 'Calendar', icon: Calendar, page: null },
-      { label: 'Planner', icon: Calendar, page: null },
-    ],
-  },
-  {
-    title: 'Business',
-    items: [
-      { label: 'Estimates', icon: Calculator, page: 'estimates' as NavPage },
-      { label: 'Invoice', icon: FileText, page: 'invoices' as NavPage }, // <-- CHANGED: now clickable
-      { label: 'Journal', icon: BookOpen, page: null },
-      { label: 'Bookkeeping', icon: Calculator, page: null },
-      { label: 'Projects', icon: FolderOpen, page: null },
-      { label: 'Equipment', icon: Package, page: null },
-    ],
-  },
-  {
-    title: 'E-commerce',
-    items: [
-      { label: 'Products', icon: Package, page: 'products' as NavPage },
-      { label: 'Channels', icon: Globe, page: 'channels' as NavPage }, // + NEW
-      { label: 'WooCommerce', icon: ShoppingCart, page: 'woocommerce-products' as NavPage }, // + NEW
-    ],
-  },
-  {
-    title: 'Tools',
-    items: [
-      { label: 'Rail', icon: Train, page: 'rails' as NavPage },
-      { label: 'Files', icon: FilesIcon, page: 'files' as NavPage }, // + NEW
-    ],
-  },
-  {
-    title: 'Sports',
-    items: [
-      { label: 'Referee', icon: UserCheck, page: null },
-      { label: 'Matches', icon: Trophy, page: null },
-    ],
-  },
-  {
-    title: 'Account',
-    items: [
-      { label: 'Settings', icon: Settings, page: null },
-      { label: 'Profile', icon: User, page: null },
-    ],
-  },
-];
 
 export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
   const { isCollapsed, setIsCollapsed, isMobileOverlay, setIsMobileOverlay } = useSidebar();
@@ -117,26 +42,63 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     await logout();
   };
 
-  // Updated to include 'woocommerce-products', 'channels', 'files' and 'invoices'
   const handleMenuItemClick = (page: NavPage | null) => {
     if (isMobile && isMobileOverlay) {
       setIsMobileOverlay(false);
     }
-    if (
-      page === 'contacts' ||
-      page === 'notes' ||
-      page === 'estimates' ||
-      page === 'invoices' || // <-- ADDED
-      page === 'tasks' ||
-      page === 'products' ||
-      page === 'rails' ||
-      page === 'woocommerce-products' ||
-      page === 'channels' ||
-      page === 'files'
-    ) {
+    if (page) {
       onPageChange(page);
     }
   };
+
+  // Build dynamic navigation by combining static items and plugins
+  const buildNavigation = () => {
+    const categoriesMap = new Map<string, any[]>();
+
+    // Add static items
+    staticNavItems.forEach((item) => {
+      if (!categoriesMap.has(item.category)) {
+        categoriesMap.set(item.category, []);
+      }
+      categoriesMap.get(item.category)!.push({
+        type: 'static',
+        ...item,
+      });
+    });
+
+    // Add plugin items (filtered by user access)
+    PLUGIN_REGISTRY.forEach((plugin) => {
+      // Only show plugins that user has access to
+      if (user?.plugins.includes(plugin.name)) {
+        const { category, label, icon, order } = plugin.navigation;
+        if (!categoriesMap.has(category)) {
+          categoriesMap.set(category, []);
+        }
+        categoriesMap.get(category)!.push({
+          type: 'plugin',
+          label,
+          icon,
+          page: plugin.name as NavPage,
+          order,
+        });
+      }
+    });
+
+    // Sort items within each category by order
+    categoriesMap.forEach((items, category) => {
+      items.sort((a, b) => a.order - b.order);
+    });
+
+    // Build final structure in category order
+    return categoryOrder
+      .filter((category) => categoriesMap.has(category))
+      .map((category) => ({
+        title: category,
+        items: categoriesMap.get(category)!,
+      }));
+  };
+
+  const navCategories = buildNavigation();
 
   return (
     <aside
