@@ -117,6 +117,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Auth routes
+// 🆕 UPDATED: Login endpoint with dynamic tenant routing
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -140,12 +141,33 @@ app.post('/api/auth/login', async (req, res) => {
       [user.id],
     );
 
+    // 🆕 STEP 3: Get tenant's Neon connection string
+    const tenantResult = await pool.query(
+      'SELECT neon_connection_string FROM tenants WHERE user_id = $1',
+      [user.id]
+    );
+
+    if (!tenantResult.rows.length) {
+      console.error(`❌ No tenant database found for user ${user.id}`);
+      return res.status(500).json({ error: 'Tenant database not configured' });
+    }
+
+    const tenantConnectionString = tenantResult.rows[0].neon_connection_string;
+
+    // Save user info in session
     req.session.user = {
       id: user.id,
       email: user.email,
       role: user.role,
       plugins: pluginAccess.rows.map((row) => row.plugin_name),
     };
+
+    // 🆕 STEP 3: Save tenant connection string in session
+    req.session.tenantConnectionString = tenantConnectionString;
+
+    // 🆕 STEP 3: Log tenant routing info
+    const dbHost = tenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
+    console.log(`✅ User ${user.email} (ID: ${user.id}) logged in → Tenant DB: ${dbHost}`);
 
     res.json({
       user: {
