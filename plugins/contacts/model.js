@@ -1,11 +1,16 @@
 // plugins/contacts/model.js
 class ContactModel {
   constructor(pool) {
-    this.pool = pool;
+    this.defaultPool = pool; // Backup for non-authenticated requests
   }
 
-  async getAll(userId) {
-    const result = await this.pool.query(
+  getPool(req) {
+    return req.tenantPool || this.defaultPool;
+  }
+
+  async getAll(req, userId) {
+    const pool = this.getPool(req);
+    const result = await pool.query(
       'SELECT * FROM contacts WHERE user_id = $1 ORDER BY contact_number',
       [userId]
     );
@@ -13,20 +18,20 @@ class ContactModel {
     return result.rows.map(this.transformRow);
   }
 
-  // 🆕 Generate next contact number for user (works with VARCHAR)
-  async getNextContactNumber(userId) {
-    const result = await this.pool.query(
+  async getNextContactNumber(req, userId) {
+    const pool = this.getPool(req);
+    const result = await pool.query(
       'SELECT COUNT(*) + 1 as next_number FROM contacts WHERE user_id = $1',
       [userId]
     );
     return result.rows[0].next_number.toString();
   }
 
-  async create(userId, contactData) {
-    // 🆕 Auto-generate contact_number if not provided
-    const contactNumber = contactData.contactNumber || await this.getNextContactNumber(userId);
+  async create(req, userId, contactData) {
+    const pool = this.getPool(req);
+    const contactNumber = contactData.contactNumber || await this.getNextContactNumber(req, userId);
     
-    const result = await this.pool.query(`
+    const result = await pool.query(`
       INSERT INTO contacts (
         user_id, contact_number, contact_type, company_name, company_type,
         organization_number, vat_number, personal_number, contact_persons, addresses,
@@ -36,7 +41,7 @@ class ContactModel {
       ) RETURNING *
     `, [
       userId,
-      contactNumber, // 🆕 Use auto-generated or provided number
+      contactNumber,
       contactData.contactType,
       contactData.companyName,
       contactData.companyType,
@@ -59,8 +64,9 @@ class ContactModel {
     return this.transformRow(result.rows[0]);
   }
 
-  async update(userId, contactId, contactData) {
-    const result = await this.pool.query(`
+  async update(req, userId, contactId, contactData) {
+    const pool = this.getPool(req);
+    const result = await pool.query(`
       UPDATE contacts SET
         contact_number = $1, contact_type = $2, company_name = $3, company_type = $4,
         organization_number = $5, vat_number = $6, personal_number = $7, 
@@ -99,8 +105,9 @@ class ContactModel {
     return this.transformRow(result.rows[0]);
   }
 
-  async delete(userId, contactId) {
-    const result = await this.pool.query(
+  async delete(req, userId, contactId) {
+    const pool = this.getPool(req);
+    const result = await pool.query(
       'DELETE FROM contacts WHERE id = $1 AND user_id = $2 RETURNING id',
       [contactId, userId]
     );
