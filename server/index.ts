@@ -26,6 +26,22 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+// 🆕 STEP 4: Tenant Pool Registry - cache pools for reuse
+const tenantPools = new Map();
+
+function getTenantPool(connectionString) {
+  if (!tenantPools.has(connectionString)) {
+    console.log(`🔌 Creating new tenant pool for: ${connectionString.split('@')[1]?.split('/')[0]}`);
+    tenantPools.set(connectionString, new Pool({ 
+      connectionString,
+      max: 10, // Max 10 connections per tenant
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    }));
+  }
+  return tenantPools.get(connectionString);
+}
+
 // Security and performance middleware
 app.use(
   helmet({
@@ -68,6 +84,14 @@ app.use(
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// 🆕 STEP 4: Tenant Pool Middleware - attach tenant pool to request
+app.use((req, res, next) => {
+  if (req.session && req.session.tenantConnectionString) {
+    req.tenantPool = getTenantPool(req.session.tenantConnectionString);
+  }
+  next();
+});
 
 // Auth middleware
 function requireAuth(req, res, next) {
@@ -113,11 +137,11 @@ app.get('/api/health', (req, res) => {
     database: 'connected',
     environment: process.env.NODE_ENV,
     plugins: loadedPlugins.map((p) => ({ name: p.name, route: p.routeBase })),
+    tenantPools: tenantPools.size, // 🆕 Show active tenant pools
   });
 });
 
 // Auth routes
-// 🆕 UPDATED: Login endpoint with dynamic tenant routing
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -141,7 +165,7 @@ app.post('/api/auth/login', async (req, res) => {
       [user.id],
     );
 
-    // 🆕 STEP 3: Get tenant's Neon connection string
+    // Get tenant's Neon connection string
     const tenantResult = await pool.query(
       'SELECT neon_connection_string FROM tenants WHERE user_id = $1',
       [user.id]
@@ -162,10 +186,10 @@ app.post('/api/auth/login', async (req, res) => {
       plugins: pluginAccess.rows.map((row) => row.plugin_name),
     };
 
-    // 🆕 STEP 3: Save tenant connection string in session
+    // Save tenant connection string in session
     req.session.tenantConnectionString = tenantConnectionString;
 
-    // 🆕 STEP 3: Log tenant routing info
+    // Log tenant routing info
     const dbHost = tenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
     console.log(`✅ User ${user.email} (ID: ${user.id}) logged in → Tenant DB: ${dbHost}`);
 
@@ -268,6 +292,9 @@ app.post('/api/auth/signup', async (req, res) => {
       role: user.role,
       plugins: selectedPlugins,
     };
+
+    // 🆕 Set tenant connection string for auto-login
+    req.session.tenantConnectionString = tenantDb.connectionString;
 
     res.status(201).json({
       user: {
