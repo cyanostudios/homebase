@@ -43,12 +43,28 @@ export function TopBar({ height = 64, showClock = true, className = '', children
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Load tenants for admin
+  // Load current tenant from API
   useEffect(() => {
     if (isAdmin) {
+      loadCurrentTenant();
       loadTenants();
     }
   }, [isAdmin]);
+
+  const loadCurrentTenant = async () => {
+    try {
+      const response = await fetch('/api/auth/me', {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentTenantUserId(data.currentTenantUserId);
+      }
+    } catch (error) {
+      console.error('Failed to load current tenant:', error);
+    }
+  };
 
   const loadTenants = async () => {
     try {
@@ -59,18 +75,7 @@ export function TopBar({ height = 64, showClock = true, className = '', children
       
       if (response.ok) {
         const data = await response.json();
-        
-        // Filter: Only show tenants with active Neon databases
-        const activeTenants = data.tenants.filter(
-          (tenant: Tenant) => tenant.neon_connection_string !== null
-        );
-        
-        setTenants(activeTenants);
-        
-        // Set current tenant to logged-in user by default
-        if (user && !currentTenantUserId) {
-          setCurrentTenantUserId(user.id);
-        }
+        setTenants(data.tenants);
       }
     } catch (error) {
       console.error('Failed to load tenants:', error);
@@ -89,12 +94,7 @@ export function TopBar({ height = 64, showClock = true, className = '', children
       });
   
       if (response.ok) {
-        setCurrentTenantUserId(userId);
-        setShowTenantDropdown(false);
-        
         console.log(`✅ Switched to tenant: User ${userId}`);
-        
-        // Force full page reload to refresh all plugins
         window.location.reload();
       } else {
         console.error('Failed to switch tenant');

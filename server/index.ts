@@ -26,7 +26,7 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// 🆕 STEP 4: Tenant Pool Registry - cache pools for reuse
+// Tenant Pool Registry - cache pools for reuse
 const tenantPools = new Map();
 
 function getTenantPool(connectionString) {
@@ -34,7 +34,7 @@ function getTenantPool(connectionString) {
     console.log(`🔌 Creating new tenant pool for: ${connectionString.split('@')[1]?.split('/')[0]}`);
     tenantPools.set(connectionString, new Pool({ 
       connectionString,
-      max: 10, // Max 10 connections per tenant
+      max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
     }));
@@ -76,7 +76,7 @@ app.use(
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 24 * 60 * 60 * 1000,
       sameSite: 'lax',
     },
   }),
@@ -85,7 +85,7 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// 🆕 STEP 4: Tenant Pool Middleware - attach tenant pool to request
+// Tenant Pool Middleware - attach tenant pool to request
 app.use((req, res, next) => {
   if (req.session && req.session.tenantConnectionString) {
     req.tenantPool = getTenantPool(req.session.tenantConnectionString);
@@ -188,6 +188,9 @@ app.post('/api/auth/login', async (req, res) => {
 
     // Save tenant connection string in session
     req.session.tenantConnectionString = tenantConnectionString;
+    
+    // Set currentTenantUserId to logged-in user by default
+    req.session.currentTenantUserId = user.id;
 
     // Log tenant routing info
     const dbHost = tenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
@@ -231,10 +234,9 @@ app.post('/api/auth/signup', async (req, res) => {
 
     // Validate and set plugins (default to contacts and notes if not provided)
     const availablePlugins = ['contacts', 'notes', 'estimates', 'tasks', 'invoices', 'products', 'channels', 'files', 'rail', 'woocommerce-products'];
-    let selectedPlugins = ['contacts', 'notes']; // Default plugins
+    let selectedPlugins = ['contacts', 'notes'];
     
     if (plugins && Array.isArray(plugins) && plugins.length > 0) {
-      // Validate that all requested plugins are available
       const invalidPlugins = plugins.filter(p => !availablePlugins.includes(p));
       if (invalidPlugins.length > 0) {
         return res.status(400).json({ 
@@ -298,6 +300,7 @@ app.post('/api/auth/signup', async (req, res) => {
 
     // Set tenant connection string for auto-login
     req.session.tenantConnectionString = tenantDb.connectionString;
+    req.session.currentTenantUserId = user.id;
 
     res.status(201).json({
       user: {
@@ -314,13 +317,15 @@ app.post('/api/auth/signup', async (req, res) => {
 });
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
-  res.json({ user: req.session.user });
+  res.json({ 
+    user: req.session.user,
+    currentTenantUserId: req.session.currentTenantUserId || req.session.user.id
+  });
 });
 
-// 🆕 Admin: Update user role (temporary endpoint for setup)
+// Admin: Update user role
 app.post('/api/admin/update-role', requireAuth, async (req, res) => {
   try {
-    // Only existing superusers can update roles
     if (req.session.user.role !== 'superuser') {
       return res.status(403).json({ error: 'Forbidden: Superuser access required' });
     }
@@ -355,7 +360,7 @@ app.post('/api/admin/update-role', requireAuth, async (req, res) => {
   }
 });
 
-// Admin: Get all tenants
+// Admin: Get all tenants (only those with active Neon databases)
 app.get('/api/admin/tenants', requireAuth, async (req, res) => {
   try {
     if (req.session.user.role !== 'superuser') {
@@ -417,6 +422,7 @@ app.post('/api/admin/switch-tenant', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Failed to switch tenant' });
   }
 });
+
 // Admin: Delete user and cleanup
 app.delete('/api/admin/users/:userId', requireAuth, async (req, res) => {
   try {
@@ -451,9 +457,7 @@ if (process.env.NODE_ENV === 'production') {
   const buildPath = path.join(__dirname, 'public');
   app.use(express.static(buildPath));
 
-  // Serve index.html for all non-API routes (React Router support)
   app.get('*', (req, res, next) => {
-    // Skip API routes
     if (req.path.startsWith('/api')) {
       return next();
     }
