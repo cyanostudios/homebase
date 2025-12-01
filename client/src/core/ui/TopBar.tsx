@@ -59,7 +59,13 @@ export function TopBar({ height = 64, showClock = true, className = '', children
       
       if (response.ok) {
         const data = await response.json();
-        setTenants(data.tenants);
+        
+        // Filter: Only show tenants with active Neon databases
+        const activeTenants = data.tenants.filter(
+          (tenant: Tenant) => tenant.neon_connection_string !== null
+        );
+        
+        setTenants(activeTenants);
         
         // Set current tenant to logged-in user by default
         if (user && !currentTenantUserId) {
@@ -72,7 +78,7 @@ export function TopBar({ height = 64, showClock = true, className = '', children
       setIsLoadingTenants(false);
     }
   };
-
+  
   const switchTenant = async (userId: number) => {
     try {
       const response = await fetch('/api/admin/switch-tenant', {

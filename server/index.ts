@@ -421,6 +421,34 @@ app.post('/api/admin/switch-tenant', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Failed to switch tenant' });
   }
 });
+// Admin: Delete user and cleanup
+app.delete('/api/admin/users/:userId', requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== 'superuser') {
+      return res.status(403).json({ error: 'Forbidden: Superuser access required' });
+    }
+
+    const { userId } = req.params;
+
+    // Delete from user_plugin_access
+    await pool.query('DELETE FROM user_plugin_access WHERE user_id = $1', [userId]);
+    
+    // Delete from tenants
+    await pool.query('DELETE FROM tenants WHERE user_id = $1', [userId]);
+    
+    // Delete from users
+    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING email', [userId]);
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User deleted', email: result.rows[0].email });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
 
 // Serve static files from React build (production only)
 if (process.env.NODE_ENV === 'production') {
