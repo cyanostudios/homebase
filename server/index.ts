@@ -1,5 +1,3 @@
-# server/index.ts - Complete Fixed Version
-```javascript
 // server/index.ts
 const express = require('express');
 const session = require('express-session');
