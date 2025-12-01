@@ -314,6 +314,48 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ user: req.session.user });
 });
 
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  res.json({ user: req.session.user });
+});
+
+// 🆕 Admin: Update user role (temporary endpoint for setup)
+app.post('/api/admin/update-role', requireAuth, async (req, res) => {
+  try {
+    // Only existing superusers can update roles
+    if (req.session.user.role !== 'superuser') {
+      return res.status(403).json({ error: 'Forbidden: Superuser access required' });
+    }
+
+    const { email, role } = req.body;
+
+    if (!email || !role) {
+      return res.status(400).json({ error: 'Email and role are required' });
+    }
+
+    if (!['user', 'superuser'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be "user" or "superuser"' });
+    }
+
+    await pool.query(
+      'UPDATE users SET role = $1 WHERE email = $2',
+      [role, email]
+    );
+
+    const result = await pool.query(
+      'SELECT id, email, role FROM users WHERE email = $1',
+      [email]
+    );
+
+    res.json({ 
+      message: 'Role updated successfully',
+      user: result.rows[0] 
+    });
+  } catch (error) {
+    console.error('Error updating role:', error);
+    res.status(500).json({ error: 'Failed to update role' });
+  }
+});
+
 // Serve static files from React build (production only)
 if (process.env.NODE_ENV === 'production') {
   const buildPath = path.join(__dirname, 'public');
