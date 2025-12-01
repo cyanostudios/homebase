@@ -30,11 +30,11 @@ export interface PluginRegistryEntry {
   hook: () => any;
   panelKey: string;
   components: {
-    List: React.ComponentType;
-    Form: React.ComponentType<any>;
-    View: React.ComponentType<any>;
+    List?: React.ComponentType;
+    Form?: React.ComponentType<any>;
+    View?: React.ComponentType<any>;
   };
-  navigation: PluginNavigationConfig;
+  navigation?: PluginNavigationConfig; // Optional navigation
 }
 
 // Import all plugin providers, hooks, and components
@@ -68,11 +68,9 @@ import { ProductList } from '@/plugins/products/components/ProductList';
 import { ProductForm } from '@/plugins/products/components/ProductForm';
 import { ProductView } from '@/plugins/products/components/ProductView';
 
-import { RailProvider } from '@/plugins/rails/context/RailContext';
-import { useRails } from '@/plugins/rails/hooks/useRails';
-import { RailList } from '@/plugins/rails/components/RailList';
-import { RailForm } from '@/plugins/rails/components/RailForm';
-import { RailView } from '@/plugins/rails/components/RailView';
+import { RailProvider } from '@/plugins/rail/context/RailContext';
+import { useRails } from '@/plugins/rail/hooks/useRails';
+import { RailStationBoard } from '@/plugins/rail/components/RailStationBoard';
 
 import { WooCommerceProductProvider } from '@/plugins/woocommerce-products/context/WooCommerceProductContext';
 import { useWooCommerceProducts } from '@/plugins/woocommerce-products/hooks/useWooCommerceProducts';
@@ -236,14 +234,12 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
   },
   {
-    name: 'rails',
+    name: 'rail',
     Provider: RailProvider,
     hook: useRails,
     panelKey: 'isRailPanelOpen',
     components: {
-      List: RailList,
-      Form: RailForm,
-      View: RailView,
+      View: RailStationBoard, // Custom component - no List/Form
     },
     navigation: {
       category: 'Tools',
