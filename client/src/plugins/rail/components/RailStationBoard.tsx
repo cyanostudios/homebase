@@ -6,7 +6,7 @@ import { Card } from '@/core/ui/Card';
 import { Heading, Text } from '@/core/ui/Typography';
 
 import { railApi } from '../api/railApi';
-import { useRails } from '../hooks/useRails';
+import { useRail } from '../hooks/useRail';
 
 function parseTime(a?: string) {
   return a ? new Date(a).getTime() : 0;
@@ -54,7 +54,7 @@ const RAIL_STATUS_COLORS: Record<'on_time' | 'delayed' | 'cancelled' | 'no_servi
 type RailStatus = keyof typeof RAIL_STATUS_COLORS;
 
 export const RailStationBoard: React.FC = () => {
-  const { stations, codeToName } = useRails();
+  const { stations, codeToName } = useRail();
   const [query, setQuery] = useState('');
   const [selectedCode, setSelectedCode] = useState<string>('Cst');
   const [loading, setLoading] = useState(false);
