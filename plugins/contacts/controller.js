@@ -4,9 +4,15 @@ class ContactController {
     this.model = model;
   }
 
+  getUserId(req) {
+    // Use currentTenantUserId if admin has switched, otherwise use logged-in user
+    return req.session.currentTenantUserId || req.session.user.id;
+  }
+
   async getAll(req, res) {
     try {
-      const contacts = await this.model.getAll(req, req.session.user.id);
+      const userId = this.getUserId(req);
+      const contacts = await this.model.getAll(req, userId);
       res.json(contacts);
     } catch (error) {
       console.error('Get contacts error:', error);
@@ -16,7 +22,8 @@ class ContactController {
 
   async create(req, res) {
     try {
-      const contact = await this.model.create(req, req.session.user.id, req.body);
+      const userId = this.getUserId(req);
+      const contact = await this.model.create(req, userId, req.body);
       res.json(contact);
     } catch (error) {
       console.error('Create contact error:', error);
@@ -26,9 +33,10 @@ class ContactController {
 
   async update(req, res) {
     try {
+      const userId = this.getUserId(req);
       const contact = await this.model.update(
         req,
-        req.session.user.id,
+        userId,
         req.params.id,
         req.body
       );
@@ -45,7 +53,8 @@ class ContactController {
 
   async delete(req, res) {
     try {
-      await this.model.delete(req, req.session.user.id, req.params.id);
+      const userId = this.getUserId(req);
+      await this.model.delete(req, userId, req.params.id);
       res.json({ message: 'Contact deleted successfully' });
     } catch (error) {
       console.error('Delete contact error:', error);
