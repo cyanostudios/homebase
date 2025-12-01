@@ -13,13 +13,13 @@ class ContactModel {
     return result.rows.map(this.transformRow);
   }
 
-  // 🆕 Generate next contact number for user
+  // 🆕 Generate next contact number for user (works with VARCHAR)
   async getNextContactNumber(userId) {
     const result = await this.pool.query(
-      'SELECT COALESCE(MAX(contact_number), 0) + 1 as next_number FROM contacts WHERE user_id = $1',
+      'SELECT COUNT(*) + 1 as next_number FROM contacts WHERE user_id = $1',
       [userId]
     );
-    return result.rows[0].next_number;
+    return result.rows[0].next_number.toString();
   }
 
   async create(userId, contactData) {
