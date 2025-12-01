@@ -316,11 +316,32 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 });
 
-app.get('/api/auth/me', requireAuth, (req, res) => {
-  res.json({ 
-    user: req.session.user,
-    currentTenantUserId: req.session.currentTenantUserId || req.session.user.id
-  });
+app.get('/api/auth/me', requireAuth, async (req, res) => {
+  try {
+    const currentTenantUserId = req.session.currentTenantUserId || req.session.user.id;
+    
+    // If admin has switched to another tenant, get that tenant's plugins
+    let plugins = req.session.user.plugins;
+    
+    if (req.session.user.role === 'superuser' && currentTenantUserId !== req.session.user.id) {
+      const tenantPlugins = await pool.query(
+        'SELECT plugin_name FROM user_plugin_access WHERE user_id = $1 AND enabled = true',
+        [currentTenantUserId]
+      );
+      plugins = tenantPlugins.rows.map(row => row.plugin_name);
+    }
+    
+    res.json({ 
+      user: {
+        ...req.session.user,
+        plugins: plugins
+      },
+      currentTenantUserId: currentTenantUserId
+    });
+  } catch (error) {
+    console.error('Error in /api/auth/me:', error);
+    res.status(500).json({ error: 'Failed to fetch user info' });
+  }
 });
 
 // Admin: Update user role
