@@ -222,4 +222,4 @@ export function TopBar({ height = 64, showClock = true, className = '', children
       </div>
     </div>
   );
-}
+}// Force rebuild Mon Dec  1 22:44:59 CET 2025
