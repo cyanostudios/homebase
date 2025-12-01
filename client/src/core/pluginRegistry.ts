@@ -34,63 +34,64 @@ export interface PluginRegistryEntry {
     Form?: React.ComponentType<any>;
     View?: React.ComponentType<any>;
   };
-  navigation?: PluginNavigationConfig; // Optional navigation
+  navigation?: PluginNavigationConfig;
 }
 
-// Import all plugin providers, hooks, and components
+// Contacts
 import { ContactProvider } from '@/plugins/contacts/context/ContactContext';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { ContactList } from '@/plugins/contacts/components/ContactList';
 import { ContactForm } from '@/plugins/contacts/components/ContactForm';
 import { ContactView } from '@/plugins/contacts/components/ContactView';
 
+// Notes
 import { NoteProvider } from '@/plugins/notes/context/NoteContext';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import { NoteList } from '@/plugins/notes/components/NoteList';
 import { NoteForm } from '@/plugins/notes/components/NoteForm';
 import { NoteView } from '@/plugins/notes/components/NoteView';
 
+// Estimates
 import { EstimateProvider } from '@/plugins/estimates/context/EstimateContext';
 import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';
 import { EstimateList } from '@/plugins/estimates/components/EstimateList';
 import { EstimateForm } from '@/plugins/estimates/components/EstimateForm';
 import { EstimateView } from '@/plugins/estimates/components/EstimateView';
 
+// Tasks
 import { TaskProvider } from '@/plugins/tasks/context/TaskContext';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
 import { TaskList } from '@/plugins/tasks/components/TaskList';
 import { TaskForm } from '@/plugins/tasks/components/TaskForm';
 import { TaskView } from '@/plugins/tasks/components/TaskView';
 
+// Products
 import { ProductProvider } from '@/plugins/products/context/ProductContext';
 import { useProducts } from '@/plugins/products/hooks/useProducts';
 import { ProductList } from '@/plugins/products/components/ProductList';
 import { ProductForm } from '@/plugins/products/components/ProductForm';
 import { ProductView } from '@/plugins/products/components/ProductView';
 
+// Rail (custom structure)
 import { RailProvider } from '@/plugins/rail/context/RailContext';
 import { useRails } from '@/plugins/rail/hooks/useRails';
 import { RailStationBoard } from '@/plugins/rail/components/RailStationBoard';
 
-import { WooCommerceProductProvider } from '@/plugins/woocommerce-products/context/WooCommerceProductContext';
-import { useWooCommerceProducts } from '@/plugins/woocommerce-products/hooks/useWooCommerceProducts';
-import { WooCommerceProductList } from '@/plugins/woocommerce-products/components/WooCommerceProductList';
-import { WooCommerceProductForm } from '@/plugins/woocommerce-products/components/WooCommerceProductForm';
-import { WooCommerceProductView } from '@/plugins/woocommerce-products/components/WooCommerceProductView';
-
-import { ChannelProvider } from '@/plugins/channels/context/ChannelContext';
+// Channels
+import { ChannelsProvider } from '@/plugins/channels/context/ChannelsContext';
 import { useChannels } from '@/plugins/channels/hooks/useChannels';
-import { ChannelList } from '@/plugins/channels/components/ChannelList';
-import { ChannelForm } from '@/plugins/channels/components/ChannelForm';
-import { ChannelView } from '@/plugins/channels/components/ChannelView';
+import { ChannelsList } from '@/plugins/channels/components/ChannelsList';
+import { ChannelsView } from '@/plugins/channels/components/ChannelsView';
 
-import { InvoiceProvider } from '@/plugins/invoices/context/InvoiceContext';
+// Invoices
+import { InvoicesProvider } from '@/plugins/invoices/context/InvoicesContext';
 import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
-import { InvoiceList } from '@/plugins/invoices/components/InvoiceList';
-import { InvoiceForm } from '@/plugins/invoices/components/InvoiceForm';
-import { InvoiceView } from '@/plugins/invoices/components/InvoiceView';
+import { InvoicesList } from '@/plugins/invoices/components/InvoicesList';
+import { InvoicesForm } from '@/plugins/invoices/components/InvoicesForm';
+import { InvoicesView } from '@/plugins/invoices/components/InvoicesView';
 
-import { FileProvider } from '@/plugins/files/context/FileContext';
+// Files
+import { FilesProvider } from '@/plugins/files/context/FilesContext';
 import { useFiles } from '@/plugins/files/hooks/useFiles';
 import { FileList } from '@/plugins/files/components/FileList';
 import { FileForm } from '@/plugins/files/components/FileForm';
@@ -167,13 +168,13 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'invoices',
-    Provider: InvoiceProvider,
+    Provider: InvoicesProvider,
     hook: useInvoices,
     panelKey: 'isInvoicePanelOpen',
     components: {
-      List: InvoiceList,
-      Form: InvoiceForm,
-      View: InvoiceView,
+      List: InvoicesList,
+      Form: InvoicesForm,
+      View: InvoicesView,
     },
     navigation: {
       category: 'Business',
@@ -201,13 +202,13 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'channels',
-    Provider: ChannelProvider,
+    Provider: ChannelsProvider,
     hook: useChannels,
     panelKey: 'isChannelPanelOpen',
     components: {
-      List: ChannelList,
-      Form: ChannelForm,
-      View: ChannelView,
+      List: ChannelsList,
+      View: ChannelsView,
+      // No Form component
     },
     navigation: {
       category: 'E-commerce',
@@ -217,29 +218,13 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
   },
   {
-    name: 'woocommerce-products',
-    Provider: WooCommerceProductProvider,
-    hook: useWooCommerceProducts,
-    panelKey: 'isWooCommerceProductPanelOpen',
-    components: {
-      List: WooCommerceProductList,
-      Form: WooCommerceProductForm,
-      View: WooCommerceProductView,
-    },
-    navigation: {
-      category: 'E-commerce',
-      label: 'WooCommerce',
-      icon: ShoppingCart,
-      order: 2,
-    },
-  },
-  {
     name: 'rail',
     Provider: RailProvider,
     hook: useRails,
     panelKey: 'isRailPanelOpen',
     components: {
-      View: RailStationBoard, // Custom component - no List/Form
+      View: RailStationBoard,
+      // Custom component - no List/Form
     },
     navigation: {
       category: 'Tools',
@@ -250,7 +235,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'files',
-    Provider: FileProvider,
+    Provider: FilesProvider,
     hook: useFiles,
     panelKey: 'isFilePanelOpen',
     components: {
