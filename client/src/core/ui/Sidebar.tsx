@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight, LogOut, User } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
-import { staticNavItems, categoryOrder } from '@/core/navigationConfig';
+import { categoryOrder } from '@/core/navigationConfig';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 
 import { useSidebar } from './MainLayout';
@@ -51,22 +51,11 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     }
   };
 
-  // Build dynamic navigation by combining static items and plugins
+  // Build dynamic navigation from active plugins only
   const buildNavigation = () => {
     const categoriesMap = new Map<string, any[]>();
 
-    // Add static items
-    staticNavItems.forEach((item) => {
-      if (!categoriesMap.has(item.category)) {
-        categoriesMap.set(item.category, []);
-      }
-      categoriesMap.get(item.category)!.push({
-        type: 'static',
-        ...item,
-      });
-    });
-
-    // Add plugin items (filtered by user access)
+    // Add only plugin items that user has access to
     PLUGIN_REGISTRY.forEach((plugin) => {
       // Only show plugins that user has access to
       if (user?.plugins.includes(plugin.name) && plugin.navigation) {

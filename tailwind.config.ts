@@ -5,15 +5,20 @@ export default {
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Poppins', 'system-ui', 'sans-serif'],
+      },
+      fontSize: {
+        'xs': '11px',
+        'sm': '13px', 
+        'base': '15px',
+        'lg': '17px',
+        'xl': '19px',
+        '2xl': '23px',
+        '3xl': '29px'
+      },
       width: {
         '748': '748px',
-      },
-      borderRadius: {
-        lg: "0",
-        md: "0",
-        sm: "0",
-        DEFAULT: "0",
-        full: "0",
       },
       colors: {
         background: "hsl(var(--background))",
