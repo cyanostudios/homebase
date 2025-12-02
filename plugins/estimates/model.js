@@ -1,8 +1,14 @@
+// plugins/estimates/model.js
+// Estimates model - handles estimate CRUD, sharing, and statistics with multi-tenant support
 const crypto = require('crypto');
 
 class EstimateModel {
   constructor(pool) {
-    this.pool = pool;
+    this.defaultPool = pool;
+  }
+
+  getPool(req) {
+    return req.tenantPool || this.defaultPool;
   }
 
   // Existing calculation method
@@ -61,7 +67,6 @@ class EstimateModel {
       totalVat: parseFloat(row.total_vat || 0),
       total: parseFloat(row.total || 0),
       status: row.status || 'draft',
-      // NEW: Add status reasons
       acceptanceReasons: row.acceptance_reasons ? JSON.parse(row.acceptance_reasons) : [],
       rejectionReasons: row.rejection_reasons ? JSON.parse(row.rejection_reasons) : [],
       statusChangedAt: row.status_changed_at,
@@ -71,8 +76,9 @@ class EstimateModel {
   }
 
   // Get next estimate number
-  async getNextEstimateNumber(userId) {
-    const client = await this.pool.connect();
+  async getNextEstimateNumber(req, userId) {
+    const pool = this.getPool(req);
+    const client = await pool.connect();
     
     try {
       await client.query('BEGIN');
@@ -125,11 +131,12 @@ class EstimateModel {
   }
 
   // Create estimate
-  async create(userId, estimateData) {
-    const estimateNumber = estimateData.estimateNumber || await this.getNextEstimateNumber(userId);
+  async create(req, userId, estimateData) {
+    const pool = this.getPool(req);
+    const estimateNumber = estimateData.estimateNumber || await this.getNextEstimateNumber(req, userId);
     const { subtotal, totalDiscount, subtotalAfterDiscount, estimateDiscountAmount, subtotalAfterEstimateDiscount, totalVat, total } = this.calculateTotals(estimateData.lineItems || [], estimateData.estimateDiscount || 0);
     
-    const result = await this.pool.query(`
+    const result = await pool.query(`
       INSERT INTO estimates (
         user_id, estimate_number, contact_id, contact_name, organization_number,
         currency, line_items, estimate_discount, notes, valid_to, subtotal, total_discount, 
@@ -157,7 +164,6 @@ class EstimateModel {
       totalVat,
       total,
       estimateData.status || 'draft',
-      // NEW: Handle status reasons
       JSON.stringify(estimateData.acceptanceReasons || []),
       JSON.stringify(estimateData.rejectionReasons || []),
       (estimateData.status === 'accepted' || estimateData.status === 'rejected') ? 'NOW()' : null
@@ -166,9 +172,10 @@ class EstimateModel {
     return this.transformRow(result.rows[0]);
   }
 
-  // Get all estimates for user (keeping original method name)
-  async getAll(userId) {
-    const result = await this.pool.query(
+  // Get all estimates for user
+  async getAll(req, userId) {
+    const pool = this.getPool(req);
+    const result = await pool.query(
       'SELECT * FROM estimates WHERE user_id = $1 ORDER BY created_at DESC',
       [userId]
     );
@@ -177,8 +184,9 @@ class EstimateModel {
   }
 
   // Get single estimate by ID
-  async getById(userId, estimateId) {
-    const result = await this.pool.query(
+  async getById(req, userId, estimateId) {
+    const pool = this.getPool(req);
+    const result = await pool.query(
       'SELECT * FROM estimates WHERE id = $1 AND user_id = $2',
       [estimateId, userId]
     );
@@ -191,15 +199,15 @@ class EstimateModel {
   }
 
   // Update estimate
-  async update(userId, estimateId, estimateData) {
+  async update(req, userId, estimateId, estimateData) {
+    const pool = this.getPool(req);
     const { subtotal, totalDiscount, subtotalAfterDiscount, estimateDiscountAmount, subtotalAfterEstimateDiscount, totalVat, total } = this.calculateTotals(estimateData.lineItems || [], estimateData.estimateDiscount || 0);
     
-    // NEW: Check if status is changing to accepted/rejected to update status_changed_at
-    const currentEstimate = await this.getById(userId, estimateId);
+    const currentEstimate = await this.getById(req, userId, estimateId);
     const isStatusChanging = currentEstimate && currentEstimate.status !== estimateData.status;
     const isBecomingAcceptedOrRejected = (estimateData.status === 'accepted' || estimateData.status === 'rejected');
     
-    const result = await this.pool.query(`
+    const result = await pool.query(`
       UPDATE estimates SET
         contact_id = $3,
         contact_name = $4,
@@ -245,7 +253,6 @@ class EstimateModel {
       totalVat,
       total,
       estimateData.status || 'draft',
-      // NEW: Handle status reasons
       JSON.stringify(estimateData.acceptanceReasons || []),
       JSON.stringify(estimateData.rejectionReasons || []),
       isStatusChanging && isBecomingAcceptedOrRejected
@@ -259,8 +266,9 @@ class EstimateModel {
   }
 
   // Delete estimate
-  async delete(userId, estimateId) {
-    const result = await this.pool.query(
+  async delete(req, userId, estimateId) {
+    const pool = this.getPool(req);
+    const result = await pool.query(
       'DELETE FROM estimates WHERE id = $1 AND user_id = $2 RETURNING id',
       [estimateId, userId]
     );
@@ -272,10 +280,9 @@ class EstimateModel {
     return true;
   }
 
-  // === NEW: STATISTICS METHODS ===
-
   // Get status transition statistics
-  async getStatusStats(userId, startDate = null, endDate = null) {
+  async getStatusStats(req, userId, startDate = null, endDate = null) {
+    const pool = this.getPool(req);
     let dateFilter = '';
     let params = [userId];
     
@@ -284,7 +291,7 @@ class EstimateModel {
       params.push(startDate, endDate);
     }
     
-    const result = await this.pool.query(`
+    const result = await pool.query(`
       SELECT 
         status,
         acceptance_reasons,
@@ -309,7 +316,8 @@ class EstimateModel {
   }
 
   // Get aggregated reason statistics
-  async getReasonStats(userId, status, startDate = null, endDate = null) {
+  async getReasonStats(req, userId, status, startDate = null, endDate = null) {
+    const pool = this.getPool(req);
     let dateFilter = '';
     let params = [userId, status];
     
@@ -320,7 +328,7 @@ class EstimateModel {
     
     const reasonField = status === 'accepted' ? 'acceptance_reasons' : 'rejection_reasons';
     
-    const result = await this.pool.query(`
+    const result = await pool.query(`
       SELECT ${reasonField} as reasons
       FROM estimates 
       WHERE user_id = $1 
@@ -329,7 +337,6 @@ class EstimateModel {
         ${dateFilter}
     `, params);
     
-    // Aggregate reasons
     const reasonCounts = {};
     result.rows.forEach(row => {
       if (row.reasons) {
@@ -343,32 +350,28 @@ class EstimateModel {
     return reasonCounts;
   }
 
-  // === SHARING METHODS ===
-
-// Generate secure random token with base62 encoding
-generateShareToken() {
-  const bytes = crypto.randomBytes(24); // 24 bytes = 192 bits of entropy
-  return this.base62Encode(bytes);
-}
-
-// Base62 encoding for shorter URLs
-base62Encode(buffer) {
-  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-  let result = '';
-  let num = BigInt('0x' + buffer.toString('hex'));
-  
-  while (num > 0) {
-    result = chars[num % 62n] + result;
-    num = num / 62n;
+  // SHARING METHODS
+  generateShareToken() {
+    const bytes = crypto.randomBytes(24);
+    return this.base62Encode(bytes);
   }
-  
-  // Pad to ensure consistent length (32 characters for 24 bytes)
-  return result.padStart(32, '0');
-}
-  // Create estimate share
-  async createShare(userId, estimateId, validUntil) {
-    // First verify user owns the estimate
-    const estimateCheck = await this.pool.query(
+
+  base62Encode(buffer) {
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    let result = '';
+    let num = BigInt('0x' + buffer.toString('hex'));
+    
+    while (num > 0) {
+      result = chars[num % 62n] + result;
+      num = num / 62n;
+    }
+    
+    return result.padStart(32, '0');
+  }
+
+  async createShare(req, userId, estimateId, validUntil) {
+    const pool = this.getPool(req);
+    const estimateCheck = await pool.query(
       'SELECT id FROM estimates WHERE id = $1 AND user_id = $2',
       [estimateId, userId]
     );
@@ -379,7 +382,7 @@ base62Encode(buffer) {
 
     const shareToken = this.generateShareToken();
     
-    const result = await this.pool.query(`
+    const result = await pool.query(`
       INSERT INTO estimate_shares (estimate_id, share_token, valid_until)
       VALUES ($1, $2, $3)
       RETURNING *
@@ -396,45 +399,41 @@ base62Encode(buffer) {
     };
   }
 
-  // Get estimate by share token (public access)
-async getEstimateByShareToken(shareToken) {
-  const result = await this.pool.query(`
-    SELECT 
-      e.*,
-      es.accessed_count,
-      es.valid_until as share_valid_until
-    FROM estimates e
-    JOIN estimate_shares es ON e.id = es.estimate_id
-    WHERE es.share_token = $1 AND es.valid_until > NOW()
-  `, [shareToken]);
-  
-  if (!result.rows.length) {
-    return null;
+  async getEstimateByShareToken(req, shareToken) {
+    const pool = this.getPool(req);
+    const result = await pool.query(`
+      SELECT 
+        e.*,
+        es.accessed_count,
+        es.valid_until as share_valid_until
+      FROM estimates e
+      JOIN estimate_shares es ON e.id = es.estimate_id
+      WHERE es.share_token = $1 AND es.valid_until > NOW()
+    `, [shareToken]);
+    
+    if (!result.rows.length) {
+      return null;
+    }
+    
+    const row = result.rows[0];
+    const currentAccessCount = row.accessed_count;
+    
+    await pool.query(`
+      UPDATE estimate_shares 
+      SET accessed_count = accessed_count + 1, last_accessed_at = NOW()
+      WHERE share_token = $1
+    `, [shareToken]);
+    
+    const estimate = this.transformRow(row);
+    estimate.shareValidUntil = row.share_valid_until;
+    estimate.accessedCount = currentAccessCount + 1;
+    
+    return estimate;
   }
-  
-  const row = result.rows[0];
-  const currentAccessCount = row.accessed_count;
-  
-  // Update access count
-  await this.pool.query(`
-    UPDATE estimate_shares 
-    SET accessed_count = accessed_count + 1, last_accessed_at = NOW()
-    WHERE share_token = $1
-  `, [shareToken]);
-  
-  const estimate = this.transformRow(row);
-  
-  // Add sharing info with the NEW access count (including this access)
-  estimate.shareValidUntil = row.share_valid_until;
-  estimate.accessedCount = currentAccessCount + 1;
-  
-  return estimate;
- }
 
-  // Get all shares for an estimate
-  async getSharesForEstimate(userId, estimateId) {
-    // Verify user owns the estimate
-    const estimateCheck = await this.pool.query(
+  async getSharesForEstimate(req, userId, estimateId) {
+    const pool = this.getPool(req);
+    const estimateCheck = await pool.query(
       'SELECT id FROM estimates WHERE id = $1 AND user_id = $2',
       [estimateId, userId]
     );
@@ -443,7 +442,7 @@ async getEstimateByShareToken(shareToken) {
       throw new Error('Estimate not found or access denied');
     }
 
-    const result = await this.pool.query(`
+    const result = await pool.query(`
       SELECT * FROM estimate_shares 
       WHERE estimate_id = $1 
       ORDER BY created_at DESC
@@ -460,10 +459,9 @@ async getEstimateByShareToken(shareToken) {
     }));
   }
 
-  // Revoke share (delete it)
-  async revokeShare(userId, shareId) {
-    // First verify user owns the estimate that this share belongs to
-    const result = await this.pool.query(`
+  async revokeShare(req, userId, shareId) {
+    const pool = this.getPool(req);
+    const result = await pool.query(`
       DELETE FROM estimate_shares 
       WHERE id = $1 
       AND estimate_id IN (
@@ -483,9 +481,9 @@ async getEstimateByShareToken(shareToken) {
     };
   }
 
-  // Clean up expired shares (utility method)
-  async cleanExpiredShares() {
-    const result = await this.pool.query(
+  async cleanExpiredShares(req) {
+    const pool = this.getPool(req);
+    const result = await pool.query(
       'DELETE FROM estimate_shares WHERE valid_until < NOW()'
     );
     

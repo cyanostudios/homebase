@@ -1,39 +1,47 @@
-// server/plugins/files/model.js
-// Postgres model for Files plugin (metadata only; binary upload handled elsewhere)
+// plugins/files/model.js
+// Files model - handles file metadata CRUD operations with multi-tenant support
+// Note: Binary upload handled elsewhere, this only manages metadata
 
 class FilesModel {
   constructor(pool) {
-    this.pool = pool;
+    this.defaultPool = pool;
+  }
+
+  getPool(req) {
+    return req.tenantPool || this.defaultPool;
   }
 
   // DB table (snake_case)
   static TABLE = 'user_files';
   static ORDER_BY = 'updated_at DESC, id DESC';
 
-  async getAll(userId) {
+  async getAll(req, userId) {
+    const pool = this.getPool(req);
     const sql = `
       SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
       FROM ${FilesModel.TABLE}
       WHERE user_id = $1
       ORDER BY ${FilesModel.ORDER_BY}
     `;
-    const result = await this.pool.query(sql, [userId]);
+    const result = await pool.query(sql, [userId]);
     return result.rows.map(this.transformRow);
   }
 
-  async getById(userId, itemId) {
+  async getById(req, userId, itemId) {
+    const pool = this.getPool(req);
     const sql = `
       SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
       FROM ${FilesModel.TABLE}
       WHERE id = $1 AND user_id = $2
       LIMIT 1
     `;
-    const result = await this.pool.query(sql, [itemId, userId]);
+    const result = await pool.query(sql, [itemId, userId]);
     return result.rows.length ? this.transformRow(result.rows[0]) : null;
   }
 
-  // NEW: find by stored filename in url (/api/files/raw/<filename>)
-  async getByStoredFilename(userId, filename) {
+  // Find by stored filename in url (/api/files/raw/<filename>)
+  async getByStoredFilename(req, userId, filename) {
+    const pool = this.getPool(req);
     const sql = `
       SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
       FROM ${FilesModel.TABLE}
@@ -42,11 +50,12 @@ class FilesModel {
       LIMIT 1
     `;
     const like = `%/api/files/raw/${filename}`;
-    const result = await this.pool.query(sql, [userId, like]);
+    const result = await pool.query(sql, [userId, like]);
     return result.rows.length ? this.transformRow(result.rows[0]) : null;
   }
 
-  async create(userId, data) {
+  async create(req, userId, data) {
+    const pool = this.getPool(req);
     const sql = `
       INSERT INTO ${FilesModel.TABLE} (
         user_id, name, size, mime_type, url, created_at, updated_at
@@ -62,11 +71,12 @@ class FilesModel {
       data?.mimeType ?? null,
       data?.url ?? null,
     ];
-    const result = await this.pool.query(sql, params);
+    const result = await pool.query(sql, params);
     return this.transformRow(result.rows[0]);
   }
 
-  async update(userId, itemId, data) {
+  async update(req, userId, itemId, data) {
+    const pool = this.getPool(req);
     const sets = [];
     const params = [];
     let p = 1;
@@ -86,18 +96,19 @@ class FilesModel {
     `;
     params.push(itemId, userId);
 
-    const result = await this.pool.query(sql, params);
+    const result = await pool.query(sql, params);
     if (!result.rows.length) throw new Error('Item not found');
     return this.transformRow(result.rows[0]);
   }
 
-  async delete(userId, itemId) {
+  async delete(req, userId, itemId) {
+    const pool = this.getPool(req);
     const sql = `
       DELETE FROM ${FilesModel.TABLE}
       WHERE id = $1 AND user_id = $2
       RETURNING id
     `;
-    const result = await this.pool.query(sql, [itemId, userId]);
+    const result = await pool.query(sql, [itemId, userId]);
     if (!result.rows.length) throw new Error('Item not found');
     return { id: String(itemId) };
   }

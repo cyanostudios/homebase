@@ -1,12 +1,18 @@
 // plugins/tasks/controller.js
+// Tasks controller - handles HTTP requests for tasks CRUD operations
 class TaskController {
   constructor(model) {
     this.model = model;
   }
 
+  getUserId(req) {
+    return req.session.currentTenantUserId || req.session.user.id;
+  }
+
   async getAll(req, res) {
     try {
-      const tasks = await this.model.getAll(req.session.user.id);
+      const userId = this.getUserId(req);
+      const tasks = await this.model.getAll(req, userId);
       res.json(tasks);
     } catch (error) {
       console.error('Get tasks error:', error);
@@ -16,7 +22,8 @@ class TaskController {
 
   async create(req, res) {
     try {
-      const task = await this.model.create(req.session.user.id, req.body);
+      const userId = this.getUserId(req);
+      const task = await this.model.create(req, userId, req.body);
       res.json(task);
     } catch (error) {
       console.error('Create task error:', error);
@@ -26,11 +33,8 @@ class TaskController {
 
   async update(req, res) {
     try {
-      const task = await this.model.update(
-        req.session.user.id,
-        req.params.id,
-        req.body
-      );
+      const userId = this.getUserId(req);
+      const task = await this.model.update(req, userId, req.params.id, req.body);
       res.json(task);
     } catch (error) {
       console.error('Update task error:', error);
@@ -44,7 +48,8 @@ class TaskController {
 
   async delete(req, res) {
     try {
-      await this.model.delete(req.session.user.id, req.params.id);
+      const userId = this.getUserId(req);
+      await this.model.delete(req, userId, req.params.id);
       res.json({ message: 'Task deleted successfully' });
     } catch (error) {
       console.error('Delete task error:', error);

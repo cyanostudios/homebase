@@ -1,3 +1,5 @@
+// plugins/invoices/controller.js
+// Invoices controller - handles HTTP requests for invoices CRUD, sharing, and PDF generation
 const puppeteer = require('puppeteer');
 const { generatePDFHTML } = require('./pdfTemplate');
 
@@ -6,10 +8,15 @@ class InvoiceController {
     this.model = model;
   }
 
+  getUserId(req) {
+    return req.session.currentTenantUserId || req.session.user.id;
+  }
+
   // === CRUD ===
   async getInvoices(req, res) {
     try {
-      const items = await this.model.getAll(req.session.user.id);
+      const userId = this.getUserId(req);
+      const items = await this.model.getAll(req, userId);
       res.json(items);
     } catch (error) {
       console.error('Error getting invoices:', error);
@@ -19,7 +26,8 @@ class InvoiceController {
 
   async createInvoice(req, res) {
     try {
-      const item = await this.model.create(req.session.user.id, req.body);
+      const userId = this.getUserId(req);
+      const item = await this.model.create(req, userId, req.body);
       res.json(item);
     } catch (error) {
       console.error('Error creating invoice:', error);
@@ -29,7 +37,8 @@ class InvoiceController {
 
   async updateInvoice(req, res) {
     try {
-      const item = await this.model.update(req.session.user.id, req.params.id, req.body);
+      const userId = this.getUserId(req);
+      const item = await this.model.update(req, userId, req.params.id, req.body);
       res.json(item);
     } catch (error) {
       console.error('Error updating invoice:', error);
@@ -42,7 +51,8 @@ class InvoiceController {
 
   async deleteInvoice(req, res) {
     try {
-      await this.model.delete(req.session.user.id, req.params.id);
+      const userId = this.getUserId(req);
+      await this.model.delete(req, userId, req.params.id);
       res.json({ message: 'Invoice deleted successfully' });
     } catch (error) {
       console.error('Error deleting invoice:', error);
@@ -56,7 +66,8 @@ class InvoiceController {
   // === Numbering ===
   async getNextInvoiceNumber(req, res) {
     try {
-      const invoiceNumber = await this.model.getNextInvoiceNumber(req.session.user.id);
+      const userId = this.getUserId(req);
+      const invoiceNumber = await this.model.getNextInvoiceNumber(req, userId);
       res.json({ invoiceNumber });
     } catch (error) {
       console.error('Error getting next invoice number:', error);
@@ -69,9 +80,9 @@ class InvoiceController {
     let browser = null;
     try {
       const { id } = req.params;
-      const userId = req.session.user.id;
+      const userId = this.getUserId(req);
 
-      const invoice = await this.model.getById(userId, id);
+      const invoice = await this.model.getById(req, userId, id);
       if (!invoice) {
         return res.status(404).json({ error: 'Invoice not found' });
       }
@@ -110,7 +121,7 @@ class InvoiceController {
       const { token } = req.params;
       if (!token) return res.status(400).json({ error: 'Share token is required' });
 
-      const invoice = await this.model.getInvoiceByShareToken(token);
+      const invoice = await this.model.getInvoiceByShareToken(req, token);
       if (!invoice) return res.status(404).json({ error: 'Invoice not found or link expired' });
 
       res.json(invoice);
@@ -124,7 +135,7 @@ class InvoiceController {
   async createShare(req, res) {
     try {
       const { invoiceId, validUntil } = req.body;
-      const userId = req.session.user.id;
+      const userId = this.getUserId(req);
 
       if (!invoiceId || !validUntil) {
         return res.status(400).json({ error: 'Invoice ID and valid until date are required' });
@@ -135,7 +146,7 @@ class InvoiceController {
         return res.status(400).json({ error: 'Valid until date must be in the future' });
       }
 
-      const share = await this.model.createShare(userId, invoiceId, validUntilDate);
+      const share = await this.model.createShare(req, userId, invoiceId, validUntilDate);
       res.json(share);
     } catch (error) {
       console.error('Error creating invoice share:', error);
@@ -149,9 +160,9 @@ class InvoiceController {
   async getShares(req, res) {
     try {
       const { invoiceId } = req.params;
-      const userId = req.session.user.id;
+      const userId = this.getUserId(req);
 
-      const shares = await this.model.getSharesForInvoice(userId, invoiceId);
+      const shares = await this.model.getSharesForInvoice(req, userId, invoiceId);
       res.json(shares);
     } catch (error) {
       console.error('Error getting invoice shares:', error);
@@ -165,9 +176,9 @@ class InvoiceController {
   async revokeShare(req, res) {
     try {
       const { shareId } = req.params;
-      const userId = req.session.user.id;
+      const userId = this.getUserId(req);
 
-      const revoked = await this.model.revokeShare(userId, shareId);
+      const revoked = await this.model.revokeShare(req, userId, shareId);
       res.json({ message: 'Share revoked successfully', share: revoked });
     } catch (error) {
       console.error('Error revoking share:', error);

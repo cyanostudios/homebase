@@ -1,11 +1,17 @@
 // plugins/tasks/model.js
+// Tasks model - handles task CRUD operations with multi-tenant support
 class TaskModel {
   constructor(pool) {
-    this.pool = pool;
+    this.defaultPool = pool;
   }
 
-  async getAll(userId) {
-    const result = await this.pool.query(
+  getPool(req) {
+    return req.tenantPool || this.defaultPool;
+  }
+
+  async getAll(req, userId) {
+    const pool = this.getPool(req);
+    const result = await pool.query(
       'SELECT * FROM tasks WHERE user_id = $1 ORDER BY created_at DESC',
       [userId]
     );
@@ -13,7 +19,8 @@ class TaskModel {
     return result.rows.map(this.transformRow);
   }
 
-  async create(userId, taskData) {
+  async create(req, userId, taskData) {
+    const pool = this.getPool(req);
     const { 
       title, 
       content, 
@@ -31,7 +38,7 @@ class TaskModel {
       userId 
     });
     
-    const result = await this.pool.query(`
+    const result = await pool.query(`
       INSERT INTO tasks (
         user_id, title, content, mentions, status, priority, 
         due_date, assigned_to, created_from_note, created_at
@@ -53,7 +60,8 @@ class TaskModel {
     return this.transformRow(result.rows[0]);
   }
 
-  async update(userId, taskId, taskData) {
+  async update(req, userId, taskId, taskData) {
+    const pool = this.getPool(req);
     const { 
       title, 
       content, 
@@ -64,7 +72,7 @@ class TaskModel {
       assigned_to 
     } = taskData;
     
-    const result = await this.pool.query(`
+    const result = await pool.query(`
       UPDATE tasks SET
         title = $1, content = $2, mentions = $3, status = $4, 
         priority = $5, due_date = $6, assigned_to = $7, updated_at = CURRENT_TIMESTAMP
@@ -89,8 +97,9 @@ class TaskModel {
     return this.transformRow(result.rows[0]);
   }
 
-  async delete(userId, taskId) {
-    const result = await this.pool.query(
+  async delete(req, userId, taskId) {
+    const pool = this.getPool(req);
+    const result = await pool.query(
       'DELETE FROM tasks WHERE id = $1 AND user_id = $2 RETURNING id',
       [taskId, userId]
     );
@@ -120,11 +129,11 @@ class TaskModel {
       mentions: mentions,
       status: row.status || 'not started',
       priority: row.priority || 'Medium',
-      due_date: row.due_date, // Keep backend format for API consistency
-      assigned_to: row.assigned_to, // Keep backend format for API consistency
-      created_from_note: row.created_from_note, // Keep backend format for API consistency
-      created_at: row.created_at, // Keep backend format - frontend will transform
-      updated_at: row.updated_at, // Keep backend format - frontend will transform
+      due_date: row.due_date,
+      assigned_to: row.assigned_to,
+      created_from_note: row.created_from_note,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 }
