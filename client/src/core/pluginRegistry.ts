@@ -183,40 +183,41 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       order: 1,
     },
   },
-  {
-    name: 'products',
-    Provider: ProductProvider,
-    hook: useProducts,
-    panelKey: 'isProductPanelOpen',
-    components: {
-      List: ProductList,
-      Form: ProductForm,
-      View: ProductView,
-    },
-    navigation: {
-      category: 'E-commerce',
-      label: 'Products',
-      icon: Package,
-      order: 0,
-    },
-  },
-  {
-    name: 'channels',
-    Provider: ChannelsProvider,
-    hook: useChannels,
-    panelKey: 'isChannelPanelOpen',
-    components: {
-      List: ChannelsList,
-      View: ChannelsView,
-      // No Form component
-    },
-    navigation: {
-      category: 'E-commerce',
-      label: 'Channels',
-      icon: Globe,
-      order: 1,
-    },
-  },
+ // {
+//   name: 'products',
+//   Provider: ProductProvider,
+//   hook: useProducts,
+//   panelKey: 'isProductPanelOpen',
+//   components: {
+//     List: ProductList,
+//     Form: ProductList,
+//     View: ProductView,
+//   },
+//   navigation: {
+//     label: 'Products',
+//     icon: Package,
+//     category: 'E-commerce',
+//     order: 0,
+//   },
+// },
+
+// {
+//   name: 'channels',
+//   Provider: ChannelsProvider,
+//   hook: useChannels,
+//   panelKey: 'isChannelPanelOpen',
+//   components: {
+//     List: ChannelsList,
+//     Form: ChannelsForm,
+//     View: ChannelsView,
+//   },
+//   navigation: {
+//     label: 'Channels',
+//     icon: Radio,
+//     category: 'E-commerce',
+//     order: 1,
+//   },
+// },
   {
     name: 'rail',
     Provider: RailProvider,
