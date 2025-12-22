@@ -1,157 +1,397 @@
-# Homebase Documentation Index
+# Homebase Documentation Index V2
+Project Overview
+Homebase is a modular plugin-based platform with service abstraction architecture. The system enables parallel team development with zero conflicts while maintaining enterprise-grade security and performance.
+🏗️ ARCHITECTURE: Service abstraction with automated plugin integration
+📊 STATUS: Production-ready with security enforcement
+KEY ACHIEVEMENTS
 
-## Project Overview
+Service Abstraction - Infrastructure swappable via configuration
+Security By Default - Multiple layers of enforcement
+90% Reduction in Re-renders - Plugin isolation prevents cascading updates
+Zero Manual Core Updates - Automated plugin integration
+Testing Simplified - Mock adapters for fast unit tests
+Deployment Flexible - Same code, different infrastructure
 
-Homebase is a revolutionary modular plugin-based business application. The system enables parallel team development with zero conflicts while maintaining enterprise-grade performance and user experience.
+Core Features
 
-**🏗️ ARCHITECTURE:** Complete modular context system (v7+)  
-**📊 STATUS:** Proven in development with enterprise-grade functionality  
+Universal Keyboard Navigation - Space + Arrow keys across all plugins
+Cross-Plugin References - Seamless navigation between plugins (@mentions, assignments)
+Mobile-First Design - Responsive components with conditional rendering
+Multi-Tenant Isolation - Automatic tenant filtering at core level
+CSRF Protection - Required on all state-changing operations
+Rate Limiting - Configurable per endpoint
+Audit Logging - Built-in for all operations
 
-## KEY ACHIEVEMENTS
 
-- **90% Reduction in Re-renders** - Plugin isolation prevents cascading updates
-- **61% Server Code Reduction** - Minimal core with automatic plugin discovery  
-- **15-25 Minute Plugin Development** - Standardized templates and patterns
-- **Zero Team Conflicts** - Parallel plugin development with complete isolation
-- **Enterprise Standards** - Professional UI/UX with modern architecture
+📚 COMPLETE DOCUMENTATION
+🎯 Core Architecture & Services
+Start here for system understanding:
 
-## Core Features
+CORE_SERVICES_ARCHITECTURE.md ⭐ NEW
 
-- **Universal Keyboard Navigation** - Space + Arrow keys across all plugins
-- **Cross-Plugin @Mentions** - Seamless navigation between contacts and notes
-- **Mobile-First Design** - Responsive components with conditional rendering
-- **Real-Time Validation** - Context-aware error handling and feedback
+Service abstraction principles
+Adapter pattern implementation
+All core services (Database, Storage, Email, Queue, Cache, Realtime, Search, Logging)
+Configuration-driven architecture
+Extension points
 
-## COMPLETE DOCUMENTATION MATRIX
 
-### 📚 Development Guides
-- **[DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md)** - Project architecture, setup, and deployment
-- **[PLUGIN_OVERVIEW.md](./PLUGIN_OVERVIEW.md)** - Complete plugin development workflow (15-25 min per plugin)
-- **[PLUGIN_OVERVIEW.md](./PLUGIN_OVERVIEW.md)** - Plugin system architecture and performance metrics
-- **[BACKEND_PLUGIN_GUIDE.md](./BACKEND_PLUGIN_GUIDE.md)** - Backend plugin development templates and patterns
-- **[FRONTEND_PLUGIN_GUIDE.md](./FRONTEND_PLUGIN_GUIDE.md)** - Frontend plugin development with modular contexts
+CORE_ARCHITECTURE_V2.md ⭐ UPDATED
 
-### 🎨 UI/UX Standards
-- **[STYLE_GUIDE.md](./STYLE_GUIDE.md)** - Complete UI component patterns and responsive design standards
+Plugin registry system
+AppContext integration
+Panel coordination
+Cross-plugin features
+Performance optimizations
 
-### 🤖 AI Collaboration & Enforcement
-- **[COLLABORATION_GUIDE.md](./COLLABORATION_GUIDE.md)** - Proven patterns for effective AI/Claude collaboration
-- **[AI_AGENT_INSTRUCTIONS.md](./AI_AGENT_INSTRUCTIONS.md)** - **CRITICAL: Absolute rules and enforcement for AI development**
 
-### 📋 Documentation Index
-- **[docs/README.md](./docs/README.md)** - Documentation overview and project roadmap
+SECURITY_GUIDELINES.md ⭐ NEW
 
-## TECH STACK
+Security layers (middleware, adapter, plugin, database)
+Authentication & authorization
+Input validation patterns
+CSRF protection
+Rate limiting
+Audit logging
+Common vulnerabilities & prevention
 
-**Frontend:** React 18 + TypeScript + Vite + Modular Contexts  
-**Backend:** Express.js + PostgreSQL + Plugin-loader system  
-**Infrastructure:** Node.js with professional development standards  
-**Performance:** Sub-second response times with 90% fewer unnecessary re-renders  
 
-## 🚨 ABSOLUTE RULES FOR AI AGENTS
 
-### 1. ZERO GUESSING
-- **ASK FOR FILE CONTENTS** before ANY modification
-- **ADMIT "I DON'T KNOW"** when uncertain
-- **STOP** if guessing required
 
-### 2. CORE FILE PROTECTION
-**Production-critical files:** `App.tsx`, `AppContext.tsx`, `pluginRegistry.ts`, `server/plugin-loader.js`, `core/`
-- Show exact contents first
-- Get explicit confirmation
-- Triple-check impact
+🔧 Plugin Development Guides
+Follow these for building plugins:
 
-### 3. TEMPLATE-ONLY DEVELOPMENT
-- **USE TEMPLATES** from `templates/` directory for ALL new plugins
-- **COPY COMPLETE IMPLEMENTATIONS** - no variations
-- **FOLLOW DOCS EXACTLY** - no improvisation
+PLUGIN_OVERVIEW_V2.md ⭐ UPDATED
 
-### 4. ONE ACTION PER RESPONSE
-Format: "Step X: [Specific action] - What result do you get?"
+Quick start workflow
+Automated benefits
+Critical requirements
+Common patterns
+Testing strategy
+Success checklist
 
-### 5. MAX 2 ATTEMPTS
-- After 2 failed attempts: **ESCALATE**
-- Never repeat same failed solution
 
-### 6. SHORT RESPONSES
-- Max 3 paragraphs
-- One clear action
-- Get to the point
+PLUGIN_DEVELOPMENT_STANDARDS_V2.md ⭐ UPDATED
 
-### PLUGIN DEVELOPMENT STANDARDS
-- Use templates from `templates/` directory - demonstrates ALL patterns
-- Follow guides exactly - tested in development
-- Copy complete templates - backend/frontend available
-- Test each step before proceeding
+MANDATORY naming conventions
+Context implementation pattern
+Backend integration with core services
+Security requirements
+Component props patterns
+Testing requirements
 
-### MANDATORY READING ORDER
-1. **AI_AGENT_INSTRUCTIONS.md** - Absolute rules
-2. **COLLABORATION_GUIDE.md** - Systematic workflow  
-3. **PLUGIN_OVERVIEW.md** - Implementation patterns
-4. **STYLE_GUIDE.md** - Component standards
-5. Specific plugin template - Exact code to copy
 
-## PLUGIN ARCHITECTURE
+BACKEND_PLUGIN_GUIDE_V2.md ⭐ UPDATED
 
-### Backend Structure (5 minutes)
-```
-plugins/[name]/
-├── plugin.config.js    # Plugin metadata and routing
-├── model.js           # Database operations (copy from templates)
-├── controller.js      # Business logic (copy from templates)
-├── routes.js          # Express routes (copy from templates)
-└── index.js          # Plugin initialization
-```
+Backend development with ServiceManager
+Model layer using core services
+Controller with security & validation
+Routes with security middleware
+Advanced patterns (file upload, email, queues, caching)
+Testing with mock adapters
 
-### Frontend Structure (15-20 minutes)
-```
-client/src/plugins/[name]/
-├── types/[name].ts           # TypeScript interfaces
-├── context/[Name]Context.tsx # CRITICAL: Copy template pattern exactly
-├── hooks/use[Name].ts        # Plugin-specific hook
-├── api/[name]Api.ts          # Isolated API calls
-└── components/               # Responsive React components
-    ├── [Name]List.tsx        # Mobile-first responsive list
-    ├── [Name]Form.tsx        # Validation and form handling
-    └── [Name]View.tsx        # Display with cross-plugin support
-```
 
-### Integration Requirements
-- **Register in pluginRegistry.ts** - Add plugin metadata (plural naming critical)
-- **Test keyboard navigation** - Space + Arrow keys must work
-- **Verify responsive design** - Mobile/desktop conditional rendering
-- **Confirm cross-plugin features** - Don't break existing @mentions or references
+FRONTEND_PLUGIN_GUIDE_V2.md ⭐ UPDATED
 
-## DEVELOPMENT WORKFLOW
+Frontend development with CSRF
+API layer with security
+Context implementation
+Component patterns (List, Form, View)
+Security best practices
+Testing
 
-### Standard Terminal Setup
-```bash
-Terminal 1: npx vite --config vite.config.ts    # Frontend dev server
-Terminal 2: npm run dev                          # Backend API server
-Terminal 3: git, commands, testing              # General commands
-```
 
-### Plugin Development Process (Tested Pattern)
-1. **Create Backend Plugin** (5 min) - Copy `templates/plugin-backend-template` exactly
-2. **Test Backend API** (2 min) - Verify endpoints work with curl
-3. **Create Frontend Context** (5 min) - Copy `templates/plugin-frontend-template` pattern exactly
-4. **Build UI Components** (8 min) - Copy template List/Form/View patterns
-5. **Register Plugin** (3 min) - Add to pluginRegistry.ts with plural naming
-6. **Integration Testing** (2 min) - Verify keyboard navigation + responsive design
+REFACTORING_EXISTING_PLUGINS.md ⭐ NEW
 
-### Quality Checkpoints
-- Backend API responds correctly to all CRUD operations
-- Frontend context manages state without breaking other plugins
-- UI components are responsive and follow style guide
-- Keyboard navigation works (Space + Arrow keys)
-- Cross-plugin features preserved (@mentions, references)
-- No performance regressions (check re-render behavior)
+Migration from direct calls to core services
+Adding security layers
+Plugin-specific refactoring (contacts, notes, tasks, estimates)
+Files plugin critical updates
+Testing refactored plugins
+Deployment checklist
 
----
 
-**System Status:** ✅ Complete Modular Architecture Implemented  
-**Development Ready:** Templates and patterns proven in development  
-**Performance:** 90% fewer re-renders, 61% server code reduction  
-**Team Ready:** Zero-conflict parallel development workflow
 
-*Use these standards for efficient, professional development.*
+
+🎨 UI/UX Standards
+
+STYLE_GUIDE.md
+
+Design system (colors, typography, spacing)
+Component standards
+Badge patterns
+Modal patterns
+Form layouts
+Keyboard navigation requirements
+
+
+
+
+🚀 Development & Deployment
+
+DEVELOPMENT_GUIDE_V2.md ⭐ UPDATED
+
+Project structure
+Environment setup
+Service configuration
+Plugin development workflow
+Database management
+Testing
+Deployment
+Performance optimization
+Monitoring
+Troubleshooting
+
+
+
+
+🤖 AI Collaboration
+
+COLLABORATION_GUIDE.md
+
+Proven patterns for AI/Claude collaboration
+Step-by-step methodology
+Precise communication
+Terminal management
+Development best practices
+Anti-patterns to avoid
+
+
+
+
+📋 Implementation Guides
+
+MULTI_TENANT_HANDOVER.md
+
+Database tenant management plugin
+Railway PostgreSQL + Neon architecture
+Tenant-specific implementation details
+
+
+
+
+🗺️ Documentation Roadmap
+For New Developers
+Day 1: Understanding the system
+
+Read CORE_SERVICES_ARCHITECTURE.md - Understand abstraction
+Read CORE_ARCHITECTURE_V2.md - Understand plugin system
+Read SECURITY_GUIDELINES.md - Understand security layers
+
+Day 2: Development setup
+
+Read DEVELOPMENT_GUIDE_V2.md - Setup environment
+Run existing plugins locally
+Explore codebase with understanding
+
+Day 3-5: Build first plugin
+
+Read PLUGIN_OVERVIEW_V2.md - Quick start
+Read PLUGIN_DEVELOPMENT_STANDARDS_V2.md - Conventions
+Read BACKEND_PLUGIN_GUIDE_V2.md - Backend implementation
+Read FRONTEND_PLUGIN_GUIDE_V2.md - Frontend implementation
+Build simple CRUD plugin following guides
+
+
+For AI Agents/LLMs
+Mandatory reading order:
+
+CORE_SERVICES_ARCHITECTURE.md - Service abstraction
+SECURITY_GUIDELINES.md - Security requirements
+PLUGIN_DEVELOPMENT_STANDARDS_V2.md - Naming conventions
+BACKEND_PLUGIN_GUIDE_V2.md - Backend patterns
+FRONTEND_PLUGIN_GUIDE_V2.md - Frontend patterns
+STYLE_GUIDE.md - UI standards
+COLLABORATION_GUIDE.md - AI collaboration patterns
+
+For specific tasks:
+
+Building new plugin: PLUGIN_OVERVIEW_V2.md → Specific guides
+Refactoring existing: REFACTORING_EXISTING_PLUGINS.md
+Security review: SECURITY_GUIDELINES.md
+Debugging: DEVELOPMENT_GUIDE_V2.md troubleshooting section
+
+
+For Refactoring Existing Code
+Existing plugins (contacts, notes, tasks, estimates):
+
+Read REFACTORING_EXISTING_PLUGINS.md - Migration strategy
+Read CORE_SERVICES_ARCHITECTURE.md - Service usage
+Read SECURITY_GUIDELINES.md - Security additions
+Refactor one plugin at a time
+Test thoroughly before moving to next
+
+
+🛠️ TECH STACK
+Frontend: React 18 + TypeScript + Vite + Modular Contexts
+Backend: Express.js + PostgreSQL + ServiceManager
+Infrastructure: Configurable via config/services.js
+Security: Multi-layer enforcement (middleware + adapters + business logic)
+Performance: Sub-second response times with 90% fewer re-renders
+
+⚙️ Service Configuration
+Development (default):
+ DATABASE_PROVIDER: 'postgres'    // Local PostgreSQL
+STORAGE_PROVIDER: 'local'        // Local filesystem
+EMAIL_PROVIDER: 'smtp'           // Local SMTP
+QUEUE_PROVIDER: 'memory'         // In-memory queue
+CACHE_PROVIDER: 'memory'         // In-memory cache
+Production (example):
+ DATABASE_PROVIDER: 'neon'        // Neon PostgreSQL
+STORAGE_PROVIDER: 'r2'           // Cloudflare R2
+EMAIL_PROVIDER: 'resend'         // Resend API
+QUEUE_PROVIDER: 'bullmq'         // Redis-backed queue
+CACHE_PROVIDER: 'redis'          // Redis cache
+Change providers: Update config/services.js + environment variables → No code changes needed
+
+🚨 CRITICAL RULES FOR DEVELOPMENT
+1. ALWAYS Use Core Services
+ // ✅ CORRECT
+const database = ServiceManager.get('database');
+const storage = ServiceManager.get('storage');
+const logger = ServiceManager.get('logger');
+
+// ❌ WRONG
+const db = require('../../server/database');
+const fs = require('fs');
+console.log('...');
+2. ALWAYS Include Security Middleware
+ // ✅ CORRECT
+router.post('/', requirePlugin('my-plugin'), csrfProtection, [validation], controller.create);
+
+// ❌ WRONG
+router.post('/', controller.create);
+3. ALWAYS Validate User Input
+ // ✅ CORRECT
+body('title').trim().notEmpty().isLength({ max: 255 }).escape()
+
+// ❌ WRONG
+// No validation
+4. ALWAYS Handle Errors Properly
+ // ✅ CORRECT
+try {
+  await database.query(...);
+} catch (error) {
+  logger.error('Operation failed', error, { context });
+  throw new AppError('User-friendly message', 500, 'ERROR_CODE');
+}
+
+// ❌ WRONG
+await database.query(...); // No error handling
+5. ALWAYS Include CSRF Token (Frontend)
+ // ✅ CORRECT
+headers: { 'X-CSRF-Token': await this.getCsrfToken() }
+
+// ❌ WRONG
+// No CSRF token
+
+📊 Architecture Benefits
+Service Abstraction
+
+Infrastructure swappable - Change providers via config
+Testing simplified - Mock adapters for unit tests
+Vendor independence - No lock-in to specific providers
+Cost optimization - Choose providers based on needs
+
+Plugin Isolation
+
+Zero conflicts - Plugins don't interfere
+Parallel development - Teams work independently
+Performance - Only affected components re-render
+Scalability - Add plugins without core changes
+
+Security By Default
+
+Multiple layers - Middleware, adapters, business logic
+Automatic enforcement - Can't bypass security
+Standardized - Same patterns across all plugins
+Audit trail - Built-in logging
+
+
+🎯 Quick Reference
+Plugin Development Checklist
+Backend:
+
+ Copy templates/plugin-backend-template
+ Configure plugin.config.js
+ Implement model using ServiceManager
+ Add security middleware to routes
+ Add input validation
+ Write tests with mock adapters
+
+Frontend:
+
+ Copy templates/plugin-frontend-template
+ Define TypeScript types
+ Create API layer with CSRF
+ Implement context with panel registration
+ Build responsive components
+ Add keyboard navigation attributes
+
+Integration:
+
+ Add to pluginRegistry.ts
+ Grant plugin access in database
+ Test CRUD operations
+ Test keyboard navigation
+ Test security (auth, CSRF, validation)
+ Test mobile responsive
+
+
+📈 Success Metrics
+Plugin is production-ready when:
+
+✅ Zero console errors/warnings
+✅ All CRUD operations work
+✅ Security middleware on all routes
+✅ Input validation implemented
+✅ CSRF protection working
+✅ Keyboard navigation functional
+✅ Mobile/desktop responsive
+✅ Core services used (no direct infrastructure)
+✅ Tests passing (unit + integration + security)
+✅ Tenant isolation verified
+✅ Performance acceptable
+
+
+🔄 Version History
+V2 (Current) - Service Abstraction & Security
+
+Core Services Architecture - ServiceManager with adapter pattern
+Security Guidelines - Multi-layer security enforcement
+Refactoring Guide - Migration from V1 to V2
+Updated all guides - Service abstraction + security focus
+
+V1 (Legacy) - Modular Context System
+
+Modular plugin contexts
+Automated plugin integration
+Cross-plugin references
+Universal keyboard navigation
+
+
+🤝 Contributing
+When contributing:
+
+Read relevant documentation sections
+Follow naming conventions exactly
+Use core services for all infrastructure
+Include security middleware
+Write tests (unit + integration)
+Update documentation if needed
+
+
+📞 Support
+For questions or issues:
+
+Check troubleshooting section in DEVELOPMENT_GUIDE_V2.md
+Review relevant guide for specific topic
+Check existing plugins for reference implementation
+Use COLLABORATION_GUIDE.md for AI assistance patterns
+
+
+System Status: ✅ Production-Ready with Service Abstraction
+Development Ready: Complete guides with security enforcement
+Architecture: Service abstraction + plugin isolation + security by default
+Team Ready: Zero-conflict parallel development workflow
+Use these standards for secure, efficient, professional development.
