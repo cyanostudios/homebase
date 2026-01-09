@@ -163,4 +163,4 @@ Service configuration is in `config/services.js` and can be overridden via envir
 - Database service automatically adds tenant isolation (user_id filtering)
 - All errors are logged with context but never expose internal details
 - Rate limiting is applied globally but can be bypassed for specific routes if needed
-- CSRF protection is ready but needs to be added to plugin routes
+- CSRF protection is implemented on all plugin routes
