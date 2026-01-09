@@ -13,8 +13,8 @@ import {
 import React, { useState, useEffect } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
-import { Button } from '@/core/ui/Button';
-import { Card } from '@/core/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Heading, Text } from '@/core/ui/Typography';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';

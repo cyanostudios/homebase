@@ -2,7 +2,7 @@ import { LogIn } from 'lucide-react';
 import React, { useState } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
-import { Button } from '@/core/ui/Button';
+import { Button } from '@/components/ui/button';
 
 export function LoginComponent() {
   const { login } = useApp();

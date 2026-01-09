@@ -1,7 +1,11 @@
 // client/src/plugins/invoices/components/InvoicesForm.tsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button } from '@/core/ui/Button';
-import { Card } from '@/core/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Heading } from '@/core/ui/Typography';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Plus, Trash2, Copy } from 'lucide-react';
@@ -238,11 +242,12 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
           <Heading level={3} className="mb-3">Customer</Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
-              <select
+              <Label htmlFor="invoice-contact" className="mb-1">Customer</Label>
+              <NativeSelect
+                id="invoice-contact"
                 value={formData.contactId}
                 onChange={(e) => handleContactChange(e.target.value)}
-                className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${getFieldError('contactId') ? 'border-red-500' : 'border-gray-300'}`}
+                className={getFieldError('contactId') ? 'border-red-500' : ''}
                 required
               >
                 <option value="">Select a customer…</option>
@@ -251,25 +256,25 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
                     {c.companyName} {c.organizationNumber ? `(${c.organizationNumber})` : ''}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
               {getFieldError('contactId') && (
                 <p className="mt-1 text-sm text-red-600">{getFieldError('contactId')?.message}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
-              <select
+              <Label htmlFor="invoice-currency" className="mb-1">Currency</Label>
+              <NativeSelect
+                id="invoice-currency"
                 value={formData.currency}
                 onChange={(e) => updateField('currency', e.target.value)}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="SEK">SEK</option>
                 <option value="EUR">EUR</option>
                 <option value="USD">USD</option>
                 <option value="NOK">NOK</option>
                 <option value="DKK">DKK</option>
-              </select>
+              </NativeSelect>
             </div>
           </div>
         </Card>
@@ -279,63 +284,63 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
           <Heading level={3} className="mb-3">Invoice Details</Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Issue Date</label>
-              <input
+              <Label htmlFor="invoice-issue-date" className="mb-1">Issue Date</Label>
+              <Input
+                id="invoice-issue-date"
                 type="date"
                 value={fmtDateInput(formData.issueDate)}
                 onChange={(e) => updateField('issueDate', parseDateInput(e.target.value))}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-              <input
+              <Label htmlFor="invoice-due-date" className="mb-1">Due Date</Label>
+              <Input
+                id="invoice-due-date"
                 type="date"
                 value={fmtDateInput(formData.dueDate)}
                 onChange={(e) => updateField('dueDate', parseDateInput(e.target.value))}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Payment Terms</label>
-              <input
+              <Label htmlFor="invoice-payment-terms" className="mb-1">Payment Terms</Label>
+              <Input
+                id="invoice-payment-terms"
                 type="text"
                 value={formData.paymentTerms}
                 onChange={(e) => updateField('paymentTerms', e.target.value)}
                 placeholder="e.g. 30 dagar netto"
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Type</label>
-              <select
+              <Label htmlFor="invoice-type" className="mb-1">Invoice Type</Label>
+              <NativeSelect
+                id="invoice-type"
                 value={formData.invoiceType}
                 onChange={(e) => updateField('invoiceType', e.target.value as any)}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="invoice">Faktura (Invoice)</option>
                 <option value="credit_note">Kreditfaktura (Credit Note)</option>
                 <option value="cash_invoice">Kontantfaktura (Cash Invoice)</option>
                 <option value="receipt">Kvitto (Receipt)</option>
-              </select>
+              </NativeSelect>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
+              <Label htmlFor="invoice-status" className="mb-1">Status</Label>
+              <NativeSelect
+                id="invoice-status"
                 value={formData.status}
                 onChange={(e) => updateField('status', e.target.value as any)}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="draft">Draft</option>
                 <option value="sent">Sent</option>
                 <option value="paid">Paid</option>
                 <option value="overdue">Overdue</option>
                 <option value="canceled">Canceled</option>
-              </select>
+              </NativeSelect>
             </div>
           </div>
         </Card>
@@ -361,12 +366,12 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
                   {/* Row 1 */}
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-sm font-medium text-gray-700 flex-shrink-0 w-12">Item {index + 1}</span>
-                    <textarea
+                    <Textarea
                       value={item.description || ''}
                       onChange={(e) => updateLineItem(index, 'description', e.target.value)}
                       placeholder="Service or product description"
                       rows={1}
-                      className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      className="flex-1 text-sm resize-none h-auto min-h-[2.5rem]"
                       required
                     />
                     <Button type="button" onClick={() => duplicateLineItem(index)} variant="secondary" icon={Copy} size="sm" className="h-8 w-8 p-0" title="Duplicate item" />
@@ -390,46 +395,46 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
                       <tbody>
                         <tr>
                           <td className="px-2 py-1">
-                            <input
+                            <Input
                               type="number"
                               min="0"
                               value={item.quantity}
                               onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
-                              className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                              className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               required
                             />
                           </td>
                           <td className="px-2 py-1">
-                            <input
+                            <Input
                               type="number"
                               min="0"
                               value={item.unitPrice}
                               onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                              className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                              className="w-20 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               required
                             />
                           </td>
                           <td className="px-2 py-1">
-                            <input
+                            <Input
                               type="number"
                               min="0"
                               max="100"
                               value={item.discount || 0}
                               onChange={(e) => updateLineItem(index, 'discount', parseFloat(e.target.value) || 0)}
-                              className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                              className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                             />
                           </td>
                           <td className="px-2 py-1">
-                            <select
+                            <NativeSelect
                               value={item.vatRate || 25}
                               onChange={(e) => updateLineItem(index, 'vatRate', parseFloat(e.target.value))}
-                              className="w-16 px-1 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-16 h-8 px-1 py-1 text-sm"
                             >
                               <option value="0">0%</option>
                               <option value="6">6%</option>
                               <option value="12">12%</option>
                               <option value="25">25%</option>
-                            </select>
+                            </NativeSelect>
                           </td>
                           <td className="px-2 py-1 text-right text-sm text-gray-900">
                             -{(item.discountAmount || 0).toFixed(2)}
@@ -454,17 +459,18 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
         {formData.lineItems.length > 0 && (
           <Card padding="sm" className="shadow-none px-0">
             <div className="flex items-center gap-4 mb-2">
-              <label className="text-sm font-medium text-gray-700">Invoice Discount (%)</label>
+              <Label htmlFor="invoice-discount" className="text-sm font-medium text-gray-700">Invoice Discount (%)</Label>
               <div className="max-w-xs">
-                <input
+                <Input
+                  id="invoice-discount"
                   type="number"
                   min="0"
                   max="100"
                   step="0.01"
                   value={formData.invoiceDiscount || 0}
                   onChange={(e) => updateField('invoiceDiscount', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                   placeholder="0.00"
+                  className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                 />
               </div>
             </div>
@@ -528,12 +534,13 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
         {/* Notes */}
         <Card padding="sm" className="shadow-none px-0">
           <Heading level={3} className="mb-3">Notes</Heading>
-          <textarea
+          <Textarea
+            id="invoice-notes"
             value={formData.notes}
             onChange={(e) => updateField('notes', e.target.value)}
             rows={4}
             placeholder="Additional notes or terms…"
-            className="w-full px-3 py-2 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
+            className="resize-vertical"
           />
         </Card>
 

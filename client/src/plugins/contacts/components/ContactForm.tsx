@@ -1,8 +1,12 @@
 import { Building, User, Plus, Trash2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
-import { Button } from '@/core/ui/Button';
-import { Card } from '@/core/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -346,15 +350,14 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           {/* Mobile: Stack vertically, Desktop: Side by side */}
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
-              <input
+              <Label htmlFor="contactNumber" className="mb-1">Contact Number</Label>
+              <Input
+                id="contactNumber"
                 type="text"
                 value={formData.contactNumber}
                 onChange={(e) => updateField('contactNumber', e.target.value)}
                 placeholder="01"
-                className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  getFieldError('contactNumber') ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={getFieldError('contactNumber') ? 'border-red-500' : ''}
                 required
               />
               {getFieldError('contactNumber') && (
@@ -365,7 +368,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Type</label>
+              <Label className="mb-1">Contact Type</Label>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -407,14 +410,13 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           {formData.contactType === 'company' ? (
             <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                <input
+                <Label htmlFor="companyName" className="mb-1">Company Name</Label>
+                <Input
+                  id="companyName"
                   type="text"
                   value={formData.companyName}
                   onChange={(e) => updateField('companyName', e.target.value)}
-                  className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    getFieldError('companyName') ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={getFieldError('companyName') ? 'border-red-500' : ''}
                   required
                 />
                 {getFieldError('companyName') && (
@@ -425,31 +427,30 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company Type</label>
-                <select
+                <Label htmlFor="companyType" className="mb-1">Company Type</Label>
+                <NativeSelect
+                  id="companyType"
                   value={formData.companyType}
                   onChange={(e) => updateField('companyType', e.target.value)}
-                  className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="AB">AB (Aktiebolag)</option>
                   <option value="HB">HB (Handelsbolag)</option>
                   <option value="KB">KB (Kommanditbolag)</option>
                   <option value="EF">Enskild Firma</option>
-                </select>
+                </NativeSelect>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Label htmlFor="organizationNumber" className="mb-1">
                   Organization Number
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="organizationNumber"
                   type="text"
                   value={formData.organizationNumber}
                   onChange={(e) => updateField('organizationNumber', e.target.value)}
                   placeholder="XXXXXX-XXXX"
-                  className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    getFieldError('organizationNumber') ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={getFieldError('organizationNumber') ? 'border-red-500' : ''}
                 />
                 {getFieldError('organizationNumber') && (
                   <p className="mt-1 text-sm text-red-600">
@@ -459,27 +460,26 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">VAT Number</label>
-                <input
+                <Label htmlFor="vatNumber" className="mb-1">VAT Number</Label>
+                <Input
+                  id="vatNumber"
                   type="text"
                   value={formData.vatNumber}
                   onChange={(e) => updateField('vatNumber', e.target.value)}
                   placeholder="SE123456789001"
-                  className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
           ) : (
             <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input
+                <Label htmlFor="fullName" className="mb-1">Full Name</Label>
+                <Input
+                  id="fullName"
                   type="text"
                   value={formData.companyName}
                   onChange={(e) => updateField('companyName', e.target.value)}
-                  className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    getFieldError('companyName') ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={getFieldError('companyName') ? 'border-red-500' : ''}
                   required
                 />
                 {getFieldError('companyName') && (
@@ -490,17 +490,16 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Label htmlFor="personalNumber" className="mb-1">
                   Personal Number
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="personalNumber"
                   type="text"
                   value={formData.personalNumber}
                   onChange={(e) => updateField('personalNumber', e.target.value)}
                   placeholder="YYYYMMDD-XXXX"
-                  className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    getFieldError('personalNumber') ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={getFieldError('personalNumber') ? 'border-red-500' : ''}
                 />
                 {getFieldError('personalNumber') && (
                   <p className="mt-1 text-sm text-red-600">
@@ -519,14 +518,13 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           </Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
+              <Label htmlFor="email" className="mb-1">Email</Label>
+              <Input
+                id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => updateField('email', e.target.value)}
-                className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  getFieldError('email') ? 'border-yellow-500' : 'border-gray-300'
-                }`}
+                className={getFieldError('email') ? 'border-yellow-500' : ''}
               />
               {getFieldError('email') && (
                 <p
@@ -542,35 +540,35 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-              <input
+              <Label htmlFor="website" className="mb-1">Website</Label>
+              <Input
+                id="website"
                 type="url"
                 value={formData.website}
                 onChange={(e) => updateField('website', e.target.value)}
                 placeholder="https://"
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone 1</label>
-              <input
+              <Label htmlFor="phone" className="mb-1">Phone 1</Label>
+              <Input
+                id="phone"
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => updateField('phone', e.target.value)}
                 placeholder="+46 70 123 45 67"
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone 2</label>
-              <input
+              <Label htmlFor="phone2" className="mb-1">Phone 2</Label>
+              <Input
+                id="phone2"
                 type="tel"
                 value={formData.phone2}
                 onChange={(e) => updateField('phone2', e.target.value)}
                 placeholder="+46 8 123 456 78"
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
           </div>
@@ -607,13 +605,13 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
                   <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Label htmlFor={`address-type-${address.id}`} className="mb-1">
                         Address Type
-                      </label>
-                      <select
+                      </Label>
+                      <NativeSelect
+                        id={`address-type-${address.id}`}
                         value={address.type}
                         onChange={(e) => updateAddress(address.id, 'type', e.target.value)}
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="Main Office">Main Office</option>
                         <option value="Billing Address">Billing Address</option>
@@ -621,93 +619,93 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                         <option value="Branch Office">Branch Office</option>
                         <option value="Home Address">Home Address</option>
                         <option value="Other">Other</option>
-                      </select>
+                      </NativeSelect>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Label htmlFor={`address-email-${address.id}`} className="mb-1">
                         Email for this address
-                      </label>
-                      <input
+                      </Label>
+                      <Input
+                        id={`address-email-${address.id}`}
                         type="email"
                         value={address.email}
                         onChange={(e) => updateAddress(address.id, 'email', e.target.value)}
                         placeholder="contact@company.com"
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Label htmlFor={`address-line1-${address.id}`} className="mb-1">
                         Address Line 1
-                      </label>
-                      <input
+                      </Label>
+                      <Input
+                        id={`address-line1-${address.id}`}
                         type="text"
                         value={address.addressLine1}
                         onChange={(e) => updateAddress(address.id, 'addressLine1', e.target.value)}
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Label htmlFor={`address-line2-${address.id}`} className="mb-1">
                         Address Line 2
-                      </label>
-                      <input
+                      </Label>
+                      <Input
+                        id={`address-line2-${address.id}`}
                         type="text"
                         value={address.addressLine2}
                         onChange={(e) => updateAddress(address.id, 'addressLine2', e.target.value)}
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Label htmlFor={`address-postal-${address.id}`} className="mb-1">
                         Postal Code
-                      </label>
-                      <input
+                      </Label>
+                      <Input
+                        id={`address-postal-${address.id}`}
                         type="text"
                         value={address.postalCode}
                         onChange={(e) => updateAddress(address.id, 'postalCode', e.target.value)}
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                      <input
+                      <Label htmlFor={`address-city-${address.id}`} className="mb-1">City</Label>
+                      <Input
+                        id={`address-city-${address.id}`}
                         type="text"
                         value={address.city}
                         onChange={(e) => updateAddress(address.id, 'city', e.target.value)}
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Region</label>
-                      <input
+                      <Label htmlFor={`address-region-${address.id}`} className="mb-1">Region</Label>
+                      <Input
+                        id={`address-region-${address.id}`}
                         type="text"
                         value={address.region}
                         onChange={(e) => updateAddress(address.id, 'region', e.target.value)}
                         placeholder="e.g. Skåne"
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Label htmlFor={`address-country-${address.id}`} className="mb-1">
                         Country
-                      </label>
-                      <select
+                      </Label>
+                      <NativeSelect
+                        id={`address-country-${address.id}`}
                         value={address.country}
                         onChange={(e) => updateAddress(address.id, 'country', e.target.value)}
-                        className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="Sweden">Sweden</option>
                         <option value="Norway">Norway</option>
                         <option value="Denmark">Denmark</option>
                         <option value="Finland">Finland</option>
-                      </select>
+                      </NativeSelect>
                     </div>
                   </div>
                 </div>
@@ -756,49 +754,49 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
                     <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                        <input
+                        <Label htmlFor={`person-name-${person.id}`} className="mb-1">Name</Label>
+                        <Input
+                          id={`person-name-${person.id}`}
                           type="text"
                           value={person.name}
                           onChange={(e) => updateContactPerson(person.id, 'name', e.target.value)}
-                          className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <Label htmlFor={`person-title-${person.id}`} className="mb-1">
                           Title
-                        </label>
-                        <input
+                        </Label>
+                        <Input
+                          id={`person-title-${person.id}`}
                           type="text"
                           value={person.title}
                           onChange={(e) => updateContactPerson(person.id, 'title', e.target.value)}
                           placeholder="e.g. CEO, Sales Manager"
-                          className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <Label htmlFor={`person-email-${person.id}`} className="mb-1">
                           Email
-                        </label>
-                        <input
+                        </Label>
+                        <Input
+                          id={`person-email-${person.id}`}
                           type="email"
                           value={person.email}
                           onChange={(e) => updateContactPerson(person.id, 'email', e.target.value)}
-                          className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <Label htmlFor={`person-phone-${person.id}`} className="mb-1">
                           Phone
-                        </label>
-                        <input
+                        </Label>
+                        <Input
+                          id={`person-phone-${person.id}`}
                           type="tel"
                           value={person.phone}
                           onChange={(e) => updateContactPerson(person.id, 'phone', e.target.value)}
-                          className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
                     </div>
@@ -816,60 +814,60 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           </Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label>
-              <select
+              <Label htmlFor="taxRate" className="mb-1">Tax Rate (%)</Label>
+              <NativeSelect
+                id="taxRate"
                 value={formData.taxRate}
                 onChange={(e) => updateField('taxRate', e.target.value)}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="0">0% (Tax Free)</option>
                 <option value="6">6% (Reduced)</option>
                 <option value="12">12% (Reduced)</option>
                 <option value="25">25% (Standard)</option>
-              </select>
+              </NativeSelect>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="paymentTerms" className="mb-1">
                 Payment Terms (days)
-              </label>
-              <select
+              </Label>
+              <NativeSelect
+                id="paymentTerms"
                 value={formData.paymentTerms}
                 onChange={(e) => updateField('paymentTerms', e.target.value)}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="0">Immediate</option>
                 <option value="15">15 days</option>
                 <option value="30">30 days</option>
                 <option value="60">60 days</option>
-              </select>
+              </NativeSelect>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
-              <select
+              <Label htmlFor="currency" className="mb-1">Currency</Label>
+              <NativeSelect
+                id="currency"
                 value={formData.currency}
                 onChange={(e) => updateField('currency', e.target.value)}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="SEK">SEK (Swedish Krona)</option>
                 <option value="EUR">EUR (Euro)</option>
                 <option value="USD">USD (US Dollar)</option>
                 <option value="NOK">NOK (Norwegian Krone)</option>
                 <option value="DKK">DKK (Danish Krone)</option>
-              </select>
+              </NativeSelect>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">F-Tax</label>
-              <select
+              <Label htmlFor="fTax" className="mb-1">F-Tax</Label>
+              <NativeSelect
+                id="fTax"
                 value={formData.fTax}
                 onChange={(e) => updateField('fTax', e.target.value)}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
-              </select>
+              </NativeSelect>
             </div>
           </div>
         </Card>
@@ -880,13 +878,14 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             Notes
           </Heading>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
-            <textarea
+            <Label htmlFor="notes" className="mb-1">Additional Notes</Label>
+            <Textarea
+              id="notes"
               value={formData.notes}
               onChange={(e) => updateField('notes', e.target.value)}
               rows={4}
               placeholder="Add any additional notes about this contact..."
-              className="w-full px-3 py-2 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
+              className="resize-vertical"
             />
           </div>
         </Card>

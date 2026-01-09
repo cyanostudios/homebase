@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
-import { Card } from '@/core/ui/Card';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -246,15 +249,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             Task Title
           </Heading>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-            <input
+            <Label htmlFor="task-title" className="mb-1">Title</Label>
+            <Input
+              id="task-title"
               type="text"
               value={formData.title}
               onChange={(e) => updateField('title', e.target.value)}
               placeholder="Enter task title..."
-              className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                getFieldError('title') ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={getFieldError('title') ? 'border-red-500' : ''}
               required
             />
             {getFieldError('title') && (
@@ -271,34 +273,34 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Status */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
+              <Label htmlFor="task-status" className="mb-1">Status</Label>
+              <NativeSelect
+                id="task-status"
                 value={formData.status}
                 onChange={(e) => updateField('status', e.target.value as TaskStatus)}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 {TASK_STATUS_OPTIONS.map((status) => (
                   <option key={status} value={status}>
                     {status}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
 
             {/* Priority */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-              <select
+              <Label htmlFor="task-priority" className="mb-1">Priority</Label>
+              <NativeSelect
+                id="task-priority"
                 value={formData.priority}
                 onChange={(e) => updateField('priority', e.target.value as TaskPriority)}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 {TASK_PRIORITY_OPTIONS.map((priority) => (
                   <option key={priority} value={priority}>
                     {priority}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
           </div>
         </Card>
@@ -311,22 +313,22 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Due Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-              <input
+              <Label htmlFor="task-due-date" className="mb-1">Due Date</Label>
+              <Input
+                id="task-due-date"
                 type="date"
                 value={formatDateForInput(formData.dueDate)}
                 onChange={(e) => handleDateChange(e.target.value)}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
             {/* Assigned To */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
-              <select
+              <Label htmlFor="task-assigned-to" className="mb-1">Assigned To</Label>
+              <NativeSelect
+                id="task-assigned-to"
                 value={formData.assignedTo || ''}
                 onChange={(e) => updateField('assignedTo', e.target.value || null)}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Not assigned</option>
                 {assignableContacts.map((contact) => (
@@ -334,7 +336,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
                     {contact.companyName}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
           </div>
         </Card>
@@ -345,10 +347,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             Task Description
           </Heading>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <Label htmlFor="task-description" className="mb-1">
               Description{' '}
               <span className="text-xs text-gray-500">(Type @ to mention contacts)</span>
-            </label>
+            </Label>
             <MentionTextarea
               value={formData.content}
               onChange={handleContentChange}

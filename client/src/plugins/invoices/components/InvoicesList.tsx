@@ -2,10 +2,11 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Edit, Eye, Search, ChevronUp, ChevronDown, Copy, Receipt } from 'lucide-react';
 import { useInvoicesContext } from '../context/InvoicesContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
-import { Button } from '@/core/ui/Button';
-import { Badge } from '@/core/ui/Badge';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Heading, Text } from '@/core/ui/Typography';
-import { Card } from '@/core/ui/Card';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 
 type SortField = 'invoiceNumber' | 'contactName' | 'total' | 'createdAt' | 'status';
@@ -193,13 +194,13 @@ export function InvoicesList() {
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 z-10" />
+            <Input
               type="text"
               placeholder="Search invoices..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full sm:w-80 pl-10"
             />
           </div>
           <Button

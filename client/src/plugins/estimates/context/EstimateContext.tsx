@@ -2,7 +2,7 @@ import { Calculator } from 'lucide-react';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
-import { Badge } from '@/core/ui/Badge';
+import { Badge } from '@/components/ui/badge';
 
 import { estimatesApi } from '../api/estimatesApi';
 import { PublicRouteHandler } from '../components/PublicRouteHandler';

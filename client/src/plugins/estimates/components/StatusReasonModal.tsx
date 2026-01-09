@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 import React, { useState } from 'react';
 
-import { Button } from '@/core/ui/Button';
+import { Button } from '@/components/ui/button';
 
 import { ACCEPTANCE_REASONS, REJECTION_REASONS, StatusReason } from '../types/estimate';
 

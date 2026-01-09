@@ -2,7 +2,7 @@ import { CheckSquare } from 'lucide-react';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
-import { Badge } from '@/core/ui/Badge';
+import { Badge } from '@/components/ui/badge';
 
 import { tasksApi } from '../api/tasksApi';
 import { Task, ValidationError } from '../types/tasks';

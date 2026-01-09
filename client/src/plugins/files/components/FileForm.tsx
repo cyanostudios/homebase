@@ -1,7 +1,7 @@
 // client/src/plugins/files/components/FileForm.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Upload, File as FileIcon, Trash2, AlertTriangle } from 'lucide-react';
-import { Card } from '@/core/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Heading, Text } from '@/core/ui/Typography';
 import { useFiles } from '../hooks/useFiles';
 import type { ValidationError } from '../types/files';
@@ -182,10 +182,10 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
           Ändra endast filnamnet. Själva filinnehållet hanteras via upload i Create-läget.
         </Text>
 
-        <label className="block text-xs font-medium text-gray-700 mb-1" htmlFor="file-name">
+        <Label htmlFor="file-name" className="text-xs mb-1">
           Name *
-        </label>
-        <input
+        </Label>
+        <Input
           id="file-name"
           type="text"
           value={name}
@@ -193,9 +193,7 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
             setName(e.target.value);
             if (hasAnyError) clearValidationErrors();
           }}
-          className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-            nameErrors.length ? 'border-red-400' : 'border-gray-300'
-          }`}
+          className={nameErrors.length ? 'border-red-400' : ''}
           placeholder="document.pdf"
         />
         {nameErrors.length > 0 && (

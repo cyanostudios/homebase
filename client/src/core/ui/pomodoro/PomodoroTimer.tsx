@@ -1,7 +1,8 @@
 import { Play, Pause, RotateCcw, SkipForward, Timer, X, Settings } from 'lucide-react';
 import React, { useState } from 'react';
 
-import { Button } from '../Button';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Heading, Text } from '../Typography';
 
 import { pomodoroAudio } from './pomodoroAudio';
@@ -96,17 +97,6 @@ export function PomodoroTimer({
   const handleSettingsChange = (field: keyof PomodoroSettings, value: any) => {
     const newSettings = { ...settings, [field]: value };
     updateSettings(newSettings);
-  };
-
-  const handleNotificationsToggle = async () => {
-    if (!settings.notificationsEnabled) {
-      const granted = await pomodoroAudio.requestNotificationPermission();
-      if (granted) {
-        handleSettingsChange('notificationsEnabled', true);
-      }
-    } else {
-      handleSettingsChange('notificationsEnabled', false);
-    }
   };
 
   const colors = getSessionColor();
@@ -405,20 +395,11 @@ export function PomodoroTimer({
                     Play sound when sessions complete
                   </Text>
                 </div>
-                <button
-                  onClick={() => handleSettingsChange('soundEnabled', !settings.soundEnabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.soundEnabled ? 'bg-blue-600' : 'bg-gray-200'
-                  }`}
+                <Switch
+                  checked={settings.soundEnabled}
+                  onCheckedChange={(checked) => handleSettingsChange('soundEnabled', checked)}
                   aria-label="Toggle sound notifications"
-                  title="Toggle sound notifications"
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.soundEnabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                />
               </div>
 
               <div className="flex items-center justify-between">
@@ -430,20 +411,20 @@ export function PomodoroTimer({
                     Show desktop notifications
                   </Text>
                 </div>
-                <button
-                  onClick={handleNotificationsToggle}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.notificationsEnabled ? 'bg-blue-600' : 'bg-gray-200'
-                  }`}
+                <Switch
+                  checked={settings.notificationsEnabled}
+                  onCheckedChange={async (checked) => {
+                    if (checked) {
+                      const granted = await pomodoroAudio.requestNotificationPermission();
+                      if (granted) {
+                        handleSettingsChange('notificationsEnabled', true);
+                      }
+                    } else {
+                      handleSettingsChange('notificationsEnabled', false);
+                    }
+                  }}
                   aria-label="Toggle browser notifications"
-                  title="Toggle browser notifications"
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.notificationsEnabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                />
               </div>
 
               <div className="flex items-center justify-between">
@@ -455,22 +436,11 @@ export function PomodoroTimer({
                     Automatically start next session
                   </Text>
                 </div>
-                <button
-                  onClick={() =>
-                    handleSettingsChange('autoStartSessions', !settings.autoStartSessions)
-                  }
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.autoStartSessions ? 'bg-blue-600' : 'bg-gray-200'
-                  }`}
+                <Switch
+                  checked={settings.autoStartSessions}
+                  onCheckedChange={(checked) => handleSettingsChange('autoStartSessions', checked)}
                   aria-label="Toggle auto-start sessions"
-                  title="Toggle auto-start sessions"
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.autoStartSessions ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                />
               </div>
 
               <div className="flex items-center justify-between">
@@ -480,20 +450,11 @@ export function PomodoroTimer({
                     Show icon with progress bar only
                   </Text>
                 </div>
-                <button
-                  onClick={() => handleSettingsChange('compactMode', !settings.compactMode)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.compactMode ? 'bg-blue-600' : 'bg-gray-200'
-                  }`}
+                <Switch
+                  checked={settings.compactMode}
+                  onCheckedChange={(checked) => handleSettingsChange('compactMode', checked)}
                   aria-label="Toggle compact mode"
-                  title="Toggle compact mode"
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.compactMode ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                />
               </div>
             </div>
 

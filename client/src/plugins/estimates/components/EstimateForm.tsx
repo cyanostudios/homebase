@@ -2,8 +2,12 @@ import { Plus, Trash2, Copy } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
-import { Button } from '@/core/ui/Button';
-import { Card } from '@/core/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -317,13 +321,12 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
           </Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
-              <select
+              <Label htmlFor="estimate-contact" className="mb-1">Customer</Label>
+              <NativeSelect
+                id="estimate-contact"
                 value={formData.contactId}
                 onChange={(e) => handleContactChange(e.target.value)}
-                className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  getFieldError('contactId') ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={getFieldError('contactId') ? 'border-red-500' : ''}
                 required
               >
                 <option value="">Select a customer...</option>
@@ -333,25 +336,25 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                     {contact.organizationNumber && `(${contact.organizationNumber})`}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
               {getFieldError('contactId') && (
                 <p className="mt-1 text-sm text-red-600">{getFieldError('contactId')?.message}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
-              <select
+              <Label htmlFor="estimate-currency" className="mb-1">Currency</Label>
+              <NativeSelect
+                id="estimate-currency"
                 value={formData.currency}
                 onChange={(e) => updateField('currency', e.target.value)}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="SEK">SEK (Swedish Krona)</option>
                 <option value="EUR">EUR (Euro)</option>
                 <option value="USD">USD (US Dollar)</option>
                 <option value="NOK">NOK (Norwegian Krone)</option>
                 <option value="DKK">DKK (Danish Krone)</option>
-              </select>
+              </NativeSelect>
             </div>
           </div>
         </Card>
@@ -363,28 +366,28 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
           </Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Valid To</label>
-              <input
+              <Label htmlFor="estimate-valid-to" className="mb-1">Valid To</Label>
+              <Input
+                id="estimate-valid-to"
                 type="date"
                 value={formatValidToDate(formData.validTo)}
                 onChange={(e) => updateField('validTo', parseValidToDate(e.target.value))}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
+              <Label htmlFor="estimate-status" className="mb-1">Status</Label>
+              <NativeSelect
+                id="estimate-status"
                 value={formData.status}
                 onChange={(e) => updateField('status', e.target.value)}
-                className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="draft">Draft</option>
                 <option value="sent">Sent</option>
                 <option value="accepted">Accepted</option>
                 <option value="rejected">Rejected</option>
-              </select>
+              </NativeSelect>
             </div>
           </div>
         </Card>
@@ -414,12 +417,12 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                     <span className="text-sm font-medium text-gray-700 flex-shrink-0 w-12">
                       Item {index + 1}
                     </span>
-                    <textarea
+                    <Textarea
                       value={item.description}
                       onChange={(e) => updateLineItem(index, 'description', e.target.value)}
                       placeholder="Service or product description"
                       rows={1}
-                      className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      className="flex-1 text-sm resize-none h-auto min-h-[2.5rem]"
                       required
                     />
                     <Button
@@ -472,31 +475,31 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                       <tbody>
                         <tr>
                           <td className="px-2 py-1">
-                            <input
+                            <Input
                               type="number"
                               min="0"
                               value={item.quantity}
                               onChange={(e) =>
                                 updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)
                               }
-                              className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                              className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               required
                             />
                           </td>
                           <td className="px-2 py-1">
-                            <input
+                            <Input
                               type="number"
                               min="0"
                               value={item.unitPrice}
                               onChange={(e) =>
                                 updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)
                               }
-                              className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                              className="w-20 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               required
                             />
                           </td>
                           <td className="px-2 py-1">
-                            <input
+                            <Input
                               type="number"
                               min="0"
                               max="100"
@@ -504,22 +507,22 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                               onChange={(e) =>
                                 updateLineItem(index, 'discount', parseFloat(e.target.value) || 0)
                               }
-                              className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                              className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                             />
                           </td>
                           <td className="px-2 py-1">
-                            <select
+                            <NativeSelect
                               value={item.vatRate}
                               onChange={(e) =>
                                 updateLineItem(index, 'vatRate', parseFloat(e.target.value))
                               }
-                              className="w-16 px-1 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-16 h-8 px-1 py-1 text-sm"
                             >
                               <option value="0">0%</option>
                               <option value="6">6%</option>
                               <option value="12">12%</option>
                               <option value="25">25%</option>
-                            </select>
+                            </NativeSelect>
                           </td>
                           <td className="px-2 py-1 text-right text-sm text-gray-900">
                             -{(item.discountAmount || 0).toFixed(2)}
@@ -544,17 +547,18 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         {formData.lineItems.length > 0 && (
           <Card padding="sm" className="shadow-none px-0">
             <div className="flex items-center gap-4 mb-2">
-              <label className="text-sm font-medium text-gray-700">Estimate Discount (%)</label>
+              <Label htmlFor="estimate-discount" className="text-sm font-medium text-gray-700">Estimate Discount (%)</Label>
               <div className="max-w-xs">
-                <input
+                <Input
+                  id="estimate-discount"
                   type="number"
                   min="0"
                   max="100"
                   step="0.01"
                   value={formData.estimateDiscount || 0}
                   onChange={(e) => updateField('estimateDiscount', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-1.5 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                   placeholder="0.00"
+                  className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                 />
               </div>
             </div>
@@ -630,13 +634,14 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
             Notes
           </Heading>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
-            <textarea
+            <Label htmlFor="estimate-notes" className="mb-1">Additional Notes</Label>
+            <Textarea
+              id="estimate-notes"
               value={formData.notes}
               onChange={(e) => updateField('notes', e.target.value)}
               placeholder="Additional notes or terms..."
               rows={4}
-              className="w-full px-3 py-2 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
+              className="resize-vertical"
             />
           </div>
         </Card>

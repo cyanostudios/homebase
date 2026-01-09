@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from '@/core/ui/Button';
+import { Button } from '@/components/ui/button';
 
 interface InvoiceStatusModalProps {
   isOpen: boolean;

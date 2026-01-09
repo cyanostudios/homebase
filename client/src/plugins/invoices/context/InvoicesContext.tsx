@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Receipt } from 'lucide-react';
-import { Badge } from '@/core/ui/Badge';
+import { Badge } from '@/components/ui/badge';
 import { InvoicesApi, invoicesApi } from '../api/invoicesApi';
 import { useApp } from '@/core/api/AppContext';
 

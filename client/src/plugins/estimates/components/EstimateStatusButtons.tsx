@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { Badge } from '@/core/ui/Badge';
+import { Badge } from '@/components/ui/badge';
 
 import { Estimate } from '../types/estimate';
 

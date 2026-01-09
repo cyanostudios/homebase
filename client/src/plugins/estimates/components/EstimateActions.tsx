@@ -1,7 +1,7 @@
 import { Share, Copy, Check, Download, Copy as CopyIcon, X } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
-import { Button } from '@/core/ui/Button';
+import { Button } from '@/components/ui/button';
 
 import { estimateShareApi, estimatesApi } from '../api/estimatesApi';
 import { useEstimates } from '../hooks/useEstimates';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Heading } from '@/core/ui/Typography';
-import { Card } from '@/core/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Invoice } from '../types/invoices';
 import { InvoiceActions } from './InvoiceActions';
 

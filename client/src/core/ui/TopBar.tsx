@@ -1,6 +1,8 @@
-import { Menu, ChevronDown } from 'lucide-react';
+import { Menu, ChevronDown, Moon, Sun } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useApp } from '@/core/api/AppContext';
+import { Switch } from '@/components/ui/switch';
+import { useTheme } from '@/hooks/useTheme';
 import { ClockDisplay } from './clock/ClockDisplay';
 import { useSidebar } from './MainLayout';
 import { PomodoroTimer } from './pomodoro/PomodoroTimer';
@@ -25,6 +27,7 @@ export function TopBar({ height = 64, showClock = true, className = '', children
   const [openPanel, setOpenPanel] = useState<'pomodoro' | 'clock' | null>(null);
   const { isMobileOverlay, setIsMobileOverlay } = useSidebar();
   const { user, refreshData } = useApp();
+  const { theme, toggleTheme } = useTheme();
 
   // Admin tenant switching state
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -122,7 +125,7 @@ export function TopBar({ height = 64, showClock = true, className = '', children
 
   return (
     <div
-      className={`w-full bg-white border-b border-gray-200 flex items-center justify-between px-6 ${className}`}
+      className={`w-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-6 ${className}`}
       style={{ height: `${height}px` }}
     >
       {/* Left side - Mobile menu + Admin Tenant Dropdown */}
@@ -130,9 +133,9 @@ export function TopBar({ height = 64, showClock = true, className = '', children
         {isMobile && (
           <button
             onClick={() => setIsMobileOverlay(!isMobileOverlay)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors lg:hidden"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors lg:hidden"
           >
-            <Menu className="w-5 h-5 text-gray-600" />
+            <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>
         )}
         
@@ -141,12 +144,12 @@ export function TopBar({ height = 64, showClock = true, className = '', children
           <div className="relative">
             <button
               onClick={() => setShowTenantDropdown(!showTenantDropdown)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
             >
-              <span className="text-sm font-medium text-blue-900">
+              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
                 {getCurrentTenantDisplay()}
               </span>
-              <ChevronDown className="w-4 h-4 text-blue-700" />
+              <ChevronDown className="w-4 h-4 text-blue-700 dark:text-blue-300" />
             </button>
 
             {showTenantDropdown && (
@@ -158,18 +161,18 @@ export function TopBar({ height = 64, showClock = true, className = '', children
                 />
                 
                 {/* Dropdown */}
-                <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
                   <div className="p-2">
-                    <div className="text-xs font-semibold text-gray-500 px-3 py-2">
+                    <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 px-3 py-2">
                       Switch Tenant View
                     </div>
                     
                     {isLoadingTenants ? (
-                      <div className="px-3 py-4 text-sm text-gray-500 text-center">
+                      <div className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
                         Loading tenants...
                       </div>
                     ) : tenants.length === 0 ? (
-                      <div className="px-3 py-4 text-sm text-gray-500 text-center">
+                      <div className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
                         No tenants found
                       </div>
                     ) : (
@@ -179,12 +182,12 @@ export function TopBar({ height = 64, showClock = true, className = '', children
                           onClick={() => switchTenant(tenant.id)}
                           className={`w-full px-3 py-2 text-left rounded-md transition-colors ${
                             currentTenantUserId === tenant.id
-                              ? 'bg-blue-100 text-blue-900'
-                              : 'hover:bg-gray-100 text-gray-700'
+                              ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-900 dark:text-blue-100'
+                              : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
                           }`}
                         >
                           <div className="text-sm font-medium">{tenant.email}</div>
-                          <div className="text-xs text-gray-500 mt-0.5">
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                             ID: {tenant.id} • {tenant.role}
                           </div>
                         </button>
@@ -200,7 +203,7 @@ export function TopBar({ height = 64, showClock = true, className = '', children
         {children}
       </div>
 
-      {/* Right side - Pomodoro Timer + Clock */}
+      {/* Right side - Pomodoro Timer + Dark Mode Switch + Clock */}
       <div className="flex items-center gap-4 relative">
         {/* Pomodoro Timer */}
         <PomodoroTimer
@@ -209,6 +212,18 @@ export function TopBar({ height = 64, showClock = true, className = '', children
           onToggle={() => handlePanelToggle('pomodoro')}
           onClose={handleClosePanel}
         />
+
+        {/* Dark Mode Switch */}
+        <div className="flex items-center gap-2 px-2">
+          <Sun className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+          <Switch
+            checked={theme === 'dark'}
+            onCheckedChange={toggleTheme}
+            aria-label="Toggle dark mode"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          />
+          <Moon className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+        </div>
 
         {/* Clock */}
         {showClock && (

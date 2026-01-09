@@ -284,6 +284,18 @@ function AppContent() {
 
 // Main App component
 function App() {
+  // Initialize theme early to prevent flash of wrong theme
+  React.useEffect(() => {
+    const stored = localStorage.getItem('theme');
+    const root = window.document.documentElement;
+    
+    if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, []);
+
   return (
     <AppProvider>
       <GlobalNavigationGuardProvider>

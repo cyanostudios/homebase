@@ -11,9 +11,10 @@ import {
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
 
-import { Badge } from '@/core/ui/Badge';
-import { Button } from '@/core/ui/Button';
-import { Card } from '@/core/ui/Card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Heading, Text } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -230,13 +231,13 @@ export const TaskList: React.FC = () => {
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 z-10" />
+            <Input
               type="text"
               placeholder="Search tasks..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="w-full sm:w-80 pl-10"
             />
           </div>
           <Button onClick={handleOpenPanel} variant="primary" icon={Plus}>

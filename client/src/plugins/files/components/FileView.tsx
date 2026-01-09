@@ -1,7 +1,7 @@
 // client/src/plugins/files/components/FileView.tsx
 import React, { useMemo } from 'react';
 import { Download, File as FileIcon, Link as LinkIcon, Image as ImageIcon } from 'lucide-react';
-import { Card } from '@/core/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Heading, Text } from '@/core/ui/Typography';
 import type { FileItem } from '../types/files';
 

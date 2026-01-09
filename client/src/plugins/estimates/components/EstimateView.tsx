@@ -1,7 +1,7 @@
 import React from 'react';
 
-import { Button } from '@/core/ui/Button';
-import { Card } from '@/core/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Heading } from '@/core/ui/Typography';
 
 import { useEstimateStatusActions } from '../hooks/useEstimateStatusActions';

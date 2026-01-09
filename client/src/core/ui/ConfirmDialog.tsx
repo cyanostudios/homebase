@@ -1,7 +1,17 @@
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import React from 'react';
 
-import { Button } from './Button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -24,36 +34,33 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onCancel,
   variant = 'warning',
 }) => {
-  if (!isOpen) {
-    return null;
-  }
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+    <AlertDialog open={isOpen} onOpenChange={(open) => !open && onCancel()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
           <div className="flex items-center gap-3">
             <AlertTriangle
-              className={`w-6 h-6 ${variant === 'danger' ? 'text-red-500' : 'text-yellow-500'}`}
+              className={`w-6 h-6 flex-shrink-0 ${
+                variant === 'danger' ? 'text-destructive' : 'text-yellow-500'
+              }`}
             />
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <AlertDialogTitle>{title}</AlertDialogTitle>
           </div>
-          <Button variant="ghost" size="sm" icon={X} onClick={onCancel} />
-        </div>
-
-        <div className="p-6">
-          <p className="text-gray-700">{message}</p>
-        </div>
-
-        <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
-          <Button variant="secondary" onClick={onCancel}>
-            {cancelText}
-          </Button>
-          <Button variant="danger" onClick={onConfirm}>
-            {confirmText}
-          </Button>
-        </div>
-      </div>
-    </div>
+          <AlertDialogDescription className="pt-2">{message}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel asChild>
+            <Button variant="secondary" onClick={onCancel}>
+              {cancelText}
+            </Button>
+          </AlertDialogCancel>
+          <AlertDialogAction asChild>
+            <Button variant={variant === 'danger' ? 'destructive' : 'default'} onClick={onConfirm}>
+              {confirmText}
+            </Button>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };

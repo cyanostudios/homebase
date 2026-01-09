@@ -1,7 +1,8 @@
 import { Clock, Settings, X } from 'lucide-react';
 import React, { useState } from 'react';
 
-import { Button } from '../Button';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Heading, Text } from '../Typography';
 
 import { ClockSettings, COMMON_TIMEZONES } from './clockSettings';
@@ -198,18 +199,11 @@ export function ClockDisplay({
                     Display seconds in time
                   </Text>
                 </div>
-                <button
-                  onClick={() => handleSettingsChange('showSeconds', !settings.showSeconds)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.showSeconds ? 'bg-blue-600' : 'bg-gray-200'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.showSeconds ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                <Switch
+                  checked={settings.showSeconds}
+                  onCheckedChange={(checked) => handleSettingsChange('showSeconds', checked)}
+                  aria-label="Toggle show seconds"
+                />
               </div>
 
               <div className="flex items-center justify-between">
@@ -219,18 +213,11 @@ export function ClockDisplay({
                     Display date below time
                   </Text>
                 </div>
-                <button
-                  onClick={() => handleSettingsChange('showDate', !settings.showDate)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.showDate ? 'bg-blue-600' : 'bg-gray-200'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.showDate ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                <Switch
+                  checked={settings.showDate}
+                  onCheckedChange={(checked) => handleSettingsChange('showDate', checked)}
+                  aria-label="Toggle show date"
+                />
               </div>
 
               <div className="flex items-center justify-between">
@@ -240,18 +227,11 @@ export function ClockDisplay({
                     Display time (icon only when off)
                   </Text>
                 </div>
-                <button
-                  onClick={() => handleSettingsChange('showClock', !settings.showClock)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.showClock ? 'bg-blue-600' : 'bg-gray-200'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.showClock ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                <Switch
+                  checked={settings.showClock}
+                  onCheckedChange={(checked) => handleSettingsChange('showClock', checked)}
+                  aria-label="Toggle show clock"
+                />
               </div>
             </div>
 

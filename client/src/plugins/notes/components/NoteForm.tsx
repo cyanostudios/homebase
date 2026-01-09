@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-import { Card } from '@/core/ui/Card';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -210,15 +212,14 @@ export const NoteForm: React.FC<NoteFormProps> = ({
             Note Title
           </Heading>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-            <input
+            <Label htmlFor="note-title" className="mb-1">Title</Label>
+            <Input
+              id="note-title"
               type="text"
               value={formData.title}
               onChange={(e) => updateField('title', e.target.value)}
               placeholder="Enter note title..."
-              className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                getFieldError('title') ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={getFieldError('title') ? 'border-red-500' : ''}
               required
             />
             {getFieldError('title') && (
@@ -233,9 +234,9 @@ export const NoteForm: React.FC<NoteFormProps> = ({
             Note Content
           </Heading>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <Label htmlFor="note-content" className="mb-1">
               Content <span className="text-xs text-gray-500">(Type @ to mention contacts)</span>
-            </label>
+            </Label>
             <MentionTextarea
               value={formData.content}
               onChange={handleContentChange}
