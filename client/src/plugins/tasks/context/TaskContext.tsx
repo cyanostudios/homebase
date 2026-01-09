@@ -108,10 +108,12 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       });
     }
 
-    if (!taskData.content?.trim()) {
+    // Content is optional - can be empty (e.g., when converting from notes)
+    // Only validate if it exists and is not a string
+    if (taskData.content !== undefined && taskData.content !== null && typeof taskData.content !== 'string') {
       errors.push({
         field: 'content',
-        message: 'Task description is required',
+        message: 'Task description must be a string',
       });
     }
 
@@ -340,8 +342,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       const statusColors: Record<string, string> = {
         'not started': 'bg-gray-100 text-gray-800',
         'in progress': 'bg-blue-100 text-blue-800',
-        Done: 'bg-green-100 text-green-800',
-        Canceled: 'bg-red-100 text-red-800',
+        'completed': 'bg-green-100 text-green-800',
+        'cancelled': 'bg-red-100 text-red-800',
       };
       const priorityColors: Record<string, string> = {
         Low: 'bg-gray-100 text-gray-700',

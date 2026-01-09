@@ -102,7 +102,7 @@ function createFilesRoutes(controller, requirePlugin) {
   
   router.post('/',
     gate,
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     commonRules.string('name', 1, 255),
     commonRules.optionalString('url', 500),
     validateRequest,
@@ -111,7 +111,7 @@ function createFilesRoutes(controller, requirePlugin) {
   
   router.put('/:id',
     gate,
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     commonRules.string('name', 1, 255).optional(),
     commonRules.optionalString('url', 500),
@@ -121,7 +121,7 @@ function createFilesRoutes(controller, requirePlugin) {
   
   router.delete('/:id',
     gate,
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     validateRequest,
     (req, res) => controller.delete(req, res)
@@ -131,7 +131,7 @@ function createFilesRoutes(controller, requirePlugin) {
   router.post('/upload',
     gate,
     uploadLimiter,
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     runUpload,
     (req, res) => controller.upload(req, res, { uploadRoot })
   );

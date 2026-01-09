@@ -76,8 +76,8 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   const handleConvertToTask = async () => {
     try {
       const taskData = {
-        title: note.title,
-        content: note.content,
+        title: note.title || '',
+        content: note.content || '', // Ensure content is always a string
         mentions: note.mentions || [],
         status: 'not started',
         priority: 'Medium',
@@ -93,6 +93,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       }
     } catch (error) {
       console.error('Failed to convert note to task:', error);
+      alert('Failed to convert note to task. Please try again.');
     }
   };
 

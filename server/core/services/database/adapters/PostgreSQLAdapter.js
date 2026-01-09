@@ -34,19 +34,48 @@ class PostgreSQLAdapter extends DatabaseService {
     const upperSql = sql.toUpperCase().trim();
     
     // Skip if already has user_id filter
-    if (upperSql.includes('USER_ID') || upperSql.includes('USER_ID')) {
+    if (upperSql.includes('USER_ID')) {
       return sql;
     }
 
     // For SELECT queries, add WHERE clause
     if (upperSql.startsWith('SELECT')) {
-      const whereIndex = upperSql.indexOf('WHERE');
+      // Find the position of ORDER BY, GROUP BY, LIMIT, OFFSET (these must come after WHERE)
+      const orderByIndex = upperSql.indexOf(' ORDER BY ');
+      const groupByIndex = upperSql.indexOf(' GROUP BY ');
+      const limitIndex = upperSql.indexOf(' LIMIT ');
+      const offsetIndex = upperSql.indexOf(' OFFSET ');
+      
+      // Find the last clause that must come after WHERE
+      const lastClauseIndex = Math.max(
+        orderByIndex === -1 ? -1 : orderByIndex,
+        groupByIndex === -1 ? -1 : groupByIndex,
+        limitIndex === -1 ? -1 : limitIndex,
+        offsetIndex === -1 ? -1 : offsetIndex
+      );
+      
+      const whereIndex = upperSql.indexOf(' WHERE ');
       if (whereIndex === -1) {
-        // No WHERE clause, add one
-        return `${sql} WHERE user_id = $${this._getParamCount(sql) + 1}`;
+        // No WHERE clause
+        if (lastClauseIndex === -1) {
+          // No ORDER BY, GROUP BY, LIMIT, OFFSET - just add WHERE at the end
+          return `${sql} WHERE user_id = $${this._getParamCount(sql) + 1}`;
+        } else {
+          // Has ORDER BY/GROUP BY/LIMIT/OFFSET - insert WHERE before them
+          const insertPos = sql.toUpperCase().indexOf(upperSql.substring(lastClauseIndex, lastClauseIndex + 10));
+          const beforeClause = sql.substring(0, insertPos);
+          const afterClause = sql.substring(insertPos);
+          return `${beforeClause} WHERE user_id = $${this._getParamCount(sql) + 1} ${afterClause}`;
+        }
       } else {
         // Has WHERE clause, add AND
-        return `${sql} AND user_id = $${this._getParamCount(sql) + 1}`;
+        if (lastClauseIndex === -1 || whereIndex < lastClauseIndex) {
+          // WHERE comes before ORDER BY/etc, or there are no other clauses
+          return sql.replace(/ WHERE /i, ` WHERE user_id = $${this._getParamCount(sql) + 1} AND `);
+        } else {
+          // WHERE comes after ORDER BY/etc (shouldn't happen, but handle it)
+          return sql.replace(/ WHERE /i, ` WHERE user_id = $${this._getParamCount(sql) + 1} AND `);
+        }
       }
     }
 
@@ -280,6 +309,7 @@ class PostgreSQLAdapter extends DatabaseService {
       if (result.rows.length === 0) {
         throw new AppError(`${table} not found`, 404, AppError.CODES.NOT_FOUND);
       }
+      return { id: result.rows[0].id };
     } catch (error) {
       if (error instanceof AppError) {
         throw error;

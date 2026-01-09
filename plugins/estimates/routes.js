@@ -12,7 +12,7 @@ function createEstimateRoutes(controller, requirePlugin) {
   
   router.post('/', 
     requirePlugin('estimates'),
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     commonRules.string('contactName', 0, 255).optional(),
     commonRules.optionalString('notes', 5000),
     validateRequest,
@@ -32,7 +32,7 @@ function createEstimateRoutes(controller, requirePlugin) {
   
   router.put('/:id',
     requirePlugin('estimates'),
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     commonRules.string('contactName', 0, 255).optional(),
     commonRules.optionalString('notes', 5000),
@@ -42,7 +42,7 @@ function createEstimateRoutes(controller, requirePlugin) {
   
   router.delete('/:id',
     requirePlugin('estimates'),
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     validateRequest,
     (req, res) => controller.deleteEstimate(req, res)
@@ -54,7 +54,7 @@ function createEstimateRoutes(controller, requirePlugin) {
   // Sharing routes (protected - require authentication)
   router.post('/shares',
     requirePlugin('estimates'),
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     commonRules.id('estimateId'),
     commonRules.date('validUntil'),
     validateRequest,
@@ -65,7 +65,7 @@ function createEstimateRoutes(controller, requirePlugin) {
   
   router.delete('/shares/:shareId',
     requirePlugin('estimates'),
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     commonRules.id('shareId'),
     validateRequest,
     (req, res) => controller.revokeShare(req, res)

@@ -43,6 +43,22 @@ async function setupDatabase() {
       )
     `);
     
+    // Tenants table for Neon database mapping
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tenants (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        neon_project_id VARCHAR(255),
+        neon_database_name VARCHAR(255),
+        neon_connection_string TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Create index for tenant lookups
+    await client.query('CREATE INDEX IF NOT EXISTS idx_tenants_user_id ON tenants(user_id)');
+    
     // Contacts table - matches AppContext Contact interface exactly
     await client.query(`
       CREATE TABLE IF NOT EXISTS contacts (

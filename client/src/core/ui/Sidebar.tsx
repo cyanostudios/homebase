@@ -4,6 +4,9 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '@/core/api/AppContext';
 import { categoryOrder } from '@/core/navigationConfig';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 import { useSidebar } from './MainLayout';
 
@@ -85,11 +88,13 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
 
   const navCategories = buildNavigation();
 
+  const showLabels = !isCollapsed || (isMobile && isMobileOverlay);
+
   return (
     <aside
-      className={`left-0 top-0 h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-40
-      ${isMobile ? 'fixed' : 'sticky'}
-      ${
+      className={cn(
+        'left-0 top-0 h-screen bg-background border-r flex flex-col transition-all duration-300 z-40',
+        isMobile ? 'fixed' : 'sticky',
         isMobile
           ? isMobileOverlay
             ? 'translate-x-0 w-64'
@@ -97,91 +102,133 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
           : isCollapsed
             ? 'w-16'
             : 'w-64'
-      }
-    `}
+      )}
     >
-      <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-        {(!isCollapsed || (isMobile && isMobileOverlay)) && (
-          <span className="text-xl font-bold text-blue-600 tracking-tight">Homebase</span>
+      {/* Header */}
+      <div className="flex h-16 items-center justify-between border-b px-4">
+        {showLabels ? (
+          <>
+            <div className="flex items-center gap-2 font-semibold">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <span className="text-sm font-bold">H</span>
+              </div>
+              <span className="text-lg">Homebase</span>
+            </div>
+            <button
+              onClick={() => {
+                if (isMobile) {
+                  setIsMobileOverlay(!isMobileOverlay);
+                } else {
+                  setIsCollapsed(!isCollapsed);
+                }
+              }}
+              className="p-2 rounded-md hover:bg-accent transition-colors"
+              aria-label="Collapse sidebar"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          </>
+        ) : (
+          <div className="flex w-full items-center justify-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <span className="text-sm font-bold">H</span>
+            </div>
+            <button
+              onClick={() => {
+                if (isMobile) {
+                  setIsMobileOverlay(!isMobileOverlay);
+                } else {
+                  setIsCollapsed(!isCollapsed);
+                }
+              }}
+              className="p-2 rounded-md hover:bg-accent transition-colors"
+              aria-label="Expand sidebar"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         )}
-        <button
-          onClick={() => {
-            if (isMobile) {
-              setIsMobileOverlay(!isMobileOverlay);
-            } else {
-              setIsCollapsed(!isCollapsed);
-            }
-          }}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-        >
-          {isCollapsed && !isMobileOverlay ? (
-            <ChevronRight className="w-4 h-4 text-gray-600" />
-          ) : (
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
-          )}
-        </button>
       </div>
 
-      <nav className="flex-1 py-6 px-2 space-y-6 overflow-y-auto">
-        {navCategories.map((category) => (
-          <div key={category.title}>
-            {(!isCollapsed || (isMobile && isMobileOverlay)) && (
-              <h3 className="px-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                {category.title}
-              </h3>
-            )}
-            <div className="space-y-1">
-              {category.items.map((item) => (
-                <button
-                  key={item.label}
-                  onClick={() => handleMenuItemClick(item.page)}
-                  className={`w-full flex items-center px-3 py-2 rounded-lg transition-colors font-medium text-sm ${
-                    isCollapsed && !(isMobile && isMobileOverlay) ? 'justify-center' : 'gap-3'
-                  } ${
-                    item.page === currentPage
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
-                  } ${item.page === null ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                  title={isCollapsed && !(isMobile && isMobileOverlay) ? item.label : undefined}
-                  disabled={item.page === null}
-                >
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
-                  {(!isCollapsed || (isMobile && isMobileOverlay)) && <span>{item.label}</span>}
-                </button>
-              ))}
+      {/* Navigation with ScrollArea */}
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
+          <nav className="p-2 space-y-1">
+            {navCategories.map((category, categoryIndex) => (
+              <div key={category.title} className={cn(categoryIndex > 0 && 'mt-6')}>
+                {showLabels && (
+                  <div className="mb-2 px-3">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      {category.title}
+                    </h3>
+                  </div>
+                )}
+                <div className="space-y-1">
+                  {category.items.map((item) => {
+                    const isActive = item.page === currentPage;
+                    return (
+                      <button
+                        key={item.label}
+                        onClick={() => handleMenuItemClick(item.page)}
+                        disabled={item.page === null}
+                        className={cn(
+                          'w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                          'hover:bg-accent hover:text-accent-foreground',
+                          isActive && 'bg-accent text-accent-foreground',
+                          item.page === null && 'opacity-50 cursor-not-allowed',
+                          !showLabels && 'justify-center px-2'
+                        )}
+                        title={!showLabels ? item.label : undefined}
+                      >
+                        <item.icon className={cn('h-4 w-4 flex-shrink-0', isActive && 'text-primary')} />
+                        {showLabels && <span className="truncate">{item.label}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
+        </ScrollArea>
+      </div>
+
+      {/* Footer with User info and Logout */}
+      <div className="border-t p-2 space-y-1">
+        {/* User info */}
+        {user && showLabels && (
+          <div className="px-3 py-2 mb-2">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                <User className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium truncate">{user.email}</div>
+                <div className="text-xs text-muted-foreground capitalize">{user.role}</div>
+              </div>
             </div>
           </div>
-        ))}
-      </nav>
-
-      {/* User info and Logout at bottom */}
-      <div className="border-t border-gray-200">
-        {/* User info */}
-        {user && (!isCollapsed || (isMobile && isMobileOverlay)) && (
-          <div className="p-2">
-            <div className="flex items-center px-3 py-2 gap-3">
-              <User className="h-5 w-5 text-gray-500 flex-shrink-0" />
-              <div className="min-w-0 flex-1">
-                <div className="font-medium text-gray-900 truncate text-sm">{user.email}</div>
-                <div className="text-xs text-gray-500 capitalize">{user.role}</div>
-              </div>
+        )}
+        {user && !showLabels && (
+          <div className="flex justify-center px-2 py-2 mb-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+              <User className="h-4 w-4 text-muted-foreground" />
             </div>
           </div>
         )}
 
         {/* Logout button */}
-        <div className="p-2">
-          <button
-            onClick={handleLogout}
-            className={`w-full flex items-center px-3 py-2 rounded-lg transition-colors font-medium text-sm text-red-600 hover:bg-red-50 ${
-              isCollapsed && !(isMobile && isMobileOverlay) ? 'justify-center' : 'gap-3'
-            }`}
-            title={isCollapsed && !(isMobile && isMobileOverlay) ? 'Logout' : undefined}
-          >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
-            {(!isCollapsed || (isMobile && isMobileOverlay)) && <span>Logout</span>}
-          </button>
-        </div>
+        <button
+          onClick={handleLogout}
+          className={cn(
+            'w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
+            'text-destructive hover:bg-destructive/10 transition-colors',
+            !showLabels && 'justify-center px-2'
+          )}
+          title={!showLabels ? 'Logout' : undefined}
+        >
+          <LogOut className="h-4 w-4 flex-shrink-0" />
+          {showLabels && <span>Logout</span>}
+        </button>
       </div>
     </aside>
   );

@@ -9,13 +9,13 @@ const rateLimit = require('express-rate-limit');
  */
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per window
+  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // More lenient in development
   message: 'Too many requests, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for health checks
-    return req.path === '/api/health';
+    // Skip rate limiting for health checks and CSRF token endpoint
+    return req.path === '/api/health' || req.path === '/api/csrf-token';
   },
 });
 
@@ -25,7 +25,7 @@ const globalLimiter = rateLimit({
  */
 const authLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 5, // 5 attempts per minute
+  max: process.env.NODE_ENV === 'development' ? 50 : 5, // More lenient in development
   message: 'Too many login attempts, please try again later',
   skipSuccessfulRequests: true,
   standardHeaders: true,

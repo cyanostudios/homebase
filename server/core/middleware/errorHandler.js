@@ -12,13 +12,27 @@ function errorHandler(error, req, res, next) {
   let logger;
   try {
     const ServiceManager = require('../ServiceManager');
-    logger = ServiceManager.get('logger');
+    // Try to get logger, but don't fail if ServiceManager isn't initialized
+    try {
+      logger = ServiceManager.get('logger');
+    } catch (e) {
+      logger = { error: console.error, warn: console.warn, info: console.log, debug: console.log };
+    }
   } catch (e) {
     // Fallback to console if ServiceManager not available
-    logger = { error: console.error };
+    logger = { error: console.error, warn: console.warn, info: console.log, debug: console.log };
   }
 
   // Log error details (server-side only)
+  // Always log to console for debugging
+  console.error('Error handler caught:', {
+    message: error.message,
+    stack: error.stack,
+    path: req.path,
+    method: req.method,
+    userId: req.session?.user?.id,
+  });
+  
   logger.error('Request failed', error, {
     userId: req.session?.user?.id,
     path: req.path,
@@ -49,10 +63,24 @@ function errorHandler(error, req, res, next) {
     });
   }
 
-  // Handle unknown errors (don't expose internal details)
+  // Handle unknown errors
+  // In development, show more details for debugging
+  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  
+  // Always log full error to console for debugging
+  console.error('=== ERROR HANDLER ===');
+  console.error('Error:', error);
+  console.error('Message:', error.message);
+  console.error('Stack:', error.stack);
+  console.error('Path:', req.path);
+  console.error('Method:', req.method);
+  console.error('====================');
+  
   res.status(500).json({
     error: 'Internal server error',
     code: 'INTERNAL_ERROR',
+    details: isDevelopment ? error.message : undefined,
+    stack: isDevelopment ? error.stack : undefined,
   });
 }
 

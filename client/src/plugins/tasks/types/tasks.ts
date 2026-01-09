@@ -3,7 +3,7 @@ export interface Task {
   title: string;
   content: string;
   mentions: Mention[];
-  status: 'not started' | 'in progress' | 'Done' | 'Canceled';
+  status: 'not started' | 'in progress' | 'completed' | 'cancelled';
   priority: 'Low' | 'Medium' | 'High';
   dueDate: Date | null;
   assignedTo: string | null; // Contact ID
@@ -29,8 +29,8 @@ export interface ValidationError {
 export const TASK_STATUS_COLORS = {
   'not started': 'bg-gray-100 text-gray-800 border-gray-200',
   'in progress': 'bg-blue-100 text-blue-800 border-blue-200',
-  Done: 'bg-green-100 text-green-800 border-green-200',
-  Canceled: 'bg-red-100 text-red-800 border-red-200',
+  'completed': 'bg-green-100 text-green-800 border-green-200',
+  'cancelled': 'bg-red-100 text-red-800 border-red-200',
 } as const;
 
 // Priority color mapping
@@ -40,7 +40,7 @@ export const TASK_PRIORITY_COLORS = {
   High: 'bg-red-100 text-red-800 border-red-200',
 } as const;
 
-export const TASK_STATUS_OPTIONS = ['not started', 'in progress', 'Done', 'Canceled'] as const;
+export const TASK_STATUS_OPTIONS = ['not started', 'in progress', 'completed', 'cancelled'] as const;
 
 export const TASK_PRIORITY_OPTIONS = ['Low', 'Medium', 'High'] as const;
 
@@ -51,6 +51,10 @@ export const formatStatusForDisplay = (status: string): string => {
       return 'Not started';
     case 'in progress':
       return 'In progress';
+    case 'completed':
+      return 'Completed';
+    case 'cancelled':
+      return 'Cancelled';
     default:
       return status;
   }

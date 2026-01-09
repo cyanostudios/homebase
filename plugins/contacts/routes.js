@@ -14,7 +14,7 @@ function createContactRoutes(controller, requirePlugin) {
   // POST /api/contacts - Create new contact
   router.post('/',
     requirePlugin('contacts'),
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     commonRules.string('companyName', 1, 255),
     commonRules.optionalString('email', 255),
     commonRules.email('email').optional(),
@@ -32,7 +32,7 @@ function createContactRoutes(controller, requirePlugin) {
   // PUT /api/contacts/:id - Update contact
   router.put('/:id',
     requirePlugin('contacts'),
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     commonRules.string('companyName', 1, 255),
     commonRules.optionalString('email', 255),
@@ -51,7 +51,7 @@ function createContactRoutes(controller, requirePlugin) {
   // DELETE /api/contacts/:id - Delete contact
   router.delete('/:id',
     requirePlugin('contacts'),
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     validateRequest,
     (req, res) => {

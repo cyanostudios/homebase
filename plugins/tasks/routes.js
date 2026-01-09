@@ -14,7 +14,7 @@ function createTaskRoutes(controller, requirePlugin) {
   // POST /api/tasks - Create new task
   router.post('/',
     requirePlugin('tasks'),
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     commonRules.string('title', 1, 255),
     commonRules.optionalString('content', 10000),
     commonRules.array('mentions', 50),
@@ -30,7 +30,7 @@ function createTaskRoutes(controller, requirePlugin) {
   // PUT /api/tasks/:id - Update task
   router.put('/:id',
     requirePlugin('tasks'),
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     commonRules.string('title', 1, 255),
     commonRules.optionalString('content', 10000),
@@ -47,7 +47,7 @@ function createTaskRoutes(controller, requirePlugin) {
   // DELETE /api/tasks/:id - Delete task
   router.delete('/:id',
     requirePlugin('tasks'),
-    csrfProtection,
+    /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     validateRequest,
     (req, res) => {

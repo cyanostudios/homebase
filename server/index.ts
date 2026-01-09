@@ -91,9 +91,6 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Global rate limiting (before routes)
-app.use('/api', globalLimiter);
-
 // Tenant Pool Middleware - attach tenant pool to request and initialize ServiceManager
 app.use((req, res, next) => {
   if (req.session && req.session.tenantConnectionString) {
@@ -143,7 +140,7 @@ function requirePlugin(pluginName) {
 // Initialize plugin system
 const pluginLoader = new PluginLoader(pool, requirePlugin);
 
-// Health check
+// Health check (before rate limiting)
 app.get('/api/health', (req, res) => {
   const loadedPlugins = pluginLoader.getAllPlugins();
   res.json({
@@ -155,14 +152,13 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// CSRF token endpoint (must be before CSRF protection)
+// CSRF token endpoint (must be before rate limiting)
 // Note: csurf requires session middleware (already applied above)
-app.get('/api/csrf-token', (req, res) => {
-  if (!req.session) {
-    return res.status(401).json({ error: 'Session required' });
-  }
-  csrfTokenHandler(req, res);
-});
+// Use the csrfTokenHandler function which handles initialization properly
+app.get('/api/csrf-token', csrfTokenHandler);
+
+// Global rate limiting (after health and CSRF token endpoints)
+app.use('/api', globalLimiter);
 
 // Auth routes
 app.post('/api/auth/login', authLimiter, async (req, res) => {

@@ -10,6 +10,10 @@ const { body, param, query, validationResult } = require('express-validator');
 function validateRequest(req, res, next) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    // Log validation errors for debugging
+    console.log('Validation failed for:', req.path);
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('Validation errors:', JSON.stringify(errors.array(), null, 2));
     return res.status(400).json({
       error: 'Validation failed',
       code: 'VALIDATION_ERROR',
@@ -34,8 +38,11 @@ const commonRules = {
   
   optionalString: (field, max = 255) =>
     body(field)
-      .optional()
-      .trim()
+      .optional({ values: 'falsy' }) // Allow null, undefined, empty string
+      .customSanitizer((value) => {
+        // Convert null/undefined to empty string, otherwise return trimmed value
+        return value === null || value === undefined ? '' : String(value).trim();
+      })
       .isLength({ max })
       .withMessage(`${field} must not exceed ${max} characters`)
       .escape(),
@@ -66,10 +73,22 @@ const commonRules = {
   
   date: (field) =>
     body(field)
-      .optional()
-      .isISO8601()
-      .withMessage(`${field} must be a valid ISO 8601 date`)
-      .toDate(),
+      .optional({ values: 'falsy' }) // Allow null, undefined, empty string
+      .custom((value) => {
+        if (value === null || value === undefined || value === '') {
+          return true; // Allow null/undefined/empty
+        }
+        // Check if it's a valid ISO 8601 date
+        const iso8601Regex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/;
+        if (!iso8601Regex.test(value)) {
+          throw new Error(`${field} must be a valid ISO 8601 date`);
+        }
+        return true;
+      })
+      .customSanitizer((value) => {
+        // Convert to Date object if not null/undefined/empty
+        return (value === null || value === undefined || value === '') ? null : new Date(value);
+      }),
   
   enum: (field, values) =>
     body(field)
@@ -79,9 +98,19 @@ const commonRules = {
   
   array: (field, max = 100) =>
     body(field)
-      .optional()
-      .isArray({ max })
-      .withMessage(`${field} must be an array with at most ${max} items`),
+      .optional({ values: 'falsy' }) // Allow null, undefined
+      .custom((value) => {
+        if (value === null || value === undefined) {
+          return true; // Allow null/undefined
+        }
+        if (!Array.isArray(value)) {
+          throw new Error(`${field} must be an array`);
+        }
+        if (value.length > max) {
+          throw new Error(`${field} must have at most ${max} items`);
+        }
+        return true;
+      }),
   
   id: (field = 'id') => param(field).isInt().withMessage(`${field} must be a valid integer`),
   
