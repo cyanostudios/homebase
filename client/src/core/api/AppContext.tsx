@@ -7,7 +7,7 @@
  * 🚨 BEFORE MAKING ANY CHANGES:
  * 1. Read COLLABORATION_GUIDE.md and AI_AGENT_INSTRUCTIONS.md
  * 2. Understand that changes here affect ALL plugins
- * 3. Test thoroughly with all existing plugins (contacts, notes, estimates, tasks, products, channels)
+ * 3. Test thoroughly with all existing plugins (contacts, notes, estimates, tasks, invoices, files)
  * 4. Verify cross-plugin features still work (@mentions, references)
  * 5. Check that panel coordination system works
  * 6. Ensure authentication flow remains secure
@@ -58,10 +58,6 @@ type PluginNameUnion =
   | 'notes'
   | 'estimates'
   | 'tasks'
-  | 'products'
-  | 'rails'
-  | 'woocommerce-products'
-  | 'channels'
   | 'invoices'
   | 'files';
 

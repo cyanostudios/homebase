@@ -74,17 +74,10 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
  * Examples:
  *  - 'products' + 'edit' -> context.openProductForEdit
  *  - 'notes' + 'view' -> context.openNoteForView
- *  - 'woocommerce-products' + 'edit' -> context.openWooSettingsForEdit (special case)
  */
 function findOpenFunction(context: any, mode: 'edit' | 'view', pluginName?: string): any {
   if (!context || !pluginName) {
     return null;
-  }
-
-  // Special-case Woo settings (naming deviates by design)
-  if (pluginName === 'woocommerce-products') {
-    const fn = context[`openWooSettingsFor${cap(mode)}`];
-    return typeof fn === 'function' ? fn : null;
   }
 
   // Generic: convert kebab to camel, singularize trailing 's'
@@ -123,21 +116,12 @@ export const createPanelFooter = (
     }
   };
 
-  // Wire Save/Cancel to Woo settings events when inside woocommerce-products
   const handleSave = () => {
-    if (pluginName === 'woocommerce-products' && (window as any).submitWooSettingsForm) {
-      (window as any).submitWooSettingsForm();
-    } else {
-      handlers.handleSaveClick();
-    }
+    handlers.handleSaveClick();
   };
 
   const handleCancel = () => {
-    if (pluginName === 'woocommerce-products' && (window as any).cancelWooSettingsForm) {
-      (window as any).cancelWooSettingsForm();
-    } else {
-      handlers.handleCancelClick();
-    }
+    handlers.handleCancelClick();
   };
 
   return (

@@ -13,10 +13,6 @@ export type NavPage =
   | 'estimates'
   | 'invoices'
   | 'tasks'
-  | 'products'
-  | 'rails'
-  | 'woocommerce-products'
-  | 'channels'
   | 'files';
 
 interface SidebarProps {

@@ -4,10 +4,6 @@ import {
   CheckSquare,
   Calculator,
   FileText,
-  Package,
-  Train,
-  ShoppingCart,
-  Globe,
   Files as FilesIcon,
 } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
@@ -64,24 +60,6 @@ import { useTasks } from '@/plugins/tasks/hooks/useTasks';
 import { TaskList } from '@/plugins/tasks/components/TaskList';
 import { TaskForm } from '@/plugins/tasks/components/TaskForm';
 import { TaskView } from '@/plugins/tasks/components/TaskView';
-
-// Products
-import { ProductProvider } from '@/plugins/products/context/ProductContext';
-import { useProducts } from '@/plugins/products/hooks/useProducts';
-import { ProductList } from '@/plugins/products/components/ProductList';
-import { ProductForm } from '@/plugins/products/components/ProductForm';
-import { ProductView } from '@/plugins/products/components/ProductView';
-
-// Rail (custom structure)
-import { RailProvider } from '@/plugins/rail/context/RailContext';
-import { useRail } from '@/plugins/rail/hooks/useRail';
-import { RailStationBoard } from '@/plugins/rail/components/RailStationBoard';
-
-// Channels
-import { ChannelsProvider } from '@/plugins/channels/context/ChannelsContext';
-import { useChannels } from '@/plugins/channels/hooks/useChannels';
-import { ChannelsList } from '@/plugins/channels/components/ChannelsList';
-import { ChannelsView } from '@/plugins/channels/components/ChannelsView';
 
 // Invoices
 import { InvoicesProvider } from '@/plugins/invoices/context/InvoicesContext';
@@ -183,57 +161,6 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       order: 1,
     },
   },
- // {
-//   name: 'products',
-//   Provider: ProductProvider,
-//   hook: useProducts,
-//   panelKey: 'isProductPanelOpen',
-//   components: {
-//     List: ProductList,
-//     Form: ProductList,
-//     View: ProductView,
-//   },
-//   navigation: {
-//     label: 'Products',
-//     icon: Package,
-//     category: 'E-commerce',
-//     order: 0,
-//   },
-// },
-
-// {
-//   name: 'channels',
-//   Provider: ChannelsProvider,
-//   hook: useChannels,
-//   panelKey: 'isChannelPanelOpen',
-//   components: {
-//     List: ChannelsList,
-//     Form: ChannelsForm,
-//     View: ChannelsView,
-//   },
-//   navigation: {
-//     label: 'Channels',
-//     icon: Radio,
-//     category: 'E-commerce',
-//     order: 1,
-//   },
-// },
-  {
-    name: 'rail',
-    Provider: RailProvider,
-    hook: useRail,
-    panelKey: 'isRailPanelOpen',
-    components: {
-      View: RailStationBoard,
-      // Custom component - no List/Form
-    },
-    navigation: {
-      category: 'Tools',
-      label: 'Rail',
-      icon: Train,
-      order: 0,
-    },
-  },
   {
     name: 'files',
     Provider: FilesProvider,
@@ -248,7 +175,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       category: 'Tools',
       label: 'Files',
       icon: FilesIcon,
-      order: 1,
+      order: 0,
     },
   },
 ];

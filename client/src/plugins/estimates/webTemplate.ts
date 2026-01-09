@@ -62,7 +62,8 @@ export function generateWebHTML(estimate: Estimate): string {
       <title>Estimate ${estimate.estimateNumber} - Professional Services</title>
       <script src="https://cdn.tailwindcss.com"></script>
       <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        /* Use Inter stack to match app, fall back to system sans */
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
         .estimate-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         .glass-effect { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.9); }
         .hover-lift { transition: transform 0.2s ease; }

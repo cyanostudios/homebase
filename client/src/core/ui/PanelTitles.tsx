@@ -1,5 +1,5 @@
 // client/src/core/ui/PanelTitles.tsx
-import { Upload, ShoppingCart } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import React from 'react';
 
 // Reduced PLUGIN_CONFIGS - only for plugins not yet migrated
@@ -175,12 +175,6 @@ export const createPanelTitles = (
         default:
           return 'Import data from CSV files';
       }
-    }
-
-    if (currentPlugin.name === 'woocommerce-products') {
-      return currentMode === 'edit'
-        ? 'Update WooCommerce connection'
-        : 'Configure WooCommerce connection';
     }
 
     // Generic fallback for unmigrated plugins
