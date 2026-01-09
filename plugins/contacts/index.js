@@ -5,7 +5,8 @@ const createContactRoutes = require('./routes');
 const config = require('./plugin.config');
 
 function initializeContactsPlugin(pool, requirePlugin) {
-  const model = new ContactModel(pool);
+  // V2: Model and controller no longer need pool - ServiceManager provides database service
+  const model = new ContactModel();
   const controller = new ContactController(model);
   const router = createContactRoutes(controller, requirePlugin);
 

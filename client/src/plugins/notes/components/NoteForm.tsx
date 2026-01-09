@@ -27,7 +27,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   currentNote,
   onSave,
   onCancel,
-  isSubmitting = false,
+  isSubmitting: externalIsSubmitting = false,
 }) => {
   const { validationErrors, clearValidationErrors } = useNotes();
   const {
@@ -42,11 +42,15 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
     useGlobalNavigationGuard();
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<NoteFormState>({
     title: '',
     content: '',
     mentions: [],
   });
+
+  // Use internal state or external prop (external takes precedence)
+  const isCurrentlySubmitting = externalIsSubmitting || isSubmitting;
 
   // Register this form's unsaved changes state globally
   useEffect(() => {
@@ -84,17 +88,26 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   }, [markClean]);
 
   const handleSubmit = useCallback(async () => {
-    console.log('Form submitting with data:', formData);
-    const success = await onSave(formData);
-    if (success) {
-      markClean();
-      if (!currentNote) {
-        resetForm();
+    if (isCurrentlySubmitting) return; // Prevent double submission
+
+    setIsSubmitting(true);
+    try {
+      console.log('Form submitting with data:', formData);
+      const success = await onSave(formData);
+      if (success) {
+        markClean();
+        if (!currentNote) {
+          resetForm();
+        }
+      } else {
+        console.log('Save failed due to validation errors');
       }
-    } else {
-      console.log('Save failed due to validation errors');
+    } catch (error) {
+      console.error('Save failed:', error);
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [formData, onSave, markClean, currentNote, resetForm]);
+  }, [formData, onSave, markClean, currentNote, resetForm, isCurrentlySubmitting]);
 
   const handleCancel = useCallback(() => {
     attemptAction(() => {

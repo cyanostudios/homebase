@@ -5,7 +5,8 @@ const createFilesRoutes = require('./routes');
 const config = require('./plugin.config');
 
 function initializeFilesPlugin(pool, requirePlugin) {
-  const model = new FilesModel(pool);
+  // V2: Model and controller no longer need pool - ServiceManager provides database service
+  const model = new FilesModel();
   const controller = new FilesController(model);
   const router = createFilesRoutes(controller, requirePlugin);
 

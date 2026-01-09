@@ -98,8 +98,11 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       }));
 
       setNotes(transformedNotes);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load notes:', error);
+      // V2: Handle standardized error format
+      const errorMessage = error?.message || error?.error || 'Failed to load notes';
+      setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
   };
 
@@ -209,11 +212,32 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       }
 
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save note:', error);
-      setValidationErrors([
-        { field: 'general', message: 'Failed to save note. Please try again.' },
-      ]);
+      
+      // V2: Handle standardized error format from backend
+      const validationErrors: ValidationError[] = [];
+      
+      // Check if backend returned validation errors in details array
+      if (error?.details && Array.isArray(error.details)) {
+        error.details.forEach((detail: any) => {
+          if (typeof detail === 'string') {
+            validationErrors.push({ field: 'general', message: detail });
+          } else if (detail?.field && detail?.message) {
+            validationErrors.push({ field: detail.field, message: detail.message });
+          } else if (detail?.msg) {
+            validationErrors.push({ field: detail.param || 'general', message: detail.msg });
+          }
+        });
+      }
+      
+      // If no validation errors from backend, use error message
+      if (validationErrors.length === 0) {
+        const errorMessage = error?.message || error?.error || 'Failed to save note. Please try again.';
+        validationErrors.push({ field: 'general', message: errorMessage });
+      }
+      
+      setValidationErrors(validationErrors);
       return false;
     }
   };
@@ -227,8 +251,11 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         console.log('Notes after delete:', newNotes);
         return newNotes;
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete note:', error);
+      // V2: Handle standardized error format
+      const errorMessage = error?.message || error?.error || 'Failed to delete note';
+      alert(errorMessage);
     }
   };
 
@@ -252,9 +279,11 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       ]);
 
       console.log('Note duplicated successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to duplicate note:', error);
-      alert('Failed to duplicate note. Please try again.');
+      // V2: Handle standardized error format
+      const errorMessage = error?.message || error?.error || 'Failed to duplicate note. Please try again.';
+      alert(errorMessage);
     }
   };
 

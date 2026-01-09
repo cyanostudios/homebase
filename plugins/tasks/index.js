@@ -5,7 +5,8 @@ const createTaskRoutes = require('./routes');
 const config = require('./plugin.config');
 
 function initializeTasksPlugin(pool, requirePlugin) {
-  const model = new TaskModel(pool);
+  // V2: Model and controller no longer need pool - ServiceManager provides database service
+  const model = new TaskModel();
   const controller = new TaskController(model);
   const router = createTaskRoutes(controller, requirePlugin);
 

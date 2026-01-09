@@ -90,8 +90,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         dueDate: task.dueDate ? new Date(task.dueDate) : null,
       }));
       setTasks(transformedTasks);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load tasks:', error);
+      // V2: Handle standardized error format
+      const errorMessage = error?.message || error?.error || 'Failed to load tasks';
+      setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
   };
 
@@ -223,11 +226,32 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
       console.log('Task saved successfully');
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('API Error when saving task:', error);
-      setValidationErrors([
-        { field: 'general', message: 'Failed to save task. Please try again.' },
-      ]);
+      
+      // V2: Handle standardized error format from backend
+      const validationErrors: ValidationError[] = [];
+      
+      // Check if backend returned validation errors in details array
+      if (error?.details && Array.isArray(error.details)) {
+        error.details.forEach((detail: any) => {
+          if (typeof detail === 'string') {
+            validationErrors.push({ field: 'general', message: detail });
+          } else if (detail?.field && detail?.message) {
+            validationErrors.push({ field: detail.field, message: detail.message });
+          } else if (detail?.msg) {
+            validationErrors.push({ field: detail.param || 'general', message: detail.msg });
+          }
+        });
+      }
+      
+      // If no validation errors from backend, use error message
+      if (validationErrors.length === 0) {
+        const errorMessage = error?.message || error?.error || 'Failed to save task. Please try again.';
+        validationErrors.push({ field: 'general', message: errorMessage });
+      }
+      
+      setValidationErrors(validationErrors);
       return false;
     }
   };
@@ -241,8 +265,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         console.log('Tasks after delete:', newTasks);
         return newTasks;
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete task:', error);
+      // V2: Handle standardized error format
+      const errorMessage = error?.message || error?.error || 'Failed to delete task';
+      alert(errorMessage);
     }
   };
 
@@ -270,9 +297,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       ]);
 
       console.log('Task duplicated successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to duplicate task:', error);
-      alert('Failed to duplicate task. Please try again.');
+      // V2: Handle standardized error format
+      const errorMessage = error?.message || error?.error || 'Failed to duplicate task. Please try again.';
+      alert(errorMessage);
     }
   };
 

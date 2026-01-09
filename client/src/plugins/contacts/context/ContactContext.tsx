@@ -274,11 +274,32 @@ export function ContactProvider({
       }
 
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save contact:', error);
-      setValidationErrors([
-        { field: 'general', message: 'Failed to save contact. Please try again.' },
-      ]);
+      
+      // V2: Handle standardized error format from backend
+      const validationErrors: ValidationError[] = [];
+      
+      // Check if backend returned validation errors in details array
+      if (error?.details && Array.isArray(error.details)) {
+        error.details.forEach((detail: any) => {
+          if (typeof detail === 'string') {
+            validationErrors.push({ field: 'general', message: detail });
+          } else if (detail?.field && detail?.message) {
+            validationErrors.push({ field: detail.field, message: detail.message });
+          } else if (detail?.msg) {
+            validationErrors.push({ field: detail.param || 'general', message: detail.msg });
+          }
+        });
+      }
+      
+      // If no validation errors from backend, use error message
+      if (validationErrors.length === 0) {
+        const errorMessage = error?.message || error?.error || 'Failed to save contact. Please try again.';
+        validationErrors.push({ field: 'general', message: errorMessage });
+      }
+      
+      setValidationErrors(validationErrors);
       return false;
     }
   };
@@ -287,8 +308,11 @@ export function ContactProvider({
     try {
       await contactsApi.deleteContact(id);
       setContacts((prev) => prev.filter((c) => c.id !== id));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete contact:', error);
+      // V2: Handle standardized error format
+      const errorMessage = error?.message || error?.error || 'Failed to delete contact';
+      alert(errorMessage);
     }
   };
 

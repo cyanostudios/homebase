@@ -1,64 +1,82 @@
 // plugins/invoices/controller.js
-// Invoices controller - handles HTTP requests for invoices CRUD, sharing, and PDF generation
+// Invoices controller - V2 with ServiceManager
 const puppeteer = require('puppeteer');
 const { generatePDFHTML } = require('./pdfTemplate');
+const ServiceManager = require('../../server/core/ServiceManager');
+const { AppError } = require('../../server/core/errors/AppError');
 
 class InvoiceController {
   constructor(model) {
     this.model = model;
   }
 
-  getUserId(req) {
-    return req.session.currentTenantUserId || req.session.user.id;
-  }
-
   // === CRUD ===
   async getInvoices(req, res) {
     try {
-      const userId = this.getUserId(req);
-      const items = await this.model.getAll(req, userId);
+      const items = await this.model.getAll(req);
       res.json(items);
     } catch (error) {
-      console.error('Error getting invoices:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('Get invoices failed', error, { userId: req.session?.user?.id });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to fetch invoices' });
     }
   }
 
   async createInvoice(req, res) {
     try {
-      const userId = this.getUserId(req);
-      const item = await this.model.create(req, userId, req.body);
+      const item = await this.model.create(req, req.body);
       res.json(item);
     } catch (error) {
-      console.error('Error creating invoice:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('Create invoice failed', error, { userId: req.session?.user?.id });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to create invoice' });
     }
   }
 
   async updateInvoice(req, res) {
     try {
-      const userId = this.getUserId(req);
-      const item = await this.model.update(req, userId, req.params.id, req.body);
+      const item = await this.model.update(req, req.params.id, req.body);
       res.json(item);
     } catch (error) {
-      console.error('Error updating invoice:', error);
-      if (/not found/i.test(String(error?.message))) {
-        return res.status(404).json({ error: 'Invoice not found' });
+      const logger = ServiceManager.get('logger');
+      logger.error('Update invoice failed', error, { 
+        invoiceId: req.params.id,
+        userId: req.session?.user?.id 
+      });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
       }
+      
       res.status(500).json({ error: 'Failed to update invoice' });
     }
   }
 
   async deleteInvoice(req, res) {
     try {
-      const userId = this.getUserId(req);
-      await this.model.delete(req, userId, req.params.id);
+      await this.model.delete(req, req.params.id);
       res.json({ message: 'Invoice deleted successfully' });
     } catch (error) {
-      console.error('Error deleting invoice:', error);
-      if (/not found/i.test(String(error?.message))) {
-        return res.status(404).json({ error: 'Invoice not found' });
+      const logger = ServiceManager.get('logger');
+      logger.error('Delete invoice failed', error, { 
+        invoiceId: req.params.id,
+        userId: req.session?.user?.id 
+      });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
       }
+      
       res.status(500).json({ error: 'Failed to delete invoice' });
     }
   }
@@ -66,11 +84,16 @@ class InvoiceController {
   // === Numbering ===
   async getNextInvoiceNumber(req, res) {
     try {
-      const userId = this.getUserId(req);
-      const invoiceNumber = await this.model.getNextInvoiceNumber(req, userId);
+      const invoiceNumber = await this.model.getNextInvoiceNumber(req);
       res.json({ invoiceNumber });
     } catch (error) {
-      console.error('Error getting next invoice number:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('Get next invoice number failed', error, { userId: req.session?.user?.id });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to get next invoice number' });
     }
   }
@@ -80,9 +103,9 @@ class InvoiceController {
     let browser = null;
     try {
       const { id } = req.params;
-      const userId = this.getUserId(req);
+      const logger = ServiceManager.get('logger');
 
-      const invoice = await this.model.getById(req, userId, id);
+      const invoice = await this.model.getById(req, id);
       if (!invoice) {
         return res.status(404).json({ error: 'Invoice not found' });
       }
@@ -102,11 +125,14 @@ class InvoiceController {
         margin: { top: '12mm', right: '12mm', bottom: '16mm', left: '12mm' },
       });
 
+      logger.info('PDF generated', { invoiceId: id, invoiceNumber: invoice.invoiceNumber });
+
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoice.invoiceNumber || invoice.id}.pdf"`);
       res.send(pdfBuffer);
     } catch (error) {
-      console.error('Error generating invoice PDF:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('PDF generation failed', error, { invoiceId: req.params.id });
       res.status(500).json({ error: 'Failed to generate PDF' });
     } finally {
       if (browser) {
@@ -126,7 +152,13 @@ class InvoiceController {
 
       res.json(invoice);
     } catch (error) {
-      console.error('Error getting public invoice:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('Get public invoice failed', error, { token: req.params.token?.substring(0, 10) });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to load invoice' });
     }
   }
@@ -135,7 +167,6 @@ class InvoiceController {
   async createShare(req, res) {
     try {
       const { invoiceId, validUntil } = req.body;
-      const userId = this.getUserId(req);
 
       if (!invoiceId || !validUntil) {
         return res.status(400).json({ error: 'Invoice ID and valid until date are required' });
@@ -146,13 +177,19 @@ class InvoiceController {
         return res.status(400).json({ error: 'Valid until date must be in the future' });
       }
 
-      const share = await this.model.createShare(req, userId, invoiceId, validUntilDate);
+      const share = await this.model.createShare(req, invoiceId, validUntilDate);
       res.json(share);
     } catch (error) {
-      console.error('Error creating invoice share:', error);
-      if (/Invoice not found/i.test(String(error?.message))) {
-        return res.status(404).json({ error: 'Invoice not found or access denied' });
+      const logger = ServiceManager.get('logger');
+      logger.error('Create share failed', error, { 
+        invoiceId: req.body.invoiceId,
+        userId: req.session?.user?.id 
+      });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
       }
+      
       res.status(500).json({ error: 'Failed to create share link' });
     }
   }
@@ -160,15 +197,20 @@ class InvoiceController {
   async getShares(req, res) {
     try {
       const { invoiceId } = req.params;
-      const userId = this.getUserId(req);
 
-      const shares = await this.model.getSharesForInvoice(req, userId, invoiceId);
+      const shares = await this.model.getSharesForInvoice(req, invoiceId);
       res.json(shares);
     } catch (error) {
-      console.error('Error getting invoice shares:', error);
-      if (/Invoice not found/i.test(String(error?.message))) {
-        return res.status(404).json({ error: 'Invoice not found or access denied' });
+      const logger = ServiceManager.get('logger');
+      logger.error('Get shares failed', error, { 
+        invoiceId: req.params.invoiceId,
+        userId: req.session?.user?.id 
+      });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
       }
+      
       res.status(500).json({ error: 'Failed to get shares' });
     }
   }
@@ -176,15 +218,20 @@ class InvoiceController {
   async revokeShare(req, res) {
     try {
       const { shareId } = req.params;
-      const userId = this.getUserId(req);
 
-      const revoked = await this.model.revokeShare(req, userId, shareId);
+      const revoked = await this.model.revokeShare(req, shareId);
       res.json({ message: 'Share revoked successfully', share: revoked });
     } catch (error) {
-      console.error('Error revoking share:', error);
-      if (/Share not found/i.test(String(error?.message))) {
-        return res.status(404).json({ error: 'Share not found or access denied' });
+      const logger = ServiceManager.get('logger');
+      logger.error('Revoke share failed', error, { 
+        shareId: req.params.shareId,
+        userId: req.session?.user?.id 
+      });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
       }
+      
       res.status(500).json({ error: 'Failed to revoke share' });
     }
   }

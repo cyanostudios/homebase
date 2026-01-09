@@ -21,6 +21,9 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
   // ---- Files context: visa/rensa valideringsfel från servern ----
   const { validationErrors, clearValidationErrors } = useFiles();
 
+  // Loading state to prevent double submission
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const getErrors = useCallback(
     (field: string) => validationErrors.filter((e: ValidationError) => e.field === field).map((e) => e.message),
     [validationErrors],
@@ -128,17 +131,27 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
 
   // ------------ submit/cancel via universal footer ------------
   const handleSubmit = useCallback(async () => {
-    if (isEdit) {
-      // EDIT: enbart byta namn
-      const ok = await onSave({ name: name?.trim() || '' });
-      return ok;
-    } else {
-      // CREATE: skicka alla valda filer (_files) för multi-create
-      const ok = await onSave({ _files: items.map((p) => p.file) });
-      if (ok) setItems([]);
-      return ok;
+    if (isSubmitting) return; // Prevent double submission
+
+    setIsSubmitting(true);
+    try {
+      if (isEdit) {
+        // EDIT: enbart byta namn
+        const ok = await onSave({ name: name?.trim() || '' });
+        return ok;
+      } else {
+        // CREATE: skicka alla valda filer (_files) för multi-create
+        const ok = await onSave({ _files: items.map((p) => p.file) });
+        if (ok) setItems([]);
+        return ok;
+      }
+    } catch (error) {
+      console.error('Save failed:', error);
+      return false;
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [isEdit, onSave, name, items]);
+  }, [isEdit, onSave, name, items, isSubmitting]);
 
   const handleCancel = useCallback(() => {
     onCancel();

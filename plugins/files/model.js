@@ -1,116 +1,195 @@
 // plugins/files/model.js
-// Files model - handles file metadata CRUD operations with multi-tenant support
+// Files model - V2 with ServiceManager
 // Note: Binary upload handled elsewhere, this only manages metadata
+const ServiceManager = require('../../server/core/ServiceManager');
+const { AppError } = require('../../server/core/errors/AppError');
 
 class FilesModel {
-  constructor(pool) {
-    this.defaultPool = pool;
+  constructor() {
+    // No pool needed - ServiceManager provides database service
   }
 
-  getPool(req) {
-    return req.tenantPool || this.defaultPool;
+  _getContext(req) {
+    return {
+      userId: req?.session?.currentTenantUserId || req?.session?.user?.id,
+      pool: req?.tenantPool,
+    };
   }
 
   // DB table (snake_case)
   static TABLE = 'user_files';
   static ORDER_BY = 'updated_at DESC, id DESC';
 
-  async getAll(req, userId) {
-    const pool = this.getPool(req);
-    const sql = `
-      SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
-      FROM ${FilesModel.TABLE}
-      WHERE user_id = $1
-      ORDER BY ${FilesModel.ORDER_BY}
-    `;
-    const result = await pool.query(sql, [userId]);
-    return result.rows.map(this.transformRow);
+  async getAll(req) {
+    try {
+      const database = ServiceManager.get('database', req);
+      const context = this._getContext(req);
+      
+      // Tenant isolation automatic
+      const rows = await database.query(
+        `SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
+         FROM ${FilesModel.TABLE}
+         ORDER BY ${FilesModel.ORDER_BY}`,
+        [],
+        context
+      );
+      
+      return rows.map(this.transformRow);
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('Failed to fetch files', error);
+      throw new AppError('Failed to fetch files', 500, AppError.CODES.DATABASE_ERROR);
+    }
   }
 
-  async getById(req, userId, itemId) {
-    const pool = this.getPool(req);
-    const sql = `
-      SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
-      FROM ${FilesModel.TABLE}
-      WHERE id = $1 AND user_id = $2
-      LIMIT 1
-    `;
-    const result = await pool.query(sql, [itemId, userId]);
-    return result.rows.length ? this.transformRow(result.rows[0]) : null;
+  async getById(req, itemId) {
+    try {
+      const database = ServiceManager.get('database', req);
+      const context = this._getContext(req);
+      
+      const rows = await database.query(
+        `SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
+         FROM ${FilesModel.TABLE}
+         WHERE id = $1
+         LIMIT 1`,
+        [itemId],
+        context
+      );
+      
+      if (rows.length === 0) {
+        return null;
+      }
+      
+      return this.transformRow(rows[0]);
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('Failed to get file', error, { itemId });
+      throw new AppError('Failed to get file', 500, AppError.CODES.DATABASE_ERROR);
+    }
   }
 
   // Find by stored filename in url (/api/files/raw/<filename>)
-  async getByStoredFilename(req, userId, filename) {
-    const pool = this.getPool(req);
-    const sql = `
-      SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
-      FROM ${FilesModel.TABLE}
-      WHERE user_id = $1 AND url LIKE $2
-      ORDER BY id DESC
-      LIMIT 1
-    `;
-    const like = `%/api/files/raw/${filename}`;
-    const result = await pool.query(sql, [userId, like]);
-    return result.rows.length ? this.transformRow(result.rows[0]) : null;
+  async getByStoredFilename(req, filename) {
+    try {
+      const database = ServiceManager.get('database', req);
+      const context = this._getContext(req);
+      
+      const like = `%/api/files/raw/${filename}`;
+      const rows = await database.query(
+        `SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
+         FROM ${FilesModel.TABLE}
+         WHERE url LIKE $1
+         ORDER BY id DESC
+         LIMIT 1`,
+        [like],
+        context
+      );
+      
+      if (rows.length === 0) {
+        return null;
+      }
+      
+      return this.transformRow(rows[0]);
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('Failed to get file by stored filename', error, { filename });
+      throw new AppError('Failed to get file by stored filename', 500, AppError.CODES.DATABASE_ERROR);
+    }
   }
 
-  async create(req, userId, data) {
-    const pool = this.getPool(req);
-    const sql = `
-      INSERT INTO ${FilesModel.TABLE} (
-        user_id, name, size, mime_type, url, created_at, updated_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-      )
-      RETURNING id, user_id, name, size, mime_type, url, created_at, updated_at
-    `;
-    const params = [
-      userId,
-      String(data?.name ?? '').trim(),
-      data?.size ?? null,
-      data?.mimeType ?? null,
-      data?.url ?? null,
-    ];
-    const result = await pool.query(sql, params);
-    return this.transformRow(result.rows[0]);
+  async create(req, data) {
+    try {
+      const database = ServiceManager.get('database', req);
+      const logger = ServiceManager.get('logger');
+      const context = this._getContext(req);
+      
+      // Use database.insert for automatic tenant isolation
+      const result = await database.insert(FilesModel.TABLE, {
+        name: String(data?.name ?? '').trim(),
+        size: data?.size ?? null,
+        mime_type: data?.mimeType ?? null,
+        url: data?.url ?? null,
+      }, context);
+      
+      logger.info('File metadata created', { fileId: result.id, userId: context.userId });
+      
+      return this.transformRow(result);
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('Failed to create file metadata', error, { data: { name: data?.name } });
+      
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to create file metadata', 500, AppError.CODES.DATABASE_ERROR);
+    }
   }
 
-  async update(req, userId, itemId, data) {
-    const pool = this.getPool(req);
-    const sets = [];
-    const params = [];
-    let p = 1;
-
-    if (Object.prototype.hasOwnProperty.call(data, 'name')) { sets.push(`name = $${p++}`); params.push(String(data.name ?? '')); }
-    if (Object.prototype.hasOwnProperty.call(data, 'size')) { sets.push(`size = $${p++}`); params.push(data.size ?? null); }
-    if (Object.prototype.hasOwnProperty.call(data, 'mimeType')) { sets.push(`mime_type = $${p++}`); params.push(data.mimeType ?? null); }
-    if (Object.prototype.hasOwnProperty.call(data, 'url')) { sets.push(`url = $${p++}`); params.push(data.url ?? null); }
-
-    sets.push(`updated_at = CURRENT_TIMESTAMP`);
-
-    const sql = `
-      UPDATE ${FilesModel.TABLE}
-      SET ${sets.join(', ')}
-      WHERE id = $${p++} AND user_id = $${p}
-      RETURNING id, user_id, name, size, mime_type, url, created_at, updated_at
-    `;
-    params.push(itemId, userId);
-
-    const result = await pool.query(sql, params);
-    if (!result.rows.length) throw new Error('Item not found');
-    return this.transformRow(result.rows[0]);
+  async update(req, itemId, data) {
+    try {
+      const database = ServiceManager.get('database', req);
+      const logger = ServiceManager.get('logger');
+      const context = this._getContext(req);
+      
+      // Verify file exists (ownership check automatic)
+      const existing = await this.getById(req, itemId);
+      if (!existing) {
+        throw new AppError('File not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      
+      // Build update object
+      const updateData = {};
+      if (Object.prototype.hasOwnProperty.call(data, 'name')) {
+        updateData.name = String(data.name ?? '');
+      }
+      if (Object.prototype.hasOwnProperty.call(data, 'size')) {
+        updateData.size = data.size ?? null;
+      }
+      if (Object.prototype.hasOwnProperty.call(data, 'mimeType')) {
+        updateData.mime_type = data.mimeType ?? null;
+      }
+      if (Object.prototype.hasOwnProperty.call(data, 'url')) {
+        updateData.url = data.url ?? null;
+      }
+      
+      // Use database.update for automatic tenant isolation
+      const result = await database.update(FilesModel.TABLE, itemId, updateData, context);
+      
+      logger.info('File metadata updated', { fileId: itemId, userId: context.userId });
+      
+      return this.transformRow(result);
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('Failed to update file metadata', error, { itemId });
+      
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to update file metadata', 500, AppError.CODES.DATABASE_ERROR);
+    }
   }
 
-  async delete(req, userId, itemId) {
-    const pool = this.getPool(req);
-    const sql = `
-      DELETE FROM ${FilesModel.TABLE}
-      WHERE id = $1 AND user_id = $2
-      RETURNING id
-    `;
-    const result = await pool.query(sql, [itemId, userId]);
-    if (!result.rows.length) throw new Error('Item not found');
-    return { id: String(itemId) };
+  async delete(req, itemId) {
+    try {
+      const database = ServiceManager.get('database', req);
+      const logger = ServiceManager.get('logger');
+      const context = this._getContext(req);
+      
+      // Delete the file metadata (tenant isolation automatic)
+      await database.delete(FilesModel.TABLE, itemId, context);
+      
+      logger.info('File metadata deleted', { fileId: itemId, userId: context.userId });
+      
+      return { id: String(itemId) };
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('Failed to delete file metadata', error, { itemId });
+      
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to delete file metadata', 500, AppError.CODES.DATABASE_ERROR);
+    }
   }
 
   // Map DB row -> API shape (camelCase)

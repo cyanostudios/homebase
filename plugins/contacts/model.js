@@ -1,125 +1,199 @@
 // plugins/contacts/model.js
+// Contacts model - V2 with ServiceManager
+const ServiceManager = require('../../server/core/ServiceManager');
+const { AppError } = require('../../server/core/errors/AppError');
+
 class ContactModel {
-  constructor(pool) {
-    this.defaultPool = pool; // Backup for non-authenticated requests
+  constructor() {
+    // No pool needed - ServiceManager provides database service
   }
 
-  getPool(req) {
-    return req.tenantPool || this.defaultPool;
+  _getContext(req) {
+    return {
+      userId: req?.session?.currentTenantUserId || req?.session?.user?.id,
+      pool: req?.tenantPool,
+    };
   }
 
-  async getAll(req, userId) {
-    const pool = this.getPool(req);
-    const result = await pool.query(
-      'SELECT * FROM contacts WHERE user_id = $1 ORDER BY contact_number',
-      [userId]
-    );
-    
-    return result.rows.map(this.transformRow);
-  }
-
-  async getNextContactNumber(req, userId) {
-    const pool = this.getPool(req);
-    const result = await pool.query(
-      'SELECT COUNT(*) + 1 as next_number FROM contacts WHERE user_id = $1',
-      [userId]
-    );
-    return result.rows[0].next_number.toString();
-  }
-
-  async create(req, userId, contactData) {
-    const pool = this.getPool(req);
-    const contactNumber = contactData.contactNumber || await this.getNextContactNumber(req, userId);
-    
-    const result = await pool.query(`
-      INSERT INTO contacts (
-        user_id, contact_number, contact_type, company_name, company_type,
-        organization_number, vat_number, personal_number, contact_persons, addresses,
-        email, phone, phone2, website, tax_rate, payment_terms, currency, f_tax, notes
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
-      ) RETURNING *
-    `, [
-      userId,
-      contactNumber,
-      contactData.contactType,
-      contactData.companyName,
-      contactData.companyType,
-      contactData.organizationNumber,
-      contactData.vatNumber,
-      contactData.personalNumber,
-      JSON.stringify(contactData.contactPersons || []),
-      JSON.stringify(contactData.addresses || []),
-      contactData.email,
-      contactData.phone,
-      contactData.phone2,
-      contactData.website,
-      contactData.taxRate,
-      contactData.paymentTerms,
-      contactData.currency,
-      contactData.fTax,
-      contactData.notes,
-    ]);
-    
-    return this.transformRow(result.rows[0]);
-  }
-
-  async update(req, userId, contactId, contactData) {
-    const pool = this.getPool(req);
-    const result = await pool.query(`
-      UPDATE contacts SET
-        contact_number = $1, contact_type = $2, company_name = $3, company_type = $4,
-        organization_number = $5, vat_number = $6, personal_number = $7, 
-        contact_persons = $8, addresses = $9, email = $10, phone = $11, phone2 = $12,
-        website = $13, tax_rate = $14, payment_terms = $15, currency = $16, f_tax = $17,
-        notes = $18, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $19 AND user_id = $20
-      RETURNING *
-    `, [
-      contactData.contactNumber,
-      contactData.contactType,
-      contactData.companyName,
-      contactData.companyType,
-      contactData.organizationNumber,
-      contactData.vatNumber,
-      contactData.personalNumber,
-      JSON.stringify(contactData.contactPersons || []),
-      JSON.stringify(contactData.addresses || []),
-      contactData.email,
-      contactData.phone,
-      contactData.phone2,
-      contactData.website,
-      contactData.taxRate,
-      contactData.paymentTerms,
-      contactData.currency,
-      contactData.fTax,
-      contactData.notes,
-      contactId,
-      userId,
-    ]);
-    
-    if (!result.rows.length) {
-      throw new Error('Contact not found');
+  async getAll(req) {
+    try {
+      const database = ServiceManager.get('database', req);
+      const context = this._getContext(req);
+      
+      // Tenant isolation automatic
+      const rows = await database.query(
+        'SELECT * FROM contacts ORDER BY contact_number',
+        [],
+        context
+      );
+      
+      return rows.map(this.transformRow);
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('Failed to fetch contacts', error);
+      throw new AppError('Failed to fetch contacts', 500, AppError.CODES.DATABASE_ERROR);
     }
-    
-    return this.transformRow(result.rows[0]);
   }
 
-  async delete(req, userId, contactId) {
-    const pool = this.getPool(req);
-    const result = await pool.query(
-      'DELETE FROM contacts WHERE id = $1 AND user_id = $2 RETURNING id',
-      [contactId, userId]
-    );
-    
-    if (!result.rows.length) {
-      throw new Error('Contact not found');
+  async getNextContactNumber(req) {
+    try {
+      const database = ServiceManager.get('database', req);
+      const context = this._getContext(req);
+      
+      const rows = await database.query(
+        'SELECT COUNT(*) + 1 as next_number FROM contacts',
+        [],
+        context
+      );
+      
+      return rows[0]?.next_number?.toString() || '1';
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('Failed to get next contact number', error);
+      throw new AppError('Failed to get next contact number', 500, AppError.CODES.DATABASE_ERROR);
     }
-    
-    return { id: contactId };
+  }
+
+  async create(req, contactData) {
+    try {
+      const database = ServiceManager.get('database', req);
+      const logger = ServiceManager.get('logger');
+      const context = this._getContext(req);
+      
+      const contactNumber = contactData.contactNumber || await this.getNextContactNumber(req);
+      
+      // Use database.insert for automatic tenant isolation
+      const result = await database.insert('contacts', {
+        contact_number: contactNumber,
+        contact_type: contactData.contactType || '',
+        company_name: contactData.companyName || '',
+        company_type: contactData.companyType || '',
+        organization_number: contactData.organizationNumber || '',
+        vat_number: contactData.vatNumber || '',
+        personal_number: contactData.personalNumber || '',
+        contact_persons: JSON.stringify(contactData.contactPersons || []),
+        addresses: JSON.stringify(contactData.addresses || []),
+        email: contactData.email || '',
+        phone: contactData.phone || '',
+        phone2: contactData.phone2 || '',
+        website: contactData.website || '',
+        tax_rate: contactData.taxRate || '',
+        payment_terms: contactData.paymentTerms || '',
+        currency: contactData.currency || '',
+        f_tax: contactData.fTax || '',
+        notes: contactData.notes || '',
+      }, context);
+      
+      logger.info('Contact created', { contactId: result.id, userId: context.userId });
+      
+      return this.transformRow(result);
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('Failed to create contact', error, { contactData: { companyName: contactData.companyName } });
+      
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to create contact', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async update(req, contactId, contactData) {
+    try {
+      const database = ServiceManager.get('database', req);
+      const logger = ServiceManager.get('logger');
+      const context = this._getContext(req);
+      
+      // Verify contact exists (ownership check automatic)
+      const existing = await database.query(
+        'SELECT * FROM contacts WHERE id = $1',
+        [contactId],
+        context
+      );
+      
+      if (existing.length === 0) {
+        throw new AppError('Contact not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      
+      // Use database.update for automatic tenant isolation
+      const result = await database.update('contacts', contactId, {
+        contact_number: contactData.contactNumber,
+        contact_type: contactData.contactType || '',
+        company_name: contactData.companyName || '',
+        company_type: contactData.companyType || '',
+        organization_number: contactData.organizationNumber || '',
+        vat_number: contactData.vatNumber || '',
+        personal_number: contactData.personalNumber || '',
+        contact_persons: JSON.stringify(contactData.contactPersons || []),
+        addresses: JSON.stringify(contactData.addresses || []),
+        email: contactData.email || '',
+        phone: contactData.phone || '',
+        phone2: contactData.phone2 || '',
+        website: contactData.website || '',
+        tax_rate: contactData.taxRate || '',
+        payment_terms: contactData.paymentTerms || '',
+        currency: contactData.currency || '',
+        f_tax: contactData.fTax || '',
+        notes: contactData.notes || '',
+      }, context);
+      
+      logger.info('Contact updated', { contactId, userId: context.userId });
+      
+      return this.transformRow(result);
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('Failed to update contact', error, { contactId });
+      
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to update contact', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async delete(req, contactId) {
+    try {
+      const database = ServiceManager.get('database', req);
+      const logger = ServiceManager.get('logger');
+      const context = this._getContext(req);
+      
+      // Delete the contact (tenant isolation automatic)
+      await database.delete('contacts', contactId, context);
+      
+      logger.info('Contact deleted', { contactId, userId: context.userId });
+      
+      return { id: contactId };
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('Failed to delete contact', error, { contactId });
+      
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to delete contact', 500, AppError.CODES.DATABASE_ERROR);
+    }
   }
 
   transformRow(row) {
+    // Parse JSON fields if they're strings
+    let contactPersons = row.contact_persons || [];
+    if (typeof contactPersons === 'string') {
+      try {
+        contactPersons = JSON.parse(contactPersons);
+      } catch (e) {
+        contactPersons = [];
+      }
+    }
+    
+    let addresses = row.addresses || [];
+    if (typeof addresses === 'string') {
+      try {
+        addresses = JSON.parse(addresses);
+      } catch (e) {
+        addresses = [];
+      }
+    }
+    
     return {
       id: row.id.toString(),
       contactNumber: row.contact_number,
@@ -129,8 +203,8 @@ class ContactModel {
       organizationNumber: row.organization_number || '',
       vatNumber: row.vat_number || '',
       personalNumber: row.personal_number || '',
-      contactPersons: row.contact_persons || [],
-      addresses: row.addresses || [],
+      contactPersons: contactPersons,
+      addresses: addresses,
       email: row.email || '',
       phone: row.phone || '',
       phone2: row.phone2 || '',

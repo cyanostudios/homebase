@@ -36,7 +36,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   currentTask,
   onSave,
   onCancel,
-  isSubmitting = false,
+  isSubmitting: externalIsSubmitting = false,
 }) => {
   const { validationErrors, clearValidationErrors } = useTasks();
   const { contacts } = useApp();
@@ -52,6 +52,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
     useGlobalNavigationGuard();
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<TaskFormState>({
     title: '',
     content: '',
@@ -61,6 +62,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     dueDate: null,
     assignedTo: null,
   });
+
+  // Use internal state or external prop (external takes precedence)
+  const isCurrentlySubmitting = externalIsSubmitting || isSubmitting;
 
   // Register this form's unsaved changes state globally
   useEffect(() => {
@@ -104,19 +108,28 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   }, [markClean]);
 
   const handleSubmit = useCallback(async () => {
-    console.log('Form submitting with data:', formData);
-    console.log('Current validation errors:', validationErrors);
-    const success = await onSave(formData);
-    console.log('Save result:', success);
-    if (success) {
-      markClean();
-      if (!currentTask) {
-        resetForm();
+    if (isCurrentlySubmitting) return; // Prevent double submission
+
+    setIsSubmitting(true);
+    try {
+      console.log('Form submitting with data:', formData);
+      console.log('Current validation errors:', validationErrors);
+      const success = await onSave(formData);
+      console.log('Save result:', success);
+      if (success) {
+        markClean();
+        if (!currentTask) {
+          resetForm();
+        }
+      } else {
+        console.log('Save failed due to validation errors');
       }
-    } else {
-      console.log('Save failed due to validation errors');
+    } catch (error) {
+      console.error('Save failed:', error);
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [formData, onSave, markClean, currentTask, resetForm, validationErrors]);
+  }, [formData, onSave, markClean, currentTask, resetForm, validationErrors, isCurrentlySubmitting]);
 
   const handleCancel = useCallback(() => {
     attemptAction(() => {

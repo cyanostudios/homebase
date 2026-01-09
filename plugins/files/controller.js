@@ -1,15 +1,13 @@
 // plugins/files/controller.js
-// Files controller - handles HTTP requests for file metadata CRUD and file upload/download operations
+// Files controller - V2 with ServiceManager
 const fs = require('fs');
 const path = require('path');
+const ServiceManager = require('../../server/core/ServiceManager');
+const { AppError } = require('../../server/core/errors/AppError');
 
 class FilesController {
   constructor(model) {
     this.model = model;
-  }
-
-  getUserId(req) {
-    return req.session.currentTenantUserId || req.session.user.id;
   }
 
   mapUniqueViolation(error) {
@@ -23,79 +21,106 @@ class FilesController {
 
   async getAll(req, res) {
     try {
-      const userId = this.getUserId(req);
-      const items = await this.model.getAll(req, userId);
+      const items = await this.model.getAll(req);
       res.json(items);
     } catch (error) {
-      console.error('Files:getAll error:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('Get files failed', error, { userId: req.session?.user?.id });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to fetch files' });
     }
   }
 
   async create(req, res) {
     try {
-      const userId = this.getUserId(req);
-      const item = await this.model.create(req, userId, req.body);
+      const item = await this.model.create(req, req.body);
       res.json(item);
     } catch (error) {
-      console.error('Files:create error:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('Create file metadata failed', error, { userId: req.session?.user?.id });
+      
       const mapped = this.mapUniqueViolation(error);
       if (mapped) return res.status(409).json({ errors: [mapped] });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to create file' });
     }
   }
 
   async update(req, res) {
     try {
-      const userId = this.getUserId(req);
-      const item = await this.model.update(req, userId, req.params.id, req.body);
+      const item = await this.model.update(req, req.params.id, req.body);
       res.json(item);
     } catch (error) {
-      console.error('Files:update error:', error);
-      if (/not found/i.test(String(error?.message))) {
-        return res.status(404).json({ error: 'Item not found' });
-      }
+      const logger = ServiceManager.get('logger');
+      logger.error('Update file metadata failed', error, { 
+        fileId: req.params.id,
+        userId: req.session?.user?.id 
+      });
+      
       const mapped = this.mapUniqueViolation(error);
       if (mapped) return res.status(409).json({ errors: [mapped] });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to update file' });
     }
   }
 
   async delete(req, res) {
     try {
-      const userId = this.getUserId(req);
-      
-      // Hämta posten först för att veta vilket filnamn som ligger på disk
-      const item = await this.model.getById(req, userId, req.params.id);
-      if (!item) return res.status(404).json({ error: 'Item not found' });
+      // Get file metadata first to know filename
+      const item = await this.model.getById(req, req.params.id);
+      if (!item) {
+        return res.status(404).json({ error: 'Item not found' });
+      }
 
-      // Försök radera den fysiska filen om url pekar på vår raw-route
+      // Try to delete physical file if url points to our raw-route
       const uploadRoot = path.join(process.cwd(), 'server', 'uploads', 'files');
       try {
         if (item.url && item.url.startsWith('/api/files/raw/')) {
           const filename = path.basename(item.url.replace('/api/files/raw/', ''));
           const abs = path.join(uploadRoot, filename);
-          if (fs.existsSync(abs)) fs.unlinkSync(abs);
+          if (fs.existsSync(abs)) {
+            fs.unlinkSync(abs);
+            const logger = ServiceManager.get('logger');
+            logger.info('Physical file deleted', { filename, fileId: req.params.id });
+          }
         }
       } catch (fsErr) {
-        console.warn('Files:delete physical file warning:', fsErr);
+        const logger = ServiceManager.get('logger');
+        logger.warn('Failed to delete physical file', fsErr, { fileId: req.params.id });
       }
 
-      // Radera metadata i DB
-      await this.model.delete(req, userId, req.params.id);
+      // Delete metadata in DB
+      await this.model.delete(req, req.params.id);
       res.json({ message: 'Item deleted successfully', id: String(req.params.id) });
     } catch (error) {
-      console.error('Files:delete error:', error);
-      if (/not found/i.test(String(error?.message))) {
-        return res.status(404).json({ error: 'Item not found' });
+      const logger = ServiceManager.get('logger');
+      logger.error('Delete file failed', error, { 
+        fileId: req.params.id,
+        userId: req.session?.user?.id 
+      });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
       }
+      
       res.status(500).json({ error: 'Failed to delete file' });
     }
   }
 
   async upload(req, res, { uploadRoot }) {
     try {
-      const userId = this.getUserId(req);
       const files = Array.isArray(req.files) ? req.files : [];
       if (!files.length) {
         return res.status(400).json({ error: 'No files uploaded' });
@@ -108,7 +133,7 @@ class FilesController {
           ? Buffer.from(f.originalname, 'latin1').toString('utf8')
           : 'file';
 
-        const item = await this.model.create(req, userId, {
+        const item = await this.model.create(req, {
           name: utf8Name,
           size: f.size ?? null,
           mimeType: f.mimetype ?? null,
@@ -119,7 +144,13 @@ class FilesController {
 
       res.json(created);
     } catch (error) {
-      console.error('Files:upload error:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('File upload failed', error, { userId: req.session?.user?.id });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to upload files' });
     }
   }
@@ -127,20 +158,19 @@ class FilesController {
   // Serve with correct Content-Disposition filename (original name)
   async raw(req, res, { uploadRoot }) {
     try {
-      const userId = this.getUserId(req);
       const filename = path.basename(req.params.filename || '');
       if (!filename) return res.status(400).json({ error: 'Missing filename' });
 
       const abs = path.join(uploadRoot, filename);
       if (!fs.existsSync(abs)) return res.status(404).json({ error: 'File not found' });
 
-      // Slå upp DB-post för att föreslå originalnamn vid nedladdning
+      // Look up DB record to suggest original name for download
       let suggested = null;
       try {
-        const item = await this.model.getByStoredFilename(req, userId, filename);
+        const item = await this.model.getByStoredFilename(req, filename);
         if (item?.name) suggested = item.name;
       } catch (e) {
-        // mjukt fel – fortsätt utan suggested
+        // Soft error – continue without suggested name
       }
 
       if (suggested) {
@@ -148,7 +178,8 @@ class FilesController {
       }
       return res.sendFile(abs);
     } catch (error) {
-      console.error('Files:raw error:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('File serve failed', error, { filename: req.params.filename });
       res.status(500).json({ error: 'Failed to serve file' });
     }
   }

@@ -1,14 +1,53 @@
 // client/src/plugins/files/api/filesApi.ts
+// Files API - V2 with CSRF protection
 export type ApiFieldError = { field: string; message: string };
 
 export class FilesApi {
+  private csrfToken: string | null = null;
+
   constructor(private basePath: string = '/api/files') {}
 
+  async getCsrfToken(): Promise<string> {
+    if (this.csrfToken) return this.csrfToken;
+    
+    try {
+      const response = await fetch('/api/csrf-token', {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to get CSRF token');
+      }
+      
+      const data = await response.json();
+      this.csrfToken = data.csrfToken;
+      return this.csrfToken;
+    } catch (error) {
+      console.error('CSRF token fetch failed:', error);
+      throw new Error('Failed to get CSRF token');
+    }
+  }
+
   private async request(path: string, options: RequestInit = {}) {
+    const headers: Record<string, string> = {
+      ...(options.headers as Record<string, string> || {}),
+    };
+
+    // Add CSRF token for mutations (but not for multipart uploads - browser sets Content-Type)
+    if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
+      // For multipart uploads, don't set Content-Type header (browser needs to set boundary)
+      if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+      }
+      headers['X-CSRF-Token'] = await this.getCsrfToken();
+    } else if (!options.method || options.method === 'GET') {
+      // GET requests don't need CSRF token
+    }
+
     let response: Response;
     try {
       response = await fetch(`${this.basePath}${path}`, {
-        headers: { ...(options.headers || {}) },
+        headers,
         credentials: 'include',
         ...options,
       });
@@ -22,12 +61,19 @@ export class FilesApi {
       let payload: any = null;
       try { payload = await response.json(); } catch {}
 
+      // Handle standardized error format from backend
+      const errorMessage = payload?.error || payload?.message || response.statusText || 'Request failed';
+      const errorCode = payload?.code;
+      const errorDetails = payload?.details;
+
       const err: any = new Error(
         response.status === 409 && payload?.errors?.[0]?.message
           ? payload.errors[0].message
-          : (payload?.error || response.statusText || 'Request failed')
+          : errorMessage
       );
       err.status = response.status;
+      err.code = errorCode;
+      err.details = errorDetails;
       if (payload?.errors) err.errors = payload.errors as ApiFieldError[];
       throw err;
     }
@@ -41,6 +87,7 @@ export class FilesApi {
   getItems() {
     return this.request('/');
   }
+  
   createItem(data: any) {
     return this.request('/', {
       method: 'POST',
@@ -48,6 +95,7 @@ export class FilesApi {
       body: JSON.stringify(data),
     });
   }
+  
   updateItem(id: string, data: any) {
     return this.request(`/${id}`, {
       method: 'PUT',
@@ -55,6 +103,7 @@ export class FilesApi {
       body: JSON.stringify(data),
     });
   }
+  
   deleteItem(id: string) {
     return this.request(`/${id}`, { method: 'DELETE' });
   }

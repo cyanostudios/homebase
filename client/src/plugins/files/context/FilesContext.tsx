@@ -83,8 +83,11 @@ export function FilesProvider({
     try {
       const items: any[] = await api.getItems();
       setFiles(items.map(normalize));
-    } catch (e) {
+    } catch (e: any) {
       console.warn('[files] getItems failed:', e);
+      // V2: Handle standardized error format
+      const errorMessage = e?.message || e?.error || 'Failed to load files';
+      setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
   };
 
@@ -145,13 +148,38 @@ export function FilesProvider({
         return true;
       } catch (err: any) {
         console.error('Upload failed:', err);
+        
+        // V2: Handle standardized error format from backend
+        const validationErrors: ValidationError[] = [];
+        
+        // Check for field-level errors (409 conflicts)
         if (err?.status === 409 && Array.isArray(err.errors)) {
-          setValidationErrors(err.errors);
-        } else if (err?.status === 400 && err?.message) {
-          setValidationErrors([{ field: '_files', message: err.message }]);
-        } else {
-          setValidationErrors([{ field: 'general', message: 'Failed to upload. Please try again.' }]);
+          validationErrors.push(...err.errors);
         }
+        // Check if backend returned validation errors in details array
+        else if (err?.details && Array.isArray(err.details)) {
+          err.details.forEach((detail: any) => {
+            if (typeof detail === 'string') {
+              validationErrors.push({ field: 'general', message: detail });
+            } else if (detail?.field && detail?.message) {
+              validationErrors.push({ field: detail.field, message: detail.message });
+            } else if (detail?.msg) {
+              validationErrors.push({ field: detail.param || 'general', message: detail.msg });
+            }
+          });
+        }
+        // Check for 400 errors with message
+        else if (err?.status === 400 && err?.message) {
+          validationErrors.push({ field: '_files', message: err.message });
+        }
+        
+        // If no validation errors from backend, use error message
+        if (validationErrors.length === 0) {
+          const errorMessage = err?.message || err?.error || 'Failed to upload. Please try again.';
+          validationErrors.push({ field: 'general', message: errorMessage });
+        }
+        
+        setValidationErrors(validationErrors);
         return false;
       }
     }
@@ -172,13 +200,38 @@ export function FilesProvider({
       return true;
     } catch (err: any) {
       console.error('Failed to save file:', err);
+      
+      // V2: Handle standardized error format from backend
+      const validationErrors: ValidationError[] = [];
+      
+      // Check for field-level errors (409 conflicts)
       if (err?.status === 409 && Array.isArray(err.errors)) {
-        setValidationErrors(err.errors);
-      } else if (err?.status === 400 && err?.message) {
-        setValidationErrors([{ field: 'general', message: err.message }]);
-      } else {
-        setValidationErrors([{ field: 'general', message: 'Failed to save. Please try again.' }]);
+        validationErrors.push(...err.errors);
       }
+      // Check if backend returned validation errors in details array
+      else if (err?.details && Array.isArray(err.details)) {
+        err.details.forEach((detail: any) => {
+          if (typeof detail === 'string') {
+            validationErrors.push({ field: 'general', message: detail });
+          } else if (detail?.field && detail?.message) {
+            validationErrors.push({ field: detail.field, message: detail.message });
+          } else if (detail?.msg) {
+            validationErrors.push({ field: detail.param || 'general', message: detail.msg });
+          }
+        });
+      }
+      // Check for 400 errors with message
+      else if (err?.status === 400 && err?.message) {
+        validationErrors.push({ field: 'general', message: err.message });
+      }
+      
+      // If no validation errors from backend, use error message
+      if (validationErrors.length === 0) {
+        const errorMessage = err?.message || err?.error || 'Failed to save. Please try again.';
+        validationErrors.push({ field: 'general', message: errorMessage });
+      }
+      
+      setValidationErrors(validationErrors);
       return false;
     }
   };
@@ -189,6 +242,9 @@ export function FilesProvider({
       setFiles((prev) => prev.filter((i) => i.id !== id));
     } catch (err: any) {
       console.error('Failed to delete file:', err);
+      // V2: Handle standardized error format
+      const errorMessage = err?.message || err?.error || 'Failed to delete file';
+      setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
   };
 

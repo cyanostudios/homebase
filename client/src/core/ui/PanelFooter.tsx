@@ -13,6 +13,7 @@ interface PanelFooterProps {
   onEditItem: () => void;
   onSaveClick: () => void;
   onCancelClick: () => void;
+  isSubmitting?: boolean;
 }
 
 export const PanelFooter: React.FC<PanelFooterProps> = ({
@@ -25,6 +26,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   onEditItem,
   onSaveClick,
   onCancelClick,
+  isSubmitting = false,
 }) => {
   const hasBlockingErrors = validationErrors.some(
     (e: any) => !String(e?.message || '').includes('Warning'),
@@ -50,7 +52,13 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
 
   return (
     <div className="flex justify-end space-x-3">
-      <Button type="button" onClick={onCancelClick} variant="danger" icon={X}>
+      <Button
+        type="button"
+        onClick={onCancelClick}
+        variant="danger"
+        icon={X}
+        disabled={isSubmitting}
+      >
         Cancel
       </Button>
       <Button
@@ -58,9 +66,9 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
         onClick={onSaveClick}
         variant="primary"
         icon={Check}
-        disabled={hasBlockingErrors}
+        disabled={hasBlockingErrors || isSubmitting}
       >
-        {currentMode === 'edit' ? 'Update' : 'Save'}
+        {isSubmitting ? 'Saving...' : currentMode === 'edit' ? 'Update' : 'Save'}
       </Button>
     </div>
   );

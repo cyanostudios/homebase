@@ -19,6 +19,9 @@
     "lint:errors": "eslint \"client/src/**/*.{ts,tsx}\" \"server/**/*.ts\" --quiet",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "prepare": "husky",
     "sync:down:stash": "git stash push -u -m \"sync-down\" && git pull --rebase && npm ci && git stash list",
     "sync:down:force": "git reset --hard HEAD && git clean -fd && git pull --rebase && npm ci",
@@ -68,12 +71,15 @@
     "compression": "^1.8.0",
     "connect-pg-simple": "^10.0.0",
     "cors": "^2.8.5",
+    "csurf": "^1.11.0",
     "csv-parser": "^3.2.0",
     "date-fns": "^3.6.0",
     "dotenv": "^16.6.1",
     "embla-carousel-react": "^8.6.0",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.2.1",
     "express-session": "^1.18.1",
+    "express-validator": "^7.3.1",
     "framer-motion": "^11.18.2",
     "helmet": "^8.1.0",
     "html2pdf.js": "^0.10.3",
@@ -143,7 +149,11 @@
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3",
-    "vite": "^5.4.14"
+    "vite": "^5.4.14",
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0",
+    "@types/jest": "^29.5.12",
+    "@types/supertest": "^6.0.2"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"

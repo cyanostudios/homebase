@@ -95,26 +95,69 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// CSRF token cache
+let csrfToken: string | null = null;
+
+async function getCsrfToken(): Promise<string> {
+  if (csrfToken) return csrfToken;
+  
+  try {
+    const response = await fetch('/api/csrf-token', {
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to get CSRF token');
+    }
+    
+    const data = await response.json();
+    csrfToken = data.csrfToken;
+    return csrfToken;
+  } catch (error) {
+    console.error('CSRF token fetch failed:', error);
+    throw new Error('Failed to get CSRF token');
+  }
+}
+
 const api = {
   async request(endpoint: string, options: RequestInit = {}) {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string> || {}),
+    };
+
+    // Add CSRF token for mutations (but not for login - it's before authentication)
+    if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method) && !endpoint.includes('/auth/login')) {
+      headers['X-CSRF-Token'] = await getCsrfToken();
+    }
+
     const response = await fetch(`/api${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
       credentials: 'include',
       ...options,
     });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Network error' }));
-      throw new Error(error.error || 'Request failed');
+      
+      // Handle standardized error format from backend
+      const errorMessage = error.error || error.message || 'Request failed';
+      const errorCode = error.code;
+      const errorDetails = error.details;
+      
+      const err: any = new Error(errorMessage);
+      err.status = response.status;
+      err.code = errorCode;
+      err.details = errorDetails;
+      
+      throw err;
     }
 
     return response.json();
   },
 
   async login(email: string, password: string) {
+    // Login doesn't need CSRF token (it's before authentication)
     return this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
@@ -122,6 +165,7 @@ const api = {
   },
 
   async logout() {
+    // Logout needs CSRF token (user is authenticated)
     return this.request('/auth/logout', { method: 'POST' });
   },
 

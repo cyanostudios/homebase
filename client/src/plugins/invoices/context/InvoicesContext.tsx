@@ -208,11 +208,34 @@ export function InvoicesProvider({
       return true;
     } catch (err: any) {
       console.error('Failed to save invoice:', err);
+      
+      // V2: Handle standardized error format from backend
+      const validationErrors: ValidationError[] = [];
+      
+      // Check for field-level errors (409 conflicts)
       if (err?.status === 409 && Array.isArray(err.errors)) {
-        setValidationErrors(err.errors);
-      } else {
-        setValidationErrors([{ field: 'general', message: 'Failed to save. Please try again.' }]);
+        validationErrors.push(...err.errors);
       }
+      // Check if backend returned validation errors in details array
+      else if (err?.details && Array.isArray(err.details)) {
+        err.details.forEach((detail: any) => {
+          if (typeof detail === 'string') {
+            validationErrors.push({ field: 'general', message: detail });
+          } else if (detail?.field && detail?.message) {
+            validationErrors.push({ field: detail.field, message: detail.message });
+          } else if (detail?.msg) {
+            validationErrors.push({ field: detail.param || 'general', message: detail.msg });
+          }
+        });
+      }
+      
+      // If no validation errors from backend, use error message
+      if (validationErrors.length === 0) {
+        const errorMessage = err?.message || err?.error || 'Failed to save. Please try again.';
+        validationErrors.push({ field: 'general', message: errorMessage });
+      }
+      
+      setValidationErrors(validationErrors);
       return false;
     }
   };
@@ -221,8 +244,11 @@ export function InvoicesProvider({
     try {
       await api.deleteItem(id);
       setInvoices((prev) => prev.filter((i) => i.id !== id));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to delete invoice:', err);
+      // V2: Handle standardized error format
+      const errorMessage = err?.message || err?.error || 'Failed to delete invoice';
+      alert(errorMessage);
     }
   };
 

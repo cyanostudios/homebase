@@ -1,10 +1,14 @@
-// server/plugins/files/routes.js
+// plugins/files/routes.js
+// Files routes with V2 security (CSRF protection and input validation)
 const express = require('express');
 const router = express.Router();
 const config = require('./plugin.config');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { csrfProtection } = require('../../server/core/middleware/csrf');
+const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
+const { uploadLimiter } = require('../../server/core/middleware/rateLimit');
 
 function ensureDirSync(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -95,13 +99,41 @@ function createFilesRoutes(controller, requirePlugin) {
 
   // ---- CRUD (metadata) ----
   router.get('/', gate, (req, res) => controller.getAll(req, res));
-  router.post('/', gate, (req, res) => controller.create(req, res));
-  router.put('/:id', gate, (req, res) => controller.update(req, res));
-  router.delete('/:id', gate, (req, res) => controller.delete(req, res));
+  
+  router.post('/',
+    gate,
+    csrfProtection,
+    commonRules.string('name', 1, 255),
+    commonRules.optionalString('url', 500),
+    validateRequest,
+    (req, res) => controller.create(req, res)
+  );
+  
+  router.put('/:id',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    commonRules.string('name', 1, 255).optional(),
+    commonRules.optionalString('url', 500),
+    validateRequest,
+    (req, res) => controller.update(req, res)
+  );
+  
+  router.delete('/:id',
+    gate,
+    csrfProtection,
+    commonRules.id('id'),
+    validateRequest,
+    (req, res) => controller.delete(req, res)
+  );
 
   // ---- MULTIPART upload: returns array of created FileItems ----
-  router.post('/upload', gate, runUpload, (req, res) =>
-    controller.upload(req, res, { uploadRoot })
+  router.post('/upload',
+    gate,
+    uploadLimiter,
+    csrfProtection,
+    runUpload,
+    (req, res) => controller.upload(req, res, { uploadRoot })
   );
 
   // ---- RAW file serving by stored filename (behind auth gate) ----

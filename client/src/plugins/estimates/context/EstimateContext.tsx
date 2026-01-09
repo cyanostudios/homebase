@@ -105,8 +105,11 @@ export function EstimateProvider({
         updatedAt: new Date(e.updatedAt),
       })) as Estimate[];
       setEstimates(transformed);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load estimates:', error);
+      // V2: Handle standardized error format
+      const errorMessage = error?.message || error?.error || 'Failed to load estimates';
+      setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
   };
 
@@ -236,11 +239,32 @@ export function EstimateProvider({
       }
 
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('API Error when saving estimate:', error);
-      setValidationErrors([
-        { field: 'general', message: 'Failed to save estimate. Please try again.' },
-      ]);
+      
+      // V2: Handle standardized error format from backend
+      const validationErrors: ValidationError[] = [];
+      
+      // Check if backend returned validation errors in details array
+      if (error?.details && Array.isArray(error.details)) {
+        error.details.forEach((detail: any) => {
+          if (typeof detail === 'string') {
+            validationErrors.push({ field: 'general', message: detail });
+          } else if (detail?.field && detail?.message) {
+            validationErrors.push({ field: detail.field, message: detail.message });
+          } else if (detail?.msg) {
+            validationErrors.push({ field: detail.param || 'general', message: detail.msg });
+          }
+        });
+      }
+      
+      // If no validation errors from backend, use error message
+      if (validationErrors.length === 0) {
+        const errorMessage = error?.message || error?.error || 'Failed to save estimate. Please try again.';
+        validationErrors.push({ field: 'general', message: errorMessage });
+      }
+      
+      setValidationErrors(validationErrors);
       return false;
     }
   };
@@ -248,8 +272,11 @@ export function EstimateProvider({
   const deleteEstimate = async (id: string) => {
     try {
       await estimatesApi.deleteEstimate(id);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete estimate:', error);
+      // V2: Handle standardized error format
+      const errorMessage = error?.message || error?.error || 'Failed to delete estimate';
+      alert(errorMessage);
     } finally {
       setEstimates((prev) => prev.filter((e) => e.id !== id));
     }
@@ -284,8 +311,11 @@ export function EstimateProvider({
           updatedAt: new Date(saved.updatedAt),
         },
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to duplicate estimate:', error);
+      // V2: Handle standardized error format
+      const errorMessage = error?.message || error?.error || 'Failed to duplicate estimate. Please try again.';
+      alert(errorMessage);
     }
   };
 

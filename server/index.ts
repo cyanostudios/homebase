@@ -11,6 +11,12 @@ const path = require('path');
 const PluginLoader = require('../plugin-loader');
 require('dotenv').config({ path: '.env.local' });
 
+// Core infrastructure imports
+const ServiceManager = require('./core/ServiceManager');
+const { errorHandler } = require('./core/middleware/errorHandler');
+const { globalLimiter, authLimiter } = require('./core/middleware/rateLimit');
+const { csrfProtection, csrfTokenHandler } = require('./core/middleware/csrf');
+
 // Initialize Neon Service
 import NeonService from './neon-service';
 const neonService = new NeonService(process.env.NEON_API_KEY);
@@ -85,11 +91,19 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Tenant Pool Middleware - attach tenant pool to request
+// Global rate limiting (before routes)
+app.use('/api', globalLimiter);
+
+// Tenant Pool Middleware - attach tenant pool to request and initialize ServiceManager
 app.use((req, res, next) => {
   if (req.session && req.session.tenantConnectionString) {
     req.tenantPool = getTenantPool(req.session.tenantConnectionString);
   }
+  
+  // Initialize ServiceManager with request context
+  // This ensures database service has correct tenant pool
+  ServiceManager.initialize(req);
+  
   next();
 });
 
@@ -141,8 +155,17 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// CSRF token endpoint (must be before CSRF protection)
+// Note: csurf requires session middleware (already applied above)
+app.get('/api/csrf-token', (req, res) => {
+  if (!req.session) {
+    return res.status(401).json({ error: 'Session required' });
+  }
+  csrfTokenHandler(req, res);
+});
+
 // Auth routes
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   const { email, password } = req.body;
 
   try {
@@ -172,7 +195,8 @@ app.post('/api/auth/login', async (req, res) => {
     );
 
     if (!tenantResult.rows.length) {
-      console.error(`❌ No tenant database found for user ${user.id}`);
+      const logger = ServiceManager.get('logger');
+      logger.error('No tenant database found', null, { userId: user.id });
       return res.status(500).json({ error: 'Tenant database not configured' });
     }
 
@@ -193,8 +217,13 @@ app.post('/api/auth/login', async (req, res) => {
     req.session.currentTenantUserId = user.id;
 
     // Log tenant routing info
+    const logger = ServiceManager.get('logger');
     const dbHost = tenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
-    console.log(`✅ User ${user.email} (ID: ${user.id}) logged in → Tenant DB: ${dbHost}`);
+    logger.info('User logged in', { 
+      userId: user.id, 
+      email: user.email, 
+      tenantDb: dbHost 
+    });
 
     res.json({
       user: {
@@ -205,7 +234,8 @@ app.post('/api/auth/login', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    const logger = ServiceManager.get('logger');
+    logger.error('Login failed', error, { email: req.body.email });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -266,10 +296,11 @@ app.post('/api/auth/signup', async (req, res) => {
     );
 
     const user = userResult.rows[0];
-    console.log(`✅ Created user: ${user.email} (ID: ${user.id})`);
+    const logger = ServiceManager.get('logger');
+    logger.info('User created', { userId: user.id, email: user.email });
 
     // Create Neon tenant database
-    console.log(`🏗️  Creating Neon database for user ${user.id}...`);
+    logger.info('Creating Neon database', { userId: user.id });
     const tenantDb = await neonService.createTenantDatabase(user.id, user.email);
 
     // Save tenant info in Railway PostgreSQL
@@ -278,7 +309,10 @@ app.post('/api/auth/signup', async (req, res) => {
       [user.id, tenantDb.projectId, tenantDb.databaseName, tenantDb.connectionString]
     );
 
-    console.log(`✅ Created Neon database: ${tenantDb.databaseName}`);
+    logger.info('Neon database created', { 
+      userId: user.id, 
+      databaseName: tenantDb.databaseName 
+    });
 
     // Give selected plugin access
     for (const pluginName of selectedPlugins) {
@@ -288,7 +322,10 @@ app.post('/api/auth/signup', async (req, res) => {
       );
     }
 
-    console.log(`✅ Granted access to ${selectedPlugins.length} plugins: ${selectedPlugins.join(', ')}`);
+    logger.info('Plugin access granted', { 
+      userId: user.id, 
+      plugins: selectedPlugins 
+    });
 
     // Auto-login
     req.session.user = {
@@ -311,7 +348,8 @@ app.post('/api/auth/signup', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Signup error:', error);
+    const logger = ServiceManager.get('logger');
+    logger.error('Signup failed', error, { email: req.body.email });
     res.status(500).json({ error: 'Failed to create account. Please try again.' });
   }
 });
@@ -339,7 +377,8 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
       currentTenantUserId: currentTenantUserId
     });
   } catch (error) {
-    console.error('Error in /api/auth/me:', error);
+    const logger = ServiceManager.get('logger');
+    logger.error('Failed to fetch user info', error, { userId: req.session.user.id });
     res.status(500).json({ error: 'Failed to fetch user info' });
   }
 });
@@ -376,7 +415,8 @@ app.post('/api/admin/update-role', requireAuth, async (req, res) => {
       user: result.rows[0] 
     });
   } catch (error) {
-    console.error('Error updating role:', error);
+    const logger = ServiceManager.get('logger');
+    logger.error('Failed to update role', error, { email: req.body.email });
     res.status(500).json({ error: 'Failed to update role' });
   }
 });
@@ -398,7 +438,8 @@ app.get('/api/admin/tenants', requireAuth, async (req, res) => {
 
     res.json({ tenants: result.rows });
   } catch (error) {
-    console.error('Error fetching tenants:', error);
+    const logger = ServiceManager.get('logger');
+    logger.error('Failed to fetch tenants', error, { adminId: req.session.user.id });
     res.status(500).json({ error: 'Failed to fetch tenants' });
   }
 });
@@ -431,15 +472,24 @@ app.post('/api/admin/switch-tenant', requireAuth, async (req, res) => {
     req.session.tenantConnectionString = newTenantConnectionString;
     req.session.currentTenantUserId = userId;
 
+    const logger = ServiceManager.get('logger');
     const dbHost = newTenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
-    console.log(`🔄 Admin switched to tenant: User ${userId} → DB: ${dbHost}`);
+    logger.info('Admin switched tenant', { 
+      adminId: req.session.user.id, 
+      tenantUserId: userId, 
+      tenantDb: dbHost 
+    });
 
     res.json({ 
       message: 'Switched tenant successfully',
       tenantUserId: userId
     });
   } catch (error) {
-    console.error('Error switching tenant:', error);
+    const logger = ServiceManager.get('logger');
+    logger.error('Failed to switch tenant', error, { 
+      adminId: req.session.user.id, 
+      targetUserId: req.body.userId 
+    });
     res.status(500).json({ error: 'Failed to switch tenant' });
   }
 });
@@ -468,7 +518,11 @@ app.delete('/api/admin/users/:userId', requireAuth, async (req, res) => {
 
     res.json({ message: 'User deleted', email: result.rows[0].email });
   } catch (error) {
-    console.error('Error deleting user:', error);
+    const logger = ServiceManager.get('logger');
+    logger.error('Failed to delete user', error, { 
+      adminId: req.session.user.id, 
+      targetUserId: req.params.userId 
+    });
     res.status(500).json({ error: 'Failed to delete user' });
   }
 });
@@ -495,11 +549,8 @@ app.get('/api/plugins', requireAuth, (req, res) => {
   res.json(plugins);
 });
 
-// Error handling
-app.use((error, req, res, next) => {
-  console.error('Server error:', error);
-  res.status(500).json({ error: 'Internal server error' });
-});
+// Error handling middleware (must be last)
+app.use(errorHandler);
 
 // TEMPORARY CLEANUP ENDPOINT - Remove after use!
 app.post('/api/admin/cleanup', requireAuth, async (req, res) => {
@@ -510,23 +561,26 @@ app.post('/api/admin/cleanup', requireAuth, async (req, res) => {
   }
   
   try {
-    console.log('🧹 Starting cleanup...');
+    const logger = ServiceManager.get('logger');
+    logger.info('Starting cleanup', { adminId: req.session.user.id });
     
     const countUsers = await pool.query('SELECT COUNT(*) FROM users WHERE id != $1', [SUPERUSER_ID]);
     const countTenants = await pool.query('SELECT COUNT(*) FROM tenants WHERE user_id != $1', [SUPERUSER_ID]);
     const countPlugins = await pool.query('SELECT COUNT(*) FROM user_plugin_access WHERE user_id != $1', [SUPERUSER_ID]);
     
-    console.log('Items to delete:', {
+    const counts = {
       users: countUsers.rows[0].count,
       tenants: countTenants.rows[0].count,
       plugins: countPlugins.rows[0].count
-    });
+    };
+    
+    logger.info('Cleanup items to delete', counts);
     
     await pool.query('DELETE FROM user_plugin_access WHERE user_id != $1', [SUPERUSER_ID]);
     await pool.query('DELETE FROM tenants WHERE user_id != $1', [SUPERUSER_ID]);
     await pool.query('DELETE FROM users WHERE id != $1', [SUPERUSER_ID]);
     
-    console.log('✅ Cleanup complete!');
+    logger.info('Cleanup complete', counts);
     
     res.json({ 
       success: true,
@@ -538,7 +592,8 @@ app.post('/api/admin/cleanup', requireAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Cleanup failed:', error);
+    const logger = ServiceManager.get('logger');
+    logger.error('Cleanup failed', error, { adminId: req.session.user.id });
     res.status(500).json({ error: 'Cleanup failed', details: error.message });
   }
 });

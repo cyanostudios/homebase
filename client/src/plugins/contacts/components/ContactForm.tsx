@@ -41,7 +41,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
   currentContact,
   onSave,
   onCancel,
-  isSubmitting = false,
+  isSubmitting: externalIsSubmitting = false,
 }) => {
   const { validationErrors, clearValidationErrors } = useContacts();
   const {
@@ -56,6 +56,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
     useGlobalNavigationGuard();
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     // Contact Number & Type
     contactNumber: '',
@@ -155,10 +156,16 @@ export const ContactForm: React.FC<ContactFormProps> = ({
     markClean();
   }, [markClean]);
 
+  // Use internal state or external prop (external takes precedence)
+  const isCurrentlySubmitting = externalIsSubmitting || isSubmitting;
+
   // ⬇️ Fix: Sluta testa truthiness på en void-retur. Hantera istället via try/catch.
   const handleSubmit = useCallback(async () => {
-    console.log('Form submitting with data:', formData);
+    if (isCurrentlySubmitting) return; // Prevent double submission
+
+    setIsSubmitting(true);
     try {
+      console.log('Form submitting with data:', formData);
       // Stödjer både sync och async onSave
       await Promise.resolve(onSave(formData));
 
@@ -170,8 +177,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
     } catch (err) {
       // ❌ Vid valideringsfel/fel – lämna formuläret öppet så att valideringsfel kan visas
       console.error('Save failed:', err);
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [formData, onSave, markClean, currentContact, resetForm]);
+  }, [formData, onSave, markClean, currentContact, resetForm, isCurrentlySubmitting]);
 
   const handleCancel = useCallback(() => {
     attemptAction(() => {

@@ -1,26 +1,29 @@
 // plugins/estimates/controller.js
-// Estimates controller - handles HTTP requests for estimates CRUD, sharing, PDF generation, and statistics
+// Estimates controller - V2 with ServiceManager
 const EstimateModel = require('./model');
 const puppeteer = require('puppeteer');
 const { generatePDFHTML } = require('./pdfTemplate');
+const ServiceManager = require('../../server/core/ServiceManager');
+const { AppError } = require('../../server/core/errors/AppError');
 
 class EstimateController {
   constructor(model) {
     this.model = model;
   }
 
-  getUserId(req) {
-    return req.session.currentTenantUserId || req.session.user.id;
-  }
-
   // Get all estimates for user
   async getEstimates(req, res) {
     try {
-      const userId = this.getUserId(req);
-      const estimates = await this.model.getAll(req, userId);
+      const estimates = await this.model.getAll(req);
       res.json(estimates);
     } catch (error) {
-      console.error('Error getting estimates:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('Get estimates failed', error, { userId: req.session?.user?.id });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to get estimates' });
     }
   }
@@ -29,8 +32,7 @@ class EstimateController {
   async getEstimate(req, res) {
     try {
       const { id } = req.params;
-      const userId = this.getUserId(req);
-      const estimate = await this.model.getById(req, userId, id);
+      const estimate = await this.model.getById(req, id);
       
       if (!estimate) {
         return res.status(404).json({ error: 'Estimate not found' });
@@ -38,7 +40,16 @@ class EstimateController {
       
       res.json(estimate);
     } catch (error) {
-      console.error('Error getting estimate:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('Get estimate failed', error, { 
+        estimateId: req.params.id,
+        userId: req.session?.user?.id 
+      });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to get estimate' });
     }
   }
@@ -46,11 +57,16 @@ class EstimateController {
   // Create new estimate
   async createEstimate(req, res) {
     try {
-      const userId = this.getUserId(req);
-      const estimate = await this.model.create(req, userId, req.body);
+      const estimate = await this.model.create(req, req.body);
       res.status(201).json(estimate);
     } catch (error) {
-      console.error('Error creating estimate:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('Create estimate failed', error, { userId: req.session?.user?.id });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to create estimate' });
     }
   }
@@ -59,13 +75,6 @@ class EstimateController {
   async updateEstimate(req, res) {
     try {
       const { id } = req.params;
-      const userId = this.getUserId(req);
-      
-      // Get current estimate to check status change
-      const currentEstimate = await this.model.getById(req, userId, id);
-      if (!currentEstimate) {
-        return res.status(404).json({ error: 'Estimate not found' });
-      }
       
       // Ensure status reasons are properly formatted
       const updateData = {
@@ -74,13 +83,19 @@ class EstimateController {
         rejectionReasons: req.body.rejectionReasons || []
       };
       
-      const estimate = await this.model.update(req, userId, id, updateData);
+      const estimate = await this.model.update(req, id, updateData);
       res.json(estimate);
     } catch (error) {
-      console.error('Error updating estimate:', error);
-      if (error.message === 'Estimate not found') {
-        return res.status(404).json({ error: error.message });
+      const logger = ServiceManager.get('logger');
+      logger.error('Update estimate failed', error, { 
+        estimateId: req.params.id,
+        userId: req.session?.user?.id 
+      });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
       }
+      
       res.status(500).json({ error: 'Failed to update estimate' });
     }
   }
@@ -89,14 +104,19 @@ class EstimateController {
   async deleteEstimate(req, res) {
     try {
       const { id } = req.params;
-      const userId = this.getUserId(req);
-      await this.model.delete(req, userId, id);
+      await this.model.delete(req, id);
       res.json({ message: 'Estimate deleted successfully' });
     } catch (error) {
-      console.error('Error deleting estimate:', error);
-      if (error.message === 'Estimate not found') {
-        return res.status(404).json({ error: error.message });
+      const logger = ServiceManager.get('logger');
+      logger.error('Delete estimate failed', error, { 
+        estimateId: req.params.id,
+        userId: req.session?.user?.id 
+      });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
       }
+      
       res.status(500).json({ error: 'Failed to delete estimate' });
     }
   }
@@ -104,11 +124,16 @@ class EstimateController {
   // Get next estimate number
   async getNextEstimateNumber(req, res) {
     try {
-      const userId = this.getUserId(req);
-      const estimateNumber = await this.model.getNextEstimateNumber(req, userId);
+      const estimateNumber = await this.model.getNextEstimateNumber(req);
       res.json({ estimateNumber });
     } catch (error) {
-      console.error('Error getting next estimate number:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('Get next estimate number failed', error, { userId: req.session?.user?.id });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to get next estimate number' });
     }
   }
@@ -116,13 +141,18 @@ class EstimateController {
   // Get status statistics
   async getStatusStats(req, res) {
     try {
-      const userId = this.getUserId(req);
       const { startDate, endDate } = req.query;
       
-      const stats = await this.model.getStatusStats(req, userId, startDate, endDate);
+      const stats = await this.model.getStatusStats(req, startDate, endDate);
       res.json(stats);
     } catch (error) {
-      console.error('Error getting status stats:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('Get status stats failed', error, { userId: req.session?.user?.id });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to get status statistics' });
     }
   }
@@ -130,7 +160,6 @@ class EstimateController {
   // Get reason statistics
   async getReasonStats(req, res) {
     try {
-      const userId = this.getUserId(req);
       const { status } = req.params;
       const { startDate, endDate } = req.query;
       
@@ -138,10 +167,19 @@ class EstimateController {
         return res.status(400).json({ error: 'Status must be accepted or rejected' });
       }
       
-      const stats = await this.model.getReasonStats(req, userId, status, startDate, endDate);
+      const stats = await this.model.getReasonStats(req, status, startDate, endDate);
       res.json(stats);
     } catch (error) {
-      console.error('Error getting reason stats:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('Get reason stats failed', error, { 
+        status: req.params.status,
+        userId: req.session?.user?.id 
+      });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to get reason statistics' });
     }
   }
@@ -152,10 +190,10 @@ class EstimateController {
 
     try {
       const { id } = req.params;
-      const userId = this.getUserId(req);
+      const logger = ServiceManager.get('logger');
 
       // Get estimate data
-      const estimate = await this.model.getById(req, userId, id);
+      const estimate = await this.model.getById(req, id);
       if (!estimate) {
         return res.status(404).json({ error: 'Estimate not found' });
       }
@@ -186,6 +224,8 @@ class EstimateController {
         }
       });
 
+      logger.info('PDF generated', { estimateId: id, estimateNumber: estimate.estimateNumber });
+
       // Set response headers for download
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename=estimate-${estimate.estimateNumber}.pdf`);
@@ -196,7 +236,8 @@ class EstimateController {
       res.end(pdfBuffer);
 
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('PDF generation failed', error, { estimateId: req.params.id });
       res.status(500).json({ error: 'Failed to generate PDF' });
     } finally {
       if (browser) {
@@ -211,7 +252,6 @@ class EstimateController {
   async createShare(req, res) {
     try {
       const { estimateId, validUntil } = req.body;
-      const userId = this.getUserId(req);
       
       if (!estimateId || !validUntil) {
         return res.status(400).json({ 
@@ -227,13 +267,19 @@ class EstimateController {
         });
       }
 
-      const share = await this.model.createShare(req, userId, estimateId, validUntilDate);
+      const share = await this.model.createShare(req, estimateId, validUntilDate);
       res.json(share);
     } catch (error) {
-      console.error('Error creating estimate share:', error);
-      if (error.message === 'Estimate not found or access denied') {
-        return res.status(404).json({ error: error.message });
+      const logger = ServiceManager.get('logger');
+      logger.error('Create share failed', error, { 
+        estimateId: req.body.estimateId,
+        userId: req.session?.user?.id 
+      });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
       }
+      
       res.status(500).json({ error: 'Failed to create share link' });
     }
   }
@@ -257,7 +303,13 @@ class EstimateController {
 
       res.json(estimate);
     } catch (error) {
-      console.error('Error getting public estimate:', error);
+      const logger = ServiceManager.get('logger');
+      logger.error('Get public estimate failed', error, { token: req.params.token?.substring(0, 10) });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      
       res.status(500).json({ error: 'Failed to load estimate' });
     }
   }
@@ -266,15 +318,20 @@ class EstimateController {
   async getShares(req, res) {
     try {
       const { estimateId } = req.params;
-      const userId = this.getUserId(req);
       
-      const shares = await this.model.getSharesForEstimate(req, userId, estimateId);
+      const shares = await this.model.getSharesForEstimate(req, estimateId);
       res.json(shares);
     } catch (error) {
-      console.error('Error getting estimate shares:', error);
-      if (error.message === 'Estimate not found or access denied') {
-        return res.status(404).json({ error: error.message });
+      const logger = ServiceManager.get('logger');
+      logger.error('Get shares failed', error, { 
+        estimateId: req.params.estimateId,
+        userId: req.session?.user?.id 
+      });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
       }
+      
       res.status(500).json({ error: 'Failed to get shares' });
     }
   }
@@ -283,15 +340,20 @@ class EstimateController {
   async revokeShare(req, res) {
     try {
       const { shareId } = req.params;
-      const userId = this.getUserId(req);
       
-      const revokedShare = await this.model.revokeShare(req, userId, shareId);
+      const revokedShare = await this.model.revokeShare(req, shareId);
       res.json({ message: 'Share revoked successfully', share: revokedShare });
     } catch (error) {
-      console.error('Error revoking share:', error);
-      if (error.message === 'Share not found or access denied') {
-        return res.status(404).json({ error: error.message });
+      const logger = ServiceManager.get('logger');
+      logger.error('Revoke share failed', error, { 
+        shareId: req.params.shareId,
+        userId: req.session?.user?.id 
+      });
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
       }
+      
       res.status(500).json({ error: 'Failed to revoke share' });
     }
   }
