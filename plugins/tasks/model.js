@@ -1,6 +1,6 @@
 // plugins/tasks/model.js
-// Tasks model - V2 with ServiceManager
-const ServiceManager = require('../../server/core/ServiceManager');
+// Tasks model - V3 with @homebase/core SDK
+const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 class TaskModel {
@@ -19,41 +19,34 @@ class TaskModel {
     try {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
-      
+
       // Tenant isolation automatic
-      const rows = await database.query(
-        'SELECT * FROM tasks ORDER BY created_at DESC',
-        [],
-        context
-      );
-      
-      return rows.map(this.transformRow);
+      const result = await db.query('SELECT * FROM tasks ORDER BY created_at DESC', [], context);
+
+      return result.rows.map(this.transformRow);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to fetch tasks', error);
+      Logger.error('Failed to fetch tasks', error);
       throw new AppError('Failed to fetch tasks', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
   async create(req, taskData) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
-      
-      const { 
-        title, 
-        content, 
-        mentions, 
-        status, 
-        priority, 
-        due_date, 
-        assigned_to, 
-        created_from_note 
+      const db = Database.get(req);
+
+      const {
+        title,
+        content,
+        mentions,
+        status,
+        priority,
+        due_date,
+        assigned_to,
+        created_from_note,
       } = taskData;
-      
+
       // Use database.insert for automatic tenant isolation
-      const result = await database.insert('tasks', {
+      const result = await db.insert('tasks', {
         title: title || '',
         content: content || '',
         mentions: JSON.stringify(mentions || []),
@@ -62,15 +55,14 @@ class TaskModel {
         due_date: due_date || null,
         assigned_to: assigned_to || null,
         created_from_note: created_from_note || null,
-      }, context);
-      
-      logger.info('Task created', { taskId: result.id, userId: context.userId });
-      
+      });
+
+      Logger.info('Task created', { taskId: result.id });
+
       return this.transformRow(result);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to create task', error, { taskData: { title: taskData.title } });
-      
+      Logger.error('Failed to create task', error, { taskData: { title: taskData.title } });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -80,33 +72,19 @@ class TaskModel {
 
   async update(req, taskId, taskData) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
-      
+      const db = Database.get(req);
+
       // Verify task exists (ownership check automatic)
-      const existing = await database.query(
-        'SELECT * FROM tasks WHERE id = $1',
-        [taskId],
-        context
-      );
-      
-      if (existing.length === 0) {
+      const existing = await db.query('SELECT * FROM tasks WHERE id = $1', [taskId], context);
+
+      if (existing.rows.length === 0) {
         throw new AppError('Task not found', 404, AppError.CODES.NOT_FOUND);
       }
-      
-      const { 
-        title, 
-        content, 
-        mentions, 
-        status, 
-        priority, 
-        due_date, 
-        assigned_to 
-      } = taskData;
-      
+
+      const { title, content, mentions, status, priority, due_date, assigned_to } = taskData;
+
       // Use database.update for automatic tenant isolation
-      const result = await database.update('tasks', taskId, {
+      const result = await db.update('tasks', taskId, {
         title: title || '',
         content: content || '',
         mentions: JSON.stringify(mentions || []),
@@ -114,15 +92,14 @@ class TaskModel {
         priority: priority || 'Medium',
         due_date: due_date || null,
         assigned_to: assigned_to || null,
-      }, context);
-      
-      logger.info('Task updated', { taskId, userId: context.userId });
-      
+      });
+
+      Logger.info('Task updated', { taskId });
+
       return this.transformRow(result);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to update task', error, { taskId });
-      
+      Logger.error('Failed to update task', error, { taskId });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -132,20 +109,17 @@ class TaskModel {
 
   async delete(req, taskId) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
-      
+      const db = Database.get(req);
+
       // Delete the task (tenant isolation automatic)
-      await database.delete('tasks', taskId, context);
-      
-      logger.info('Task deleted', { taskId, userId: context.userId });
-      
+      await db.deleteRecord('tasks', taskId);
+
+      Logger.info('Task deleted', { taskId });
+
       return { id: taskId };
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to delete task', error, { taskId });
-      
+      Logger.error('Failed to delete task', error, { taskId });
+
       if (error instanceof AppError) {
         throw error;
       }

@@ -1,6 +1,6 @@
 // plugins/notes/controller.js
 // Notes controller - handles HTTP requests for notes CRUD operations (V2)
-const ServiceManager = require('../../server/core/ServiceManager');
+const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 class NoteController {
@@ -13,13 +13,12 @@ class NoteController {
       const notes = await this.model.getAll(req);
       res.json(notes);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Get notes failed', error, { userId: req.session?.user?.id });
-      
+      Logger.error('Get notes failed', error, { userId: Context.getUserId(req) });
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to fetch notes' });
     }
   }
@@ -29,13 +28,12 @@ class NoteController {
       const note = await this.model.create(req, req.body);
       res.json(note);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Create note failed', error, { userId: req.session?.user?.id });
-      
+      Logger.error('Create note failed', error, { userId: Context.getUserId(req) });
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to create note' });
     }
   }
@@ -45,16 +43,15 @@ class NoteController {
       const note = await this.model.update(req, req.params.id, req.body);
       res.json(note);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Update note failed', error, { 
+      Logger.error('Update note failed', error, {
         noteId: req.params.id,
-        userId: req.session?.user?.id 
+        userId: Context.getUserId(req),
       });
-      
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to update note' });
     }
   }
@@ -64,16 +61,15 @@ class NoteController {
       await this.model.delete(req, req.params.id);
       res.json({ message: 'Note deleted successfully' });
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Delete note failed', error, { 
+      Logger.error('Delete note failed', error, {
         noteId: req.params.id,
-        userId: req.session?.user?.id 
+        userId: Context.getUserId(req),
       });
-      
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to delete note' });
     }
   }

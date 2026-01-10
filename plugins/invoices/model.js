@@ -1,7 +1,7 @@
 // plugins/invoices/model.js
-// Invoices model - V2 with ServiceManager
+// Invoices model - V3 with @homebase/core SDK
 const crypto = require('crypto');
-const ServiceManager = require('../../server/core/ServiceManager');
+const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 class InvoiceModel {
@@ -35,13 +35,13 @@ class InvoiceModel {
       };
     }
 
-    lineItems.forEach(item => {
+    lineItems.forEach((item) => {
       // Use calculated fields if available, otherwise calculate from raw data
-      const lineSubtotal = item.lineSubtotal ?? ((item.quantity || 0) * (item.unitPrice || 0));
-      const discountAmount = item.discountAmount ?? (lineSubtotal * ((item.discount || 0) / 100));
+      const lineSubtotal = item.lineSubtotal ?? (item.quantity || 0) * (item.unitPrice || 0);
+      const discountAmount = item.discountAmount ?? lineSubtotal * ((item.discount || 0) / 100);
       const lineSubtotalAfterDiscount = lineSubtotal - discountAmount;
       const vatRate = item.vatRate || 25;
-      const vatAmount = item.vatAmount ?? (lineSubtotalAfterDiscount * (vatRate / 100));
+      const vatAmount = item.vatAmount ?? lineSubtotalAfterDiscount * (vatRate / 100);
 
       subtotal += lineSubtotal;
       totalDiscount += discountAmount;
@@ -67,7 +67,7 @@ class InvoiceModel {
   // Transform database row to JS object
   transformRow(row) {
     if (!row) return null;
-    
+
     // Parse JSON fields if they're strings
     let lineItems = row.line_items || [];
     if (typeof lineItems === 'string') {
@@ -77,7 +77,7 @@ class InvoiceModel {
         lineItems = [];
       }
     }
-    
+
     return {
       id: row.id.toString(),
       invoiceNumber: row.invoice_number,
@@ -110,74 +110,72 @@ class InvoiceModel {
   // Get next invoice number
   // Using same approach as contacts plugin - simple query with automatic tenant isolation
   async getNextInvoiceNumber(req) {
-    const logger = ServiceManager.get('logger');
-    
     try {
       // Log initial state for debugging
-      logger.info('Getting next invoice number', {
+      Logger.info('Getting next invoice number', {
         hasSession: !!req?.session,
         hasUser: !!req?.session?.user,
         userId: req?.session?.user?.id,
         hasTenantPool: !!req?.tenantPool,
-        hasTenantConnectionString: !!req?.session?.tenantConnectionString
+        hasTenantConnectionString: !!req?.session?.tenantConnectionString,
       });
 
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
-      
+
       // Validate context
       if (!context.userId) {
         const errorMsg = 'User ID is required. Please ensure you are logged in.';
-        logger.error(errorMsg, null, { 
+        Logger.error(errorMsg, null, {
           session: req?.session,
           hasUser: !!req?.session?.user,
-          hasCurrentTenantUserId: !!req?.session?.currentTenantUserId
+          hasCurrentTenantUserId: !!req?.session?.currentTenantUserId,
         });
         throw new AppError(errorMsg, 400, AppError.CODES.VALIDATION_ERROR);
       }
-      
-      logger.info('Context validated', {
+
+      Logger.info('Context validated', {
         userId: context.userId,
         hasPool: !!context.pool,
         hasDatabase: !!database,
-        hasDatabasePool: !!(database && database.pool)
+        hasDatabasePool: !!(database && database.pool),
       });
-      
+
       const currentYear = new Date().getFullYear();
       const pattern = `${currentYear}-%`;
-      
-      // Use database.query() which automatically handles tenant isolation
+
+      // Use db.query() which automatically handles tenant isolation
       // It will add user_id filter if not present in the query
       // The query will become: WHERE invoice_number LIKE $1 AND user_id = $2
-      logger.info('Executing query for invoice numbers', {
+      Logger.info('Executing query for invoice numbers', {
         userId: context.userId,
         year: currentYear,
-        pattern: pattern
+        pattern: pattern,
       });
-      
+
       // Query will automatically add user_id filter via _addTenantFilter()
       // So final query will be: WHERE invoice_number LIKE $1 AND user_id = $2
       // And params will be: [pattern, userId]
-      const rows = await database.query(
+      const result = await db.query(
         `SELECT invoice_number 
          FROM invoices 
          WHERE invoice_number LIKE $1
          ORDER BY invoice_number DESC 
          LIMIT 1`,
         [pattern],
-        context
+        context,
       );
-      
-      logger.info('Query executed successfully', {
+
+      Logger.info('Query executed successfully', {
         rowCount: rows?.length || 0,
         firstRow: rows?.[0] || null,
-        isEmpty: !rows || rows.length === 0
+        isEmpty: !rows || rows.length === 0,
       });
-      
+
       let nextNumber = 1;
       if (rows && rows.length > 0 && rows[0] && rows[0].invoice_number) {
         const lastNumber = rows[0].invoice_number;
-        logger.info('Found existing invoice number', { lastNumber });
+        Logger.info('Found existing invoice number', { lastNumber });
         const parts = lastNumber.split('-');
         if (parts.length >= 2) {
           const numberPart = parseInt(parts[1], 10);
@@ -186,23 +184,25 @@ class InvoiceModel {
           }
         }
       } else {
-        logger.info('No existing invoices found (rows.length=0), returning nextNumber=1 for empty DB case');
+        Logger.info(
+          'No existing invoices found (rows.length=0), returning nextNumber=1 for empty DB case',
+        );
       }
-      
+
       const invoiceNumber = `${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
-      
+
       // Verify empty DB case handling
       if (!rows || rows.length === 0) {
-        logger.info(`Empty DB case: rows.length=0 -> returning ${invoiceNumber}`);
+        Logger.info(`Empty DB case: rows.length=0 -> returning ${invoiceNumber}`);
       }
-      
-      logger.info('Next invoice number generated successfully', { 
-        invoiceNumber, 
-        userId: context.userId, 
+
+      Logger.info('Next invoice number generated successfully', {
+        invoiceNumber,
+        userId: context.userId,
         year: currentYear,
-        nextNumber
+        nextNumber,
       });
-      
+
       return invoiceNumber;
     } catch (error) {
       // Enhanced error logging
@@ -214,85 +214,104 @@ class InvoiceModel {
         errorCode: error?.code,
         errorStack: error?.stack?.substring(0, 500), // Limit stack trace
         hasDatabase: false,
-        hasContext: false
+        hasContext: false,
       };
-      
+
       try {
         const database = ServiceManager.get('database', req);
         errorDetails.hasDatabase = !!database;
         errorDetails.hasDatabasePool = !!(database && database.pool);
-        
+
         const context = this._getContext(req);
         errorDetails.hasContext = !!context;
         errorDetails.contextUserId = context?.userId;
       } catch (e) {
         // Ignore errors when trying to get context for logging
       }
-      
-      logger.error('Failed to get next invoice number - DETAILED ERROR', error, errorDetails);
-      
+
+      Logger.error('Failed to get next invoice number - DETAILED ERROR', error, errorDetails);
+
       // Return more descriptive error message
       if (error instanceof AppError) {
         throw error;
       }
-      
+
       // Check for specific database errors
       if (error?.code === '42P01') {
         // Table does not exist
-        throw new AppError('Invoices table not found. Please run database migrations.', 500, AppError.CODES.DATABASE_ERROR);
+        throw new AppError(
+          'Invoices table not found. Please run database migrations.',
+          500,
+          AppError.CODES.DATABASE_ERROR,
+        );
       }
-      
+
       if (error?.code === 'ECONNREFUSED' || error?.code === 'ETIMEDOUT') {
         // Connection error
-        throw new AppError('Database connection failed. Please check your database configuration.', 500, AppError.CODES.DATABASE_ERROR);
+        throw new AppError(
+          'Database connection failed. Please check your database configuration.',
+          500,
+          AppError.CODES.DATABASE_ERROR,
+        );
       }
-      
+
       // Generic error with original message
       throw new AppError(
         `Failed to get next invoice number: ${error?.message || 'Unknown database error'}`,
         500,
-        AppError.CODES.DATABASE_ERROR
+        AppError.CODES.DATABASE_ERROR,
       );
     }
   }
 
   // Create invoice
   async create(req, invoiceData) {
-    const logger = ServiceManager.get('logger');
     try {
-      logger.info('Creating invoice', { 
+      Logger.info('Creating invoice', {
         hasInvoiceNumber: !!invoiceData.invoiceNumber,
         userId: req?.session?.user?.id,
         currentTenantUserId: req?.session?.currentTenantUserId,
         hasTenantPool: !!req?.tenantPool,
-        hasTenantConnectionString: !!req?.session?.tenantConnectionString
+        hasTenantConnectionString: !!req?.session?.tenantConnectionString,
       });
-      
+
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
-      
-      logger.info('Context retrieved', { 
+
+      Logger.info('Context retrieved', {
         userId: context.userId,
-        hasPool: !!context.pool
+        hasPool: !!context.pool,
       });
-      
+
       let invoiceNumber;
       if (invoiceData.invoiceNumber) {
         invoiceNumber = invoiceData.invoiceNumber;
-        logger.info('Using provided invoice number', { invoiceNumber });
+        Logger.info('Using provided invoice number', { invoiceNumber });
       } else {
-        logger.info('Getting next invoice number...');
+        Logger.info('Getting next invoice number...');
         invoiceNumber = await this.getNextInvoiceNumber(req);
-        logger.info('Got next invoice number', { invoiceNumber });
+        Logger.info('Got next invoice number', { invoiceNumber });
       }
-      const { subtotal, totalDiscount, subtotalAfterDiscount, invoiceDiscountAmount, subtotalAfterInvoiceDiscount, totalVat, total } = this.calculateTotals(invoiceData.lineItems || [], invoiceData.invoiceDiscount || 0);
-      
+      const {
+        subtotal,
+        totalDiscount,
+        subtotalAfterDiscount,
+        invoiceDiscountAmount,
+        subtotalAfterInvoiceDiscount,
+        totalVat,
+        total,
+      } = this.calculateTotals(invoiceData.lineItems || [], invoiceData.invoiceDiscount || 0);
+
       // Convert contactId to int if it's a string
-      const contactId = invoiceData.contactId 
-        ? (typeof invoiceData.contactId === 'string' ? parseInt(invoiceData.contactId, 10) : invoiceData.contactId)
+      const contactId = invoiceData.contactId
+        ? typeof invoiceData.contactId === 'string'
+          ? parseInt(invoiceData.contactId, 10)
+          : invoiceData.contactId
         : null;
-      const estimateId = invoiceData.estimateId 
-        ? (typeof invoiceData.estimateId === 'string' ? parseInt(invoiceData.estimateId, 10) : invoiceData.estimateId)
+      const estimateId = invoiceData.estimateId
+        ? typeof invoiceData.estimateId === 'string'
+          ? parseInt(invoiceData.estimateId, 10)
+          : invoiceData.estimateId
         : null;
 
       // Format dates for PostgreSQL (accept ISO strings, Date objects, or null)
@@ -315,17 +334,17 @@ class InvoiceModel {
       const issueDate = formatDateForDB(invoiceData.issueDate);
       const dueDate = formatDateForDB(invoiceData.dueDate);
 
-      logger.info('Preparing invoice data for insert', {
+      Logger.info('Preparing invoice data for insert', {
         invoiceNumber,
         contactId,
         issueDate,
         dueDate,
         hasLineItems: !!(invoiceData.lineItems && invoiceData.lineItems.length > 0),
-        lineItemsCount: invoiceData.lineItems?.length || 0
+        lineItemsCount: invoiceData.lineItems?.length || 0,
       });
 
       // Use database.insert for automatic tenant isolation
-      const result = await database.insert('invoices', {
+      const result = await db.insert('invoices', {
         invoice_number: invoiceNumber,
         contact_id: contactId,
         contact_name: invoiceData.contactName || '',
@@ -348,20 +367,18 @@ class InvoiceModel {
         status: invoiceData.status || 'draft',
         paid_at: invoiceData.status === 'paid' ? new Date().toISOString() : null,
         estimate_id: estimateId,
-      }, context);
-      
-      logger.info('Invoice created successfully', { 
-        invoiceId: result.id, 
-        invoiceNumber, 
-        userId: context.userId 
       });
-      
+
+      Logger.info('Invoice created successfully', {
+        invoiceId: result.id,
+        invoiceNumber,
+        userId: context.userId,
+      });
+
       return this.transformRow(result);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      
       // Enhanced error logging with full context
-      logger.error('Failed to create invoice - DETAILED ERROR', error, { 
+      Logger.error('Failed to create invoice - DETAILED ERROR', error, {
         userId: req?.session?.user?.id,
         currentTenantUserId: req?.session?.currentTenantUserId,
         invoiceData: {
@@ -371,19 +388,19 @@ class InvoiceModel {
           lineItemsCount: invoiceData.lineItems?.length || 0,
           issueDate: invoiceData.issueDate,
           dueDate: invoiceData.dueDate,
-          status: invoiceData.status
+          status: invoiceData.status,
         },
         errorCode: error.code,
         errorMessage: error.message,
         errorDetail: error.detail,
         errorHint: error.hint,
-        errorStack: error.stack?.substring(0, 1000)
+        errorStack: error.stack?.substring(0, 1000),
       });
-      
+
       if (error instanceof AppError) {
         throw error;
       }
-      
+
       // Return detailed error message
       throw new AppError(
         `Failed to create invoice: ${error.message || 'Unknown database error'}`,
@@ -394,8 +411,8 @@ class InvoiceModel {
           errorCode: error.code,
           errorDetail: error.detail,
           errorHint: error.hint,
-          constraint: error.constraint
-        }
+          constraint: error.constraint,
+        },
       );
     }
   }
@@ -405,18 +422,13 @@ class InvoiceModel {
     try {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
-      
+
       // Tenant isolation automatic
-      const rows = await database.query(
-        'SELECT * FROM invoices ORDER BY created_at DESC',
-        [],
-        context
-      );
-      
-      return rows.map(row => this.transformRow(row));
+      const result = await db.query('SELECT * FROM invoices ORDER BY created_at DESC', [], context);
+
+      return result.rows.map((row) => this.transformRow(row));
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to fetch invoices', error);
+      Logger.error('Failed to fetch invoices', error);
       throw new AppError('Failed to fetch invoices', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
@@ -426,21 +438,16 @@ class InvoiceModel {
     try {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
-      
-      const rows = await database.query(
-        'SELECT * FROM invoices WHERE id = $1',
-        [invoiceId],
-        context
-      );
-      
-      if (rows.length === 0) {
+
+      const result = await db.query('SELECT * FROM invoices WHERE id = $1', [invoiceId], context);
+
+      if (result.rows.length === 0) {
         return null;
       }
-      
+
       return this.transformRow(rows[0]);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to get invoice', error, { invoiceId });
+      Logger.error('Failed to get invoice', error, { invoiceId });
       throw new AppError('Failed to get invoice', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
@@ -448,30 +455,40 @@ class InvoiceModel {
   // Update invoice
   async update(req, invoiceId, invoiceData) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
-      
+      const db = Database.get(req);
+
       // Verify invoice exists (ownership check automatic)
       const currentInvoice = await this.getById(req, invoiceId);
       if (!currentInvoice) {
         throw new AppError('Invoice not found', 404, AppError.CODES.NOT_FOUND);
       }
-      
+
       const isBecomingPaid = currentInvoice.status !== 'paid' && invoiceData.status === 'paid';
-      
-      const { subtotal, totalDiscount, subtotalAfterDiscount, invoiceDiscountAmount, subtotalAfterInvoiceDiscount, totalVat, total } = this.calculateTotals(invoiceData.lineItems || [], invoiceData.invoiceDiscount || 0);
-      
+
+      const {
+        subtotal,
+        totalDiscount,
+        subtotalAfterDiscount,
+        invoiceDiscountAmount,
+        subtotalAfterInvoiceDiscount,
+        totalVat,
+        total,
+      } = this.calculateTotals(invoiceData.lineItems || [], invoiceData.invoiceDiscount || 0);
+
       // Convert contactId to int if it's a string
-      const contactId = invoiceData.contactId 
-        ? (typeof invoiceData.contactId === 'string' ? parseInt(invoiceData.contactId, 10) : invoiceData.contactId)
+      const contactId = invoiceData.contactId
+        ? typeof invoiceData.contactId === 'string'
+          ? parseInt(invoiceData.contactId, 10)
+          : invoiceData.contactId
         : null;
-      const estimateId = invoiceData.estimateId 
-        ? (typeof invoiceData.estimateId === 'string' ? parseInt(invoiceData.estimateId, 10) : invoiceData.estimateId)
+      const estimateId = invoiceData.estimateId
+        ? typeof invoiceData.estimateId === 'string'
+          ? parseInt(invoiceData.estimateId, 10)
+          : invoiceData.estimateId
         : null;
-      
+
       // Use database.update for automatic tenant isolation
-      const result = await database.update('invoices', invoiceId, {
+      const result = await db.update('invoices', invoiceId, {
         contact_id: contactId,
         contact_name: invoiceData.contactName || '',
         organization_number: invoiceData.organizationNumber || '',
@@ -493,15 +510,14 @@ class InvoiceModel {
         status: invoiceData.status || 'draft',
         paid_at: isBecomingPaid ? new Date() : currentInvoice.paidAt,
         estimate_id: estimateId,
-      }, context);
-      
-      logger.info('Invoice updated', { invoiceId, userId: context.userId });
-      
+      });
+
+      Logger.info('Invoice updated', { invoiceId });
+
       return this.transformRow(result);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to update invoice', error, { invoiceId });
-      
+      Logger.error('Failed to update invoice', error, { invoiceId });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -512,20 +528,17 @@ class InvoiceModel {
   // Delete invoice
   async delete(req, invoiceId) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
-      
+      const db = Database.get(req);
+
       // Delete the invoice (tenant isolation automatic)
-      await database.delete('invoices', invoiceId, context);
-      
-      logger.info('Invoice deleted', { invoiceId, userId: context.userId });
-      
+      await db.deleteRecord('invoices', invoiceId);
+
+      Logger.info('Invoice deleted', { invoiceId });
+
       return true;
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to delete invoice', error, { invoiceId });
-      
+      Logger.error('Failed to delete invoice', error, { invoiceId });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -543,22 +556,20 @@ class InvoiceModel {
     const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let result = '';
     let num = BigInt('0x' + buffer.toString('hex'));
-    
+
     while (num > 0) {
       result = chars[num % 62n] + result;
       num = num / 62n;
     }
-    
+
     return result.padStart(32, '0');
   }
 
   async createShare(req, invoiceId, validUntil) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
+      const db = Database.get(req);
       const pool = context.pool;
-      
+
       // Verify invoice exists and user owns it
       const invoice = await this.getById(req, invoiceId);
       if (!invoice) {
@@ -566,16 +577,19 @@ class InvoiceModel {
       }
 
       const shareToken = this.generateShareToken();
-      
+
       // Insert share with user_id for tenant isolation
-      const result = await pool.query(`
+      const result = await pool.query(
+        `
         INSERT INTO invoice_shares (user_id, invoice_id, share_token, valid_until)
         VALUES ($1, $2, $3, $4)
         RETURNING *
-      `, [context.userId, invoiceId, shareToken, validUntil]);
-      
-      logger.info('Share created', { invoiceId, shareId: result.rows[0].id, userId: context.userId });
-      
+      `,
+        [context.userId, invoiceId, shareToken, validUntil],
+      );
+
+      Logger.info('Share created', { invoiceId, shareId: result.rows[0].id });
+
       return {
         id: result.rows[0].id.toString(),
         invoiceId: result.rows[0].invoice_id.toString(),
@@ -586,9 +600,8 @@ class InvoiceModel {
         lastAccessedAt: result.rows[0].last_accessed_at,
       };
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to create share', error, { invoiceId });
-      
+      Logger.error('Failed to create share', error, { invoiceId });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -600,8 +613,9 @@ class InvoiceModel {
   async getInvoiceByShareToken(req, shareToken) {
     try {
       const pool = req.tenantPool || this._getContext(req).pool;
-      
-      const result = await pool.query(`
+
+      const result = await pool.query(
+        `
         SELECT 
           i.*,
           is.accessed_count,
@@ -609,30 +623,40 @@ class InvoiceModel {
         FROM invoices i
         JOIN invoice_shares is ON i.id = is.invoice_id
         WHERE is.share_token = $1 AND is.valid_until > NOW()
-      `, [shareToken]);
-      
+      `,
+        [shareToken],
+      );
+
       if (!result.rows.length) {
         return null;
       }
-      
+
       const row = result.rows[0];
       const currentAccessCount = row.accessed_count;
-      
-      await pool.query(`
+
+      await pool.query(
+        `
         UPDATE invoice_shares 
         SET accessed_count = accessed_count + 1, last_accessed_at = NOW()
         WHERE share_token = $1
-      `, [shareToken]);
-      
+      `,
+        [shareToken],
+      );
+
       const invoice = this.transformRow(row);
       invoice.shareValidUntil = row.share_valid_until;
       invoice.accessedCount = currentAccessCount + 1;
-      
+
       return invoice;
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to get invoice by share token', error, { shareToken: shareToken.substring(0, 10) });
-      throw new AppError('Failed to get invoice by share token', 500, AppError.CODES.DATABASE_ERROR);
+      Logger.error('Failed to get invoice by share token', error, {
+        shareToken: shareToken.substring(0, 10),
+      });
+      throw new AppError(
+        'Failed to get invoice by share token',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 
@@ -641,7 +665,7 @@ class InvoiceModel {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
       const pool = context.pool;
-      
+
       // Verify invoice exists and user owns it
       const invoice = await this.getById(req, invoiceId);
       if (!invoice) {
@@ -649,13 +673,16 @@ class InvoiceModel {
       }
 
       // Get shares filtered by user_id for tenant isolation
-      const result = await pool.query(`
+      const result = await pool.query(
+        `
         SELECT * FROM invoice_shares 
         WHERE user_id = $1 AND invoice_id = $2 
         ORDER BY created_at DESC
-      `, [context.userId, invoiceId]);
-      
-      return result.rows.map(row => ({
+      `,
+        [context.userId, invoiceId],
+      );
+
+      return result.rows.map((row) => ({
         id: row.id.toString(),
         invoiceId: row.invoice_id.toString(),
         shareToken: row.share_token,
@@ -665,9 +692,8 @@ class InvoiceModel {
         lastAccessedAt: row.last_accessed_at,
       }));
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to get shares for invoice', error, { invoiceId });
-      
+      Logger.error('Failed to get shares for invoice', error, { invoiceId });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -680,46 +706,44 @@ class InvoiceModel {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
       const pool = context.pool;
-      
+
       // Verify share belongs to user's invoice
       const shareCheck = await pool.query(
         'SELECT invoice_id FROM invoice_shares WHERE id = $1 AND user_id = $2',
-        [shareId, context.userId]
+        [shareId, context.userId],
       );
-      
+
       if (!shareCheck.rows.length) {
         throw new AppError('Share not found', 404, AppError.CODES.NOT_FOUND);
       }
-      
+
       const invoiceId = shareCheck.rows[0].invoice_id;
       const invoice = await this.getById(req, invoiceId);
-      
+
       if (!invoice) {
         throw new AppError('Share not found or access denied', 404, AppError.CODES.NOT_FOUND);
       }
-      
+
       // Delete the share with user_id check for tenant isolation
       const deleteResult = await pool.query(
         'DELETE FROM invoice_shares WHERE id = $1 AND user_id = $2 RETURNING *',
-        [shareId, context.userId]
+        [shareId, context.userId],
       );
-      
+
       if (!deleteResult.rows.length) {
         throw new AppError('Share not found', 404, AppError.CODES.NOT_FOUND);
       }
-      
-      const logger = ServiceManager.get('logger');
-      logger.info('Share revoked', { shareId, invoiceId, userId: context.userId });
-      
+
+      Logger.info('Share revoked', { shareId, invoiceId });
+
       return {
         id: deleteResult.rows[0].id.toString(),
         invoiceId: deleteResult.rows[0].invoice_id.toString(),
         shareToken: deleteResult.rows[0].share_token,
       };
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to revoke share', error, { shareId });
-      
+      Logger.error('Failed to revoke share', error, { shareId });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -730,14 +754,11 @@ class InvoiceModel {
   async cleanExpiredShares(req) {
     try {
       const pool = req.tenantPool || this._getContext(req).pool;
-      const result = await pool.query(
-        'DELETE FROM invoice_shares WHERE valid_until < NOW()'
-      );
-      
+      const result = await pool.query('DELETE FROM invoice_shares WHERE valid_until < NOW()');
+
       return result.rowCount;
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to clean expired shares', error);
+      Logger.error('Failed to clean expired shares', error);
       throw new AppError('Failed to clean expired shares', 500, AppError.CODES.DATABASE_ERROR);
     }
   }

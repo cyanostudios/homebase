@@ -1,7 +1,7 @@
 // plugins/files/model.js
-// Files model - V2 with ServiceManager
+// Files model - V3 with @homebase/core SDK
 // Note: Binary upload handled elsewhere, this only manages metadata
-const ServiceManager = require('../../server/core/ServiceManager');
+const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 class FilesModel {
@@ -24,20 +24,19 @@ class FilesModel {
     try {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
-      
+
       // Tenant isolation automatic
-      const rows = await database.query(
+      const result = await db.query(
         `SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
          FROM ${FilesModel.TABLE}
          ORDER BY ${FilesModel.ORDER_BY}`,
         [],
-        context
+        context,
       );
-      
-      return rows.map(this.transformRow);
+
+      return result.rows.map(this.transformRow);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to fetch files', error);
+      Logger.error('Failed to fetch files', error);
       throw new AppError('Failed to fetch files', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
@@ -46,24 +45,23 @@ class FilesModel {
     try {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
-      
-      const rows = await database.query(
+
+      const result = await db.query(
         `SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
          FROM ${FilesModel.TABLE}
          WHERE id = $1
          LIMIT 1`,
         [itemId],
-        context
+        context,
       );
-      
-      if (rows.length === 0) {
+
+      if (result.rows.length === 0) {
         return null;
       }
-      
+
       return this.transformRow(rows[0]);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to get file', error, { itemId });
+      Logger.error('Failed to get file', error, { itemId });
       throw new AppError('Failed to get file', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
@@ -73,51 +71,51 @@ class FilesModel {
     try {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
-      
+
       const like = `%/api/files/raw/${filename}`;
-      const rows = await database.query(
+      const result = await db.query(
         `SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
          FROM ${FilesModel.TABLE}
          WHERE url LIKE $1
          ORDER BY id DESC
          LIMIT 1`,
         [like],
-        context
+        context,
       );
-      
-      if (rows.length === 0) {
+
+      if (result.rows.length === 0) {
         return null;
       }
-      
+
       return this.transformRow(rows[0]);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to get file by stored filename', error, { filename });
-      throw new AppError('Failed to get file by stored filename', 500, AppError.CODES.DATABASE_ERROR);
+      Logger.error('Failed to get file by stored filename', error, { filename });
+      throw new AppError(
+        'Failed to get file by stored filename',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 
   async create(req, data) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
-      
+      const db = Database.get(req);
+
       // Use database.insert for automatic tenant isolation
-      const result = await database.insert(FilesModel.TABLE, {
+      const result = await db.insert(FilesModel.TABLE, {
         name: String(data?.name ?? '').trim(),
         size: data?.size ?? null,
         mime_type: data?.mimeType ?? null,
         url: data?.url ?? null,
-      }, context);
-      
-      logger.info('File metadata created', { fileId: result.id, userId: context.userId });
-      
+      });
+
+      Logger.info('File metadata created', { fileId: result.id });
+
       return this.transformRow(result);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to create file metadata', error, { data: { name: data?.name } });
-      
+      Logger.error('Failed to create file metadata', error, { data: { name: data?.name } });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -127,16 +125,14 @@ class FilesModel {
 
   async update(req, itemId, data) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
-      
+      const db = Database.get(req);
+
       // Verify file exists (ownership check automatic)
       const existing = await this.getById(req, itemId);
       if (!existing) {
         throw new AppError('File not found', 404, AppError.CODES.NOT_FOUND);
       }
-      
+
       // Build update object
       const updateData = {};
       if (Object.prototype.hasOwnProperty.call(data, 'name')) {
@@ -151,17 +147,16 @@ class FilesModel {
       if (Object.prototype.hasOwnProperty.call(data, 'url')) {
         updateData.url = data.url ?? null;
       }
-      
+
       // Use database.update for automatic tenant isolation
-      const result = await database.update(FilesModel.TABLE, itemId, updateData, context);
-      
-      logger.info('File metadata updated', { fileId: itemId, userId: context.userId });
-      
+      const result = await db.update(FilesModel.TABLE, itemId, updateData);
+
+      Logger.info('File metadata updated', { fileId: itemId });
+
       return this.transformRow(result);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to update file metadata', error, { itemId });
-      
+      Logger.error('Failed to update file metadata', error, { itemId });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -171,20 +166,17 @@ class FilesModel {
 
   async delete(req, itemId) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
-      
+      const db = Database.get(req);
+
       // Delete the file metadata (tenant isolation automatic)
-      await database.delete(FilesModel.TABLE, itemId, context);
-      
-      logger.info('File metadata deleted', { fileId: itemId, userId: context.userId });
-      
+      await db.deleteRecord(FilesModel.TABLE, itemId);
+
+      Logger.info('File metadata deleted', { fileId: itemId });
+
       return { id: String(itemId) };
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to delete file metadata', error, { itemId });
-      
+      Logger.error('Failed to delete file metadata', error, { itemId });
+
       if (error instanceof AppError) {
         throw error;
       }

@@ -1,8 +1,8 @@
 // plugins/files/controller.js
-// Files controller - V2 with ServiceManager
+// Files controller - V3 with @homebase/core SDK
 const fs = require('fs');
 const path = require('path');
-const ServiceManager = require('../../server/core/ServiceManager');
+const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 class FilesController {
@@ -14,9 +14,14 @@ class FilesController {
     if (error?.code !== '23505') return null;
     const detail = String(error.detail || '');
     const m = detail.match(/\(([^)]+)\)=\(([^)]+)\)/);
-    const field = m ? (m[1].split(',').map(s => s.trim())[1] || 'general') : 'general';
+    const field = m ? m[1].split(',').map((s) => s.trim())[1] || 'general' : 'general';
     const val = m ? m[2] : undefined;
-    return { field, message: val ? `Unique value "${val}" already exists for ${field}` : 'Unique constraint violated' };
+    return {
+      field,
+      message: val
+        ? `Unique value "${val}" already exists for ${field}`
+        : 'Unique constraint violated',
+    };
   }
 
   async getAll(req, res) {
@@ -24,13 +29,12 @@ class FilesController {
       const items = await this.model.getAll(req);
       res.json(items);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Get files failed', error, { userId: req.session?.user?.id });
-      
+      Logger.error('Get files failed', error, { userId: Context.getUserId(req) });
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to fetch files' });
     }
   }
@@ -40,16 +44,15 @@ class FilesController {
       const item = await this.model.create(req, req.body);
       res.json(item);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Create file metadata failed', error, { userId: req.session?.user?.id });
-      
+      Logger.error('Create file metadata failed', error, { userId: Context.getUserId(req) });
+
       const mapped = this.mapUniqueViolation(error);
       if (mapped) return res.status(409).json({ errors: [mapped] });
-      
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to create file' });
     }
   }
@@ -59,19 +62,18 @@ class FilesController {
       const item = await this.model.update(req, req.params.id, req.body);
       res.json(item);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Update file metadata failed', error, { 
+      Logger.error('Update file metadata failed', error, {
         fileId: req.params.id,
-        userId: req.session?.user?.id 
+        userId: Context.getUserId(req),
       });
-      
+
       const mapped = this.mapUniqueViolation(error);
       if (mapped) return res.status(409).json({ errors: [mapped] });
-      
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to update file' });
     }
   }
@@ -92,29 +94,27 @@ class FilesController {
           const abs = path.join(uploadRoot, filename);
           if (fs.existsSync(abs)) {
             fs.unlinkSync(abs);
-            const logger = ServiceManager.get('logger');
-            logger.info('Physical file deleted', { filename, fileId: req.params.id });
+
+            Logger.info('Physical file deleted', { filename, fileId: req.params.id });
           }
         }
       } catch (fsErr) {
-        const logger = ServiceManager.get('logger');
-        logger.warn('Failed to delete physical file', fsErr, { fileId: req.params.id });
+        Logger.warn('Failed to delete physical file', fsErr, { fileId: req.params.id });
       }
 
       // Delete metadata in DB
       await this.model.delete(req, req.params.id);
       res.json({ message: 'Item deleted successfully', id: String(req.params.id) });
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Delete file failed', error, { 
+      Logger.error('Delete file failed', error, {
         fileId: req.params.id,
-        userId: req.session?.user?.id 
+        userId: Context.getUserId(req),
       });
-      
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to delete file' });
     }
   }
@@ -144,13 +144,12 @@ class FilesController {
 
       res.json(created);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('File upload failed', error, { userId: req.session?.user?.id });
-      
+      Logger.error('File upload failed', error, { userId: Context.getUserId(req) });
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to upload files' });
     }
   }
@@ -178,8 +177,7 @@ class FilesController {
       }
       return res.sendFile(abs);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('File serve failed', error, { filename: req.params.filename });
+      Logger.error('File serve failed', error, { filename: req.params.filename });
       res.status(500).json({ error: 'Failed to serve file' });
     }
   }

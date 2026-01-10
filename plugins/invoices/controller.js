@@ -1,8 +1,8 @@
 // plugins/invoices/controller.js
-// Invoices controller - V2 with ServiceManager
+// Invoices controller - V3 with @homebase/core SDK
 const puppeteer = require('puppeteer');
 const { generatePDFHTML } = require('./pdfTemplate');
-const ServiceManager = require('../../server/core/ServiceManager');
+const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 class InvoiceController {
@@ -16,13 +16,12 @@ class InvoiceController {
       const items = await this.model.getAll(req);
       res.json(items);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Get invoices failed', error, { userId: req.session?.user?.id });
-      
+      Logger.error('Get invoices failed', error, { userId: Context.getUserId(req) });
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to fetch invoices' });
     }
   }
@@ -32,13 +31,12 @@ class InvoiceController {
       const item = await this.model.create(req, req.body);
       res.json(item);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Create invoice failed', error, { userId: req.session?.user?.id });
-      
+      Logger.error('Create invoice failed', error, { userId: Context.getUserId(req) });
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to create invoice' });
     }
   }
@@ -48,16 +46,15 @@ class InvoiceController {
       const item = await this.model.update(req, req.params.id, req.body);
       res.json(item);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Update invoice failed', error, { 
+      Logger.error('Update invoice failed', error, {
         invoiceId: req.params.id,
-        userId: req.session?.user?.id 
+        userId: Context.getUserId(req),
       });
-      
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to update invoice' });
     }
   }
@@ -67,16 +64,15 @@ class InvoiceController {
       await this.model.delete(req, req.params.id);
       res.json({ message: 'Invoice deleted successfully' });
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Delete invoice failed', error, { 
+      Logger.error('Delete invoice failed', error, {
         invoiceId: req.params.id,
-        userId: req.session?.user?.id 
+        userId: Context.getUserId(req),
       });
-      
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to delete invoice' });
     }
   }
@@ -87,13 +83,12 @@ class InvoiceController {
       const invoiceNumber = await this.model.getNextInvoiceNumber(req);
       res.json({ invoiceNumber });
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Get next invoice number failed', error, { userId: req.session?.user?.id });
-      
+      Logger.error('Get next invoice number failed', error, { userId: Context.getUserId(req) });
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to get next invoice number' });
     }
   }
@@ -103,7 +98,6 @@ class InvoiceController {
     let browser = null;
     try {
       const { id } = req.params;
-      const logger = ServiceManager.get('logger');
 
       const invoice = await this.model.getById(req, id);
       if (!invoice) {
@@ -125,18 +119,22 @@ class InvoiceController {
         margin: { top: '12mm', right: '12mm', bottom: '16mm', left: '12mm' },
       });
 
-      logger.info('PDF generated', { invoiceId: id, invoiceNumber: invoice.invoiceNumber });
+      Logger.info('PDF generated', { invoiceId: id, invoiceNumber: invoice.invoiceNumber });
 
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoice.invoiceNumber || invoice.id}.pdf"`);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="invoice-${invoice.invoiceNumber || invoice.id}.pdf"`,
+      );
       res.send(pdfBuffer);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('PDF generation failed', error, { invoiceId: req.params.id });
+      Logger.error('PDF generation failed', error, { invoiceId: req.params.id });
       res.status(500).json({ error: 'Failed to generate PDF' });
     } finally {
       if (browser) {
-        try { await browser.close(); } catch {}
+        try {
+          await browser.close();
+        } catch {}
       }
     }
   }
@@ -152,13 +150,14 @@ class InvoiceController {
 
       res.json(invoice);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Get public invoice failed', error, { token: req.params.token?.substring(0, 10) });
-      
+      Logger.error('Get public invoice failed', error, {
+        token: req.params.token?.substring(0, 10),
+      });
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to load invoice' });
     }
   }
@@ -180,16 +179,15 @@ class InvoiceController {
       const share = await this.model.createShare(req, invoiceId, validUntilDate);
       res.json(share);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Create share failed', error, { 
+      Logger.error('Create share failed', error, {
         invoiceId: req.body.invoiceId,
-        userId: req.session?.user?.id 
+        userId: Context.getUserId(req),
       });
-      
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to create share link' });
     }
   }
@@ -201,16 +199,15 @@ class InvoiceController {
       const shares = await this.model.getSharesForInvoice(req, invoiceId);
       res.json(shares);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Get shares failed', error, { 
+      Logger.error('Get shares failed', error, {
         invoiceId: req.params.invoiceId,
-        userId: req.session?.user?.id 
+        userId: Context.getUserId(req),
       });
-      
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to get shares' });
     }
   }
@@ -222,16 +219,15 @@ class InvoiceController {
       const revoked = await this.model.revokeShare(req, shareId);
       res.json({ message: 'Share revoked successfully', share: revoked });
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Revoke share failed', error, { 
+      Logger.error('Revoke share failed', error, {
         shareId: req.params.shareId,
-        userId: req.session?.user?.id 
+        userId: Context.getUserId(req),
       });
-      
+
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
-      
+
       res.status(500).json({ error: 'Failed to revoke share' });
     }
   }

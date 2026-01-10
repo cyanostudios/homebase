@@ -1,7 +1,7 @@
 // plugins/estimates/model.js
-// Estimates model - V2 with ServiceManager
+// Estimates model - V3 with @homebase/core SDK
 const crypto = require('crypto');
-const ServiceManager = require('../../server/core/ServiceManager');
+const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 class EstimateModel {
@@ -22,7 +22,7 @@ class EstimateModel {
     let totalDiscount = 0;
     let totalVat = 0;
 
-    lineItems.forEach(item => {
+    lineItems.forEach((item) => {
       const lineSubtotal = item.quantity * item.unitPrice;
       const discountAmount = lineSubtotal * (item.discount / 100);
       const lineSubtotalAfterDiscount = lineSubtotal - discountAmount;
@@ -52,7 +52,7 @@ class EstimateModel {
   // Transform database row to JS object
   transformRow(row) {
     if (!row) return null;
-    
+
     // Parse JSON fields if they're strings
     let lineItems = row.line_items || [];
     if (typeof lineItems === 'string') {
@@ -62,7 +62,7 @@ class EstimateModel {
         lineItems = [];
       }
     }
-    
+
     let acceptanceReasons = row.acceptance_reasons || [];
     if (typeof acceptanceReasons === 'string') {
       try {
@@ -71,7 +71,7 @@ class EstimateModel {
         acceptanceReasons = [];
       }
     }
-    
+
     let rejectionReasons = row.rejection_reasons || [];
     if (typeof rejectionReasons === 'string') {
       try {
@@ -80,7 +80,7 @@ class EstimateModel {
         rejectionReasons = [];
       }
     }
-    
+
     return {
       id: row.id.toString(),
       estimateNumber: row.estimate_number,
@@ -114,48 +114,55 @@ class EstimateModel {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
       const pool = context.pool;
-      
+
       // Use direct pool for transaction (database.transaction doesn't support this pattern yet)
       const client = await pool.connect();
-      
+
       try {
         await client.query('BEGIN');
-        
+
         const currentYear = new Date().getFullYear();
         let attempts = 0;
         const maxAttempts = 100;
-        
+
         do {
-          const result = await client.query(`
+          const result = await client.query(
+            `
             SELECT estimate_number 
             FROM estimates 
             WHERE estimate_number LIKE $1
             ORDER BY estimate_number DESC 
             LIMIT 1
-          `, [`${currentYear}-%`]);
-          
+          `,
+            [`${currentYear}-%`],
+          );
+
           let nextNumber = 1;
           if (result.rows.length > 0) {
             const lastNumber = result.rows[0].estimate_number;
             const numberPart = parseInt(lastNumber.split('-')[1]);
             nextNumber = numberPart + 1;
           }
-          
+
           const estimateNumber = `${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
-          
+
           const checkResult = await client.query(
             'SELECT id FROM estimates WHERE estimate_number = $1',
-            [estimateNumber]
+            [estimateNumber],
           );
-          
+
           if (checkResult.rows.length === 0) {
             await client.query('COMMIT');
             return estimateNumber;
           }
-          
+
           attempts++;
           if (attempts >= maxAttempts) {
-            throw new AppError('Could not find available estimate number', 500, AppError.CODES.DATABASE_ERROR);
+            throw new AppError(
+              'Could not find available estimate number',
+              500,
+              AppError.CODES.DATABASE_ERROR,
+            );
           }
         } while (true);
       } catch (error) {
@@ -165,9 +172,8 @@ class EstimateModel {
         client.release();
       }
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to get next estimate number', error);
-      
+      Logger.error('Failed to get next estimate number', error);
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -178,15 +184,21 @@ class EstimateModel {
   // Create estimate
   async create(req, estimateData) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
-      
-      const estimateNumber = estimateData.estimateNumber || await this.getNextEstimateNumber(req);
-      const { subtotal, totalDiscount, subtotalAfterDiscount, estimateDiscountAmount, subtotalAfterEstimateDiscount, totalVat, total } = this.calculateTotals(estimateData.lineItems || [], estimateData.estimateDiscount || 0);
-      
+      const db = Database.get(req);
+
+      const estimateNumber = estimateData.estimateNumber || (await this.getNextEstimateNumber(req));
+      const {
+        subtotal,
+        totalDiscount,
+        subtotalAfterDiscount,
+        estimateDiscountAmount,
+        subtotalAfterEstimateDiscount,
+        totalVat,
+        total,
+      } = this.calculateTotals(estimateData.lineItems || [], estimateData.estimateDiscount || 0);
+
       // Use database.insert for automatic tenant isolation
-      const result = await database.insert('estimates', {
+      const result = await db.insert('estimates', {
         estimate_number: estimateNumber,
         contact_id: estimateData.contactId || null,
         contact_name: estimateData.contactName || '',
@@ -206,16 +218,20 @@ class EstimateModel {
         status: estimateData.status || 'draft',
         acceptance_reasons: JSON.stringify(estimateData.acceptanceReasons || []),
         rejection_reasons: JSON.stringify(estimateData.rejectionReasons || []),
-        status_changed_at: (estimateData.status === 'accepted' || estimateData.status === 'rejected') ? new Date() : null,
-      }, context);
-      
-      logger.info('Estimate created', { estimateId: result.id, estimateNumber, userId: context.userId });
-      
+        status_changed_at:
+          estimateData.status === 'accepted' || estimateData.status === 'rejected'
+            ? new Date()
+            : null,
+      });
+
+      Logger.info('Estimate created', { estimateId: result.id, estimateNumber });
+
       return this.transformRow(result);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to create estimate', error, { estimateData: { estimateNumber: estimateData.estimateNumber } });
-      
+      Logger.error('Failed to create estimate', error, {
+        estimateData: { estimateNumber: estimateData.estimateNumber },
+      });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -228,18 +244,17 @@ class EstimateModel {
     try {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
-      
+
       // Tenant isolation automatic
-      const rows = await database.query(
+      const result = await db.query(
         'SELECT * FROM estimates ORDER BY created_at DESC',
         [],
-        context
+        context,
       );
-      
-      return rows.map(row => this.transformRow(row));
+
+      return result.rows.map((row) => this.transformRow(row));
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to fetch estimates', error);
+      Logger.error('Failed to fetch estimates', error);
       throw new AppError('Failed to fetch estimates', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
@@ -249,21 +264,16 @@ class EstimateModel {
     try {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
-      
-      const rows = await database.query(
-        'SELECT * FROM estimates WHERE id = $1',
-        [estimateId],
-        context
-      );
-      
-      if (rows.length === 0) {
+
+      const result = await db.query('SELECT * FROM estimates WHERE id = $1', [estimateId], context);
+
+      if (result.rows.length === 0) {
         return null;
       }
-      
+
       return this.transformRow(rows[0]);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to get estimate', error, { estimateId });
+      Logger.error('Failed to get estimate', error, { estimateId });
       throw new AppError('Failed to get estimate', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
@@ -271,23 +281,30 @@ class EstimateModel {
   // Update estimate
   async update(req, estimateId, estimateData) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
-      
+      const db = Database.get(req);
+
       // Verify estimate exists (ownership check automatic)
       const currentEstimate = await this.getById(req, estimateId);
       if (!currentEstimate) {
         throw new AppError('Estimate not found', 404, AppError.CODES.NOT_FOUND);
       }
-      
+
       const isStatusChanging = currentEstimate.status !== estimateData.status;
-      const isBecomingAcceptedOrRejected = (estimateData.status === 'accepted' || estimateData.status === 'rejected');
-      
-      const { subtotal, totalDiscount, subtotalAfterDiscount, estimateDiscountAmount, subtotalAfterEstimateDiscount, totalVat, total } = this.calculateTotals(estimateData.lineItems || [], estimateData.estimateDiscount || 0);
-      
+      const isBecomingAcceptedOrRejected =
+        estimateData.status === 'accepted' || estimateData.status === 'rejected';
+
+      const {
+        subtotal,
+        totalDiscount,
+        subtotalAfterDiscount,
+        estimateDiscountAmount,
+        subtotalAfterEstimateDiscount,
+        totalVat,
+        total,
+      } = this.calculateTotals(estimateData.lineItems || [], estimateData.estimateDiscount || 0);
+
       // Use database.update for automatic tenant isolation
-      const result = await database.update('estimates', estimateId, {
+      const result = await db.update('estimates', estimateId, {
         contact_id: estimateData.contactId || null,
         contact_name: estimateData.contactName || '',
         organization_number: estimateData.organizationNumber || '',
@@ -306,16 +323,18 @@ class EstimateModel {
         status: estimateData.status || 'draft',
         acceptance_reasons: JSON.stringify(estimateData.acceptanceReasons || []),
         rejection_reasons: JSON.stringify(estimateData.rejectionReasons || []),
-        status_changed_at: isStatusChanging && isBecomingAcceptedOrRejected ? new Date() : currentEstimate.statusChangedAt,
-      }, context);
-      
-      logger.info('Estimate updated', { estimateId, userId: context.userId });
-      
+        status_changed_at:
+          isStatusChanging && isBecomingAcceptedOrRejected
+            ? new Date()
+            : currentEstimate.statusChangedAt,
+      });
+
+      Logger.info('Estimate updated', { estimateId });
+
       return this.transformRow(result);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to update estimate', error, { estimateId });
-      
+      Logger.error('Failed to update estimate', error, { estimateId });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -326,20 +345,17 @@ class EstimateModel {
   // Delete estimate
   async delete(req, estimateId) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
-      
+      const db = Database.get(req);
+
       // Delete the estimate (tenant isolation automatic)
-      await database.delete('estimates', estimateId, context);
-      
-      logger.info('Estimate deleted', { estimateId, userId: context.userId });
-      
+      await db.deleteRecord('estimates', estimateId);
+
+      Logger.info('Estimate deleted', { estimateId });
+
       return true;
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to delete estimate', error, { estimateId });
-      
+      Logger.error('Failed to delete estimate', error, { estimateId });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -352,16 +368,17 @@ class EstimateModel {
     try {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
-      
+
       let dateFilter = '';
       let params = [];
-      
+
       if (startDate && endDate) {
         dateFilter = 'AND status_changed_at BETWEEN $1 AND $2';
         params = [startDate, endDate];
       }
-      
-      const rows = await database.query(`
+
+      const result = await db.query(
+        `
         SELECT 
           status,
           acceptance_reasons,
@@ -374,9 +391,11 @@ class EstimateModel {
           ${dateFilter}
         GROUP BY status, acceptance_reasons, rejection_reasons, status_changed_at
         ORDER BY status_changed_at DESC
-      `, params, context);
-      
-      return rows.map(row => {
+      `,
+        params,
+      );
+
+      return result.rows.map((row) => {
         let acceptanceReasons = row.acceptance_reasons || [];
         if (typeof acceptanceReasons === 'string') {
           try {
@@ -385,7 +404,7 @@ class EstimateModel {
             acceptanceReasons = [];
           }
         }
-        
+
         let rejectionReasons = row.rejection_reasons || [];
         if (typeof rejectionReasons === 'string') {
           try {
@@ -394,18 +413,17 @@ class EstimateModel {
             rejectionReasons = [];
           }
         }
-        
+
         return {
           status: row.status,
           acceptanceReasons: acceptanceReasons,
           rejectionReasons: rejectionReasons,
           count: parseInt(row.count),
-          statusChangedAt: row.status_changed_at
+          statusChangedAt: row.status_changed_at,
         };
       });
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to get status stats', error);
+      Logger.error('Failed to get status stats', error);
       throw new AppError('Failed to get status stats', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
@@ -415,27 +433,30 @@ class EstimateModel {
     try {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
-      
+
       let dateFilter = '';
       let params = [status];
-      
+
       if (startDate && endDate) {
         dateFilter = 'AND status_changed_at BETWEEN $2 AND $3';
         params = [status, startDate, endDate];
       }
-      
+
       const reasonField = status === 'accepted' ? 'acceptance_reasons' : 'rejection_reasons';
-      
-      const rows = await database.query(`
+
+      const result = await db.query(
+        `
         SELECT ${reasonField} as reasons
         FROM estimates 
         WHERE status = $1
           AND status_changed_at IS NOT NULL
           ${dateFilter}
-      `, params, context);
-      
+      `,
+        params,
+      );
+
       const reasonCounts = {};
-      rows.forEach(row => {
+      rows.forEach((row) => {
         if (row.reasons) {
           let reasons = row.reasons;
           if (typeof reasons === 'string') {
@@ -445,16 +466,15 @@ class EstimateModel {
               reasons = [];
             }
           }
-          reasons.forEach(reason => {
+          reasons.forEach((reason) => {
             reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
           });
         }
       });
-      
+
       return reasonCounts;
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to get reason stats', error, { status });
+      Logger.error('Failed to get reason stats', error, { status });
       throw new AppError('Failed to get reason stats', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
@@ -469,22 +489,20 @@ class EstimateModel {
     const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     let result = '';
     let num = BigInt('0x' + buffer.toString('hex'));
-    
+
     while (num > 0) {
       result = chars[num % 62n] + result;
       num = num / 62n;
     }
-    
+
     return result.padStart(32, '0');
   }
 
   async createShare(req, estimateId, validUntil) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
+      const db = Database.get(req);
       const pool = context.pool;
-      
+
       // Verify estimate exists and user owns it
       const estimate = await this.getById(req, estimateId);
       if (!estimate) {
@@ -492,16 +510,19 @@ class EstimateModel {
       }
 
       const shareToken = this.generateShareToken();
-      
+
       // Insert share (estimate_shares table doesn't have user_id, so we use direct pool)
-      const result = await pool.query(`
+      const result = await pool.query(
+        `
         INSERT INTO estimate_shares (estimate_id, share_token, valid_until)
         VALUES ($1, $2, $3)
         RETURNING *
-      `, [estimateId, shareToken, validUntil]);
-      
-      logger.info('Share created', { estimateId, shareId: result.rows[0].id, userId: context.userId });
-      
+      `,
+        [estimateId, shareToken, validUntil],
+      );
+
+      Logger.info('Share created', { estimateId, shareId: result.rows[0].id });
+
       return {
         id: result.rows[0].id.toString(),
         estimateId: result.rows[0].estimate_id.toString(),
@@ -512,9 +533,8 @@ class EstimateModel {
         lastAccessedAt: result.rows[0].last_accessed_at,
       };
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to create share', error, { estimateId });
-      
+      Logger.error('Failed to create share', error, { estimateId });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -526,8 +546,9 @@ class EstimateModel {
   async getEstimateByShareToken(req, shareToken) {
     try {
       const pool = req.tenantPool || this._getContext(req).pool;
-      
-      const result = await pool.query(`
+
+      const result = await pool.query(
+        `
         SELECT 
           e.*,
           es.accessed_count,
@@ -535,30 +556,40 @@ class EstimateModel {
         FROM estimates e
         JOIN estimate_shares es ON e.id = es.estimate_id
         WHERE es.share_token = $1 AND es.valid_until > NOW()
-      `, [shareToken]);
-      
+      `,
+        [shareToken],
+      );
+
       if (!result.rows.length) {
         return null;
       }
-      
+
       const row = result.rows[0];
       const currentAccessCount = row.accessed_count;
-      
-      await pool.query(`
+
+      await pool.query(
+        `
         UPDATE estimate_shares 
         SET accessed_count = accessed_count + 1, last_accessed_at = NOW()
         WHERE share_token = $1
-      `, [shareToken]);
-      
+      `,
+        [shareToken],
+      );
+
       const estimate = this.transformRow(row);
       estimate.shareValidUntil = row.share_valid_until;
       estimate.accessedCount = currentAccessCount + 1;
-      
+
       return estimate;
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to get estimate by share token', error, { shareToken: shareToken.substring(0, 10) });
-      throw new AppError('Failed to get estimate by share token', 500, AppError.CODES.DATABASE_ERROR);
+      Logger.error('Failed to get estimate by share token', error, {
+        shareToken: shareToken.substring(0, 10),
+      });
+      throw new AppError(
+        'Failed to get estimate by share token',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 
@@ -567,7 +598,7 @@ class EstimateModel {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
       const pool = context.pool;
-      
+
       // Verify estimate exists and user owns it
       const estimate = await this.getById(req, estimateId);
       if (!estimate) {
@@ -575,13 +606,16 @@ class EstimateModel {
       }
 
       // Get shares (estimate_shares table doesn't have user_id, so we use direct pool)
-      const result = await pool.query(`
+      const result = await pool.query(
+        `
         SELECT * FROM estimate_shares 
         WHERE estimate_id = $1 
         ORDER BY created_at DESC
-      `, [estimateId]);
-      
-      return result.rows.map(row => ({
+      `,
+        [estimateId],
+      );
+
+      return result.rows.map((row) => ({
         id: row.id.toString(),
         estimateId: row.estimate_id.toString(),
         shareToken: row.share_token,
@@ -591,9 +625,8 @@ class EstimateModel {
         lastAccessedAt: row.last_accessed_at,
       }));
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to get shares for estimate', error, { estimateId });
-      
+      Logger.error('Failed to get shares for estimate', error, { estimateId });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -606,56 +639,56 @@ class EstimateModel {
       const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
       const pool = context.pool;
-      
+
       // Verify share belongs to user's estimate
-      const result = await pool.query(`
+      const result = await pool.query(
+        `
         DELETE FROM estimate_shares 
         WHERE id = $1 
         AND estimate_id IN (
           SELECT id FROM estimates WHERE id = estimate_shares.estimate_id
         )
         RETURNING *
-      `, [shareId]);
-      
-      // Better approach: Get estimate_id first, then verify ownership
-      const shareCheck = await pool.query(
-        'SELECT estimate_id FROM estimate_shares WHERE id = $1',
-        [shareId]
+      `,
+        [shareId],
       );
-      
+
+      // Better approach: Get estimate_id first, then verify ownership
+      const shareCheck = await pool.query('SELECT estimate_id FROM estimate_shares WHERE id = $1', [
+        shareId,
+      ]);
+
       if (!shareCheck.rows.length) {
         throw new AppError('Share not found', 404, AppError.CODES.NOT_FOUND);
       }
-      
+
       const estimateId = shareCheck.rows[0].estimate_id;
       const estimate = await this.getById(req, estimateId);
-      
+
       if (!estimate) {
         throw new AppError('Share not found or access denied', 404, AppError.CODES.NOT_FOUND);
       }
-      
+
       // Delete the share
       const deleteResult = await pool.query(
         'DELETE FROM estimate_shares WHERE id = $1 RETURNING *',
-        [shareId]
+        [shareId],
       );
-      
+
       if (!deleteResult.rows.length) {
         throw new AppError('Share not found', 404, AppError.CODES.NOT_FOUND);
       }
-      
-      const logger = ServiceManager.get('logger');
-      logger.info('Share revoked', { shareId, estimateId, userId: context.userId });
-      
+
+      Logger.info('Share revoked', { shareId, estimateId });
+
       return {
         id: deleteResult.rows[0].id.toString(),
         estimateId: deleteResult.rows[0].estimate_id.toString(),
         shareToken: deleteResult.rows[0].share_token,
       };
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to revoke share', error, { shareId });
-      
+      Logger.error('Failed to revoke share', error, { shareId });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -666,14 +699,11 @@ class EstimateModel {
   async cleanExpiredShares(req) {
     try {
       const pool = req.tenantPool || this._getContext(req).pool;
-      const result = await pool.query(
-        'DELETE FROM estimate_shares WHERE valid_until < NOW()'
-      );
-      
+      const result = await pool.query('DELETE FROM estimate_shares WHERE valid_until < NOW()');
+
       return result.rowCount;
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to clean expired shares', error);
+      Logger.error('Failed to clean expired shares', error);
       throw new AppError('Failed to clean expired shares', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
