@@ -35,19 +35,99 @@ const pool = new Pool({
 
 // Tenant Pool Registry - cache pools for reuse
 const tenantPools = new Map();
+const POOL_CLEANUP_INTERVAL = 60 * 60 * 1000; // Run cleanup every hour
+const POOL_MAX_AGE = 24 * 60 * 60 * 1000; // Close pools inactive for 24 hours
 
 function getTenantPool(connectionString) {
+  const now = Date.now();
+
   if (!tenantPools.has(connectionString)) {
     console.log(`🔌 Creating new tenant pool for: ${connectionString.split('@')[1]?.split('/')[0]}`);
-    tenantPools.set(connectionString, new Pool({ 
+    const pool = new Pool({
       connectionString,
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
-    }));
+    });
+
+    tenantPools.set(connectionString, { pool, lastAccessed: now });
   }
-  return tenantPools.get(connectionString);
+
+  // Update last accessed time
+  const tenantPoolEntry = tenantPools.get(connectionString);
+  tenantPoolEntry.lastAccessed = now;
+
+  return tenantPoolEntry.pool;
 }
+
+// Cleanup inactive pools periodically
+setInterval(() => {
+  const now = Date.now();
+  let cleanedCount = 0;
+
+  console.log('🧹 Running tenant pool cleanup...');
+
+  for (const [connectionString, entry] of tenantPools.entries()) {
+    if (now - entry.lastAccessed > POOL_MAX_AGE) {
+      console.log(`🗑️ Closing inactive pool: ${connectionString.split('@')[1]?.split('/')[0]}`);
+
+      // Gracefully close the pool
+      entry.pool.end().catch(err =>
+        console.error('Error closing pool during cleanup:', err)
+      );
+
+      tenantPools.delete(connectionString);
+      cleanedCount++;
+    }
+  }
+
+  if (cleanedCount > 0) {
+    console.log(`✨ Released ${cleanedCount} inactive database pools`);
+  }
+}, POOL_CLEANUP_INTERVAL);
+
+// Graceful shutdown - close all tenant pools on server termination
+process.on('SIGTERM', async () => {
+  console.log('🛑 SIGTERM received - closing all tenant pools...');
+  
+  const poolsToClose = Array.from(tenantPools.entries());
+  console.log(`📊 Closing ${poolsToClose.length} active pool(s)...`);
+  
+  await Promise.all(
+    poolsToClose.map(async ([connectionString, entry]) => {
+      const dbHost = connectionString.split('@')[1]?.split('/')[0] || 'unknown';
+      console.log(`   Closing pool: ${dbHost}`);
+      
+      try {
+        await entry.pool.end();
+        console.log(`   ✅ Closed: ${dbHost}`);
+      } catch (err) {
+        console.error(`   ❌ Error closing ${dbHost}:`, err);
+      }
+    })
+  );
+  
+  console.log('✅ All tenant pools closed');
+  
+  // Close main auth pool
+  await pool.end();
+  console.log('✅ Main auth pool closed');
+  
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('🛑 SIGINT received - closing all tenant pools...');
+  
+  const poolsToClose = Array.from(tenantPools.entries());
+  await Promise.all(
+    poolsToClose.map(([_, entry]) => entry.pool.end().catch(console.error))
+  );
+  
+  await pool.end();
+  console.log('✅ Graceful shutdown complete');
+  process.exit(0);
+});
 
 // Security and performance middleware
 app.use(
@@ -97,11 +177,11 @@ app.use((req, res, next) => {
   if (req.session && req.session.tenantConnectionString) {
     req.tenantPool = getTenantPool(req.session.tenantConnectionString);
   }
-  
+
   // Initialize ServiceManager with request context
   // This ensures database service has correct tenant pool
   ServiceManager.initialize(req);
-  
+
   next();
 });
 
@@ -142,15 +222,58 @@ function requirePlugin(pluginName) {
 const pluginLoader = new PluginLoader(pool, requirePlugin);
 
 // Health check (before rate limiting)
-app.get('/api/health', (req, res) => {
-  const loadedPlugins = pluginLoader.getAllPlugins();
-  res.json({
-    status: 'ok',
-    database: 'connected',
-    environment: process.env.NODE_ENV,
-    plugins: loadedPlugins.map((p) => ({ name: p.name, route: p.routeBase })),
-    tenantPools: tenantPools.size,
-  });
+app.get('/api/health', async (req, res) => {
+  try {
+    // Test main database connection
+    await pool.query('SELECT 1');
+    
+    const loadedPlugins = pluginLoader.getAllPlugins();
+    
+    // Calculate pool statistics
+    const now = Date.now();
+    const poolStats = Array.from(tenantPools.entries()).map(([cs, entry]) => {
+      const idleTimeMs = now - entry.lastAccessed;
+      const idleTimeHours = (idleTimeMs / (1000 * 60 * 60)).toFixed(1);
+      
+      return {
+        tenant: cs.split('@')[1]?.split('/')[0] || 'unknown',
+        idleTimeMs,
+        idleTimeHours: `${idleTimeHours}h`,
+        willCleanupIn: idleTimeMs > POOL_MAX_AGE 
+          ? 'next cleanup cycle' 
+          : `${((POOL_MAX_AGE - idleTimeMs) / (1000 * 60 * 60)).toFixed(1)}h`,
+      };
+    });
+    
+    // Sort by most recently used
+    poolStats.sort((a, b) => a.idleTimeMs - b.idleTimeMs);
+    
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      database: 'connected',
+      environment: process.env.NODE_ENV,
+      plugins: loadedPlugins.map((p) => ({ name: p.name, route: p.routeBase })),
+      pools: {
+        total: tenantPools.size,
+        active: poolStats.filter(p => p.idleTimeMs < 60 * 60 * 1000).length, // Active in last hour
+        idle: poolStats.filter(p => p.idleTimeMs >= 60 * 60 * 1000).length,
+        details: poolStats,
+      },
+      memory: {
+        heapUsed: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB`,
+        heapTotal: `${(process.memoryUsage().heapTotal / 1024 / 1024).toFixed(2)} MB`,
+        rss: `${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`,
+      },
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 // CSRF token endpoint (must be before rate limiting)
@@ -209,17 +332,17 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 
     // Save tenant connection string in session
     req.session.tenantConnectionString = tenantConnectionString;
-    
+
     // Set currentTenantUserId to logged-in user by default
     req.session.currentTenantUserId = user.id;
 
     // Log tenant routing info
     const logger = ServiceManager.get('logger');
     const dbHost = tenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
-    logger.info('User logged in', { 
-      userId: user.id, 
-      email: user.email, 
-      tenantDb: dbHost 
+    logger.info('User logged in', {
+      userId: user.id,
+      email: user.email,
+      tenantDb: dbHost
     });
 
     res.json({
@@ -262,11 +385,11 @@ app.post('/api/auth/signup', async (req, res) => {
     // Validate and set plugins (default to contacts and notes if not provided)
     const availablePlugins = ['contacts', 'notes', 'estimates', 'tasks', 'invoices', 'products', 'channels', 'files', 'rail', 'woocommerce-products'];
     let selectedPlugins = ['contacts', 'notes'];
-    
+
     if (plugins && Array.isArray(plugins) && plugins.length > 0) {
       const invalidPlugins = plugins.filter(p => !availablePlugins.includes(p));
       if (invalidPlugins.length > 0) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: `Invalid plugins: ${invalidPlugins.join(', ')}`,
           availablePlugins: availablePlugins
         });
@@ -306,9 +429,9 @@ app.post('/api/auth/signup', async (req, res) => {
       [user.id, tenantDb.projectId, tenantDb.databaseName, tenantDb.connectionString]
     );
 
-    logger.info('Neon database created', { 
-      userId: user.id, 
-      databaseName: tenantDb.databaseName 
+    logger.info('Neon database created', {
+      userId: user.id,
+      databaseName: tenantDb.databaseName
     });
 
     // Give selected plugin access
@@ -319,9 +442,9 @@ app.post('/api/auth/signup', async (req, res) => {
       );
     }
 
-    logger.info('Plugin access granted', { 
-      userId: user.id, 
-      plugins: selectedPlugins 
+    logger.info('Plugin access granted', {
+      userId: user.id,
+      plugins: selectedPlugins
     });
 
     // Auto-login
@@ -354,10 +477,10 @@ app.post('/api/auth/signup', async (req, res) => {
 app.get('/api/auth/me', requireAuth, async (req, res) => {
   try {
     const currentTenantUserId = req.session.currentTenantUserId || req.session.user.id;
-    
+
     // If admin has switched to another tenant, get that tenant's plugins
     let plugins = req.session.user.plugins;
-    
+
     if (req.session.user.role === 'superuser' && currentTenantUserId !== req.session.user.id) {
       const tenantPlugins = await pool.query(
         'SELECT plugin_name FROM user_plugin_access WHERE user_id = $1 AND enabled = true',
@@ -365,8 +488,8 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
       );
       plugins = tenantPlugins.rows.map(row => row.plugin_name);
     }
-    
-    res.json({ 
+
+    res.json({
       user: {
         ...req.session.user,
         plugins: plugins
@@ -407,9 +530,9 @@ app.post('/api/admin/update-role', requireAuth, async (req, res) => {
       [email]
     );
 
-    res.json({ 
+    res.json({
       message: 'Role updated successfully',
-      user: result.rows[0] 
+      user: result.rows[0]
     });
   } catch (error) {
     const logger = ServiceManager.get('logger');
@@ -464,28 +587,28 @@ app.post('/api/admin/switch-tenant', requireAuth, async (req, res) => {
     }
 
     const newTenantConnectionString = tenantResult.rows[0].neon_connection_string;
-    
+
     // Update session with new tenant connection
     req.session.tenantConnectionString = newTenantConnectionString;
     req.session.currentTenantUserId = userId;
 
     const logger = ServiceManager.get('logger');
     const dbHost = newTenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
-    logger.info('Admin switched tenant', { 
-      adminId: req.session.user.id, 
-      tenantUserId: userId, 
-      tenantDb: dbHost 
+    logger.info('Admin switched tenant', {
+      adminId: req.session.user.id,
+      tenantUserId: userId,
+      tenantDb: dbHost
     });
 
-    res.json({ 
+    res.json({
       message: 'Switched tenant successfully',
       tenantUserId: userId
     });
   } catch (error) {
     const logger = ServiceManager.get('logger');
-    logger.error('Failed to switch tenant', error, { 
-      adminId: req.session.user.id, 
-      targetUserId: req.body.userId 
+    logger.error('Failed to switch tenant', error, {
+      adminId: req.session.user.id,
+      targetUserId: req.body.userId
     });
     res.status(500).json({ error: 'Failed to switch tenant' });
   }
@@ -514,22 +637,22 @@ app.delete('/api/admin/tenants/:userId', requireAuth, async (req, res) => {
     }
 
     const logger = ServiceManager.get('logger');
-    logger.info('Admin deleted tenant entry', { 
-      adminId: req.session.user.id, 
+    logger.info('Admin deleted tenant entry', {
+      adminId: req.session.user.id,
       tenantUserId: userId,
       userEmail: userResult.rows[0].email
     });
 
-    res.json({ 
+    res.json({
       message: 'Tenant entry deleted successfully',
       userId: userId,
       email: userResult.rows[0].email
     });
   } catch (error) {
     const logger = ServiceManager.get('logger');
-    logger.error('Failed to delete tenant entry', error, { 
-      adminId: req.session.user.id, 
-      targetUserId: req.params.userId 
+    logger.error('Failed to delete tenant entry', error, {
+      adminId: req.session.user.id,
+      targetUserId: req.params.userId
     });
     res.status(500).json({ error: 'Failed to delete tenant entry' });
   }
@@ -546,10 +669,10 @@ app.delete('/api/admin/users/:userId', requireAuth, async (req, res) => {
 
     // Delete from user_plugin_access
     await pool.query('DELETE FROM user_plugin_access WHERE user_id = $1', [userId]);
-    
+
     // Delete from tenants
     await pool.query('DELETE FROM tenants WHERE user_id = $1', [userId]);
-    
+
     // Delete from users
     const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING email', [userId]);
 
@@ -560,9 +683,9 @@ app.delete('/api/admin/users/:userId', requireAuth, async (req, res) => {
     res.json({ message: 'User deleted', email: result.rows[0].email });
   } catch (error) {
     const logger = ServiceManager.get('logger');
-    logger.error('Failed to delete user', error, { 
-      adminId: req.session.user.id, 
-      targetUserId: req.params.userId 
+    logger.error('Failed to delete user', error, {
+      adminId: req.session.user.id,
+      targetUserId: req.params.userId
     });
     res.status(500).json({ error: 'Failed to delete user' });
   }
