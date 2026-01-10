@@ -20,7 +20,6 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [mentionStart, setMentionStart] = useState(0);
-  const [mentionQuery, setMentionQuery] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Load contacts when component mounts
@@ -89,13 +88,11 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
           setSuggestions(filteredContacts);
           setShowSuggestions(true);
           setMentionStart(lastAtIndex);
-          setMentionQuery(textAfterAt);
           setSelectedIndex(0);
         } else if (query.length === 0) {
           setSuggestions(contacts.slice(0, 5));
           setShowSuggestions(true);
           setMentionStart(lastAtIndex);
-          setMentionQuery('');
           setSelectedIndex(0);
         } else {
           setShowSuggestions(false);
@@ -180,11 +177,11 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         rows={rows}
-        className={`w-full px-3 py-2 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical ${className}`}
+        className={`w-full px-3 py-2 text-base border border-input bg-background text-foreground placeholder:text-muted-foreground rounded-md focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none resize-vertical ${className}`}
       />
 
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-40 overflow-y-auto">
           {suggestions.map((contact, index) => (
             <button
               key={contact.id}
@@ -194,9 +191,13 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
                 index === selectedIndex ? 'bg-blue-50 dark:bg-blue-950/30' : ''
               }`}
             >
-              <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{contact.companyName}</div>
+              <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                {contact.companyName}
+              </div>
               {contact.contactType === 'company' && contact.organizationNumber && (
-                <div className="text-xs text-gray-500 dark:text-gray-400">{contact.organizationNumber}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {contact.organizationNumber}
+                </div>
               )}
               {contact.contactType === 'private' && contact.personalNumber && (
                 <div className="text-xs text-gray-500 dark:text-gray-400">
