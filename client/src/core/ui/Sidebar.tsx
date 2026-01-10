@@ -27,6 +27,7 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
   const { isCollapsed, setIsCollapsed, isMobileOverlay, setIsMobileOverlay } = useSidebar();
   const { logout, user } = useApp();
   const [isMobile, setIsMobile] = useState(false);
+  const [isHoveringLogo, setIsHoveringLogo] = useState(false);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -105,48 +106,45 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
       )}
     >
       {/* Header */}
-      <div className="flex h-16 items-center justify-between border-b px-4">
-        {showLabels ? (
-          <>
-            <div className="flex items-center gap-2 font-semibold">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <span className="text-sm font-bold">H</span>
-              </div>
-              <span className="text-lg">Homebase</span>
-            </div>
-            <button
-              onClick={() => {
-                if (isMobile) {
-                  setIsMobileOverlay(!isMobileOverlay);
-                } else {
-                  setIsCollapsed(!isCollapsed);
-                }
-              }}
-              className="p-2 rounded-md hover:bg-accent transition-colors"
-              aria-label="Collapse sidebar"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-          </>
-        ) : (
-          <div className="flex w-full items-center justify-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+      <div className={cn(
+        "flex h-16 items-center border-b px-4",
+        isCollapsed && !isMobile ? "justify-center" : "justify-between"
+      )}>
+        <button
+          onClick={() => isCollapsed && setIsCollapsed(false)}
+          onMouseEnter={() => setIsHoveringLogo(true)}
+          onMouseLeave={() => setIsHoveringLogo(false)}
+          disabled={!isCollapsed}
+          className={cn(
+            "flex items-center gap-2 font-semibold text-left transition-all",
+            isCollapsed ? "cursor-pointer hover:scale-110 active:scale-90" : "cursor-default"
+          )}
+          title={isCollapsed ? "Expand sidebar" : undefined}
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground flex-shrink-0 transition-all duration-300">
+            {isCollapsed && isHoveringLogo ? (
+              <ChevronRight className="h-5 w-5 animate-in fade-in slide-in-from-left-2 duration-300" />
+            ) : (
               <span className="text-sm font-bold">H</span>
-            </div>
-            <button
-              onClick={() => {
-                if (isMobile) {
-                  setIsMobileOverlay(!isMobileOverlay);
-                } else {
-                  setIsCollapsed(!isCollapsed);
-                }
-              }}
-              className="p-2 rounded-md hover:bg-accent transition-colors"
-              aria-label="Expand sidebar"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
+            )}
           </div>
+          {showLabels && <span className="text-lg">Homebase</span>}
+        </button>
+
+        {showLabels && (
+          <button
+            onClick={() => {
+              if (isMobile) {
+                setIsMobileOverlay(!isMobileOverlay);
+              } else {
+                setIsCollapsed(!isCollapsed);
+              }
+            }}
+            className="p-2 rounded-md hover:bg-accent transition-colors"
+            aria-label="Collapse sidebar"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
         )}
       </div>
 
@@ -192,8 +190,9 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
         </ScrollArea>
       </div>
 
-      {/* Footer with User info and Logout */}
+      {/* Footer with Expand/Collapse, User info and Logout */}
       <div className="border-t p-2 space-y-1">
+
         {/* User info */}
         {user && showLabels && (
           <div className="px-3 py-2 mb-2">

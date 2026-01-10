@@ -65,12 +65,27 @@ async function cleanupOrphanedTenants() {
     console.log('='.repeat(100));
 
     // Find orphaned tenants (tenants where neon_project_id doesn't exist in Neon)
-    const orphanedTenants = tenants.filter(tenant => {
-      if (!tenant.neon_project_id) {
-        return true; // Tenant without project ID is orphaned
+    // NEVER include superadmin (user_id 1 or role 'superuser')
+    const orphanedTenants = [];
+    
+    for (const tenant of tenants) {
+      // Get user info to check role
+      const userResult = await client.query('SELECT id, email, role FROM users WHERE id = $1', [tenant.user_id]);
+      const user = userResult.rows[0];
+      
+      // Skip superadmin
+      if (user && (user.role === 'superuser' || user.id === 1)) {
+        console.log(`🛡️  Skipping superadmin: ${user.email} (User ID: ${user.id})`);
+        continue;
       }
-      return !projectIds.has(tenant.neon_project_id);
-    });
+      
+      // Check if tenant is orphaned
+      const isOrphaned = !tenant.neon_project_id || !projectIds.has(tenant.neon_project_id);
+      
+      if (isOrphaned) {
+        orphanedTenants.push({ ...tenant, user });
+      }
+    }
 
     if (orphanedTenants.length === 0) {
       console.log('✅ No orphaned tenants found. All tenants have valid Neon projects.');
@@ -80,9 +95,7 @@ async function cleanupOrphanedTenants() {
     console.log(`⚠️  Found ${orphanedTenants.length} orphaned tenant(s):\n`);
 
     for (const tenant of orphanedTenants) {
-      // Get user info
-      const userResult = await client.query('SELECT id, email, role FROM users WHERE id = $1', [tenant.user_id]);
-      const user = userResult.rows[0];
+      const user = tenant.user;
 
       if (user) {
         console.log(`   - Tenant ID: ${tenant.id}`);

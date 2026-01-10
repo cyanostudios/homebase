@@ -24,7 +24,8 @@ const neonService = new NeonService(process.env.NEON_API_KEY);
 const app = express();
 const PORT = process.env.PORT || 3002;
 
-// Trust Railway proxy for secure cookies
+// Trust Railway proxy for secure cookies and correct client IP
+// WARNING: Only enable if behind a trusted proxy (Railway, Nginx, etc.)
 app.set('trust proxy', 1);
 
 // Database connection (Railway PostgreSQL - for auth and tenant mapping)
@@ -282,8 +283,8 @@ app.post('/api/auth/signup', async (req, res) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Allow role to be set during signup (defaults to 'user')
-    const userRole = req.body.role === 'superuser' ? 'superuser' : 'user';
+    // Always create regular users via signup (superusers must be created manually)
+    const userRole = 'user';
 
     // Create user in Railway PostgreSQL
     const userResult = await pool.query(
@@ -591,52 +592,6 @@ app.get('/api/plugins', requireAuth, (req, res) => {
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
-
-// TEMPORARY CLEANUP ENDPOINT - Remove after use!
-app.post('/api/admin/cleanup', requireAuth, async (req, res) => {
-  const SUPERUSER_ID = 12;
-  
-  if (req.session.user.role !== 'superuser') {
-    return res.status(403).json({ error: 'Superuser only' });
-  }
-  
-  try {
-    const logger = ServiceManager.get('logger');
-    logger.info('Starting cleanup', { adminId: req.session.user.id });
-    
-    const countUsers = await pool.query('SELECT COUNT(*) FROM users WHERE id != $1', [SUPERUSER_ID]);
-    const countTenants = await pool.query('SELECT COUNT(*) FROM tenants WHERE user_id != $1', [SUPERUSER_ID]);
-    const countPlugins = await pool.query('SELECT COUNT(*) FROM user_plugin_access WHERE user_id != $1', [SUPERUSER_ID]);
-    
-    const counts = {
-      users: countUsers.rows[0].count,
-      tenants: countTenants.rows[0].count,
-      plugins: countPlugins.rows[0].count
-    };
-    
-    logger.info('Cleanup items to delete', counts);
-    
-    await pool.query('DELETE FROM user_plugin_access WHERE user_id != $1', [SUPERUSER_ID]);
-    await pool.query('DELETE FROM tenants WHERE user_id != $1', [SUPERUSER_ID]);
-    await pool.query('DELETE FROM users WHERE id != $1', [SUPERUSER_ID]);
-    
-    logger.info('Cleanup complete', counts);
-    
-    res.json({ 
-      success: true,
-      message: 'Cleanup complete - all test data removed',
-      deleted: {
-        users: countUsers.rows[0].count,
-        tenants: countTenants.rows[0].count,
-        plugins: countPlugins.rows[0].count
-      }
-    });
-  } catch (error) {
-    const logger = ServiceManager.get('logger');
-    logger.error('Cleanup failed', error, { adminId: req.session.user.id });
-    res.status(500).json({ error: 'Cleanup failed', details: error.message });
-  }
-});
 
 // Start server
 // Get git commit hash for version logging
