@@ -12,14 +12,14 @@ const PluginLoader = require('../plugin-loader');
 require('dotenv').config({ path: '.env.local' });
 
 // Core infrastructure imports
+const Bootstrap = require('./core/Bootstrap');
 const ServiceManager = require('./core/ServiceManager');
 const { errorHandler } = require('./core/middleware/errorHandler');
 const { globalLimiter, authLimiter } = require('./core/middleware/rateLimit');
 const { csrfProtection, csrfTokenHandler } = require('./core/middleware/csrf');
 
-// Initialize Neon Service
-import NeonService from './neon-service';
-const neonService = new NeonService(process.env.NEON_API_KEY);
+// Initialize Bootstrap (loads all service providers)
+Bootstrap.initializeServices();
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -33,99 +33,23 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Tenant Pool Registry - cache pools for reuse
-const tenantPools = new Map();
-const POOL_CLEANUP_INTERVAL = 60 * 60 * 1000; // Run cleanup every hour
-const POOL_MAX_AGE = 24 * 60 * 60 * 1000; // Close pools inactive for 24 hours
+// Connection pool management is now handled by ConnectionPoolService
+// See: server/core/services/connection-pool/providers/PostgresPoolProvider.js
 
-function getTenantPool(connectionString) {
-  const now = Date.now();
-
-  if (!tenantPools.has(connectionString)) {
-    console.log(`🔌 Creating new tenant pool for: ${connectionString.split('@')[1]?.split('/')[0]}`);
-    const pool = new Pool({
-      connectionString,
-      max: 10,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
-    });
-
-    tenantPools.set(connectionString, { pool, lastAccessed: now });
-  }
-
-  // Update last accessed time
-  const tenantPoolEntry = tenantPools.get(connectionString);
-  tenantPoolEntry.lastAccessed = now;
-
-  return tenantPoolEntry.pool;
-}
-
-// Cleanup inactive pools periodically
-setInterval(() => {
-  const now = Date.now();
-  let cleanedCount = 0;
-
-  console.log('🧹 Running tenant pool cleanup...');
-
-  for (const [connectionString, entry] of tenantPools.entries()) {
-    if (now - entry.lastAccessed > POOL_MAX_AGE) {
-      console.log(`🗑️ Closing inactive pool: ${connectionString.split('@')[1]?.split('/')[0]}`);
-
-      // Gracefully close the pool
-      entry.pool.end().catch(err =>
-        console.error('Error closing pool during cleanup:', err)
-      );
-
-      tenantPools.delete(connectionString);
-      cleanedCount++;
-    }
-  }
-
-  if (cleanedCount > 0) {
-    console.log(`✨ Released ${cleanedCount} inactive database pools`);
-  }
-}, POOL_CLEANUP_INTERVAL);
-
-// Graceful shutdown - close all tenant pools on server termination
+// Graceful shutdown - use Bootstrap
 process.on('SIGTERM', async () => {
-  console.log('🛑 SIGTERM received - closing all tenant pools...');
-  
-  const poolsToClose = Array.from(tenantPools.entries());
-  console.log(`📊 Closing ${poolsToClose.length} active pool(s)...`);
-  
-  await Promise.all(
-    poolsToClose.map(async ([connectionString, entry]) => {
-      const dbHost = connectionString.split('@')[1]?.split('/')[0] || 'unknown';
-      console.log(`   Closing pool: ${dbHost}`);
-      
-      try {
-        await entry.pool.end();
-        console.log(`   ✅ Closed: ${dbHost}`);
-      } catch (err) {
-        console.error(`   ❌ Error closing ${dbHost}:`, err);
-      }
-    })
-  );
-  
-  console.log('✅ All tenant pools closed');
-  
-  // Close main auth pool
+  console.log('🛑 SIGTERM received');
+  server.close();
+  await Bootstrap.shutdown();
   await pool.end();
-  console.log('✅ Main auth pool closed');
-  
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-  console.log('🛑 SIGINT received - closing all tenant pools...');
-  
-  const poolsToClose = Array.from(tenantPools.entries());
-  await Promise.all(
-    poolsToClose.map(([_, entry]) => entry.pool.end().catch(console.error))
-  );
-  
+  console.log('🛑 SIGINT received');
+  server.close();
+  await Bootstrap.shutdown();
   await pool.end();
-  console.log('✅ Graceful shutdown complete');
   process.exit(0);
 });
 
@@ -175,7 +99,9 @@ app.use(express.urlencoded({ extended: true }));
 // Tenant Pool Middleware - attach tenant pool to request and initialize ServiceManager
 app.use((req, res, next) => {
   if (req.session && req.session.tenantConnectionString) {
-    req.tenantPool = getTenantPool(req.session.tenantConnectionString);
+    // Use ConnectionPoolService from ServiceManager
+    const connectionPool = ServiceManager.get('connectionPool');
+    req.tenantPool = connectionPool.getTenantPool(req.session.tenantConnectionString);
   }
 
   // Initialize ServiceManager with request context
@@ -419,9 +345,10 @@ app.post('/api/auth/signup', async (req, res) => {
     const logger = ServiceManager.get('logger');
     logger.info('User created', { userId: user.id, email: user.email });
 
-    // Create Neon tenant database
-    logger.info('Creating Neon database', { userId: user.id });
-    const tenantDb = await neonService.createTenantDatabase(user.id, user.email);
+    // Create tenant database using TenantService
+    logger.info('Creating tenant database', { userId: user.id });
+    const tenantService = ServiceManager.get('tenant');
+    const tenantDb = await tenantService.createTenant(user.id, user.email);
 
     // Save tenant info in Railway PostgreSQL
     await pool.query(
