@@ -8,6 +8,8 @@ const configs = {
   development: {
     // Service Providers
     DATABASE_PROVIDER: process.env.DATABASE_PROVIDER || 'postgres',
+    TENANT_PROVIDER: process.env.TENANT_PROVIDER || 'local', // Use 'local' for dev (no Neon API key needed)
+    POOL_PROVIDER: process.env.POOL_PROVIDER || 'postgres',
     LOGGER_PROVIDER: process.env.LOGGER_PROVIDER || 'console',
     STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || 'local',
     EMAIL_PROVIDER: process.env.EMAIL_PROVIDER || 'smtp',
@@ -18,6 +20,28 @@ const configs = {
       provider: process.env.DATABASE_PROVIDER || 'postgres',
       // Uses DATABASE_URL from environment
       connectionString: process.env.DATABASE_URL,
+    },
+    
+    tenant: {
+      provider: process.env.TENANT_PROVIDER || 'local',
+      local: {
+        connectionString: process.env.DATABASE_URL,
+      },
+      neon: {
+        apiKey: process.env.NEON_API_KEY,
+        region: process.env.NEON_REGION || 'aws-eu-central-1',
+      },
+    },
+    
+    connectionPool: {
+      provider: process.env.POOL_PROVIDER || 'postgres',
+      postgres: {
+        max: 10,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 2000,
+        cleanupInterval: 60 * 60 * 1000, // 1 hour
+        maxPoolAge: 24 * 60 * 60 * 1000, // 24 hours
+      },
     },
     
     logger: {
@@ -97,6 +121,8 @@ const configs = {
   production: {
     // Service Providers
     DATABASE_PROVIDER: process.env.DATABASE_PROVIDER || 'postgres',
+    TENANT_PROVIDER: process.env.TENANT_PROVIDER || 'neon', // Use 'neon' for production
+    POOL_PROVIDER: process.env.POOL_PROVIDER || 'postgres',
     LOGGER_PROVIDER: process.env.LOGGER_PROVIDER || 'console',
     STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || 'r2',
     EMAIL_PROVIDER: process.env.EMAIL_PROVIDER || 'resend',
@@ -106,6 +132,28 @@ const configs = {
     database: {
       provider: process.env.DATABASE_PROVIDER || 'postgres',
       connectionString: process.env.DATABASE_URL,
+    },
+    
+    tenant: {
+      provider: process.env.TENANT_PROVIDER || 'neon',
+      neon: {
+        apiKey: process.env.NEON_API_KEY,
+        region: process.env.NEON_REGION || 'aws-eu-central-1',
+      },
+      local: {
+        connectionString: process.env.DATABASE_URL,
+      },
+    },
+    
+    connectionPool: {
+      provider: process.env.POOL_PROVIDER || 'postgres',
+      postgres: {
+        max: parseInt(process.env.POOL_MAX_SIZE || '10'),
+        idleTimeoutMillis: parseInt(process.env.POOL_IDLE_TIMEOUT || '30000'),
+        connectionTimeoutMillis: parseInt(process.env.POOL_CONNECTION_TIMEOUT || '2000'),
+        cleanupInterval: parseInt(process.env.POOL_CLEANUP_INTERVAL || '3600000'),
+        maxPoolAge: parseInt(process.env.POOL_MAX_AGE || '86400000'),
+      },
     },
     
     logger: {
@@ -169,6 +217,8 @@ const configs = {
   test: {
     // Service Providers (use mocks in tests)
     DATABASE_PROVIDER: 'postgres',
+    TENANT_PROVIDER: 'local', // Always use local for tests
+    POOL_PROVIDER: 'postgres',
     LOGGER_PROVIDER: 'console',
     STORAGE_PROVIDER: 'local',
     EMAIL_PROVIDER: 'smtp',
@@ -178,6 +228,22 @@ const configs = {
     database: {
       provider: 'postgres',
       connectionString: process.env.TEST_DATABASE_URL || process.env.DATABASE_URL,
+    },
+    
+    tenant: {
+      provider: 'local',
+      local: {
+        connectionString: process.env.TEST_DATABASE_URL || process.env.DATABASE_URL,
+      },
+    },
+    
+    connectionPool: {
+      provider: 'postgres',
+      postgres: {
+        max: 5, // Smaller pool for tests
+        idleTimeoutMillis: 10000,
+        connectionTimeoutMillis: 1000,
+      },
     },
     
     logger: {

@@ -26,6 +26,16 @@ class ServiceManager {
       this.services.logger = this._initLogger(loggerConfig);
     }
 
+    // Tenant service (for tenant provisioning)
+    if (!this.services.tenant) {
+      this.services.tenant = this._initTenantService();
+    }
+
+    // Connection pool service (for pool management)
+    if (!this.services.connectionPool) {
+      this.services.connectionPool = this._initConnectionPoolService();
+    }
+
     // Database service (requires request context for tenant pool)
     if (req) {
       this.services.database = this._initDatabase(req);
@@ -48,6 +58,47 @@ class ServiceManager {
         return new ConsoleAdapter(config.console || {});
       default:
         throw new Error(`Unknown logger provider: ${provider}`);
+    }
+  }
+
+  /**
+   * Initialize tenant service
+   */
+  _initTenantService() {
+    const provider = this.config.tenant?.provider || process.env.TENANT_PROVIDER || 'neon';
+    const logger = this.services.logger || new ConsoleAdapter();
+    
+    try {
+      const TenantProvider = require(`./services/tenant/providers/${this._capitalize(provider)}TenantProvider`);
+      const config = {
+        ...this.config.tenant?.[provider],
+        mainPool: this._getDefaultPool(), // Provide main pool for metadata queries
+      };
+      
+      logger.info(`Initializing tenant service with provider: ${provider}`);
+      return new TenantProvider(config);
+    } catch (error) {
+      logger.error(`Failed to load tenant provider '${provider}':`, error);
+      throw new Error(`Unknown tenant provider: ${provider}`);
+    }
+  }
+
+  /**
+   * Initialize connection pool service
+   */
+  _initConnectionPoolService() {
+    const provider = this.config.connectionPool?.provider || process.env.POOL_PROVIDER || 'postgres';
+    const logger = this.services.logger || new ConsoleAdapter();
+    
+    try {
+      const PoolProvider = require(`./services/connection-pool/providers/${this._capitalize(provider)}PoolProvider`);
+      const config = this.config.connectionPool?.[provider] || {};
+      
+      logger.info(`Initializing connection pool service with provider: ${provider}`);
+      return new PoolProvider(config);
+    } catch (error) {
+      logger.error(`Failed to load connection pool provider '${provider}':`, error);
+      throw new Error(`Unknown connection pool provider: ${provider}`);
     }
   }
 
@@ -119,6 +170,42 @@ class ServiceManager {
     this.services = {};
     this.initialized = false;
   }
+
+  /**
+   * Capitalize first letter of string
+   * @private
+   */
+  _capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  /**
+   * Graceful shutdown - close all services
+   */
+  async shutdown() {
+    const logger = this.services.logger;
+    
+    if (logger) {
+      logger.info('Shutting down ServiceManager...');
+    }
+    
+    // Close connection pool service
+    if (this.services.connectionPool) {
+      await this.services.connectionPool.closeAllPools();
+    }
+    
+    // Close default pool
+    if (this._defaultPool) {
+      await this._defaultPool.end();
+      if (logger) {
+        logger.info('Main auth pool closed');
+      }
+    }
+    
+    if (logger) {
+      logger.info('ServiceManager shutdown complete');
+    }
+  }
 }
 
 // Create singleton instance
@@ -131,6 +218,26 @@ const serviceManager = new ServiceManager({
     console: {
       level: process.env.LOG_LEVEL || 'info',
       enableColors: process.env.NODE_ENV !== 'production',
+    },
+  },
+  tenant: {
+    provider: process.env.TENANT_PROVIDER || 'neon',
+    neon: {
+      apiKey: process.env.NEON_API_KEY,
+      region: process.env.NEON_REGION || 'aws-eu-central-1',
+    },
+    local: {
+      connectionString: process.env.DATABASE_URL,
+    },
+  },
+  connectionPool: {
+    provider: process.env.POOL_PROVIDER || 'postgres',
+    postgres: {
+      max: parseInt(process.env.POOL_MAX_SIZE || '10'),
+      idleTimeoutMillis: parseInt(process.env.POOL_IDLE_TIMEOUT || '30000'),
+      connectionTimeoutMillis: parseInt(process.env.POOL_CONNECTION_TIMEOUT || '2000'),
+      cleanupInterval: parseInt(process.env.POOL_CLEANUP_INTERVAL || '3600000'), // 1 hour
+      maxPoolAge: parseInt(process.env.POOL_MAX_AGE || '86400000'), // 24 hours
     },
   },
 });
