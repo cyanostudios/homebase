@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 
 import { estimateShareApi, estimatesApi } from '../api/estimatesApi';
 import { useEstimates } from '../hooks/useEstimates';
-import { Estimate, EstimateShare } from '../types/estimate';
+import type { Estimate, EstimateShare } from '../types/estimate';
 
 interface EstimateActionsProps {
   estimate: Estimate;
@@ -13,6 +13,7 @@ interface EstimateActionsProps {
 
 export function EstimateActions({ estimate }: EstimateActionsProps) {
   const { duplicateEstimate, closeEstimatePanel } = useEstimates();
+
 
   // Share state
   const [isCreatingShare, setIsCreatingShare] = useState(false);
@@ -131,7 +132,7 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
     <>
       {/* Other Actions */}
       <div>
-        <div className="text-xs font-medium text-gray-700 mb-2">Other Actions</div>
+        <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Other Actions</div>
         <div className="flex flex-wrap gap-3">
           {!existingShare && (
             <Button
@@ -171,19 +172,19 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
       {existingShare && (
         <div
           className={`mt-4 p-4 rounded-lg border ${
-            isShareExpired ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'
+            isShareExpired ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800' : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
           }`}
         >
           <div
             className={`text-sm font-medium mb-2 ${
-              isShareExpired ? 'text-red-900' : 'text-blue-900'
+              isShareExpired ? 'text-red-900 dark:text-red-400' : 'text-blue-900 dark:text-blue-400'
             }`}
           >
             {isShareExpired ? 'Share Link Expired' : 'Active Share Link'}
           </div>
 
           <div className="flex items-center gap-2 mb-2">
-            <div className="flex-1 p-2 bg-white rounded border text-sm font-mono break-all">
+            <div className="flex-1 p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 text-sm font-mono break-all text-gray-900 dark:text-gray-100">
               {shareUrl}
             </div>
             {!isShareExpired && (
@@ -192,14 +193,14 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
                 size="sm"
                 icon={copied ? Check : Copy}
                 onClick={handleCopyUrl}
-                className={copied ? 'bg-green-100 text-green-700' : ''}
+                className={copied ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' : ''}
               >
                 {copied ? 'Copied!' : 'Copy'}
               </Button>
             )}
           </div>
 
-          <div className={`text-xs ${isShareExpired ? 'text-red-700' : 'text-blue-700'}`}>
+          <div className={`text-xs ${isShareExpired ? 'text-red-700 dark:text-red-400' : 'text-blue-700 dark:text-blue-400'}`}>
             <div className="flex items-center justify-left">
               <div>
                 {isShareExpired ? 'Expired on' : 'Expires on'}{' '}
@@ -210,7 +211,7 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
               </div>
               <button
                 onClick={handleRevokeShare}
-                className="text-red-600 hover:text-red-800 text-xs underline ml-4"
+                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-xs underline ml-4"
               >
                 Revoke
               </button>
@@ -222,33 +223,33 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
       {/* Expired Date Modal */}
       {showExpiredModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900">Cannot create share link</h2>
-                <p className="text-xs text-gray-500">Estimate {estimate.estimateNumber}</p>
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Cannot create share link</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Estimate {estimate.estimateNumber}</p>
               </div>
             </div>
 
             {/* Content */}
             <div className="p-4">
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 This estimate expired on {new Date(estimate.validTo).toLocaleDateString()}. Share
                 links can only be created for estimates that are still valid.
               </p>
-              <p className="text-xs text-gray-500 italic">
+              <p className="text-xs text-gray-500 dark:text-gray-400 italic">
                 Update the "Valid To" date in edit mode to create a share link.
               </p>
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end space-x-3 p-4 border-t border-gray-100">
+            <div className="flex justify-end space-x-3 p-4 border-t border-gray-100 dark:border-gray-700">
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => setShowExpiredModal(false)}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-800"
               >
                 Got it!
               </Button>

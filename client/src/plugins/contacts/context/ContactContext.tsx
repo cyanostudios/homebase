@@ -330,7 +330,7 @@ export function ContactProvider({
             <div>
               {contactNumber} • {name}
             </div>
-            <div className="text-sm font-normal text-gray-600 mt-1">{orgNumber}</div>
+            <div className="text-sm font-normal text-gray-600 dark:text-gray-400 mt-1">{orgNumber}</div>
           </div>
         );
       }

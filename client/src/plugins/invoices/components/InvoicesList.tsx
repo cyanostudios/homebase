@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Edit, Eye, Search, ChevronUp, ChevronDown, Copy, Receipt } from 'lucide-react';
-import { useInvoicesContext } from '../context/InvoicesContext';
+import { useInvoices } from '../hooks/useInvoices';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,7 @@ export function InvoicesList() {
     openInvoiceForEdit,
     openInvoiceForView,
     deleteInvoice
-  } = useInvoicesContext();
+  } = useInvoices();
   const { attemptNavigation } = useGlobalNavigationGuard();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -121,11 +121,11 @@ export function InvoicesList() {
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
-      draft: 'bg-gray-100 text-gray-800',
-      sent: 'bg-blue-100 text-blue-800',
-      paid: 'bg-green-100 text-green-800',
-      overdue: 'bg-red-100 text-red-800',
-      canceled: 'bg-gray-100 text-gray-800',
+      draft: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
+      sent: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
+      paid: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+      overdue: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
+      canceled: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
     };
     
     const colorClass = statusColors[status as keyof typeof statusColors] || statusColors.draft;
@@ -194,7 +194,7 @@ export function InvoicesList() {
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 z-10" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
             <Input
               type="text"
               placeholder="Search invoices..."
@@ -216,10 +216,10 @@ export function InvoicesList() {
       <Card>
         {!isMobileView ? (
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-muted/50">
               <tr>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('invoiceNumber')}
                 >
                   <div className="flex items-center gap-1">
@@ -228,7 +228,7 @@ export function InvoicesList() {
                   </div>
                 </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('contactName')}
                 >
                   <div className="flex items-center gap-1">
@@ -236,11 +236,11 @@ export function InvoicesList() {
                     <SortIcon field="contactName" />
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Type
                 </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('status')}
                 >
                   <div className="flex items-center gap-1">
@@ -249,7 +249,7 @@ export function InvoicesList() {
                   </div>
                 </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('total')}
                 >
                   <div className="flex items-center gap-1">
@@ -257,18 +257,18 @@ export function InvoicesList() {
                     <SortIcon field="total" />
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Due Date
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-border">
               {sortedInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
                     {searchTerm ? 'No invoices found matching your search.' : 'No invoices yet. Click "Add Invoice" to get started.'}
                   </td>
                 </tr>
@@ -276,7 +276,7 @@ export function InvoicesList() {
                 sortedInvoices.map((invoice, idx) => (
                   <tr 
                     key={invoice.id} 
-                    className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer`}
+                    className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors`}
                     tabIndex={0}
                     data-list-item={JSON.stringify(invoice)}
                     data-plugin-name="invoices"
@@ -289,17 +289,17 @@ export function InvoicesList() {
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <Receipt className="w-5 h-5 text-blue-500" />
-                        <div className="text-sm font-medium text-gray-900">
+                        <Receipt className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                        <div className="text-sm font-medium text-foreground">
                           {invoice.invoiceNumber || `DRAFT-${invoice.id}`}
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{invoice.contactName || '—'}</div>
+                        <div className="text-sm font-medium text-foreground">{invoice.contactName || '—'}</div>
                         {invoice.organizationNumber && (
-                          <div className="text-xs text-gray-500">{invoice.organizationNumber}</div>
+                          <div className="text-xs text-muted-foreground">{invoice.organizationNumber}</div>
                         )}
                       </div>
                     </td>
@@ -310,14 +310,14 @@ export function InvoicesList() {
                       {getStatusBadge(invoice.status || 'draft')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-foreground">
                         {(invoice.total || 0).toFixed(2)} {invoice.currency || 'SEK'}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted-foreground">
                         VAT: {(invoice.totalVat || 0).toFixed(2)} {invoice.currency || 'SEK'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -352,24 +352,24 @@ export function InvoicesList() {
             </tbody>
           </table>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-border">
             {sortedInvoices.length === 0 ? (
-              <div className="p-6 text-center text-gray-400">
+              <div className="p-6 text-center text-muted-foreground">
                 {searchTerm ? 'No invoices found matching your search.' : 'No invoices yet. Click "Add Invoice" to get started.'}
               </div>
             ) : (
               sortedInvoices.map((invoice) => (
-                <div key={invoice.id} className="p-4">
+                <div key={invoice.id} className="p-4 hover:bg-accent transition-colors">
                   <div className="flex items-start gap-3">
                     <div className="flex flex-col items-center gap-1">
-                      <Receipt className="w-5 h-5 text-blue-500" />
-                      <div className="text-xs text-gray-500">
+                      <Receipt className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                      <div className="text-xs text-muted-foreground">
                         {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '—'}
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="mb-1 flex items-center gap-2">
-                        <h3 className="text-sm font-medium text-gray-900">
+                        <h3 className="text-sm font-medium text-foreground">
                           {invoice.invoiceNumber || `DRAFT-${invoice.id}`}
                         </h3>
                         {getTypeBadge((invoice as any).invoiceType)}
@@ -377,11 +377,11 @@ export function InvoicesList() {
                       </div>
                       
                       <div className="space-y-1">
-                        <div className="text-sm text-gray-600">{invoice.contactName || '—'}</div>
+                        <div className="text-sm text-muted-foreground">{invoice.contactName || '—'}</div>
                         {invoice.organizationNumber && (
-                          <div className="text-xs text-gray-500">{invoice.organizationNumber}</div>
+                          <div className="text-xs text-muted-foreground">{invoice.organizationNumber}</div>
                         )}
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-foreground">
                           {(invoice.total || 0).toFixed(2)} {invoice.currency || 'SEK'}
                         </div>
                       </div>

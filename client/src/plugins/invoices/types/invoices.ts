@@ -53,7 +53,8 @@ export interface Invoice {
   total: number;
 
   status?: InvoiceStatus;
-  invoiceType?: 'invoice' | 'credit_note' | 'cash_invoice' | 'receipt';  createdAt?: Date | string | null;
+  invoiceType?: 'invoice' | 'credit_note' | 'cash_invoice' | 'receipt';
+  createdAt?: Date | string | null;
   updatedAt?: Date | string | null;
 
   estimateId?: string | null;

@@ -104,7 +104,7 @@ export const FileList: React.FC = () => {
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4 z-10" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
             <Input
               type="text"
               placeholder="Search by name, id, or type"
@@ -122,10 +122,10 @@ export const FileList: React.FC = () => {
       <Card>
         {!isMobileView ? (
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-muted/50">
               <tr>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('name')}
                 >
                   <div className="flex items-center gap-1">
@@ -133,14 +133,14 @@ export const FileList: React.FC = () => {
                     <SortIcon field="name" />
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Size
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('updatedAt')}
                 >
                   <div className="flex items-center gap-1">
@@ -148,18 +148,18 @@ export const FileList: React.FC = () => {
                     <SortIcon field="updatedAt" />
                   </div>
                 </th>
-                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border">
               {filteredAndSorted.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm text-gray-900">{row.name || '—'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{row.mimeType || '—'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
+                <tr key={row.id} className="hover:bg-accent transition-colors">
+                  <td className="px-6 py-4 text-sm text-foreground">{row.name || '—'}</td>
+                  <td className="px-6 py-4 text-sm text-muted-foreground">{row.mimeType || '—'}</td>
+                  <td className="px-6 py-4 text-sm text-muted-foreground">
                     {humanSize(row.size)}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
+                  <td className="px-6 py-4 text-sm text-muted-foreground">
                     {row.updatedAt ? row.updatedAt.toLocaleDateString() : '—'}
                   </td>
                   <td className="px-6 py-4">
@@ -177,7 +177,7 @@ export const FileList: React.FC = () => {
                           download
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center text-sm px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50"
+                          className="inline-flex items-center text-sm px-3 py-1.5 rounded-lg border border-input hover:bg-accent transition-colors"
                           title="Download"
                         >
                           <Download className="w-4 h-4 mr-1" /> Download
@@ -187,7 +187,7 @@ export const FileList: React.FC = () => {
                           type="button"
                           disabled
                           title="No URL available"
-                          className="inline-flex items-center text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-400 cursor-not-allowed"
+                          className="inline-flex items-center text-sm px-3 py-1.5 rounded-lg border border-input text-muted-foreground cursor-not-allowed opacity-50"
                         >
                           <Download className="w-4 h-4 mr-1" /> Download
                         </button>
@@ -208,7 +208,7 @@ export const FileList: React.FC = () => {
               ))}
               {filteredAndSorted.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-sm text-muted-foreground">
                     No files found.
                   </td>
                 </tr>
@@ -216,14 +216,14 @@ export const FileList: React.FC = () => {
             </tbody>
           </table>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-border">
             {filteredAndSorted.map((row) => (
-              <div key={row.id} className="p-4">
+              <div key={row.id} className="p-4 hover:bg-accent transition-colors">
                 <div className="flex items-center justify-between">
-                  <div className="font-medium text-gray-900">{row.name || '—'}</div>
-                  <div className="text-xs text-gray-500">{row.mimeType || '—'}</div>
+                  <div className="font-medium text-foreground">{row.name || '—'}</div>
+                  <div className="text-xs text-muted-foreground">{row.mimeType || '—'}</div>
                 </div>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-muted-foreground mt-1">
                   {row.updatedAt ? row.updatedAt.toLocaleDateString() : '—'} • {humanSize(row.size)}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -240,7 +240,7 @@ export const FileList: React.FC = () => {
                       download
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center text-sm px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50"
+                      className="inline-flex items-center text-sm px-3 py-1.5 rounded-lg border border-input hover:bg-accent transition-colors"
                       title="Download"
                     >
                       <Download className="w-4 h-4 mr-1" /> Download
@@ -250,7 +250,7 @@ export const FileList: React.FC = () => {
                       type="button"
                       disabled
                       title="No URL available"
-                      className="inline-flex items-center text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-400 cursor-not-allowed"
+                      className="inline-flex items-center text-sm px-3 py-1.5 rounded-lg border border-input text-muted-foreground cursor-not-allowed opacity-50"
                     >
                       <Download className="w-4 h-4 mr-1" /> Download
                     </button>
@@ -263,7 +263,7 @@ export const FileList: React.FC = () => {
               </div>
             ))}
             {filteredAndSorted.length === 0 && (
-              <div className="p-6 text-center text-sm text-gray-500">No files found.</div>
+              <div className="p-6 text-center text-sm text-muted-foreground">No files found.</div>
             )}
           </div>
         )}

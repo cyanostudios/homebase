@@ -148,7 +148,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     name: 'invoices',
     Provider: InvoicesProvider,
     hook: useInvoices,
-    panelKey: 'isInvoicePanelOpen',
+    panelKey: 'isInvoicesPanelOpen',
     components: {
       List: InvoicesList,
       Form: InvoicesForm,

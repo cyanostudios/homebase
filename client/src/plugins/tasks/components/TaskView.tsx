@@ -142,30 +142,30 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     if (diffDays < 0) {
       return {
         text: `${dateString} (${Math.abs(diffDays)} days overdue)`,
-        className: 'text-red-600 font-medium',
+        className: 'text-red-600 dark:text-red-400 font-medium',
         icon: AlertCircle,
-        iconClass: 'text-red-500',
+        iconClass: 'text-red-500 dark:text-red-400',
       };
     } else if (diffDays === 0) {
       return {
         text: `${dateString} (Due today)`,
-        className: 'text-orange-600 font-medium',
+        className: 'text-orange-600 dark:text-orange-400 font-medium',
         icon: AlertCircle,
-        iconClass: 'text-orange-500',
+        iconClass: 'text-orange-500 dark:text-orange-400',
       };
     } else if (diffDays <= 3) {
       return {
         text: `${dateString} (Due in ${diffDays} day${diffDays === 1 ? '' : 's'})`,
-        className: 'text-yellow-600 font-medium',
+        className: 'text-yellow-600 dark:text-yellow-400 font-medium',
         icon: Calendar,
-        iconClass: 'text-yellow-500',
+        iconClass: 'text-yellow-500 dark:text-yellow-400',
       };
     } else {
       return {
         text: dateString,
-        className: 'text-gray-900',
+        className: 'text-gray-900 dark:text-gray-100',
         icon: Calendar,
-        iconClass: 'text-gray-500',
+        iconClass: 'text-gray-500 dark:text-gray-400',
       };
     }
   };
@@ -251,25 +251,25 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     <div className="space-y-4">
       {(task.dueDate || assignedContact) && (
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+          <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
             Scheduling
           </Heading>
           <div className="space-y-3">
             {task.dueDate && dueDateInfo && (
               <div className="flex items-center gap-2">
                 <dueDateInfo.icon className={`w-4 h-4 ${dueDateInfo.iconClass}`} />
-                <span className="text-xs text-gray-500">Due:</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Due:</span>
                 <span className={`text-sm ${dueDateInfo.className}`}>{dueDateInfo.text}</span>
               </div>
             )}
 
             {assignedContact && (
               <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-blue-500" />
-                <span className="text-xs text-gray-500">Assigned to:</span>
+                <User className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                <span className="text-xs text-gray-500 dark:text-gray-400">Assigned to:</span>
                 <button
                   onClick={() => handleContactClick(assignedContact.id)}
-                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
                 >
                   {assignedContact.companyName}
                   {assignedContact.personalNumber ? ` • ${assignedContact.personalNumber}` : ''}
@@ -281,11 +281,11 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
       )}
 
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
           Content
         </Heading>
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <div className="text-sm text-gray-900 whitespace-pre-wrap">
+        <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
+          <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
             <MentionContent content={task.content} mentions={task.mentions} />
           </div>
         </div>
@@ -293,9 +293,9 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
 
       {task.mentions && task.mentions.length > 0 && (
         <>
-          <hr className="border-gray-100" />
+          <hr className="border-gray-100 dark:border-gray-800" />
           <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
               Referenced Contacts
             </Heading>
             <div className="space-y-3">
@@ -321,11 +321,11 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
                   <div
                     key={index}
                     className={`flex items-center justify-between p-3 rounded-lg border ${
-                      contactData ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
+                      contactData ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800'
                     }`}
                   >
                     <div className="text-sm">
-                      <span className="font-medium text-gray-900">{getDisplayText()}</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{getDisplayText()}</span>
                     </div>
                     <Button
                       size="sm"
@@ -334,8 +334,8 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
                       disabled={!contactData}
                       className={`ml-3 flex-shrink-0 ${
                         contactData
-                          ? 'text-blue-700 hover:text-blue-800'
-                          : 'text-gray-400 cursor-not-allowed'
+                          ? 'text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300'
+                          : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
                       }`}
                     >
                       {contactData ? 'View Contact' : 'Deleted'}
@@ -346,12 +346,12 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
             </div>
           </Card>
 
-          <hr className="border-gray-100" />
+          <hr className="border-gray-100 dark:border-gray-800" />
         </>
       )}
 
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
           Quick Actions
         </Heading>
 
@@ -360,7 +360,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         <TaskPriorityButtons task={task} onPriorityChange={handlePriorityChange} />
 
         <div className="mb-4">
-          <div className="text-xs font-medium text-gray-700 mb-2">Task Actions</div>
+          <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Task Actions</div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" icon={Copy} onClick={handleDuplicateTask}>
               Duplicate Task
@@ -369,41 +369,41 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         </div>
       </Card>
 
-      <hr className="border-gray-100" />
+      <hr className="border-gray-100 dark:border-gray-800" />
 
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
           Task Information
         </Heading>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <div className="text-xs text-gray-500">System ID</div>
-            <div className="text-sm font-mono text-gray-900">{task.id}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">System ID</div>
+            <div className="text-sm font-mono text-gray-900 dark:text-gray-100">{task.id}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">Created</div>
-            <div className="text-sm text-gray-900">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
+            <div className="text-sm text-gray-900 dark:text-gray-100">
               {new Date(task.createdAt).toLocaleDateString()}
             </div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">Last Updated</div>
-            <div className="text-sm text-gray-900">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Last Updated</div>
+            <div className="text-sm text-gray-900 dark:text-gray-100">
               {new Date(task.updatedAt).toLocaleDateString()}
             </div>
           </div>
           {task.createdFromNote && noteLoaded && (
             <div className="sm:col-span-3">
-              <div className="text-xs text-gray-500">Created from Note</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Created from Note</div>
               {sourceNote ? (
                 <button
                   onClick={handleNoteClick}
-                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
                 >
                   {sourceNote.title}
                 </button>
               ) : (
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   Note ID: {task.createdFromNote} (Deleted Note)
                 </div>
               )}

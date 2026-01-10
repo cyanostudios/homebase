@@ -18,6 +18,7 @@ interface Tenant {
   id: number;
   email: string;
   role: string;
+  neon_project_id?: string;
   neon_database_name: string;
   neon_connection_string: string;
 }
@@ -125,7 +126,7 @@ export function TopBar({ height = 64, showClock = true, className = '', children
 
   return (
     <div
-      className={`w-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-6 ${className}`}
+      className={`w-full bg-background border-b border-border flex items-center justify-between px-6 ${className}`}
       style={{ height: `${height}px` }}
     >
       {/* Left side - Mobile menu + Admin Tenant Dropdown */}
@@ -133,9 +134,9 @@ export function TopBar({ height = 64, showClock = true, className = '', children
         {isMobile && (
           <button
             onClick={() => setIsMobileOverlay(!isMobileOverlay)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors lg:hidden"
+            className="p-2 rounded-lg hover:bg-accent transition-colors lg:hidden"
           >
-            <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            <Menu className="w-5 h-5 text-muted-foreground" />
           </button>
         )}
         
@@ -144,12 +145,12 @@ export function TopBar({ height = 64, showClock = true, className = '', children
           <div className="relative">
             <button
               onClick={() => setShowTenantDropdown(!showTenantDropdown)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors"
             >
-              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+              <span className="text-sm font-medium text-primary">
                 {getCurrentTenantDisplay()}
               </span>
-              <ChevronDown className="w-4 h-4 text-blue-700 dark:text-blue-300" />
+              <ChevronDown className="w-4 h-4 text-primary" />
             </button>
 
             {showTenantDropdown && (
@@ -161,18 +162,18 @@ export function TopBar({ height = 64, showClock = true, className = '', children
                 />
                 
                 {/* Dropdown */}
-                <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                <div className="absolute top-full left-0 mt-2 w-64 bg-card border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
                   <div className="p-2">
-                    <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 px-3 py-2">
+                    <div className="text-xs font-semibold text-muted-foreground px-3 py-2">
                       Switch Tenant View
                     </div>
                     
                     {isLoadingTenants ? (
-                      <div className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
+                      <div className="px-3 py-4 text-sm text-muted-foreground text-center">
                         Loading tenants...
                       </div>
                     ) : tenants.length === 0 ? (
-                      <div className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
+                      <div className="px-3 py-4 text-sm text-muted-foreground text-center">
                         No tenants found
                       </div>
                     ) : (
@@ -182,12 +183,12 @@ export function TopBar({ height = 64, showClock = true, className = '', children
                           onClick={() => switchTenant(tenant.id)}
                           className={`w-full px-3 py-2 text-left rounded-md transition-colors ${
                             currentTenantUserId === tenant.id
-                              ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-900 dark:text-blue-100'
-                              : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                              ? 'bg-primary/10 text-primary'
+                              : 'hover:bg-accent text-foreground'
                           }`}
                         >
                           <div className="text-sm font-medium">{tenant.email}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          <div className="text-xs text-muted-foreground mt-0.5">
                             ID: {tenant.id} • {tenant.role}
                           </div>
                         </button>
@@ -215,14 +216,14 @@ export function TopBar({ height = 64, showClock = true, className = '', children
 
         {/* Dark Mode Switch */}
         <div className="flex items-center gap-2 px-2">
-          <Sun className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+          <Sun className="w-4 h-4 text-muted-foreground" />
           <Switch
             checked={theme === 'dark'}
             onCheckedChange={toggleTheme}
             aria-label="Toggle dark mode"
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           />
-          <Moon className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+          <Moon className="w-4 h-4 text-muted-foreground" />
         </div>
 
         {/* Clock */}

@@ -56,11 +56,11 @@ export function MainLayout({ children, currentPage, onPageChange }: MainLayoutPr
 
   return (
     <SidebarContext.Provider value={contextValue}>
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-background">
         {/* Mobile overlay */}
         {isMobileOverlay && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+            className="fixed inset-0 bg-black/50 dark:bg-black/70 z-30 md:hidden"
             onClick={() => setIsMobileOverlay(false)}
           />
         )}
@@ -68,7 +68,7 @@ export function MainLayout({ children, currentPage, onPageChange }: MainLayoutPr
         <Sidebar currentPage={currentPage} onPageChange={onPageChange} />
 
         <main
-          className={`flex-1 overflow-auto bg-gray-50 transition-all duration-300 
+          className={`flex-1 overflow-auto bg-background transition-all duration-300 
             md:${isCollapsed ? 'ml-16' : 'ml-64'}
             ml-0
           `}

@@ -134,7 +134,7 @@ export const MentionContent: React.FC<MentionContentProps> = ({ content, mention
             <button
               key={`mention-${segment.mention.contactId}-${index}`}
               onClick={() => handleMentionClick(segment.mention.contactId)}
-              className="text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer bg-blue-50 px-1 rounded"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium cursor-pointer bg-blue-50 dark:bg-blue-950/30 px-1 rounded"
             >
               @{segment.mention.contactName}
             </button>
@@ -144,7 +144,7 @@ export const MentionContent: React.FC<MentionContentProps> = ({ content, mention
           return (
             <span
               key={`mention-${segment.mention.contactId}-${index}`}
-              className="text-gray-500 bg-gray-100 px-1 rounded font-medium"
+              className="text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1 rounded font-medium"
             >
               @{segment.mention.contactName} (deleted contact)
             </span>

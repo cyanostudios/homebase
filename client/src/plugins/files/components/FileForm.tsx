@@ -178,7 +178,7 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
         <Heading level={2} className="mb-2">
           Rename File
         </Heading>
-        <Text variant="caption" className="text-gray-500 mb-4 block">
+        <Text variant="caption" className="text-gray-500 dark:text-gray-400 mb-4 block">
           Ändra endast filnamnet. Själva filinnehållet hanteras via upload i Create-läget.
         </Text>
 
@@ -200,7 +200,7 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
           <div className="mt-1 text-xs text-red-600">{nameErrors.join(' • ')}</div>
         )}
 
-        <Text variant="caption" className="text-gray-500 mt-3 block">
+        <Text variant="caption" className="text-gray-500 dark:text-gray-400 mt-3 block">
           Tryck Save i panelens footer för att spara namnet.
         </Text>
       </Card>
@@ -213,7 +213,7 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
       <Heading level={2} className="mb-2">
         Upload Files
       </Heading>
-      <Text variant="caption" className="text-gray-500 mb-3 block">
+      <Text variant="caption" className="text-gray-500 dark:text-gray-400 mb-3 block">
         Dra & släpp filer eller klicka för att välja flera.
       </Text>
 
@@ -243,8 +243,8 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
       >
         <div className="flex flex-col items-center gap-3 text-center">
           <Upload className="w-8 h-8" />
-          <div className="text-sm text-gray-700">
-            Släpp filer här eller <span className="text-blue-600 underline">välj filer</span>
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            Släpp filer här eller <span className="text-blue-600 dark:text-blue-400 underline">välj filer</span>
           </div>
           <input ref={inputRef} type="file" multiple className="hidden" onChange={onChange} />
         </div>
@@ -259,10 +259,10 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
             {items.map(({ id, file }) => (
               <div key={id} className="p-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <FileIcon className="w-5 h-5 text-gray-500 shrink-0" />
+                  <FileIcon className="w-5 h-5 text-gray-500 dark:text-gray-400 shrink-0" />
                   <div className="min-w-0">
-                    <div className="text-sm text-gray-900 truncate">{file.name}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-sm text-gray-900 dark:text-gray-100 truncate">{file.name}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
                       {file.type || 'application/octet-stream'} • {sizeStr(file.size)}
                     </div>
                   </div>

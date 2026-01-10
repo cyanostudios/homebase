@@ -190,13 +190,13 @@ export const TaskList: React.FC = () => {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) {
-      return { text: `${Math.abs(diffDays)} days overdue`, className: 'text-red-600 font-medium' };
+      return { text: `${Math.abs(diffDays)} days overdue`, className: 'text-destructive font-medium' };
     } else if (diffDays === 0) {
-      return { text: 'Due today', className: 'text-orange-600 font-medium' };
+      return { text: 'Due today', className: 'text-orange-600 dark:text-orange-400 font-medium' };
     } else if (diffDays === 1) {
-      return { text: 'Due tomorrow', className: 'text-yellow-600' };
+      return { text: 'Due tomorrow', className: 'text-yellow-600 dark:text-yellow-400' };
     } else {
-      return { text: due.toLocaleDateString(), className: 'text-gray-600' };
+      return { text: due.toLocaleDateString(), className: 'text-muted-foreground' };
     }
   };
 
@@ -231,7 +231,7 @@ export const TaskList: React.FC = () => {
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 z-10" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
             <Input
               type="text"
               placeholder="Search tasks..."
@@ -249,10 +249,10 @@ export const TaskList: React.FC = () => {
       <Card>
         {!isMobileView ? (
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-muted/50">
               <tr>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('title')}
                 >
                   <div className="flex items-center gap-1">
@@ -261,7 +261,7 @@ export const TaskList: React.FC = () => {
                   </div>
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('status')}
                 >
                   <div className="flex items-center gap-1">
@@ -270,7 +270,7 @@ export const TaskList: React.FC = () => {
                   </div>
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('priority')}
                 >
                   <div className="flex items-center gap-1">
@@ -279,7 +279,7 @@ export const TaskList: React.FC = () => {
                   </div>
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('dueDate')}
                 >
                   <div className="flex items-center gap-1">
@@ -287,11 +287,11 @@ export const TaskList: React.FC = () => {
                     <SortIcon field="dueDate" />
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Mentions
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('updatedAt')}
                 >
                   <div className="flex items-center gap-1">
@@ -299,15 +299,15 @@ export const TaskList: React.FC = () => {
                     <SortIcon field="updatedAt" />
                   </div>
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-border">
               {sortedTasks.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
                     {searchTerm
                       ? 'No tasks found matching your search.'
                       : 'No tasks yet. Click "Add Task" to get started.'}
@@ -317,7 +317,7 @@ export const TaskList: React.FC = () => {
                 sortedTasks.map((task, idx) => (
                   <tr
                     key={task.id}
-                    className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-purple-50 focus:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-inset cursor-pointer`}
+                    className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors`}
                     tabIndex={0}
                     data-list-item={JSON.stringify(task)}
                     data-plugin-name="tasks"
@@ -330,8 +330,8 @@ export const TaskList: React.FC = () => {
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <CheckSquare className="w-5 h-5 text-purple-500" />
-                        <div className="text-sm font-medium text-gray-900">{task.title}</div>
+                        <CheckSquare className="w-5 h-5 text-purple-500 dark:text-purple-400" />
+                        <div className="text-sm font-medium text-foreground">{task.title}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -348,19 +348,19 @@ export const TaskList: React.FC = () => {
                           {formatDueDate(task.dueDate)?.text}
                         </div>
                       ) : (
-                        <div className="text-sm text-gray-400">No due date</div>
+                        <div className="text-sm text-muted-foreground">No due date</div>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {task.mentions && task.mentions.length > 0 && (
                         <div className="flex flex-col items-start gap-0.5">
                           {task.mentions.slice(0, 2).map((mention: any, index: number) => (
-                            <span key={index} className="text-xs text-blue-600">
+                            <span key={index} className="text-xs text-primary">
                               @{mention.contactName}
                             </span>
                           ))}
                           {task.mentions.length > 2 && (
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-muted-foreground">
                               +{task.mentions.length - 2} more
                             </span>
                           )}
@@ -368,7 +368,7 @@ export const TaskList: React.FC = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-muted-foreground">
                         {new Date(task.updatedAt).toLocaleDateString()}
                       </div>
                     </td>
@@ -413,26 +413,26 @@ export const TaskList: React.FC = () => {
             </tbody>
           </table>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-border">
             {sortedTasks.length === 0 ? (
-              <div className="p-6 text-center text-gray-400">
+              <div className="p-6 text-center text-muted-foreground">
                 {searchTerm
                   ? 'No tasks found matching your search.'
                   : 'No tasks yet. Click "Add Task" to get started.'}
               </div>
             ) : (
               sortedTasks.map((task) => (
-                <div key={task.id} className="p-4">
+                <div key={task.id} className="p-4 hover:bg-accent transition-colors">
                   <div className="flex items-start gap-3">
                     <div className="flex flex-col items-center gap-1">
-                      <CheckSquare className="w-4 h-4 text-purple-500" />
-                      <div className="text-xs text-gray-500">
+                      <CheckSquare className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+                      <div className="text-xs text-muted-foreground">
                         {new Date(task.updatedAt).toLocaleDateString()}
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="mb-2">
-                        <h3 className="text-sm font-medium text-gray-900">{task.title}</h3>
+                        <h3 className="text-sm font-medium text-foreground">{task.title}</h3>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge className={TASK_STATUS_COLORS[task.status]}>
                             {formatStatusForDisplay(task.status)}
@@ -444,7 +444,7 @@ export const TaskList: React.FC = () => {
                       </div>
 
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-600">
+                        <div className="text-xs text-muted-foreground">
                           {truncateContent(task.content, 80)}
                         </div>
                         {task.dueDate && (
@@ -455,12 +455,12 @@ export const TaskList: React.FC = () => {
                         {task.mentions && task.mentions.length > 0 && (
                           <div className="flex items-center gap-1 flex-wrap">
                             {task.mentions.slice(0, 2).map((mention: any, index: number) => (
-                              <span key={index} className="text-xs text-blue-600">
+                              <span key={index} className="text-xs text-primary">
                                 @{mention.contactName}
                               </span>
                             ))}
                             {task.mentions.length > 2 && (
-                              <span className="text-xs text-gray-400">
+                              <span className="text-xs text-muted-foreground">
                                 +{task.mentions.length - 2} more
                               </span>
                             )}

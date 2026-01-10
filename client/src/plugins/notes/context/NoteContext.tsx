@@ -311,7 +311,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       return (
         <div className="flex items-center gap-2">
           <StickyNote className="w-4 h-4" style={{ color: '#ca8a04' }} />
-          <span className="text-xs text-gray-600">
+          <span className="text-xs text-gray-600 dark:text-gray-400">
             Created {new Date(item.createdAt).toLocaleDateString()}
           </span>
         </div>

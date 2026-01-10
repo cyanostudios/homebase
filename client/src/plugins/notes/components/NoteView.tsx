@@ -125,22 +125,22 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   return (
     <div className="space-y-4">
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
           Content
         </Heading>
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <div className="prose prose-sm max-w-none text-sm">
+        <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
+          <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
             <MentionContent content={note.content} mentions={note.mentions || []} />
           </div>
         </div>
       </Card>
 
-      <hr className="border-gray-100" />
+      <hr className="border-gray-100 dark:border-gray-800" />
 
       {note.mentions && note.mentions.length > 0 && (
         <>
           <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
               Mentioned Contacts
             </Heading>
             <div className="space-y-2">
@@ -166,11 +166,11 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                   <div
                     key={index}
                     className={`flex items-center justify-between p-3 rounded-lg border ${
-                      contactData ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
+                      contactData ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800'
                     }`}
                   >
                     <div className="text-sm">
-                      <span className="font-medium text-gray-900">{getDisplayText()}</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{getDisplayText()}</span>
                     </div>
                     <Button
                       size="sm"
@@ -179,8 +179,8 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                       disabled={!contactData}
                       className={`ml-3 flex-shrink-0 ${
                         contactData
-                          ? 'text-blue-700 hover:text-blue-800'
-                          : 'text-gray-400 cursor-not-allowed'
+                          ? 'text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300'
+                          : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
                       }`}
                     >
                       {contactData ? 'View Contact' : 'Deleted'}
@@ -191,17 +191,17 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
             </div>
           </Card>
 
-          <hr className="border-gray-100" />
+          <hr className="border-gray-100 dark:border-gray-800" />
         </>
       )}
 
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
           Quick Actions
         </Heading>
 
         <div className="mb-4">
-          <div className="text-xs font-medium text-gray-700 mb-2">Note Actions</div>
+          <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Note Actions</div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" icon={Download} onClick={handleExportNote}>
               Export as Text
@@ -216,7 +216,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
               size="sm"
               icon={CheckSquare}
               onClick={handleConvertToTask}
-              className="bg-green-500 text-white hover:bg-green-600"
+              className="bg-green-500 dark:bg-green-600 text-white hover:bg-green-600 dark:hover:bg-green-700"
             >
               Convert to Task
             </Button>
@@ -224,26 +224,26 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         </div>
       </Card>
 
-      <hr className="border-gray-100" />
+      <hr className="border-gray-100 dark:border-gray-800" />
 
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
           Note Information
         </Heading>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <div className="text-xs text-gray-500">System ID</div>
-            <div className="text-sm font-mono text-gray-900">{note.id}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">System ID</div>
+            <div className="text-sm font-mono text-gray-900 dark:text-gray-100">{note.id}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">Created</div>
-            <div className="text-sm text-gray-900">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
+            <div className="text-sm text-gray-900 dark:text-gray-100">
               {new Date(note.createdAt).toLocaleDateString()}
             </div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">Last Updated</div>
-            <div className="text-sm text-gray-900">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Last Updated</div>
+            <div className="text-sm text-gray-900 dark:text-gray-100">
               {new Date(note.updatedAt).toLocaleDateString()}
             </div>
           </div>
@@ -252,29 +252,29 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
 
       {showTaskCreated && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900">Task Created Successfully!</h2>
-                <p className="text-xs text-gray-500">From note: {note.title}</p>
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Task Created Successfully!</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">From note: {note.title}</p>
               </div>
             </div>
 
             <div className="p-4">
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 Your note has been converted to a task and is ready to be worked on.
               </p>
-              <p className="text-xs text-gray-500 italic">
+              <p className="text-xs text-gray-500 dark:text-gray-400 italic">
                 You can find the new task in the Tasks section with status "Not started".
               </p>
             </div>
 
-            <div className="flex justify-end space-x-3 p-4 border-t border-gray-100">
+            <div className="flex justify-end space-x-3 p-4 border-t border-gray-100 dark:border-gray-700">
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => setShowTaskCreated(false)}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 dark:bg-green-700 hover:bg-green-700 dark:hover:bg-green-800"
               >
                 Got it!
               </Button>

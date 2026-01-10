@@ -312,10 +312,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         {/* Validation Summary */}
         {hasBlockingErrors && (
           <Card padding="sm" className="shadow-none px-0">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <svg className="h-5 w-5 text-red-400 dark:text-red-500" viewBox="0 0 20 20" fill="currentColor">
                     <path
                       fillRule="evenodd"
                       d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -324,8 +324,8 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">Cannot save contact</h3>
-                  <div className="mt-2 text-sm text-red-700">
+                  <h3 className="text-sm font-medium text-red-800 dark:text-red-400">Cannot save contact</h3>
+                  <div className="mt-2 text-sm text-red-700 dark:text-red-300">
                     <p>Please fix the following errors before saving:</p>
                     <ul className="list-disc list-inside mt-1">
                       {validationErrors
@@ -361,7 +361,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                 required
               />
               {getFieldError('contactNumber') && (
-                <p className="mt-1 text-sm text-red-600">
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                   {getFieldError('contactNumber')?.message}
                 </p>
               )}
@@ -375,8 +375,8 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   onClick={() => updateField('contactType', 'company')}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-md border-2 transition-colors text-sm flex-1 justify-center ${
                     formData.contactType === 'company'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-300 hover:border-gray-400'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                   }`}
                 >
                   <Building className="w-4 h-4" />
@@ -388,8 +388,8 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   onClick={() => updateField('contactType', 'private')}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-md border-2 transition-colors text-sm flex-1 justify-center ${
                     formData.contactType === 'private'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-300 hover:border-gray-400'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                   }`}
                 >
                   <User className="w-4 h-4" />
@@ -420,7 +420,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   required
                 />
                 {getFieldError('companyName') && (
-                  <p className="mt-1 text-sm text-red-600">
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                     {getFieldError('companyName')?.message}
                   </p>
                 )}
@@ -453,7 +453,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   className={getFieldError('organizationNumber') ? 'border-red-500' : ''}
                 />
                 {getFieldError('organizationNumber') && (
-                  <p className="mt-1 text-sm text-red-600">
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                     {getFieldError('organizationNumber')?.message}
                   </p>
                 )}
@@ -483,7 +483,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   required
                 />
                 {getFieldError('companyName') && (
-                  <p className="mt-1 text-sm text-red-600">
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                     {getFieldError('companyName')?.message}
                   </p>
                 )}
@@ -502,7 +502,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   className={getFieldError('personalNumber') ? 'border-red-500' : ''}
                 />
                 {getFieldError('personalNumber') && (
-                  <p className="mt-1 text-sm text-red-600">
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                     {getFieldError('personalNumber')?.message}
                   </p>
                 )}
@@ -530,8 +530,8 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                 <p
                   className={`mt-1 text-sm ${
                     getFieldError('email')?.message.includes('Warning')
-                      ? 'text-yellow-600'
-                      : 'text-red-600'
+                      ? 'text-yellow-600 dark:text-yellow-400'
+                      : 'text-red-600 dark:text-red-400'
                   }`}
                 >
                   {getFieldError('email')?.message}
@@ -584,16 +584,16 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           </div>
 
           {formData.addresses.length === 0 ? (
-            <p className="text-gray-500 text-sm">No addresses added yet.</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">No addresses added yet.</p>
           ) : (
             <div className="space-y-4">
               {formData.addresses.map((address, index) => (
                 <div
                   key={address.id}
-                  className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0"
+                  className="border-b border-gray-100 dark:border-gray-800 last:border-b-0 pb-4 last:pb-0"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-gray-700">Address {index + 1}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Address {index + 1}</span>
                     <Button
                       type="button"
                       onClick={() => removeAddress(address.id)}
@@ -731,16 +731,16 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             </div>
 
             {formData.contactPersons.length === 0 ? (
-              <p className="text-gray-500 text-sm">No contact persons added yet.</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">No contact persons added yet.</p>
             ) : (
               <div className="space-y-4">
                 {formData.contactPersons.map((person, index) => (
                   <div
                     key={person.id}
-                    className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0"
+                    className="border-b border-gray-100 dark:border-gray-800 last:border-b-0 pb-4 last:pb-0"
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                         Contact Person {index + 1}
                       </span>
                       <Button

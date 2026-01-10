@@ -134,7 +134,7 @@ export const ContactList: React.FC = () => {
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 z-10" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
             <Input
               type="text"
               placeholder="Search contacts..."
@@ -154,10 +154,10 @@ export const ContactList: React.FC = () => {
       <Card>
         {!isMobileView ? (
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-muted/50">
               <tr>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('contactNumber')}
                 >
                   <div className="flex items-center gap-1">
@@ -166,7 +166,7 @@ export const ContactList: React.FC = () => {
                   </div>
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('name')}
                 >
                   <div className="flex items-center gap-1">
@@ -175,7 +175,7 @@ export const ContactList: React.FC = () => {
                   </div>
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('type')}
                 >
                   <div className="flex items-center gap-1">
@@ -183,21 +183,21 @@ export const ContactList: React.FC = () => {
                     <SortIcon field="type" />
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Email/Web
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Phone
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-border">
               {sortedContacts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
                     {searchTerm
                       ? 'No contacts found matching your search.'
                       : 'No contacts yet. Click "Add Contact" to get started.'}
@@ -207,7 +207,7 @@ export const ContactList: React.FC = () => {
                 sortedContacts.map((contact, idx) => (
                   <tr
                     key={contact.id}
-                    className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer`}
+                    className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors`}
                     tabIndex={0}
                     data-list-item={JSON.stringify(contact)}
                     data-plugin-name="contacts"
@@ -219,28 +219,28 @@ export const ContactList: React.FC = () => {
                     }}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-mono font-medium text-gray-900">
+                      <div className="text-sm font-mono font-medium text-foreground">
                         #{contact.contactNumber}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         {contact.contactType === 'company' ? (
-                          <Building className="w-5 h-5 text-blue-500" />
+                          <Building className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                         ) : (
-                          <User className="w-5 h-5 text-green-500" />
+                          <User className="w-5 h-5 text-green-500 dark:text-green-400" />
                         )}
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-foreground">
                             {contact.companyName}
                           </div>
                           {contact.contactType === 'company' && contact.organizationNumber && (
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-muted-foreground">
                               {contact.organizationNumber}
                             </div>
                           )}
                           {contact.contactType === 'private' && contact.personalNumber && (
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-muted-foreground">
                               {contact.personalNumber.substring(0, 9)}XXXX
                             </div>
                           )}
@@ -251,8 +251,8 @@ export const ContactList: React.FC = () => {
                       <Badge
                         className={
                           contact.contactType === 'company'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-green-100 text-green-800'
+                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                            : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
                         }
                       >
                         {contact.contactType === 'company' ? 'Company' : 'Private'}
@@ -260,16 +260,16 @@ export const ContactList: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <span className="text-sm text-gray-900">{contact.email}</span>
+                        <span className="text-sm text-foreground">{contact.email}</span>
                         {contact.website && (
-                          <div className="text-xs text-gray-500">{contact.website}</div>
+                          <div className="text-xs text-muted-foreground">{contact.website}</div>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-900">{contact.phone}</span>
+                        <Phone className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm text-foreground">{contact.phone}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -304,49 +304,49 @@ export const ContactList: React.FC = () => {
             </tbody>
           </table>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-border">
             {sortedContacts.length === 0 ? (
-              <div className="p-6 text-center text-gray-400">
+              <div className="p-6 text-center text-muted-foreground">
                 {searchTerm
                   ? 'No contacts found matching your search.'
                   : 'No contacts yet. Click "Add Contact" to get started.'}
               </div>
             ) : (
               sortedContacts.map((contact) => (
-                <div key={contact.id} className="p-4">
+                <div key={contact.id} className="p-4 hover:bg-accent transition-colors">
                   <div className="flex items-start gap-3">
                     <div className="flex flex-col items-center gap-1">
-                      <div className="text-xs font-mono font-medium text-gray-600">
+                      <div className="text-xs font-mono font-medium text-muted-foreground">
                         #{contact.contactNumber}
                       </div>
                       {contact.contactType === 'company' ? (
-                        <Building className="w-4 h-4 text-blue-500" />
+                        <Building className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                       ) : (
-                        <User className="w-4 h-4 text-green-500" />
+                        <User className="w-4 h-4 text-green-500 dark:text-green-400" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="mb-1">
-                        <h3 className="text-sm font-medium text-gray-900">{contact.companyName}</h3>
+                        <h3 className="text-sm font-medium text-foreground">{contact.companyName}</h3>
                       </div>
 
                       <div className="space-y-1">
                         {contact.contactType === 'company' && contact.organizationNumber && (
-                          <div className="text-xs text-gray-500">{contact.organizationNumber}</div>
+                          <div className="text-xs text-muted-foreground">{contact.organizationNumber}</div>
                         )}
                         {contact.contactType === 'private' && contact.personalNumber && (
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-muted-foreground">
                             {contact.personalNumber.substring(0, 9)}XXXX
                           </div>
                         )}
                         {contact.email && (
-                          <div className="text-xs text-gray-600">{contact.email}</div>
+                          <div className="text-xs text-muted-foreground">{contact.email}</div>
                         )}
                         {contact.website && (
-                          <div className="text-xs text-gray-600">{contact.website}</div>
+                          <div className="text-xs text-muted-foreground">{contact.website}</div>
                         )}
                         {contact.phone && (
-                          <div className="text-xs text-gray-600">{contact.phone}</div>
+                          <div className="text-xs text-muted-foreground">{contact.phone}</div>
                         )}
                       </div>
                     </div>

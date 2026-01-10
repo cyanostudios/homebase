@@ -285,10 +285,10 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         {/* Validation Summary */}
         {hasBlockingErrors && (
           <Card padding="sm" className="shadow-none px-0">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <svg className="h-5 w-5 text-red-400 dark:text-red-500" viewBox="0 0 20 20" fill="currentColor">
                     <path
                       fillRule="evenodd"
                       d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -297,8 +297,8 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">Cannot save estimate</h3>
-                  <div className="mt-2 text-sm text-red-700">
+                  <h3 className="text-sm font-medium text-red-800 dark:text-red-400">Cannot save estimate</h3>
+                  <div className="mt-2 text-sm text-red-700 dark:text-red-300">
                     <p>Please fix the following errors before saving:</p>
                     <ul className="list-disc list-inside mt-1">
                       {validationErrors
@@ -338,7 +338,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                 ))}
               </NativeSelect>
               {getFieldError('contactId') && (
-                <p className="mt-1 text-sm text-red-600">{getFieldError('contactId')?.message}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{getFieldError('contactId')?.message}</p>
               )}
             </div>
 
@@ -402,19 +402,19 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
           </div>
 
           {formData.lineItems.length === 0 ? (
-            <p className="text-gray-500 text-sm">No line items added yet.</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">No line items added yet.</p>
           ) : (
             <div className="space-y-3">
               {formData.lineItems.map((item, index) => (
                 <div
                   key={item.id}
-                  className={`border border-gray-200 rounded-lg p-3 ${
-                    duplicatedItemIds.has(item.id) ? 'bg-green-50' : ''
+                  className={`border border-gray-200 dark:border-gray-800 rounded-lg p-3 ${
+                    duplicatedItemIds.has(item.id) ? 'bg-green-50 dark:bg-green-950/30' : ''
                   }`}
                 >
                   {/* Row 1: Item number + Description + Action */}
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="text-sm font-medium text-gray-700 flex-shrink-0 w-12">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex-shrink-0 w-12">
                       Item {index + 1}
                     </span>
                     <Textarea
@@ -447,27 +447,27 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                   {/* Row 2: Numbers table */}
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-gray-50">
+                      <thead className="bg-gray-50 dark:bg-gray-900/50">
                         <tr>
-                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Qty
                           </th>
-                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Unit Price
                           </th>
-                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Discount %
                           </th>
-                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             VAT %
                           </th>
-                          <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Discount
                           </th>
-                          <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             VAT
                           </th>
-                          <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Total
                           </th>
                         </tr>
@@ -524,13 +524,13 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                               <option value="25">25%</option>
                             </NativeSelect>
                           </td>
-                          <td className="px-2 py-1 text-right text-sm text-gray-900">
+                          <td className="px-2 py-1 text-right text-sm text-gray-900 dark:text-gray-100">
                             -{(item.discountAmount || 0).toFixed(2)}
                           </td>
-                          <td className="px-2 py-1 text-right text-sm text-gray-900">
+                          <td className="px-2 py-1 text-right text-sm text-gray-900 dark:text-gray-100">
                             {(item.vatAmount || 0).toFixed(2)}
                           </td>
-                          <td className="px-2 py-1 text-right text-sm font-medium text-gray-900">
+                          <td className="px-2 py-1 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
                             {(item.lineTotal || 0).toFixed(2)}
                           </td>
                         </tr>
@@ -547,7 +547,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         {formData.lineItems.length > 0 && (
           <Card padding="sm" className="shadow-none px-0">
             <div className="flex items-center gap-4 mb-2">
-              <Label htmlFor="estimate-discount" className="text-sm font-medium text-gray-700">Estimate Discount (%)</Label>
+              <Label htmlFor="estimate-discount" className="text-sm font-medium text-gray-700 dark:text-gray-300">Estimate Discount (%)</Label>
               <div className="max-w-xs">
                 <Input
                   id="estimate-discount"
@@ -562,7 +562,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                 />
               </div>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               Discount applied to subtotal after line item discounts
             </p>
           </Card>
@@ -576,20 +576,20 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
             </Heading>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Subtotal:</span>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {(totals.subtotal || 0).toFixed(2)} {formData.currency}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Total Line Item Discounts:</span>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Total Line Item Discounts:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   -{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}
                 </span>
               </div>
-              <div className="flex justify-between border-t border-gray-200 pt-2">
-                <span className="text-sm text-gray-600">Subtotal after line discounts:</span>
-                <span className="text-sm font-medium text-gray-900">
+              <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-2">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal after line discounts:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}
                 </span>
               </div>
@@ -597,28 +597,28 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
               {formData.estimateDiscount > 0 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
                       Estimate Discount ({formData.estimateDiscount}%):
                     </span>
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       -{(totals.estimateDiscountAmount || 0).toFixed(2)} {formData.currency}
                     </span>
                   </div>
-                  <div className="flex justify-between border-t border-gray-200 pt-2">
-                    <span className="text-sm text-gray-600">Subtotal after estimate discount:</span>
-                    <span className="text-sm font-medium text-gray-900">
+                  <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-2">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal after estimate discount:</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {(totals.subtotalAfterEstimateDiscount || 0).toFixed(2)} {formData.currency}
                     </span>
                   </div>
                 </>
               )}
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Total VAT:</span>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Total VAT:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {(totals.totalVat || 0).toFixed(2)} {formData.currency}
                 </span>
               </div>
-              <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-2">
+              <div className="flex justify-between text-lg font-semibold border-t border-gray-200 dark:border-gray-800 pt-2">
                 <span>Total:</span>
                 <span>
                   {(totals.total || 0).toFixed(2)} {formData.currency}

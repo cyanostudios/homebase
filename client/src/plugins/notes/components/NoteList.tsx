@@ -187,7 +187,7 @@ export const NoteList: React.FC = () => {
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 z-10" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
             <Input
               type="text"
               placeholder="Search notes..."
@@ -205,10 +205,10 @@ export const NoteList: React.FC = () => {
       <Card>
         {!isMobileView ? (
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-muted/50">
               <tr>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('title')}
                 >
                   <div className="flex items-center gap-1">
@@ -216,14 +216,14 @@ export const NoteList: React.FC = () => {
                     <SortIcon field="title" />
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Content Preview
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Mentions
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('updatedAt')}
                 >
                   <div className="flex items-center gap-1">
@@ -231,15 +231,15 @@ export const NoteList: React.FC = () => {
                     <SortIcon field="updatedAt" />
                   </div>
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-border">
               {sortedNotes.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
                     {searchTerm
                       ? 'No notes found matching your search.'
                       : 'No notes yet. Click "Add Note" to get started.'}
@@ -249,7 +249,7 @@ export const NoteList: React.FC = () => {
                 sortedNotes.map((note, idx) => (
                   <tr
                     key={note.id}
-                    className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-yellow-50 focus:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-inset cursor-pointer`}
+                    className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors`}
                     tabIndex={0}
                     data-list-item={JSON.stringify(note)}
                     data-plugin-name="notes"
@@ -262,12 +262,12 @@ export const NoteList: React.FC = () => {
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <StickyNote className="w-5 h-5 text-yellow-500" />
-                        <div className="text-sm font-medium text-gray-900">{note.title}</div>
+                        <StickyNote className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />
+                        <div className="text-sm font-medium text-foreground">{note.title}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-600 max-w-xs line-clamp-2">
+                      <div className="text-sm text-muted-foreground max-w-xs line-clamp-2">
                         {truncateContent(note.content, 120)}
                       </div>
                     </td>
@@ -275,12 +275,12 @@ export const NoteList: React.FC = () => {
                       {note.mentions && note.mentions.length > 0 && (
                         <div className="flex flex-col items-start gap-0.5">
                           {note.mentions.slice(0, 2).map((mention: any, index: number) => (
-                            <span key={index} className="text-xs text-blue-600">
+                            <span key={index} className="text-xs text-primary">
                               @{mention.contactName}
                             </span>
                           ))}
                           {note.mentions.length > 2 && (
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-muted-foreground">
                               +{note.mentions.length - 2} more
                             </span>
                           )}
@@ -288,7 +288,7 @@ export const NoteList: React.FC = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-muted-foreground">
                         {new Date(note.updatedAt).toLocaleDateString()}
                       </div>
                     </td>
@@ -333,41 +333,41 @@ export const NoteList: React.FC = () => {
             </tbody>
           </table>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-border">
             {sortedNotes.length === 0 ? (
-              <div className="p-6 text-center text-gray-400">
+              <div className="p-6 text-center text-muted-foreground">
                 {searchTerm
                   ? 'No notes found matching your search.'
                   : 'No notes yet. Click "Add Note" to get started.'}
               </div>
             ) : (
               sortedNotes.map((note) => (
-                <div key={note.id} className="p-4">
+                <div key={note.id} className="p-4 hover:bg-accent transition-colors">
                   <div className="flex items-start gap-3">
                     <div className="flex flex-col items-center gap-1">
-                      <StickyNote className="w-4 h-4 text-yellow-500" />
-                      <div className="text-xs text-gray-500">
+                      <StickyNote className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
+                      <div className="text-xs text-muted-foreground">
                         {new Date(note.updatedAt).toLocaleDateString()}
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="mb-1">
-                        <h3 className="text-sm font-medium text-gray-900">{note.title}</h3>
+                        <h3 className="text-sm font-medium text-foreground">{note.title}</h3>
                       </div>
 
                       <div className="space-y-1">
-                        <div className="text-xs text-gray-600">
+                        <div className="text-xs text-muted-foreground">
                           {truncateContent(note.content, 80)}
                         </div>
                         {note.mentions && note.mentions.length > 0 && (
                           <div className="flex items-center gap-1 flex-wrap">
                             {note.mentions.slice(0, 2).map((mention: any, index: number) => (
-                              <span key={index} className="text-xs text-blue-600">
+                              <span key={index} className="text-xs text-primary">
                                 @{mention.contactName}
                               </span>
                             ))}
                             {note.mentions.length > 2 && (
-                              <span className="text-xs text-gray-400">
+                              <span className="text-xs text-muted-foreground">
                                 +{note.mentions.length - 2} more
                               </span>
                             )}

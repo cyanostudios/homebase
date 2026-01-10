@@ -10,10 +10,10 @@ interface EstimateStatusButtonsProps {
 }
 
 const ESTIMATE_STATUS_COLORS = {
-  draft: 'bg-gray-100 text-gray-800 border-gray-200',
-  sent: 'bg-blue-100 text-blue-800 border-blue-200',
-  accepted: 'bg-green-100 text-green-800 border-green-200',
-  rejected: 'bg-red-100 text-red-800 border-red-200',
+  draft: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700',
+  sent: 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800',
+  accepted: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800',
+  rejected: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800',
 } as const;
 
 const ESTIMATE_STATUS_OPTIONS = ['draft', 'sent', 'accepted', 'rejected'] as const;
@@ -21,7 +21,7 @@ const ESTIMATE_STATUS_OPTIONS = ['draft', 'sent', 'accepted', 'rejected'] as con
 export function EstimateStatusButtons({ estimate, onStatusChange }: EstimateStatusButtonsProps) {
   return (
     <div className="mb-4">
-      <div className="text-xs font-medium text-gray-700 mb-2">Change Status</div>
+      <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Change Status</div>
       <div className="flex flex-wrap gap-2">
         {ESTIMATE_STATUS_OPTIONS.map((status) => {
           const isActive = estimate.status === status;
@@ -34,7 +34,7 @@ export function EstimateStatusButtons({ estimate, onStatusChange }: EstimateStat
               className={
                 isActive
                   ? ESTIMATE_STATUS_COLORS[status]
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
               }
             >
               {status.charAt(0).toUpperCase() + status.slice(1)}

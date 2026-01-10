@@ -35,7 +35,15 @@ export function Heading({
   const sizeClass = size ? `text-${size}` : defaultLevelSizes[level];
   const weightClass =
     fontWeight === 'semibold' && !size ? defaultLevelWeights[level] : `font-${fontWeight}`;
-  const colorClass = `text-${color}`;
+  // Map colors to design tokens
+  const colorMap: Record<string, string> = {
+    'gray-900': 'text-foreground',
+    'gray-600': 'text-muted-foreground',
+    'gray-500': 'text-muted-foreground',
+    'blue-600': 'text-primary',
+    'red-600': 'text-destructive',
+  };
+  const colorClass = colorMap[color] || 'text-foreground';
 
   const Component = `h${level}` as keyof JSX.IntrinsicElements;
 
@@ -64,16 +72,23 @@ export function Text({
   element = 'p',
 }: TextProps) {
   const variantStyles = {
-    body: 'text-gray-900',
-    caption: 'text-gray-600',
-    muted: 'text-sm text-gray-500',
+    body: 'text-foreground',
+    caption: 'text-muted-foreground',
+    muted: 'text-sm text-muted-foreground',
   };
 
   // If size or color is provided, build custom classes
   let customClasses = '';
   if (size || color) {
     const sizeClass = size ? `text-${size}` : '';
-    const colorClass = color ? `text-${color}` : 'text-gray-900';
+    const colorMap: Record<string, string> = {
+      'gray-900': 'text-foreground',
+      'gray-600': 'text-muted-foreground',
+      'gray-500': 'text-muted-foreground',
+      'blue-600': 'text-primary',
+      'red-600': 'text-destructive',
+    };
+    const colorClass = color ? (colorMap[color] || 'text-foreground') : 'text-foreground';
     customClasses = `${sizeClass} ${colorClass}`.trim();
   }
 

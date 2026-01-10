@@ -1,13 +1,20 @@
-import { X } from 'lucide-react';
 import React from 'react';
 
-import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 
 interface UniversalPanelProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  subtitle?: string | React.ReactNode; // UPDATED: Accept JSX elements
+  subtitle?: string | React.ReactNode; // Accept JSX elements
   children: React.ReactNode;
   footer?: React.ReactNode;
   width?: {
@@ -36,48 +43,83 @@ export function UniversalPanel({
   showBackdrop = true,
   closeOnBackdropClick = true,
 }: UniversalPanelProps) {
+  // Handle Sheet's onOpenChange to maintain backward compatibility
+  const handleOpenChange = (open: boolean) => {
+    if (!open && isOpen) {
+      onClose();
+    }
+  };
+
+  // Handle backdrop click - prevent closing if closeOnBackdropClick is false
+  const handleInteractOutside = (event: Event) => {
+    if (!closeOnBackdropClick || !showBackdrop) {
+      event.preventDefault();
+    }
+  };
+
+  // Prevent ESC key from closing if closeOnBackdropClick is false
+  const handleEscapeKeyDown = (event: KeyboardEvent) => {
+    if (!closeOnBackdropClick) {
+      event.preventDefault();
+    }
+  };
+
   return (
     <>
-      {/* Mobile/Tablet Backdrop */}
-      {isOpen && showBackdrop && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={closeOnBackdropClick ? onClose : undefined}
-        />
+      {/* Hide overlay if showBackdrop is false */}
+      {!showBackdrop && isOpen && (
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            [data-radix-dialog-overlay] {
+              display: none !important;
+            }
+          `
+        }} />
       )}
-
-      {/* Panel */}
-      <div
-        className={`fixed right-0 top-0 h-full bg-white shadow-lg border-l border-gray-200 z-50 transform transition-transform duration-300 ease-in-out flex flex-col
-          ${width.mobile} ${width.sm} ${width.md} ${width.lg}
-          ${isOpen ? 'translate-x-0' : 'translate-x-full'}
-        `}
-      >
-        {/* Fixed Header */}
-        <div className="flex items-start justify-between px-4 sm:px-6 py-6 border-b border-gray-200 flex-shrink-0">
-          <div className="flex-1 mr-4 space-y-3">
-            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-            {subtitle && (
-              <div className="text-sm text-gray-500">
-                {typeof subtitle === 'string' ? <p>{subtitle}</p> : subtitle}
+      <Sheet open={isOpen} onOpenChange={handleOpenChange} modal={showBackdrop}>
+        <SheetContent
+          side="right"
+          onInteractOutside={handleInteractOutside}
+          onEscapeKeyDown={handleEscapeKeyDown}
+          className={cn(
+            'flex flex-col p-0 h-full',
+            // Override default Sheet width from sheetVariants (w-3/4 sm:max-w-sm)
+            // Add !important modifier to ensure custom widths override defaults
+            width.mobile ? `!${width.mobile}` : '!w-full',
+            width.sm ? `sm:!${width.sm.replace(/^sm:/, '')}` : 'sm:!w-[90%]',
+            width.md ? `md:!${width.md.replace(/^md:/, '')}` : 'md:!w-[600px]',
+            width.lg ? `lg:!${width.lg.replace(/^lg:/, '')}` : 'lg:!w-[800px]',
+            // Override default max-width from sheetVariants
+            '!max-w-none sm:!max-w-none',
+          )}
+        >
+          {/* Fixed Header */}
+          <SheetHeader className="px-4 sm:px-6 py-6 border-b border-border flex-shrink-0">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 mr-4 space-y-3">
+                <SheetTitle className="text-left">{title}</SheetTitle>
+                {subtitle && (
+                  <SheetDescription asChild className="text-left">
+                    {typeof subtitle === 'string' ? <p>{subtitle}</p> : <div>{subtitle}</div>}
+                  </SheetDescription>
+                )}
               </div>
-            )}
-          </div>
-          <Button onClick={onClose} variant="danger" icon={X} size="sm"></Button>
-        </div>
+            </div>
+          </SheetHeader>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 [&_.shadow-none]:border-none [&_.shadow-sm]:shadow-none [&_.shadow-sm]:border-none">
-          {children}
-        </div>
-
-        {/* Fixed Footer */}
-        {footer && (
-          <div className="px-4 sm:px-6 py-4 border-t border-gray-200 flex-shrink-0 bg-white">
-            <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">{footer}</div>
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 [&_.shadow-none]:border-none [&_.shadow-sm]:shadow-none [&_.shadow-sm]:border-none">
+            {children}
           </div>
-        )}
-      </div>
+
+          {/* Fixed Footer */}
+          {footer && (
+            <SheetFooter className="px-4 sm:px-6 py-4 border-t border-border flex-shrink-0 bg-background sm:flex-row sm:justify-end gap-3">
+              {footer}
+            </SheetFooter>
+          )}
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

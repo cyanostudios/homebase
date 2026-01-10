@@ -226,9 +226,9 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
         {/* Validation summary */}
         {hasBlockingErrors && (
           <Card padding="sm" className="shadow-none px-0">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="text-sm text-red-800 font-medium">Cannot save invoice</div>
-              <ul className="list-disc list-inside mt-2 text-sm text-red-700">
+            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <div className="text-sm text-red-800 dark:text-red-400 font-medium">Cannot save invoice</div>
+              <ul className="list-disc list-inside mt-2 text-sm text-red-700 dark:text-red-400">
                 {validationErrors
                   .filter(e => !e.message.includes('Warning'))
                   .map((e, i) => <li key={i}>{e.message}</li>)}
@@ -247,7 +247,7 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
                 id="invoice-contact"
                 value={formData.contactId}
                 onChange={(e) => handleContactChange(e.target.value)}
-                className={getFieldError('contactId') ? 'border-red-500' : ''}
+                className={getFieldError('contactId') ? 'border-destructive' : ''}
                 required
               >
                 <option value="">Select a customer…</option>
@@ -258,7 +258,7 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
                 ))}
               </NativeSelect>
               {getFieldError('contactId') && (
-                <p className="mt-1 text-sm text-red-600">{getFieldError('contactId')?.message}</p>
+                <p className="mt-1 text-sm text-destructive">{getFieldError('contactId')?.message}</p>
               )}
             </div>
 
@@ -355,17 +355,17 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
           </div>
 
           {formData.lineItems.length === 0 ? (
-            <p className="text-gray-500 text-sm">No line items added yet.</p>
+            <p className="text-muted-foreground text-sm">No line items added yet.</p>
           ) : (
             <div className="space-y-3">
               {formData.lineItems.map((item, index) => (
                 <div
                   key={item.id || index}
-                  className={`border border-gray-200 rounded-lg p-3 ${duplicatedItemIds.has(String(item.id)) ? 'bg-green-50' : ''}`}
+                  className={`border border-border rounded-lg p-3 ${duplicatedItemIds.has(String(item.id)) ? 'bg-green-50 dark:bg-green-950/30' : ''}`}
                 >
                   {/* Row 1 */}
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="text-sm font-medium text-gray-700 flex-shrink-0 w-12">Item {index + 1}</span>
+                    <span className="text-sm font-medium text-foreground flex-shrink-0 w-12">Item {index + 1}</span>
                     <Textarea
                       value={item.description || ''}
                       onChange={(e) => updateLineItem(index, 'description', e.target.value)}
@@ -381,15 +381,15 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
                   {/* Row 2: numbers */}
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-gray-50">
+                      <thead className="bg-muted/50">
                         <tr>
-                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
-                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
-                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discount %</th>
-                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">VAT %</th>
-                          <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Discount</th>
-                          <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">VAT</th>
-                          <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                          <th className="px-2 py-1 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Qty</th>
+                          <th className="px-2 py-1 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Unit Price</th>
+                          <th className="px-2 py-1 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Discount %</th>
+                          <th className="px-2 py-1 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">VAT %</th>
+                          <th className="px-2 py-1 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Discount</th>
+                          <th className="px-2 py-1 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">VAT</th>
+                          <th className="px-2 py-1 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Total</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -436,13 +436,13 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
                               <option value="25">25%</option>
                             </NativeSelect>
                           </td>
-                          <td className="px-2 py-1 text-right text-sm text-gray-900">
+                          <td className="px-2 py-1 text-right text-sm text-foreground">
                             -{(item.discountAmount || 0).toFixed(2)}
                           </td>
-                          <td className="px-2 py-1 text-right text-sm text-gray-900">
+                          <td className="px-2 py-1 text-right text-sm text-foreground">
                             {(item.vatAmount || 0).toFixed(2)}
                           </td>
-                          <td className="px-2 py-1 text-right text-sm font-medium text-gray-900">
+                          <td className="px-2 py-1 text-right text-sm font-medium text-foreground">
                             {(item.lineTotal || 0).toFixed(2)}
                           </td>
                         </tr>
@@ -459,7 +459,7 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
         {formData.lineItems.length > 0 && (
           <Card padding="sm" className="shadow-none px-0">
             <div className="flex items-center gap-4 mb-2">
-              <Label htmlFor="invoice-discount" className="text-sm font-medium text-gray-700">Invoice Discount (%)</Label>
+              <Label htmlFor="invoice-discount" className="text-sm font-medium text-foreground">Invoice Discount (%)</Label>
               <div className="max-w-xs">
                 <Input
                   id="invoice-discount"
@@ -474,7 +474,7 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
                 />
               </div>
             </div>
-            <p className="text-xs text-gray-500">Discount applied to subtotal after line item discounts</p>
+            <p className="text-xs text-muted-foreground">Discount applied to subtotal after line item discounts</p>
           </Card>
         )}
 
@@ -484,48 +484,48 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
             <Heading level={3} className="mb-3">Summary</Heading>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Subtotal:</span>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm text-muted-foreground">Subtotal:</span>
+                <span className="text-sm font-medium text-foreground">
                   {(totals.subtotal || 0).toFixed(2)} {formData.currency}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Total Line Item Discounts:</span>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm text-muted-foreground">Total Line Item Discounts:</span>
+                <span className="text-sm font-medium text-foreground">
                   -{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}
                 </span>
               </div>
-              <div className="flex justify-between border-t border-gray-200 pt-2">
-                <span className="text-sm text-gray-600">Subtotal after line discounts:</span>
-                <span className="text-sm font-medium text-gray-900">
+              <div className="flex justify-between border-t border-border pt-2">
+                <span className="text-sm text-muted-foreground">Subtotal after line discounts:</span>
+                <span className="text-sm font-medium text-foreground">
                   {(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}
                 </span>
               </div>
               {formData.invoiceDiscount > 0 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Invoice Discount ({formData.invoiceDiscount}%):</span>
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm text-muted-foreground">Invoice Discount ({formData.invoiceDiscount}%):</span>
+                    <span className="text-sm font-medium text-foreground">
                       -{(totals.invoiceDiscountAmount || 0).toFixed(2)} {formData.currency}
                     </span>
                   </div>
-                  <div className="flex justify-between border-t border-gray-200 pt-2">
-                    <span className="text-sm text-gray-600">Subtotal after invoice discount:</span>
-                    <span className="text-sm font-medium text-gray-900">
+                  <div className="flex justify-between border-t border-border pt-2">
+                    <span className="text-sm text-muted-foreground">Subtotal after invoice discount:</span>
+                    <span className="text-sm font-medium text-foreground">
                       {(totals.subtotalAfterInvoiceDiscount || 0).toFixed(2)} {formData.currency}
                     </span>
                   </div>
                 </>
               )}
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Total VAT:</span>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm text-muted-foreground">Total VAT:</span>
+                <span className="text-sm font-medium text-foreground">
                   {(totals.totalVat || 0).toFixed(2)} {formData.currency}
                 </span>
               </div>
-              <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-2">
-                <span>Total:</span>
-                <span>{(totals.total || 0).toFixed(2)} {formData.currency}</span>
+              <div className="flex justify-between text-lg font-semibold border-t border-border pt-2">
+                <span className="text-foreground">Total:</span>
+                <span className="text-foreground">{(totals.total || 0).toFixed(2)} {formData.currency}</span>
               </div>
             </div>
           </Card>

@@ -68,13 +68,39 @@ class PostgreSQLAdapter extends DatabaseService {
           return `${beforeClause} WHERE user_id = $${this._getParamCount(sql) + 1} ${afterClause}`;
         }
       } else {
-        // Has WHERE clause, add AND
-        if (lastClauseIndex === -1 || whereIndex < lastClauseIndex) {
-          // WHERE comes before ORDER BY/etc, or there are no other clauses
-          return sql.replace(/ WHERE /i, ` WHERE user_id = $${this._getParamCount(sql) + 1} AND `);
+        // Has WHERE clause, add AND at the end of WHERE clause (before ORDER BY/etc)
+        // Find where to insert: after existing WHERE conditions but before ORDER BY/GROUP BY/LIMIT/OFFSET
+        if (lastClauseIndex === -1) {
+          // No ORDER BY/GROUP BY/LIMIT/OFFSET - add AND at the end
+          const paramNum = this._getParamCount(sql) + 1;
+          // Insert AND user_id = $N at the end, before any semicolon
+          const sqlEnd = sql.length;
+          return `${sql.substring(0, sqlEnd)} AND user_id = $${paramNum}`;
         } else {
-          // WHERE comes after ORDER BY/etc (shouldn't happen, but handle it)
-          return sql.replace(/ WHERE /i, ` WHERE user_id = $${this._getParamCount(sql) + 1} AND `);
+          // Has ORDER BY/GROUP BY/LIMIT/OFFSET - insert AND before them
+          // Find the exact position in the original SQL (case-sensitive)
+          let insertPos = -1;
+          const orderByPos = sql.toUpperCase().indexOf(' ORDER BY ');
+          const groupByPos = sql.toUpperCase().indexOf(' GROUP BY ');
+          const limitPos = sql.toUpperCase().indexOf(' LIMIT ');
+          const offsetPos = sql.toUpperCase().indexOf(' OFFSET ');
+          
+          // Find the earliest clause position
+          const positions = [orderByPos, groupByPos, limitPos, offsetPos].filter(p => p !== -1);
+          if (positions.length > 0) {
+            insertPos = Math.min(...positions);
+          }
+          
+          if (insertPos === -1) {
+            // Fallback: add at the end
+            const paramNum = this._getParamCount(sql) + 1;
+            return `${sql} AND user_id = $${paramNum}`;
+          }
+          
+          const beforeClause = sql.substring(0, insertPos).trim();
+          const afterClause = sql.substring(insertPos);
+          const paramNum = this._getParamCount(sql) + 1;
+          return `${beforeClause} AND user_id = $${paramNum} ${afterClause}`;
         }
       }
     }
@@ -164,8 +190,24 @@ class PostgreSQLAdapter extends DatabaseService {
 
     try {
       const startTime = Date.now();
+      
+      // Log SQL query details for debugging
+      this.logger?.info('Executing SQL query', {
+        sql: finalSql,
+        params: finalParams,
+        userId: userId,
+        paramCount: finalParams.length,
+      });
+      
       const result = await pool.query(finalSql, finalParams);
       const duration = Date.now() - startTime;
+
+      // Log query result
+      this.logger?.info('SQL query completed', {
+        duration,
+        rowCount: result.rows?.length || 0,
+        sql: finalSql.substring(0, 200),
+      });
 
       // Log slow queries
       if (duration > 1000) {
@@ -235,16 +277,75 @@ class PostgreSQLAdapter extends DatabaseService {
 
     const params = [...values, userId];
 
+    // Log SQL query details for debugging
+    this.logger?.info('Executing INSERT query', {
+      sql: sql.trim(),
+      params: params,
+      userId: userId,
+      table: table,
+      columnCount: columns.length,
+      paramCount: params.length,
+      dataKeys: columns,
+      dataValues: values.map((v, i) => {
+        // Limit value size for logging (avoid huge JSON strings)
+        const val = v;
+        if (typeof val === 'string' && val.length > 100) {
+          return val.substring(0, 100) + '... (truncated)';
+        }
+        return val;
+      })
+    });
+
     try {
+      const startTime = Date.now();
       const result = await pool.query(sql, params);
+      const duration = Date.now() - startTime;
+
+      this.logger?.info('INSERT query completed', {
+        duration,
+        table,
+        rowCount: result.rows?.length || 0,
+        insertedId: result.rows?.[0]?.id
+      });
+
       return result.rows[0];
     } catch (error) {
-      this.logger?.error('Insert failed', error, { table, dataKeys: columns });
+      // Enhanced error logging with full SQL and params
+      this.logger?.error('INSERT failed - DETAILED ERROR', error, {
+        table,
+        sql: sql.trim(),
+        params: params,
+        userId: userId,
+        dataKeys: columns,
+        errorCode: error.code,
+        errorMessage: error.message,
+        errorDetail: error.detail,
+        errorHint: error.hint,
+        errorPosition: error.position,
+        errorSchema: error.schema,
+        errorTable: error.table,
+        errorColumn: error.column,
+        errorConstraint: error.constraint,
+        stackTrace: error.stack?.substring(0, 1000)
+      });
+
+      // Preserve original PostgreSQL error details
+      if (error instanceof AppError) {
+        throw error;
+      }
+      
       throw new AppError(
-        `Failed to insert into ${table}`,
+        `Failed to insert into ${table}: ${error.message || 'Unknown error'}`,
         500,
         AppError.CODES.DATABASE_ERROR,
-        { originalError: error.message }
+        {
+          originalError: error.message,
+          errorCode: error.code,
+          errorDetail: error.detail,
+          errorHint: error.hint,
+          table: table,
+          constraint: error.constraint
+        }
       );
     }
   }

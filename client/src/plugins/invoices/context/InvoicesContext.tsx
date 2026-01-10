@@ -180,8 +180,15 @@ export function InvoicesProvider({
     if (blocking.length > 0) return false;
 
     try {
+      // Format dates for API (convert Date objects to ISO strings)
+      const formattedData = {
+        ...raw,
+        issueDate: raw.issueDate instanceof Date ? raw.issueDate.toISOString() : (raw.issueDate || null),
+        dueDate: raw.dueDate instanceof Date ? raw.dueDate.toISOString() : (raw.dueDate || null),
+      };
+
       if (currentInvoice) {
-        const saved = await api.updateItem((currentInvoice as any).id, raw);
+        const saved = await api.updateItem((currentInvoice as any).id, formattedData);
         const normalized = {
           ...saved,
           createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
@@ -194,7 +201,7 @@ export function InvoicesProvider({
         setPanelMode('view');
         setValidationErrors([]);
       } else {
-        const saved = await api.createItem(raw);
+        const saved = await api.createItem(formattedData);
         const normalized = {
           ...saved,
           createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
@@ -264,9 +271,9 @@ export function InvoicesProvider({
         return (
           <div>
             <div className="flex items-center gap-2">
-              <span>{invoiceNumber} • @{contactName}</span>
+              <span className="text-foreground">{invoiceNumber} • @{contactName}</span>
             </div>
-            <div className="text-sm font-normal text-gray-600 mt-1">
+            <div className="text-sm font-normal text-muted-foreground mt-1">
               {total} {currency}
             </div>
           </div>
@@ -288,18 +295,18 @@ export function InvoicesProvider({
   const getPanelSubtitle = (mode: string, item: Invoice | null) => {
     if (mode === 'view' && item) {
       const statusColors: Record<string, string> = {
-        draft: 'bg-gray-100 text-gray-800',
-        sent: 'bg-blue-100 text-blue-800',
-        paid: 'bg-green-100 text-green-800',
-        overdue: 'bg-red-100 text-red-800',
-        canceled: 'bg-gray-100 text-gray-800',
+        draft: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
+        sent: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
+        paid: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+        overdue: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
+        canceled: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
       };
 
       const typeColors: Record<string, string> = {
-        invoice: 'bg-blue-50 text-blue-700',
-        credit_note: 'bg-orange-50 text-orange-700',
-        cash_invoice: 'bg-green-50 text-green-700',
-        receipt: 'bg-purple-50 text-purple-700',
+        invoice: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+        credit_note: 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
+        cash_invoice: 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+        receipt: 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
       };
 
       const typeLabels: Record<string, string> = {
@@ -319,10 +326,10 @@ export function InvoicesProvider({
 
       return (
         <div className="flex items-center gap-2">
-          <Receipt className="w-4 h-4" style={{ color: '#2563eb' }} />
+          <Receipt className="w-4 h-4 text-primary" />
           <Badge className={typeBadgeColor}>{typeText}</Badge>
           <Badge className={badgeColor}>{badgeText}</Badge>
-          {dueDateText && <span className="text-xs text-gray-600">• {dueDateText}</span>}
+          {dueDateText && <span className="text-xs text-muted-foreground">• {dueDateText}</span>}
         </div>
       );
     }

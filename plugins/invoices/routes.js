@@ -12,6 +12,9 @@ function createInvoiceRoutes(controller, requirePlugin) {
   // Core (auth required)
   router.get('/', gate, (req, res) => controller.getInvoices(req, res));
   
+  // Number endpoint MUST be before /:id to avoid route conflicts
+  router.get('/number/next', gate, (req, res) => controller.getNextInvoiceNumber(req, res));
+  
   router.post('/',
     gate,
     /* csrfProtection, */ // Temporarily disabled
@@ -20,8 +23,6 @@ function createInvoiceRoutes(controller, requirePlugin) {
     validateRequest,
     (req, res) => controller.createInvoice(req, res)
   );
-  
-  router.get('/number/next', gate, (req, res) => controller.getNextInvoiceNumber(req, res));
 
   // Public (NO auth) — keep before /:id to avoid conflicts
   router.get('/public/:token', (req, res) => controller.getPublicInvoice(req, res));

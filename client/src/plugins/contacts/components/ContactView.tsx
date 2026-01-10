@@ -138,20 +138,20 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     <div className="space-y-4">
       {/* Contact Details */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
           Contact Information
         </Heading>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {contact.email && (
             <div>
-              <div className="text-xs text-gray-500">Email</div>
-              <div className="text-sm text-gray-900">{contact.email}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Email</div>
+              <div className="text-sm text-gray-900 dark:text-gray-100">{contact.email}</div>
             </div>
           )}
 
           {contact.website && (
             <div>
-              <div className="text-xs text-gray-500">Website</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Website</div>
               <a
                 href={
                   contact.website.startsWith('http')
@@ -160,7 +160,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                 }
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
               >
                 {contact.website}
               </a>
@@ -169,49 +169,49 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
 
           {contact.phone && (
             <div>
-              <div className="text-xs text-gray-500">Phone 1</div>
-              <div className="text-sm text-gray-900">{contact.phone}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Phone 1</div>
+              <div className="text-sm text-gray-900 dark:text-gray-100">{contact.phone}</div>
             </div>
           )}
 
           {contact.phone2 && (
             <div>
-              <div className="text-xs text-gray-500">Phone 2</div>
-              <div className="text-sm text-gray-900">{contact.phone2}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Phone 2</div>
+              <div className="text-sm text-gray-900 dark:text-gray-100">{contact.phone2}</div>
             </div>
           )}
         </div>
       </Card>
 
-      <hr className="border-gray-100" />
+      <hr className="border-gray-100 dark:border-gray-800" />
 
       {/* Addresses */}
       {contact.addresses && contact.addresses.length > 0 && (
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+          <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
             Addresses
           </Heading>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {contact.addresses.map((address: any, index: number) => (
               <div key={address.id || index}>
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="text-sm font-medium text-gray-900">{address.type}</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{address.type}</div>
                 </div>
                 <div className="ml-0 space-y-1">
                   {address.addressLine1 && (
-                    <div className="text-sm text-gray-900">{address.addressLine1}</div>
+                    <div className="text-sm text-gray-900 dark:text-gray-100">{address.addressLine1}</div>
                   )}
                   {address.addressLine2 && (
-                    <div className="text-sm text-gray-900">{address.addressLine2}</div>
+                    <div className="text-sm text-gray-900 dark:text-gray-100">{address.addressLine2}</div>
                   )}
-                  <div className="text-sm text-gray-900">
+                  <div className="text-sm text-gray-900 dark:text-gray-100">
                     {[address.postalCode, address.city].filter(Boolean).join(' ')}
                   </div>
-                  {address.region && <div className="text-sm text-gray-900">{address.region}</div>}
-                  <div className="text-sm text-gray-900">{address.country}</div>
+                  {address.region && <div className="text-sm text-gray-900 dark:text-gray-100">{address.region}</div>}
+                  <div className="text-sm text-gray-900 dark:text-gray-100">{address.country}</div>
                   {address.email && (
                     <div className="mt-2">
-                      <div className="text-xs text-gray-600">{address.email}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">{address.email}</div>
                     </div>
                   )}
                 </div>
@@ -226,27 +226,27 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
         contact.contactPersons &&
         contact.contactPersons.length > 0 && (
           <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
               Contact Persons
             </Heading>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {contact.contactPersons.map((person: any, index: number) => (
                 <div key={person.id || index}>
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="text-sm font-medium text-gray-900">{person.name}</div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{person.name}</div>
                     {person.title && (
-                      <span className="text-sm text-gray-500">• {person.title}</span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">• {person.title}</span>
                     )}
                   </div>
                   <div className="ml-0 space-y-1">
                     {person.email && (
                       <div>
-                        <div className="text-sm text-gray-600">{person.email}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{person.email}</div>
                       </div>
                     )}
                     {person.phone && (
                       <div>
-                        <div className="text-sm text-gray-600">{person.phone}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{person.phone}</div>
                       </div>
                     )}
                   </div>
@@ -256,29 +256,29 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
           </Card>
         )}
 
-      <hr className="border-gray-100" />
+      <hr className="border-gray-100 dark:border-gray-800" />
 
       {/* Tax & Business Settings */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
           Business Settings
         </Heading>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <div className="text-xs text-gray-500">Tax Rate</div>
-            <div className="text-sm text-gray-900">{contact.taxRate}%</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Tax Rate</div>
+            <div className="text-sm text-gray-900 dark:text-gray-100">{contact.taxRate}%</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">Payment Terms</div>
-            <div className="text-sm text-gray-900">{contact.paymentTerms} days</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Payment Terms</div>
+            <div className="text-sm text-gray-900 dark:text-gray-100">{contact.paymentTerms} days</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">Currency</div>
-            <div className="text-sm text-gray-900">{contact.currency}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Currency</div>
+            <div className="text-sm text-gray-900 dark:text-gray-100">{contact.currency}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">F-Tax</div>
-            <div className="text-sm text-gray-900">{contact.fTax === 'yes' ? 'Yes' : 'No'}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">F-Tax</div>
+            <div className="text-sm text-gray-900 dark:text-gray-100">{contact.fTax === 'yes' ? 'Yes' : 'No'}</div>
           </div>
         </div>
       </Card>
@@ -286,31 +286,31 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
       {/* Notes */}
       {contact.notes && (
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+          <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
             Notes
           </Heading>
-          <div className="text-sm text-gray-900">{contact.notes}</div>
+          <div className="text-sm text-gray-900 dark:text-gray-100">{contact.notes}</div>
         </Card>
       )}
 
-      <hr className="border-gray-100" />
+      <hr className="border-gray-100 dark:border-gray-800" />
 
       {/* Cross-plugin references - Assigned Tasks */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
           Assigned Tasks
         </Heading>
         {loadingTasks ? (
-          <div className="text-sm text-gray-500">Loading tasks...</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Loading tasks...</div>
         ) : assignedTasks.length > 0 ? (
           <div className="space-y-2">
             {assignedTasks.map((task: any) => {
               const getStatusBadge = (status: string) => {
                 const statusColors = {
-                  'not started': 'bg-gray-100 text-gray-800',
-                  'in progress': 'bg-blue-100 text-blue-800',
-                  Done: 'bg-green-100 text-green-800',
-                  Canceled: 'bg-red-100 text-red-800',
+                  'not started': 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
+                  'in progress': 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200',
+                  Done: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200',
+                  Canceled: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
                 };
                 const colorClass =
                   statusColors[status as keyof typeof statusColors] || statusColors['not started'];
@@ -325,9 +325,9 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
 
               const getPriorityBadge = (priority: string) => {
                 const priorityColors = {
-                  Low: 'bg-gray-100 text-gray-600',
-                  Medium: 'bg-yellow-100 text-yellow-700',
-                  High: 'bg-red-100 text-red-700',
+                  Low: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300',
+                  Medium: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300',
+                  High: 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300',
                 };
                 const colorClass =
                   priorityColors[priority as keyof typeof priorityColors] ||
@@ -344,14 +344,14 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
               return (
                 <div
                   key={task.id}
-                  className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200"
+                  className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <CheckSquare className="w-4 h-4 text-green-600 flex-shrink-0" />
+                    <CheckSquare className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-gray-900">{task.title}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{task.title}</span>
                       {task.dueDate && (
-                        <div className="text-xs text-gray-600 mt-1">
+                        <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                           Due: {new Date(task.dueDate).toLocaleDateString()}
                         </div>
                       )}
@@ -368,7 +368,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                       closeContactPanel(); // Close contact panel first
                       openTaskForView(task); // Then open task panel
                     }}
-                    className="text-green-700 hover:text-green-800 ml-3 flex-shrink-0"
+                    className="text-green-700 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 ml-3 flex-shrink-0"
                   >
                     View Task
                   </Button>
@@ -377,28 +377,28 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
             })}
           </div>
         ) : (
-          <div className="text-sm text-gray-500">No tasks assigned to this contact.</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">No tasks assigned to this contact.</div>
         )}
       </Card>
 
-      <hr className="border-gray-100" />
+      <hr className="border-gray-100 dark:border-gray-800" />
 
       {/* Cross-plugin references - Mentioned in Tasks */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
           Mentioned in Tasks
         </Heading>
         {loadingTaskMentions ? (
-          <div className="text-sm text-gray-500">Loading tasks...</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Loading tasks...</div>
         ) : mentionedInTasks.length > 0 ? (
           <div className="space-y-2">
             {mentionedInTasks.map((task: any) => {
               const getStatusBadge = (status: string) => {
                 const statusColors = {
-                  'not started': 'bg-gray-100 text-gray-800',
-                  'in progress': 'bg-blue-100 text-blue-800',
-                  Done: 'bg-green-100 text-green-800',
-                  Canceled: 'bg-red-100 text-red-800',
+                  'not started': 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
+                  'in progress': 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200',
+                  Done: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200',
+                  Canceled: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
                 };
                 const colorClass =
                   statusColors[status as keyof typeof statusColors] || statusColors['not started'];
@@ -414,14 +414,14 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
               return (
                 <div
                   key={task.id}
-                  className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-200"
+                  className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <CheckSquare className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                    <CheckSquare className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-gray-900">{task.title}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{task.title}</span>
                       {task.dueDate && (
-                        <div className="text-xs text-gray-600 mt-1">
+                        <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                           Due: {new Date(task.dueDate).toLocaleDateString()}
                         </div>
                       )}
@@ -437,7 +437,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                       closeContactPanel(); // Close contact panel first
                       openTaskForView(task); // Then open task panel
                     }}
-                    className="text-purple-700 hover:text-purple-800 ml-3 flex-shrink-0"
+                    className="text-purple-700 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 ml-3 flex-shrink-0"
                   >
                     View Task
                   </Button>
@@ -446,28 +446,28 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
             })}
           </div>
         ) : (
-          <div className="text-sm text-gray-500">This contact is not mentioned in any tasks.</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">This contact is not mentioned in any tasks.</div>
         )}
       </Card>
 
-      <hr className="border-gray-100" />
+      <hr className="border-gray-100 dark:border-gray-800" />
 
       {/* Cross-plugin references - Related Estimates */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
           Related Estimates
         </Heading>
         {loadingEstimates ? (
-          <div className="text-sm text-gray-500">Loading estimates...</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Loading estimates...</div>
         ) : relatedEstimates.length > 0 ? (
           <div className="space-y-2">
             {relatedEstimates.map((estimate: any) => {
               const getStatusBadge = (status: string) => {
                 const statusColors = {
-                  draft: 'bg-gray-100 text-gray-800',
-                  sent: 'bg-blue-100 text-blue-800',
-                  accepted: 'bg-green-100 text-green-800',
-                  rejected: 'bg-red-100 text-red-800',
+                  draft: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
+                  sent: 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200',
+                  accepted: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200',
+                  rejected: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
                 };
                 const colorClass =
                   statusColors[status as keyof typeof statusColors] || statusColors.draft;
@@ -483,18 +483,18 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
               return (
                 <div
                   key={estimate.id}
-                  className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200"
+                  className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <Calculator className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <Calculator className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         {estimate.estimateNumber}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {getStatusBadge(estimate.status)}
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         {estimate.total?.toFixed(2)} {estimate.currency}
                       </span>
                     </div>
@@ -506,7 +506,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                       closeContactPanel(); // Close contact panel first
                       openEstimateForView(estimate); // Then open estimate panel
                     }}
-                    className="text-blue-700 hover:text-blue-800 ml-3 flex-shrink-0"
+                    className="text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 ml-3 flex-shrink-0"
                   >
                     View Estimate
                   </Button>
@@ -515,32 +515,32 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
             })}
           </div>
         ) : (
-          <div className="text-sm text-gray-500">No estimates found for this contact.</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">No estimates found for this contact.</div>
         )}
       </Card>
 
-      <hr className="border-gray-100" />
+      <hr className="border-gray-100 dark:border-gray-800" />
 
       {/* Cross-plugin references - Mentioned in Notes */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
           Mentioned in Notes
         </Heading>
         {loadingNotes ? (
-          <div className="text-sm text-gray-500">Loading notes...</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Loading notes...</div>
         ) : mentionedInNotes.length > 0 ? (
           <div className="space-y-2">
             {mentionedInNotes.map((note: any) => (
               <div
                 key={note.id}
-                className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200"
+                className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg border border-yellow-200 dark:border-yellow-800"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <StickyNote className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                  <StickyNote className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm font-medium text-gray-900">{note.title}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{note.title}</span>
                   </div>
-                  <div className="text-xs text-gray-600 flex-shrink-0">
+                  <div className="text-xs text-gray-600 dark:text-gray-400 flex-shrink-0">
                     {new Date(note.updatedAt).toLocaleDateString()}
                   </div>
                 </div>
@@ -551,7 +551,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                     closeContactPanel(); // Close contact panel first
                     openNoteForView(note); // Then open note panel
                   }}
-                  className="text-yellow-700 hover:text-yellow-800 ml-3 flex-shrink-0"
+                  className="text-yellow-700 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-300 ml-3 flex-shrink-0"
                 >
                   View Note
                 </Button>
@@ -559,31 +559,31 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
             ))}
           </div>
         ) : (
-          <div className="text-sm text-gray-500">This contact is not mentioned in any notes.</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">This contact is not mentioned in any notes.</div>
         )}
       </Card>
 
-      <hr className="border-gray-100" />
+      <hr className="border-gray-100 dark:border-gray-800" />
 
       {/* Metadata */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900">
+        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
           Contact Information
         </Heading>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <div className="text-xs text-gray-500">System ID</div>
-            <div className="text-sm font-mono text-gray-900">{contact.id}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">System ID</div>
+            <div className="text-sm font-mono text-gray-900 dark:text-gray-100">{contact.id}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">Created</div>
-            <div className="text-sm text-gray-900">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
+            <div className="text-sm text-gray-900 dark:text-gray-100">
               {new Date(contact.createdAt).toLocaleDateString()}
             </div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">Last Updated</div>
-            <div className="text-sm text-gray-900">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Last Updated</div>
+            <div className="text-sm text-gray-900 dark:text-gray-100">
               {new Date(contact.updatedAt).toLocaleDateString()}
             </div>
           </div>

@@ -318,7 +318,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         return (
           <div>
             <div>{title}</div>
-            <div className="text-sm font-normal text-gray-600 mt-1">Due: {dueDate}</div>
+            <div className="text-sm font-normal text-gray-600 dark:text-gray-400 mt-1">Due: {dueDate}</div>
           </div>
         );
       }
@@ -340,15 +340,15 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     // View mode with item
     if (mode === 'view' && item) {
       const statusColors: Record<string, string> = {
-        'not started': 'bg-gray-100 text-gray-800',
-        'in progress': 'bg-blue-100 text-blue-800',
-        'completed': 'bg-green-100 text-green-800',
-        'cancelled': 'bg-red-100 text-red-800',
+        'not started': 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
+        'in progress': 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200',
+        'completed': 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200',
+        'cancelled': 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
       };
       const priorityColors: Record<string, string> = {
-        Low: 'bg-gray-100 text-gray-700',
-        Medium: 'bg-yellow-100 text-yellow-800',
-        High: 'bg-red-100 text-red-800',
+        Low: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300',
+        Medium: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200',
+        High: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
       };
 
       const badges = [
@@ -370,7 +370,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
               {badge.text}
             </Badge>
           ))}
-          <span className="text-xs text-gray-600">
+          <span className="text-xs text-gray-600 dark:text-gray-400">
             • Created {new Date(item.createdAt).toLocaleDateString()}
           </span>
         </div>

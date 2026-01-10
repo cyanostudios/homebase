@@ -145,10 +145,10 @@ export function EstimateList() {
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
-      draft: 'bg-gray-100 text-gray-800',
-      sent: 'bg-blue-100 text-blue-800',
-      accepted: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800',
+      draft: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
+      sent: 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200',
+      accepted: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200',
+      rejected: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
     };
 
     const colorClass = statusColors[status as keyof typeof statusColors] || statusColors.draft;
@@ -188,7 +188,7 @@ export function EstimateList() {
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 z-10" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
             <Input
               type="text"
               placeholder="Search estimates..."
@@ -206,10 +206,10 @@ export function EstimateList() {
       <Card>
         {!isMobileView ? (
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-muted/50">
               <tr>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('estimateNumber')}
                 >
                   <div className="flex items-center gap-1">
@@ -218,7 +218,7 @@ export function EstimateList() {
                   </div>
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('contactName')}
                 >
                   <div className="flex items-center gap-1">
@@ -226,11 +226,11 @@ export function EstimateList() {
                     <SortIcon field="contactName" />
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Items
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
                   onClick={() => handleSort('total')}
                 >
                   <div className="flex items-center gap-1">
@@ -238,21 +238,21 @@ export function EstimateList() {
                     <SortIcon field="total" />
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Valid To
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-border">
               {sortedEstimates.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
                     {searchTerm
                       ? 'No estimates found matching your search.'
                       : 'No estimates yet. Click "Add Estimate" to get started.'}
@@ -262,7 +262,7 @@ export function EstimateList() {
                 sortedEstimates.map((estimate, idx) => (
                   <tr
                     key={estimate.id}
-                    className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer`}
+                    className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors`}
                     tabIndex={0}
                     data-list-item={JSON.stringify(estimate)}
                     data-plugin-name="estimates"
@@ -275,34 +275,34 @@ export function EstimateList() {
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <Calculator className="w-5 h-5 text-blue-500" />
-                        <div className="text-sm font-medium text-gray-900">
+                        <Calculator className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                        <div className="text-sm font-medium text-foreground">
                           {estimate.estimateNumber}
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-foreground">
                           {estimate.contactName}
                         </div>
                         {estimate.organizationNumber && (
-                          <div className="text-xs text-gray-500">{estimate.organizationNumber}</div>
+                          <div className="text-xs text-muted-foreground">{estimate.organizationNumber}</div>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {estimate.lineItems.length} item{estimate.lineItems.length !== 1 ? 's' : ''}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-foreground">
                         {calculateEstimateTotals(
                           estimate.lineItems || [],
                           estimate.estimateDiscount || 0,
                         ).total.toFixed(2)}{' '}
                         {estimate.currency}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted-foreground">
                         VAT:{' '}
                         {calculateEstimateTotals(
                           estimate.lineItems || [],
@@ -314,7 +314,7 @@ export function EstimateList() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(estimate.status)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {new Date(estimate.validTo).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -358,41 +358,41 @@ export function EstimateList() {
             </tbody>
           </table>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-border">
             {sortedEstimates.length === 0 ? (
-              <div className="p-6 text-center text-gray-400">
+              <div className="p-6 text-center text-muted-foreground">
                 {searchTerm
                   ? 'No estimates found matching your search.'
                   : 'No estimates yet. Click "Add Estimate" to get started.'}
               </div>
             ) : (
               sortedEstimates.map((estimate) => (
-                <div key={estimate.id} className="p-4">
+                <div key={estimate.id} className="p-4 hover:bg-accent transition-colors">
                   <div className="flex items-start gap-3">
                     <div className="flex flex-col items-center gap-1">
-                      <Calculator className="w-5 h-5 text-blue-500" />
-                      <div className="text-xs text-gray-500">
+                      <Calculator className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                      <div className="text-xs text-muted-foreground">
                         {new Date(estimate.validTo).toLocaleDateString()}
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="mb-1 flex items-center gap-2">
-                        <h3 className="text-sm font-medium text-gray-900">
+                        <h3 className="text-sm font-medium text-foreground">
                           {estimate.estimateNumber}
                         </h3>
                         {getStatusBadge(estimate.status)}
                       </div>
 
                       <div className="space-y-1">
-                        <div className="text-sm text-gray-600">{estimate.contactName}</div>
+                        <div className="text-sm text-muted-foreground">{estimate.contactName}</div>
                         {estimate.organizationNumber && (
-                          <div className="text-xs text-gray-500">{estimate.organizationNumber}</div>
+                          <div className="text-xs text-muted-foreground">{estimate.organizationNumber}</div>
                         )}
-                        <div className="text-xs text-gray-600">
+                        <div className="text-xs text-muted-foreground">
                           {estimate.lineItems.length} item
                           {estimate.lineItems.length !== 1 ? 's' : ''}
                         </div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-foreground">
                           {calculateEstimateTotals(
                             estimate.lineItems || [],
                             estimate.estimateDiscount || 0,
