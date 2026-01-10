@@ -1,4 +1,4 @@
-# Development Guide V2
+# Development Guide
 
 ## Project Overview
 
@@ -9,12 +9,14 @@ Homebase is a modular plugin-based platform with service abstraction architectur
 ## Architecture Philosophy
 
 ### Modular Service System
+
 - **Service Abstraction** - Infrastructure swappable via configuration
 - **Plugin Isolation** - Each plugin manages its own state independently
 - **Security By Default** - Enforcement at multiple layers
 - **Zero Conflicts** - Teams can develop plugins in parallel
 
 ### Key Benefits
+
 - Infrastructure changes don't require code changes
 - Security enforced automatically through core services
 - New plugins integrate automatically
@@ -25,18 +27,21 @@ Homebase is a modular plugin-based platform with service abstraction architectur
 ## Tech Stack
 
 ### Frontend
+
 - **React 18** + TypeScript + Vite
 - **Modular Contexts** - Plugin-specific state management
 - **Responsive Design** - Mobile-first with conditional rendering
 - **Universal Keyboard Navigation** - Space + Arrow keys
 
-### Backend  
+### Backend
+
 - **Express.js** + PostgreSQL
 - **ServiceManager** - Core service orchestration
 - **Plugin-loader** - Automatic plugin discovery
 - **Security Middleware** - Authentication, CSRF, rate limiting
 
 ### Infrastructure
+
 - **Development:** PostgreSQL with session store
 - **Production:** Railway + Neon databases
 - **Storage:** Configurable (local, S3, R2, Scaleway)
@@ -45,6 +50,7 @@ Homebase is a modular plugin-based platform with service abstraction architectur
 ---
 
 ## Project Structure
+
 ```
 homebase/
 ├── vite.config.ts          # Vite configuration (ROOT)
@@ -153,7 +159,7 @@ const configs = {
     EMAIL_PROVIDER: 'smtp',
     QUEUE_PROVIDER: 'memory',
     CACHE_PROVIDER: 'memory',
-    
+
     database: {
       postgres: {
         host: 'localhost',
@@ -167,12 +173,12 @@ const configs = {
       }
     }
   },
-  
+
   production: {
     DATABASE_PROVIDER: process.env.DB_PROVIDER || 'neon',
     STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || 'r2',
     EMAIL_PROVIDER: process.env.EMAIL_PROVIDER || 'resend',
-    
+
     // Provider-specific configurations
   }
 };
@@ -239,13 +245,13 @@ module.exports = {
         content TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        
+
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         INDEX idx_user_id (user_id)
       )
     `);
   },
-  
+
   down: async (database) => {
     await database.query('DROP TABLE IF EXISTS my_plugin_items');
   }
@@ -270,7 +276,7 @@ describe('My Plugin Model', () => {
   beforeEach(() => {
     ServiceManager.override('database', new MockDatabaseAdapter());
   });
-  
+
   it('should create item', async () => {
     const item = await model.createItem({ title: 'Test' });
     expect(item).toHaveProperty('id');
@@ -296,17 +302,17 @@ describe('My Plugin API', () => {
     const response = await request(app).get('/api/my-plugin');
     expect(response.status).toBe(401);
   });
-  
+
   it('should create item with CSRF token', async () => {
     const { csrfToken } = await request(app)
       .get('/api/csrf-token')
       .then(r => r.body);
-    
+
     const response = await request(app)
       .post('/api/my-plugin')
       .set('X-CSRF-Token', csrfToken)
       .send({ title: 'Test' });
-    
+
     expect(response.status).toBe(201);
   });
 });
@@ -545,3 +551,4 @@ SECURITY_GUIDELINES.md - Security requirements
 PLUGIN_DEVELOPMENT_STANDARDS_V2.md - Plugin conventions
 BACKEND_PLUGIN_GUIDE_V2.md - Backend development
 FRONTEND_PLUGIN_GUIDE_V2.md - Frontend development
+```

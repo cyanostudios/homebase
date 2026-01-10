@@ -1,18 +1,22 @@
-# Frontend Plugin Guide V2
+# Frontend Plugin Development Guide
 
 ## Overview
 
-Frontend plugins provide React contexts, UI components, and user interactions using the **fully automated plugin system** with security best practices.
+Frontend plugins provide React contexts, UI components, and user interactions using the fully automated plugin system with security best practices.
 
-**Key Changes from V1:**
+## Key Features
+
 - CSRF token handling for all mutations
 - Standardized error handling
 - Security-focused validation
-- Core services integration awareness
+- @homebase/core SDK integration
+- Dark mode support
+- Keyboard navigation
 
 ---
 
 ## Plugin Structure
+
 ```
 client/src/plugins/my-plugin/
 ├── types/my-plugin.ts           # TypeScript interfaces
@@ -46,7 +50,7 @@ class MyPluginApi {
 
   async getCsrfToken(): Promise<string> {
     if (this.csrfToken) return this.csrfToken;
-    
+
     const response = await fetch('/api/csrf-token', {
       credentials: 'include'
     });
@@ -274,12 +278,12 @@ interface MyPluginFormProps {
 
 export const MyPluginForm: React.FC<MyPluginFormProps> = ({ onSave, onCancel }) => {
   const { currentMyPluginItem, validationErrors, clearValidationErrors } = useMyPlugin();
-  
+
   const [formData, setFormData] = useState({
     title: currentMyPluginItem?.title || '',
     content: currentMyPluginItem?.content || '',
   });
-  
+
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -312,10 +316,10 @@ export const MyPluginForm: React.FC<MyPluginFormProps> = ({ onSave, onCancel }) 
 
   const handleSave = async () => {
     if (isSaving) return;
-    
+
     setIsSaving(true);
     clearValidationErrors();
-    
+
     try {
       const success = await onSave(formData);
       if (!success) {
@@ -439,7 +443,7 @@ export const MyPluginView: React.FC<MyPluginViewProps> = ({ myPlugin, item }) =>
             <div className="text-xs text-gray-500 mb-1">Title</div>
             <div className="text-sm text-gray-900">{actualItem.title}</div>
           </div>
-          
+
           <div>
             <div className="text-xs text-gray-500 mb-1">Content</div>
             <div className="text-sm text-gray-900 whitespace-pre-wrap">
@@ -460,7 +464,7 @@ export const MyPluginView: React.FC<MyPluginViewProps> = ({ myPlugin, item }) =>
               {new Date(actualItem.createdAt).toLocaleString()}
             </div>
           </div>
-          
+
           <div>
             <div className="text-xs text-gray-500 mb-1">Updated</div>
             <div className="text-sm text-gray-900">
@@ -486,8 +490,8 @@ For user-generated content:
 import DOMPurify from 'dompurify';
 
 // Sanitize before rendering
-<div dangerouslySetInnerHTML={{ 
-  __html: DOMPurify.sanitize(item.content) 
+<div dangerouslySetInnerHTML={{
+  __html: DOMPurify.sanitize(item.content)
 }} />
 Error Handling
 User-friendly error messages:
@@ -499,7 +503,7 @@ try {
     field: 'general',
     message: 'Failed to save. Please try again.'
   }]);
-  
+
   // Log technical details for debugging
   console.error('API error:', error);
 }
@@ -509,7 +513,7 @@ const [isSaving, setIsSaving] = useState(false);
 
 const handleSave = async () => {
   if (isSaving) return; // Prevent double click
-  
+
   setIsSaving(true);
   try {
     await onSave(formData);
@@ -527,11 +531,11 @@ describe('MyPluginForm', () => {
   it('should display validation errors', async () => {
     const onSave = jest.fn().mockResolvedValue(false);
     const onCancel = jest.fn();
-    
+
     render(<MyPluginForm onSave={onSave} onCancel={onCancel} />);
-    
+
     fireEvent.click(screen.getByText('Save'));
-    
+
     expect(await screen.findByText(/Title is required/i)).toBeInTheDocument();
   });
 });
@@ -586,3 +590,4 @@ PLUGIN_DEVELOPMENT_STANDARDS_V2.md - Naming conventions
 SECURITY_GUIDELINES.md - Security requirements
 BACKEND_PLUGIN_GUIDE_V2.md - Backend integration
 STYLE_GUIDE.md - UI/UX standards
+```

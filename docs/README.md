@@ -1,5 +1,7 @@
-# Homebase Documentation Index V2
-Project Overview
+# Homebase Documentation Index
+
+## Project Overview
+
 Homebase is a modular plugin-based platform with service abstraction architecture. The system enables parallel team development with zero conflicts while maintaining enterprise-grade security and performance.
 🏗️ ARCHITECTURE: Service abstraction with automated plugin integration
 📊 STATUS: Production-ready with security enforcement
@@ -22,12 +24,11 @@ CSRF Protection - Required on all state-changing operations
 Rate Limiting - Configurable per endpoint
 Audit Logging - Built-in for all operations
 
-
 📚 COMPLETE DOCUMENTATION
 🎯 Core Architecture & Services
 Start here for system understanding:
 
-CORE_SERVICES_ARCHITECTURE.md ⭐ NEW
+CORE_SERVICES_ARCHITECTURE.md
 
 Service abstraction principles
 Adapter pattern implementation
@@ -35,8 +36,7 @@ All core services (Database, Storage, Email, Queue, Cache, Realtime, Search, Log
 Configuration-driven architecture
 Extension points
 
-
-CORE_ARCHITECTURE_V2.md ⭐ UPDATED
+CORE_ARCHITECTURE_V2.md
 
 Plugin registry system
 AppContext integration
@@ -44,8 +44,7 @@ Panel coordination
 Cross-plugin features
 Performance optimizations
 
-
-SECURITY_GUIDELINES.md ⭐ NEW
+SECURITY_GUIDELINES.md
 
 Security layers (middleware, adapter, plugin, database)
 Authentication & authorization
@@ -55,13 +54,10 @@ Rate limiting
 Audit logging
 Common vulnerabilities & prevention
 
-
-
-
 🔧 Plugin Development Guides
 Follow these for building plugins:
 
-PLUGIN_OVERVIEW_V2.md ⭐ UPDATED
+PLUGIN_OVERVIEW_V2.md
 
 Quick start workflow
 Automated benefits
@@ -70,8 +66,7 @@ Common patterns
 Testing strategy
 Success checklist
 
-
-PLUGIN_DEVELOPMENT_STANDARDS_V2.md ⭐ UPDATED
+PLUGIN_DEVELOPMENT_STANDARDS_V2.md
 
 MANDATORY naming conventions
 Context implementation pattern
@@ -80,8 +75,7 @@ Security requirements
 Component props patterns
 Testing requirements
 
-
-BACKEND_PLUGIN_GUIDE_V2.md ⭐ UPDATED
+BACKEND_PLUGIN_GUIDE_V2.md
 
 Backend development with ServiceManager
 Model layer using core services
@@ -90,8 +84,7 @@ Routes with security middleware
 Advanced patterns (file upload, email, queues, caching)
 Testing with mock adapters
 
-
-FRONTEND_PLUGIN_GUIDE_V2.md ⭐ UPDATED
+FRONTEND_PLUGIN_GUIDE_V2.md
 
 Frontend development with CSRF
 API layer with security
@@ -100,8 +93,7 @@ Component patterns (List, Form, View)
 Security best practices
 Testing
 
-
-REFACTORING_EXISTING_PLUGINS.md ⭐ NEW
+REFACTORING_EXISTING_PLUGINS.md
 
 Migration from direct calls to core services
 Adding security layers
@@ -109,9 +101,6 @@ Plugin-specific refactoring (contacts, notes, tasks, estimates)
 Files plugin critical updates
 Testing refactored plugins
 Deployment checklist
-
-
-
 
 🎨 UI/UX Standards
 
@@ -124,12 +113,9 @@ Modal patterns
 Form layouts
 Keyboard navigation requirements
 
-
-
-
 🚀 Development & Deployment
 
-DEVELOPMENT_GUIDE_V2.md ⭐ UPDATED
+DEVELOPMENT_GUIDE_V2.md
 
 Project structure
 Environment setup
@@ -142,9 +128,6 @@ Performance optimization
 Monitoring
 Troubleshooting
 
-
-
-
 🤖 AI Collaboration
 
 COLLABORATION_GUIDE.md
@@ -156,9 +139,6 @@ Terminal management
 Development best practices
 Anti-patterns to avoid
 
-
-
-
 📋 Implementation Guides
 
 MULTI_TENANT_HANDOVER.md
@@ -167,31 +147,29 @@ Database tenant management plugin
 Railway PostgreSQL + Neon architecture
 Tenant-specific implementation details
 
-
-
-
 🗺️ Documentation Roadmap
+
 For New Developers
-Day 1: Understanding the system
 
-Read CORE_SERVICES_ARCHITECTURE.md - Understand abstraction
-Read CORE_ARCHITECTURE_V2.md - Understand plugin system
-Read SECURITY_GUIDELINES.md - Understand security layers
+Understanding the system:
 
-Day 2: Development setup
+- Read CORE_SERVICES_ARCHITECTURE.md - Understand service abstraction
+- Read CORE_ARCHITECTURE_V2.md - Understand plugin system
+- Read SECURITY_GUIDELINES.md - Understand security layers
 
-Read DEVELOPMENT_GUIDE_V2.md - Setup environment
-Run existing plugins locally
-Explore codebase with understanding
+Development setup:
 
-Day 3-5: Build first plugin
+- Read DEVELOPMENT_GUIDE_V2.md - Setup environment
+- Run existing plugins locally
+- Explore codebase with understanding
 
-Read PLUGIN_OVERVIEW_V2.md - Quick start
-Read PLUGIN_DEVELOPMENT_STANDARDS_V2.md - Conventions
-Read BACKEND_PLUGIN_GUIDE_V2.md - Backend implementation
-Read FRONTEND_PLUGIN_GUIDE_V2.md - Frontend implementation
-Build simple CRUD plugin following guides
+Building your first plugin:
 
+- Read PLUGIN_OVERVIEW_V2.md - Quick start
+- Read PLUGIN_DEVELOPMENT_STANDARDS_V2.md - Conventions
+- Read BACKEND_PLUGIN_GUIDE_V2.md - Backend implementation
+- Read FRONTEND_PLUGIN_GUIDE_V2.md - Frontend implementation
+- Build simple CRUD plugin following guides
 
 For AI Agents/LLMs
 Mandatory reading order:
@@ -211,7 +189,6 @@ Refactoring existing: REFACTORING_EXISTING_PLUGINS.md
 Security review: SECURITY_GUIDELINES.md
 Debugging: DEVELOPMENT_GUIDE_V2.md troubleshooting section
 
-
 For Refactoring Existing Code
 Existing plugins (contacts, notes, tasks, estimates):
 
@@ -220,7 +197,6 @@ Read CORE_SERVICES_ARCHITECTURE.md - Service usage
 Read SECURITY_GUIDELINES.md - Security additions
 Refactor one plugin at a time
 Test thoroughly before moving to next
-
 
 🛠️ TECH STACK
 Frontend: React 18 + TypeScript + Vite + Modular Contexts
@@ -231,55 +207,52 @@ Performance: Sub-second response times with 90% fewer re-renders
 
 ⚙️ Service Configuration
 Development (default):
- DATABASE_PROVIDER: 'postgres'    // Local PostgreSQL
-STORAGE_PROVIDER: 'local'        // Local filesystem
-EMAIL_PROVIDER: 'smtp'           // Local SMTP
-QUEUE_PROVIDER: 'memory'         // In-memory queue
-CACHE_PROVIDER: 'memory'         // In-memory cache
+DATABASE_PROVIDER: 'postgres' // Local PostgreSQL
+STORAGE_PROVIDER: 'local' // Local filesystem
+EMAIL_PROVIDER: 'smtp' // Local SMTP
+QUEUE_PROVIDER: 'memory' // In-memory queue
+CACHE_PROVIDER: 'memory' // In-memory cache
 Production (example):
- DATABASE_PROVIDER: 'neon'        // Neon PostgreSQL
-STORAGE_PROVIDER: 'r2'           // Cloudflare R2
-EMAIL_PROVIDER: 'resend'         // Resend API
-QUEUE_PROVIDER: 'bullmq'         // Redis-backed queue
-CACHE_PROVIDER: 'redis'          // Redis cache
+DATABASE_PROVIDER: 'neon' // Neon PostgreSQL
+STORAGE_PROVIDER: 'r2' // Cloudflare R2
+EMAIL_PROVIDER: 'resend' // Resend API
+QUEUE_PROVIDER: 'bullmq' // Redis-backed queue
+CACHE_PROVIDER: 'redis' // Redis cache
 Change providers: Update config/services.js + environment variables → No code changes needed
 
 🚨 CRITICAL RULES FOR DEVELOPMENT
+
 1. ALWAYS Use Core Services
- // ✅ CORRECT
-const database = ServiceManager.get('database');
-const storage = ServiceManager.get('storage');
-const logger = ServiceManager.get('logger');
+   // ✅ CORRECT
+   const database = ServiceManager.get('database');
+   const storage = ServiceManager.get('storage');
+   const logger = ServiceManager.get('logger');
 
 // ❌ WRONG
 const db = require('../../server/database');
 const fs = require('fs');
-console.log('...');
-2. ALWAYS Include Security Middleware
- // ✅ CORRECT
+console.log('...'); 2. ALWAYS Include Security Middleware
+// ✅ CORRECT
 router.post('/', requirePlugin('my-plugin'), csrfProtection, [validation], controller.create);
 
 // ❌ WRONG
-router.post('/', controller.create);
-3. ALWAYS Validate User Input
- // ✅ CORRECT
+router.post('/', controller.create); 3. ALWAYS Validate User Input
+// ✅ CORRECT
 body('title').trim().notEmpty().isLength({ max: 255 }).escape()
 
 // ❌ WRONG
-// No validation
-4. ALWAYS Handle Errors Properly
- // ✅ CORRECT
+// No validation 4. ALWAYS Handle Errors Properly
+// ✅ CORRECT
 try {
-  await database.query(...);
+await database.query(...);
 } catch (error) {
-  logger.error('Operation failed', error, { context });
-  throw new AppError('User-friendly message', 500, 'ERROR_CODE');
+logger.error('Operation failed', error, { context });
+throw new AppError('User-friendly message', 500, 'ERROR_CODE');
 }
 
 // ❌ WRONG
-await database.query(...); // No error handling
-5. ALWAYS Include CSRF Token (Frontend)
- // ✅ CORRECT
+await database.query(...); // No error handling 5. ALWAYS Include CSRF Token (Frontend)
+// ✅ CORRECT
 headers: { 'X-CSRF-Token': await this.getCsrfToken() }
 
 // ❌ WRONG
@@ -307,36 +280,34 @@ Automatic enforcement - Can't bypass security
 Standardized - Same patterns across all plugins
 Audit trail - Built-in logging
 
-
 🎯 Quick Reference
 Plugin Development Checklist
 Backend:
 
- Copy templates/plugin-backend-template
- Configure plugin.config.js
- Implement model using ServiceManager
- Add security middleware to routes
- Add input validation
- Write tests with mock adapters
+Copy templates/plugin-backend-template
+Configure plugin.config.js
+Implement model using ServiceManager
+Add security middleware to routes
+Add input validation
+Write tests with mock adapters
 
 Frontend:
 
- Copy templates/plugin-frontend-template
- Define TypeScript types
- Create API layer with CSRF
- Implement context with panel registration
- Build responsive components
- Add keyboard navigation attributes
+Copy templates/plugin-frontend-template
+Define TypeScript types
+Create API layer with CSRF
+Implement context with panel registration
+Build responsive components
+Add keyboard navigation attributes
 
 Integration:
 
- Add to pluginRegistry.ts
- Grant plugin access in database
- Test CRUD operations
- Test keyboard navigation
- Test security (auth, CSRF, validation)
- Test mobile responsive
-
+Add to pluginRegistry.ts
+Grant plugin access in database
+Test CRUD operations
+Test keyboard navigation
+Test security (auth, CSRF, validation)
+Test mobile responsive
 
 📈 Success Metrics
 Plugin is production-ready when:
@@ -353,23 +324,6 @@ Plugin is production-ready when:
 ✅ Tenant isolation verified
 ✅ Performance acceptable
 
-
-🔄 Version History
-V2 (Current) - Service Abstraction & Security
-
-Core Services Architecture - ServiceManager with adapter pattern
-Security Guidelines - Multi-layer security enforcement
-Refactoring Guide - Migration from V1 to V2
-Updated all guides - Service abstraction + security focus
-
-V1 (Legacy) - Modular Context System
-
-Modular plugin contexts
-Automated plugin integration
-Cross-plugin references
-Universal keyboard navigation
-
-
 🤝 Contributing
 When contributing:
 
@@ -380,7 +334,6 @@ Include security middleware
 Write tests (unit + integration)
 Update documentation if needed
 
-
 📞 Support
 For questions or issues:
 
@@ -389,9 +342,11 @@ Review relevant guide for specific topic
 Check existing plugins for reference implementation
 Use COLLABORATION_GUIDE.md for AI assistance patterns
 
+## System Status
 
-System Status: ✅ Production-Ready with Service Abstraction
-Development Ready: Complete guides with security enforcement
-Architecture: Service abstraction + plugin isolation + security by default
-Team Ready: Zero-conflict parallel development workflow
+✅ **Production-Ready** - Service abstraction with automated plugin integration  
+✅ **Development Ready** - Complete guides with security enforcement  
+✅ **Architecture** - Service abstraction + plugin isolation + security by default  
+✅ **Team Ready** - Zero-conflict parallel development workflow
+
 Use these standards for secure, efficient, professional development.

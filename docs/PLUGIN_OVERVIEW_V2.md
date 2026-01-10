@@ -1,93 +1,97 @@
-# Plugin Development Overview V2
-Quick Start
+# Plugin Development Overview
+
+## Quick Start
+
 Create complete plugins with CRUD functionality, responsive UI, and keyboard navigation using the fully automated plugin system with security enforcement and service abstraction.
-Key Changes from V1:
 
-Core services for all infrastructure (ServiceManager)
-Security middleware on all routes
-CSRF token handling
-Standardized error handling
-Mock adapters for testing
+## Key Features
 
+- Core services for all infrastructure (ServiceManager)
+- Security middleware on all routes
+- CSRF token handling
+- Standardized error handling
+- Mock adapters for testing
+- Plugin SDK (@homebase/core) for stable interfaces
 
 Plugin Development Workflow
+
 1. Backend Plugin
-Copy template:
-cp -r templates/plugin-backend-template plugins/my-plugin
-Configure:
- // plugin.config.js
-module.exports = {
-  name: 'my-plugin',
-  routeBase: '/api/my-plugin',
-  requiredRole: 'user',
-  security: {
-    rateLimits: {
-      global: { windowMs: 15 * 60 * 1000, max: 100 }
-    }
-  }
-};
-Implement model using core services:
- const ServiceManager = require('../../server/core/ServiceManager');
-const database = ServiceManager.get('database');
-const logger = ServiceManager.get('logger');
+   Copy template:
+   cp -r templates/plugin-backend-template plugins/my-plugin
+   Configure:
+   // plugin.config.js
+   module.exports = {
+   name: 'my-plugin',
+   routeBase: '/api/my-plugin',
+   requiredRole: 'user',
+   security: {
+   rateLimits: {
+   global: { windowMs: 15 _ 60 _ 1000, max: 100 }
+   }
+   }
+   };
+   Implement model using core services:
+   const ServiceManager = require('../../server/core/ServiceManager');
+   const database = ServiceManager.get('database');
+   const logger = ServiceManager.get('logger');
 
 class MyPluginModel {
-  async createItem(itemData) {
-    const result = await database.insert('my_plugin_items', itemData);
-    logger.info('Item created', { itemId: result.id });
-    return result;
-  }
+async createItem(itemData) {
+const result = await database.insert('my_plugin_items', itemData);
+logger.info('Item created', { itemId: result.id });
+return result;
+}
 }
 Add security to routes:
- router.post('/', 
-  requirePlugin('my-plugin'),
-  csrfProtection,
-  [
-    body('title').trim().notEmpty().escape(),
-    validateRequest
-  ],
-  controller.createItem
+router.post('/',
+requirePlugin('my-plugin'),
+csrfProtection,
+[
+body('title').trim().notEmpty().escape(),
+validateRequest
+],
+controller.createItem
 );
 
 2. Frontend Plugin
-Copy template:
-cp -r templates/plugin-frontend-template client/src/plugins/my-plugin
-Create API layer with CSRF:
- class MyPluginApi {
-  async getCsrfToken() {
-    const { csrfToken } = await fetch('/api/csrf-token').then(r => r.json());
-    return csrfToken;
-  }
-  
-  async createItem(data) {
-    return this.request('', {
-      method: 'POST',
-      headers: {
-        'X-CSRF-Token': await this.getCsrfToken()
-      },
-      body: JSON.stringify(data)
-    });
-  }
+   Copy template:
+   cp -r templates/plugin-frontend-template client/src/plugins/my-plugin
+   Create API layer with CSRF:
+   class MyPluginApi {
+   async getCsrfToken() {
+   const { csrfToken } = await fetch('/api/csrf-token').then(r => r.json());
+   return csrfToken;
+   }
+
+async createItem(data) {
+return this.request('', {
+method: 'POST',
+headers: {
+'X-CSRF-Token': await this.getCsrfToken()
+},
+body: JSON.stringify(data)
+});
+}
 }
 Implement context with security:
- export function MyPluginProvider({ children, isAuthenticated, onCloseOtherPanels }) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
-  
-  // Register panel close function
-  useEffect(() => {
-    registerPanelCloseFunction('my-plugins', closeMyPluginPanel);
-    return () => unregisterPanelCloseFunction('my-plugins');
-  }, []);
-  
-  // Register global form functions
-  useEffect(() => {
-    window.submitMyPluginsForm = handleSubmit;
-    window.cancelMyPluginsForm = handleCancel;
-    return () => {
-      delete window.submitMyPluginsForm;
-      delete window.cancelMyPluginsForm;
-    };
-  }, []);
+export function MyPluginProvider({ children, isAuthenticated, onCloseOtherPanels }) {
+const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+
+// Register panel close function
+useEffect(() => {
+registerPanelCloseFunction('my-plugins', closeMyPluginPanel);
+return () => unregisterPanelCloseFunction('my-plugins');
+}, []);
+
+// Register global form functions
+useEffect(() => {
+window.submitMyPluginsForm = handleSubmit;
+window.cancelMyPluginsForm = handleCancel;
+return () => {
+delete window.submitMyPluginsForm;
+delete window.cancelMyPluginsForm;
+};
+}, []);
 }
 
 3. UI Components
@@ -102,52 +106,52 @@ List component with keyboard navigation:
 Form component with validation:
  const MyPluginForm = ({ onSave, onCancel }) => {
   const { validationErrors, clearValidationErrors } = useMyPlugin();
-  
-  const handleSave = async () => {
-    clearValidationErrors();
-    const success = await onSave(formData);
-    if (!success) {
-      // Validation errors displayed automatically
-    }
-  };
+
+const handleSave = async () => {
+clearValidationErrors();
+const success = await onSave(formData);
+if (!success) {
+// Validation errors displayed automatically
+}
+};
 }
 
 4. Registration
-Add to plugin registry:
- // client/src/core/pluginRegistry.ts
-{
-  name: 'my-plugins',
-  Provider: MyPluginProvider,
-  hook: useMyPlugins,
-  panelKey: 'isMyPluginPanelOpen',
-  components: {
-    List: MyPluginList,
-    Form: MyPluginForm,
-    View: MyPluginView
-  }
-}
+   Add to plugin registry:
+   // client/src/core/pluginRegistry.ts
+   {
+   name: 'my-plugins',
+   Provider: MyPluginProvider,
+   hook: useMyPlugins,
+   panelKey: 'isMyPluginPanelOpen',
+   components: {
+   List: MyPluginList,
+   Form: MyPluginForm,
+   View: MyPluginView
+   }
+   }
 
 5. Testing
-Backend tests with mock adapters:
- const MockDatabaseAdapter = require('../../server/core/services/database/adapters/MockAdapter');
+   Backend tests with mock adapters:
+   const MockDatabaseAdapter = require('../../server/core/services/database/adapters/MockAdapter');
 
 describe('My Plugin Model', () => {
-  beforeEach(() => {
-    ServiceManager.override('database', new MockDatabaseAdapter());
-  });
-  
-  it('should create item', async () => {
-    const item = await model.createItem({ title: 'Test' });
-    expect(item).toHaveProperty('id');
-  });
+beforeEach(() => {
+ServiceManager.override('database', new MockDatabaseAdapter());
+});
+
+it('should create item', async () => {
+const item = await model.createItem({ title: 'Test' });
+expect(item).toHaveProperty('id');
+});
 });
 Frontend tests:
- describe('My Plugin Context', () => {
-  it('should handle CSRF token', async () => {
-    const api = new MyPluginApi();
-    const token = await api.getCsrfToken();
-    expect(token).toBeDefined();
-  });
+describe('My Plugin Context', () => {
+it('should handle CSRF token', async () => {
+const api = new MyPluginApi();
+const token = await api.getCsrfToken();
+expect(token).toBeDefined();
+});
 });
 
 Automated Benefits
@@ -174,7 +178,6 @@ Automatic Integration Features
 ✅ Security enforcement (auth, CSRF, rate limiting)
 ✅ Tenant isolation (automatic)
 
-
 Architecture Benefits
 Service Abstraction
 
@@ -197,30 +200,29 @@ Automatic enforcement - Can't bypass security
 Standardized patterns - Same security across all plugins
 Audit trail - Built-in logging
 
-
 Critical Requirements
 Backend Security (MANDATORY)
 All routes MUST have:
- router.post('/', 
-  requirePlugin('my-plugin'),    // Authentication
-  csrfProtection,                // CSRF protection
-  [
-    body('title').trim().escape(), // Input validation
-    validateRequest
-  ],
-  controller.createItem
+router.post('/',
+requirePlugin('my-plugin'), // Authentication
+csrfProtection, // CSRF protection
+[
+body('title').trim().escape(), // Input validation
+validateRequest
+],
+controller.createItem
 );
 All models MUST use:
- const ServiceManager = require('../../server/core/ServiceManager');
-const database = ServiceManager.get('database');  // Not direct DB
-const logger = ServiceManager.get('logger');      // Not console.log
+const ServiceManager = require('../../server/core/ServiceManager');
+const database = ServiceManager.get('database'); // Not direct DB
+const logger = ServiceManager.get('logger'); // Not console.log
 Frontend Security (MANDATORY)
 All mutations MUST include:
- headers: {
-  'X-CSRF-Token': await this.getCsrfToken()
+headers: {
+'X-CSRF-Token': await this.getCsrfToken()
 }
 All forms MUST have:
- // Loading states
+// Loading states
 const [isSaving, setIsSaving] = useState(false);
 
 // Prevent double submission
@@ -254,67 +256,66 @@ Global Functions (PLURAL!)
 Submit: window.submitMyPluginsForm
 Cancel: window.cancelMyPluginsForm
 
-
 Common Patterns
 File Upload
- const storage = ServiceManager.get('storage');
+const storage = ServiceManager.get('storage');
 
 async uploadFile(req, res) {
-  const fileURL = await storage.upload(
-    req.file.buffer,
-    `my-plugin/${itemId}/file.pdf`,
-    {
-      allowedTypes: ['application/pdf'],
-      maxSize: 10 * 1024 * 1024
-    }
-  );
-  
-  await database.update('my_plugin_items', itemId, { fileURL });
-  res.json({ fileURL });
+const fileURL = await storage.upload(
+req.file.buffer,
+`my-plugin/${itemId}/file.pdf`,
+{
+allowedTypes: ['application/pdf'],
+maxSize: 10 _ 1024 _ 1024
+}
+);
+
+await database.update('my_plugin_items', itemId, { fileURL });
+res.json({ fileURL });
 }
 Email Notification
- const email = ServiceManager.get('email');
+const email = ServiceManager.get('email');
 
 async sendNotification(itemId) {
-  const item = await model.getItemById(itemId);
-  
-  await email.send({
-    to: user.email,
-    subject: `New Item: ${item.title}`,
-    html: emailTemplate(item)
-  });
-  
-  logger.info('Notification sent', { itemId });
+const item = await model.getItemById(itemId);
+
+await email.send({
+to: user.email,
+subject: `New Item: ${item.title}`,
+html: emailTemplate(item)
+});
+
+logger.info('Notification sent', { itemId });
 }
 Bulk Operations
- const queue = ServiceManager.get('queue');
+const queue = ServiceManager.get('queue');
 
 async bulkCreate(items) {
-  const jobId = await queue.add('bulk-create', {
-    items,
-    userId: req.session.user.id
-  });
-  
-  return { jobId, status: 'queued' };
+const jobId = await queue.add('bulk-create', {
+items,
+userId: req.session.user.id
+});
+
+return { jobId, status: 'queued' };
 }
 
 queue.process('bulk-create', async (job) => {
-  for (const item of job.data.items) {
-    await model.createItem(item);
-  }
+for (const item of job.data.items) {
+await model.createItem(item);
+}
 });
 Caching
- const cache = ServiceManager.get('cache');
+const cache = ServiceManager.get('cache');
 
 async getItems() {
-  return await cache.wrap('my-plugin:items', async () => {
-    return await database.query('SELECT * FROM items', []);
-  }, 300); // Cache for 5 minutes
+return await cache.wrap('my-plugin:items', async () => {
+return await database.query('SELECT \* FROM items', []);
+}, 300); // Cache for 5 minutes
 }
 
 Testing Strategy
 Unit Tests (Fast)
- // Use mock adapters
+// Use mock adapters
 ServiceManager.override('database', new MockDatabaseAdapter());
 ServiceManager.override('storage', new MockStorageAdapter());
 
@@ -322,29 +323,29 @@ ServiceManager.override('storage', new MockStorageAdapter());
 const result = await model.createItem(data);
 expect(result).toHaveProperty('id');
 Integration Tests (Comprehensive)
- // Use real adapters in test environment
+// Use real adapters in test environment
 const response = await request(app)
-  .post('/api/my-plugin')
-  .set('X-CSRF-Token', csrfToken)
-  .send(data);
+.post('/api/my-plugin')
+.set('X-CSRF-Token', csrfToken)
+.send(data);
 
 expect(response.status).toBe(201);
 Security Tests (Critical)
- // Test auth required
+// Test auth required
 const response = await request(app).get('/api/my-plugin');
 expect(response.status).toBe(401);
 
 // Test CSRF required
 const response = await request(app)
-  .post('/api/my-plugin')
-  .send(data); // No CSRF token
+.post('/api/my-plugin')
+.send(data); // No CSRF token
 expect(response.status).toBe(403);
 
 // Test validation
 const response = await request(app)
-  .post('/api/my-plugin')
-  .set('X-CSRF-Token', token)
-  .send({ title: '' }); // Invalid
+.post('/api/my-plugin')
+.set('X-CSRF-Token', token)
+.send({ title: '' }); // Invalid
 expect(response.status).toBe(400);
 
 Common Issues
@@ -374,7 +375,6 @@ Fix: Use plural naming: submitMyPluginsForm not submitMyPluginForm
 
 Fix: Ensure API layer fetches and includes CSRF token
 
-
 Success Checklist
 Plugin is ready when:
 
@@ -390,7 +390,6 @@ Plugin is ready when:
 ✅ Core services used (no direct infrastructure)
 ✅ Tests passing (unit + integration)
 ✅ Tenant isolation verified
-
 
 Development Best Practices
 Backend
@@ -417,7 +416,6 @@ Testing
 ✅ Test security requirements
 ✅ Test edge cases
 ✅ Test error handling
-
 
 Conclusion
 Modern plugin development:

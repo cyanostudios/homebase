@@ -1,12 +1,13 @@
-# V2 Core Infrastructure Integration
+# Core Infrastructure Integration
 
 ## Overview
 
-Core infrastructure has been successfully integrated into `server/index.ts`. This document describes what was integrated and how to use it.
+Core infrastructure has been successfully integrated. This document describes what was integrated and how to use it.
 
 ## What Was Integrated
 
 ### 1. ServiceManager
+
 - **Location**: `server/core/ServiceManager.js`
 - **Usage**: Automatically initialized in tenant pool middleware
 - **Services Available**:
@@ -14,6 +15,7 @@ Core infrastructure has been successfully integrated into `server/index.ts`. Thi
   - `logger` - Structured logging service
 
 ### 2. Error Handling
+
 - **Location**: `server/core/middleware/errorHandler.js`
 - **Integration**: Replaced basic error handler at end of middleware stack
 - **Features**:
@@ -23,6 +25,7 @@ Core infrastructure has been successfully integrated into `server/index.ts`. Thi
   - Never exposes internal error details to clients
 
 ### 3. Rate Limiting
+
 - **Location**: `server/core/middleware/rateLimit.js`
 - **Integration**:
   - Global rate limiter applied to all `/api` routes
@@ -32,12 +35,14 @@ Core infrastructure has been successfully integrated into `server/index.ts`. Thi
   - Auth: 5 attempts per minute
 
 ### 4. CSRF Protection
+
 - **Location**: `server/core/middleware/csrf.js`
-- **Integration**: 
+- **Integration**:
   - CSRF token endpoint: `GET /api/csrf-token`
-  - Ready to use in plugin routes (see usage below)
+  - Implemented and active in all plugin routes
 
 ### 5. Structured Logging
+
 - **Location**: `server/core/services/logger/`
 - **Integration**: All `console.log`/`console.error` replaced with logger service
 - **Benefits**:
@@ -55,12 +60,12 @@ const ServiceManager = require('../../server/core/ServiceManager');
 // In controller or model
 async getAll(req, res) {
   const database = ServiceManager.get('database', req);
-  
+
   // Automatic tenant isolation - no need to filter by user_id
   const contacts = await database.query(
     'SELECT * FROM contacts ORDER BY created_at DESC'
   );
-  
+
   res.json(contacts);
 }
 ```
@@ -73,7 +78,7 @@ const ServiceManager = require('../../server/core/ServiceManager');
 // In controller
 async create(req, res) {
   const logger = ServiceManager.get('logger');
-  
+
   try {
     // ... create logic
     logger.info('Contact created', { contactId: contact.id, userId: req.session.user.id });
@@ -95,11 +100,11 @@ async delete(req, res) {
     'SELECT * FROM contacts WHERE id = $1',
     [req.params.id]
   );
-  
+
   if (!contact) {
     throw new AppError('Contact not found', 404, AppError.CODES.NOT_FOUND);
   }
-  
+
   // Error handler middleware will catch and format response
 }
 ```
@@ -120,18 +125,23 @@ router.delete('/contacts/:id', csrfProtection, controller.deleteContact);
 ```javascript
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
 
-router.post('/contacts', [
-  requireAuth(),
-  commonRules.string('companyName', 1, 255),
-  commonRules.email('email'),
-  commonRules.optionalString('phone'),
-  validateRequest,
-], controller.createContact);
+router.post(
+  '/contacts',
+  [
+    requireAuth(),
+    commonRules.string('companyName', 1, 255),
+    commonRules.email('email'),
+    commonRules.optionalString('phone'),
+    validateRequest,
+  ],
+  controller.createContact,
+);
 ```
 
 ## Next Steps
 
 1. **Install Dependencies** (if not already installed):
+
    ```bash
    npm install csurf express-validator express-rate-limit
    ```
