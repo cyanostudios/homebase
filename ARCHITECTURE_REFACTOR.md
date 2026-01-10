@@ -320,8 +320,8 @@ DATABASE_URL=postgresql://railway.../auth
 
 ---
 
-**Status**: ✅ Sprint 1 + Sprint 2 + Phase 3 Complete  
-**Next**: Production deployment & monitoring  
+**Status**: ✅ Sprint 1 + Sprint 2 + Phase 3 + Sprint 3 Complete  
+**Next**: Migrate remaining plugins to SDK  
 **Date**: 2026-01-10
 
 ---
@@ -456,5 +456,126 @@ POOL_MAX_AGE=86400000
 
 ---
 
-**Status**: ✅ Complete Modular Architecture Implemented  
+---
+
+## ✅ Sprint 3: Plugin SDK (@homebase/core) (COMPLETED)
+
+### What We Built
+
+#### 1. Created @homebase/core Package
+
+**Location**: `packages/core/`
+
+A stable, versioned SDK for plugin development:
+
+```javascript
+const { Logger, Database, Context, Router } = require('@homebase/core');
+```
+
+**Benefits**:
+
+- ✅ Plugins independent of server internals
+- ✅ Versioned API (semantic versioning)
+- ✅ Easy to test plugins in isolation
+- ✅ Clear contract between core and plugins
+
+#### 2. SDK Interfaces
+
+**Logger** - Structured logging:
+
+```javascript
+Logger.info('Message', { key: 'value' });
+Logger.error('Error', error, { context });
+```
+
+**Database** - Tenant-isolated queries:
+
+```javascript
+const db = Database.get(req);
+const result = await db.query('SELECT * FROM items', []);
+await db.insert('items', { name: 'Item 1' });
+```
+
+**Context** - Request context access:
+
+```javascript
+const userId = Context.getUserId(req);
+const isAdmin = Context.isAdmin(req);
+```
+
+**Router** - Express router utilities:
+
+```javascript
+const router = Router.create();
+router.asyncHandler(async (req, res) => { ... });
+```
+
+#### 3. Migrated Contacts Plugin
+
+**Before**:
+
+```javascript
+const ServiceManager = require('../../server/core/ServiceManager');
+const logger = ServiceManager.get('logger');
+const database = ServiceManager.get('database', req);
+```
+
+**After**:
+
+```javascript
+const { Logger, Database } = require('@homebase/core');
+const db = Database.get(req);
+```
+
+**Results**:
+
+- ✅ Cleaner code
+- ✅ No direct server dependencies
+- ✅ Easier to understand
+- ✅ Better error messages
+
+---
+
+## 📊 Complete Architecture Summary
+
+```
+@homebase/core (Plugin SDK)
+    ↓
+Plugins (contacts, tasks, notes, etc.)
+    ↓
+server/index.ts (186 lines)
+    ↓
+Bootstrap → ServiceManager
+    ↓
+    ├── TenantService (Neon/Local)
+    ├── ConnectionPoolService (Postgres)
+    ├── DatabaseService
+    └── LoggerService
+    ↓
+Core Routes (auth, admin, health)
+    ↓
+Plugin Routes (dynamic loading)
+```
+
+---
+
+## 🎯 Next Steps
+
+### Immediate (Sprint 4)
+
+1. **Migrate remaining plugins** to use @homebase/core
+   - tasks, notes, estimates, invoices, files
+2. **Deprecate direct ServiceManager access** in plugins
+3. **Add SDK tests** for all interfaces
+
+### Future Enhancements
+
+1. **Observability**: Metrics, tracing, monitoring
+2. **Testing Infrastructure**: Integration & E2E tests
+3. **Plugin Marketplace**: Versioned plugin registry
+4. **Advanced Features**: Webhooks, background jobs, caching
+
+---
+
+**Status**: ✅ Complete Modular Architecture + Plugin SDK Implemented  
 **Date**: 2026-01-10

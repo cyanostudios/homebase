@@ -1,0 +1,21 @@
+{
+  "name": "@homebase/core",
+  "version": "1.0.0",
+  "description": "Homebase Plugin SDK - Stable interfaces for plugin development",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [
+    "homebase",
+    "plugin",
+    "sdk",
+    "interface"
+  ],
+  "author": "Homebase Team",
+  "license": "MIT",
+  "peerDependencies": {
+    "express": "^4.18.0"
+  }
+}

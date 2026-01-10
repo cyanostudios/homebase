@@ -1,52 +1,34 @@
 // plugins/contacts/model.js
-// Contacts model - V2 with ServiceManager
-const ServiceManager = require('../../server/core/ServiceManager');
+// Contacts model - V3 with @homebase/core SDK
+const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 class ContactModel {
   constructor() {
-    // No pool needed - ServiceManager provides database service
-  }
-
-  _getContext(req) {
-    return {
-      userId: req?.session?.currentTenantUserId || req?.session?.user?.id,
-      pool: req?.tenantPool,
-    };
+    // No pool needed - SDK provides database interface
   }
 
   async getAll(req) {
     try {
-      const database = ServiceManager.get('database', req);
-      const context = this._getContext(req);
-      
+      const db = Database.get(req);
+
       // Tenant isolation automatic
-      const rows = await database.query(
-        'SELECT * FROM contacts ORDER BY contact_number',
-        [],
-        context
-      );
-      
-      return rows.map(this.transformRow);
+      const result = await db.query('SELECT * FROM contacts ORDER BY contact_number', []);
+
+      return result.rows.map(this.transformRow);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to fetch contacts', error);
+      Logger.error('Failed to fetch contacts', error);
       throw new AppError('Failed to fetch contacts', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
   async getNextContactNumber(req) {
     try {
-      const database = ServiceManager.get('database', req);
-      const context = this._getContext(req);
-      
-      const rows = await database.query(
-        'SELECT COUNT(*) + 1 as next_number FROM contacts',
-        [],
-        context
-      );
-      
-      return rows[0]?.next_number?.toString() || '1';
+      const db = Database.get(req);
+
+      const result = await db.query('SELECT COUNT(*) + 1 as next_number FROM contacts', []);
+
+      return result.rows[0]?.next_number?.toString() || '1';
     } catch (error) {
       const logger = ServiceManager.get('logger');
       logger.error('Failed to get next contact number', error);
@@ -56,14 +38,12 @@ class ContactModel {
 
   async create(req, contactData) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
-      
-      const contactNumber = contactData.contactNumber || await this.getNextContactNumber(req);
-      
-      // Use database.insert for automatic tenant isolation
-      const result = await database.insert('contacts', {
+      const db = Database.get(req);
+
+      const contactNumber = contactData.contactNumber || (await this.getNextContactNumber(req));
+
+      // Use db.insert for automatic tenant isolation
+      const result = await db.insert('contacts', {
         contact_number: contactNumber,
         contact_type: contactData.contactType || '',
         company_name: contactData.companyName || '',
@@ -82,15 +62,16 @@ class ContactModel {
         currency: contactData.currency || '',
         f_tax: contactData.fTax || '',
         notes: contactData.notes || '',
-      }, context);
-      
-      logger.info('Contact created', { contactId: result.id, userId: context.userId });
-      
+      });
+
+      Logger.info('Contact created', { contactId: result.id });
+
       return this.transformRow(result);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to create contact', error, { contactData: { companyName: contactData.companyName } });
-      
+      Logger.error('Failed to create contact', error, {
+        contactData: { companyName: contactData.companyName },
+      });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -100,23 +81,17 @@ class ContactModel {
 
   async update(req, contactId, contactData) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
-      
+      const db = Database.get(req);
+
       // Verify contact exists (ownership check automatic)
-      const existing = await database.query(
-        'SELECT * FROM contacts WHERE id = $1',
-        [contactId],
-        context
-      );
-      
-      if (existing.length === 0) {
+      const existing = await db.query('SELECT * FROM contacts WHERE id = $1', [contactId]);
+
+      if (existing.rows.length === 0) {
         throw new AppError('Contact not found', 404, AppError.CODES.NOT_FOUND);
       }
-      
-      // Use database.update for automatic tenant isolation
-      const result = await database.update('contacts', contactId, {
+
+      // Use db.update for automatic tenant isolation
+      const result = await db.update('contacts', contactId, {
         contact_number: contactData.contactNumber,
         contact_type: contactData.contactType || '',
         company_name: contactData.companyName || '',
@@ -135,15 +110,14 @@ class ContactModel {
         currency: contactData.currency || '',
         f_tax: contactData.fTax || '',
         notes: contactData.notes || '',
-      }, context);
-      
-      logger.info('Contact updated', { contactId, userId: context.userId });
-      
+      });
+
+      Logger.info('Contact updated', { contactId });
+
       return this.transformRow(result);
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to update contact', error, { contactId });
-      
+      Logger.error('Failed to update contact', error, { contactId });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -153,20 +127,17 @@ class ContactModel {
 
   async delete(req, contactId) {
     try {
-      const database = ServiceManager.get('database', req);
-      const logger = ServiceManager.get('logger');
-      const context = this._getContext(req);
-      
+      const db = Database.get(req);
+
       // Delete the contact (tenant isolation automatic)
-      await database.delete('contacts', contactId, context);
-      
-      logger.info('Contact deleted', { contactId, userId: context.userId });
-      
+      await db.deleteRecord('contacts', contactId);
+
+      Logger.info('Contact deleted', { contactId });
+
       return { id: contactId };
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to delete contact', error, { contactId });
-      
+      Logger.error('Failed to delete contact', error, { contactId });
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -184,7 +155,7 @@ class ContactModel {
         contactPersons = [];
       }
     }
-    
+
     let addresses = row.addresses || [];
     if (typeof addresses === 'string') {
       try {
@@ -193,7 +164,7 @@ class ContactModel {
         addresses = [];
       }
     }
-    
+
     return {
       id: row.id.toString(),
       contactNumber: row.contact_number,
