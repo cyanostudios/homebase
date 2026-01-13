@@ -153,7 +153,7 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
         <ScrollArea className="h-full">
           <nav className="p-2 space-y-1">
             {navCategories.map((category, categoryIndex) => (
-              <div key={category.title} className={cn(categoryIndex > 0 && 'mt-6')}>
+              <div key={category.title} className={cn(categoryIndex > 0 && 'mt-8')}>
                 {showLabels && (
                   <div className="mb-2 px-3">
                     <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">

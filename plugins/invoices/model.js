@@ -9,12 +9,6 @@ class InvoiceModel {
     // No pool needed - ServiceManager provides database service
   }
 
-  _getContext(req) {
-    return {
-      userId: req?.session?.currentTenantUserId || req?.session?.user?.id,
-      pool: req?.tenantPool,
-    };
-  }
 
   // Existing calculation method (unchanged)
   calculateTotals(lineItems, invoiceDiscount = 0) {
@@ -420,13 +414,12 @@ class InvoiceModel {
   // Get all invoices for user
   async getAll(req) {
     try {
-      const database = ServiceManager.get('database', req);
-      const context = this._getContext(req);
+      const db = Database.get(req);
 
       // Tenant isolation automatic
-      const result = await db.query('SELECT * FROM invoices ORDER BY created_at DESC', [], context);
+      const rows = await db.query('SELECT * FROM invoices ORDER BY created_at DESC', []);
 
-      return result.rows.map((row) => this.transformRow(row));
+      return rows.map((row) => this.transformRow(row));
     } catch (error) {
       Logger.error('Failed to fetch invoices', error);
       throw new AppError('Failed to fetch invoices', 500, AppError.CODES.DATABASE_ERROR);
@@ -436,12 +429,11 @@ class InvoiceModel {
   // Get single invoice by ID
   async getById(req, invoiceId) {
     try {
-      const database = ServiceManager.get('database', req);
-      const context = this._getContext(req);
+      const db = Database.get(req);
 
-      const result = await db.query('SELECT * FROM invoices WHERE id = $1', [invoiceId], context);
+      const rows = await db.query('SELECT * FROM invoices WHERE id = $1', [invoiceId]);
 
-      if (result.rows.length === 0) {
+      if (rows.length === 0) {
         return null;
       }
 

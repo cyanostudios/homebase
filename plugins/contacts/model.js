@@ -13,9 +13,9 @@ class ContactModel {
       const db = Database.get(req);
 
       // Tenant isolation automatic
-      const result = await db.query('SELECT * FROM contacts ORDER BY contact_number', []);
+      const rows = await db.query('SELECT * FROM contacts ORDER BY contact_number', []);
 
-      return result.rows.map(this.transformRow);
+      return rows.map(this.transformRow);
     } catch (error) {
       Logger.error('Failed to fetch contacts', error);
       throw new AppError('Failed to fetch contacts', 500, AppError.CODES.DATABASE_ERROR);
@@ -26,12 +26,11 @@ class ContactModel {
     try {
       const db = Database.get(req);
 
-      const result = await db.query('SELECT COUNT(*) + 1 as next_number FROM contacts', []);
+      const rows = await db.query('SELECT COUNT(*) + 1 as next_number FROM contacts', []);
 
-      return result.rows[0]?.next_number?.toString() || '1';
+      return rows[0]?.next_number?.toString() || '1';
     } catch (error) {
-      const logger = ServiceManager.get('logger');
-      logger.error('Failed to get next contact number', error);
+      Logger.error('Failed to get next contact number', error);
       throw new AppError('Failed to get next contact number', 500, AppError.CODES.DATABASE_ERROR);
     }
   }

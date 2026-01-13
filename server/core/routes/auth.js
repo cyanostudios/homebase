@@ -90,13 +90,21 @@ router.post(
         tenantDb: dbHost,
       });
 
-      res.json({
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-          plugins: req.session.user.plugins,
-        },
+      // Save session explicitly before responding
+      req.session.save((err) => {
+        if (err) {
+          logger.error('Session save failed after login', err, { userId: user.id });
+          return res.status(500).json({ error: 'Session creation failed' });
+        }
+
+        res.json({
+          user: {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            plugins: req.session.user.plugins,
+          },
+        });
       });
     } catch (error) {
       const logger = ServiceManager.get('logger');
@@ -135,7 +143,7 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
-    // Validate and set plugins (default to contacts and notes if not provided)
+    // Validate and set plugins (default to all main plugins if not provided)
     const availablePlugins = [
       'contacts',
       'notes',
@@ -148,7 +156,8 @@ router.post('/signup', async (req, res) => {
       'rail',
       'woocommerce-products',
     ];
-    let selectedPlugins = ['contacts', 'notes'];
+    // Default plugins for new users - all main registered plugins
+    let selectedPlugins = ['contacts', 'notes', 'tasks', 'estimates', 'invoices', 'files'];
 
     if (plugins && Array.isArray(plugins) && plugins.length > 0) {
       const invalidPlugins = plugins.filter((p) => !availablePlugins.includes(p));
@@ -224,13 +233,21 @@ router.post('/signup', async (req, res) => {
     req.session.tenantConnectionString = tenantDb.connectionString;
     req.session.currentTenantUserId = user.id;
 
-    res.status(201).json({
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        plugins: selectedPlugins,
-      },
+    // Save session before responding (important for signup auto-login)
+    req.session.save((err) => {
+      if (err) {
+        logger.error('Session save failed after signup', err, { userId: user.id });
+        return res.status(500).json({ error: 'Session creation failed' });
+      }
+
+      res.status(201).json({
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          plugins: selectedPlugins,
+        },
+      });
     });
   } catch (error) {
     const logger = ServiceManager.get('logger');

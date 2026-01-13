@@ -8,22 +8,14 @@ class TaskModel {
     // No pool needed - ServiceManager provides database service
   }
 
-  _getContext(req) {
-    return {
-      userId: req?.session?.currentTenantUserId || req?.session?.user?.id,
-      pool: req?.tenantPool,
-    };
-  }
-
   async getAll(req) {
     try {
-      const database = ServiceManager.get('database', req);
-      const context = this._getContext(req);
+      const db = Database.get(req);
 
       // Tenant isolation automatic
-      const result = await db.query('SELECT * FROM tasks ORDER BY created_at DESC', [], context);
+      const rows = await db.query('SELECT * FROM tasks ORDER BY created_at DESC', []);
 
-      return result.rows.map(this.transformRow);
+      return rows.map(this.transformRow);
     } catch (error) {
       Logger.error('Failed to fetch tasks', error);
       throw new AppError('Failed to fetch tasks', 500, AppError.CODES.DATABASE_ERROR);

@@ -9,32 +9,23 @@ class FilesModel {
     // No pool needed - ServiceManager provides database service
   }
 
-  _getContext(req) {
-    return {
-      userId: req?.session?.currentTenantUserId || req?.session?.user?.id,
-      pool: req?.tenantPool,
-    };
-  }
-
   // DB table (snake_case)
   static TABLE = 'user_files';
   static ORDER_BY = 'updated_at DESC, id DESC';
 
   async getAll(req) {
     try {
-      const database = ServiceManager.get('database', req);
-      const context = this._getContext(req);
+      const db = Database.get(req);
 
       // Tenant isolation automatic
-      const result = await db.query(
+      const rows = await db.query(
         `SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
          FROM ${FilesModel.TABLE}
          ORDER BY ${FilesModel.ORDER_BY}`,
         [],
-        context,
       );
 
-      return result.rows.map(this.transformRow);
+      return rows.map(this.transformRow);
     } catch (error) {
       Logger.error('Failed to fetch files', error);
       throw new AppError('Failed to fetch files', 500, AppError.CODES.DATABASE_ERROR);

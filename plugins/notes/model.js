@@ -8,22 +8,14 @@ class NoteModel {
     // No pool needed - ServiceManager provides database service
   }
 
-  _getContext(req) {
-    return {
-      userId: req?.session?.currentTenantUserId || req?.session?.user?.id,
-      pool: req?.tenantPool,
-    };
-  }
-
   async getAll(req) {
     try {
-      const database = ServiceManager.get('database', req);
-      const context = this._getContext(req);
+      const db = Database.get(req);
 
       // Tenant isolation automatic - no need to filter by user_id
-      const result = await db.query('SELECT * FROM notes ORDER BY created_at DESC', [], context);
+      const rows = await db.query('SELECT * FROM notes ORDER BY created_at DESC', []);
 
-      return result.rows.map(this.transformRow);
+      return rows.map(this.transformRow);
     } catch (error) {
       Logger.error('Failed to fetch notes', error);
       throw new AppError('Failed to fetch notes', 500, AppError.CODES.DATABASE_ERROR);
@@ -61,9 +53,9 @@ class NoteModel {
       const db = Database.get(req);
 
       // Verify note exists (ownership check automatic via tenant isolation)
-      const existing = await db.query('SELECT * FROM notes WHERE id = $1', [noteId], context);
+      const existing = await db.query('SELECT * FROM notes WHERE id = $1', [noteId]);
 
-      if (existing.rows.length === 0) {
+      if (existing.length === 0) {
         throw new AppError('Note not found', 404, AppError.CODES.NOT_FOUND);
       }
 
@@ -94,12 +86,13 @@ class NoteModel {
       const db = Database.get(req);
 
       // First, delete all tasks that were created from this note
-      // Note: This still needs direct pool access for cross-plugin operations
-      const pool = context.pool || req.tenantPool;
+      // Use direct pool access for cross-plugin operations
+      const pool = req.tenantPool;
       if (pool) {
+        const userId = req.session?.user?.id;
         await pool.query('DELETE FROM tasks WHERE created_from_note = $1 AND user_id = $2', [
           noteId,
-          context.userId,
+          userId,
         ]);
       }
 

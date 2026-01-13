@@ -15,11 +15,17 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
       lg: 'p-6',
     };
 
+    // Use transparent background when shadow-none is present (streamlined panels)
+    const hasShadowNone = className?.includes('shadow-none');
+    const bgClass = hasShadowNone ? 'bg-transparent' : 'bg-card';
+
     return (
       <div
         ref={ref}
         className={cn(
-          "rounded-lg border bg-card text-card-foreground shadow-sm",
+          "rounded-lg border",
+          bgClass,
+          "text-card-foreground shadow-sm",
           paddingStyles[padding],
           className
         )}

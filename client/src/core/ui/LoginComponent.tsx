@@ -1,15 +1,24 @@
-import { LogIn } from 'lucide-react';
+import { LogIn, UserPlus } from 'lucide-react';
 import React, { useState } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
 import { Button } from '@/components/ui/button';
 
+type AuthMode = 'login' | 'signup';
+
 export function LoginComponent() {
-  const { login } = useApp();
+  const { login, signup } = useApp();
+  const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('admin@homebase.se');
   const [password, setPassword] = useState('admin123');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,14 +26,53 @@ export function LoginComponent() {
     setError(null);
 
     try {
-      const success = await login(email, password);
-      if (!success) {
-        setError('Invalid email or password');
+      if (mode === 'signup') {
+        // Client-side validation for signup
+        if (!validateEmail(email)) {
+          setError('Please enter a valid email address');
+          setIsLoading(false);
+          return;
+        }
+
+        if (password.length < 8) {
+          setError('Password must be at least 8 characters');
+          setIsLoading(false);
+          return;
+        }
+
+        if (password !== confirmPassword) {
+          setError('Passwords do not match');
+          setIsLoading(false);
+          return;
+        }
+
+        const result = await signup(email, password);
+        if (!result.success) {
+          setError(result.error || 'Signup failed. Please try again.');
+        }
+        // If successful, user is auto-logged in by AppContext
+      } else {
+        // Login mode
+        const success = await login(email, password);
+        if (!success) {
+          setError('Invalid email or password');
+        }
       }
-    } catch (error) {
-      setError('Login failed. Please try again.');
+    } catch {
+      setError(mode === 'signup' ? 'Signup failed. Please try again.' : 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const toggleMode = () => {
+    setMode(mode === 'login' ? 'signup' : 'login');
+    setError(null);
+    setConfirmPassword('');
+    // Clear demo credentials when switching to signup
+    if (mode === 'login') {
+      setEmail('');
+      setPassword('');
     }
   };
 
@@ -36,7 +84,9 @@ export function LoginComponent() {
             <h2 className="mt-6 text-center text-3xl font-extrabold text-foreground">
               Welcome to Homebase
             </h2>
-            <p className="mt-2 text-center text-sm text-muted-foreground">Sign in to your account</p>
+            <p className="mt-2 text-center text-sm text-muted-foreground">
+              {mode === 'login' ? 'Sign in to your account' : 'Create your account'}
+            </p>
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
@@ -74,47 +124,86 @@ export function LoginComponent() {
                   id="password"
                   name="password"
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="appearance-none block w-full h-10 px-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
-                  placeholder="Enter your password"
+                  placeholder={mode === 'signup' ? 'At least 8 characters' : 'Enter your password'}
                 />
               </div>
             </div>
+
+            {mode === 'signup' && (
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
+                  Confirm Password
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="appearance-none block w-full h-10 px-3 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
+                    placeholder="Confirm your password"
+                  />
+                </div>
+              </div>
+            )}
 
             <div>
               <Button
                 type="submit"
                 variant="primary"
-                icon={LogIn}
+                icon={mode === 'login' ? LogIn : UserPlus}
                 disabled={isLoading}
                 className="w-full flex justify-center"
               >
-                {isLoading ? 'Signing in...' : 'Sign in'}
+                {isLoading 
+                  ? (mode === 'login' ? 'Signing in...' : 'Creating account...') 
+                  : (mode === 'login' ? 'Sign in' : 'Sign up')}
               </Button>
             </div>
           </form>
 
           <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-card text-muted-foreground">Demo credentials</span>
-              </div>
-            </div>
-            <div className="mt-3 text-center text-sm text-muted-foreground">
-              <p>
-                <strong className="text-foreground">Email:</strong> admin@homebase.se
-              </p>
-              <p>
-                <strong className="text-foreground">Password:</strong> admin123
-              </p>
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={toggleMode}
+                className="text-sm text-primary hover:text-primary/80 font-medium"
+              >
+                {mode === 'login' 
+                  ? "Don't have an account? Sign up" 
+                  : 'Already have an account? Sign in'}
+              </button>
             </div>
           </div>
+
+          {mode === 'login' && (
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-card text-muted-foreground">Demo credentials</span>
+                </div>
+              </div>
+              <div className="mt-3 text-center text-sm text-muted-foreground">
+                <p>
+                  <strong className="text-foreground">Email:</strong> admin@homebase.se
+                </p>
+                <p>
+                  <strong className="text-foreground">Password:</strong> admin123
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

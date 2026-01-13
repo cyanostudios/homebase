@@ -66,6 +66,7 @@ interface AppContextType {
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
+  signup: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 
   // Loading States
@@ -95,51 +96,51 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// CSRF token cache
-let csrfToken: string | null = null;
+// CSRF token cache (currently disabled but kept for future use)
+// let csrfToken: string | null = null;
 
-async function getCsrfToken(): Promise<string> {
-  if (csrfToken) return csrfToken;
-  
-  try {
-    const response = await fetch('/api/csrf-token', {
-      credentials: 'include'
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      console.error('CSRF token fetch failed:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorData
-      });
-      
-      // More specific error message
-      if (response.status === 401) {
-        throw new Error('Session required. Please log in again.');
-      } else if (response.status === 503) {
-        throw new Error('CSRF protection not configured on server');
-      } else {
-        throw new Error(`Failed to get CSRF token: ${errorData.error || response.statusText}`);
-      }
-    }
-    
-    const data = await response.json();
-    if (!data.csrfToken) {
-      throw new Error('CSRF token not found in response');
-    }
-    
-    csrfToken = data.csrfToken;
-    return csrfToken;
-  } catch (error: any) {
-    console.error('CSRF token fetch failed:', error);
-    // Re-throw with original message if it's already an Error
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Failed to get CSRF token');
-  }
-}
+// async function getCsrfToken(): Promise<string> {
+//   if (csrfToken) return csrfToken;
+//   
+//   try {
+//     const response = await fetch('/api/csrf-token', {
+//       credentials: 'include'
+//     });
+//     
+//     if (!response.ok) {
+//       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+//       console.error('CSRF token fetch failed:', {
+//         status: response.status,
+//         statusText: response.statusText,
+//         error: errorData
+//       });
+//       
+//       // More specific error message
+//       if (response.status === 401) {
+//         throw new Error('Session required. Please log in again.');
+//       } else if (response.status === 503) {
+//         throw new Error('CSRF protection not configured on server');
+//       } else {
+//         throw new Error(`Failed to get CSRF token: ${errorData.error || response.statusText}`);
+//       }
+//     }
+//     
+//     const data = await response.json();
+//     if (!data.csrfToken) {
+//       throw new Error('CSRF token not found in response');
+//     }
+//     
+//     csrfToken = data.csrfToken;
+//     return csrfToken;
+//   } catch (error: any) {
+//     console.error('CSRF token fetch failed:', error);
+//     // Re-throw with original message if it's already an Error
+//     if (error instanceof Error) {
+//       throw error;
+//     }
+//     throw new Error('Failed to get CSRF token');
+//   }
+// }
 
 const api = {
   async request(endpoint: string, options: RequestInit = {}) {
@@ -182,6 +183,14 @@ const api = {
   async login(email: string, password: string) {
     // Login doesn't need CSRF token (it's before authentication)
     return this.request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  },
+
+  async signup(email: string, password: string) {
+    // Signup doesn't need CSRF token (it's before authentication)
+    return this.request('/auth/signup', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
@@ -243,7 +252,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const response = await api.getMe();
       setUser(response.user);
       setIsAuthenticated(true);
-    } catch (error) {
+    } catch {
       setUser(null);
       setIsAuthenticated(false);
     } finally {
@@ -289,6 +298,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Login failed:', error);
       return false;
+    }
+  };
+
+  const signup = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await api.signup(email, password);
+      // Auto-login after successful signup
+      setUser(response.user);
+      setIsAuthenticated(true);
+      return { success: true };
+    } catch (error: any) {
+      console.error('Signup failed:', error);
+      const errorMessage = error.message || 'Failed to create account. Please try again.';
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -415,6 +438,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         user,
         isAuthenticated,
         login,
+        signup,
         logout,
         isLoading,
 

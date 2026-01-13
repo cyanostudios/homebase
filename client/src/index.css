@@ -37,32 +37,42 @@
   }
 
   .dark {
-    --background: 240 10% 3.9%;
+    /* Neon dark mode colors - based on #191919, #222222, #3B3B3B */
+    /* Background: #191919 - main (mörkast) */
+    --background: 0 0% 10%;
     --foreground: 0 0% 98%;
 
-    --card: 240 10% 3.9%;
+    /* Card: #222222 - same as sidebar/topbar */
+    --card: 0 0% 13%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 10% 3.9%;
+    /* Popover: same as card */
+    --popover: 0 0% 13%;
     --popover-foreground: 0 0% 98%;
 
+    /* Primary: kept original (accent color unchanged) */
     --primary: 0 0% 98%;
     --primary-foreground: 240 5.9% 10%;
 
-    --secondary: 240 3.7% 15.9%;
+    /* Secondary: #222222 - for sidebar/topbar, input fields */
+    --secondary: 0 0% 13%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    /* Muted: lighter gray for subtle elements */
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 240 3.7% 15.9%;
+    /* Accent: between secondary and border */
+    --accent: 0 0% 20%;
     --accent-foreground: 0 0% 98%;
 
+    /* Destructive: kept original */
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
+    /* Border & Input: #3B3B3B - borders and separators */
+    --border: 0 0% 23%;
+    --input: 0 0% 23%;
     --ring: 240 4.9% 83.9%;
   }
 
