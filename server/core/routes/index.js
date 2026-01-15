@@ -1,9 +1,10 @@
 // server/core/routes/index.js
-// Setup all core routes (auth, admin, health)
+// Setup all core routes (auth, admin, health, settings)
 
 const authRoutes = require('./auth');
 const adminRoutes = require('./admin');
 const healthRoutes = require('./health');
+const settingsRoutes = require('./settings');
 
 /**
  * Setup all core routes
@@ -16,6 +17,7 @@ function setupCoreRoutes(app, dependencies) {
   // Setup route dependencies
   authRoutes.setupAuthRoutes(pool, authLimiter, requireAuth);
   adminRoutes.setupAdminRoutes(pool, requireAuth);
+  settingsRoutes.setupSettingsRoutes(pool, requireAuth);
   healthRoutes.setPluginLoader(pluginLoader);
 
   // Health check (no auth required)
@@ -23,6 +25,9 @@ function setupCoreRoutes(app, dependencies) {
 
   // Auth routes (login, signup, logout)
   app.use('/api/auth', authRoutes);
+
+  // Settings routes (requires auth)
+  app.use('/api/settings', settingsRoutes);
 
   // Admin routes (requires superuser)
   app.use('/api/admin', adminRoutes);

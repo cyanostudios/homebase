@@ -14,7 +14,7 @@ class PluginLoader {
     // Check both locations for plugins (root and server/plugins)
     const possibleDirs = [
       path.join(__dirname, 'plugins'),
-      path.join(__dirname, 'server', 'plugins')
+      path.join(__dirname, 'server', 'plugins'),
     ];
 
     let pluginsDir = null;
@@ -30,7 +30,7 @@ class PluginLoader {
       return;
     }
 
-    const pluginDirs = fs.readdirSync(pluginsDir).filter(dir => {
+    const pluginDirs = fs.readdirSync(pluginsDir).filter((dir) => {
       const pluginPath = path.join(pluginsDir, dir);
       return fs.statSync(pluginPath).isDirectory();
     });
@@ -74,8 +74,8 @@ class PluginLoader {
       pluginName: pluginName,
       // Middleware
       middleware: {
-        requirePlugin: this.requirePlugin
-      }
+        requirePlugin: this.requirePlugin,
+      },
     };
 
     // Load plugin
@@ -88,7 +88,9 @@ class PluginLoader {
       plugin = initializePlugin(context);
     } else {
       // Old Signature: (pool, requirePlugin) => ...
-      console.warn(`⚠️ Plugin '${pluginName}' is using legacy signature. Please update to use PluginSDK.`);
+      console.warn(
+        `⚠️ Plugin '${pluginName}' is using legacy signature. Please update to use PluginSDK.`,
+      );
       plugin = initializePlugin(this.pool, this.requirePlugin);
     }
 
@@ -110,7 +112,7 @@ class PluginLoader {
   }
 
   getAllPlugins() {
-    return Array.from(this.loadedPlugins.values()).map(plugin => plugin.config);
+    return Array.from(this.loadedPlugins.values()).map((plugin) => plugin.config);
   }
 
   isPluginLoaded(name) {

@@ -53,13 +53,7 @@ interface User {
   plugins: string[];
 }
 
-type PluginNameUnion =
-  | 'contacts'
-  | 'notes'
-  | 'estimates'
-  | 'tasks'
-  | 'invoices'
-  | 'files';
+type PluginNameUnion = 'contacts' | 'notes' | 'estimates' | 'tasks' | 'invoices' | 'files';
 
 interface AppContextType {
   // Auth State
@@ -92,6 +86,11 @@ interface AppContextType {
 
   // Data refresh
   refreshData: () => Promise<void>;
+
+  // Settings
+  getSettings: (category?: string) => Promise<any>;
+  updateSettings: (category: string, settings: any) => Promise<any>;
+  settingsVersion: number;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -101,12 +100,12 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // async function getCsrfToken(): Promise<string> {
 //   if (csrfToken) return csrfToken;
-//   
+//
 //   try {
 //     const response = await fetch('/api/csrf-token', {
 //       credentials: 'include'
 //     });
-//     
+//
 //     if (!response.ok) {
 //       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
 //       console.error('CSRF token fetch failed:', {
@@ -114,7 +113,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 //         statusText: response.statusText,
 //         error: errorData
 //       });
-//       
+//
 //       // More specific error message
 //       if (response.status === 401) {
 //         throw new Error('Session required. Please log in again.');
@@ -124,12 +123,12 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 //         throw new Error(`Failed to get CSRF token: ${errorData.error || response.statusText}`);
 //       }
 //     }
-//     
+//
 //     const data = await response.json();
 //     if (!data.csrfToken) {
 //       throw new Error('CSRF token not found in response');
 //     }
-//     
+//
 //     csrfToken = data.csrfToken;
 //     return csrfToken;
 //   } catch (error: any) {
@@ -146,7 +145,7 @@ const api = {
   async request(endpoint: string, options: RequestInit = {}) {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
+      ...((options.headers as Record<string, string>) || {}),
     };
 
     // Add CSRF token for mutations (but not for login - it's before authentication)
@@ -163,17 +162,17 @@ const api = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Network error' }));
-      
+
       // Handle standardized error format from backend
       const errorMessage = error.error || error.message || 'Request failed';
       const errorCode = error.code;
       const errorDetails = error.details;
-      
+
       const err: any = new Error(errorMessage);
       err.status = response.status;
       err.code = errorCode;
       err.details = errorDetails;
-      
+
       throw err;
     }
 
@@ -219,6 +218,20 @@ const api = {
 
   async getTasks() {
     return this.request('/tasks');
+  },
+
+  async getSettings(category?: string) {
+    if (category) {
+      return this.request(`/settings/${category}`);
+    }
+    return this.request('/settings');
+  },
+
+  async updateSettings(category: string, settings: any) {
+    return this.request(`/settings/${category}`, {
+      method: 'PUT',
+      body: JSON.stringify({ settings }),
+    });
   },
 };
 
@@ -301,7 +314,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signup = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const signup = async (
+    email: string,
+    password: string,
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
       const response = await api.signup(email, password);
       // Auto-login after successful signup
@@ -432,6 +448,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const getSettings = async (category?: string) => {
+    try {
+      const response = await api.getSettings(category);
+      return response.settings;
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+      return {};
+    }
+  };
+
+  const [settingsVersion, setSettingsVersion] = useState(0);
+
+  const updateSettings = async (category: string, settings: any) => {
+    try {
+      const response = await api.updateSettings(category, settings);
+      // Trigger re-render of components listening to settings
+      setSettingsVersion((prev) => prev + 1);
+      return response.settings;
+    } catch (error) {
+      console.error('Failed to update settings:', error);
+      throw error;
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -456,6 +496,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         unregisterPanelCloseFunction,
 
         refreshData,
+
+        getSettings,
+        updateSettings,
+        settingsVersion,
       }}
     >
       {children}

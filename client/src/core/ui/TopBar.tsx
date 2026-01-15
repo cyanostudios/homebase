@@ -1,10 +1,12 @@
 import { Menu, ChevronDown, Moon, Sun } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
-import { useApp } from '@/core/api/AppContext';
+
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Switch } from '@/components/ui/switch';
+import { useApp } from '@/core/api/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+
 import { ClockDisplay } from './clock/ClockDisplay';
-import { useSidebar } from './MainLayout';
 import { PomodoroTimer } from './pomodoro/PomodoroTimer';
 
 interface TopBarProps {
@@ -26,8 +28,8 @@ interface Tenant {
 export function TopBar({ height = 64, showClock = true, className = '', children }: TopBarProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [openPanel, setOpenPanel] = useState<'pomodoro' | 'clock' | null>(null);
-  const { isMobileOverlay, setIsMobileOverlay } = useSidebar();
-  const { user, refreshData } = useApp();
+  const { setOpenMobile } = useSidebar();
+  const { user } = useApp();
   const { theme, toggleTheme } = useTheme();
 
   // Admin tenant switching state
@@ -60,7 +62,7 @@ export function TopBar({ height = 64, showClock = true, className = '', children
       const response = await fetch('/api/auth/me', {
         credentials: 'include',
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setCurrentTenantUserId(data.currentTenantUserId);
@@ -76,7 +78,7 @@ export function TopBar({ height = 64, showClock = true, className = '', children
       const response = await fetch('/api/admin/tenants', {
         credentials: 'include',
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setTenants(data.tenants);
@@ -87,7 +89,7 @@ export function TopBar({ height = 64, showClock = true, className = '', children
       setIsLoadingTenants(false);
     }
   };
-  
+
   const switchTenant = async (userId: number) => {
     try {
       const response = await fetch('/api/admin/switch-tenant', {
@@ -96,7 +98,7 @@ export function TopBar({ height = 64, showClock = true, className = '', children
         credentials: 'include',
         body: JSON.stringify({ userId }),
       });
-  
+
       if (response.ok) {
         console.log(`✅ Switched to tenant: User ${userId}`);
         window.location.reload();
@@ -118,9 +120,11 @@ export function TopBar({ height = 64, showClock = true, className = '', children
 
   // Get current tenant display name
   const getCurrentTenantDisplay = () => {
-    if (!currentTenantUserId) return user?.email || 'Unknown';
-    
-    const tenant = tenants.find(t => t.id === currentTenantUserId);
+    if (!currentTenantUserId) {
+      return user?.email || 'Unknown';
+    }
+
+    const tenant = tenants.find((t) => t.id === currentTenantUserId);
     return tenant?.email || user?.email || 'Unknown';
   };
 
@@ -129,17 +133,19 @@ export function TopBar({ height = 64, showClock = true, className = '', children
       className={`w-full bg-background border-b border-border flex items-center justify-between px-6 ${className}`}
       style={{ height: `${height}px` }}
     >
-      {/* Left side - Mobile menu + Admin Tenant Dropdown */}
+      {/* Left side - Sidebar Trigger + Admin Tenant Dropdown */}
       <div className="flex items-center gap-4">
-        {isMobile && (
+        {isMobile ? (
           <button
-            onClick={() => setIsMobileOverlay(!isMobileOverlay)}
+            onClick={() => setOpenMobile(true)}
             className="p-2 rounded-lg hover:bg-accent transition-colors lg:hidden"
           >
             <Menu className="w-5 h-5 text-muted-foreground" />
           </button>
+        ) : (
+          <SidebarTrigger />
         )}
-        
+
         {/* Admin Tenant Dropdown */}
         {isAdmin && (
           <div className="relative">
@@ -147,27 +153,22 @@ export function TopBar({ height = 64, showClock = true, className = '', children
               onClick={() => setShowTenantDropdown(!showTenantDropdown)}
               className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors"
             >
-              <span className="text-sm font-medium text-primary">
-                {getCurrentTenantDisplay()}
-              </span>
+              <span className="text-sm font-medium text-primary">{getCurrentTenantDisplay()}</span>
               <ChevronDown className="w-4 h-4 text-primary" />
             </button>
 
             {showTenantDropdown && (
               <>
                 {/* Backdrop */}
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowTenantDropdown(false)}
-                />
-                
+                <div className="fixed inset-0 z-40" onClick={() => setShowTenantDropdown(false)} />
+
                 {/* Dropdown */}
                 <div className="absolute top-full left-0 mt-2 w-64 bg-card border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
                   <div className="p-2">
                     <div className="text-xs font-semibold text-muted-foreground px-3 py-2">
                       Switch Tenant View
                     </div>
-                    
+
                     {isLoadingTenants ? (
                       <div className="px-3 py-4 text-sm text-muted-foreground text-center">
                         Loading tenants...
@@ -200,7 +201,7 @@ export function TopBar({ height = 64, showClock = true, className = '', children
             )}
           </div>
         )}
-        
+
         {children}
       </div>
 
@@ -238,4 +239,4 @@ export function TopBar({ height = 64, showClock = true, className = '', children
       </div>
     </div>
   );
-}// Force rebuild Mon Dec  1 22:44:59 CET 2025
+} // Force rebuild Mon Dec  1 22:44:59 CET 2025

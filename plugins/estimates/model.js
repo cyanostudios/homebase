@@ -9,7 +9,6 @@ class EstimateModel {
     // No pool needed - ServiceManager provides database service
   }
 
-
   // Existing calculation method (unchanged)
   calculateTotals(lineItems, estimateDiscount = 0) {
     let subtotal = 0;
@@ -239,10 +238,7 @@ class EstimateModel {
       const db = Database.get(req);
 
       // Tenant isolation automatic
-      const rows = await db.query(
-        'SELECT * FROM estimates ORDER BY created_at DESC',
-        [],
-      );
+      const rows = await db.query('SELECT * FROM estimates ORDER BY created_at DESC', []);
 
       return rows.map((row) => this.transformRow(row));
     } catch (error) {

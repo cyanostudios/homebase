@@ -1,306 +1,605 @@
 # Database SDK Troubleshooting Guide
 
 **Datum**: 2026-01-13  
-**Status**: Pågående refactoring från legacy ServiceManager till @homebase/core SDK
+**Syfte**: Dokumentera misstag och fallgropar för att undvika att göra samma fel igen
 
 ---
 
-## 🚨 Kritiska Misstag att Undvika
+## 🚨 Kritiska Misstag och Feltänk
 
-### 1. Database.get(req).query() Returnerar ROWS, Inte Result Object
+### Misstag 1: Antog att query() returnerar samma format som pool.query()
 
-**❌ FELAKTIGT:**
+**Vad gick fel:**
+
+```javascript
+// ❌ FELAKTIGT - Antog att SDK fungerar som pool.query()
+const result = await db.query('SELECT * FROM notes', []);
+return result.rows.map(this.transformRow); // ❌ result.rows är undefined!
+```
+
+**Varför hände det:**
+
+- Utvecklaren var van vid att använda `pool.query()` som returnerar `{ rows: [...] }`
+- Antog att Database SDK skulle ha samma API utan att läsa implementationen
+- Trodde att SDK bara var en wrapper, inte en omdesign av API:et
+
+**Vad vi lärde oss:**
+
+- **Läs SDK-implementationen FÖRST** - packages/core/src/Database.js visar exakt vad som returneras
+- SDK:er kan ha helt annorlunda API än det man är van vid
+- Antaganden baserade på "så brukar det vara" leder till buggar
+
+**Korrekt sätt:**
+
+```javascript
+// ✅ KORREKT - SDK returnerar rows direkt
+const rows = await db.query('SELECT * FROM notes', []);
+return rows.map(this.transformRow);
+```
+
+**Fallgrop:** När du refaktorerar kod, läs ALLTID den nya API:ets dokumentation/implementation innan du använder den.
+
+---
+
+### Misstag 2: Använde ServiceManager direkt i plugins
+
+**Vad gick fel:**
+
+```javascript
+// ❌ FELAKTIGT - ServiceManager är inte tillgänglig i plugin context
+const database = ServiceManager.get('database', req);
+const logger = ServiceManager.get('logger');
+```
+
+**Varför hände det:**
+
+- ServiceManager användes i äldre kod och fungerade där
+- Trodde att plugins hade samma tillgång till core-tjänster
+- Missförstod arkitekturen - plugins ska vara isolerade från core implementation details
+
+**Vad vi lärde oss:**
+
+- **Plugins ska använda SDK, inte core-tjänster direkt**
+- ServiceManager är en intern implementation detail som kan ändras
+- SDK:er finns för att ge plugins en stabil, abstraherad interface
+- Direkt användning av core-tjänster skapar tight coupling
+
+**Korrekt sätt:**
+
+```javascript
+// ✅ KORREKT - Använd SDK som är designad för plugins
+const { Logger, Database } = require('@homebase/core');
+const db = Database.get(req);
+Logger.info('Message', { data });
+```
+
+**Fallgrop:** Om något fungerar i core-kod betyder det INTE att det fungerar i plugins. Plugins har en annan context och ska använda SDK.
+
+---
+
+### Misstag 3: Skickade context som parameter trots att det redan fanns inbyggt
+
+**Vad gick fel:**
+
+```javascript
+// ❌ FELAKTIGT - Trodde att context måste skickas manuellt
+const db = Database.get(req);
+const context = this._getContext(req); // Onödig!
+const rows = await db.query('SELECT * FROM notes', [], context); // context ignoreras
+```
+
+**Varför hände det:**
+
+- Var van vid att manuellt skapa context-objekt
+- Trodde att SDK krävde explicit context
+- Skapade `_getContext()` metod "för säkerhets skull"
+- Läste inte SDK-implementationen som visar att context redan är inbyggt
+
+**Vad vi lärde oss:**
+
+- **SDK:er abstraherar bort komplexitet** - om SDK kräver något, kommer det att vara tydligt
+- Extra parametrar som ignoreras är ett tecken på att man missförstått API:et
+- `_getContext()` metoder är onödiga när SDK hanterar context automatiskt
+
+**Korrekt sätt:**
+
+```javascript
+// ✅ KORREKT - Context är redan inbyggt i Database.get(req)
+const db = Database.get(req);
+const rows = await db.query('SELECT * FROM notes', []); // Context hanteras automatiskt
+```
+
+**Fallgrop:** Om du skapar helper-metoder som SDK redan hanterar, är det ett tecken på att du inte förstått SDK:ns design. Läs implementationen.
+
+---
+
+### Misstag 4: Antog att insert() returnerar samma format som query()
+
+**Vad gick fel:**
+
+```javascript
+// ❌ FELAKTIGT - Antog att insert returnerar { rows: [...] }
+const result = await db.insert('notes', data);
+return this.transformRow(result.rows[0]); // ❌ result.rows finns inte
+```
+
+**Varför hände det:**
+
+- Trodde att alla database-metoder skulle ha samma return-format
+- Antog konsistens baserat på vad man kände till från pool.query()
+- Läste inte dokumentationen för insert()
+
+**Vad vi lärde oss:**
+
+- **Varje metod kan ha olika return-format** - läs dokumentationen för varje metod
+- Convenience-metoder (insert, update) returnerar ofta data direkt, inte wrappat
+- Antaganden om konsistens kan vara farliga
+
+**Korrekt sätt:**
+
+```javascript
+// ✅ KORREKT - insert() returnerar record direkt
+const record = await db.insert('notes', data);
+return this.transformRow(record);
+```
+
+**Fallgrop:** Anta inte att metoder har samma format bara för att de är i samma SDK. Läs dokumentationen för varje metod.
+
+---
+
+## 🧠 Feltänk som Ledde till Problemen
+
+### Feltänk 1: "Det fungerar i core-kod, så det fungerar i plugins"
+
+**Verklighet:** Plugins har isolerad context och måste använda SDK, inte core-tjänster direkt.
+
+### Feltänk 2: "SDK:er är bara wrappers, de fungerar som originalet"
+
+**Verklighet:** SDK:er kan omdesigna API:er helt för att göra dem enklare. Läs implementationen.
+
+### Feltänk 3: "Mer parametrar = mer kontroll = bättre"
+
+**Verklighet:** Bra SDK:er abstraherar bort komplexitet. Om du måste skicka context manuellt, har du missförstått SDK:et.
+
+### Feltänk 4: "Om det inte finns dokumentation, antar jag baserat på vad jag vet"
+
+**Verklighet:** Källkoden ÄR dokumentationen. Läs packages/core/src/Database.js istället för att gissa.
+
+---
+
+## ⚠️ Fallgropar att Undvika
+
+### Fallgrop 1: Refaktorera utan att läsa den nya API:en
+
+**Symptom:** Kod kompilerar men kraschar i runtime med "undefined" errors  
+**Lösning:** Läs SDK-implementationen FÖRST, testa sedan
+
+### Fallgrop 2: Kopiera kod från core till plugins
+
+**Symptom:** "ServiceManager is not defined" eller liknande  
+**Lösning:** Plugins ska använda SDK, inte core-tjänster. Om core-kod använder ServiceManager, översätt till SDK-ekvivalent.
+
+### Fallgrop 3: Skapa helper-metoder som SDK redan hanterar
+
+**Symptom:** `_getContext()` metoder, manuell context-hantering  
+**Lösning:** Om SDK har en metod, använd den. Skapa inte din egen version.
+
+### Fallgrop 4: Anta konsistens mellan metoder
+
+**Symptom:** `result.rows` på insert() eller update()  
+**Lösning:** Läs dokumentationen för varje metod individuellt.
+
+### Fallgrop 5: Ignorera runtime-fel och tro att det är "edge cases"
+
+**Symptom:** "Cannot read properties of undefined" - men tror att det bara är vissa fall  
+**Lösning:** Om något är undefined, är det ALLTID ett tecken på att du missförstått API:et. Läs implementationen.
+
+---
+
+## 📋 Checklista: När Du Refaktorerar till SDK
+
+**FÖRE du börjar:**
+
+- [ ] Läs SDK-implementationen (packages/core/src/Database.js)
+- [ ] Förstå vad varje metod returnerar (inte bara vad den gör)
+- [ ] Kolla exempel i andra plugins som redan använder SDK
+
+**När du refaktorerar:**
+
+- [ ] Ta bort alla `ServiceManager.get()` anrop
+- [ ] Ta bort alla `_getContext()` metoder
+- [ ] Ta bort alla context-parametrar från SDK-anrop
+- [ ] Ändra `result.rows` till `rows` (eller `result` till `record` för insert/update)
+- [ ] Använd `Logger` från SDK, inte `ServiceManager.get('logger')`
+
+**Efter refactoring:**
+
+- [ ] Testa att data faktiskt sparas (inte bara att det kompilerar)
+- [ ] Testa att data finns kvar efter refresh
+- [ ] Kolla loggarna för "undefined" eller "is not defined" errors
+
+---
+
+## 🔍 Debugging: När Något Går Fel
+
+### "Cannot read properties of undefined (reading 'map')"
+
+**Orsak:** Du försöker accessa `.rows` på något som redan är rows-arrayen  
+**Debug:** Logga vad `db.query()` faktiskt returnerar:
+
 ```javascript
 const result = await db.query('SELECT * FROM notes', []);
-return result.rows.map(this.transformRow);  // ❌ result.rows är undefined!
+console.log('Query result:', result, 'Type:', typeof result, 'Is array:', Array.isArray(result));
 ```
 
-**✅ KORREKT:**
+**Lösning:** Ta bort `.rows` - query() returnerar rows direkt
+
+### "ServiceManager is not defined"
+
+**Orsak:** Du använder ServiceManager i plugin-kod  
+**Debug:** Sök efter alla `ServiceManager` i filen  
+**Lösning:** Importera och använd SDK istället:
+
 ```javascript
-const rows = await db.query('SELECT * FROM notes', []);
-return rows.map(this.transformRow);  // ✅ query() returnerar rows direkt
-```
-
-**Förklaring:**
-- `PostgreSQLAdapter.query()` returnerar `result.rows` direkt (rad 220 i PostgreSQLAdapter.js)
-- Database SDK wrapprar detta och returnerar fortfarande rows-arrayen direkt
-- Du behöver INTE accessa `.rows` property
-
-**Påverkar:**
-- `getAll()` metoder i alla plugins
-- Alla query-anrop som förväntar sig result.rows
-
----
-
-### 2. ServiceManager Inte Tillgänglig i Plugin Models
-
-**❌ FELAKTIGT:**
-```javascript
-// plugins/tasks/model.js
-const logger = ServiceManager.get('logger');  // ❌ ReferenceError: ServiceManager is not defined
-```
-
-**✅ KORREKT:**
-```javascript
-// plugins/tasks/model.js
 const { Logger, Database } = require('@homebase/core');
-
-// Använd sedan direkt:
-Logger.info('Task created', { taskId });
 ```
 
-**Förklaring:**
-- `ServiceManager` är en intern core-tjänst som INTE ska användas direkt av plugins
-- Plugins ska använda `@homebase/core` SDK som abstraherar bort ServiceManager
-- SDK tillhandahåller: `Logger`, `Database`, `Context`, `Router`
+### "User context required for insert"
 
-**Påverkar:**
-- tasks/model.js
-- invoices/model.js
-- files/model.js
-- estimates/model.js
-- Alla andra plugins som importerar ServiceManager direkt
-
----
-
-### 3. Context Ska INTE Skickas Som Parameter Till Database SDK
-
-**❌ FELAKTIGT:**
-```javascript
-const db = Database.get(req);
-const context = this._getContext(req);
-const rows = await db.query('SELECT * FROM notes', [], context);  // ❌ context skickas dubbelt
-```
-
-**✅ KORREKT:**
-```javascript
-const db = Database.get(req);
-const rows = await db.query('SELECT * FROM notes', []);  // ✅ context redan inbyggt
-```
-
-**Förklaring:**
-- `Database.get(req)` skapar redan ett context från request-objektet
-- Context (userId, pool) är inbäddat i alla returnerade metoder
-- Du behöver ALDRIG skicka context som ett extra argument till SDK-metoder
-
-**SDK Implementation** (packages/core/src/Database.js):
-```javascript
-static get(req) {
-  const context = {
-    pool: req.tenantPool,
-    userId: req.session?.user?.id,
-  };
-  
-  return {
-    query: async (sql, params = []) => {
-      return await database.query(sql, params, context);  // Context redan inkluderat
-    },
-    insert: async (table, data) => {
-      return await database.insert(table, data, context);
-    },
-    // ... osv
-  };
-}
-```
-
----
-
-### 4. Insert/Update Returnerar Direkt Record, Inte Result Object
-
-**❌ FELAKTIGT:**
-```javascript
-const result = await db.insert('notes', data);
-return this.transformRow(result.rows[0]);  // ❌ result.rows finns inte
-```
-
-**✅ KORREKT:**
-```javascript
-const record = await db.insert('notes', data);
-return this.transformRow(record);  // ✅ insert() returnerar record direkt
-```
-
-**Förklaring:**
-- `db.insert()` returnerar den skapade posten direkt (inte { rows: [...] })
-- `db.update()` returnerar den uppdaterade posten direkt
-- Detta gäller alla convenience-metoder i Database SDK
-
----
-
-## 📋 Checklista För Plugin Model Refactoring
-
-När du refaktorerar en plugin model från legacy till V2 SDK:
-
-- [ ] **Import SDK korrekt:**
-  ```javascript
-  const { Logger, Database } = require('@homebase/core');
-  const { AppError } = require('../../server/core/errors/AppError');
-  ```
-
-- [ ] **Ta bort ServiceManager imports:**
-  ```javascript
-  // ❌ Ta bort: const ServiceManager = require('...');
-  ```
-
-- [ ] **Ta bort _getContext() metod:**
-  ```javascript
-  // ❌ Ta bort hela metoden - onödig med SDK
-  ```
-
-- [ ] **Använd Database.get(req) korrekt:**
-  ```javascript
-  const db = Database.get(req);
-  // INTE: const database = ServiceManager.get('database', req);
-  ```
-
-- [ ] **Query returnerar rows direkt:**
-  ```javascript
-  const rows = await db.query(sql, params);
-  // INTE: const result = ... ; result.rows
-  ```
-
-- [ ] **Insert/Update returnerar record direkt:**
-  ```javascript
-  const record = await db.insert(table, data);
-  // INTE: const result = ... ; result.rows[0]
-  ```
-
-- [ ] **Använd Logger från SDK:**
-  ```javascript
-  Logger.info('Message', { data });
-  // INTE: const logger = ServiceManager.get('logger');
-  ```
-
-- [ ] **Skicka INTE context som parameter:**
-  ```javascript
-  await db.query(sql, params);
-  // INTE: await db.query(sql, params, context);
-  ```
-
----
-
-## 🔧 Snabbfixar För Vanliga Fel
-
-### Fix 1: "Cannot read properties of undefined (reading 'map')"
-**Orsak:** Försöker accessa `result.rows` när query redan returnerar rows  
-**Lösning:** Ändra `result.rows.map()` → `rows.map()`
-
-### Fix 2: "ServiceManager is not defined"
-**Orsak:** Model importerar inte SDK korrekt  
-**Lösning:** 
-```javascript
-// Lägg till i toppen av filen:
-const { Logger, Database } = require('@homebase/core');
-
-// Ersätt alla ServiceManager.get('logger') med Logger
-```
-
-### Fix 3: "context is not defined"
-**Orsak:** Försöker använda context-variabel som inte finns  
-**Lösning:** Ta bort alla context-variabler, Database SDK hanterar det
-
-### Fix 4: "User context required for insert"
 **Orsak:** req.session eller req.tenantPool saknas  
-**Lösning:** Kontrollera att requireAuth() middleware används på routen
+**Debug:** Kolla att requireAuth() middleware används på routen  
+**Lösning:** SDK hämtar context från req automatiskt, men req måste ha session
+
+### "context is not defined"
+
+**Orsak:** Du försöker använda en context-variabel som inte finns  
+**Debug:** Ta bort alla `_getContext()` anrop och context-parametrar  
+**Lösning:** SDK hanterar context automatiskt - du behöver inte skicka det
 
 ---
 
-## 📊 Status: Vilka Plugins Är Fixade?
+## 💡 Lärdomar för Framtiden
 
-| Plugin     | Status | Fel Fixade |
-|------------|--------|------------|
-| notes      | ✅ FIXED | query() returnvärde, context borttagen, _getContext borttagen, insert fungerar |
-| contacts   | ✅ FIXED | query() returnvärde, Logger import, _getContext borttagen |
-| tasks      | ✅ FIXED | getAll() query returnvärde, _getContext borttagen |
-| invoices   | ✅ FIXED | getAll() och getById() fixade |
-| files      | ✅ FIXED | getAll() query returnvärde, _getContext borttagen |
-| estimates  | ✅ FIXED | getAll() fixad |
+1. **Läs implementationen, inte bara dokumentationen**
+   - packages/core/src/Database.js visar exakt vad som händer
+   - Källkoden är den bästa dokumentationen
 
-**Datum verifierad:** 2026-01-13  
-**Status:** ALLA PLUGINS FUNGERAR - Data sparas och förblir efter refresh ✅
+2. **Testa faktiskt funktionalitet, inte bara kompilering**
+   - Kod kan kompilera men fortfarande vara fel
+   - Testa att data sparas och finns kvar efter refresh
 
----
+3. **SDK:er abstraherar bort komplexitet**
+   - Om du måste göra något manuellt som SDK borde hantera, har du missförstått
+   - Extra parametrar som ignoreras = röd flagga
 
-## 🎯 Slutförda Steg ✅
+4. **Plugins är isolerade från core**
+   - Core-kod kan använda ServiceManager, plugins kan inte
+   - Plugins måste använda SDK för allt
 
-1. ✅ Fixat tasks/model.js
-2. ✅ Fixat invoices/model.js  
-3. ✅ Fixat files/model.js
-4. ✅ Fixat estimates/model.js
-5. ✅ Fixat notes/model.js
-6. ✅ Fixat contacts/model.js
-7. ✅ Testat att alla plugins fungerar
-8. ✅ Verifierat att data sparas och finns kvar efter refresh
-9. ✅ Signup-funktionalitet implementerad och fungerar
+5. **Antaganden är farliga**
+   - "Det fungerar så här" → Verifiera i källkoden
+   - "Det borde vara konsistent" → Läs varje metod individuellt
 
 ---
 
-## 📝 Lärdomar
+## 🎯 Vad Gick Rätt (Efter Vi Lärde Oss)
 
-1. **Läs SDK-implementationen först** - packages/core/src/Database.js visar exakt vad som returneras
-2. **Konsekvent API design** - Alla SDK-metoder ska ha samma beteende (returnera data direkt, inte wrappad i result)
-3. **Abstraktioner ska vara enkla** - Plugin-utvecklare ska inte behöva tänka på context, pool, userId manuellt
-4. **Dokumentation är kritisk** - Detta dokument ska uppdateras vid varje ny lärdom
-5. **TSX har inte hot-reload för plugins** - Servern MÅSTE startas om efter ändringar i plugin-filer
-6. **Testa efter restart** - Alltid verifiera att ändringar faktiskt laddats genom att testa funktionalitet
-7. **Session.save() är kritiskt** - För signup/login måste session sparas explicit innan response skickas
+När vi fixade problemen:
+
+1. ✅ Läs SDK-implementationen först
+2. ✅ Testa faktiskt funktionalitet (data sparas, finns kvar efter refresh)
+3. ✅ Ta bort onödiga abstraktioner (\_getContext när SDK redan hanterar det)
+4. ✅ Följ SDK:ns design istället för att försöka "förbättra" den
 
 ---
 
-## 🔍 Debugging Tips
+## 🔧 Settings Implementation Lärdomar (2026-01-14)
 
-**Kolla alltid loggarna för:**
-- `ReferenceError: ServiceManager is not defined` → Använd Logger från SDK istället
-- `Cannot read properties of undefined` → Kolla om du accessar .rows på något som redan är rows
-- `User context required` → req.session saknas, kolla middleware
+### Lärdom 1: Följ befintliga patterns strikt
 
-**Testa queries direkt i psql:**
-```sql
--- Kolla tenant schema
-\dn tenant_*
+**Vad vi gjorde rätt:**
 
--- Kolla data i tenant
-SET search_path TO tenant_1;
-SELECT * FROM notes;
-SELECT * FROM contacts;
+- Följde samma mönster som auth.js och admin.js för settings routes
+- Använde setupSettingsRoutes() för dependency injection (konsistent med setupAuthRoutes())
+- Skapade user_settings tabell med JSONB för flexibilitet
+
+**Kod-exempel:**
+
+```javascript
+// ✅ KORREKT - Följer samma pattern som auth.js
+function setupSettingsRoutes(mainPool, authMiddleware) {
+  pool = mainPool;
+  requireAuth = authMiddleware;
+}
+
+// ✅ KORREKT - JSONB för flexibla settings-strukturer
+CREATE TABLE user_settings (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  category VARCHAR(100) NOT NULL,
+  settings JSONB NOT NULL DEFAULT '{}',
+  UNIQUE(user_id, category)
+);
 ```
 
----
+**Nyckelpunkt:** När du lägger till nya core routes, följ EXAKT samma pattern som befintliga routes (dependency injection, error handling, logging).
 
 ---
 
-## ✅ REFACTORING SLUTFÖRD - 2026-01-13
+### Lärdom 2: NavPage type måste uppdateras överallt
 
-### Sammanfattning av arbetet:
+**Vad vi gjorde:**
 
-**Problem:** 
-- Data sparades inte korrekt i tenant-databaser
-- ServiceManager användes direkt i plugin models istället för SDK
-- Query-metoder returnerade fel format (result.rows istället för rows)
-- Context skickades som extra parameter trots att det redan fanns i SDK
+- Uppdaterade `NavPage` type i Sidebar.tsx för att inkludera 'settings'
+- Lade till settings-hantering i App.tsx rendering
+- Hanterade settings separat från plugins (settings är inte ett plugin)
+
+**Kod-exempel:**
+
+```typescript
+// ✅ KORREKT - Uppdatera NavPage type
+export type NavPage = 'contacts' | 'notes' | 'estimates' | 'invoices' | 'tasks' | 'files' | 'settings';
+
+// ✅ KORREKT - Hantera settings separat i App.tsx
+{currentPage === 'settings' ? (
+  <SettingsList onCategoryClick={(categoryId) => {...}} />
+) : (
+  renderers.renderCurrentPage(currentPage, PLUGIN_REGISTRY)
+)}
+```
+
+**Nyckelpunkt:** Settings är en core-funktion, inte ett plugin. Behandla det som en special case i routing.
+
+---
+
+### Lärdom 3: Separata UniversalPanels för olika syften
+
+**Vad vi gjorde:**
+
+- Plugin-panelen (isAnyPanelOpen) för plugins
+- Settings-panelen (isSettingsPanelOpen) för settings
+- Två separata UniversalPanel-instanser i App.tsx
+
+**Varför:**
+
+- Plugins och settings har olika panel-state-hantering
+- Settings-kategorier behöver separat state (settingsCategory)
+- Förhindrar konflikter mellan plugin-paneler och settings-paneler
+
+**Kod-exempel:**
+
+```tsx
+// ✅ KORREKT - Separata paneler för olika syften
+<UniversalPanel isOpen={isAnyPanelOpen} {...pluginProps}>
+  {renderers.renderPanelContent()}
+</UniversalPanel>
+
+<UniversalPanel isOpen={isSettingsPanelOpen} {...settingsProps}>
+  {settingsCategory === 'profile' && <ProfileSettingsForm />}
+</UniversalPanel>
+```
+
+**Fallgrop:** Försök INTE att återanvända samma panel-state för både plugins och settings - det leder till state-konflikter.
+
+---
+
+### Lärdom 4: API-metoder i AppContext behöver både interface och implementation
+
+**Vad vi gjorde:**
+
+1. Lade till metoder i `AppContextType` interface
+2. Lade till metoder i `api` objektet
+3. Skapade wrapper-funktioner i AppProvider
+4. Lade till dem i Provider value
+
+**Kod-exempel:**
+
+```typescript
+// 1. Interface
+interface AppContextType {
+  getSettings: (category?: string) => Promise<any>;
+  updateSettings: (category: string, settings: any) => Promise<any>;
+}
+
+// 2. API object
+const api = {
+  async getSettings(category?: string) {
+    return this.request(category ? `/settings/${category}` : '/settings');
+  },
+};
+
+// 3. Provider wrapper
+const getSettings = async (category?: string) => {
+  try {
+    const response = await api.getSettings(category);
+    return response.settings;
+  } catch (error) {
+    console.error('Failed to fetch settings:', error);
+    return {};
+  }
+};
+
+// 4. Provider value
+<AppContext.Provider value={{ ...otherProps, getSettings, updateSettings }}>
+```
+
+**Fallgrop:** Glöm INTE något av dessa steg - alla fyra krävs för att AppContext ska fungera korrekt.
+
+---
+
+### Lärdom 5: Forms behöver inte alltid full Context-arkitektur
+
+**Vad vi lärde oss:**
+
+- Plugins har full Context (Provider, hook, state management) eftersom de hanterar komplex CRUD
+- Settings är enklare - bara load/save operations
+- Settings-forms kan använda AppContext direkt istället för egen Context
+
+**Beslut:**
+
+- Skippa SettingsContext för initial implementation
+- Använd AppContext.getSettings() och updateSettings() direkt i forms
+- Enklare och mindre kod att underhålla
+
+**Nyckelpunkt:** Överdriv inte arkitekturen. Om något är enkelt, håll det enkelt. Contexts är för komplex state-hantering.
+
+---
+
+### Lärdom 6: npm run dev startar BARA backend per default
+
+**Problem:**
+
+- `npm run dev` kör bara `dev:api`, inte frontend
+- Frontend måste startas separat med `npm run dev:ui`
+- Eller använd `npm run dev:all` för båda
 
 **Lösning:**
-- Bytt från `ServiceManager.get('database')` till `Database.get(req)` från @homebase/core
-- Fixat alla `result.rows` till `rows` (query returnerar rows direkt)
-- Tagit bort alla `_getContext()` metoder (onödiga med SDK)
-- Tagit bort context-parametrar från alla db-anrop
-- Lagt till explicit `req.session.save()` i login och signup
 
-**Resultat:**
-- ✅ Alla 6 plugins fungerar (notes, contacts, tasks, estimates, invoices, files)
-- ✅ Data sparas korrekt i tenant-databaser
-- ✅ Data förblir efter page refresh
-- ✅ Signup-funktionalitet fungerar med auto-login
-- ✅ Session persistence fungerar korrekt
+```bash
+# Antingen separata terminals:
+npm run dev:api  # Backend (port 3002)
+npm run dev:ui   # Frontend (port 3001)
 
-**Viktiga filer ändrade:**
-- server/core/routes/auth.js - Session save och default plugins
-- client/src/core/ui/LoginComponent.tsx - Signup toggle och validering
-- client/src/core/api/AppContext.tsx - Signup API funktion
-- plugins/*/model.js - Alla 6 plugin models refaktorerade
+# Eller allt i en terminal:
+npm run dev:all  # Båda samtidigt med concurrently
+```
+
+**Nyckelpunkt:** Läs package.json scripts innan du startar servrar.
 
 ---
 
-**Senast uppdaterad:** 2026-01-13 21:15  
-**Status:** ✅ KOMPLETT - Alla plugins fungerar  
-**Ansvarig:** AI Agent (Claude)  
-**Verifierad av:** Användare - Data syns efter refresh
+### Lärdom 7: Nya tabeller kräver att setup-database.js körs
+
+**Problem du stöter på:**
+
+```
+ERROR: relation "user_settings" does not exist
+ERROR: relation "invoices" does not exist
+ERROR: relation "user_files" does not exist
+```
+
+**Varför händer det:**
+
+- Du lade till `user_settings`-tabellen i `scripts/setup-database.js`
+- Men du körde INTE scriptet efter att ha lagt till tabellen
+- Databasen har inte den nya tabellen än
+
+**Lösning:**
+
+```bash
+# Kör setup-database.js för att skapa alla tabeller
+node scripts/setup-database.js
+
+# Verifiera att tabellen skapades
+psql $DATABASE_URL -c "\dt" | grep user_settings
+```
+
+**Vad som händer:**
+
+1. Script skapar user_settings-tabellen
+2. Script skapar default superuser (admin@homebase.se / admin123)
+3. Script ger plugin access till superuser
+4. Script migrerar mock data
+
+**Nyckelpunkt:** När du lägger till nya tabeller i setup-database.js, måste du **ALLTID** köra scriptet för att uppdatera databasen. Bara att ändra koden räcker inte!
+
+**Troubleshooting:**
+
+- Om du ser "relation does not exist" fel → tabellen finns inte i databasen
+- Kör setup-database.js för att skapa den
+- Alternativt: skapa en migration istället för att lägga till i setup-database.js
+- **VIKTIGT:** setup-database.js skapar tabeller i AUTH-databasen (DATABASE_URL)
+- Plugin-tabeller behöver skapas i TENANT-databasen (använd migrations istället)
+
+---
+
+### Lärdom 8: CORS och credentials för cross-origin requests
+
+**Vad fungerar:**
+
+- Backend har `cors({ origin: 'http://localhost:3001', credentials: true })`
+- Frontend använder `credentials: 'include'` i fetch-requests
+- Sessions/cookies fungerar korrekt mellan frontend (port 3001) och backend (port 3002)
+
+**Nyckelpunkt:** CORS och credentials är redan korrekt konfigurerade. Behöver INTE ändras.
+
+---
+
+### Lärdom 9: AUTH-databas vs TENANT-databas - viktigt!
+
+**Problem du kan stöta på:**
+
+```
+ERROR: relation "invoices" does not exist
+ERROR: relation "user_files" does not exist
+```
+
+**Varför händer det:**
+
+- Det finns TVÅ databaser: AUTH-databas (users, sessions, tenants) och TENANT-databas (contacts, notes, tasks, etc.)
+- `setup-database.js` skapar tabeller i AUTH-databasen (DATABASE_URL)
+- Plugin-tabeller (invoices, user_files, etc.) behöver finnas i TENANT-databasen
+- user_settings är i AUTH-databasen eftersom det är användarspecifika settings, inte tenant-data
+
+**Lösning:**
+
+```bash
+# AUTH-databas tabeller (DATABASE_URL):
+# - users, sessions, tenants, user_plugin_access, user_settings
+
+# TENANT-databas tabeller (per tenant/user):
+# - contacts, notes, tasks, estimates, invoices, user_files
+
+# För att skapa tenant-tabeller, kör migrations i tenant-databasen:
+psql $DATABASE_URL -c "CREATE TABLE invoices (...)"
+# ELLER använd migrations i server/migrations/
+```
+
+**Nyckelpunkt:**
+
+- Core settings (user_settings) → AUTH-databas
+- Plugin data (invoices, files) → TENANT-databas
+- Om du ser "relation does not exist" för plugin-data → tabellen saknas i tenant-databasen
+
+---
+
+### Lärdom 10: Login fungerar men UI visar inte - kolla båda servrarna
+
+**Problem:**
+
+- "Jag kan inte logga in"
+- Backend fungerar (login returnerar 200)
+- Men frontend visar inte inloggningsskärmen eller data
+
+**Vanliga orsaker:**
+
+1. **Frontend körs inte** - `npm run dev` startar bara backend
+2. **Port-konflikt** - Frontend ska vara på port 3001, backend på 3002
+3. **Browser cache** - Hårda refresh krävs (Cmd+Shift+R)
+
+**Debugging:**
+
+```bash
+# Kolla om båda servrar körs:
+lsof -i:3001  # Frontend (Vite)
+lsof -i:3002  # Backend (Express)
+
+# Starta båda:
+npm run dev:all  # Eller i separata terminals:
+npm run dev:api  # Backend
+npm run dev:ui   # Frontend
+```
+
+**Test login i browser:**
+
+1. Öppna http://localhost:3001
+2. Email: admin@homebase.se
+3. Password: admin123
+4. Kolla browser console för fel
+
+**Nyckelpunkt:** Om backend säger "User logged in" men UI inte uppdateras → frontend körs troligen inte eller har cache-problem.
+
+---
+
+**Senast uppdaterad:** 2026-01-14  
+**Syfte:** Undvika att göra samma misstag igen  
+**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt

@@ -1,8 +1,8 @@
 import { LogIn, UserPlus } from 'lucide-react';
 import React, { useState } from 'react';
 
-import { useApp } from '@/core/api/AppContext';
 import { Button } from '@/components/ui/button';
+import { useApp } from '@/core/api/AppContext';
 
 type AuthMode = 'login' | 'signup';
 
@@ -59,7 +59,9 @@ export function LoginComponent() {
         }
       }
     } catch {
-      setError(mode === 'signup' ? 'Signup failed. Please try again.' : 'Login failed. Please try again.');
+      setError(
+        mode === 'signup' ? 'Signup failed. Please try again.' : 'Login failed. Please try again.',
+      );
     } finally {
       setIsLoading(false);
     }
@@ -136,7 +138,10 @@ export function LoginComponent() {
 
             {mode === 'signup' && (
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
+                <label
+                  htmlFor="confirmPassword"
+                  className="block text-sm font-medium text-foreground"
+                >
                   Confirm Password
                 </label>
                 <div className="mt-1">
@@ -163,9 +168,13 @@ export function LoginComponent() {
                 disabled={isLoading}
                 className="w-full flex justify-center"
               >
-                {isLoading 
-                  ? (mode === 'login' ? 'Signing in...' : 'Creating account...') 
-                  : (mode === 'login' ? 'Sign in' : 'Sign up')}
+                {isLoading
+                  ? mode === 'login'
+                    ? 'Signing in...'
+                    : 'Creating account...'
+                  : mode === 'login'
+                    ? 'Sign in'
+                    : 'Sign up'}
               </Button>
             </div>
           </form>
@@ -177,8 +186,8 @@ export function LoginComponent() {
                 onClick={toggleMode}
                 className="text-sm text-primary hover:text-primary/80 font-medium"
               >
-                {mode === 'login' 
-                  ? "Don't have an account? Sign up" 
+                {mode === 'login'
+                  ? "Don't have an account? Sign up"
                   : 'Already have an account? Sign in'}
               </button>
             </div>

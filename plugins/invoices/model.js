@@ -9,7 +9,6 @@ class InvoiceModel {
     // No pool needed - ServiceManager provides database service
   }
 
-
   // Existing calculation method (unchanged)
   calculateTotals(lineItems, invoiceDiscount = 0) {
     let subtotal = 0;

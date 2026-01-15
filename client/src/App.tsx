@@ -19,6 +19,9 @@ import { LoginComponent } from '@/core/ui/LoginComponent';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { createPanelFooter } from '@/core/ui/PanelFooter';
 import { createPanelTitles } from '@/core/ui/PanelTitles';
+import { PreferencesSettingsForm } from '@/core/ui/SettingsForms/PreferencesSettingsForm';
+import { ProfileSettingsForm } from '@/core/ui/SettingsForms/ProfileSettingsForm';
+import { SettingsList } from '@/core/ui/SettingsList';
 import type { NavPage } from '@/core/ui/Sidebar'; // <-- viktig typ-import
 import { TopBar } from '@/core/ui/TopBar';
 import { UniversalPanel } from '@/core/ui/UniversalPanel';
@@ -29,7 +32,7 @@ import {
 
 // Begränsad typ för AppContext.closeOtherPanels
 type CorePanel = 'contacts' | 'notes' | 'estimates' | 'tasks';
-function isCorePanelName(name: string): name is CorePanel {
+function _isCorePanelName(name: string): name is CorePanel {
   return name === 'contacts' || name === 'notes' || name === 'estimates' || name === 'tasks';
 }
 
@@ -132,7 +135,20 @@ function AppContent() {
   // State
   const [isMobileView, setIsMobileView] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [currentPage, setCurrentPage] = useState<NavPage>('contacts'); // <-- typad som NavPage
+
+  // Initialize currentPage from localStorage, fallback to 'contacts'
+  const [currentPage, setCurrentPage] = useState<NavPage>(() => {
+    const saved = localStorage.getItem('homebase:currentPage');
+    return (saved as NavPage) || 'contacts';
+  });
+
+  const [settingsCategory, setSettingsCategory] = useState<string | null>(null);
+  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
+
+  // Save currentPage to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('homebase:currentPage', currentPage);
+  }, [currentPage]);
 
   // Auto-detect current plugin/item/mode
   const currentPlugin = findCurrentPlugin(pluginContexts);
@@ -238,7 +254,16 @@ function AppContent() {
       <div className="h-full flex flex-col">
         <TopBar />
         <div className="flex-1 overflow-auto">
-          {renderers.renderCurrentPage(currentPage, PLUGIN_REGISTRY)}
+          {currentPage === 'settings' ? (
+            <SettingsList
+              onCategoryClick={(categoryId) => {
+                setSettingsCategory(categoryId);
+                setIsSettingsPanelOpen(true);
+              }}
+            />
+          ) : (
+            renderers.renderCurrentPage(currentPage, PLUGIN_REGISTRY)
+          )}
         </div>
       </div>
 
@@ -250,6 +275,39 @@ function AppContent() {
         footer={panelFooter}
       >
         {renderers.renderPanelContent()}
+      </UniversalPanel>
+
+      {/* Settings Panel */}
+      <UniversalPanel
+        isOpen={isSettingsPanelOpen}
+        onClose={() => {
+          setIsSettingsPanelOpen(false);
+          setSettingsCategory(null);
+        }}
+        title={
+          settingsCategory === 'profile'
+            ? 'User Profile'
+            : settingsCategory === 'preferences'
+              ? 'Preferences'
+              : 'Settings'
+        }
+      >
+        {settingsCategory === 'profile' && (
+          <ProfileSettingsForm
+            onCancel={() => {
+              setIsSettingsPanelOpen(false);
+              setSettingsCategory(null);
+            }}
+          />
+        )}
+        {settingsCategory === 'preferences' && (
+          <PreferencesSettingsForm
+            onCancel={() => {
+              setIsSettingsPanelOpen(false);
+              setSettingsCategory(null);
+            }}
+          />
+        )}
       </UniversalPanel>
 
       <ConfirmDialog
@@ -288,8 +346,11 @@ function App() {
   React.useEffect(() => {
     const stored = localStorage.getItem('theme');
     const root = window.document.documentElement;
-    
-    if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+
+    if (
+      stored === 'dark' ||
+      (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    ) {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');

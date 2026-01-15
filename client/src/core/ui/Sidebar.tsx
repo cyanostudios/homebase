@@ -1,22 +1,37 @@
-import { ChevronLeft, ChevronRight, LogOut, User } from 'lucide-react';
+import { LogOut, User, Settings } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
+import {
+  Sidebar as ShadcnSidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar as useShadcnSidebar,
+} from '@/components/ui/sidebar';
 import { useApp } from '@/core/api/AppContext';
 import { categoryOrder } from '@/core/navigationConfig';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
 
-import { useSidebar } from './MainLayout';
+import { SecondarySidebar } from './SecondarySidebar';
 
 export type NavPage =
   | 'contacts'
   | 'notes'
   | 'estimates'
   | 'invoices'
+  | 'invoices-recurring'
+  | 'invoices-payments'
+  | 'invoices-reports'
   | 'tasks'
-  | 'files';
+  | 'files'
+  | 'settings';
 
 interface SidebarProps {
   currentPage: NavPage;
@@ -24,30 +39,56 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
-  const { isCollapsed, setIsCollapsed, isMobileOverlay, setIsMobileOverlay } = useSidebar();
-  const { logout, user } = useApp();
-  const [isMobile, setIsMobile] = useState(false);
-  const [isHoveringLogo, setIsHoveringLogo] = useState(false);
+  const { logout, user, getSettings, settingsVersion } = useApp();
+  const { state, isMobile, setOpenMobile } = useShadcnSidebar();
+  const [userName, setUserName] = useState<string | null>(null);
+  const [openSecondarySidebar, setOpenSecondarySidebar] = useState<string | null>(null);
 
+  // Fetch user name from settings
   useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768);
+    const fetchUserName = async () => {
+      if (!user) {
+        return;
+      }
+
+      try {
+        const response = await getSettings('profile');
+
+        // Handle both response formats
+        const settings = response?.settings || response;
+
+        if (settings?.name) {
+          setUserName(settings.name);
+        } else {
+          setUserName(null);
+        }
+      } catch (error) {
+        console.error('Sidebar: Error fetching settings:', error);
+        setUserName(null);
+      }
     };
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
+
+    fetchUserName();
+  }, [user, getSettings, settingsVersion]);
 
   const handleLogout = async () => {
     await logout();
   };
 
-  const handleMenuItemClick = (page: NavPage | null) => {
-    if (isMobile && isMobileOverlay) {
-      setIsMobileOverlay(false);
+  const handleMenuItemClick = (page: NavPage | null, item?: any) => {
+    if (isMobile) {
+      setOpenMobile(false);
     }
+
+    // If item has submenu, open secondary sidebar instead of navigating
+    if (item?.submenu && item.submenu.length > 0) {
+      setOpenSecondarySidebar(item.page);
+      return;
+    }
+
     if (page) {
       onPageChange(page);
+      setOpenSecondarySidebar(null); // Close secondary sidebar when navigating
     }
   };
 
@@ -59,7 +100,7 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     PLUGIN_REGISTRY.forEach((plugin) => {
       // Only show plugins that user has access to
       if (user?.plugins.includes(plugin.name) && plugin.navigation) {
-        const { category, label, icon, order } = plugin.navigation;
+        const { category, label, icon, order, submenu } = plugin.navigation;
         if (!categoriesMap.has(category)) {
           categoriesMap.set(category, []);
         }
@@ -69,12 +110,18 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
           icon,
           page: plugin.name as NavPage,
           order,
+          submenu: submenu?.map((item) => ({
+            label: item.label,
+            icon: item.icon,
+            page: item.page as NavPage,
+            order: item.order,
+          })),
         });
       }
     });
 
     // Sort items within each category by order
-    categoriesMap.forEach((items, category) => {
+    categoriesMap.forEach((items) => {
       items.sort((a, b) => a.order - b.order);
     });
 
@@ -88,147 +135,138 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
   };
 
   const navCategories = buildNavigation();
+  const isCollapsed = state === 'collapsed';
 
-  const showLabels = !isCollapsed || (isMobile && isMobileOverlay);
+  // Find the item with submenu that should be shown in secondary sidebar
+  const secondarySidebarItem = navCategories
+    .flatMap((cat) => cat.items)
+    .find((item) => item.page === openSecondarySidebar && item.submenu);
 
   return (
-    <aside
-      className={cn(
-        'left-0 top-0 h-screen bg-background border-r flex flex-col transition-all duration-300 z-40',
-        isMobile ? 'fixed' : 'sticky',
-        isMobile
-          ? isMobileOverlay
-            ? 'translate-x-0 w-64'
-            : '-translate-x-full w-64'
-          : isCollapsed
-            ? 'w-16'
-            : 'w-64'
-      )}
-    >
-      {/* Header */}
-      <div className={cn(
-        "flex h-16 items-center border-b px-4",
-        isCollapsed && !isMobile ? "justify-center" : "justify-between"
-      )}>
-        <button
-          onClick={() => isCollapsed && setIsCollapsed(false)}
-          onMouseEnter={() => setIsHoveringLogo(true)}
-          onMouseLeave={() => setIsHoveringLogo(false)}
-          disabled={!isCollapsed}
-          className={cn(
-            "flex items-center gap-2 font-semibold text-left transition-all",
-            isCollapsed ? "cursor-pointer hover:scale-110 active:scale-90" : "cursor-default"
-          )}
-          title={isCollapsed ? "Expand sidebar" : undefined}
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground flex-shrink-0 transition-all duration-300">
-            {isCollapsed && isHoveringLogo ? (
-              <ChevronRight className="h-5 w-5 animate-in fade-in slide-in-from-left-2 duration-300" />
-            ) : (
+    <div className="flex h-full">
+      <ShadcnSidebar collapsible="icon" variant="sidebar">
+        <SidebarHeader>
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground flex-shrink-0">
               <span className="text-sm font-bold">H</span>
-            )}
+            </div>
+            {!isCollapsed && <span className="text-lg font-semibold">Homebase</span>}
           </div>
-          {showLabels && <span className="text-lg">Homebase</span>}
-        </button>
+        </SidebarHeader>
 
-        {showLabels && (
-          <button
-            onClick={() => {
-              if (isMobile) {
-                setIsMobileOverlay(!isMobileOverlay);
-              } else {
-                setIsCollapsed(!isCollapsed);
-              }
-            }}
-            className="p-2 rounded-md hover:bg-accent transition-colors"
-            aria-label="Collapse sidebar"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      {/* Navigation with ScrollArea */}
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full">
-          <nav className="p-2 space-y-1">
-            {navCategories.map((category, categoryIndex) => (
-              <div key={category.title} className={cn(categoryIndex > 0 && 'mt-8')}>
-                {showLabels && (
-                  <div className="mb-2 px-3">
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      {category.title}
-                    </h3>
-                  </div>
-                )}
-                <div className="space-y-1">
+        <SidebarContent>
+          {navCategories.map((category, categoryIndex) => (
+            <SidebarGroup key={category.title}>
+              {categoryIndex > 0 && <div className="h-8" />}
+              <SidebarGroupLabel>{category.title}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
                   {category.items.map((item) => {
                     const isActive = item.page === currentPage;
+                    const hasSubmenu = item.submenu && item.submenu.length > 0;
+                    const isSubmenuActive =
+                      hasSubmenu && item.submenu?.some((sub: any) => sub.page === currentPage);
+
+                    if (hasSubmenu) {
+                      return (
+                        <SidebarMenuItem key={item.label}>
+                          <SidebarMenuButton
+                            onClick={() => handleMenuItemClick(item.page, item)}
+                            isActive={
+                              isActive || isSubmenuActive || openSecondarySidebar === item.page
+                            }
+                            tooltip={isCollapsed ? item.label : undefined}
+                          >
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.label}</span>
+                            <ChevronRight className="ml-auto h-4 w-4" />
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    }
+
                     return (
-                      <button
-                        key={item.label}
-                        onClick={() => handleMenuItemClick(item.page)}
-                        disabled={item.page === null}
-                        className={cn(
-                          'w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                          'hover:bg-accent hover:text-accent-foreground',
-                          isActive && 'bg-accent text-accent-foreground',
-                          item.page === null && 'opacity-50 cursor-not-allowed',
-                          !showLabels && 'justify-center px-2'
-                        )}
-                        title={!showLabels ? item.label : undefined}
-                      >
-                        <item.icon className={cn('h-4 w-4 flex-shrink-0', isActive && 'text-primary')} />
-                        {showLabels && <span className="truncate">{item.label}</span>}
-                      </button>
+                      <SidebarMenuItem key={item.label}>
+                        <SidebarMenuButton
+                          onClick={() => handleMenuItemClick(item.page)}
+                          disabled={item.page === null}
+                          isActive={isActive}
+                          tooltip={isCollapsed ? item.label : undefined}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
                     );
                   })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
+        </SidebarContent>
+
+        <SidebarFooter>
+          {/* User info */}
+          {user && !isCollapsed && (
+            <div className="px-2 py-2 mb-2">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{userName || user.email}</div>
+                  <div className="text-xs text-muted-foreground capitalize">{user.role}</div>
                 </div>
               </div>
-            ))}
-          </nav>
-        </ScrollArea>
-      </div>
-
-      {/* Footer with Expand/Collapse, User info and Logout */}
-      <div className="border-t p-2 space-y-1">
-
-        {/* User info */}
-        {user && showLabels && (
-          <div className="px-3 py-2 mb-2">
-            <div className="flex items-center gap-3">
+            </div>
+          )}
+          {user && isCollapsed && (
+            <div className="flex justify-center px-2 py-2 mb-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                 <User className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{user.email}</div>
-                <div className="text-xs text-muted-foreground capitalize">{user.role}</div>
-              </div>
             </div>
-          </div>
-        )}
-        {user && !showLabels && (
-          <div className="flex justify-center px-2 py-2 mb-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-              <User className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </div>
-        )}
-
-        {/* Logout button */}
-        <button
-          onClick={handleLogout}
-          className={cn(
-            'w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
-            'text-destructive hover:bg-destructive/10 transition-colors',
-            !showLabels && 'justify-center px-2'
           )}
-          title={!showLabels ? 'Logout' : undefined}
-        >
-          <LogOut className="h-4 w-4 flex-shrink-0" />
-          {showLabels && <span>Logout</span>}
-        </button>
-      </div>
-    </aside>
+
+          <SidebarMenu>
+            {/* Settings button */}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => handleMenuItemClick('settings')}
+                isActive={currentPage === 'settings'}
+                tooltip={isCollapsed ? 'Settings' : undefined}
+              >
+                <Settings className="h-4 w-4" />
+                <span>Settings</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            {/* Logout button */}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={handleLogout}
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                tooltip={isCollapsed ? 'Logout' : undefined}
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </ShadcnSidebar>
+
+      {/* Secondary Sidebar for submenu items */}
+      {secondarySidebarItem && (
+        <SecondarySidebar
+          isOpen={openSecondarySidebar === secondarySidebarItem.page}
+          onClose={() => setOpenSecondarySidebar(null)}
+          title={secondarySidebarItem.label}
+          items={secondarySidebarItem.submenu || []}
+          currentPage={currentPage}
+          onPageChange={onPageChange}
+        />
+      )}
+    </div>
   );
 }

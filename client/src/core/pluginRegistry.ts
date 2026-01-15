@@ -3,17 +3,24 @@ import {
   StickyNote,
   CheckSquare,
   Calculator,
-  FileText,
   Files as FilesIcon,
+  LucideIcon,
 } from 'lucide-react';
-import { LucideIcon } from 'lucide-react';
 import React from 'react';
+
+export interface PluginNavigationSubItem {
+  label: string;
+  icon: LucideIcon;
+  page: string;
+  order: number;
+}
 
 export interface PluginNavigationConfig {
   category: string;
   label: string;
   icon: LucideIcon;
   order: number;
+  submenu?: PluginNavigationSubItem[]; // Optional submenu items
 }
 
 export interface PluginRegistryEntry {
@@ -34,46 +41,42 @@ export interface PluginRegistryEntry {
 }
 
 // Contacts
+import { ContactForm } from '@/plugins/contacts/components/ContactForm';
+import { ContactList } from '@/plugins/contacts/components/ContactList';
+import { ContactView } from '@/plugins/contacts/components/ContactView';
 import { ContactProvider } from '@/plugins/contacts/context/ContactContext';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
-import { ContactList } from '@/plugins/contacts/components/ContactList';
-import { ContactForm } from '@/plugins/contacts/components/ContactForm';
-import { ContactView } from '@/plugins/contacts/components/ContactView';
-
-// Notes
-import { NoteProvider } from '@/plugins/notes/context/NoteContext';
-import { useNotes } from '@/plugins/notes/hooks/useNotes';
-import { NoteList } from '@/plugins/notes/components/NoteList';
-import { NoteForm } from '@/plugins/notes/components/NoteForm';
-import { NoteView } from '@/plugins/notes/components/NoteView';
-
-// Estimates
+// Files
+import { EstimateForm } from '@/plugins/estimates/components/EstimateForm';
+import { EstimateList } from '@/plugins/estimates/components/EstimateList';
+import { EstimateView } from '@/plugins/estimates/components/EstimateView';
 import { EstimateProvider } from '@/plugins/estimates/context/EstimateContext';
 import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';
-import { EstimateList } from '@/plugins/estimates/components/EstimateList';
-import { EstimateForm } from '@/plugins/estimates/components/EstimateForm';
-import { EstimateView } from '@/plugins/estimates/components/EstimateView';
-
-// Tasks
-import { TaskProvider } from '@/plugins/tasks/context/TaskContext';
-import { useTasks } from '@/plugins/tasks/hooks/useTasks';
-import { TaskList } from '@/plugins/tasks/components/TaskList';
-import { TaskForm } from '@/plugins/tasks/components/TaskForm';
-import { TaskView } from '@/plugins/tasks/components/TaskView';
-
-// Invoices
-import { InvoicesProvider } from '@/plugins/invoices/context/InvoicesContext';
-import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
-import { InvoicesList } from '@/plugins/invoices/components/InvoicesList';
-import { InvoicesForm } from '@/plugins/invoices/components/InvoicesForm';
-import { InvoicesView } from '@/plugins/invoices/components/InvoicesView';
-
-// Files
+import { FileForm } from '@/plugins/files/components/FileForm';
+import { FileList } from '@/plugins/files/components/FileList';
+import { FileView } from '@/plugins/files/components/FileView';
 import { FilesProvider } from '@/plugins/files/context/FilesContext';
 import { useFiles } from '@/plugins/files/hooks/useFiles';
-import { FileList } from '@/plugins/files/components/FileList';
-import { FileForm } from '@/plugins/files/components/FileForm';
-import { FileView } from '@/plugins/files/components/FileView';
+// Invoices
+import { InvoicesForm } from '@/plugins/invoices/components/InvoicesForm';
+import { InvoicesList } from '@/plugins/invoices/components/InvoicesList';
+import { InvoicesView } from '@/plugins/invoices/components/InvoicesView';
+import { InvoicesProvider } from '@/plugins/invoices/context/InvoicesContext';
+import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
+import { invoicesNavigation } from '@/plugins/invoices/navigation';
+// Notes
+import { NoteForm } from '@/plugins/notes/components/NoteForm';
+import { NoteList } from '@/plugins/notes/components/NoteList';
+import { NoteView } from '@/plugins/notes/components/NoteView';
+import { NoteProvider } from '@/plugins/notes/context/NoteContext';
+import { useNotes } from '@/plugins/notes/hooks/useNotes';
+// Estimates
+// Tasks
+import { TaskForm } from '@/plugins/tasks/components/TaskForm';
+import { TaskList } from '@/plugins/tasks/components/TaskList';
+import { TaskView } from '@/plugins/tasks/components/TaskView';
+import { TaskProvider } from '@/plugins/tasks/context/TaskContext';
+import { useTasks } from '@/plugins/tasks/hooks/useTasks';
 
 export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   {
@@ -154,12 +157,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       Form: InvoicesForm,
       View: InvoicesView,
     },
-    navigation: {
-      category: 'Business',
-      label: 'Invoice',
-      icon: FileText,
-      order: 1,
-    },
+    navigation: invoicesNavigation,
   },
   {
     name: 'files',
