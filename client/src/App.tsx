@@ -250,10 +250,19 @@ function AppContent() {
   );
 
   return (
-    <MainLayout currentPage={currentPage} onPageChange={handlePageChange}>
-      <div className="h-full flex flex-col">
-        <TopBar />
-        <div className="flex-1 overflow-auto">
+    <MainLayout
+      currentPage={currentPage}
+      onPageChange={handlePageChange}
+      detailPanelOpen={isAnyPanelOpen}
+      detailPanelTitle={panelTitles.getPanelTitle()}
+      detailPanelSubtitle={panelTitles.getPanelSubtitle()}
+      detailPanelContent={renderers.renderPanelContent()}
+      detailPanelFooter={panelFooter}
+      onDetailPanelClose={handlers.getCloseHandler()}
+    >
+      <div className="h-full flex flex-col bg-background overflow-hidden">
+        <TopBar className="flex-shrink-0" />
+        <div className="flex-1 overflow-y-auto min-h-0">
           {currentPage === 'settings' ? (
             <SettingsList
               onCategoryClick={(categoryId) => {
@@ -266,16 +275,6 @@ function AppContent() {
           )}
         </div>
       </div>
-
-      <UniversalPanel
-        isOpen={isAnyPanelOpen}
-        onClose={handlers.getCloseHandler()}
-        title={panelTitles.getPanelTitle()}
-        subtitle={panelTitles.getPanelSubtitle()}
-        footer={panelFooter}
-      >
-        {renderers.renderPanelContent()}
-      </UniversalPanel>
 
       {/* Settings Panel */}
       <UniversalPanel

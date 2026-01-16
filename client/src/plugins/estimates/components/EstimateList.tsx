@@ -1,21 +1,12 @@
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Eye,
-  Search,
-  Calculator,
-  ChevronUp,
-  ChevronDown,
-  Copy,
-} from 'lucide-react';
-import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, Search, Calculator } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { GroupedList } from '@/core/ui/GroupedList';
 import { Heading, Text } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
@@ -26,19 +17,12 @@ type SortField = 'estimateNumber' | 'contactName' | 'total' | 'createdAt';
 type SortOrder = 'asc' | 'desc';
 
 export function EstimateList() {
-  const {
-    estimates,
-    openEstimatePanel,
-    openEstimateForEdit,
-    openEstimateForView,
-    deleteEstimate,
-    duplicateEstimate,
-  } = useEstimates();
+  const { estimates, openEstimatePanel, openEstimateForView, deleteEstimate } = useEstimates();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<SortField>('createdAt');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [sortField] = useState<SortField>('createdAt');
+  const [sortOrder] = useState<SortOrder>('desc');
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     estimateId: string;
@@ -48,27 +32,6 @@ export function EstimateList() {
     estimateId: '',
     estimateNumber: '',
   });
-  const [isMobileView, setIsMobileView] = useState(false);
-
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobileView(window.innerWidth < 768);
-    };
-
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('desc');
-    }
-  };
 
   const sortedEstimates = useMemo(() => {
     const filtered = estimates.filter(
@@ -98,18 +61,7 @@ export function EstimateList() {
     });
   }, [estimates, searchTerm, sortField, sortOrder]);
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) {
-      return null;
-    }
-    return sortOrder === 'asc' ? (
-      <ChevronUp className="w-4 h-4" />
-    ) : (
-      <ChevronDown className="w-4 h-4" />
-    );
-  };
-
-  const handleDelete = (id: string, estimateNumber: string) => {
+  const _handleDelete = (id: string, estimateNumber: string) => {
     setDeleteConfirm({
       isOpen: true,
       estimateId: id,
@@ -134,15 +86,6 @@ export function EstimateList() {
     });
   };
 
-  const handleDuplicate = async (e: React.MouseEvent, estimate: any) => {
-    e.stopPropagation();
-    try {
-      await duplicateEstimate(estimate);
-    } catch (error) {
-      console.error('Failed to duplicate estimate:', error);
-    }
-  };
-
   const getStatusBadge = (status: string) => {
     const statusColors = {
       draft: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
@@ -160,12 +103,6 @@ export function EstimateList() {
   const handleOpenForView = (estimate: any) => {
     attemptNavigation(() => {
       openEstimateForView(estimate);
-    });
-  };
-
-  const handleOpenForEdit = (estimate: any) => {
-    attemptNavigation(() => {
-      openEstimateForEdit(estimate);
     });
   };
 
@@ -204,220 +141,76 @@ export function EstimateList() {
       </div>
 
       <Card>
-        {!isMobileView ? (
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('estimateNumber')}
-                >
-                  <div className="flex items-center gap-1">
-                    Estimate #
-                    <SortIcon field="estimateNumber" />
-                  </div>
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('contactName')}
-                >
-                  <div className="flex items-center gap-1">
-                    Customer
-                    <SortIcon field="contactName" />
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Items
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('total')}
-                >
-                  <div className="flex items-center gap-1">
-                    Total
-                    <SortIcon field="total" />
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Valid To
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {sortedEstimates.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
-                    {searchTerm
-                      ? 'No estimates found matching your search.'
-                      : 'No estimates yet. Click "Add Estimate" to get started.'}
-                  </td>
-                </tr>
-              ) : (
-                sortedEstimates.map((estimate, idx) => (
-                  <tr
-                    key={estimate.id}
-                    className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors`}
-                    tabIndex={0}
-                    data-list-item={JSON.stringify(estimate)}
-                    data-plugin-name="estimates"
-                    role="button"
-                    aria-label={`Open estimate ${estimate.estimateNumber}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleOpenForView(estimate);
-                    }}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <Calculator className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                        <div className="text-sm font-medium text-foreground">
-                          {estimate.estimateNumber}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-foreground">
-                          {estimate.contactName}
-                        </div>
-                        {estimate.organizationNumber && (
-                          <div className="text-xs text-muted-foreground">{estimate.organizationNumber}</div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {estimate.lineItems.length} item{estimate.lineItems.length !== 1 ? 's' : ''}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-foreground">
-                        {calculateEstimateTotals(
-                          estimate.lineItems || [],
-                          estimate.estimateDiscount || 0,
-                        ).total.toFixed(2)}{' '}
-                        {estimate.currency}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        VAT:{' '}
-                        {calculateEstimateTotals(
-                          estimate.lineItems || [],
-                          estimate.estimateDiscount || 0,
-                        ).totalVat.toFixed(2)}{' '}
-                        {estimate.currency}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(estimate.status)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {new Date(estimate.validTo).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={Eye}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenForView(estimate);
-                          }}
-                        >
-                          View
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={Copy}
-                          onClick={(e) => handleDuplicate(e, estimate)}
-                          title="Duplicate estimate"
-                        >
-                          Duplicate
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          icon={Edit}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenForEdit(estimate);
-                          }}
-                        >
-                          Edit
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        ) : (
-          <div className="divide-y divide-border">
-            {sortedEstimates.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground">
-                {searchTerm
-                  ? 'No estimates found matching your search.'
-                  : 'No estimates yet. Click "Add Estimate" to get started.'}
-              </div>
-            ) : (
-              sortedEstimates.map((estimate) => (
-                <div key={estimate.id} className="p-4 hover:bg-accent transition-colors">
-                  <div className="flex items-start gap-3">
-                    <div className="flex flex-col items-center gap-1">
-                      <Calculator className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(estimate.validTo).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="mb-1 flex items-center gap-2">
-                        <h3 className="text-sm font-medium text-foreground">
-                          {estimate.estimateNumber}
-                        </h3>
-                        {getStatusBadge(estimate.status)}
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="text-sm text-muted-foreground">{estimate.contactName}</div>
-                        {estimate.organizationNumber && (
-                          <div className="text-xs text-muted-foreground">{estimate.organizationNumber}</div>
-                        )}
-                        <div className="text-xs text-muted-foreground">
-                          {estimate.lineItems.length} item
-                          {estimate.lineItems.length !== 1 ? 's' : ''}
-                        </div>
-                        <div className="text-sm font-medium text-foreground">
-                          {calculateEstimateTotals(
-                            estimate.lineItems || [],
-                            estimate.estimateDiscount || 0,
-                          ).total.toFixed(2)}{' '}
-                          {estimate.currency}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={Eye}
-                        onClick={() => handleOpenForView(estimate)}
-                        className="h-8 px-3"
-                      >
-                        View
-                      </Button>
-                    </div>
-                  </div>
+        <GroupedList
+          items={sortedEstimates}
+          groupConfig={null}
+          emptyMessage={
+            searchTerm
+              ? 'No estimates found matching your search.'
+              : 'No estimates yet. Click "Add Estimate" to get started.'
+          }
+          renderItem={(estimate, idx) => (
+            <div
+              key={estimate.id}
+              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3`}
+              tabIndex={0}
+              data-list-item={JSON.stringify(estimate)}
+              data-plugin-name="estimates"
+              role="button"
+              aria-label={`Open estimate ${estimate.estimateNumber}`}
+              onClick={(e) => {
+                e.preventDefault();
+                handleOpenForView(estimate);
+              }}
+            >
+              {/* Rad 1: Icon + Estimate Number + Status Badge */}
+              <div className="flex items-center gap-2 mb-1.5">
+                <Calculator className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
+                  {estimate.estimateNumber}
                 </div>
-              ))
-            )}
-          </div>
-        )}
+                <div className="flex-shrink-0">{getStatusBadge(estimate.status)}</div>
+              </div>
+
+              {/* Rad 2: Contact + Total + Valid To */}
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="flex-1 min-w-0 truncate">
+                  {estimate.contactName}
+                  {estimate.organizationNumber && (
+                    <span className="ml-1">• {estimate.organizationNumber}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-sm font-medium text-foreground">
+                    {calculateEstimateTotals(
+                      estimate.lineItems || [],
+                      estimate.estimateDiscount || 0,
+                    ).total.toFixed(2)}{' '}
+                    {estimate.currency}
+                  </span>
+                  <span>• Valid to {new Date(estimate.validTo).toLocaleDateString()}</span>
+                </div>
+              </div>
+
+              {/* Rad 3: Items + VAT (optional) */}
+              <div className="mt-1 text-xs text-muted-foreground">
+                {estimate.lineItems.length} item{estimate.lineItems.length !== 1 ? 's' : ''}
+                {calculateEstimateTotals(estimate.lineItems || [], estimate.estimateDiscount || 0)
+                  .totalVat > 0 && (
+                  <span>
+                    {' '}
+                    • VAT:{' '}
+                    {calculateEstimateTotals(
+                      estimate.lineItems || [],
+                      estimate.estimateDiscount || 0,
+                    ).totalVat.toFixed(2)}{' '}
+                    {estimate.currency}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        />
       </Card>
 
       <ConfirmDialog

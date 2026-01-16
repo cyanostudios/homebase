@@ -1,21 +1,12 @@
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Eye,
-  CheckSquare,
-  ChevronUp,
-  ChevronDown,
-  Search,
-  Copy,
-} from 'lucide-react';
-import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, CheckSquare, Search } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { GroupedList } from '@/core/ui/GroupedList';
 import { Heading, Text } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
@@ -26,8 +17,7 @@ type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'up
 type SortOrder = 'asc' | 'desc';
 
 export const TaskList: React.FC = () => {
-  const { tasks, openTaskPanel, openTaskForEdit, openTaskForView, deleteTask, duplicateTask } =
-    useTasks();
+  const { tasks, openTaskPanel, openTaskForView, deleteTask } = useTasks();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -40,29 +30,8 @@ export const TaskList: React.FC = () => {
     taskTitle: '',
   });
 
-  const [sortField, setSortField] = useState<SortField>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [isMobileView, setIsMobileView] = useState(false);
-
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobileView(window.innerWidth < 768);
-    };
-
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('desc');
-    }
-  };
+  const [sortField] = useState<SortField>('updatedAt');
+  const [sortOrder] = useState<SortOrder>('desc');
 
   const sortedTasks = useMemo(() => {
     const filtered = tasks.filter(
@@ -128,18 +97,7 @@ export const TaskList: React.FC = () => {
     });
   }, [tasks, searchTerm, sortField, sortOrder]);
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) {
-      return null;
-    }
-    return sortOrder === 'asc' ? (
-      <ChevronUp className="w-4 h-4" />
-    ) : (
-      <ChevronDown className="w-4 h-4" />
-    );
-  };
-
-  const handleDelete = (id: string, title: string) => {
+  const _handleDelete = (id: string, title: string) => {
     setDeleteConfirm({
       isOpen: true,
       taskId: id,
@@ -164,22 +122,6 @@ export const TaskList: React.FC = () => {
     });
   };
 
-  const handleDuplicate = async (e: React.MouseEvent, task: any) => {
-    e.stopPropagation();
-    try {
-      await duplicateTask(task);
-    } catch (error) {
-      console.error('Failed to duplicate task:', error);
-    }
-  };
-
-  const truncateContent = (content: string, maxLength: number = 100) => {
-    if (content.length <= maxLength) {
-      return content;
-    }
-    return content.substring(0, maxLength) + '...';
-  };
-
   const formatDueDate = (dueDate: Date | null) => {
     if (!dueDate) {
       return null;
@@ -190,7 +132,10 @@ export const TaskList: React.FC = () => {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) {
-      return { text: `${Math.abs(diffDays)} days overdue`, className: 'text-destructive font-medium' };
+      return {
+        text: `${Math.abs(diffDays)} days overdue`,
+        className: 'text-destructive font-medium',
+      };
     } else if (diffDays === 0) {
       return { text: 'Due today', className: 'text-orange-600 dark:text-orange-400 font-medium' };
     } else if (diffDays === 1) {
@@ -204,12 +149,6 @@ export const TaskList: React.FC = () => {
   const handleOpenForView = (task: any) => {
     attemptNavigation(() => {
       openTaskForView(task);
-    });
-  };
-
-  const handleOpenForEdit = (task: any) => {
-    attemptNavigation(() => {
-      openTaskForEdit(task);
     });
   };
 
@@ -247,244 +186,94 @@ export const TaskList: React.FC = () => {
       </div>
 
       <Card>
-        {!isMobileView ? (
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('title')}
-                >
-                  <div className="flex items-center gap-1">
-                    Title
-                    <SortIcon field="title" />
-                  </div>
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('status')}
-                >
-                  <div className="flex items-center gap-1">
-                    Status
-                    <SortIcon field="status" />
-                  </div>
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('priority')}
-                >
-                  <div className="flex items-center gap-1">
-                    Priority
-                    <SortIcon field="priority" />
-                  </div>
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('dueDate')}
-                >
-                  <div className="flex items-center gap-1">
-                    Due Date
-                    <SortIcon field="dueDate" />
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Mentions
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('updatedAt')}
-                >
-                  <div className="flex items-center gap-1">
-                    Updated
-                    <SortIcon field="updatedAt" />
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {sortedTasks.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
-                    {searchTerm
-                      ? 'No tasks found matching your search.'
-                      : 'No tasks yet. Click "Add Task" to get started.'}
-                  </td>
-                </tr>
-              ) : (
-                sortedTasks.map((task, idx) => (
-                  <tr
-                    key={task.id}
-                    className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors`}
-                    tabIndex={0}
-                    data-list-item={JSON.stringify(task)}
-                    data-plugin-name="tasks"
-                    role="button"
-                    aria-label={`Open task ${task.title}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleOpenForView(task);
-                    }}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <CheckSquare className="w-5 h-5 text-purple-500 dark:text-purple-400" />
-                        <div className="text-sm font-medium text-foreground">{task.title}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge className={TASK_STATUS_COLORS[task.status]}>
-                        {formatStatusForDisplay(task.status)}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge className={TASK_PRIORITY_COLORS[task.priority]}>{task.priority}</Badge>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {task.dueDate ? (
-                        <div className={`text-sm ${formatDueDate(task.dueDate)?.className}`}>
-                          {formatDueDate(task.dueDate)?.text}
-                        </div>
-                      ) : (
-                        <div className="text-sm text-muted-foreground">No due date</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {task.mentions && task.mentions.length > 0 && (
-                        <div className="flex flex-col items-start gap-0.5">
-                          {task.mentions.slice(0, 2).map((mention: any, index: number) => (
-                            <span key={index} className="text-xs text-primary">
-                              @{mention.contactName}
-                            </span>
-                          ))}
-                          {task.mentions.length > 2 && (
-                            <span className="text-xs text-muted-foreground">
-                              +{task.mentions.length - 2} more
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(task.updatedAt).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={Eye}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenForView(task);
-                          }}
-                        >
-                          View
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={Copy}
-                          onClick={(e) => handleDuplicate(e, task)}
-                          title="Duplicate task"
-                        >
-                          Duplicate
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          icon={Edit}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenForEdit(task);
-                          }}
-                        >
-                          Edit
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        ) : (
-          <div className="divide-y divide-border">
-            {sortedTasks.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground">
-                {searchTerm
-                  ? 'No tasks found matching your search.'
-                  : 'No tasks yet. Click "Add Task" to get started.'}
-              </div>
-            ) : (
-              sortedTasks.map((task) => (
-                <div key={task.id} className="p-4 hover:bg-accent transition-colors">
-                  <div className="flex items-start gap-3">
-                    <div className="flex flex-col items-center gap-1">
-                      <CheckSquare className="w-4 h-4 text-purple-500 dark:text-purple-400" />
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(task.updatedAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="mb-2">
-                        <h3 className="text-sm font-medium text-foreground">{task.title}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge className={TASK_STATUS_COLORS[task.status]}>
-                            {formatStatusForDisplay(task.status)}
-                          </Badge>
-                          <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
-                            {task.priority}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">
-                          {truncateContent(task.content, 80)}
-                        </div>
-                        {task.dueDate && (
-                          <div className={`text-xs ${formatDueDate(task.dueDate)?.className}`}>
-                            📅 {formatDueDate(task.dueDate)?.text}
-                          </div>
-                        )}
-                        {task.mentions && task.mentions.length > 0 && (
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {task.mentions.slice(0, 2).map((mention: any, index: number) => (
-                              <span key={index} className="text-xs text-primary">
-                                @{mention.contactName}
-                              </span>
-                            ))}
-                            {task.mentions.length > 2 && (
-                              <span className="text-xs text-muted-foreground">
-                                +{task.mentions.length - 2} more
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={Eye}
-                        onClick={() => handleOpenForView(task)}
-                        className="h-8 px-3"
-                      >
-                        View
-                      </Button>
-                    </div>
-                  </div>
+        <GroupedList
+          items={sortedTasks}
+          groupConfig={{
+            getGroupKey: (task) => task.priority || 'medium',
+            getGroupLabel: (groupKey) => {
+              const priorityLabels: Record<string, string> = {
+                high: 'High Priority',
+                medium: 'Medium Priority',
+                low: 'Low Priority',
+              };
+              return (
+                priorityLabels[groupKey] ||
+                `${groupKey.charAt(0).toUpperCase() + groupKey.slice(1)} Priority`
+              );
+            },
+            getGroupOrder: (groupKey) => {
+              // High first, then Medium, then Low
+              const order: Record<string, number> = {
+                high: 0,
+                medium: 1,
+                low: 2,
+              };
+              return order[groupKey] ?? 1;
+            },
+            defaultOpen: true,
+          }}
+          emptyMessage={
+            searchTerm
+              ? 'No tasks found matching your search.'
+              : 'No tasks yet. Click "Add Task" to get started.'
+          }
+          renderItem={(task, idx) => (
+            <div
+              key={task.id}
+              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3`}
+              tabIndex={0}
+              data-list-item={JSON.stringify(task)}
+              data-plugin-name="tasks"
+              role="button"
+              aria-label={`Open task ${task.title}`}
+              onClick={(e) => {
+                e.preventDefault();
+                handleOpenForView(task);
+              }}
+            >
+              {/* Rad 1: Icon + Title + Badges */}
+              <div className="flex items-center gap-2 mb-1.5">
+                <CheckSquare className="w-4 h-4 text-purple-500 dark:text-purple-400 flex-shrink-0" />
+                <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
+                  {task.title}
                 </div>
-              ))
-            )}
-          </div>
-        )}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <Badge className={TASK_STATUS_COLORS[task.status]}>
+                    {formatStatusForDisplay(task.status)}
+                  </Badge>
+                  <Badge className={TASK_PRIORITY_COLORS[task.priority]}>{task.priority}</Badge>
+                </div>
+              </div>
+
+              {/* Rad 2: Due Date + Mentions */}
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                {task.dueDate ? (
+                  <div
+                    className={`flex items-center gap-1.5 ${formatDueDate(task.dueDate)?.className || ''}`}
+                  >
+                    <span>📅 {formatDueDate(task.dueDate)?.text}</span>
+                  </div>
+                ) : (
+                  <span>No due date</span>
+                )}
+                {task.mentions && task.mentions.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span>•</span>
+                    <span>
+                      @{task.mentions[0].contactName}
+                      {task.mentions.length > 1 && ` +${task.mentions.length - 1}`}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Rad 3: Updated Date (optional) */}
+              <div className="mt-1 text-xs text-muted-foreground">
+                Updated {new Date(task.updatedAt).toLocaleDateString()}
+              </div>
+            </div>
+          )}
+        />
       </Card>
 
       <ConfirmDialog

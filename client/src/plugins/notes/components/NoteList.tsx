@@ -1,20 +1,11 @@
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Eye,
-  StickyNote,
-  ChevronUp,
-  ChevronDown,
-  Search,
-  Copy,
-} from 'lucide-react';
-import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, StickyNote, Search } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { GroupedList } from '@/core/ui/GroupedList';
 import { Heading, Text } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
@@ -24,8 +15,7 @@ type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
 export const NoteList: React.FC = () => {
-  const { notes, openNotePanel, openNoteForEdit, openNoteForView, deleteNote, duplicateNote } =
-    useNotes();
+  const { notes, openNotePanel, openNoteForView, deleteNote } = useNotes();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -38,29 +28,8 @@ export const NoteList: React.FC = () => {
     noteTitle: '',
   });
 
-  const [sortField, setSortField] = useState<SortField>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [isMobileView, setIsMobileView] = useState(false);
-
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobileView(window.innerWidth < 768);
-    };
-
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('desc');
-    }
-  };
+  const [sortField] = useState<SortField>('updatedAt');
+  const [sortOrder] = useState<SortOrder>('desc');
 
   const sortedNotes = useMemo(() => {
     const filtered = notes.filter(
@@ -104,18 +73,7 @@ export const NoteList: React.FC = () => {
     });
   }, [notes, searchTerm, sortField, sortOrder]);
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) {
-      return null;
-    }
-    return sortOrder === 'asc' ? (
-      <ChevronUp className="w-4 h-4" />
-    ) : (
-      <ChevronDown className="w-4 h-4" />
-    );
-  };
-
-  const handleDelete = (id: string, title: string) => {
+  const _handleDelete = (id: string, title: string) => {
     setDeleteConfirm({
       isOpen: true,
       noteId: id,
@@ -140,15 +98,6 @@ export const NoteList: React.FC = () => {
     });
   };
 
-  const handleDuplicate = async (e: React.MouseEvent, note: any) => {
-    e.stopPropagation();
-    try {
-      await duplicateNote(note);
-    } catch (error) {
-      console.error('Failed to duplicate note:', error);
-    }
-  };
-
   const truncateContent = (content: string, maxLength: number = 100) => {
     if (content.length <= maxLength) {
       return content;
@@ -160,12 +109,6 @@ export const NoteList: React.FC = () => {
   const handleOpenForView = (note: any) => {
     attemptNavigation(() => {
       openNoteForView(note);
-    });
-  };
-
-  const handleOpenForEdit = (note: any) => {
-    attemptNavigation(() => {
-      openNoteForEdit(note);
     });
   };
 
@@ -203,195 +146,59 @@ export const NoteList: React.FC = () => {
       </div>
 
       <Card>
-        {!isMobileView ? (
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('title')}
-                >
-                  <div className="flex items-center gap-1">
-                    Title
-                    <SortIcon field="title" />
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Content Preview
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Mentions
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('updatedAt')}
-                >
-                  <div className="flex items-center gap-1">
-                    Updated
-                    <SortIcon field="updatedAt" />
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {sortedNotes.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
-                    {searchTerm
-                      ? 'No notes found matching your search.'
-                      : 'No notes yet. Click "Add Note" to get started.'}
-                  </td>
-                </tr>
-              ) : (
-                sortedNotes.map((note, idx) => (
-                  <tr
-                    key={note.id}
-                    className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors`}
-                    tabIndex={0}
-                    data-list-item={JSON.stringify(note)}
-                    data-plugin-name="notes"
-                    role="button"
-                    aria-label={`Open note ${note.title}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleOpenForView(note);
-                    }}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <StickyNote className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />
-                        <div className="text-sm font-medium text-foreground">{note.title}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-muted-foreground max-w-xs line-clamp-2">
-                        {truncateContent(note.content, 120)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {note.mentions && note.mentions.length > 0 && (
-                        <div className="flex flex-col items-start gap-0.5">
-                          {note.mentions.slice(0, 2).map((mention: any, index: number) => (
-                            <span key={index} className="text-xs text-primary">
-                              @{mention.contactName}
-                            </span>
-                          ))}
-                          {note.mentions.length > 2 && (
-                            <span className="text-xs text-muted-foreground">
-                              +{note.mentions.length - 2} more
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(note.updatedAt).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={Eye}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenForView(note);
-                          }}
-                        >
-                          View
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={Copy}
-                          onClick={(e) => handleDuplicate(e, note)}
-                          title="Duplicate note"
-                        >
-                          Duplicate
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          icon={Edit}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenForEdit(note);
-                          }}
-                        >
-                          Edit
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        ) : (
-          <div className="divide-y divide-border">
-            {sortedNotes.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground">
-                {searchTerm
-                  ? 'No notes found matching your search.'
-                  : 'No notes yet. Click "Add Note" to get started.'}
-              </div>
-            ) : (
-              sortedNotes.map((note) => (
-                <div key={note.id} className="p-4 hover:bg-accent transition-colors">
-                  <div className="flex items-start gap-3">
-                    <div className="flex flex-col items-center gap-1">
-                      <StickyNote className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(note.updatedAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="mb-1">
-                        <h3 className="text-sm font-medium text-foreground">{note.title}</h3>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">
-                          {truncateContent(note.content, 80)}
-                        </div>
-                        {note.mentions && note.mentions.length > 0 && (
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {note.mentions.slice(0, 2).map((mention: any, index: number) => (
-                              <span key={index} className="text-xs text-primary">
-                                @{mention.contactName}
-                              </span>
-                            ))}
-                            {note.mentions.length > 2 && (
-                              <span className="text-xs text-muted-foreground">
-                                +{note.mentions.length - 2} more
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={Eye}
-                        onClick={() => handleOpenForView(note)}
-                        className="h-8 px-3"
-                      >
-                        View
-                      </Button>
-                    </div>
-                  </div>
+        <GroupedList
+          items={sortedNotes}
+          groupConfig={null}
+          emptyMessage={
+            searchTerm
+              ? 'No notes found matching your search.'
+              : 'No notes yet. Click "Add Note" to get started.'
+          }
+          renderItem={(note, idx) => (
+            <div
+              key={note.id}
+              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3`}
+              tabIndex={0}
+              data-list-item={JSON.stringify(note)}
+              data-plugin-name="notes"
+              role="button"
+              aria-label={`Open note ${note.title}`}
+              onClick={(e) => {
+                e.preventDefault();
+                handleOpenForView(note);
+              }}
+            >
+              {/* Rad 1: Icon + Title */}
+              <div className="flex items-center gap-2 mb-1.5">
+                <StickyNote className="w-4 h-4 text-yellow-500 dark:text-yellow-400 flex-shrink-0" />
+                <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
+                  {note.title}
                 </div>
-              ))
-            )}
-          </div>
-        )}
+              </div>
+
+              {/* Rad 2: Content Preview */}
+              <div className="text-xs text-muted-foreground line-clamp-2 mb-1">
+                {truncateContent(note.content, 150)}
+              </div>
+
+              {/* Rad 3: Mentions + Updated Date */}
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                {note.mentions && note.mentions.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span>
+                      @{note.mentions[0].contactName}
+                      {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5">
+                  {note.mentions && note.mentions.length > 0 && <span>•</span>}
+                  <span>Updated {new Date(note.updatedAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        />
       </Card>
 
       <ConfirmDialog

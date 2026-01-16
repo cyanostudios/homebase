@@ -1,7 +1,8 @@
 import { LogOut, User, Settings } from 'lucide-react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ChevronDown } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -13,13 +14,14 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar as useShadcnSidebar,
 } from '@/components/ui/sidebar';
 import { useApp } from '@/core/api/AppContext';
 import { categoryOrder } from '@/core/navigationConfig';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
-
-import { SecondarySidebar } from './SecondarySidebar';
 
 export type NavPage =
   | 'contacts'
@@ -42,7 +44,7 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
   const { logout, user, getSettings, settingsVersion } = useApp();
   const { state, isMobile, setOpenMobile } = useShadcnSidebar();
   const [userName, setUserName] = useState<string | null>(null);
-  const [openSecondarySidebar, setOpenSecondarySidebar] = useState<string | null>(null);
+  const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set());
 
   // Fetch user name from settings
   useEffect(() => {
@@ -75,21 +77,26 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     await logout();
   };
 
-  const handleMenuItemClick = (page: NavPage | null, item?: any) => {
+  const handleMenuItemClick = (page: NavPage | null) => {
     if (isMobile) {
       setOpenMobile(false);
     }
 
-    // If item has submenu, open secondary sidebar instead of navigating
-    if (item?.submenu && item.submenu.length > 0) {
-      setOpenSecondarySidebar(item.page);
-      return;
-    }
-
     if (page) {
       onPageChange(page);
-      setOpenSecondarySidebar(null); // Close secondary sidebar when navigating
     }
+  };
+
+  const toggleSubmenu = (itemPage: string) => {
+    setOpenSubmenus((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemPage)) {
+        next.delete(itemPage);
+      } else {
+        next.add(itemPage);
+      }
+      return next;
+    });
   };
 
   // Build dynamic navigation from active plugins only
@@ -137,27 +144,33 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
   const navCategories = buildNavigation();
   const isCollapsed = state === 'collapsed';
 
-  // Find the item with submenu that should be shown in secondary sidebar
-  const secondarySidebarItem = navCategories
-    .flatMap((cat) => cat.items)
-    .find((item) => item.page === openSecondarySidebar && item.submenu);
+  // Auto-open submenu if current page is in a submenu
+  useEffect(() => {
+    navCategories.forEach((category) => {
+      category.items.forEach((item) => {
+        if (item.submenu && item.submenu.some((sub: any) => sub.page === currentPage)) {
+          setOpenSubmenus((prev) => new Set(prev).add(item.page));
+        }
+      });
+    });
+  }, [currentPage, navCategories]);
 
   return (
     <div className="flex h-full">
-      <ShadcnSidebar collapsible="icon" variant="sidebar">
+      <ShadcnSidebar collapsible="icon" variant="inset">
         <SidebarHeader>
-          <div className="flex items-center gap-2 px-2 py-1.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground flex-shrink-0">
-              <span className="text-sm font-bold">H</span>
+          <div className="flex items-center gap-2 px-2 py-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground flex-shrink-0">
+              <span className="text-xs font-bold">H</span>
             </div>
-            {!isCollapsed && <span className="text-lg font-semibold">Homebase</span>}
+            {!isCollapsed && <span className="text-sm font-semibold">Homebase</span>}
           </div>
         </SidebarHeader>
 
         <SidebarContent>
           {navCategories.map((category, categoryIndex) => (
             <SidebarGroup key={category.title}>
-              {categoryIndex > 0 && <div className="h-8" />}
+              {categoryIndex > 0 && <div className="h-6" />}
               <SidebarGroupLabel>{category.title}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
@@ -168,20 +181,54 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
                       hasSubmenu && item.submenu?.some((sub: any) => sub.page === currentPage);
 
                     if (hasSubmenu) {
+                      const isSubmenuOpen = openSubmenus.has(item.page);
                       return (
-                        <SidebarMenuItem key={item.label}>
-                          <SidebarMenuButton
-                            onClick={() => handleMenuItemClick(item.page, item)}
-                            isActive={
-                              isActive || isSubmenuActive || openSecondarySidebar === item.page
-                            }
-                            tooltip={isCollapsed ? item.label : undefined}
-                          >
-                            <item.icon className="h-4 w-4" />
-                            <span>{item.label}</span>
-                            <ChevronRight className="ml-auto h-4 w-4" />
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
+                        <Collapsible
+                          key={item.label}
+                          asChild
+                          open={isSubmenuOpen}
+                          onOpenChange={() => toggleSubmenu(item.page)}
+                        >
+                          <SidebarMenuItem>
+                            <CollapsibleTrigger asChild>
+                              <SidebarMenuButton
+                                isActive={isActive || isSubmenuActive}
+                                tooltip={isCollapsed ? item.label : undefined}
+                              >
+                                <item.icon className="h-3.5 w-3.5" />
+                                <span className="text-sm">{item.label}</span>
+                                {isSubmenuOpen ? (
+                                  <ChevronDown className="ml-auto h-3.5 w-3.5" />
+                                ) : (
+                                  <ChevronRight className="ml-auto h-3.5 w-3.5" />
+                                )}
+                              </SidebarMenuButton>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <SidebarMenuSub>
+                                {item.submenu
+                                  ?.sort((a: any, b: any) => a.order - b.order)
+                                  .map((subItem: any) => {
+                                    const isSubActive = subItem.page === currentPage;
+                                    return (
+                                      <SidebarMenuSubItem key={subItem.label}>
+                                        <SidebarMenuSubButton asChild isActive={isSubActive}>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleMenuItemClick(subItem.page)}
+                                            className="w-full"
+                                          >
+                                            <subItem.icon className="h-3.5 w-3.5" />
+                                            <span className="text-sm">{subItem.label}</span>
+                                          </button>
+                                        </SidebarMenuSubButton>
+                                      </SidebarMenuSubItem>
+                                    );
+                                  })}
+                              </SidebarMenuSub>
+                            </CollapsibleContent>
+                          </SidebarMenuItem>
+                        </Collapsible>
                       );
                     }
 
@@ -193,8 +240,8 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
                           isActive={isActive}
                           tooltip={isCollapsed ? item.label : undefined}
                         >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
+                          <item.icon className="h-3.5 w-3.5" />
+                          <span className="text-sm">{item.label}</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     );
@@ -208,22 +255,22 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
         <SidebarFooter>
           {/* User info */}
           {user && !isCollapsed && (
-            <div className="px-2 py-2 mb-2">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                  <User className="h-4 w-4 text-muted-foreground" />
+            <div className="px-1.5 py-1.5 mb-1.5">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted">
+                  <User className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{userName || user.email}</div>
-                  <div className="text-xs text-muted-foreground capitalize">{user.role}</div>
+                  <div className="text-xs font-medium truncate">{userName || user.email}</div>
+                  <div className="text-[10px] text-muted-foreground capitalize">{user.role}</div>
                 </div>
               </div>
             </div>
           )}
           {user && isCollapsed && (
-            <div className="flex justify-center px-2 py-2 mb-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                <User className="h-4 w-4 text-muted-foreground" />
+            <div className="flex justify-center px-1.5 py-1.5 mb-1.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted">
+                <User className="h-3.5 w-3.5 text-muted-foreground" />
               </div>
             </div>
           )}
@@ -236,8 +283,8 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
                 isActive={currentPage === 'settings'}
                 tooltip={isCollapsed ? 'Settings' : undefined}
               >
-                <Settings className="h-4 w-4" />
-                <span>Settings</span>
+                <Settings className="h-3.5 w-3.5" />
+                <span className="text-sm">Settings</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
 
@@ -248,25 +295,13 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                 tooltip={isCollapsed ? 'Logout' : undefined}
               >
-                <LogOut className="h-4 w-4" />
-                <span>Logout</span>
+                <LogOut className="h-3.5 w-3.5" />
+                <span className="text-sm">Logout</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
       </ShadcnSidebar>
-
-      {/* Secondary Sidebar for submenu items */}
-      {secondarySidebarItem && (
-        <SecondarySidebar
-          isOpen={openSecondarySidebar === secondarySidebarItem.page}
-          onClose={() => setOpenSecondarySidebar(null)}
-          title={secondarySidebarItem.label}
-          items={secondarySidebarItem.submenu || []}
-          currentPage={currentPage}
-          onPageChange={onPageChange}
-        />
-      )}
     </div>
   );
 }

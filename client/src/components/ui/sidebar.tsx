@@ -10,7 +10,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
-const SIDEBAR_WIDTH = '16rem';
+const SIDEBAR_WIDTH = '12rem';
 const SIDEBAR_WIDTH_ICON = '3rem';
 const SIDEBAR_WIDTH_MOBILE = '18rem';
 
@@ -106,7 +106,7 @@ const SidebarProvider = React.forwardRef<
               } as React.CSSProperties
             }
             className={cn(
-              'group/sidebar-wrapper flex min-h-svh w-full has-[[data-sidebar=sidebar]]:bg-sidebar',
+              'group/sidebar-wrapper flex h-screen w-full overflow-hidden has-[[data-sidebar=sidebar]]:bg-sidebar',
               className,
             )}
             ref={ref}
@@ -296,7 +296,7 @@ const SidebarHeader = React.forwardRef<HTMLDivElement, React.ComponentProps<'div
       <div
         ref={ref}
         data-sidebar="header"
-        className={cn('flex flex-col gap-2 p-2', className)}
+        className={cn('flex flex-col gap-1.5 p-1.5', className)}
         {...props}
       />
     );
@@ -310,7 +310,7 @@ const SidebarFooter = React.forwardRef<HTMLDivElement, React.ComponentProps<'div
       <div
         ref={ref}
         data-sidebar="footer"
-        className={cn('flex flex-col gap-2 p-2', className)}
+        className={cn('flex flex-col gap-1.5 p-1.5', className)}
         {...props}
       />
     );
@@ -340,7 +340,7 @@ const SidebarContent = React.forwardRef<HTMLDivElement, React.ComponentProps<'di
         ref={ref}
         data-sidebar="content"
         className={cn(
-          'flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden',
+          'flex min-h-0 flex-1 flex-col gap-1 overflow-auto group-data-[collapsible=icon]:overflow-hidden',
           className,
         )}
         {...props}
@@ -356,7 +356,7 @@ const SidebarGroup = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'
       <div
         ref={ref}
         data-sidebar="group"
-        className={cn('relative flex w-full min-w-0 flex-col p-2', className)}
+        className={cn('relative flex w-full min-w-0 flex-col p-1.5', className)}
         {...props}
       />
     );
@@ -420,7 +420,7 @@ const SidebarMenu = React.forwardRef<HTMLUListElement, React.ComponentProps<'ul'
       <ul
         ref={ref}
         data-sidebar="menu"
-        className={cn('flex w-full min-w-0 flex-col gap-1', className)}
+        className={cn('flex w-full min-w-0 flex-col gap-0.5', className)}
         {...props}
       />
     );

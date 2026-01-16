@@ -1,30 +1,27 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit, Eye, Search, ChevronUp, ChevronDown, Copy, Receipt } from 'lucide-react';
-import { useInvoices } from '../hooks/useInvoices';
-import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
-import { Button } from '@/components/ui/button';
+import { Plus, Search, Receipt } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Heading, Text } from '@/core/ui/Typography';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { GroupedList } from '@/core/ui/GroupedList';
+import { Heading, Text } from '@/core/ui/Typography';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+
+import { useInvoices } from '../hooks/useInvoices';
 
 type SortField = 'invoiceNumber' | 'contactName' | 'total' | 'createdAt' | 'status';
 type SortOrder = 'asc' | 'desc';
 
 export function InvoicesList() {
-  const { 
-    invoices,
-    openInvoicesPanel,
-    openInvoiceForEdit,
-    openInvoiceForView,
-    deleteInvoice
-  } = useInvoices();
+  const { invoices, openInvoicesPanel, openInvoiceForView, deleteInvoice } = useInvoices();
   const { attemptNavigation } = useGlobalNavigationGuard();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<SortField>('createdAt');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [sortField] = useState<SortField>('createdAt');
+  const [sortOrder] = useState<SortOrder>('desc');
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     invoiceId: string;
@@ -32,32 +29,11 @@ export function InvoicesList() {
   }>({
     isOpen: false,
     invoiceId: '',
-    invoiceNumber: ''
+    invoiceNumber: '',
   });
-  const [isMobileView, setIsMobileView] = useState(false);
-
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobileView(window.innerWidth < 768);
-    };
-    
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('desc');
-    }
-  };
 
   const sortedInvoices = useMemo(() => {
-    const filtered = invoices.filter(invoice => {
+    const filtered = invoices.filter((invoice) => {
       const searchStr = searchTerm.toLowerCase();
       return (
         (invoice.invoiceNumber || '').toLowerCase().includes(searchStr) ||
@@ -70,7 +46,7 @@ export function InvoicesList() {
     return [...filtered].sort((a, b) => {
       let aValue: any = a[sortField];
       let bValue: any = b[sortField];
-      
+
       if (sortField === 'createdAt') {
         aValue = new Date(aValue || 0).getTime();
         bValue = new Date(bValue || 0).getTime();
@@ -78,27 +54,18 @@ export function InvoicesList() {
         aValue = parseFloat(String(aValue || 0));
         bValue = parseFloat(String(bValue || 0));
       } else if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortOrder === 'asc' 
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
+        return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
       }
-      
+
       return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
     });
   }, [invoices, searchTerm, sortField, sortOrder]);
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null;
-    return sortOrder === 'asc' ? 
-      <ChevronUp className="w-4 h-4" /> : 
-      <ChevronDown className="w-4 h-4" />;
-  };
-
-  const handleDelete = (id: string, invoiceNumber: string) => {
+  const _handleDelete = (id: string, invoiceNumber: string) => {
     setDeleteConfirm({
       isOpen: true,
       invoiceId: id,
-      invoiceNumber: invoiceNumber || id
+      invoiceNumber: invoiceNumber || id,
     });
   };
 
@@ -107,7 +74,7 @@ export function InvoicesList() {
     setDeleteConfirm({
       isOpen: false,
       invoiceId: '',
-      invoiceNumber: ''
+      invoiceNumber: '',
     });
   };
 
@@ -115,7 +82,7 @@ export function InvoicesList() {
     setDeleteConfirm({
       isOpen: false,
       invoiceId: '',
-      invoiceNumber: ''
+      invoiceNumber: '',
     });
   };
 
@@ -127,14 +94,10 @@ export function InvoicesList() {
       overdue: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
       canceled: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
     };
-    
+
     const colorClass = statusColors[status as keyof typeof statusColors] || statusColors.draft;
-    
-    return (
-      <Badge className={colorClass}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
+
+    return <Badge className={colorClass}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
   };
 
   const getTypeBadge = (invoiceType: string) => {
@@ -144,35 +107,25 @@ export function InvoicesList() {
       cash_invoice: 'bg-green-50 text-green-700',
       receipt: 'bg-purple-50 text-purple-700',
     };
-    
+
     const typeLabels = {
       invoice: 'Faktura',
       credit_note: 'Kredit',
       cash_invoice: 'Kontant',
       receipt: 'Kvitto',
     };
-    
+
     const type = invoiceType || 'invoice';
     const colorClass = typeColors[type as keyof typeof typeColors] || typeColors.invoice;
     const label = typeLabels[type as keyof typeof typeLabels] || 'Faktura';
-    
-    return (
-      <Badge className={colorClass}>
-        {label}
-      </Badge>
-    );
+
+    return <Badge className={colorClass}>{label}</Badge>;
   };
 
   // Protected navigation handlers
   const handleOpenForView = (invoice: any) => {
     attemptNavigation(() => {
       openInvoiceForView(invoice);
-    });
-  };
-
-  const handleOpenForEdit = (invoice: any) => {
-    attemptNavigation(() => {
-      openInvoiceForEdit(invoice);
     });
   };
 
@@ -203,206 +156,74 @@ export function InvoicesList() {
               className="w-full sm:w-80 pl-10"
             />
           </div>
-          <Button
-            onClick={handleOpenPanel}
-            variant="primary"
-            icon={Plus}
-          >
+          <Button onClick={handleOpenPanel} variant="primary" icon={Plus}>
             Add Invoice
           </Button>
         </div>
       </div>
 
       <Card>
-        {!isMobileView ? (
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr>
-                <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('invoiceNumber')}
-                >
-                  <div className="flex items-center gap-1">
-                    Invoice #
-                    <SortIcon field="invoiceNumber" />
-                  </div>
-                </th>
-                <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('contactName')}
-                >
-                  <div className="flex items-center gap-1">
-                    Customer
-                    <SortIcon field="contactName" />
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Type
-                </th>
-                <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('status')}
-                >
-                  <div className="flex items-center gap-1">
-                    Status
-                    <SortIcon field="status" />
-                  </div>
-                </th>
-                <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('total')}
-                >
-                  <div className="flex items-center gap-1">
-                    Total
-                    <SortIcon field="total" />
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Due Date
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {sortedInvoices.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
-                    {searchTerm ? 'No invoices found matching your search.' : 'No invoices yet. Click "Add Invoice" to get started.'}
-                  </td>
-                </tr>
-              ) : (
-                sortedInvoices.map((invoice, idx) => (
-                  <tr 
-                    key={invoice.id} 
-                    className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors`}
-                    tabIndex={0}
-                    data-list-item={JSON.stringify(invoice)}
-                    data-plugin-name="invoices"
-                    role="button"
-                    aria-label={`Open invoice ${invoice.invoiceNumber || invoice.id}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleOpenForView(invoice);
-                    }}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <Receipt className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                        <div className="text-sm font-medium text-foreground">
-                          {invoice.invoiceNumber || `DRAFT-${invoice.id}`}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-foreground">{invoice.contactName || '—'}</div>
-                        {invoice.organizationNumber && (
-                          <div className="text-xs text-muted-foreground">{invoice.organizationNumber}</div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getTypeBadge((invoice as any).invoiceType)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(invoice.status || 'draft')}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-foreground">
-                        {(invoice.total || 0).toFixed(2)} {invoice.currency || 'SEK'}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        VAT: {(invoice.totalVat || 0).toFixed(2)} {invoice.currency || 'SEK'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '—'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={Eye}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenForView(invoice);
-                          }}
-                        >
-                          View
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          icon={Edit}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenForEdit(invoice);
-                          }}
-                        >
-                          Edit
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        ) : (
-          <div className="divide-y divide-border">
-            {sortedInvoices.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground">
-                {searchTerm ? 'No invoices found matching your search.' : 'No invoices yet. Click "Add Invoice" to get started.'}
-              </div>
-            ) : (
-              sortedInvoices.map((invoice) => (
-                <div key={invoice.id} className="p-4 hover:bg-accent transition-colors">
-                  <div className="flex items-start gap-3">
-                    <div className="flex flex-col items-center gap-1">
-                      <Receipt className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                      <div className="text-xs text-muted-foreground">
-                        {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '—'}
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="mb-1 flex items-center gap-2">
-                        <h3 className="text-sm font-medium text-foreground">
-                          {invoice.invoiceNumber || `DRAFT-${invoice.id}`}
-                        </h3>
-                        {getTypeBadge((invoice as any).invoiceType)}
-                        {getStatusBadge(invoice.status || 'draft')}
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <div className="text-sm text-muted-foreground">{invoice.contactName || '—'}</div>
-                        {invoice.organizationNumber && (
-                          <div className="text-xs text-muted-foreground">{invoice.organizationNumber}</div>
-                        )}
-                        <div className="text-sm font-medium text-foreground">
-                          {(invoice.total || 0).toFixed(2)} {invoice.currency || 'SEK'}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        icon={Eye}
-                        onClick={() => handleOpenForView(invoice)}
-                        className="h-8 px-3"
-                      >
-                        View
-                      </Button>
-                    </div>
-                  </div>
+        <GroupedList
+          items={sortedInvoices}
+          groupConfig={null}
+          emptyMessage={
+            searchTerm
+              ? 'No invoices found matching your search.'
+              : 'No invoices yet. Click "Add Invoice" to get started.'
+          }
+          renderItem={(invoice, idx) => (
+            <div
+              key={invoice.id}
+              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3`}
+              tabIndex={0}
+              data-list-item={JSON.stringify(invoice)}
+              data-plugin-name="invoices"
+              role="button"
+              aria-label={`Open invoice ${invoice.invoiceNumber || invoice.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                handleOpenForView(invoice);
+              }}
+            >
+              {/* Rad 1: Icon + Invoice Number + Badges */}
+              <div className="flex items-center gap-2 mb-1.5">
+                <Receipt className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
+                  {invoice.invoiceNumber || `DRAFT-${invoice.id}`}
                 </div>
-              ))
-            )}
-          </div>
-        )}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {getTypeBadge((invoice as any).invoiceType)}
+                  {getStatusBadge(invoice.status || 'draft')}
+                </div>
+              </div>
+
+              {/* Rad 2: Contact + Total + Due Date */}
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="flex-1 min-w-0 truncate">
+                  {invoice.contactName || '—'}
+                  {invoice.organizationNumber && (
+                    <span className="ml-1">• {invoice.organizationNumber}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-sm font-medium text-foreground">
+                    {(invoice.total || 0).toFixed(2)} {invoice.currency || 'SEK'}
+                  </span>
+                  {invoice.dueDate && (
+                    <span>• Due {new Date(invoice.dueDate).toLocaleDateString()}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Rad 3: VAT (optional) */}
+              {invoice.totalVat && invoice.totalVat > 0 && (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  VAT: {(invoice.totalVat || 0).toFixed(2)} {invoice.currency || 'SEK'}
+                </div>
+              )}
+            </div>
+          )}
+        />
       </Card>
 
       <ConfirmDialog

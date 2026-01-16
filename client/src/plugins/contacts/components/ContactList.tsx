@@ -1,24 +1,12 @@
-import {
-  Plus,
-  Users,
-  Mail,
-  Phone,
-  Edit,
-  Trash2,
-  Eye,
-  Building,
-  User,
-  ChevronUp,
-  ChevronDown,
-  Search,
-} from 'lucide-react';
-import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, Mail, Phone, Building, User, Search } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { GroupedList } from '@/core/ui/GroupedList';
 import { Heading, Text } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
@@ -28,8 +16,7 @@ type SortField = 'contactNumber' | 'name' | 'type';
 type SortOrder = 'asc' | 'desc';
 
 export const ContactList: React.FC = () => {
-  const { contacts, openContactPanel, openContactForEdit, openContactForView, deleteContact } =
-    useContacts();
+  const { contacts, openContactPanel, openContactForView, deleteContact } = useContacts();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -42,25 +29,8 @@ export const ContactList: React.FC = () => {
     contactName: '',
   });
 
-  const [sortField, setSortField] = useState<SortField>('contactNumber');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [isMobileView, setIsMobileView] = useState(false);
-
-  useEffect(() => {
-    const checkScreenSize = () => setIsMobileView(window.innerWidth < 768);
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
-  };
+  const [sortField] = useState<SortField>('contactNumber');
+  const [sortOrder] = useState<SortOrder>('asc');
 
   const sortedContacts = useMemo(() => {
     const filtered = contacts.filter(
@@ -93,18 +63,7 @@ export const ContactList: React.FC = () => {
     });
   }, [contacts, searchTerm, sortField, sortOrder]);
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) {
-      return null;
-    }
-    return sortOrder === 'asc' ? (
-      <ChevronUp className="w-4 h-4" />
-    ) : (
-      <ChevronDown className="w-4 h-4" />
-    );
-  };
-
-  const handleDelete = (id: string, name: string) => {
+  const _handleDelete = (id: string, name: string) => {
     setDeleteConfirm({ isOpen: true, contactId: id, contactName: name });
   };
 
@@ -119,7 +78,6 @@ export const ContactList: React.FC = () => {
 
   // Protected navigation handlers
   const handleOpenForView = (contact: any) => attemptNavigation(() => openContactForView(contact));
-  const handleOpenForEdit = (contact: any) => attemptNavigation(() => openContactForEdit(contact));
   const handleOpenPanel = () => attemptNavigation(() => openContactPanel(null));
 
   return (
@@ -152,221 +110,99 @@ export const ContactList: React.FC = () => {
       </div>
 
       <Card>
-        {!isMobileView ? (
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('contactNumber')}
-                >
-                  <div className="flex items-center gap-1">
-                    #
-                    <SortIcon field="contactNumber" />
-                  </div>
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('name')}
-                >
-                  <div className="flex items-center gap-1">
-                    Name
-                    <SortIcon field="name" />
-                  </div>
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-accent select-none"
-                  onClick={() => handleSort('type')}
-                >
-                  <div className="flex items-center gap-1">
-                    Type
-                    <SortIcon field="type" />
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Email/Web
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Phone
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {sortedContacts.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
-                    {searchTerm
-                      ? 'No contacts found matching your search.'
-                      : 'No contacts yet. Click "Add Contact" to get started.'}
-                  </td>
-                </tr>
-              ) : (
-                sortedContacts.map((contact, idx) => (
-                  <tr
-                    key={contact.id}
-                    className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors`}
-                    tabIndex={0}
-                    data-list-item={JSON.stringify(contact)}
-                    data-plugin-name="contacts"
-                    role="button"
-                    aria-label={`Open contact ${contact.companyName}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleOpenForView(contact);
-                    }}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-mono font-medium text-foreground">
-                        #{contact.contactNumber}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        {contact.contactType === 'company' ? (
-                          <Building className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                        ) : (
-                          <User className="w-5 h-5 text-green-500 dark:text-green-400" />
-                        )}
-                        <div>
-                          <div className="text-sm font-medium text-foreground">
-                            {contact.companyName}
-                          </div>
-                          {contact.contactType === 'company' && contact.organizationNumber && (
-                            <div className="text-xs text-muted-foreground">
-                              {contact.organizationNumber}
-                            </div>
-                          )}
-                          {contact.contactType === 'private' && contact.personalNumber && (
-                            <div className="text-xs text-muted-foreground">
-                              {contact.personalNumber.substring(0, 9)}XXXX
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge
-                        className={
-                          contact.contactType === 'company'
-                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                            : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-                        }
-                      >
-                        {contact.contactType === 'company' ? 'Company' : 'Private'}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <span className="text-sm text-foreground">{contact.email}</span>
-                        {contact.website && (
-                          <div className="text-xs text-muted-foreground">{contact.website}</div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm text-foreground">{contact.phone}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={Eye}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenForView(contact);
-                          }}
-                        >
-                          View
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          icon={Edit}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenForEdit(contact);
-                          }}
-                        >
-                          Edit
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        ) : (
-          <div className="divide-y divide-border">
-            {sortedContacts.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground">
-                {searchTerm
-                  ? 'No contacts found matching your search.'
-                  : 'No contacts yet. Click "Add Contact" to get started.'}
-              </div>
-            ) : (
-              sortedContacts.map((contact) => (
-                <div key={contact.id} className="p-4 hover:bg-accent transition-colors">
-                  <div className="flex items-start gap-3">
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="text-xs font-mono font-medium text-muted-foreground">
-                        #{contact.contactNumber}
-                      </div>
-                      {contact.contactType === 'company' ? (
-                        <Building className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                      ) : (
-                        <User className="w-4 h-4 text-green-500 dark:text-green-400" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="mb-1">
-                        <h3 className="text-sm font-medium text-foreground">{contact.companyName}</h3>
-                      </div>
-
-                      <div className="space-y-1">
-                        {contact.contactType === 'company' && contact.organizationNumber && (
-                          <div className="text-xs text-muted-foreground">{contact.organizationNumber}</div>
-                        )}
-                        {contact.contactType === 'private' && contact.personalNumber && (
-                          <div className="text-xs text-muted-foreground">
-                            {contact.personalNumber.substring(0, 9)}XXXX
-                          </div>
-                        )}
-                        {contact.email && (
-                          <div className="text-xs text-muted-foreground">{contact.email}</div>
-                        )}
-                        {contact.website && (
-                          <div className="text-xs text-muted-foreground">{contact.website}</div>
-                        )}
-                        {contact.phone && (
-                          <div className="text-xs text-muted-foreground">{contact.phone}</div>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={Eye}
-                        onClick={() => handleOpenForView(contact)}
-                        className="h-8 px-3"
-                      >
-                        View
-                      </Button>
-                    </div>
-                  </div>
+        <GroupedList
+          items={sortedContacts}
+          groupConfig={{
+            getGroupKey: (contact) => contact.contactType || 'unknown',
+            getGroupLabel: (groupKey) => {
+              return groupKey === 'company' ? 'Company' : 'Private';
+            },
+            getGroupOrder: (groupKey) => {
+              // Company first, then Private
+              return groupKey === 'company' ? 0 : 1;
+            },
+            defaultOpen: true,
+          }}
+          emptyMessage={
+            searchTerm
+              ? 'No contacts found matching your search.'
+              : 'No contacts yet. Click "Add Contact" to get started.'
+          }
+          renderItem={(contact, idx) => (
+            <div
+              key={contact.id}
+              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3`}
+              tabIndex={0}
+              data-list-item={JSON.stringify(contact)}
+              data-plugin-name="contacts"
+              role="button"
+              aria-label={`Open contact ${contact.companyName}`}
+              onClick={(e) => {
+                e.preventDefault();
+                handleOpenForView(contact);
+              }}
+            >
+              {/* Rad 1: Icon + Contact Number + Name + Badge */}
+              <div className="flex items-center gap-2 mb-1.5">
+                {contact.contactType === 'company' ? (
+                  <Building className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                ) : (
+                  <User className="w-4 h-4 text-green-500 dark:text-green-400 flex-shrink-0" />
+                )}
+                <div className="text-xs font-mono text-muted-foreground flex-shrink-0">
+                  #{contact.contactNumber}
                 </div>
-              ))
-            )}
-          </div>
-        )}
+                <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
+                  {contact.companyName}
+                </div>
+                <Badge
+                  className={`flex-shrink-0 ${
+                    contact.contactType === 'company'
+                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                      : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                  }`}
+                >
+                  {contact.contactType === 'company' ? 'Company' : 'Private'}
+                </Badge>
+              </div>
+
+              {/* Rad 2: Email + Phone */}
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                  <Mail className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{contact.email}</span>
+                </div>
+                {contact.phone && (
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <Phone className="w-3 h-3" />
+                    <span>{contact.phone}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Rad 3: Organization Number / Personal Number / Website (optional) */}
+              {(contact.organizationNumber ||
+                (contact.contactType === 'private' && contact.personalNumber) ||
+                contact.website) && (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {contact.contactType === 'company' && contact.organizationNumber && (
+                    <span>Org: {contact.organizationNumber}</span>
+                  )}
+                  {contact.contactType === 'private' && contact.personalNumber && (
+                    <span>PN: {contact.personalNumber.substring(0, 9)}XXXX</span>
+                  )}
+                  {contact.website && (
+                    <span
+                      className={contact.organizationNumber || contact.personalNumber ? ' • ' : ''}
+                    >
+                      {contact.website}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        />
       </Card>
 
       <ConfirmDialog
