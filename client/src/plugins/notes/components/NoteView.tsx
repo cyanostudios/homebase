@@ -1,10 +1,10 @@
-import { StickyNote, User, CheckSquare, Copy, Download } from 'lucide-react';
+import { CheckSquare, Copy, Download } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
-import { useApp } from '@/core/api/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Heading, Text } from '@/core/ui/Typography';
+import { useApp } from '@/core/api/AppContext';
+import { Heading } from '@/core/ui/Typography';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
@@ -18,7 +18,7 @@ interface NoteViewProps {
 export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   const { openContactForView } = useContacts();
   const { closeNotePanel, duplicateNote } = useNotes();
-  const { saveTask, openTaskForView } = useTasks();
+  const { saveTask } = useTasks();
   const { refreshData } = useApp();
 
   const [contactsData, setContactsData] = useState<any[]>([]);
@@ -140,11 +140,14 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       {note.mentions && note.mentions.length > 0 && (
         <>
           <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <Heading
+              level={3}
+              className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100"
+            >
               Mentioned Contacts
             </Heading>
             <div className="space-y-2">
-              {note.mentions.map((mention: any, index: number) => {
+              {note.mentions.map((mention: any) => {
                 const contactData = contactsData.find((c: any) => c.id === mention.contactId);
 
                 const getDisplayText = () => {
@@ -164,13 +167,17 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
 
                 return (
                   <div
-                    key={index}
+                    key={`mention-${mention.contactId}-${mention.contactName || 'unknown'}`}
                     className={`flex items-center justify-between p-3 rounded-lg border ${
-                      contactData ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800'
+                      contactData
+                        ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+                        : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800'
                     }`}
                   >
                     <div className="text-sm">
-                      <span className="font-medium text-gray-900 dark:text-gray-100">{getDisplayText()}</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {getDisplayText()}
+                      </span>
                     </div>
                     <Button
                       size="sm"
@@ -201,7 +208,9 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         </Heading>
 
         <div className="mb-4">
-          <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Note Actions</div>
+          <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Note Actions
+          </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" icon={Download} onClick={handleExportNote}>
               Export as Text
@@ -255,7 +264,9 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
             <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Task Created Successfully!</h2>
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Task Created Successfully!
+                </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400">From note: {note.title}</p>
               </div>
             </div>

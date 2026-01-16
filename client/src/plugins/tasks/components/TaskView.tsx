@@ -1,9 +1,9 @@
 import { User, Copy, Calendar, AlertCircle } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
-import { useApp } from '@/core/api/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { useApp } from '@/core/api/AppContext';
 import { Heading } from '@/core/ui/Typography';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
@@ -251,7 +251,10 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     <div className="space-y-4">
       {(task.dueDate || assignedContact) && (
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+          <Heading
+            level={3}
+            className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100"
+          >
             Scheduling
           </Heading>
           <div className="space-y-3">
@@ -295,11 +298,14 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         <>
           <hr className="border-gray-100 dark:border-gray-800" />
           <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <Heading
+              level={3}
+              className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100"
+            >
               Referenced Contacts
             </Heading>
             <div className="space-y-3">
-              {task.mentions.map((mention: any, index: number) => {
+              {task.mentions.map((mention: any) => {
                 const contactData = mentionContactsData[mention.contactId];
 
                 const getDisplayText = () => {
@@ -319,13 +325,17 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
 
                 return (
                   <div
-                    key={index}
+                    key={`mention-${mention.contactId}-${mention.contactName || 'unknown'}`}
                     className={`flex items-center justify-between p-3 rounded-lg border ${
-                      contactData ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800'
+                      contactData
+                        ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+                        : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800'
                     }`}
                   >
                     <div className="text-sm">
-                      <span className="font-medium text-gray-900 dark:text-gray-100">{getDisplayText()}</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {getDisplayText()}
+                      </span>
                     </div>
                     <Button
                       size="sm"
@@ -360,7 +370,9 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         <TaskPriorityButtons task={task} onPriorityChange={handlePriorityChange} />
 
         <div className="mb-4">
-          <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Task Actions</div>
+          <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Task Actions
+          </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" icon={Copy} onClick={handleDuplicateTask}>
               Duplicate Task
