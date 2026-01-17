@@ -5,100 +5,117 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* Bootstrap Color Scheme - Light Mode */
 
+    /* Background: gray-100 (#F5F8FA) */
+    --background: 210 30% 98%;
+    /* Foreground: gray-800 (#3F4254) - body text, darker for better contrast */
+    --foreground: 220 25% 25%;
+
+    /* Card: white */
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 220 25% 25%;
 
+    /* Popover: same as card */
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    --popover-foreground: 220 25% 25%;
 
-    --primary: 200 98% 39%;
+    /* Primary: Bootstrap primary (#009EF7) */
+    --primary: 200 100% 48%;
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
+    /* Secondary: gray-300 (#E4E6EF) */
+    --secondary: 220 15% 90%;
+    --secondary-foreground: 220 25% 25%;
 
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
+    /* Muted: gray-200 (#EFF2F5) */
+    --muted: 210 15% 95%;
+    /* Muted foreground: gray-900 (#181C32) - darker for sidebar nav items */
+    --muted-foreground: 220 35% 15%;
 
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    /* Accent: gray-200 (#EFF2F5) */
+    --accent: 210 15% 95%;
+    --accent-foreground: 220 25% 25%;
 
-    --destructive: 0 72.22% 50.59%;
+    /* Destructive: Bootstrap danger (#F1416C) */
+    --destructive: 348 86% 56%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 200 98% 39%;
+    /* Border: gray-300 (#E4E6EF) */
+    --border: 220 15% 90%;
+    --input: 220 15% 90%;
+    --ring: 200 100% 48%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Sidebar: gray-200 (#EFF2F5) - matching main background */
+    --sidebar-background: 210 15% 95%;
+    /* Sidebar foreground: gray-800 (#3F4254) - darker for better contrast */
+    --sidebar-foreground: 220 25% 25%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 200 98% 39%;
-
+    /* Sidebar primary: Bootstrap primary (#009EF7) */
+    --sidebar-primary: 200 100% 48%;
     --sidebar-primary-foreground: 0 0% 98%;
 
-    --sidebar-accent: 240 4.8% 95.9%;
+    /* Sidebar accent: gray-300 (#E4E6EF) */
+    --sidebar-accent: 220 15% 90%;
+    --sidebar-accent-foreground: 220 25% 25%;
 
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 200 98% 39%;
+    /* Sidebar border: gray-300 (#E4E6EF) */
+    --sidebar-border: 220 15% 90%;
+    --sidebar-ring: 200 100% 48%;
   }
 
   .dark {
-    /* Neon dark mode colors - based on #191919, #222222, #3B3B3B */
-    /* Background: #191919 - main (mörkast) */
-    --background: 0 0% 10%;
+    /* Bootstrap Color Scheme - Dark Mode */
+    /* Background: gray-900 (#181C32) - darkest */
+    --background: 220 35% 15%;
+    /* Foreground: light text */
     --foreground: 0 0% 98%;
 
-    /* Card: #222222 - same as sidebar/topbar */
-    --card: 0 0% 13%;
+    /* Card: slightly lighter than background (gray-800 #3F4254) */
+    --card: 220 25% 25%;
     --card-foreground: 0 0% 98%;
 
     /* Popover: same as card */
-    --popover: 0 0% 13%;
+    --popover: 220 25% 25%;
     --popover-foreground: 0 0% 98%;
 
-    /* Primary: kept original (accent color unchanged) */
-    --primary: 200 98% 60%;
-    --primary-foreground: 240 5.9% 10%;
+    /* Primary: Bootstrap primary, lighter for dark mode */
+    --primary: 200 100% 60%;
+    --primary-foreground: 220 35% 15%;
 
-    /* Secondary: #222222 - for sidebar/topbar, input fields */
-    --secondary: 0 0% 13%;
+    /* Secondary: gray-800 (#3F4254) */
+    --secondary: 220 25% 25%;
     --secondary-foreground: 0 0% 98%;
 
-    /* Muted: lighter gray for subtle elements */
-    --muted: 0 0% 18%;
-    --muted-foreground: 0 0% 65%;
+    /* Muted: gray-700 (#5E6278) */
+    --muted: 220 20% 40%;
+    /* Muted foreground: gray-400 (#B5B5C3) */
+    --muted-foreground: 220 15% 75%;
 
-    /* Accent: between secondary and border */
-    --accent: 0 0% 20%;
+    /* Accent: gray-700 (#5E6278) */
+    --accent: 220 20% 40%;
     --accent-foreground: 0 0% 98%;
 
-    /* Destructive: kept original */
-    --destructive: 0 62.8% 30.6%;
+    /* Destructive: Bootstrap danger, adjusted for dark mode */
+    --destructive: 348 86% 65%;
     --destructive-foreground: 0 0% 98%;
 
-    /* Border & Input: #3B3B3B - borders and separators */
-    --border: 0 0% 23%;
-    --input: 0 0% 23%;
-    --ring: 200 98% 60%;
-    /* Sidebar: Neon dark mode colors - #222222 for sidebar */
-    --sidebar-background: 0 0% 13%;
+    /* Border & Input: gray-700 (#5E6278) */
+    --border: 220 20% 40%;
+    --input: 220 20% 40%;
+    --ring: 200 100% 60%;
+
+    /* Sidebar: same as background (gray-900 #181C32) */
+    --sidebar-background: 220 35% 15%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 200 98% 60%;
-    --sidebar-primary-foreground: 240 5.9% 10%;
-    --sidebar-accent: 0 0% 20%;
+    --sidebar-primary: 200 100% 60%;
+    --sidebar-primary-foreground: 220 35% 15%;
+    --sidebar-accent: 220 20% 40%;
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 23%;
-    --sidebar-ring: 200 98% 60%;
+    --sidebar-border: 220 20% 40%;
+    --sidebar-ring: 200 100% 60%;
   }
 
   * {

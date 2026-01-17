@@ -15,6 +15,17 @@ import { categoryOrder } from '@/core/navigationConfig';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { cn } from '@/lib/utils';
 
+// Plugin icon colors for normal state (non-active)
+// Colors based on actual usage in plugin context files and components
+const PLUGIN_ICON_COLORS: Record<string, string> = {
+  contacts: 'text-blue-600 dark:text-blue-400', // #2563eb from ContactContext.tsx
+  notes: 'text-yellow-600 dark:text-yellow-400', // #ca8a04 from NoteContext.tsx
+  tasks: 'text-purple-500 dark:text-purple-400', // from TaskList.tsx
+  estimates: 'text-blue-600 dark:text-blue-400', // #2563eb from EstimateContext.tsx
+  invoices: 'text-primary', // No specific color found, uses primary
+  files: 'text-muted-foreground', // No specific color found, uses muted
+};
+
 export type NavPage =
   | 'contacts'
   | 'notes'
@@ -43,42 +54,6 @@ export function Sidebar({
   const { logout, user } = useApp();
   const [isMobile, setIsMobile] = useState(false);
   const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set());
-
-  // Auto-open submenu if current page is a submenu item
-  useEffect(() => {
-    setOpenSubmenus((prev) => {
-      const next = new Set(prev);
-      navCategories.forEach((category) => {
-        category.items.forEach((item) => {
-          if (item.submenu?.some((sub: any) => sub.page === currentPage)) {
-            next.add(item.label);
-          }
-        });
-      });
-      return next;
-    });
-  }, [currentPage, user, navCategories]);
-
-  useEffect(() => {
-    const checkScreenSize = () => setIsMobile(window.innerWidth < 768);
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-
-  const handleLogout = async () => {
-    await logout();
-  };
-
-  const handleMenuItemClick = (page: NavPage | null) => {
-    if (isMobile) {
-      onMobileOpenChange(false);
-    }
-
-    if (page) {
-      onPageChange(page);
-    }
-  };
 
   const navCategories = useMemo(() => {
     const categoriesMap = new Map<string, any[]>();
@@ -117,6 +92,42 @@ export function Sidebar({
       }));
   }, [user]);
 
+  // Auto-open submenu if current page is a submenu item
+  useEffect(() => {
+    setOpenSubmenus((prev) => {
+      const next = new Set(prev);
+      navCategories.forEach((category) => {
+        category.items.forEach((item) => {
+          if (item.submenu?.some((sub: any) => sub.page === currentPage)) {
+            next.add(item.label);
+          }
+        });
+      });
+      return next;
+    });
+  }, [currentPage, navCategories]);
+
+  useEffect(() => {
+    const checkScreenSize = () => setIsMobile(window.innerWidth < 768);
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  const handleMenuItemClick = (page: NavPage | null) => {
+    if (isMobile) {
+      onMobileOpenChange(false);
+    }
+
+    if (page) {
+      onPageChange(page);
+    }
+  };
+
   const toggleSubmenu = (itemLabel: string) => {
     setOpenSubmenus((prev) => {
       const next = new Set(prev);
@@ -147,7 +158,7 @@ export function Sidebar({
         <Icon
           className={cn(
             'h-4 w-4 flex-shrink-0',
-            isActive ? 'text-primary' : 'text-muted-foreground',
+            isActive ? 'text-primary' : PLUGIN_ICON_COLORS[item.page] || 'text-muted-foreground',
           )}
         />
         <span className={cn('truncate', isActive ? 'text-primary font-medium' : '')}>

@@ -20,6 +20,7 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
+    title: '',
     email: user?.email || '',
   });
 
@@ -48,6 +49,7 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
     try {
       await updateSettings('profile', {
         name: formData.name,
+        title: formData.title,
       });
       onCancel();
     } catch (error) {
@@ -77,6 +79,18 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Enter your name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="profile-title" className="mb-1">
+                Title
+              </Label>
+              <Input
+                id="profile-title"
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Enter your job title"
               />
             </div>
             <div>

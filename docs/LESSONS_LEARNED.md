@@ -499,6 +499,93 @@ const AppContent = () => {
 
 ---
 
+### Git commit kräver att ESLint/Prettier passerar INNAN commit
+
+❌ **What we did (that didn't work):**
+
+```bash
+# Försöker committa direkt utan att fixa ESLint-fel först
+git add -A
+git commit -m "feat: add new feature"
+# ❌ FAILED: husky - pre-commit script failed (code 1)
+# ESLint hittade 20 warnings/errors som måste fixas
+```
+
+✅ **What we do instead (that works):**
+
+```bash
+# 1. KÖR ESLint FÖRST för att se vad som behöver fixas
+npm run lint
+# Eller för att auto-fixa så mycket som möjligt:
+npm run lint -- --fix
+
+# 2. Kolla att inga fel kvarstår
+npm run lint
+
+# 3. FÖRST DÅ - committa (husky hooks kommer att passera)
+git add -A
+git commit -m "feat: add new feature"
+# ✅ Success - lint-staged kör ESLint igen men hittar inga fel
+
+# 4. Push
+git push
+```
+
+**Alternativ workflow för att undvika onödiga "failures":**
+
+```bash
+# Använd lint-staged manuellt först (samma som husky kommer köra)
+npx lint-staged
+
+# Om det auto-fixar filer, add dem igen
+git add -A
+
+# Committa (nu kommer husky hooks passera)
+git commit -m "feat: add new feature"
+```
+
+💡 **Why (lesson learned):**
+Projektet använder **husky pre-commit hooks** med **lint-staged** som automatiskt kör ESLint och Prettier på staged filer före varje commit. Om ESLint hittar fel (warnings eller errors) stoppas commit-processen. Detta är INTE ett "failed" - det är en **säkerhetsåtgärd** för att säkerställa kodkvalitet. För att undvika att se "failed" meddelanden: **kör alltid `npm run lint` eller `npx lint-staged` INNAN du committar**, fixa alla fel, och committa igen. Om du ser "husky - pre-commit script failed" → det finns ESLint/Prettier-fel som måste fixas FÖRST, INTE efteråt.
+
+---
+
+### Variabler måste deklareras FÖRE de används (TDZ - Temporal Dead Zone)
+
+❌ **What we did (that didn't work):**
+
+```javascript
+// useEffect använder navCategories FÖRE den är deklarerad
+useEffect(() => {
+  navCategories.forEach((category) => {
+    // ❌ ReferenceError: Cannot access 'navCategories' before initialization
+  });
+}, [navCategories]);
+
+const navCategories = useMemo(() => {
+  // ...
+}, [user]);
+```
+
+✅ **What we do instead (that works):**
+
+```javascript
+// Deklarera FÖRST, använd SEDAN
+const navCategories = useMemo(() => {
+  // ...
+}, [user]);
+
+useEffect(() => {
+  navCategories.forEach((category) => {
+    // ✅ navCategories är redan deklarerad
+  });
+}, [navCategories]);
+```
+
+💡 **Why (lesson learned):**
+JavaScript har **Temporal Dead Zone (TDZ)** för `const` och `let` - de kan INTE användas före deklarationen, även om koden "ser ut" att vara i rätt ordning. Om kod som använder en variabel hamnar FÖRE variabelns deklaration (t.ex. efter en ESLint auto-fix, merge conflict resolution, eller manuell refactoring), får du `ReferenceError: Cannot access 'X' before initialization`. **Kontrollera ALLTID att variabler är deklarerade FÖRE de används** - detta gäller särskilt för React hooks (`useMemo`, `useState`, etc.) som används av andra hooks (`useEffect`, `useCallback`). Efter commit/push, kör appen för att säkerställa att inget kraschar.
+
+---
+
 ### Login fungerar men UI visar inte - kolla båda servrarna
 
 ❌ **What we did (that didn't work):**

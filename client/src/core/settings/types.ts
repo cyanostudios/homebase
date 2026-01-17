@@ -5,6 +5,7 @@ export type SettingsCategory = 'profile' | 'preferences' | 'plugin';
 
 export interface ProfileSettings {
   name?: string;
+  title?: string;
   email?: string;
 }
 
