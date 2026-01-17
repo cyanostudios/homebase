@@ -1,8 +1,15 @@
 import { CheckSquare } from 'lucide-react';
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from 'react';
 
-import { useApp } from '@/core/api/AppContext';
 import { Badge } from '@/components/ui/badge';
+import { useApp } from '@/core/api/AppContext';
 
 import { tasksApi } from '../api/tasksApi';
 import { Task, ValidationError } from '../types/tasks';
@@ -56,12 +63,19 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   }, [isAuthenticated]);
 
+  const closeTaskPanel = useCallback(() => {
+    setIsTaskPanelOpen(false);
+    setCurrentTask(null);
+    setPanelMode('create');
+    setValidationErrors([]);
+  }, []);
+
   useEffect(() => {
     registerPanelCloseFunction('tasks', closeTaskPanel);
     return () => {
       unregisterPanelCloseFunction('tasks');
     };
-  }, []);
+  }, [closeTaskPanel, registerPanelCloseFunction, unregisterPanelCloseFunction]);
 
   useEffect(() => {
     window.submitTasksForm = () => {
@@ -110,7 +124,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
     // Content is optional - can be empty (e.g., when converting from notes)
     // Only validate if it exists and is not a string
-    if (taskData.content !== undefined && taskData.content !== null && typeof taskData.content !== 'string') {
+    if (
+      taskData.content !== undefined &&
+      taskData.content !== null &&
+      typeof taskData.content !== 'string'
+    ) {
       errors.push({
         field: 'content',
         message: 'Task description must be a string',
@@ -156,13 +174,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setIsTaskPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
-  };
-
-  const closeTaskPanel = () => {
-    setIsTaskPanelOpen(false);
-    setCurrentTask(null);
-    setPanelMode('create');
-    setValidationErrors([]);
   };
 
   const clearValidationErrors = () => {
@@ -230,10 +241,10 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       return true;
     } catch (error: any) {
       console.error('API Error when saving task:', error);
-      
+
       // V2: Handle standardized error format from backend
       const validationErrors: ValidationError[] = [];
-      
+
       // Check if backend returned validation errors in details array
       if (error?.details && Array.isArray(error.details)) {
         error.details.forEach((detail: any) => {
@@ -246,13 +257,14 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           }
         });
       }
-      
+
       // If no validation errors from backend, use error message
       if (validationErrors.length === 0) {
-        const errorMessage = error?.message || error?.error || 'Failed to save task. Please try again.';
+        const errorMessage =
+          error?.message || error?.error || 'Failed to save task. Please try again.';
         validationErrors.push({ field: 'general', message: errorMessage });
       }
-      
+
       setValidationErrors(validationErrors);
       return false;
     }
@@ -302,7 +314,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     } catch (error: any) {
       console.error('Failed to duplicate task:', error);
       // V2: Handle standardized error format
-      const errorMessage = error?.message || error?.error || 'Failed to duplicate task. Please try again.';
+      const errorMessage =
+        error?.message || error?.error || 'Failed to duplicate task. Please try again.';
       alert(errorMessage);
     }
   };
@@ -318,7 +331,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         return (
           <div>
             <div>{title}</div>
-            <div className="text-sm font-normal text-gray-600 dark:text-gray-400 mt-1">Due: {dueDate}</div>
+            <div className="text-sm font-normal text-gray-600 dark:text-gray-400 mt-1">
+              Due: {dueDate}
+            </div>
           </div>
         );
       }
@@ -342,8 +357,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       const statusColors: Record<string, string> = {
         'not started': 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
         'in progress': 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200',
-        'completed': 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200',
-        'cancelled': 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
+        completed: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200',
+        cancelled: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
       };
       const priorityColors: Record<string, string> = {
         Low: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300',
@@ -365,8 +380,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       return (
         <div className="flex items-center gap-2">
           <CheckSquare className="w-4 h-4" style={{ color: '#2563eb' }} />
-          {badges.map((badge, i) => (
-            <Badge key={i} className={badge.color}>
+          {badges.map((badge) => (
+            <Badge key={`${badge.text}-${badge.color}`} className={badge.color}>
               {badge.text}
             </Badge>
           ))}
