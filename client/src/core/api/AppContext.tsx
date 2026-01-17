@@ -242,6 +242,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
 
   const [panelCloseFunctions, setPanelCloseFunctions] = useState<Map<string, () => void>>(
     new Map(),
@@ -257,6 +258,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } else {
       setContacts([]);
       setNotes([]);
+      setTasks([]);
     }
   }, [isAuthenticated]);
 
@@ -275,7 +277,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadData = async () => {
     try {
-      const [contactsData, notesData] = await Promise.all([api.getContacts(), api.getNotes()]);
+      const [contactsData, notesData, tasksData] = await Promise.all([
+        api.getContacts(),
+        api.getNotes(),
+        api.getTasks(),
+      ]);
 
       const transformedContacts = contactsData.map((contact: any) => ({
         ...contact,
@@ -289,8 +295,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updatedAt: new Date(note.updatedAt),
       }));
 
+      const transformedTasks = tasksData.map((task: any) => ({
+        ...task,
+        assignedTo: task.assigned_to,
+        createdFromNote: task.created_from_note,
+        dueDate: task.due_date ? new Date(task.due_date) : null,
+        createdAt: new Date(task.created_at),
+        updatedAt: new Date(task.updated_at),
+      }));
+
       setContacts(transformedContacts);
       setNotes(transformedNotes);
+      setTasks(transformedTasks);
     } catch (error) {
       console.error('Failed to load data:', error);
     }
@@ -341,6 +357,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(false);
       setContacts([]);
       setNotes([]);
+      setTasks([]);
     }
   };
 
@@ -364,12 +381,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const closeOtherPanels = (except?: PluginNameUnion) => {
-    console.log('closeOtherPanels called, except:', except);
-    console.log('Available close functions:', Array.from(panelCloseFunctions.keys()));
-
     panelCloseFunctions.forEach((closeFunction, pluginName) => {
       if (pluginName !== except) {
-        console.log(`Closing panel for plugin: ${pluginName}`);
         closeFunction();
       }
     });
@@ -411,16 +424,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const getTasksForContact = async (contactId: string): Promise<Task[]> => {
     try {
-      const tasksData = await api.getTasks();
-      const transformedTasks = tasksData.map((task: any) => ({
-        ...task,
-        assignedTo: task.assigned_to,
-        createdFromNote: task.created_from_note,
-        dueDate: task.due_date ? new Date(task.due_date) : null,
-        createdAt: new Date(task.created_at),
-        updatedAt: new Date(task.updated_at),
-      }));
-      return transformedTasks.filter((task: Task) => task.assignedTo === contactId);
+      return tasks.filter((task: Task) => String(task.assignedTo ?? '') === String(contactId));
     } catch (error) {
       console.error('Failed to fetch tasks for contact:', error);
       return [];
@@ -429,16 +433,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const getTasksWithMentionsForContact = async (contactId: string): Promise<Task[]> => {
     try {
-      const tasksData = await api.getTasks();
-      const transformedTasks = tasksData.map((task: any) => ({
-        ...task,
-        assignedTo: task.assigned_to,
-        createdFromNote: task.created_from_note,
-        dueDate: task.due_date ? new Date(task.due_date) : null,
-        createdAt: new Date(task.created_at),
-        updatedAt: new Date(task.updated_at),
-      }));
-      return transformedTasks.filter(
+      return tasks.filter(
         (task: Task) =>
           task.mentions && task.mentions.some((mention: any) => mention.contactId === contactId),
       );

@@ -28,6 +28,7 @@
     "sync:up": "git add -A && (git commit -m \"chore(sync): local save\" || ver > nul) && git pull --rebase && git push"
   },
   "dependencies": {
+    "@homebase/core": "file:packages/core",
     "@anthropic-ai/sdk": "^0.37.0",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",

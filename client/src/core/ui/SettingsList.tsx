@@ -2,16 +2,18 @@
 // Settings list component showing settings categories
 
 import { User, Globe } from 'lucide-react';
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 
 import { Card } from '@/components/ui/card';
-import { Heading } from '@/core/ui/Typography';
+import { GroupedList } from '@/core/ui/GroupedList';
+import { Heading, Text } from '@/core/ui/Typography';
 
 interface SettingsCategory {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   category: 'profile' | 'preferences';
+  description: string;
 }
 
 const settingsCategories: SettingsCategory[] = [
@@ -20,12 +22,14 @@ const settingsCategories: SettingsCategory[] = [
     label: 'User Profile',
     icon: User,
     category: 'profile',
+    description: 'Manage your profile information',
   },
   {
     id: 'preferences',
     label: 'Preferences',
     icon: Globe,
     category: 'preferences',
+    description: 'Configure your preferences',
   },
 ];
 
@@ -34,41 +38,69 @@ interface SettingsListProps {
 }
 
 export function SettingsList({ onCategoryClick }: SettingsListProps) {
+  const [searchTerm, _setSearchTerm] = useState('');
+
+  const filteredCategories = useMemo(() => {
+    return settingsCategories.filter(
+      (category) =>
+        category.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        category.description.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
+  }, [searchTerm]);
+
   return (
-    <div className="h-full flex flex-col p-6">
-      <div className="mb-6">
-        <Heading level={1}>Settings</Heading>
-        <p className="text-sm text-muted-foreground mt-2">
-          Manage your account settings and preferences
-        </p>
+    <div className="p-4 sm:p-8">
+      <div className="mb-6 sm:mb-8">
+        <Heading level={1}>Settings ({filteredCategories.length})</Heading>
+        <Text variant="caption">Manage your account settings and preferences</Text>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {settingsCategories.map((category) => {
-          const Icon = category.icon;
-          return (
-            <Card
-              key={category.id}
-              className="cursor-pointer hover:bg-accent transition-colors"
-              onClick={() => onCategoryClick(category.id)}
-            >
-              <div className="flex items-center gap-4 p-4">
-                <div className="flex-shrink-0">
-                  <Icon className="h-8 w-8 text-primary" />
+      <Card>
+        <GroupedList
+          items={filteredCategories}
+          groupConfig={null}
+          emptyMessage={
+            searchTerm
+              ? 'No settings categories found matching your search.'
+              : 'No settings categories available.'
+          }
+          renderItem={(category, idx) => {
+            const Icon = category.icon;
+            return (
+              <div
+                key={category.id}
+                className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3`}
+                tabIndex={0}
+                role="button"
+                aria-label={`Open ${category.label} settings`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onCategoryClick(category.id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onCategoryClick(category.id);
+                  }
+                }}
+              >
+                {/* Rad 1: Icon + Label */}
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Icon className="w-4 h-4 text-primary flex-shrink-0" />
+                  <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
+                    {category.label}
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold">{category.label}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {category.id === 'profile'
-                      ? 'Manage your profile information'
-                      : 'Configure your preferences'}
-                  </p>
+
+                {/* Rad 2: Description */}
+                <div className="text-xs text-muted-foreground line-clamp-1">
+                  {category.description}
                 </div>
               </div>
-            </Card>
-          );
-        })}
-      </div>
+            );
+          }}
+        />
+      </Card>
     </div>
   );
 }

@@ -24,17 +24,10 @@ import { ProfileSettingsForm } from '@/core/ui/SettingsForms/ProfileSettingsForm
 import { SettingsList } from '@/core/ui/SettingsList';
 import type { NavPage } from '@/core/ui/Sidebar'; // <-- viktig typ-import
 import { TopBar } from '@/core/ui/TopBar';
-import { UniversalPanel } from '@/core/ui/UniversalPanel';
 import {
   GlobalNavigationGuardProvider,
   useGlobalNavigationGuard,
 } from '@/hooks/useGlobalNavigationGuard';
-
-// Begränsad typ för AppContext.closeOtherPanels
-type CorePanel = 'contacts' | 'notes' | 'estimates' | 'tasks';
-function _isCorePanelName(name: string): name is CorePanel {
-  return name === 'contacts' || name === 'notes' || name === 'estimates' || name === 'tasks';
-}
 
 // Dynamic Plugin Providers - scales infinitely without App.tsx changes
 function PluginProviders({ children }: { children: React.ReactNode }) {
@@ -143,7 +136,6 @@ function AppContent() {
   });
 
   const [settingsCategory, setSettingsCategory] = useState<string | null>(null);
-  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
 
   // Save currentPage to localStorage whenever it changes
   useEffect(() => {
@@ -249,16 +241,51 @@ function AppContent() {
     },
   );
 
+  // Settings panel state
+  const isSettingsPanelOpen = settingsCategory !== null;
+  const settingsPanelTitle =
+    settingsCategory === 'profile'
+      ? 'User Profile'
+      : settingsCategory === 'preferences'
+        ? 'Preferences'
+        : 'Settings';
+
+  const settingsPanelContent =
+    settingsCategory === 'profile' ? (
+      <ProfileSettingsForm
+        onCancel={() => {
+          setSettingsCategory(null);
+        }}
+      />
+    ) : settingsCategory === 'preferences' ? (
+      <PreferencesSettingsForm
+        onCancel={() => {
+          setSettingsCategory(null);
+        }}
+      />
+    ) : null;
+
+  // Use settings panel if settings page is active, otherwise use plugin panel
+  const detailPanelOpen = currentPage === 'settings' ? isSettingsPanelOpen : isAnyPanelOpen;
+  const detailPanelTitle =
+    currentPage === 'settings' ? settingsPanelTitle : panelTitles.getPanelTitle();
+  const detailPanelSubtitle = currentPage === 'settings' ? null : panelTitles.getPanelSubtitle();
+  const detailPanelContent =
+    currentPage === 'settings' ? settingsPanelContent : renderers.renderPanelContent();
+  const detailPanelFooter = currentPage === 'settings' ? null : panelFooter;
+  const onDetailPanelClose =
+    currentPage === 'settings' ? () => setSettingsCategory(null) : handlers.getCloseHandler();
+
   return (
     <MainLayout
       currentPage={currentPage}
       onPageChange={handlePageChange}
-      detailPanelOpen={isAnyPanelOpen}
-      detailPanelTitle={panelTitles.getPanelTitle()}
-      detailPanelSubtitle={panelTitles.getPanelSubtitle()}
-      detailPanelContent={renderers.renderPanelContent()}
-      detailPanelFooter={panelFooter}
-      onDetailPanelClose={handlers.getCloseHandler()}
+      detailPanelOpen={detailPanelOpen}
+      detailPanelTitle={detailPanelTitle}
+      detailPanelSubtitle={detailPanelSubtitle}
+      detailPanelContent={detailPanelContent}
+      detailPanelFooter={detailPanelFooter}
+      onDetailPanelClose={onDetailPanelClose}
     >
       <div className="h-full flex flex-col bg-background overflow-hidden">
         <TopBar className="flex-shrink-0" />
@@ -267,7 +294,6 @@ function AppContent() {
             <SettingsList
               onCategoryClick={(categoryId) => {
                 setSettingsCategory(categoryId);
-                setIsSettingsPanelOpen(true);
               }}
             />
           ) : (
@@ -275,39 +301,6 @@ function AppContent() {
           )}
         </div>
       </div>
-
-      {/* Settings Panel */}
-      <UniversalPanel
-        isOpen={isSettingsPanelOpen}
-        onClose={() => {
-          setIsSettingsPanelOpen(false);
-          setSettingsCategory(null);
-        }}
-        title={
-          settingsCategory === 'profile'
-            ? 'User Profile'
-            : settingsCategory === 'preferences'
-              ? 'Preferences'
-              : 'Settings'
-        }
-      >
-        {settingsCategory === 'profile' && (
-          <ProfileSettingsForm
-            onCancel={() => {
-              setIsSettingsPanelOpen(false);
-              setSettingsCategory(null);
-            }}
-          />
-        )}
-        {settingsCategory === 'preferences' && (
-          <PreferencesSettingsForm
-            onCancel={() => {
-              setIsSettingsPanelOpen(false);
-              setSettingsCategory(null);
-            }}
-          />
-        )}
-      </UniversalPanel>
 
       <ConfirmDialog
         isOpen={showDeleteConfirm}

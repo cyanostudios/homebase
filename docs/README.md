@@ -44,6 +44,12 @@ Panel coordination
 Cross-plugin features
 Performance optimizations
 
+ARCHITECTURE_REFACTOR.md
+
+Core + plugins refactor summary
+Provider switching and SDK overview
+Entry point and route extraction
+
 SECURITY_GUIDELINES.md
 
 Security layers (middleware, adapter, plugin, database)
@@ -102,16 +108,25 @@ Files plugin critical updates
 Testing refactored plugins
 Deployment checklist
 
-🎨 UI/UX Standards
+🎨 UI/UX & Layout
 
-STYLE_GUIDE.md
+LAYOUT_REFACTORING_V2.md
 
-Design system (colors, typography, spacing)
-Component standards
-Badge patterns
-Modal patterns
-Form layouts
-Keyboard navigation requirements
+3-column layout rationale
+Sidebar + list + detail patterns
+Grouped list patterns
+Scroll behavior and layout constraints
+
+💡 Lessons Learned & Troubleshooting
+
+LESSONS_LEARNED.md
+
+Common mistakes and how to avoid them
+Database SDK pitfalls
+Layout & UI patterns
+API & Context issues
+Development workflow tips
+Plugin development anti-patterns
 
 🚀 Development & Deployment
 
@@ -126,26 +141,24 @@ Testing
 Deployment
 Performance optimization
 Monitoring
-Troubleshooting
+Troubleshooting (see LESSONS_LEARNED.md)
 
-🤖 AI Collaboration
+🤖 AI & Agent Rules
 
-COLLABORATION_GUIDE.md
+LESSONS_LEARNED.md
 
-Proven patterns for AI/Claude collaboration
-Step-by-step methodology
-Precise communication
-Terminal management
-Development best practices
-Anti-patterns to avoid
+Agent rules and anti-patterns
+No guessing, no looping, follow explicit instructions
+Common mistakes and fixes
 
-📋 Implementation Guides
+📋 Migration & Integration
 
-MULTI_TENANT_HANDOVER.md
+MIGRATION_GUIDE_V1_TO_V2.md (legacy examples)
 
-Database tenant management plugin
-Railway PostgreSQL + Neon architecture
-Tenant-specific implementation details
+Migration steps and breaking changes (legacy)
+Current migration flow: REFACTORING_EXISTING_PLUGINS.md
+Service abstraction requirements
+Security enforcement checklist
 
 🗺️ Documentation Roadmap
 
@@ -179,15 +192,15 @@ SECURITY_GUIDELINES.md - Security requirements
 PLUGIN_DEVELOPMENT_STANDARDS_V2.md - Naming conventions
 BACKEND_PLUGIN_GUIDE_V2.md - Backend patterns
 FRONTEND_PLUGIN_GUIDE_V2.md - Frontend patterns
-STYLE_GUIDE.md - UI standards
-COLLABORATION_GUIDE.md - AI collaboration patterns
+LAYOUT_REFACTORING_V2.md - UI patterns
+LESSONS_LEARNED.md - Agent rules and anti-patterns
 
 For specific tasks:
 
 Building new plugin: PLUGIN_OVERVIEW_V2.md → Specific guides
 Refactoring existing: REFACTORING_EXISTING_PLUGINS.md
 Security review: SECURITY_GUIDELINES.md
-Debugging: DEVELOPMENT_GUIDE_V2.md troubleshooting section
+Debugging and common mistakes: LESSONS_LEARNED.md
 
 For Refactoring Existing Code
 Existing plugins (contacts, notes, tasks, estimates):
@@ -337,7 +350,7 @@ Update documentation if needed
 📞 Support
 For questions or issues:
 
-Check troubleshooting section in DEVELOPMENT_GUIDE_V2.md
+Check LESSONS_LEARNED.md - Common mistakes and solutions
 Review relevant guide for specific topic
 Check existing plugins for reference implementation
 Use COLLABORATION_GUIDE.md for AI assistance patterns

@@ -189,7 +189,7 @@ export const TaskList: React.FC = () => {
         <GroupedList
           items={sortedTasks}
           groupConfig={{
-            getGroupKey: (task) => task.priority || 'medium',
+            getGroupKey: (task) => (task.priority || 'Medium').toLowerCase(),
             getGroupLabel: (groupKey) => {
               const priorityLabels: Record<string, string> = {
                 high: 'High Priority',
@@ -208,7 +208,7 @@ export const TaskList: React.FC = () => {
                 medium: 1,
                 low: 2,
               };
-              return order[groupKey] ?? 1;
+              return order[groupKey.toLowerCase()] ?? 1;
             },
             defaultOpen: true,
           }}

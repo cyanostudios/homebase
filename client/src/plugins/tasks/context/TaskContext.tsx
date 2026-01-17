@@ -26,7 +26,7 @@ interface TaskContextType {
   openTaskForEdit: (task: Task) => void;
   openTaskForView: (task: Task) => void;
   closeTaskPanel: () => void;
-  saveTask: (taskData: any) => Promise<boolean>;
+  saveTask: (taskData: any, taskId?: string) => Promise<boolean>;
   deleteTask: (id: string) => Promise<void>;
   duplicateTask: (task: Task) => Promise<void>;
   clearValidationErrors: () => void;
@@ -180,8 +180,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setValidationErrors([]);
   };
 
-  const saveTask = async (taskData: any): Promise<boolean> => {
-    console.log('TaskContext saveTask called with:', taskData);
+  const saveTask = async (taskData: any, taskId?: string): Promise<boolean> => {
+    console.log('TaskContext saveTask called with:', taskData, 'taskId:', taskId);
 
     const errors = validateTask(taskData);
     console.log('Validation errors:', errors);
@@ -198,12 +198,15 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     try {
       let savedTask: Task;
 
-      if (currentTask) {
-        console.log('Updating existing task:', currentTask.id);
-        savedTask = await tasksApi.updateTask(currentTask.id, taskData);
+      // Use provided taskId, or currentTask.id, or taskData.id
+      const idToUpdate = taskId || currentTask?.id || taskData.id;
+
+      if (idToUpdate) {
+        console.log('Updating existing task:', idToUpdate);
+        savedTask = await tasksApi.updateTask(idToUpdate, taskData);
         setTasks((prev) =>
           prev.map((task) =>
-            task.id === currentTask.id
+            task.id === idToUpdate
               ? {
                   ...savedTask,
                   createdAt: new Date(savedTask.createdAt),
@@ -213,12 +216,15 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
               : task,
           ),
         );
-        setCurrentTask({
-          ...savedTask,
-          createdAt: new Date(savedTask.createdAt),
-          updatedAt: new Date(savedTask.updatedAt),
-          dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
-        });
+        // Only update currentTask if it matches the updated task
+        if (currentTask && currentTask.id === idToUpdate) {
+          setCurrentTask({
+            ...savedTask,
+            createdAt: new Date(savedTask.createdAt),
+            updatedAt: new Date(savedTask.updatedAt),
+            dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
+          });
+        }
         setPanelMode('view');
         setValidationErrors([]);
       } else {

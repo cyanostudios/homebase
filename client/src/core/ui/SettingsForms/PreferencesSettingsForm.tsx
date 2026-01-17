@@ -1,14 +1,17 @@
 // client/src/core/ui/SettingsForms/PreferencesSettingsForm.tsx
 // Preferences settings form component
 
+import { Moon, Sun } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useApp } from '@/core/api/AppContext';
 import { Heading } from '@/core/ui/Typography';
+import { useTheme } from '@/hooks/useTheme';
 
 interface PreferencesSettingsFormProps {
   onCancel: () => void;
@@ -29,6 +32,7 @@ const languages = [
 
 export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormProps) {
   const { getSettings, updateSettings } = useApp();
+  const { theme, toggleTheme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -83,6 +87,24 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
           Preferences
         </Heading>
         <div className="space-y-3">
+          <div>
+            <Label htmlFor="preferences-theme" className="mb-1">
+              Theme
+            </Label>
+            <div className="flex items-center gap-3">
+              <Sun className="w-4 h-4 text-muted-foreground" />
+              <Switch
+                id="preferences-theme"
+                checked={theme === 'dark'}
+                onCheckedChange={toggleTheme}
+                aria-label="Toggle dark mode"
+              />
+              <Moon className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground ml-2">
+                {theme === 'dark' ? 'Dark mode' : 'Light mode'}
+              </span>
+            </div>
+          </div>
           <div>
             <Label htmlFor="preferences-timezone" className="mb-1">
               Timezone

@@ -46,13 +46,19 @@ class TaskController {
       Logger.error('Update task failed', error, {
         taskId: req.params.id,
         userId: Context.getUserId(req),
+        requestBody: req.body,
+        errorMessage: error.message,
+        errorStack: error.stack?.substring(0, 500),
       });
 
       if (error instanceof AppError) {
         return res.status(error.statusCode).json(error.toJSON());
       }
 
-      res.status(500).json({ error: 'Failed to update task' });
+      res.status(500).json({
+        error: 'Failed to update task',
+        message: error.message || 'Unknown error',
+      });
     }
   }
 

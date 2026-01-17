@@ -1,10 +1,8 @@
-import { Menu, ChevronDown, Moon, Sun } from 'lucide-react';
+import { Menu, ChevronDown } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
-import { Switch } from '@/components/ui/switch';
 import { useApp } from '@/core/api/AppContext';
-import { useTheme } from '@/hooks/useTheme';
 
 import { ClockDisplay } from './clock/ClockDisplay';
 import { PomodoroTimer } from './pomodoro/PomodoroTimer';
@@ -30,7 +28,6 @@ export function TopBar({ height = 64, showClock = true, className = '', children
   const [openPanel, setOpenPanel] = useState<'pomodoro' | 'clock' | null>(null);
   const { setOpenMobile } = useSidebar();
   const { user } = useApp();
-  const { theme, toggleTheme } = useTheme();
 
   // Admin tenant switching state
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -100,7 +97,6 @@ export function TopBar({ height = 64, showClock = true, className = '', children
       });
 
       if (response.ok) {
-        console.log(`✅ Switched to tenant: User ${userId}`);
         window.location.reload();
       } else {
         console.error('Failed to switch tenant');
@@ -215,18 +211,6 @@ export function TopBar({ height = 64, showClock = true, className = '', children
           onClose={handleClosePanel}
         />
 
-        {/* Dark Mode Switch */}
-        <div className="flex items-center gap-2 px-2">
-          <Sun className="w-4 h-4 text-muted-foreground" />
-          <Switch
-            checked={theme === 'dark'}
-            onCheckedChange={toggleTheme}
-            aria-label="Toggle dark mode"
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          />
-          <Moon className="w-4 h-4 text-muted-foreground" />
-        </div>
-
         {/* Clock */}
         {showClock && (
           <ClockDisplay
@@ -239,4 +223,4 @@ export function TopBar({ height = 64, showClock = true, className = '', children
       </div>
     </div>
   );
-} // Force rebuild Mon Dec  1 22:44:59 CET 2025
+}

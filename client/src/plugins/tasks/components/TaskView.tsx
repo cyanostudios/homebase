@@ -204,7 +204,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         assignedTo: task.assignedTo,
       };
 
-      const success = await saveTask(updatedData);
+      const success = await saveTask(updatedData, task.id);
       if (!success) {
         alert('Failed to update status. Please try again.');
       }
@@ -230,7 +230,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         assignedTo: task.assignedTo,
       };
 
-      const success = await saveTask(updatedData);
+      const success = await saveTask(updatedData, task.id);
       if (!success) {
         alert('Failed to update priority. Please try again.');
       }

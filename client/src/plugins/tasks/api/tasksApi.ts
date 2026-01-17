@@ -5,21 +5,23 @@ class TasksApi {
   private csrfToken: string | null = null;
 
   async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) return this.csrfToken;
-    
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
+
     try {
       const response = await fetch('/api/csrf-token', {
-        credentials: 'include'
+        credentials: 'include',
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('CSRF token fetch failed:', {
           status: response.status,
           statusText: response.statusText,
-          error: errorData
+          error: errorData,
         });
-        
+
         if (response.status === 401) {
           throw new Error('Session required. Please log in again.');
         } else if (response.status === 503) {
@@ -28,12 +30,12 @@ class TasksApi {
           throw new Error(`Failed to get CSRF token: ${errorData.error || response.statusText}`);
         }
       }
-      
+
       const data = await response.json();
       if (!data.csrfToken) {
         throw new Error('CSRF token not found in response');
       }
-      
+
       this.csrfToken = data.csrfToken;
       return this.csrfToken;
     } catch (error: any) {
@@ -48,7 +50,7 @@ class TasksApi {
   private async request(endpoint: string, options: RequestInit = {}) {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
+      ...((options.headers as Record<string, string>) || {}),
     };
 
     // Add CSRF token for mutations
@@ -64,22 +66,22 @@ class TasksApi {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Network error' }));
-      
+
       // Handle standardized error format from backend
       const errorMessage = error.error || error.message || 'Request failed';
       const errorCode = error.code;
       const errorDetails = error.details;
-      
+
       // Log validation errors for debugging
       if (errorCode === 'VALIDATION_ERROR' && errorDetails) {
         console.error('Validation errors:', errorDetails);
       }
-      
+
       const err: any = new Error(errorMessage);
       err.status = response.status;
       err.code = errorCode;
       err.details = errorDetails;
-      
+
       throw err;
     }
 
@@ -113,26 +115,34 @@ class TasksApi {
   async createTask(taskData: any): Promise<Task> {
     // Transform camelCase to snake_case for backend
     // Remove both camelCase and snake_case versions to avoid duplicates
-    const { dueDate, assignedTo, createdFromNote, due_date, assigned_to, created_from_note, ...rest } = taskData;
-    
+    const {
+      dueDate,
+      assignedTo,
+      createdFromNote,
+      due_date,
+      assigned_to,
+      created_from_note,
+      ...rest
+    } = taskData;
+
     // Ensure required fields are strings/arrays
     const title = rest.title || '';
     const content = rest.content || '';
     const mentions = Array.isArray(rest.mentions) ? rest.mentions : [];
     const status = rest.status || 'not started';
-    const priority = rest.priority || 'Medium';
-    
+    const priority = rest.priority ?? 'Medium'; // Use nullish coalescing to preserve 'Low' if set
+
     console.log('Creating task with data:', {
       title,
       content,
       mentions,
       status,
       priority,
-      due_date: dueDate instanceof Date ? dueDate.toISOString().split('T')[0] : (dueDate || null),
+      due_date: dueDate instanceof Date ? dueDate.toISOString().split('T')[0] : dueDate || null,
       assigned_to: assignedTo || null,
       created_from_note: createdFromNote || null,
     });
-    
+
     // Build request body, only include fields that have values
     const requestBody: any = {
       title: title,
@@ -141,7 +151,7 @@ class TasksApi {
       status: status,
       priority: priority,
     };
-    
+
     // Only include optional fields if they have values
     if (dueDate instanceof Date) {
       requestBody.due_date = dueDate.toISOString().split('T')[0];
@@ -152,7 +162,7 @@ class TasksApi {
     if (createdFromNote) {
       requestBody.created_from_note = createdFromNote;
     }
-    
+
     const task = await this.request('/tasks', {
       method: 'POST',
       body: JSON.stringify(requestBody),
@@ -174,7 +184,7 @@ class TasksApi {
       method: 'PUT',
       body: JSON.stringify({
         ...rest,
-        due_date: dueDate instanceof Date ? dueDate.toISOString().split('T')[0] : (dueDate || null),
+        due_date: dueDate instanceof Date ? dueDate.toISOString().split('T')[0] : dueDate || null,
         assigned_to: assignedTo || null,
         created_from_note: createdFromNote || null,
       }),

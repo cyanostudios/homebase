@@ -43,7 +43,7 @@ class TaskModel {
         content: content || '',
         mentions: JSON.stringify(mentions || []),
         status: status || 'not started',
-        priority: priority || 'Medium',
+        priority: priority ?? 'Medium', // Use nullish coalescing to preserve 'Low' if set
         due_date: due_date || null,
         assigned_to: assigned_to || null,
         created_from_note: created_from_note || null,
@@ -66,10 +66,17 @@ class TaskModel {
     try {
       const db = Database.get(req);
 
-      // Verify task exists (ownership check automatic)
-      const existing = await db.query('SELECT * FROM tasks WHERE id = $1', [taskId], context);
+      // Verify user context exists
+      const userId = req.session?.currentTenantUserId || req.session?.user?.id;
+      if (!userId) {
+        Logger.error('User context missing in update request', { taskId, session: req.session });
+        throw new AppError('User context required for update', 401, AppError.CODES.UNAUTHORIZED);
+      }
 
-      if (existing.rows.length === 0) {
+      // Verify task exists (ownership check automatic)
+      const existing = await db.query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+
+      if (!existing || existing.length === 0) {
         throw new AppError('Task not found', 404, AppError.CODES.NOT_FOUND);
       }
 
@@ -81,7 +88,7 @@ class TaskModel {
         content: content || '',
         mentions: JSON.stringify(mentions || []),
         status: status || 'not started',
-        priority: priority || 'Medium',
+        priority: priority ?? 'Medium', // Use nullish coalescing to preserve 'Low' if set
         due_date: due_date || null,
         assigned_to: assigned_to || null,
       });
@@ -90,12 +97,26 @@ class TaskModel {
 
       return this.transformRow(result);
     } catch (error) {
-      Logger.error('Failed to update task', error, { taskId });
+      Logger.error('Failed to update task', error, {
+        taskId,
+        taskData: {
+          title: taskData.title,
+          status: taskData.status,
+          priority: taskData.priority,
+          due_date: taskData.due_date,
+        },
+        errorMessage: error.message,
+        errorStack: error.stack?.substring(0, 500),
+      });
 
       if (error instanceof AppError) {
         throw error;
       }
-      throw new AppError('Failed to update task', 500, AppError.CODES.DATABASE_ERROR);
+      throw new AppError(
+        `Failed to update task: ${error.message || 'Unknown error'}`,
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 

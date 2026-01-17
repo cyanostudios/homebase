@@ -85,7 +85,7 @@ class ContactModel {
       // Verify contact exists (ownership check automatic)
       const existing = await db.query('SELECT * FROM contacts WHERE id = $1', [contactId]);
 
-      if (existing.rows.length === 0) {
+      if (!existing || existing.length === 0) {
         throw new AppError('Contact not found', 404, AppError.CODES.NOT_FOUND);
       }
 
