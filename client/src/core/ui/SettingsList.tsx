@@ -5,8 +5,8 @@ import { User, Globe } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 
 import { Card } from '@/components/ui/card';
+import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { GroupedList } from '@/core/ui/GroupedList';
-import { Heading, Text } from '@/core/ui/Typography';
 
 interface SettingsCategory {
   id: string;
@@ -38,7 +38,7 @@ interface SettingsListProps {
 }
 
 export function SettingsList({ onCategoryClick }: SettingsListProps) {
-  const [searchTerm, _setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const filteredCategories = useMemo(() => {
     return settingsCategories.filter(
@@ -49,11 +49,12 @@ export function SettingsList({ onCategoryClick }: SettingsListProps) {
   }, [searchTerm]);
 
   return (
-    <div className="p-4 sm:p-8">
-      <div className="mb-6 sm:mb-8">
-        <Heading level={1}>Settings ({filteredCategories.length})</Heading>
-        <Text variant="caption">Manage your account settings and preferences</Text>
-      </div>
+    <div className="space-y-4">
+      <ContentToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search settings..."
+      />
 
       <Card>
         <GroupedList
@@ -84,7 +85,6 @@ export function SettingsList({ onCategoryClick }: SettingsListProps) {
                   }
                 }}
               >
-                {/* Rad 1: Icon + Label */}
                 <div className="flex items-center gap-2 mb-1.5">
                   <Icon className="w-4 h-4 text-primary flex-shrink-0" />
                   <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
@@ -92,7 +92,6 @@ export function SettingsList({ onCategoryClick }: SettingsListProps) {
                   </div>
                 </div>
 
-                {/* Rad 2: Description */}
                 <div className="text-xs text-muted-foreground line-clamp-1">
                   {category.description}
                 </div>

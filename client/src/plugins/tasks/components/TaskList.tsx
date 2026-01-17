@@ -1,13 +1,11 @@
-import { Plus, CheckSquare, Search } from 'lucide-react';
+import { CheckSquare } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { GroupedList } from '@/core/ui/GroupedList';
-import { Heading, Text } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
 import { useTasks } from '../hooks/useTasks';
@@ -17,7 +15,7 @@ type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'up
 type SortOrder = 'asc' | 'desc';
 
 export const TaskList: React.FC = () => {
-  const { tasks, openTaskPanel, openTaskForView, deleteTask } = useTasks();
+  const { tasks, openTaskForView, deleteTask } = useTasks();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -152,40 +150,15 @@ export const TaskList: React.FC = () => {
     });
   };
 
-  const handleOpenPanel = () => {
-    attemptNavigation(() => {
-      openTaskPanel(null);
-    });
-  };
-
   return (
-    <div className="p-4 sm:p-8">
-      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <Heading level={1}>
-            Tasks ({searchTerm ? sortedTasks.length : tasks.length}
-            {searchTerm && sortedTasks.length !== tasks.length && ` of ${tasks.length}`})
-          </Heading>
-          <Text variant="caption">Manage your tasks and projects</Text>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
-            <Input
-              type="text"
-              placeholder="Search tasks..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-80 pl-10"
-            />
-          </div>
-          <Button onClick={handleOpenPanel} variant="primary" icon={Plus}>
-            Add Task
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <ContentToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search tasks..."
+      />
 
-      <Card>
+      <Card className="shadow-none">
         <GroupedList
           items={sortedTasks}
           groupConfig={{

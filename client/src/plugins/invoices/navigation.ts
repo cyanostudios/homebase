@@ -7,6 +7,10 @@ export const invoicesNavigation: PluginNavigationConfig = {
   label: 'Invoices',
   icon: FileText,
   order: 1,
+  badge: {
+    label: 'NYHET',
+    variant: 'secondary',
+  },
   submenu: [
     {
       label: 'All Invoices',

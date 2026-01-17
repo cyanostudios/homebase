@@ -39,7 +39,7 @@ export function DetailPanel({
   }, [isOpen, onClose]);
 
   return (
-    <div className="w-[600px] flex-shrink-0 flex h-full flex-col bg-background border-l border-border">
+    <div className="w-full lg:w-[600px] flex-shrink-0 flex h-full flex-col bg-background border-t border-border lg:border-t-0 lg:border-l">
       {isOpen ? (
         <>
           {/* Fixed Header */}

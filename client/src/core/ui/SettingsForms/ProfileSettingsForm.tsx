@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApp } from '@/core/api/AppContext';
-import { Heading } from '@/core/ui/Typography';
+import { DetailSection } from '@/core/ui/DetailSection';
 
 interface ProfileSettingsFormProps {
   onCancel: () => void;
@@ -65,36 +65,35 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
     <div className="space-y-6">
       {/* Profile Information */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3">
-          Profile Information
-        </Heading>
-        <div className="space-y-3">
-          <div>
-            <Label htmlFor="profile-name" className="mb-1">
-              Name
-            </Label>
-            <Input
-              id="profile-name"
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Enter your name"
-            />
+        <DetailSection title="Profile Information">
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="profile-name" className="mb-1">
+                Name
+              </Label>
+              <Input
+                id="profile-name"
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Enter your name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="profile-email" className="mb-1">
+                Email
+              </Label>
+              <Input
+                id="profile-email"
+                type="email"
+                value={formData.email}
+                disabled
+                className="bg-muted"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Email cannot be changed</p>
+            </div>
           </div>
-          <div>
-            <Label htmlFor="profile-email" className="mb-1">
-              Email
-            </Label>
-            <Input
-              id="profile-email"
-              type="email"
-              value={formData.email}
-              disabled
-              className="bg-muted"
-            />
-            <p className="text-xs text-muted-foreground mt-1">Email cannot be changed</p>
-          </div>
-        </div>
+        </DetailSection>
       </Card>
 
       {/* Actions */}

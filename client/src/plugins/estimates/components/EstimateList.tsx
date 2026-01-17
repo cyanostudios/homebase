@@ -1,13 +1,11 @@
-import { Plus, Search, Calculator } from 'lucide-react';
+import { Calculator } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { GroupedList } from '@/core/ui/GroupedList';
-import { Heading, Text } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
 import { useEstimates } from '../hooks/useEstimates';
@@ -17,7 +15,7 @@ type SortField = 'estimateNumber' | 'contactName' | 'total' | 'createdAt';
 type SortOrder = 'asc' | 'desc';
 
 export function EstimateList() {
-  const { estimates, openEstimatePanel, openEstimateForView, deleteEstimate } = useEstimates();
+  const { estimates, openEstimateForView, deleteEstimate } = useEstimates();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -106,41 +104,15 @@ export function EstimateList() {
     });
   };
 
-  const handleOpenPanel = () => {
-    attemptNavigation(() => {
-      openEstimatePanel(null);
-    });
-  };
-
   return (
-    <div className="p-4 sm:p-8">
-      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <Heading level={1}>
-            Estimates ({searchTerm ? sortedEstimates.length : estimates.length}
-            {searchTerm && sortedEstimates.length !== estimates.length && ` of ${estimates.length}`}
-            )
-          </Heading>
-          <Text variant="caption">Manage your customer estimates</Text>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
-            <Input
-              type="text"
-              placeholder="Search estimates..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-80 pl-10"
-            />
-          </div>
-          <Button onClick={handleOpenPanel} variant="primary" icon={Plus}>
-            Add Estimate
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <ContentToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search estimates..."
+      />
 
-      <Card>
+      <Card className="shadow-none">
         <GroupedList
           items={sortedEstimates}
           groupConfig={null}

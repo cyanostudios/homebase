@@ -1,27 +1,19 @@
-import { LogOut, User, Settings } from 'lucide-react';
-import { ChevronRight, ChevronDown } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { ChevronDown, ChevronRight, LogOut, Settings } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
 
+import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
-  Sidebar as ShadcnSidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  useSidebar as useShadcnSidebar,
-} from '@/components/ui/sidebar';
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+} from '@/components/ui/navigation-menu';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useApp } from '@/core/api/AppContext';
 import { categoryOrder } from '@/core/navigationConfig';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
+import { cn } from '@/lib/utils';
 
 export type NavPage =
   | 'contacts'
@@ -38,40 +30,41 @@ export type NavPage =
 interface SidebarProps {
   currentPage: NavPage;
   onPageChange: (page: NavPage) => void;
+  mobileOpen: boolean;
+  onMobileOpenChange: (open: boolean) => void;
 }
 
-export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
-  const { logout, user, getSettings, settingsVersion } = useApp();
-  const { state, isMobile, setOpenMobile } = useShadcnSidebar();
-  const [userName, setUserName] = useState<string | null>(null);
+export function Sidebar({
+  currentPage,
+  onPageChange,
+  mobileOpen,
+  onMobileOpenChange,
+}: SidebarProps) {
+  const { logout, user } = useApp();
+  const [isMobile, setIsMobile] = useState(false);
   const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set());
 
-  // Fetch user name from settings
+  // Auto-open submenu if current page is a submenu item
   useEffect(() => {
-    const fetchUserName = async () => {
-      if (!user) {
-        return;
-      }
+    setOpenSubmenus((prev) => {
+      const next = new Set(prev);
+      navCategories.forEach((category) => {
+        category.items.forEach((item) => {
+          if (item.submenu?.some((sub: any) => sub.page === currentPage)) {
+            next.add(item.label);
+          }
+        });
+      });
+      return next;
+    });
+  }, [currentPage, user, navCategories]);
 
-      try {
-        const response = await getSettings('profile');
-
-        // Handle both response formats
-        const settings = response?.settings || response;
-
-        if (settings?.name) {
-          setUserName(settings.name);
-        } else {
-          setUserName(null);
-        }
-      } catch (error) {
-        console.error('Sidebar: Error fetching settings:', error);
-        setUserName(null);
-      }
-    };
-
-    fetchUserName();
-  }, [user, getSettings, settingsVersion]);
+  useEffect(() => {
+    const checkScreenSize = () => setIsMobile(window.innerWidth < 768);
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -79,7 +72,7 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
 
   const handleMenuItemClick = (page: NavPage | null) => {
     if (isMobile) {
-      setOpenMobile(false);
+      onMobileOpenChange(false);
     }
 
     if (page) {
@@ -87,36 +80,21 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     }
   };
 
-  const toggleSubmenu = (itemPage: string) => {
-    setOpenSubmenus((prev) => {
-      const next = new Set(prev);
-      if (next.has(itemPage)) {
-        next.delete(itemPage);
-      } else {
-        next.add(itemPage);
-      }
-      return next;
-    });
-  };
-
-  // Build dynamic navigation from active plugins only
-  const buildNavigation = () => {
+  const navCategories = useMemo(() => {
     const categoriesMap = new Map<string, any[]>();
 
-    // Add only plugin items that user has access to
     PLUGIN_REGISTRY.forEach((plugin) => {
-      // Only show plugins that user has access to
       if (user?.plugins.includes(plugin.name) && plugin.navigation) {
-        const { category, label, icon, order, submenu } = plugin.navigation;
+        const { category, label, icon, order, submenu, badge } = plugin.navigation;
         if (!categoriesMap.has(category)) {
           categoriesMap.set(category, []);
         }
         categoriesMap.get(category)!.push({
-          type: 'plugin',
           label,
           icon,
           page: plugin.name as NavPage,
           order,
+          badge,
           submenu: submenu?.map((item) => ({
             label: item.label,
             icon: item.icon,
@@ -127,181 +105,213 @@ export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
       }
     });
 
-    // Sort items within each category by order
     categoriesMap.forEach((items) => {
       items.sort((a, b) => a.order - b.order);
     });
 
-    // Build final structure in category order
     return categoryOrder
       .filter((category) => categoriesMap.has(category))
       .map((category) => ({
         title: category,
         items: categoriesMap.get(category)!,
       }));
+  }, [user]);
+
+  const toggleSubmenu = (itemLabel: string) => {
+    setOpenSubmenus((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemLabel)) {
+        next.delete(itemLabel);
+      } else {
+        next.add(itemLabel);
+      }
+      return next;
+    });
   };
 
-  const navCategories = buildNavigation();
-  const isCollapsed = state === 'collapsed';
+  const renderNavItem = (item: any) => {
+    const Icon = item.icon;
+    const isActive =
+      item.page === currentPage || item.submenu?.some((sub: any) => sub.page === currentPage);
+    const hasSubmenu = item.submenu && item.submenu.length > 0;
+    const isSubmenuOpen = openSubmenus.has(item.label);
 
-  // Auto-open submenu if current page is in a submenu
-  useEffect(() => {
-    navCategories.forEach((category) => {
-      category.items.forEach((item) => {
-        if (item.submenu && item.submenu.some((sub: any) => sub.page === currentPage)) {
-          setOpenSubmenus((prev) => new Set(prev).add(item.page));
-        }
-      });
-    });
-  }, [currentPage, navCategories]);
+    const buttonClass = cn(
+      'w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors',
+      'justify-start',
+      'text-muted-foreground hover:text-foreground hover:bg-accent',
+    );
 
-  return (
-    <div className="flex h-full">
-      <ShadcnSidebar collapsible="icon" variant="inset">
-        <SidebarHeader>
-          <div className="flex items-center gap-2 px-2 py-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground flex-shrink-0">
-              <span className="text-xs font-bold">H</span>
-            </div>
-            {!isCollapsed && <span className="text-sm font-semibold">Homebase</span>}
-          </div>
-        </SidebarHeader>
+    const content = (
+      <div className={buttonClass}>
+        <Icon
+          className={cn(
+            'h-4 w-4 flex-shrink-0',
+            isActive ? 'text-primary' : 'text-muted-foreground',
+          )}
+        />
+        <span className={cn('truncate', isActive ? 'text-primary font-medium' : '')}>
+          {item.label}
+        </span>
+        {item.badge && (
+          <Badge variant={item.badge.variant} className="ml-auto">
+            {item.badge.label}
+          </Badge>
+        )}
+        {hasSubmenu &&
+          (isSubmenuOpen ? (
+            <ChevronDown className={cn('h-3.5 w-3.5', item.badge ? '' : 'ml-auto')} />
+          ) : (
+            <ChevronRight className={cn('h-3.5 w-3.5', item.badge ? '' : 'ml-auto')} />
+          ))}
+      </div>
+    );
 
-        <SidebarContent>
-          {navCategories.map((category, categoryIndex) => (
-            <SidebarGroup key={category.title}>
-              {categoryIndex > 0 && <div className="h-6" />}
-              <SidebarGroupLabel>{category.title}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {category.items.map((item) => {
-                    const isActive = item.page === currentPage;
-                    const hasSubmenu = item.submenu && item.submenu.length > 0;
-                    const isSubmenuActive =
-                      hasSubmenu && item.submenu?.some((sub: any) => sub.page === currentPage);
-
-                    if (hasSubmenu) {
-                      const isSubmenuOpen = openSubmenus.has(item.page);
-                      return (
-                        <Collapsible
-                          key={item.label}
-                          asChild
-                          open={isSubmenuOpen}
-                          onOpenChange={() => toggleSubmenu(item.page)}
-                        >
-                          <SidebarMenuItem>
-                            <CollapsibleTrigger asChild>
-                              <SidebarMenuButton
-                                isActive={isActive || isSubmenuActive}
-                                tooltip={isCollapsed ? item.label : undefined}
-                              >
-                                <item.icon className="h-3.5 w-3.5" />
-                                <span className="text-sm">{item.label}</span>
-                                {isSubmenuOpen ? (
-                                  <ChevronDown className="ml-auto h-3.5 w-3.5" />
-                                ) : (
-                                  <ChevronRight className="ml-auto h-3.5 w-3.5" />
-                                )}
-                              </SidebarMenuButton>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent>
-                              <SidebarMenuSub>
-                                {item.submenu
-                                  ?.sort((a: any, b: any) => a.order - b.order)
-                                  .map((subItem: any) => {
-                                    const isSubActive = subItem.page === currentPage;
-                                    return (
-                                      <SidebarMenuSubItem key={subItem.label}>
-                                        <SidebarMenuSubButton asChild isActive={isSubActive}>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleMenuItemClick(subItem.page)}
-                                            className="w-full"
-                                          >
-                                            <subItem.icon className="h-3.5 w-3.5" />
-                                            <span className="text-sm">{subItem.label}</span>
-                                          </button>
-                                        </SidebarMenuSubButton>
-                                      </SidebarMenuSubItem>
-                                    );
-                                  })}
-                              </SidebarMenuSub>
-                            </CollapsibleContent>
-                          </SidebarMenuItem>
-                        </Collapsible>
-                      );
-                    }
-
+    if (hasSubmenu) {
+      return (
+        <NavigationMenuItem key={item.label}>
+          <Collapsible open={isSubmenuOpen} onOpenChange={() => toggleSubmenu(item.label)}>
+            <CollapsibleTrigger asChild>
+              <button type="button" className="w-full">
+                {content}
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="pl-6 pt-1 pb-1 space-y-1">
+                {item.submenu
+                  ?.sort((a: any, b: any) => a.order - b.order)
+                  .map((subItem: any) => {
+                    const SubIcon = subItem.icon;
+                    const isSubActive = subItem.page === currentPage;
                     return (
-                      <SidebarMenuItem key={item.label}>
-                        <SidebarMenuButton
-                          onClick={() => handleMenuItemClick(item.page)}
-                          disabled={item.page === null}
-                          isActive={isActive}
-                          tooltip={isCollapsed ? item.label : undefined}
+                      <button
+                        key={subItem.label}
+                        type="button"
+                        onClick={() => handleMenuItemClick(subItem.page)}
+                        className={cn(
+                          'w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors',
+                          'text-muted-foreground hover:text-foreground hover:bg-accent',
+                        )}
+                      >
+                        <SubIcon
+                          className={cn(
+                            'h-4 w-4 flex-shrink-0',
+                            isSubActive ? 'text-primary' : 'text-muted-foreground',
+                          )}
+                        />
+                        <span
+                          className={cn('truncate', isSubActive ? 'text-primary font-medium' : '')}
                         >
-                          <item.icon className="h-3.5 w-3.5" />
-                          <span className="text-sm">{item.label}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
+                          {subItem.label}
+                        </span>
+                      </button>
                     );
                   })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ))}
-        </SidebarContent>
-
-        <SidebarFooter>
-          {/* User info */}
-          {user && !isCollapsed && (
-            <div className="px-1.5 py-1.5 mb-1.5">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted">
-                  <User className="h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium truncate">{userName || user.email}</div>
-                  <div className="text-[10px] text-muted-foreground capitalize">{user.role}</div>
-                </div>
               </div>
-            </div>
-          )}
-          {user && isCollapsed && (
-            <div className="flex justify-center px-1.5 py-1.5 mb-1.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted">
-                <User className="h-3.5 w-3.5 text-muted-foreground" />
-              </div>
-            </div>
-          )}
+            </CollapsibleContent>
+          </Collapsible>
+        </NavigationMenuItem>
+      );
+    }
 
-          <SidebarMenu>
-            {/* Settings button */}
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={() => handleMenuItemClick('settings')}
-                isActive={currentPage === 'settings'}
-                tooltip={isCollapsed ? 'Settings' : undefined}
-              >
-                <Settings className="h-3.5 w-3.5" />
-                <span className="text-sm">Settings</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+    const link = (
+      <NavigationMenuLink asChild>
+        <button type="button" onClick={() => handleMenuItemClick(item.page)}>
+          {content}
+        </button>
+      </NavigationMenuLink>
+    );
 
-            {/* Logout button */}
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={handleLogout}
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                tooltip={isCollapsed ? 'Logout' : undefined}
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                <span className="text-sm">Logout</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
-      </ShadcnSidebar>
+    return <NavigationMenuItem key={item.label}>{link}</NavigationMenuItem>;
+  };
+
+  const renderCategories = () => (
+    <div className="flex flex-col gap-4">
+      {navCategories.map((category) => (
+        <div key={category.title}>
+          <div className="px-2 pb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {category.title}
+          </div>
+          <NavigationMenu className="w-full max-w-full justify-start">
+            <NavigationMenuList className="flex-col items-stretch">
+              {category.items.map((item: any) => renderNavItem(item))}
+            </NavigationMenuList>
+          </NavigationMenu>
+        </div>
+      ))}
     </div>
+  );
+
+  const renderFooterActions = () => (
+    <NavigationMenu className="w-full max-w-full justify-start">
+      <NavigationMenuList className="flex-col items-stretch">
+        <NavigationMenuItem>
+          <NavigationMenuLink asChild>
+            <button type="button" onClick={() => handleMenuItemClick('settings')}>
+              <div
+                className={cn(
+                  'w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors',
+                  'justify-start',
+                  'text-muted-foreground hover:text-foreground hover:bg-accent',
+                )}
+              >
+                <Settings
+                  className={cn(
+                    'h-4 w-4 flex-shrink-0',
+                    currentPage === 'settings' ? 'text-primary' : 'text-muted-foreground',
+                  )}
+                />
+                <span className={cn(currentPage === 'settings' ? 'text-primary font-medium' : '')}>
+                  Settings
+                </span>
+              </div>
+            </button>
+          </NavigationMenuLink>
+        </NavigationMenuItem>
+
+        <NavigationMenuItem>
+          <NavigationMenuLink asChild>
+            <button type="button" onClick={handleLogout}>
+              <div
+                className={cn(
+                  'w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors text-destructive hover:bg-destructive/10',
+                  'justify-start',
+                )}
+              >
+                <LogOut className="h-4 w-4 flex-shrink-0" />
+                <span>Logout</span>
+              </div>
+            </button>
+          </NavigationMenuLink>
+        </NavigationMenuItem>
+      </NavigationMenuList>
+    </NavigationMenu>
+  );
+
+  const SidebarContent = () => (
+    <div className="flex h-full flex-col pt-14">
+      <div className="flex-1 overflow-y-auto px-2 pt-4">{renderCategories()}</div>
+
+      <div className="px-2 pb-4">{renderFooterActions()}</div>
+    </div>
+  );
+
+  return (
+    <>
+      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-[220px] flex-shrink-0 bg-muted z-10 ml-8">
+        <SidebarContent />
+      </aside>
+
+      <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
+        <SheetContent side="left" className="w-72 p-0">
+          <SheetHeader className="px-4 pt-4">
+            <SheetTitle>Navigation</SheetTitle>
+          </SheetHeader>
+          <div className="px-2 pb-6">
+            <SidebarContent />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }

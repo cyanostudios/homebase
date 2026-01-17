@@ -1,25 +1,53 @@
-import { Plus, Search, Receipt } from 'lucide-react';
-import React, { useState, useMemo } from 'react';
+import { Receipt } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { GroupedList } from '@/core/ui/GroupedList';
-import { Heading, Text } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { cn } from '@/lib/utils';
 
 import { useInvoices } from '../hooks/useInvoices';
+import { invoicesNavigation } from '../navigation';
 
 type SortField = 'invoiceNumber' | 'contactName' | 'total' | 'createdAt' | 'status';
 type SortOrder = 'asc' | 'desc';
 
 export function InvoicesList() {
-  const { invoices, openInvoicesPanel, openInvoiceForView, deleteInvoice } = useInvoices();
+  const { invoices, openInvoiceForView, deleteInvoice } = useInvoices();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
+  const [currentPage, setCurrentPage] = useState<string>('invoices');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Read currentPage from localStorage (same as App.tsx does)
+  useEffect(() => {
+    const saved = localStorage.getItem('homebase:currentPage');
+    if (saved) {
+      setCurrentPage(saved);
+    }
+    // Listen for storage changes
+    const handleStorageChange = () => {
+      const updated = localStorage.getItem('homebase:currentPage');
+      if (updated) {
+        setCurrentPage(updated);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Also listen to custom events if pages change programmatically
+  useEffect(() => {
+    const handlePageChange = (e: CustomEvent<string>) => {
+      setCurrentPage(e.detail);
+    };
+    window.addEventListener('homebase:pageChange' as any, handlePageChange);
+    return () => window.removeEventListener('homebase:pageChange' as any, handlePageChange);
+  }, []);
   const [sortField] = useState<SortField>('createdAt');
   const [sortOrder] = useState<SortOrder>('desc');
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -129,40 +157,58 @@ export function InvoicesList() {
     });
   };
 
-  const handleOpenPanel = () => {
+  const handleSubNavClick = (page: string) => {
     attemptNavigation(() => {
-      openInvoicesPanel(null);
+      localStorage.setItem('homebase:currentPage', page);
+      setCurrentPage(page);
+      // Dispatch storage event so App.tsx can react
+      window.dispatchEvent(
+        new StorageEvent('storage', { key: 'homebase:currentPage', newValue: page }),
+      );
+      // Also dispatch custom event for immediate update
+      window.dispatchEvent(new CustomEvent('homebase:pageChange', { detail: page }));
     });
   };
 
   return (
-    <div className="p-4 sm:p-8">
-      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <Heading level={1}>
-            Invoices ({searchTerm ? sortedInvoices.length : invoices.length}
-            {searchTerm && sortedInvoices.length !== invoices.length && ` of ${invoices.length}`})
-          </Heading>
-          <Text variant="caption">Manage your customer invoices</Text>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
-            <Input
-              type="text"
-              placeholder="Search invoices..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-80 pl-10"
-            />
-          </div>
-          <Button onClick={handleOpenPanel} variant="primary" icon={Plus}>
-            Add Invoice
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-4">
+      {/* Sub-navigation buttons */}
+      {invoicesNavigation.submenu && (
+        <div className="flex items-center gap-3 flex-wrap">
+          {invoicesNavigation.submenu
+            .sort((a, b) => a.order - b.order)
+            .map((subItem) => {
+              const SubIcon = subItem.icon;
+              const isActive = subItem.page === currentPage;
 
-      <Card>
+              return (
+                <Button
+                  key={subItem.page}
+                  variant="ghost"
+                  onClick={() => handleSubNavClick(subItem.page)}
+                  className={cn(
+                    'h-auto px-5 py-3 rounded-lg text-sm font-medium transition-colors',
+                    'flex items-center gap-2',
+                    isActive
+                      ? 'bg-primary/10 text-primary border border-primary hover:bg-primary/15'
+                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                  )}
+                >
+                  <SubIcon className="h-4 w-4" />
+                  <span>{subItem.label}</span>
+                </Button>
+              );
+            })}
+        </div>
+      )}
+
+      <ContentToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search invoices..."
+      />
+
+      <Card className="shadow-none">
         <GroupedList
           items={sortedInvoices}
           groupConfig={null}

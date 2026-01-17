@@ -1,13 +1,11 @@
-import { Plus, Mail, Phone, Building, User, Search } from 'lucide-react';
+import { Mail, Phone, Building, User } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { GroupedList } from '@/core/ui/GroupedList';
-import { Heading, Text } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
 import { useContacts } from '../hooks/useContacts';
@@ -16,7 +14,7 @@ type SortField = 'contactNumber' | 'name' | 'type';
 type SortOrder = 'asc' | 'desc';
 
 export const ContactList: React.FC = () => {
-  const { contacts, openContactPanel, openContactForView, deleteContact } = useContacts();
+  const { contacts, openContactForView, deleteContact } = useContacts();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -78,38 +76,15 @@ export const ContactList: React.FC = () => {
 
   // Protected navigation handlers
   const handleOpenForView = (contact: any) => attemptNavigation(() => openContactForView(contact));
-  const handleOpenPanel = () => attemptNavigation(() => openContactPanel(null));
-
   return (
-    <div className="p-4 sm:p-8">
-      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <Heading level={1}>
-            Contacts ({searchTerm ? sortedContacts.length : contacts.length}
-            {searchTerm && sortedContacts.length !== contacts.length && ` of ${contacts.length}`})
-          </Heading>
-          <Text variant="caption">Manage your business contacts</Text>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
-            <Input
-              type="text"
-              placeholder="Search contacts..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-80 pl-10"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={handleOpenPanel} variant="primary" icon={Plus}>
-              Add Contact
-            </Button>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <ContentToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search contacts..."
+      />
 
-      <Card>
+      <Card className="shadow-none">
         <GroupedList
           items={sortedContacts}
           groupConfig={{

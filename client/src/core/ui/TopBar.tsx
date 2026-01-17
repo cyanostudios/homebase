@@ -1,17 +1,47 @@
-import { Menu, ChevronDown } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import { Bell, Filter, Menu, Search, Settings, User } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
 
-import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { Button } from '@/components/ui/button';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '@/components/ui/command';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useApp } from '@/core/api/AppContext';
+import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 
 import { ClockDisplay } from './clock/ClockDisplay';
 import { PomodoroTimer } from './pomodoro/PomodoroTimer';
+import type { NavPage } from './Sidebar';
 
 interface TopBarProps {
-  height?: number;
-  showClock?: boolean;
-  className?: string;
-  children?: React.ReactNode;
+  currentPage: NavPage;
+  onPageChange: (page: NavPage) => void;
+  onOpenMobileNav: () => void;
 }
 
 interface Tenant {
@@ -23,30 +53,16 @@ interface Tenant {
   neon_connection_string: string;
 }
 
-export function TopBar({ height = 64, showClock = true, className = '', children }: TopBarProps) {
-  const [isMobile, setIsMobile] = useState(false);
+export function TopBar({ currentPage, onPageChange, onOpenMobileNav }: TopBarProps) {
+  const { user, logout } = useApp();
+  const [searchOpen, setSearchOpen] = useState(false);
   const [openPanel, setOpenPanel] = useState<'pomodoro' | 'clock' | null>(null);
-  const { setOpenMobile } = useSidebar();
-  const { user } = useApp();
 
-  // Admin tenant switching state
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [currentTenantUserId, setCurrentTenantUserId] = useState<number | null>(null);
-  const [showTenantDropdown, setShowTenantDropdown] = useState(false);
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
-
   const isAdmin = user?.role === 'superuser';
 
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-
-  // Load current tenant from API
   useEffect(() => {
     if (isAdmin) {
       loadCurrentTenant();
@@ -56,10 +72,7 @@ export function TopBar({ height = 64, showClock = true, className = '', children
 
   const loadCurrentTenant = async () => {
     try {
-      const response = await fetch('/api/auth/me', {
-        credentials: 'include',
-      });
-
+      const response = await fetch('/api/auth/me', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setCurrentTenantUserId(data.currentTenantUserId);
@@ -72,10 +85,7 @@ export function TopBar({ height = 64, showClock = true, className = '', children
   const loadTenants = async () => {
     try {
       setIsLoadingTenants(true);
-      const response = await fetch('/api/admin/tenants', {
-        credentials: 'include',
-      });
-
+      const response = await fetch('/api/admin/tenants', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setTenants(data.tenants);
@@ -95,7 +105,6 @@ export function TopBar({ height = 64, showClock = true, className = '', children
         credentials: 'include',
         body: JSON.stringify({ userId }),
       });
-
       if (response.ok) {
         window.location.reload();
       } else {
@@ -106,6 +115,43 @@ export function TopBar({ height = 64, showClock = true, className = '', children
     }
   };
 
+  const pageLabel = useMemo(() => {
+    if (currentPage === 'settings') {
+      return 'Settings';
+    }
+
+    for (const plugin of PLUGIN_REGISTRY) {
+      if (plugin.name === currentPage && plugin.navigation?.label) {
+        return plugin.navigation.label;
+      }
+      const sub = plugin.navigation?.submenu?.find((item) => item.page === currentPage);
+      if (sub?.label) {
+        return sub.label;
+      }
+    }
+
+    return currentPage;
+  }, [currentPage]);
+
+  const commandItems = useMemo(() => {
+    const items: { label: string; page: NavPage }[] = [];
+    PLUGIN_REGISTRY.forEach((plugin) => {
+      if (user?.plugins.includes(plugin.name) && plugin.navigation) {
+        items.push({ label: plugin.navigation.label, page: plugin.name as NavPage });
+        plugin.navigation.submenu?.forEach((sub) => {
+          items.push({ label: sub.label, page: sub.page as NavPage });
+        });
+      }
+    });
+    items.push({ label: 'Settings', page: 'settings' });
+    return items;
+  }, [user]);
+
+  const handleCommandSelect = (page: NavPage) => {
+    onPageChange(page);
+    setSearchOpen(false);
+  };
+
   const handlePanelToggle = (panel: 'pomodoro' | 'clock') => {
     setOpenPanel(openPanel === panel ? null : panel);
   };
@@ -114,113 +160,154 @@ export function TopBar({ height = 64, showClock = true, className = '', children
     setOpenPanel(null);
   };
 
-  // Get current tenant display name
-  const getCurrentTenantDisplay = () => {
-    if (!currentTenantUserId) {
-      return user?.email || 'Unknown';
-    }
-
-    const tenant = tenants.find((t) => t.id === currentTenantUserId);
-    return tenant?.email || user?.email || 'Unknown';
-  };
-
   return (
-    <div
-      className={`w-full bg-background border-b border-border flex items-center justify-between px-6 ${className}`}
-      style={{ height: `${height}px` }}
-    >
-      {/* Left side - Sidebar Trigger + Admin Tenant Dropdown */}
-      <div className="flex items-center gap-4">
-        {isMobile ? (
-          <button
-            onClick={() => setOpenMobile(true)}
-            className="p-2 rounded-lg hover:bg-accent transition-colors lg:hidden"
+    <header className="fixed left-0 right-0 top-0 h-14 bg-background border-b border-border z-20">
+      <div className="h-full flex items-center justify-between pl-4 pr-4 sm:pr-6">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={onOpenMobileNav}
+            aria-label="Open navigation"
           >
-            <Menu className="w-5 h-5 text-muted-foreground" />
-          </button>
-        ) : (
-          <SidebarTrigger />
-        )}
+            <Menu className="h-5 w-5" />
+          </Button>
 
-        {/* Admin Tenant Dropdown */}
-        {isAdmin && (
-          <div className="relative">
-            <button
-              onClick={() => setShowTenantDropdown(!showTenantDropdown)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors"
-            >
-              <span className="text-sm font-medium text-primary">{getCurrentTenantDisplay()}</span>
-              <ChevronDown className="w-4 h-4 text-primary" />
-            </button>
-
-            {showTenantDropdown && (
-              <>
-                {/* Backdrop */}
-                <div className="fixed inset-0 z-40" onClick={() => setShowTenantDropdown(false)} />
-
-                {/* Dropdown */}
-                <div className="absolute top-full left-0 mt-2 w-64 bg-card border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-                  <div className="p-2">
-                    <div className="text-xs font-semibold text-muted-foreground px-3 py-2">
-                      Switch Tenant View
-                    </div>
-
-                    {isLoadingTenants ? (
-                      <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                        Loading tenants...
-                      </div>
-                    ) : tenants.length === 0 ? (
-                      <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                        No tenants found
-                      </div>
-                    ) : (
-                      tenants.map((tenant) => (
-                        <button
-                          key={tenant.id}
-                          onClick={() => switchTenant(tenant.id)}
-                          className={`w-full px-3 py-2 text-left rounded-md transition-colors ${
-                            currentTenantUserId === tenant.id
-                              ? 'bg-primary/10 text-primary'
-                              : 'hover:bg-accent text-foreground'
-                          }`}
-                        >
-                          <div className="text-sm font-medium">{tenant.email}</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            ID: {tenant.id} • {tenant.role}
-                          </div>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
+          <div className="hidden md:flex items-center gap-2 ml-8 mr-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <span className="text-xs font-bold">H</span>
+            </div>
+            <span className="text-sm font-semibold">Homebase</span>
           </div>
-        )}
 
-        {children}
-      </div>
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <button type="button" onClick={() => onPageChange('contacts')}>
+                    Homebase
+                  </button>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{pageLabel}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
 
-      {/* Right side - Pomodoro Timer + Dark Mode Switch + Clock */}
-      <div className="flex items-center gap-4 relative">
-        {/* Pomodoro Timer */}
-        <PomodoroTimer
-          compact={true}
-          isExpanded={openPanel === 'pomodoro'}
-          onToggle={() => handlePanelToggle('pomodoro')}
-          onClose={handleClosePanel}
-        />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Search"
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="Filter">
+            <Filter className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Settings"
+            onClick={() => onPageChange('settings')}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="Notifications">
+            <Bell className="h-4 w-4" />
+          </Button>
 
-        {/* Clock */}
-        {showClock && (
+          <PomodoroTimer
+            compact={true}
+            isExpanded={openPanel === 'pomodoro'}
+            onToggle={() => handlePanelToggle('pomodoro')}
+            onClose={handleClosePanel}
+          />
+
           <ClockDisplay
             compact={true}
             isExpanded={openPanel === 'clock'}
             onToggle={() => handlePanelToggle('clock')}
             onClose={handleClosePanel}
           />
-        )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="User menu">
+                <User className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div className="text-sm font-medium">{user?.email || 'User'}</div>
+                <div className="text-xs text-muted-foreground capitalize">
+                  {user?.role || 'user'}
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {isAdmin && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Switch tenant</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
+                    {isLoadingTenants ? (
+                      <DropdownMenuItem disabled>Loading tenants...</DropdownMenuItem>
+                    ) : tenants.length === 0 ? (
+                      <DropdownMenuItem disabled>No tenants found</DropdownMenuItem>
+                    ) : (
+                      tenants.map((tenant) => (
+                        <DropdownMenuItem
+                          key={tenant.id}
+                          onClick={() => switchTenant(tenant.id)}
+                          className={currentTenantUserId === tenant.id ? 'bg-accent' : undefined}
+                        >
+                          <span className="truncate">{tenant.email}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
+              <DropdownMenuItem onClick={() => onPageChange('settings')}>Settings</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={logout} className="text-destructive">
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <Sheet open={searchOpen} onOpenChange={setSearchOpen}>
+          <SheetContent side="top" className="p-0">
+            <SheetHeader className="px-4 pt-4">
+              <SheetTitle>Search</SheetTitle>
+            </SheetHeader>
+            <div className="p-4">
+              <Command>
+                <CommandInput placeholder="Search pages..." />
+                <CommandList>
+                  <CommandEmpty>No results found.</CommandEmpty>
+                  <CommandGroup heading="Pages">
+                    {commandItems.map((item) => (
+                      <CommandItem
+                        key={`${item.page}-${item.label}`}
+                        onSelect={() => handleCommandSelect(item.page)}
+                      >
+                        {item.label}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                  <CommandSeparator />
+                </CommandList>
+              </Command>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
-    </div>
+    </header>
   );
 }

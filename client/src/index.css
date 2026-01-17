@@ -14,7 +14,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
 
-    --primary: 240 5.9% 10%;
+    --primary: 200 98% 39%;
     --primary-foreground: 0 0% 98%;
 
     --secondary: 240 4.8% 95.9%;
@@ -31,7 +31,7 @@
 
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
+    --ring: 200 98% 39%;
 
     --radius: 0.5rem;
 
@@ -39,7 +39,7 @@
 
     --sidebar-foreground: 240 5.3% 26.1%;
 
-    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary: 200 98% 39%;
 
     --sidebar-primary-foreground: 0 0% 98%;
 
@@ -49,7 +49,7 @@
 
     --sidebar-border: 220 13% 91%;
 
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 200 98% 39%;
   }
 
   .dark {
@@ -67,7 +67,7 @@
     --popover-foreground: 0 0% 98%;
 
     /* Primary: kept original (accent color unchanged) */
-    --primary: 0 0% 98%;
+    --primary: 200 98% 60%;
     --primary-foreground: 240 5.9% 10%;
 
     /* Secondary: #222222 - for sidebar/topbar, input fields */
@@ -89,16 +89,16 @@
     /* Border & Input: #3B3B3B - borders and separators */
     --border: 0 0% 23%;
     --input: 0 0% 23%;
-    --ring: 240 4.9% 83.9%;
+    --ring: 200 98% 60%;
     /* Sidebar: Neon dark mode colors - #222222 for sidebar */
     --sidebar-background: 0 0% 13%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary: 200 98% 60%;
     --sidebar-primary-foreground: 240 5.9% 10%;
     --sidebar-accent: 0 0% 20%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 0 0% 23%;
-    --sidebar-ring: 240 4.9% 83.9%;
+    --sidebar-ring: 200 98% 60%;
   }
 
   * {

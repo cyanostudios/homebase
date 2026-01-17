@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
-import { Heading } from '@/core/ui/Typography';
+import { DetailSection } from '@/core/ui/DetailSection';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 
@@ -251,109 +251,100 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     <div className="space-y-4">
       {(task.dueDate || assignedContact) && (
         <Card padding="sm" className="shadow-none px-0">
-          <Heading
-            level={3}
-            className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100"
-          >
-            Scheduling
-          </Heading>
-          <div className="space-y-3">
-            {task.dueDate && dueDateInfo && (
-              <div className="flex items-center gap-2">
-                <dueDateInfo.icon className={`w-4 h-4 ${dueDateInfo.iconClass}`} />
-                <span className="text-xs text-gray-500 dark:text-gray-400">Due:</span>
-                <span className={`text-sm ${dueDateInfo.className}`}>{dueDateInfo.text}</span>
-              </div>
-            )}
+          <DetailSection title="Scheduling">
+            <div className="space-y-3">
+              {task.dueDate && dueDateInfo && (
+                <div className="flex items-center gap-2">
+                  <dueDateInfo.icon className={`w-4 h-4 ${dueDateInfo.iconClass}`} />
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Due:</span>
+                  <span className={`text-sm ${dueDateInfo.className}`}>{dueDateInfo.text}</span>
+                </div>
+              )}
 
-            {assignedContact && (
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                <span className="text-xs text-gray-500 dark:text-gray-400">Assigned to:</span>
-                <button
-                  onClick={() => handleContactClick(assignedContact.id)}
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
-                >
-                  {assignedContact.companyName}
-                  {assignedContact.personalNumber ? ` • ${assignedContact.personalNumber}` : ''}
-                </button>
-              </div>
-            )}
-          </div>
+              {assignedContact && (
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Assigned to:</span>
+                  <button
+                    onClick={() => handleContactClick(assignedContact.id)}
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
+                  >
+                    {assignedContact.companyName}
+                    {assignedContact.personalNumber ? ` • ${assignedContact.personalNumber}` : ''}
+                  </button>
+                </div>
+              )}
+            </div>
+          </DetailSection>
         </Card>
       )}
 
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          Content
-        </Heading>
-        <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-            <MentionContent content={task.content} mentions={task.mentions} />
+        <DetailSection title="Content">
+          <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
+            <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+              <MentionContent content={task.content} mentions={task.mentions} />
+            </div>
           </div>
-        </div>
+        </DetailSection>
       </Card>
 
       {task.mentions && task.mentions.length > 0 && (
         <>
           <hr className="border-gray-100 dark:border-gray-800" />
           <Card padding="sm" className="shadow-none px-0">
-            <Heading
-              level={3}
-              className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100"
-            >
-              Referenced Contacts
-            </Heading>
-            <div className="space-y-3">
-              {task.mentions.map((mention: any) => {
-                const contactData = mentionContactsData[mention.contactId];
+            <DetailSection title="Referenced Contacts">
+              <div className="space-y-3">
+                {task.mentions.map((mention: any) => {
+                  const contactData = mentionContactsData[mention.contactId];
 
-                const getDisplayText = () => {
-                  if (!contactData) {
-                    const contactNumber = `#${mention.contactId}`;
+                  const getDisplayText = () => {
+                    if (!contactData) {
+                      const contactNumber = `#${mention.contactId}`;
+                      const name = mention.contactName;
+                      return `${contactNumber} • ${name} (deleted contact)`;
+                    }
+
+                    const contactNumber = `#${contactData.contactNumber || contactData.id}`;
                     const name = mention.contactName;
-                    return `${contactNumber} • ${name} (deleted contact)`;
-                  }
+                    const orgPersonNumber =
+                      contactData.organizationNumber || contactData.personalNumber || '';
 
-                  const contactNumber = `#${contactData.contactNumber || contactData.id}`;
-                  const name = mention.contactName;
-                  const orgPersonNumber =
-                    contactData.organizationNumber || contactData.personalNumber || '';
+                    return `${contactNumber} • ${name}${orgPersonNumber ? ` • ${orgPersonNumber}` : ''}`;
+                  };
 
-                  return `${contactNumber} • ${name}${orgPersonNumber ? ` • ${orgPersonNumber}` : ''}`;
-                };
-
-                return (
-                  <div
-                    key={`mention-${mention.contactId}-${mention.contactName || 'unknown'}`}
-                    className={`flex items-center justify-between p-3 rounded-lg border ${
-                      contactData
-                        ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
-                        : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800'
-                    }`}
-                  >
-                    <div className="text-sm">
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {getDisplayText()}
-                      </span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => (contactData ? handleContactClick(mention.contactId) : null)}
-                      disabled={!contactData}
-                      className={`ml-3 flex-shrink-0 ${
+                  return (
+                    <div
+                      key={`mention-${mention.contactId}-${mention.contactName || 'unknown'}`}
+                      className={`flex items-center justify-between p-3 rounded-lg border ${
                         contactData
-                          ? 'text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300'
-                          : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                          ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+                          : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800'
                       }`}
                     >
-                      {contactData ? 'View Contact' : 'Deleted'}
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
+                      <div className="text-sm">
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                          {getDisplayText()}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => (contactData ? handleContactClick(mention.contactId) : null)}
+                        disabled={!contactData}
+                        className={`ml-3 flex-shrink-0 ${
+                          contactData
+                            ? 'text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300'
+                            : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                        }`}
+                      >
+                        {contactData ? 'View Contact' : 'Deleted'}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </DetailSection>
           </Card>
 
           <hr className="border-gray-100 dark:border-gray-800" />
@@ -361,67 +352,64 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
       )}
 
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          Quick Actions
-        </Heading>
+        <DetailSection title="Quick Actions">
+          <TaskStatusButtons task={task} onStatusChange={handleStatusChange} />
 
-        <TaskStatusButtons task={task} onStatusChange={handleStatusChange} />
+          <TaskPriorityButtons task={task} onPriorityChange={handlePriorityChange} />
 
-        <TaskPriorityButtons task={task} onPriorityChange={handlePriorityChange} />
-
-        <div className="mb-4">
-          <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Task Actions
+          <div className="mb-4">
+            <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Task Actions
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" size="sm" icon={Copy} onClick={handleDuplicateTask}>
+                Duplicate Task
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" icon={Copy} onClick={handleDuplicateTask}>
-              Duplicate Task
-            </Button>
-          </div>
-        </div>
+        </DetailSection>
       </Card>
 
       <hr className="border-gray-100 dark:border-gray-800" />
 
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          Task Information
-        </Heading>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">System ID</div>
-            <div className="text-sm font-mono text-gray-900 dark:text-gray-100">{task.id}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
-            <div className="text-sm text-gray-900 dark:text-gray-100">
-              {new Date(task.createdAt).toLocaleDateString()}
+        <DetailSection title="Task Information">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">System ID</div>
+              <div className="text-sm font-mono text-gray-900 dark:text-gray-100">{task.id}</div>
             </div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Last Updated</div>
-            <div className="text-sm text-gray-900 dark:text-gray-100">
-              {new Date(task.updatedAt).toLocaleDateString()}
+            <div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
+              <div className="text-sm text-gray-900 dark:text-gray-100">
+                {new Date(task.createdAt).toLocaleDateString()}
+              </div>
             </div>
-          </div>
-          {task.createdFromNote && noteLoaded && (
-            <div className="sm:col-span-3">
-              <div className="text-xs text-gray-500 dark:text-gray-400">Created from Note</div>
-              {sourceNote ? (
-                <button
-                  onClick={handleNoteClick}
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
-                >
-                  {sourceNote.title}
-                </button>
-              ) : (
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  Note ID: {task.createdFromNote} (Deleted Note)
-                </div>
-              )}
+            <div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Last Updated</div>
+              <div className="text-sm text-gray-900 dark:text-gray-100">
+                {new Date(task.updatedAt).toLocaleDateString()}
+              </div>
             </div>
-          )}
-        </div>
+            {task.createdFromNote && noteLoaded && (
+              <div className="sm:col-span-3">
+                <div className="text-xs text-gray-500 dark:text-gray-400">Created from Note</div>
+                {sourceNote ? (
+                  <button
+                    onClick={handleNoteClick}
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
+                  >
+                    {sourceNote.title}
+                  </button>
+                ) : (
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    Note ID: {task.createdFromNote} (Deleted Note)
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </DetailSection>
       </Card>
     </div>
   );

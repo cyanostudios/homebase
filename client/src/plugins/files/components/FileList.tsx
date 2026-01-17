@@ -1,11 +1,9 @@
-import { Plus, Search, File } from 'lucide-react';
+import { File } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { GroupedList } from '@/core/ui/GroupedList';
-import { Heading, Text } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
 import { useFiles } from '../hooks/useFiles';
@@ -28,7 +26,7 @@ function humanSize(bytes?: number | null) {
 }
 
 export const FileList: React.FC = () => {
-  const { files, openFilesPanel, openFileForView } = useFiles();
+  const { files, openFileForView } = useFiles();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -90,38 +88,15 @@ export const FileList: React.FC = () => {
   }, [files, searchTerm, sortField, sortOrder]);
 
   const handleOpenForView = (item: any) => attemptNavigation(() => openFileForView(item));
-  const handleOpenPanel = () => attemptNavigation(() => openFilesPanel(null));
-
   return (
-    <div className="p-4 sm:p-8">
-      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <Heading level={1}>
-            Files ({searchTerm ? filteredAndSorted.length : files.length}
-            {searchTerm && filteredAndSorted.length !== files.length && ` of ${files.length}`})
-          </Heading>
-          <Text variant="caption">Template-based file manager list.</Text>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
-            <Input
-              type="text"
-              placeholder="Search by name, id, or type"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-80 pl-10"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={handleOpenPanel} variant="primary" icon={Plus}>
-              Add File
-            </Button>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <ContentToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by name, id, or type"
+      />
 
-      <Card>
+      <Card className="shadow-none">
         <GroupedList
           items={filteredAndSorted}
           groupConfig={null}

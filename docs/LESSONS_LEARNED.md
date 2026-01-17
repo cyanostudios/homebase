@@ -442,6 +442,63 @@ Det finns TVÅ databaser: AUTH-databas (users, sessions, tenants) och TENANT-dat
 
 ## Development Workflow
 
+### React Hooks måste ALLTID vara före early returns i viktiga filer
+
+❌ **What we did (that didn't work):**
+
+```tsx
+// ❌ KRITISK FEL - Hooks efter early returns bryter Rules of Hooks
+const AppContent = () => {
+  const [currentPage, setCurrentPage] = useState(...);
+  // ... andra hooks ...
+
+  if (isLoading) {
+    return <LoadingScreen />; // Early return
+  }
+
+  if (!isAuthenticated) {
+    return <LoginComponent />; // Early return
+  }
+
+  // ❌ FEL - useMemo efter early returns
+  const currentPagePlugin = useMemo(() => {...}, [currentPage]);
+  const contentTitle = useMemo(() => {...}, [currentPage, currentPagePlugin]);
+  const primaryAction = useMemo(() => {...}, [currentPage, ...]);
+  // React Error: "Rendered more hooks than during the previous render"
+};
+```
+
+✅ **What we do instead (that works):**
+
+```tsx
+// ✅ KORREKT - ALLA hooks före early returns
+const AppContent = () => {
+  const [currentPage, setCurrentPage] = useState(...);
+  // ... alla hooks först ...
+
+  // ✅ ALLA useMemo/useEffect/useCallback MÅSTE vara här, FÖRE early returns
+  const currentPagePlugin = useMemo(() => {...}, [currentPage]);
+  const contentTitle = useMemo(() => {...}, [currentPage, currentPagePlugin]);
+  const primaryAction = useMemo(() => {...}, [currentPage, ...]);
+
+  // ✅ FÖRST EFTER alla hooks - då kan vi ha early returns
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (!isAuthenticated) {
+    return <LoginComponent />;
+  }
+
+  // Resten av komponenten...
+};
+```
+
+💡 **Why (lesson learned):**
+**KRITISKT för viktiga filer som App.tsx, MainLayout, AppContext, PluginRegistry**: React's Rules of Hooks kräver att hooks anropas i **exakt samma ordning** vid varje render. Om hooks ligger efter early returns anropas de ibland (när villkoren är falska) och ibland inte (när villkoren är sanna). Detta kraschar appen med "Rendered more hooks than during the previous render". I viktiga filer som är grunden för hela appen kan detta göra att ingenting fungerar. **ALLA hooks (useState, useEffect, useMemo, useCallback) MÅSTE alltid vara före eventuella early returns.**
+
+---
+
 ### Login fungerar men UI visar inte - kolla båda servrarna
 
 ❌ **What we did (that didn't work):**

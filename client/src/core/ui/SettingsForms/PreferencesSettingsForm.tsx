@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useApp } from '@/core/api/AppContext';
-import { Heading } from '@/core/ui/Typography';
+import { DetailSection } from '@/core/ui/DetailSection';
 import { useTheme } from '@/hooks/useTheme';
 
 interface PreferencesSettingsFormProps {
@@ -83,61 +83,60 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
     <div className="space-y-6">
       {/* Preferences */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3">
-          Preferences
-        </Heading>
-        <div className="space-y-3">
-          <div>
-            <Label htmlFor="preferences-theme" className="mb-1">
-              Theme
-            </Label>
-            <div className="flex items-center gap-3">
-              <Sun className="w-4 h-4 text-muted-foreground" />
-              <Switch
-                id="preferences-theme"
-                checked={theme === 'dark'}
-                onCheckedChange={toggleTheme}
-                aria-label="Toggle dark mode"
-              />
-              <Moon className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground ml-2">
-                {theme === 'dark' ? 'Dark mode' : 'Light mode'}
-              </span>
+        <DetailSection title="Preferences">
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="preferences-theme" className="mb-1">
+                Theme
+              </Label>
+              <div className="flex items-center gap-3">
+                <Sun className="w-4 h-4 text-muted-foreground" />
+                <Switch
+                  id="preferences-theme"
+                  checked={theme === 'dark'}
+                  onCheckedChange={toggleTheme}
+                  aria-label="Toggle dark mode"
+                />
+                <Moon className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground ml-2">
+                  {theme === 'dark' ? 'Dark mode' : 'Light mode'}
+                </span>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="preferences-timezone" className="mb-1">
+                Timezone
+              </Label>
+              <NativeSelect
+                id="preferences-timezone"
+                value={formData.timezone}
+                onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+              >
+                {timezones.map((tz) => (
+                  <option key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div>
+              <Label htmlFor="preferences-language" className="mb-1">
+                Language
+              </Label>
+              <NativeSelect
+                id="preferences-language"
+                value={formData.language}
+                onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+              >
+                {languages.map((lang) => (
+                  <option key={lang.value} value={lang.value}>
+                    {lang.label}
+                  </option>
+                ))}
+              </NativeSelect>
             </div>
           </div>
-          <div>
-            <Label htmlFor="preferences-timezone" className="mb-1">
-              Timezone
-            </Label>
-            <NativeSelect
-              id="preferences-timezone"
-              value={formData.timezone}
-              onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
-            >
-              {timezones.map((tz) => (
-                <option key={tz.value} value={tz.value}>
-                  {tz.label}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
-          <div>
-            <Label htmlFor="preferences-language" className="mb-1">
-              Language
-            </Label>
-            <NativeSelect
-              id="preferences-language"
-              value={formData.language}
-              onChange={(e) => setFormData({ ...formData, language: e.target.value })}
-            >
-              {languages.map((lang) => (
-                <option key={lang.value} value={lang.value}>
-                  {lang.label}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
-        </div>
+        </DetailSection>
       </Card>
 
       {/* Actions */}

@@ -2,7 +2,7 @@ import React from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Heading } from '@/core/ui/Typography';
+import { DetailSection } from '@/core/ui/DetailSection';
 
 import { useEstimateStatusActions } from '../hooks/useEstimateStatusActions';
 import { Estimate, calculateEstimateTotals } from '../types/estimate';
@@ -38,127 +38,135 @@ export function EstimateView({ estimate }: EstimateViewProps) {
     <div className="space-y-4">
       {/* Line Items */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          Line Items ({estimate.lineItems.length})
-        </Heading>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-900/50">
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Qty
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Price
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Disc %
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  VAT %
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  -Disc
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  +VAT
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Total
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-              {estimate.lineItems.map((item, index) => (
-                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                  <td className="px-4 py-3">
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{item.description}</div>
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-100">{item.quantity}</td>
-                  <td className="px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
-                    {(item.unitPrice || 0).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
-                    {(item.discount || 0).toFixed(1)}%
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-100">{item.vatRate}%</td>
-                  <td className="px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
-                    -{(item.discountAmount || 0).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
-                    {(item.vatAmount || 0).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {(item.lineTotal || 0).toFixed(2)}
-                  </td>
+        <DetailSection title={`Line Items (${estimate.lineItems.length})`}>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-gray-900/50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Description
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Qty
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Price
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Disc %
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    VAT %
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    -Disc
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    +VAT
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Total
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                {estimate.lineItems.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                    <td className="px-4 py-3">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {item.description}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
+                      {item.quantity}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
+                      {(item.unitPrice || 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
+                      {(item.discount || 0).toFixed(1)}%
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
+                      {item.vatRate}%
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
+                      -{(item.discountAmount || 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-100">
+                      {(item.vatAmount || 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {(item.lineTotal || 0).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DetailSection>
       </Card>
 
       {/* Summary - UPDATED to show estimate discount */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          Summary
-        </Heading>
-
-        <div className="space-y-3">
-          <div className="flex justify-between">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal:</span>
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {totals.subtotal.toFixed(2)} {estimate.currency}
-            </span>
+        <DetailSection title="Summary">
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal:</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {totals.subtotal.toFixed(2)} {estimate.currency}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Total Line Item Discounts:
+              </span>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                -{totals.totalDiscount.toFixed(2)} {estimate.currency}
+              </span>
+            </div>
+            <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-3">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Subtotal after line discounts:
+              </span>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {totals.subtotalAfterDiscount.toFixed(2)} {estimate.currency}
+              </span>
+            </div>
+            {/* NEW: Show estimate discount if applied */}
+            {(estimate.estimateDiscount || 0) > 0 && (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Estimate Discount ({(estimate.estimateDiscount || 0).toFixed(1)}%):
+                  </span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    -{totals.estimateDiscountAmount.toFixed(2)} {estimate.currency}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-3">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Subtotal after estimate discount:
+                  </span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {totals.subtotalAfterEstimateDiscount.toFixed(2)} {estimate.currency}
+                  </span>
+                </div>
+              </>
+            )}
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Total VAT:</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {totals.totalVat.toFixed(2)} {estimate.currency}
+              </span>
+            </div>
+            <div className="flex justify-between text-lg font-semibold border-t border-gray-200 dark:border-gray-800 pt-3">
+              <span>Total:</span>
+              <span>
+                {totals.total.toFixed(2)} {estimate.currency}
+              </span>
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Total Line Item Discounts:</span>
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              -{totals.totalDiscount.toFixed(2)} {estimate.currency}
-            </span>
-          </div>
-          <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-3">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal after line discounts:</span>
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {totals.subtotalAfterDiscount.toFixed(2)} {estimate.currency}
-            </span>
-          </div>
-          {/* NEW: Show estimate discount if applied */}
-          {(estimate.estimateDiscount || 0) > 0 && (
-            <>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Estimate Discount ({(estimate.estimateDiscount || 0).toFixed(1)}%):
-                </span>
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  -{totals.estimateDiscountAmount.toFixed(2)} {estimate.currency}
-                </span>
-              </div>
-              <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-3">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal after estimate discount:</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {totals.subtotalAfterEstimateDiscount.toFixed(2)} {estimate.currency}
-                </span>
-              </div>
-            </>
-          )}
-          <div className="flex justify-between">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Total VAT:</span>
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {totals.totalVat.toFixed(2)} {estimate.currency}
-            </span>
-          </div>
-          <div className="flex justify-between text-lg font-semibold border-t border-gray-200 dark:border-gray-800 pt-3">
-            <span>Total:</span>
-            <span>
-              {totals.total.toFixed(2)} {estimate.currency}
-            </span>
-          </div>
-        </div>
+        </DetailSection>
       </Card>
 
       {/* Notes */}
@@ -166,10 +174,15 @@ export function EstimateView({ estimate }: EstimateViewProps) {
         <>
           <hr className="border-gray-100 dark:border-gray-800" />
           <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <Heading
+              level={3}
+              className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100"
+            >
               Notes
             </Heading>
-            <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{estimate.notes}</div>
+            <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+              {estimate.notes}
+            </div>
           </Card>
         </>
       )}
@@ -178,45 +191,44 @@ export function EstimateView({ estimate }: EstimateViewProps) {
 
       {/* Quick Actions */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          Quick Actions
-        </Heading>
+        <DetailSection title="Quick Actions">
+          {/* Status Actions */}
+          <EstimateStatusButtons
+            estimate={estimate}
+            onStatusChange={(status) => handleStatusChange(estimate, status)}
+          />
 
-        {/* Status Actions */}
-        <EstimateStatusButtons
-          estimate={estimate}
-          onStatusChange={(status) => handleStatusChange(estimate, status)}
-        />
-
-        {/* Other Actions */}
-        <EstimateActions estimate={estimate} />
+          {/* Other Actions */}
+          <EstimateActions estimate={estimate} />
+        </DetailSection>
       </Card>
 
       <hr className="border-gray-100 dark:border-gray-800" />
 
       {/* Metadata */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          Estimate Information
-        </Heading>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">System ID</div>
-            <div className="text-sm font-mono text-gray-900 dark:text-gray-100">{estimate.id}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
-            <div className="text-sm text-gray-900 dark:text-gray-100">
-              {new Date(estimate.createdAt).toLocaleDateString()}
+        <DetailSection title="Estimate Information">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">System ID</div>
+              <div className="text-sm font-mono text-gray-900 dark:text-gray-100">
+                {estimate.id}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
+              <div className="text-sm text-gray-900 dark:text-gray-100">
+                {new Date(estimate.createdAt).toLocaleDateString()}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Last Updated</div>
+              <div className="text-sm text-gray-900 dark:text-gray-100">
+                {new Date(estimate.updatedAt).toLocaleDateString()}
+              </div>
             </div>
           </div>
-          <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Last Updated</div>
-            <div className="text-sm text-gray-900 dark:text-gray-100">
-              {new Date(estimate.updatedAt).toLocaleDateString()}
-            </div>
-          </div>
-        </div>
+        </DetailSection>
       </Card>
 
       {/* Status Reason Modal */}
@@ -235,8 +247,12 @@ export function EstimateView({ estimate }: EstimateViewProps) {
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Mark estimate as sent?</h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Estimate {estimate.estimateNumber}</p>
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Mark estimate as sent?
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Estimate {estimate.estimateNumber}
+                </p>
               </div>
             </div>
 

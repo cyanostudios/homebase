@@ -7,7 +7,7 @@
  * Last Modified: August 2025 - Global Navigation Guard Integration
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 
 import { AppProvider, useApp } from '@/core/api/AppContext';
 import { createPanelHandlers } from '@/core/handlers/panelHandlers';
@@ -23,7 +23,6 @@ import { PreferencesSettingsForm } from '@/core/ui/SettingsForms/PreferencesSett
 import { ProfileSettingsForm } from '@/core/ui/SettingsForms/ProfileSettingsForm';
 import { SettingsList } from '@/core/ui/SettingsList';
 import type { NavPage } from '@/core/ui/Sidebar'; // <-- viktig typ-import
-import { TopBar } from '@/core/ui/TopBar';
 import {
   GlobalNavigationGuardProvider,
   useGlobalNavigationGuard,
@@ -188,6 +187,61 @@ function AppContent() {
     return () => document.removeEventListener('keydown', keyboardHandler);
   }, [pluginContexts, attemptNavigation]);
 
+  // All hooks must be before early returns
+  const currentPagePlugin = useMemo(() => {
+    return PLUGIN_REGISTRY.find(
+      (plugin) =>
+        plugin.name === currentPage ||
+        plugin.navigation?.submenu?.some((item) => item.page === currentPage),
+    );
+  }, [currentPage]);
+
+  const contentTitle = useMemo(() => {
+    if (currentPage === 'settings') {
+      return 'Settings';
+    }
+
+    if (!currentPagePlugin?.navigation) {
+      return currentPage;
+    }
+
+    if (currentPagePlugin.name === currentPage) {
+      return currentPagePlugin.navigation.label;
+    }
+
+    const sub = currentPagePlugin.navigation.submenu?.find((item) => item.page === currentPage);
+    return sub?.label || currentPagePlugin.navigation.label;
+  }, [currentPage, currentPagePlugin]);
+
+  const primaryAction = useMemo(() => {
+    if (!currentPagePlugin || currentPagePlugin.name !== currentPage) {
+      return null;
+    }
+
+    const context = pluginContexts.find(
+      ({ plugin }) => plugin.name === currentPagePlugin.name,
+    )?.context;
+    if (!context) {
+      return null;
+    }
+
+    const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    const singular = (label: string) => (label.endsWith('s') ? label.slice(0, -1) : label);
+    const cap = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+
+    const fnName = `open${cap(singular(toCamel(currentPagePlugin.name)))}Panel`;
+    const openPanel = context[fnName as keyof typeof context];
+
+    if (typeof openPanel !== 'function') {
+      return null;
+    }
+
+    return {
+      label: `Add ${singular(currentPagePlugin.navigation?.label || '')}`,
+      onClick: () => attemptNavigation(() => (openPanel as (item: any) => void)(null)),
+    };
+  }, [currentPage, currentPagePlugin, pluginContexts, attemptNavigation]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -277,30 +331,30 @@ function AppContent() {
     currentPage === 'settings' ? () => setSettingsCategory(null) : handlers.getCloseHandler();
 
   return (
-    <MainLayout
-      currentPage={currentPage}
-      onPageChange={handlePageChange}
-      detailPanelOpen={detailPanelOpen}
-      detailPanelTitle={detailPanelTitle}
-      detailPanelSubtitle={detailPanelSubtitle}
-      detailPanelContent={detailPanelContent}
-      detailPanelFooter={detailPanelFooter}
-      onDetailPanelClose={onDetailPanelClose}
-    >
-      <div className="h-full flex flex-col bg-background overflow-hidden">
-        <TopBar className="flex-shrink-0" />
-        <div className="flex-1 overflow-y-auto min-h-0">
-          {currentPage === 'settings' ? (
-            <SettingsList
-              onCategoryClick={(categoryId) => {
-                setSettingsCategory(categoryId);
-              }}
-            />
-          ) : (
-            renderers.renderCurrentPage(currentPage, PLUGIN_REGISTRY)
-          )}
-        </div>
-      </div>
+    <>
+      <MainLayout
+        currentPage={currentPage}
+        onPageChange={handlePageChange}
+        contentTitle={contentTitle}
+        contentActionLabel={primaryAction?.label}
+        onContentAction={primaryAction?.onClick}
+        detailPanelOpen={detailPanelOpen}
+        detailPanelTitle={detailPanelTitle}
+        detailPanelSubtitle={detailPanelSubtitle}
+        detailPanelContent={detailPanelContent}
+        detailPanelFooter={detailPanelFooter}
+        onDetailPanelClose={onDetailPanelClose}
+      >
+        {currentPage === 'settings' ? (
+          <SettingsList
+            onCategoryClick={(categoryId) => {
+              setSettingsCategory(categoryId);
+            }}
+          />
+        ) : (
+          renderers.renderCurrentPage(currentPage, PLUGIN_REGISTRY)
+        )}
+      </MainLayout>
 
       <ConfirmDialog
         isOpen={showDeleteConfirm}
@@ -328,7 +382,7 @@ function AppContent() {
         onCancel={cancelDiscard}
         variant="warning"
       />
-    </MainLayout>
+    </>
   );
 }
 

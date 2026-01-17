@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-import { SidebarProvider } from '@/components/ui/sidebar';
-
+import { ContentHeader } from './ContentHeader';
+import { ContentSurface } from './ContentSurface';
 import { DetailPanel } from './DetailPanel';
 import { Sidebar } from './Sidebar';
 import type { NavPage } from './Sidebar';
+import { TopBar } from './TopBar';
 
 interface MainLayoutProps {
   children: React.ReactNode;
   currentPage: NavPage;
   onPageChange: (page: NavPage) => void;
+  contentTitle: string;
+  contentActionLabel?: string;
+  onContentAction?: () => void;
   // DetailPanel props
   detailPanelOpen: boolean;
   detailPanelTitle: string;
@@ -23,6 +27,9 @@ export function MainLayout({
   children,
   currentPage,
   onPageChange,
+  contentTitle,
+  contentActionLabel,
+  onContentAction,
   detailPanelOpen,
   detailPanelTitle,
   detailPanelSubtitle,
@@ -30,24 +37,47 @@ export function MainLayout({
   detailPanelFooter,
   onDetailPanelClose,
 }: MainLayoutProps) {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
   return (
-    <SidebarProvider>
-      {/* Kolumn 1: Nav - Sidebar */}
-      <Sidebar currentPage={currentPage} onPageChange={onPageChange} />
-      {/* Kolumn 2: List Area - tar hela återstående utrymmet, egen scroll */}
-      <div className="flex-1 min-w-0 flex flex-col overflow-hidden h-full border-r border-border">
-        {children}
-      </div>
-      {/* Kolumn 3: Detail Panel - fast 600px bredd, alltid synlig */}
-      <DetailPanel
-        isOpen={detailPanelOpen}
-        onClose={onDetailPanelClose}
-        title={detailPanelTitle}
-        subtitle={detailPanelSubtitle}
-        footer={detailPanelFooter}
-      >
-        {detailPanelContent}
-      </DetailPanel>
-    </SidebarProvider>
+    <div className="min-h-screen bg-muted">
+      <Sidebar
+        currentPage={currentPage}
+        onPageChange={onPageChange}
+        mobileOpen={mobileNavOpen}
+        onMobileOpenChange={setMobileNavOpen}
+      />
+
+      <TopBar
+        currentPage={currentPage}
+        onPageChange={onPageChange}
+        onOpenMobileNav={() => setMobileNavOpen(true)}
+      />
+
+      <main className="flex h-[calc(100vh-3.5rem)] pt-14 md:pl-[252px] md:pr-4">
+        <ContentSurface>
+          <div className="flex h-full flex-col gap-4">
+            <ContentHeader
+              title={contentTitle}
+              actionLabel={contentActionLabel}
+              onAction={onContentAction}
+            />
+
+            <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
+              <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+              <DetailPanel
+                isOpen={detailPanelOpen}
+                onClose={onDetailPanelClose}
+                title={detailPanelTitle}
+                subtitle={detailPanelSubtitle}
+                footer={detailPanelFooter}
+              >
+                {detailPanelContent}
+              </DetailPanel>
+            </div>
+          </div>
+        </ContentSurface>
+      </main>
+    </div>
   );
 }

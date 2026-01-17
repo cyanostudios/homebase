@@ -21,6 +21,10 @@ export interface PluginNavigationConfig {
   icon: LucideIcon;
   order: number;
   submenu?: PluginNavigationSubItem[]; // Optional submenu items
+  badge?: {
+    label: string;
+    variant: 'default' | 'secondary' | 'destructive' | 'outline';
+  };
 }
 
 export interface PluginRegistryEntry {
