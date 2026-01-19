@@ -1,4 +1,4 @@
-import { Bell, Filter, Menu, Search, Settings, User } from 'lucide-react';
+import { Bell, Filter, Menu, Search, Settings, User, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import {
@@ -42,6 +42,8 @@ interface TopBarProps {
   currentPage: NavPage;
   onPageChange: (page: NavPage) => void;
   onOpenMobileNav: () => void;
+  detailPanelTitle?: string;
+  onDetailPanelClose?: () => void;
 }
 
 interface Tenant {
@@ -53,7 +55,13 @@ interface Tenant {
   neon_connection_string: string;
 }
 
-export function TopBar({ currentPage, onPageChange, onOpenMobileNav }: TopBarProps) {
+export function TopBar({
+  currentPage,
+  onPageChange,
+  onOpenMobileNav,
+  detailPanelTitle,
+  onDetailPanelClose,
+}: TopBarProps) {
   const { user, logout } = useApp();
   const [searchOpen, setSearchOpen] = useState(false);
   const [openPanel, setOpenPanel] = useState<'pomodoro' | 'clock' | null>(null);
@@ -192,7 +200,40 @@ export function TopBar({ currentPage, onPageChange, onOpenMobileNav }: TopBarPro
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>{pageLabel}</BreadcrumbPage>
+                <BreadcrumbPage className="flex items-center gap-2">
+                  <BreadcrumbLink asChild>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (detailPanelTitle && onDetailPanelClose) {
+                          onDetailPanelClose();
+                        } else {
+                          onPageChange(currentPage);
+                        }
+                      }}
+                      className="hover:underline"
+                    >
+                      {pageLabel}
+                    </button>
+                  </BreadcrumbLink>
+                  {detailPanelTitle && onDetailPanelClose && (
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-md border border-primary/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                      {detailPanelTitle}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDetailPanelClose();
+                        }}
+                        className="ml-0.5 hover:bg-primary/20 rounded p-0.5 transition-colors"
+                        aria-label="Close detail panel"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>

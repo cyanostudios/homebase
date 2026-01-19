@@ -1,10 +1,17 @@
-import { StickyNote } from 'lucide-react';
+import { StickyNote, ArrowUp, ArrowDown } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 
 import { Card } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
-import { GroupedList } from '@/core/ui/GroupedList';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
 import { useNotes } from '../hooks/useNotes';
@@ -26,8 +33,17 @@ export const NoteList: React.FC = () => {
     noteTitle: '',
   });
 
-  const [sortField] = useState<SortField>('updatedAt');
-  const [sortOrder] = useState<SortOrder>('desc');
+  const [sortField, setSortField] = useState<SortField>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
 
   const sortedNotes = useMemo(() => {
     const filtered = notes.filter(
@@ -119,59 +135,110 @@ export const NoteList: React.FC = () => {
       />
 
       <Card className="shadow-none">
-        <GroupedList
-          items={sortedNotes}
-          groupConfig={null}
-          emptyMessage={
-            searchTerm
+        {sortedNotes.length === 0 ? (
+          <div className="p-6 text-center text-muted-foreground">
+            {searchTerm
               ? 'No notes found matching your search.'
-              : 'No notes yet. Click "Add Note" to get started.'
-          }
-          renderItem={(note, idx) => (
-            <div
-              key={note.id}
-              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3`}
-              tabIndex={0}
-              data-list-item={JSON.stringify(note)}
-              data-plugin-name="notes"
-              role="button"
-              aria-label={`Open note ${note.title}`}
-              onClick={(e) => {
-                e.preventDefault();
-                handleOpenForView(note);
-              }}
-            >
-              {/* Rad 1: Icon + Title */}
-              <div className="flex items-center gap-2 mb-1.5">
-                <StickyNote className="w-4 h-4 text-yellow-500 dark:text-yellow-400 flex-shrink-0" />
-                <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
-                  {note.title}
-                </div>
-              </div>
-
-              {/* Rad 2: Content Preview */}
-              <div className="text-xs text-muted-foreground line-clamp-2 mb-1">
-                {truncateContent(note.content, 150)}
-              </div>
-
-              {/* Rad 3: Mentions + Updated Date */}
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                {note.mentions && note.mentions.length > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <span>
-                      @{note.mentions[0].contactName}
-                      {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
-                    </span>
+              : 'No notes yet. Click "Add Note" to get started.'}
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12"></TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => handleSort('title')}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Title</span>
+                    {sortField === 'title' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
                   </div>
-                )}
-                <div className="flex items-center gap-1.5">
-                  {note.mentions && note.mentions.length > 0 && <span>•</span>}
-                  <span>Updated {new Date(note.updatedAt).toLocaleDateString()}</span>
-                </div>
-              </div>
-            </div>
-          )}
-        />
+                </TableHead>
+                <TableHead>Content</TableHead>
+                <TableHead>Mentions</TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => handleSort('updatedAt')}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Updated</span>
+                    {sortField === 'updatedAt' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => handleSort('createdAt')}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Created</span>
+                    {sortField === 'createdAt' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedNotes.map((note) => (
+                <TableRow
+                  key={note.id}
+                  className="cursor-pointer hover:bg-accent"
+                  tabIndex={0}
+                  data-list-item={JSON.stringify(note)}
+                  data-plugin-name="notes"
+                  role="button"
+                  aria-label={`Open note ${note.title}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleOpenForView(note);
+                  }}
+                >
+                  <TableCell className="w-12">
+                    <StickyNote className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
+                  </TableCell>
+                  <TableCell className="font-semibold">{note.title}</TableCell>
+                  <TableCell>
+                    <div className="text-sm text-muted-foreground line-clamp-2 max-w-[300px]">
+                      {truncateContent(note.content, 100)}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {note.mentions && note.mentions.length > 0 ? (
+                      <div className="text-sm">
+                        <span>
+                          @{note.mentions[0].contactName}
+                          {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {new Date(note.updatedAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {new Date(note.createdAt).toLocaleDateString()}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </Card>
 
       <ConfirmDialog

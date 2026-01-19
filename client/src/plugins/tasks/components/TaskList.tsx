@@ -1,11 +1,18 @@
-import { CheckSquare } from 'lucide-react';
+import { CheckSquare, ArrowUp, ArrowDown } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
-import { GroupedList } from '@/core/ui/GroupedList';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
 import { useTasks } from '../hooks/useTasks';
@@ -28,8 +35,17 @@ export const TaskList: React.FC = () => {
     taskTitle: '',
   });
 
-  const [sortField] = useState<SortField>('updatedAt');
-  const [sortOrder] = useState<SortOrder>('desc');
+  const [sortField, setSortField] = useState<SortField>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
 
   const sortedTasks = useMemo(() => {
     const filtered = tasks.filter(
@@ -159,94 +175,146 @@ export const TaskList: React.FC = () => {
       />
 
       <Card className="shadow-none">
-        <GroupedList
-          items={sortedTasks}
-          groupConfig={{
-            getGroupKey: (task) => (task.priority || 'Medium').toLowerCase(),
-            getGroupLabel: (groupKey) => {
-              const priorityLabels: Record<string, string> = {
-                high: 'High Priority',
-                medium: 'Medium Priority',
-                low: 'Low Priority',
-              };
-              return (
-                priorityLabels[groupKey] ||
-                `${groupKey.charAt(0).toUpperCase() + groupKey.slice(1)} Priority`
-              );
-            },
-            getGroupOrder: (groupKey) => {
-              // High first, then Medium, then Low
-              const order: Record<string, number> = {
-                high: 0,
-                medium: 1,
-                low: 2,
-              };
-              return order[groupKey.toLowerCase()] ?? 1;
-            },
-            defaultOpen: true,
-          }}
-          emptyMessage={
-            searchTerm
+        {sortedTasks.length === 0 ? (
+          <div className="p-6 text-center text-muted-foreground">
+            {searchTerm
               ? 'No tasks found matching your search.'
-              : 'No tasks yet. Click "Add Task" to get started.'
-          }
-          renderItem={(task, idx) => (
-            <div
-              key={task.id}
-              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3`}
-              tabIndex={0}
-              data-list-item={JSON.stringify(task)}
-              data-plugin-name="tasks"
-              role="button"
-              aria-label={`Open task ${task.title}`}
-              onClick={(e) => {
-                e.preventDefault();
-                handleOpenForView(task);
-              }}
-            >
-              {/* Rad 1: Icon + Title + Badges */}
-              <div className="flex items-center gap-2 mb-1.5">
-                <CheckSquare className="w-4 h-4 text-purple-500 dark:text-purple-400 flex-shrink-0" />
-                <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
-                  {task.title}
-                </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <Badge className={TASK_STATUS_COLORS[task.status]}>
-                    {formatStatusForDisplay(task.status)}
-                  </Badge>
-                  <Badge className={TASK_PRIORITY_COLORS[task.priority]}>{task.priority}</Badge>
-                </div>
-              </div>
-
-              {/* Rad 2: Due Date + Mentions */}
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                {task.dueDate ? (
-                  <div
-                    className={`flex items-center gap-1.5 ${formatDueDate(task.dueDate)?.className || ''}`}
-                  >
-                    <span>📅 {formatDueDate(task.dueDate)?.text}</span>
+              : 'No tasks yet. Click "Add Task" to get started.'}
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12"></TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => handleSort('title')}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Title</span>
+                    {sortField === 'title' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
                   </div>
-                ) : (
-                  <span>No due date</span>
-                )}
-                {task.mentions && task.mentions.length > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <span>•</span>
-                    <span>
-                      @{task.mentions[0].contactName}
-                      {task.mentions.length > 1 && ` +${task.mentions.length - 1}`}
-                    </span>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => handleSort('status')}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Status</span>
+                    {sortField === 'status' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
                   </div>
-                )}
-              </div>
-
-              {/* Rad 3: Updated Date (optional) */}
-              <div className="mt-1 text-xs text-muted-foreground">
-                Updated {new Date(task.updatedAt).toLocaleDateString()}
-              </div>
-            </div>
-          )}
-        />
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => handleSort('priority')}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Priority</span>
+                    {sortField === 'priority' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => handleSort('dueDate')}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Due Date</span>
+                    {sortField === 'dueDate' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
+                <TableHead>Mentions</TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => handleSort('updatedAt')}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Updated</span>
+                    {sortField === 'updatedAt' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedTasks.map((task) => (
+                <TableRow
+                  key={task.id}
+                  className="cursor-pointer hover:bg-accent"
+                  tabIndex={0}
+                  data-list-item={JSON.stringify(task)}
+                  data-plugin-name="tasks"
+                  role="button"
+                  aria-label={`Open task ${task.title}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleOpenForView(task);
+                  }}
+                >
+                  <TableCell className="w-12">
+                    <CheckSquare className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+                  </TableCell>
+                  <TableCell className="font-semibold">{task.title}</TableCell>
+                  <TableCell>
+                    <Badge className={TASK_STATUS_COLORS[task.status]}>
+                      {formatStatusForDisplay(task.status)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={TASK_PRIORITY_COLORS[task.priority]}>{task.priority}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    {task.dueDate ? (
+                      <div className={formatDueDate(task.dueDate)?.className || ''}>
+                        {formatDueDate(task.dueDate)?.text}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {task.mentions && task.mentions.length > 0 ? (
+                      <div className="text-sm">
+                        <span>
+                          @{task.mentions[0].contactName}
+                          {task.mentions.length > 1 && ` +${task.mentions.length - 1}`}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {new Date(task.updatedAt).toLocaleDateString()}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </Card>
 
       <ConfirmDialog

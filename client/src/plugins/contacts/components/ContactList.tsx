@@ -1,16 +1,23 @@
-import { Mail, Phone, Building, User } from 'lucide-react';
+import { Mail, Phone, Building, User, ArrowUp, ArrowDown } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
-import { GroupedList } from '@/core/ui/GroupedList';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
 import { useContacts } from '../hooks/useContacts';
 
-type SortField = 'contactNumber' | 'name' | 'type';
+type SortField = 'contactNumber' | 'name' | 'type' | 'email';
 type SortOrder = 'asc' | 'desc';
 
 export const ContactList: React.FC = () => {
@@ -27,8 +34,19 @@ export const ContactList: React.FC = () => {
     contactName: '',
   });
 
-  const [sortField] = useState<SortField>('contactNumber');
-  const [sortOrder] = useState<SortOrder>('asc');
+  const [sortField, setSortField] = useState<SortField>('contactNumber');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle order if same field
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, default to asc
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
 
   const sortedContacts = useMemo(() => {
     const filtered = contacts.filter(
@@ -52,6 +70,9 @@ export const ContactList: React.FC = () => {
       } else if (sortField === 'type') {
         aValue = a.contactType;
         bValue = b.contactType;
+      } else if (sortField === 'email') {
+        aValue = a.email.toLowerCase();
+        bValue = b.email.toLowerCase();
       } else {
         aValue = a.contactNumber;
         bValue = b.contactNumber;
@@ -85,99 +106,146 @@ export const ContactList: React.FC = () => {
       />
 
       <Card className="shadow-none">
-        <GroupedList
-          items={sortedContacts}
-          groupConfig={{
-            getGroupKey: (contact) => contact.contactType || 'unknown',
-            getGroupLabel: (groupKey) => {
-              return groupKey === 'company' ? 'Company' : 'Private';
-            },
-            getGroupOrder: (groupKey) => {
-              // Company first, then Private
-              return groupKey === 'company' ? 0 : 1;
-            },
-            defaultOpen: true,
-          }}
-          emptyMessage={
-            searchTerm
+        {sortedContacts.length === 0 ? (
+          <div className="p-6 text-center text-muted-foreground">
+            {searchTerm
               ? 'No contacts found matching your search.'
-              : 'No contacts yet. Click "Add Contact" to get started.'
-          }
-          renderItem={(contact, idx) => (
-            <div
-              key={contact.id}
-              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3`}
-              tabIndex={0}
-              data-list-item={JSON.stringify(contact)}
-              data-plugin-name="contacts"
-              role="button"
-              aria-label={`Open contact ${contact.companyName}`}
-              onClick={(e) => {
-                e.preventDefault();
-                handleOpenForView(contact);
-              }}
-            >
-              {/* Rad 1: Icon + Contact Number + Name + Badge */}
-              <div className="flex items-center gap-2 mb-1.5">
-                {contact.contactType === 'company' ? (
-                  <Building className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
-                ) : (
-                  <User className="w-4 h-4 text-green-500 dark:text-green-400 flex-shrink-0" />
-                )}
-                <div className="text-xs font-mono text-muted-foreground flex-shrink-0">
-                  #{contact.contactNumber}
-                </div>
-                <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
-                  {contact.companyName}
-                </div>
-                <Badge
-                  className={`flex-shrink-0 ${
-                    contact.contactType === 'company'
-                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                      : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-                  }`}
+              : 'No contacts yet. Click "Add Contact" to get started.'}
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12"></TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => handleSort('contactNumber')}
                 >
-                  {contact.contactType === 'company' ? 'Company' : 'Private'}
-                </Badge>
-              </div>
-
-              {/* Rad 2: Email + Phone */}
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                  <Mail className="w-3 h-3 flex-shrink-0" />
-                  <span className="truncate">{contact.email}</span>
-                </div>
-                {contact.phone && (
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <Phone className="w-3 h-3" />
-                    <span>{contact.phone}</span>
+                  <div className="flex items-center gap-2">
+                    <span>#</span>
+                    {sortField === 'contactNumber' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
                   </div>
-                )}
-              </div>
-
-              {/* Rad 3: Organization Number / Personal Number / Website (optional) */}
-              {(contact.organizationNumber ||
-                (contact.contactType === 'private' && contact.personalNumber) ||
-                contact.website) && (
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {contact.contactType === 'company' && contact.organizationNumber && (
-                    <span>Org: {contact.organizationNumber}</span>
-                  )}
-                  {contact.contactType === 'private' && contact.personalNumber && (
-                    <span>PN: {contact.personalNumber.substring(0, 9)}XXXX</span>
-                  )}
-                  {contact.website && (
-                    <span
-                      className={contact.organizationNumber || contact.personalNumber ? ' • ' : ''}
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => handleSort('name')}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Name</span>
+                    {sortField === 'name' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => handleSort('type')}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Type</span>
+                    {sortField === 'type' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => handleSort('email')}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Email</span>
+                    {sortField === 'email' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
+                <TableHead>Phone</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedContacts.map((contact) => (
+                <TableRow
+                  key={contact.id}
+                  className="cursor-pointer hover:bg-accent"
+                  tabIndex={0}
+                  data-list-item={JSON.stringify(contact)}
+                  data-plugin-name="contacts"
+                  role="button"
+                  aria-label={`Open contact ${contact.companyName}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleOpenForView(contact);
+                  }}
+                >
+                  <TableCell className="w-12">
+                    {contact.contactType === 'company' ? (
+                      <Building className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                    ) : (
+                      <User className="w-4 h-4 text-green-500 dark:text-green-400" />
+                    )}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    #{contact.contactNumber}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-semibold">{contact.companyName}</span>
+                      {contact.contactType === 'company' && contact.organizationNumber && (
+                        <span className="text-xs text-muted-foreground">
+                          Org: {contact.organizationNumber}
+                        </span>
+                      )}
+                      {contact.contactType === 'private' && contact.personalNumber && (
+                        <span className="text-xs text-muted-foreground">
+                          PN: {contact.personalNumber.substring(0, 9)}XXXX
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      className={
+                        contact.contactType === 'company'
+                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                          : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                      }
                     >
-                      {contact.website}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        />
+                      {contact.contactType === 'company' ? 'Company' : 'Private'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5 text-sm">
+                      <Mail className="w-3 h-3 text-muted-foreground" />
+                      <span className="truncate max-w-[200px]">{contact.email}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {contact.phone && (
+                      <div className="flex items-center gap-1.5 text-sm">
+                        <Phone className="w-3 h-3 text-muted-foreground" />
+                        <span>{contact.phone}</span>
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </Card>
 
       <ConfirmDialog

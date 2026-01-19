@@ -14,9 +14,11 @@ export default defineConfig({
     port: 3001,
     hmr: {
       overlay: true,
+      port: 3001,
     },
     watch: {
-      usePolling: false,
+      usePolling: true,
+      interval: 100,
     },
     proxy: {
       '/api': {

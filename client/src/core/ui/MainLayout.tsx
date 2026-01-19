@@ -39,44 +39,58 @@ export function MainLayout({
 }: MainLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  // Wrapper to close detail panel when navigating
+  const handlePageChange = (page: NavPage) => {
+    if (detailPanelOpen) {
+      onDetailPanelClose();
+    }
+    onPageChange(page);
+  };
+
   return (
     <div className="min-h-screen bg-muted">
       <Sidebar
         currentPage={currentPage}
-        onPageChange={onPageChange}
+        onPageChange={handlePageChange}
         mobileOpen={mobileNavOpen}
         onMobileOpenChange={setMobileNavOpen}
       />
 
       <TopBar
         currentPage={currentPage}
-        onPageChange={onPageChange}
+        onPageChange={handlePageChange}
         onOpenMobileNav={() => setMobileNavOpen(true)}
+        detailPanelTitle={detailPanelOpen ? detailPanelTitle : undefined}
+        onDetailPanelClose={detailPanelOpen ? onDetailPanelClose : undefined}
       />
 
       <main className="flex h-[calc(100vh-3.5rem)] pt-14 md:pl-[252px] md:pr-4">
-        <ContentSurface>
-          <div className="flex h-full flex-col gap-4">
-            <ContentHeader
-              title={contentTitle}
-              actionLabel={contentActionLabel}
-              onAction={onContentAction}
-            />
-
-            <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
-              <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
-              <DetailPanel
-                isOpen={detailPanelOpen}
-                onClose={onDetailPanelClose}
-                title={detailPanelTitle}
-                subtitle={detailPanelSubtitle}
-                footer={detailPanelFooter}
-              >
-                {detailPanelContent}
-              </DetailPanel>
+        {detailPanelOpen ? (
+          <ContentSurface>
+            <DetailPanel
+              isOpen={detailPanelOpen}
+              onClose={onDetailPanelClose}
+              title={detailPanelTitle}
+              subtitle={detailPanelSubtitle}
+              footer={detailPanelFooter}
+            >
+              {detailPanelContent}
+            </DetailPanel>
+          </ContentSurface>
+        ) : (
+          <ContentSurface>
+            <div className="flex h-full flex-col gap-4">
+              <ContentHeader
+                title={contentTitle}
+                actionLabel={contentActionLabel}
+                onAction={onContentAction}
+              />
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+              </div>
             </div>
-          </div>
-        </ContentSurface>
+          </ContentSurface>
+        )}
       </main>
     </div>
   );
