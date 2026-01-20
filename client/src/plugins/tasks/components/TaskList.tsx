@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -23,6 +24,7 @@ type SortOrder = 'asc' | 'desc';
 
 export const TaskList: React.FC = () => {
   const { tasks, openTaskForView, deleteTask } = useTasks();
+  const { contacts } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -48,17 +50,30 @@ export const TaskList: React.FC = () => {
   };
 
   const sortedTasks = useMemo(() => {
-    const filtered = tasks.filter(
-      (task) =>
+    const filtered = tasks.filter((task) => {
+      const matchesSearch =
         task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.priority.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (task.mentions &&
-          task.mentions.some((mention: any) =>
-            mention.contactName.toLowerCase().includes(searchTerm.toLowerCase()),
-          )),
-    );
+        task.priority.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Search in assigned contact
+      if (task.assignedTo && contacts.length > 0) {
+        const assignedContact = contacts.find((c: any) => {
+          const contactId = String(c.id);
+          const assignedId = String(task.assignedTo);
+          return contactId === assignedId;
+        });
+        if (
+          assignedContact &&
+          assignedContact.companyName.toLowerCase().includes(searchTerm.toLowerCase())
+        ) {
+          return true;
+        }
+      }
+
+      return matchesSearch;
+    });
 
     return [...filtered].sort((a, b) => {
       let aValue: string | Date | null;
@@ -109,7 +124,7 @@ export const TaskList: React.FC = () => {
         }
       }
     });
-  }, [tasks, searchTerm, sortField, sortOrder]);
+  }, [tasks, searchTerm, sortField, sortOrder, contacts]);
 
   const _handleDelete = (id: string, title: string) => {
     setDeleteConfirm({
@@ -242,7 +257,7 @@ export const TaskList: React.FC = () => {
                       ))}
                   </div>
                 </TableHead>
-                <TableHead>Mentions</TableHead>
+                <TableHead>Assigned</TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-muted/50 select-none"
                   onClick={() => handleSort('updatedAt')}
@@ -296,13 +311,21 @@ export const TaskList: React.FC = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    {task.mentions && task.mentions.length > 0 ? (
-                      <div className="text-sm">
-                        <span>
-                          @{task.mentions[0].contactName}
-                          {task.mentions.length > 1 && ` +${task.mentions.length - 1}`}
-                        </span>
-                      </div>
+                    {task.assignedTo ? (
+                      (() => {
+                        const assignedContact = contacts.find((c: any) => {
+                          const contactId = String(c.id);
+                          const assignedId = String(task.assignedTo);
+                          return contactId === assignedId;
+                        });
+                        return assignedContact ? (
+                          <div className="text-sm text-blue-600 dark:text-blue-400">
+                            {assignedContact.companyName}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        );
+                      })()
                     ) : (
                       <span className="text-muted-foreground text-sm">—</span>
                     )}
