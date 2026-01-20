@@ -5,6 +5,7 @@ const authRoutes = require('./auth');
 const adminRoutes = require('./admin');
 const healthRoutes = require('./health');
 const settingsRoutes = require('./settings');
+const activityLogRoutes = require('./activityLog');
 
 /**
  * Setup all core routes
@@ -18,6 +19,7 @@ function setupCoreRoutes(app, dependencies) {
   authRoutes.setupAuthRoutes(pool, authLimiter, requireAuth);
   adminRoutes.setupAdminRoutes(pool, requireAuth);
   settingsRoutes.setupSettingsRoutes(pool, requireAuth);
+  activityLogRoutes.setupActivityLogRoutes(requireAuth);
   healthRoutes.setPluginLoader(pluginLoader);
 
   // Health check (no auth required)
@@ -28,6 +30,9 @@ function setupCoreRoutes(app, dependencies) {
 
   // Settings routes (requires auth)
   app.use('/api/settings', settingsRoutes);
+
+  // Activity log routes (requires auth)
+  app.use('/api/activity-log', activityLogRoutes);
 
   // Admin routes (requires superuser)
   app.use('/api/admin', adminRoutes);

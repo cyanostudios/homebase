@@ -11,6 +11,7 @@ const { Pool } = require('pg');
 const ServiceManager = require('../ServiceManager');
 const { csrfTokenHandler } = require('./csrf');
 const { globalLimiter, authLimiter } = require('./rateLimit');
+const { activityLogMiddleware } = require('./activityLog');
 
 /**
  * Setup all middleware for Express app
@@ -91,6 +92,9 @@ function setupMiddleware(app) {
 
   // Global rate limiting (after health and CSRF endpoints)
   app.use('/api', globalLimiter);
+
+  // Activity log middleware (after rate limiting, before routes)
+  app.use(activityLogMiddleware);
 
   // Store auth limiter for use in routes
   app.locals.authLimiter = authLimiter;

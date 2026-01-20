@@ -19,6 +19,7 @@ export default defineConfig({
     watch: {
       usePolling: true,
       interval: 100,
+      ignored: ['**/node_modules/**', '**/.git/**'],
     },
     proxy: {
       '/api': {

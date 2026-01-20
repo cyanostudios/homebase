@@ -25,7 +25,8 @@
     "prepare": "husky",
     "sync:down:stash": "git stash push -u -m \"sync-down\" && git pull --rebase && npm ci && git stash list",
     "sync:down:force": "git reset --hard HEAD && git clean -fd && git pull --rebase && npm ci",
-    "sync:up": "git add -A && (git commit -m \"chore(sync): local save\" || ver > nul) && git pull --rebase && git push"
+    "sync:up": "git add -A && (git commit -m \"chore(sync): local save\" || ver > nul) && git pull --rebase && git push",
+    "migrate:activity-log": "node scripts/run-activity-log-migration.js"
   },
   "dependencies": {
     "@homebase/core": "file:packages/core",

@@ -18,6 +18,7 @@ const PluginLoader = require('../plugin-loader');
 
 // Core infrastructure
 const Bootstrap = require('./core/Bootstrap');
+const { activityLogMiddleware } = require('./core/middleware/activityLog');
 const { csrfTokenHandler } = require('./core/middleware/csrf');
 const { errorHandler } = require('./core/middleware/errorHandler');
 const { globalLimiter, authLimiter } = require('./core/middleware/rateLimit');
@@ -127,6 +128,9 @@ app.get('/api/csrf-token', csrfTokenHandler);
 
 // Global rate limiting
 app.use('/api', globalLimiter);
+
+// Activity log middleware (after rate limiting, before routes)
+app.use(activityLogMiddleware);
 
 // Setup core routes (auth, admin, health)
 setupCoreRoutes(app, { pool, authLimiter, requireAuth, pluginLoader });

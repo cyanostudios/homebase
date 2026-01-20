@@ -906,6 +906,199 @@ Kör sedan `npm install` för att länka lokal dependency.
 
 ---
 
-**Senast uppdaterad:** 2026-01-17  
+---
+
+## Activity Log & Middleware
+
+### Middleware måste registreras i server/index.ts, inte bara i setup.js
+
+❌ **What we did (that didn't work):**
+
+```javascript
+// Skapade middleware i server/core/middleware/activityLog.js
+// Registrerade den i server/core/middleware/setup.js
+// Men server/index.ts använder INTE setupMiddleware() - den registrerar middleware direkt!
+// Resultat: Middleware kördes aldrig, inga logs skapades
+```
+
+✅ **What we do instead (that works):**
+
+```javascript
+// server/index.ts
+const { activityLogMiddleware } = require('./core/middleware/activityLog');
+
+// Global rate limiting
+app.use('/api', globalLimiter);
+
+// Activity log middleware (after rate limiting, before routes)
+app.use(activityLogMiddleware);
+
+// Setup core routes
+setupCoreRoutes(app, { pool, authLimiter, requireAuth, pluginLoader });
+```
+
+💡 **Why (lesson learned):**
+`server/index.ts` registrerar middleware direkt, inte via `setupMiddleware()`. När du skapar ny middleware, måste den registreras i `server/index.ts` också, inte bara i `setup.js`. Kolla ALLTID var middleware faktiskt registreras genom att läsa `server/index.ts`. Om middleware inte körs trots att den är skapad → den är troligen inte registrerad i rätt fil.
+
+---
+
+### DELETE requests kräver att entity name hämtas FÖRE deletion
+
+❌ **What we did (that didn't work):**
+
+```javascript
+// Försökte hämta entity name från response efter DELETE
+res.json({ message: 'Note deleted successfully' }); // ❌ Inget entity name här!
+const entityName = extractEntityName(data, entityType); // ❌ null
+```
+
+✅ **What we do instead (that works):**
+
+```javascript
+// För DELETE, hämta entity name FÖRE deletion med async closure
+const getEntityNameForDelete = (() => {
+  let promise = null;
+  if (action === 'delete' && entityId && req.tenantPool) {
+    promise = req.tenantPool
+      .query('SELECT title FROM notes WHERE id = $1', [entityId])
+      .then((result) => {
+        return result.rows[0]?.title || null;
+      });
+  }
+  return () => promise || Promise.resolve(null);
+})();
+
+// I res.on('finish'), vänta på promise
+if (action === 'delete') {
+  getEntityNameForDelete().then((entityName) => {
+    activityLogService.logActivity(req, action, entityType, entityId, entityName, {});
+  });
+  return;
+}
+```
+
+💡 **Why (lesson learned):**
+DELETE responses innehåller bara `{ message: "Deleted successfully" }` - inget entity name. För att logga vad som raderades måste vi hämta namnet FÖRE deletion. Använd en closure för att starta query tidigt men vänta på resultatet i `res.on('finish')` för att inte blockera requesten.
+
+---
+
+### CREATE requests måste hämta entity ID från response
+
+❌ **What we did (that didn't work):**
+
+```javascript
+// För POST /api/notes finns inget ID i URL
+const entityId = extractEntityId(req.path); // ❌ null för POST
+// Loggar utan ID, vilket gör det svårt att spåra vad som skapades
+```
+
+✅ **What we do instead (that works):**
+
+```javascript
+// I res.on('finish'), hämta ID från response om det saknas
+if (!entityId && data && data.id) {
+  entityId = data.id; // ✅ Hämta från response för CREATE
+}
+
+activityLogService.logActivity(req, action, entityType, entityId, entityName, metadata);
+```
+
+💡 **Why (lesson learned):**
+POST requests har inget ID i URL (t.ex. `POST /api/notes`). Men response innehåller det skapade objektet med ID. För att logga korrekt måste vi hämta ID från response för CREATE-actions. Detta gör det möjligt att spåra exakt vilket objekt som skapades.
+
+---
+
+### Activity log tabeller måste skapas per tenant via migration
+
+❌ **What we did (that didn't work):**
+
+```javascript
+// Skapade migration i server/migrations/006-activity-log.sql
+// Men körde aldrig migrationen på tenant-databaser
+// Resultat: Tabellen fanns inte, alla INSERT queries misslyckades tyst
+```
+
+✅ **What we do instead (that works):**
+
+```bash
+# Kör migration på alla tenant-databaser
+npm run migrate:activity-log
+
+# Scriptet hittar alla tenants och kör migrationen på varje
+# För LocalTenantProvider: använder schema-per-tenant
+# För NeonTenantProvider: använder database-per-tenant
+```
+
+💡 **Why (lesson learned):**
+Activity log tabellen måste finnas i VARJE tenant-databas (eller schema), inte bara i main-databasen. Eftersom varje tenant har sin egen databas/schema måste migrationen köras på alla. Om logs inte skapas trots att middleware körs → kontrollera att tabellen finns i tenant-databasen. Lägg till error handling som visar tydligt om tabellen saknas.
+
+---
+
+### GroupedList kan ha rendering-problem - direkt rendering kan vara bättre
+
+❌ **What we did (that didn't work):**
+
+```tsx
+// Använde GroupedList för settings categories
+<GroupedList items={filteredCategories} renderItem={(category, idx) => <div>...</div>} />
+// Alla 3 items renderades (enligt console.log) men bara 2 syntes i UI
+```
+
+✅ **What we do instead (that works):**
+
+```tsx
+// Direkt rendering med map() fungerar bättre
+<Card>
+  <div className="divide-y divide-border">
+    {filteredCategories.map((category, idx) => (
+      <div key={category.id}>
+        <div onClick={...}>{category.label}</div>
+      </div>
+    ))}
+  </div>
+</Card>
+```
+
+💡 **Why (lesson learned):**
+GroupedList kan ha CSS/rendering-problem som gör att vissa items inte syns trots att de renderas. Om console.log visar att items renderas men de inte syns i UI → prova direkt rendering med `.map()` istället. Detta eliminerar eventuella problem med GroupedList's interna rendering-logik.
+
+---
+
+### Debug logging är kritisk för middleware-felsökning
+
+❌ **What we did (that didn't work):**
+
+```javascript
+// Middleware kördes tyst, inga logs
+// Kunde inte se om den kördes, om den hoppade över requests, eller om den misslyckades
+```
+
+✅ **What we do instead (that works):**
+
+```javascript
+// Lägg till omfattande debug logging
+console.log('[ActivityLog Middleware] Request:', req.method, req.path, {
+  hasSession: !!req.session,
+  hasUserId: !!req.session?.user?.id,
+});
+
+console.log('[ActivityLog Middleware] Will log:', { action, entityType });
+
+console.log('[ActivityLogService] logActivity called:', { action, entityType, entityId });
+
+// I error handling
+console.error('[ActivityLogService] ❌ Failed:', {
+  message: error.message,
+  code: error.code,
+  table: error.table, // Viktigt för att se om tabellen saknas
+});
+```
+
+💡 **Why (lesson learned):**
+Middleware körs asynkront och kan misslyckas tyst. Utan debug logging är det omöjligt att veta om middleware körs, om den hoppar över requests, eller var den misslyckas. Lägg ALLTID till omfattande debug logging när du skapar middleware, särskilt för att se: 1) Om middleware körs, 2) Om den identifierar actions korrekt, 3) Om service-anrop lyckas, 4) Om tabeller finns. Ta bort debug logs efter att allt fungerar.
+
+---
+
+**Senast uppdaterad:** 2026-01-20  
 **Syfte:** Undvika att upprepa samma misstag  
-**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt
+**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk

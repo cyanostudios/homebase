@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const ServiceManager = require('../ServiceManager');
+const ActivityLogService = require('../services/activity-log/ActivityLogService');
 
 // Dependencies will be injected by setupSettingsRoutes()
 let pool = null;
@@ -115,6 +116,14 @@ router.put(
         userId,
         category,
       });
+
+      // Log activity (non-blocking)
+      const activityLogService = new ActivityLogService();
+      activityLogService
+        .logActivity(req, 'settings', 'settings', null, category, {})
+        .catch((error) => {
+          logger.error('Failed to log settings activity', error, { userId, category });
+        });
 
       res.json({ settings: result.rows[0].settings });
     } catch (error) {

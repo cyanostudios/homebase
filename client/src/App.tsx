@@ -19,6 +19,7 @@ import { LoginComponent } from '@/core/ui/LoginComponent';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { createPanelFooter } from '@/core/ui/PanelFooter';
 import { createPanelTitles } from '@/core/ui/PanelTitles';
+import { ActivityLogForm } from '@/core/ui/SettingsForms/ActivityLogForm';
 import { PreferencesSettingsForm } from '@/core/ui/SettingsForms/PreferencesSettingsForm';
 import { ProfileSettingsForm } from '@/core/ui/SettingsForms/ProfileSettingsForm';
 import { SettingsList } from '@/core/ui/SettingsList';
@@ -302,7 +303,9 @@ function AppContent() {
       ? 'User Profile'
       : settingsCategory === 'preferences'
         ? 'Preferences'
-        : 'Settings';
+        : settingsCategory === 'activity-log'
+          ? 'Activity Log'
+          : 'Settings';
 
   const settingsPanelContent =
     settingsCategory === 'profile' ? (
@@ -313,6 +316,12 @@ function AppContent() {
       />
     ) : settingsCategory === 'preferences' ? (
       <PreferencesSettingsForm
+        onCancel={() => {
+          setSettingsCategory(null);
+        }}
+      />
+    ) : settingsCategory === 'activity-log' ? (
+      <ActivityLogForm
         onCancel={() => {
           setSettingsCategory(null);
         }}
