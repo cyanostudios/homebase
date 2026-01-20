@@ -1099,6 +1099,76 @@ Middleware körs asynkront och kan misslyckas tyst. Utan debug logging är det o
 
 ---
 
+---
+
+## Panel Subtitle & Cross-Plugin Data
+
+### getPanelSubtitle måste använda useCallback med dependencies för cross-plugin data
+
+❌ **What we did (that didn't work):**
+
+```typescript
+// getPanelSubtitle använder contacts från useApp() men är inte wrappad i useCallback
+const getPanelSubtitle = (mode: string, item: Task | null) => {
+  if (mode === 'view' && item) {
+    const assignedContact = item.assignedTo
+      ? contacts.find((c: any) => c.id === item.assignedTo) // ❌ contacts kan vara stale
+      : null;
+    // ...
+  }
+};
+```
+
+✅ **What we do instead (that works):**
+
+```typescript
+// Wrappar i useCallback med contacts som dependency
+const getPanelSubtitle = useCallback(
+  (mode: string, item: Task | null) => {
+    if (mode === 'view' && item) {
+      const assignedContact = item.assignedTo
+        ? contacts.find((c: any) => c.id === item.assignedTo) // ✅ Alltid rätt contacts
+        : null;
+      // ...
+    }
+  },
+  [contacts], // ✅ Uppdateras när contacts ändras
+);
+```
+
+💡 **Why (lesson learned):**
+När `getPanelSubtitle` använder data från andra contexts (t.ex. `contacts` från `AppContext`), måste funktionen wrappas i `useCallback` med dessa dependencies. Utan `useCallback` kan funktionen ha "stale" data från tidigare renders. När contacts uppdateras måste funktionen också uppdateras för att visa korrekt data. Om cross-plugin data inte visas i subtitle trots att den finns → kontrollera att funktionen är wrappad i `useCallback` med rätt dependencies.
+
+---
+
+### ID-jämförelse måste hantera både string och number
+
+❌ **What we did (that didn't work):**
+
+```typescript
+// Direkt jämförelse kan misslyckas om en är string och en är number
+const assignedContact = contacts.find((c: any) => c.id === item.assignedTo);
+// ❌ '123' !== 123 i JavaScript
+```
+
+✅ **What we do instead (that works):**
+
+```typescript
+// Konvertera båda till string för säker jämförelse
+const assignedContact = item.assignedTo
+  ? contacts.find((c: any) => {
+      const contactId = String(c.id);
+      const assignedId = String(item.assignedTo);
+      return contactId === assignedId; // ✅ Fungerar oavsett typ
+    })
+  : null;
+```
+
+💡 **Why (lesson learned):**
+ID:n kan komma från olika källor som string eller number (t.ex. från API, från databas, från props). JavaScript's strikta jämförelse (`===`) returnerar `false` för `'123' === 123`. För att säkerställa att ID-jämförelser fungerar oavsett typ, konvertera båda till string innan jämförelse. Om cross-plugin lookups inte fungerar trots att ID:n "ser likadana ut" → kontrollera att båda konverteras till samma typ.
+
+---
+
 **Senast uppdaterad:** 2026-01-20  
 **Syfte:** Undvika att upprepa samma misstag  
-**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk
+**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles
