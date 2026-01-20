@@ -125,20 +125,8 @@ function extractEntityId(path) {
  * Automatically logs create, update, delete, and export actions
  */
 function activityLogMiddleware(req, res, next) {
-  // DEBUG: Log all API requests
-  if (req.path.startsWith('/api/') && !req.path.startsWith('/api/activity-log')) {
-    console.log('[ActivityLog Middleware] Request:', req.method, req.path, {
-      hasSession: !!req.session,
-      hasUserId: !!req.session?.user?.id,
-      userId: req.session?.user?.id,
-    });
-  }
-
   // Only log authenticated requests
   if (!req.session?.user?.id) {
-    if (req.path.startsWith('/api/') && !req.path.startsWith('/api/activity-log')) {
-      console.log('[ActivityLog Middleware] Skipping - no user ID');
-    }
     return next();
   }
 
@@ -155,24 +143,15 @@ function activityLogMiddleware(req, res, next) {
   // Extract action and entity info
   const action = extractAction(req.method, req.path);
   if (!action) {
-    // Not an action we want to log (GET requests don't have actions)
-    // Only log if it's a POST/PUT/DELETE to help debug
-    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
-      console.log('[ActivityLog Middleware] ⚠️ No action extracted for', req.method, req.path);
-    }
+    // Not an action we want to log
     return next();
   }
 
   const entityType = extractEntityType(req.path);
   if (!entityType) {
     // Not a plugin route we recognize
-    if (req.path.startsWith('/api/')) {
-      console.log('[ActivityLog Middleware] No entity type extracted for', req.path);
-    }
     return next();
   }
-
-  console.log('[ActivityLog Middleware] Will log:', { action, entityType, path: req.path });
 
   // Try to get ID from URL (will be null for create)
   let entityId = extractEntityId(req.path);
@@ -238,28 +217,22 @@ function activityLogMiddleware(req, res, next) {
 
     // Log activity after response is sent (non-blocking)
     res.on('finish', () => {
-      console.log('[ActivityLog Middleware] Response finished:', {
-        statusCode: res.statusCode,
-        method: req.method,
-        path: req.path,
-        action,
-        entityType,
-      });
-
       // Only log successful responses (2xx)
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        console.log('[ActivityLog Middleware] Status OK, proceeding to log...');
-
         // For delete, wait for name fetch
         if (action === 'delete') {
-          console.log('[ActivityLog Middleware] Delete action, fetching name...');
           getEntityNameForDelete().then((entityName) => {
-            console.log('[ActivityLog Middleware] Got delete name:', entityName);
             const metadata = {};
             activityLogService
               .logActivity(req, action, entityType, entityId, entityName, metadata)
               .catch((error) => {
-                console.error('[ActivityLog Middleware] Error logging delete:', error);
+                // Silently fail - don't break the request
+                const ServiceManager = require('../ServiceManager');
+                const logger = ServiceManager.get('logger');
+                logger.error('Activity log middleware error (delete)', error, {
+                  path: req.path,
+                  method: req.method,
+                });
               });
           });
           return;
@@ -267,17 +240,10 @@ function activityLogMiddleware(req, res, next) {
 
         // For non-delete actions (Create/Update), extract info from response
         const entityName = extractEntityName(data, entityType);
-        console.log(
-          '[ActivityLog Middleware] Extracted entity name:',
-          entityName,
-          'from data:',
-          data,
-        );
 
         // IMPORTANT: If we didn't have an ID (e.g. Create), try to get it from response
         if (!entityId && data && data.id) {
           entityId = data.id;
-          console.log('[ActivityLog Middleware] Got entity ID from response:', entityId);
         }
 
         // Extract export format from metadata if it's an export
@@ -290,7 +256,13 @@ function activityLogMiddleware(req, res, next) {
         activityLogService
           .logActivity(req, action, entityType, entityId, entityName, metadata)
           .catch((error) => {
-            console.error('Activity log error:', error.message);
+            // Silently fail - don't break the request
+            const ServiceManager = require('../ServiceManager');
+            const logger = ServiceManager.get('logger');
+            logger.error('Activity log middleware error', error, {
+              path: req.path,
+              method: req.method,
+            });
           });
       }
     });

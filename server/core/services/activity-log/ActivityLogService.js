@@ -23,17 +23,9 @@ class ActivityLogService {
     additionalMetadata = {},
   ) {
     try {
-      console.log('[ActivityLogService] logActivity called:', {
-        action,
-        entityType,
-        entityId,
-        entityName,
-      });
-
       // Get tenant pool from request
       const tenantPool = req.tenantPool;
       if (!tenantPool) {
-        console.log('[ActivityLogService] No tenant pool, skipping log');
         // Silently fail if no tenant pool (e.g., during auth)
         return;
       }
@@ -41,18 +33,9 @@ class ActivityLogService {
       // Get user ID from session
       const userId = req.session?.user?.id;
       if (!userId) {
-        console.log('[ActivityLogService] No user ID, skipping log');
         // Silently fail if no user (e.g., during signup)
         return;
       }
-
-      console.log('[ActivityLogService] Inserting log:', {
-        userId,
-        action,
-        entityType,
-        entityId,
-        entityName,
-      });
 
       // Extract IP and user agent from request
       const ip = req.ip || req.connection?.remoteAddress || 'unknown';
@@ -73,30 +56,8 @@ class ActivityLogService {
            VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW())`,
           [userId, action, entityType, entityId, entityName, JSON.stringify(metadata)],
         )
-        .then(() => {
-          console.log('[ActivityLogService] ✅ Successfully logged activity');
-        })
         .catch((error) => {
           // Log error but don't throw (don't break the request)
-          console.error('[ActivityLogService] ❌ Failed to log activity:', {
-            message: error.message,
-            code: error.code,
-            detail: error.detail,
-            hint: error.hint,
-            table: error.table,
-            userId,
-            action,
-            entityType,
-            entityId,
-          });
-
-          // Check if table doesn't exist
-          if (error.code === '42P01' || error.message.includes('does not exist')) {
-            console.error(
-              '[ActivityLogService] ⚠️  Table "activity_log" does not exist! Run migration: npm run migrate:activity-log',
-            );
-          }
-
           const logger = ServiceManager.get('logger');
           logger.error('Failed to log activity', error, {
             userId,
@@ -137,8 +98,6 @@ class ActivityLogService {
     if (!userId) {
       throw new Error('User not authenticated');
     }
-
-    console.log('[ActivityLogService] getActivityLogs called:', { userId, options });
 
     const {
       limit = 50,
@@ -191,9 +150,6 @@ class ActivityLogService {
       `);
 
       if (!tableCheck.rows[0].exists) {
-        console.error(
-          '[ActivityLogService] ⚠️  Table "activity_log" does not exist! Run migration: npm run migrate:activity-log',
-        );
         throw new Error(
           'Activity log table does not exist. Please run migration: npm run migrate:activity-log',
         );
@@ -203,7 +159,6 @@ class ActivityLogService {
         throw error;
       }
       // If we can't check (e.g., permission issue), continue and let the query fail
-      console.warn('[ActivityLogService] Could not check if table exists:', error.message);
     }
 
     // Get total count
@@ -226,8 +181,6 @@ class ActivityLogService {
         params,
       );
 
-      console.log('[ActivityLogService] Found', logsResult.rows.length, 'logs, total:', total);
-
       return {
         logs: logsResult.rows.map((row) => ({
           id: row.id,
@@ -242,17 +195,8 @@ class ActivityLogService {
         total,
       };
     } catch (error) {
-      console.error('[ActivityLogService] Error fetching logs:', {
-        message: error.message,
-        code: error.code,
-        detail: error.detail,
-      });
-
       // Check if table doesn't exist
       if (error.code === '42P01' || error.message.includes('does not exist')) {
-        console.error(
-          '[ActivityLogService] ⚠️  Table "activity_log" does not exist! Run migration: npm run migrate:activity-log',
-        );
         throw new Error(
           'Activity log table does not exist. Please run migration: npm run migrate:activity-log',
         );
