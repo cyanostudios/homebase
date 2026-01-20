@@ -1,4 +1,4 @@
-import { CheckSquare } from 'lucide-react';
+import { CheckSquare, User } from 'lucide-react';
 import React, {
   createContext,
   useContext,
@@ -46,7 +46,7 @@ interface TaskProviderProps {
 }
 
 export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: TaskProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, contacts } = useApp();
 
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
@@ -357,57 +357,78 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   };
 
-  const getPanelSubtitle = (mode: string, item: Task | null) => {
-    // View mode with item
-    if (mode === 'view' && item) {
-      const statusColors: Record<string, string> = {
-        'not started': 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
-        'in progress': 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200',
-        completed: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200',
-        cancelled: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
-      };
-      const priorityColors: Record<string, string> = {
-        Low: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300',
-        Medium: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200',
-        High: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
-      };
+  const getPanelSubtitle = useCallback(
+    (mode: string, item: Task | null) => {
+      // View mode with item
+      if (mode === 'view' && item) {
+        const statusColors: Record<string, string> = {
+          'not started': 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
+          'in progress': 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200',
+          completed: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200',
+          cancelled: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
+        };
+        const priorityColors: Record<string, string> = {
+          Low: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300',
+          Medium: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200',
+          High: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
+        };
 
-      const badges = [
-        {
-          text: item.status,
-          color: statusColors[item.status] || statusColors['not started'],
-        },
-        {
-          text: item.priority,
-          color: priorityColors[item.priority] || priorityColors['Medium'],
-        },
-      ];
+        const badges = [
+          {
+            text: item.status,
+            color: statusColors[item.status] || statusColors['not started'],
+          },
+          {
+            text: item.priority,
+            color: priorityColors[item.priority] || priorityColors['Medium'],
+          },
+        ];
 
-      return (
-        <div className="flex items-center gap-2">
-          <CheckSquare className="w-4 h-4" style={{ color: '#2563eb' }} />
-          {badges.map((badge) => (
-            <Badge key={`${badge.text}-${badge.color}`} className={badge.color}>
-              {badge.text}
-            </Badge>
-          ))}
-          <span className="text-xs text-gray-600 dark:text-gray-400">
-            • Created {new Date(item.createdAt).toLocaleDateString()}
-          </span>
-        </div>
-      );
-    }
+        // Get assigned contact if exists
+        const assignedContact = item.assignedTo
+          ? contacts.find((c: any) => {
+              // Handle both string and number ID comparison
+              const contactId = String(c.id);
+              const assignedId = String(item.assignedTo);
+              return contactId === assignedId;
+            })
+          : null;
 
-    // Non-view modes
-    switch (mode) {
-      case 'edit':
-        return 'Update task information';
-      case 'create':
-        return 'Enter new task details';
-      default:
-        return '';
-    }
-  };
+        return (
+          <div className="flex items-center gap-2 flex-wrap">
+            <CheckSquare className="w-4 h-4" style={{ color: '#2563eb' }} />
+            {badges.map((badge) => (
+              <Badge key={`${badge.text}-${badge.color}`} className={badge.color}>
+                {badge.text}
+              </Badge>
+            ))}
+            {assignedContact && (
+              <div className="flex items-center gap-1">
+                <User className="w-3 h-3 text-blue-500 dark:text-blue-400" />
+                <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                  {assignedContact.companyName}
+                </span>
+              </div>
+            )}
+            <span className="text-xs text-gray-600 dark:text-gray-400">
+              • Created {new Date(item.createdAt).toLocaleDateString()}
+            </span>
+          </div>
+        );
+      }
+
+      // Non-view modes
+      switch (mode) {
+        case 'edit':
+          return 'Update task information';
+        case 'create':
+          return 'Enter new task details';
+        default:
+          return '';
+      }
+    },
+    [contacts],
+  );
 
   const getDeleteMessage = (item: Task | null) => {
     if (!item) {
