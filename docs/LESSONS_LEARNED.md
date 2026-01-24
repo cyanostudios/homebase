@@ -1169,6 +1169,79 @@ ID:n kan komma från olika källor som string eller number (t.ex. från API, fr�
 
 ---
 
-**Senast uppdaterad:** 2026-01-20  
+---
+
+## Plugin Architecture & Refactoring
+
+### Använd PluginLoader för dynamisk plugin-lista istället för hårdkodad lista
+
+❌ **What we did (that didn't work):**
+
+```javascript
+// Hårdkodad plugin-lista i auth.js
+const availablePlugins = [
+  'contacts',
+  'notes',
+  'estimates',
+  'tasks',
+  'invoices',
+  'products',
+  'channels',
+  'files',
+  'rail',
+  'woocommerce-products',
+];
+// Nya plugins måste läggas till manuellt här
+```
+
+✅ **What we do instead (that works):**
+
+```javascript
+// Använd PluginLoader för dynamisk lista
+function setupAuthRoutes(mainPool, limiter, authMiddleware, loader) {
+  authLimiter = limiter;
+  requireAuth = authMiddleware;
+  pluginLoader = loader; // ✅ Inject PluginLoader
+}
+
+// I signup route:
+let availablePlugins = [];
+if (pluginLoader) {
+  availablePlugins = pluginLoader.getAllPlugins().map((p) => p.name); // ✅ Dynamisk
+} else {
+  // Fallback om pluginLoader inte finns (failsafe)
+  availablePlugins = [...]; // Hårdkodad fallback
+}
+```
+
+💡 **Why (lesson learned):**
+Hårdkodade plugin-listor måste uppdateras manuellt när nya plugins läggs till, vilket leder till inkonsistens och glömda plugins. Genom att använda `PluginLoader.getAllPlugins()` får man alltid en aktuell lista över alla registrerade plugins. Detta gör koden mer dynamisk, underhållbar och säkerställer att nya plugins automatiskt inkluderas. Lägg alltid till en fallback för failsafe om PluginLoader inte är tillgänglig.
+
+---
+
+### Ta bort oanvända middleware-setup filer
+
+❌ **What we did (that didn't work):**
+
+```javascript
+// server/core/middleware/setup.js
+// Filen användes inte längre men fanns kvar
+// Middleware registreras direkt i server/index.ts
+```
+
+✅ **What we do instead (that works):**
+
+```bash
+# Ta bort oanvända filer
+rm server/core/middleware/setup.js
+# Middleware registreras direkt där den används (server/index.ts)
+```
+
+💡 **Why (lesson learned):**
+Oanvända filer skapar förvirring och gör det svårt att förstå var kod faktiskt körs. Om en fil inte används (t.ex. middleware registreras direkt i `server/index.ts` istället för via `setup.js`), ta bort den. Detta gör kodbasen renare och lättare att navigera. Kontrollera ALLTID att en fil verkligen används innan du tar bort den genom att söka efter imports/references.
+
+---
+
+**Senast uppdaterad:** 2026-01-24  
 **Syfte:** Undvika att upprepa samma misstag  
-**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles
+**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles, använd PluginLoader för dynamiska plugin-listor, ta bort oanvända filer
