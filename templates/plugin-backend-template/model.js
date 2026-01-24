@@ -11,7 +11,7 @@ class TemplateModel {
   }
 
   // TODO: Set your table name (snake_case). Prefer explicit string here.
-  // Example: 'woocommerce_products' / 'fyndiq_articles'
+  // Example: 'my_items' / 'custom_data'
   static TABLE = 'rename_me_table';
 
   // TODO: Set your default ORDER BY column (e.g., 'id' or 'product_number')

@@ -128,8 +128,30 @@ if (!success) {
    List: MyPluginList,
    Form: MyPluginForm,
    View: MyPluginView
+   },
+   navigation: { // REQUIRED for sidebar visibility
+   category: 'Main', // or 'Business', 'Tools', etc.
+   label: 'My Plugins',
+   icon: MyIcon, // Import from lucide-react
+   order: 1, // Order within category
    }
    }
+
+   ⚠️ IMPORTANT: After registering a plugin:
+
+   a) Add to available plugins list:
+   // server/core/config/constants.js
+   DEFAULT_AVAILABLE_PLUGINS: [
+   // ... existing plugins
+   'my-plugins', // Add your plugin here
+   ]
+
+   b) Grant access to superadmin:
+   // Run script to add plugin to admin@homebase.se
+   // Or manually: INSERT INTO user_plugin_access (user_id, plugin_name, enabled)
+   // VALUES ((SELECT id FROM users WHERE email = 'admin@homebase.se'), 'my-plugins', true);
+
+   c) The plugin will automatically appear in sidebar for users who have it enabled
 
 5. Testing
    Backend tests with mock adapters:
@@ -390,6 +412,10 @@ Plugin is ready when:
 ✅ Core services used (no direct infrastructure)
 ✅ Tests passing (unit + integration)
 ✅ Tenant isolation verified
+✅ Plugin registered in pluginRegistry.ts with navigation config
+✅ Plugin added to DEFAULT_AVAILABLE_PLUGINS in constants.js
+✅ Superadmin has plugin access (admin@homebase.se)
+✅ Plugin visible in sidebar for enabled users
 
 Development Best Practices
 Backend

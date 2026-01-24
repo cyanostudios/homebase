@@ -1,6 +1,6 @@
 // templates/plugin-frontend-template/api/templateApi.ts
 // TEMPLATE: Copy this file into your plugin and set the base path to your routeBase.
-// Example usage after copy: export const woocommerceApi = new TemplateApi('/api/woocommerce');
+// Example usage after copy: export const myItemsApi = new TemplateApi('/api/my-items');
 
 export type ApiFieldError = { field: string; message: string };
 

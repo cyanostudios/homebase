@@ -1,8 +1,8 @@
 #!/bin/bash
 # Quick script to create complete plugin scaffold
 
-PLUGIN_NAME="products"
-PLUGIN_CAMEL="Product"
+PLUGIN_NAME="my-items"
+PLUGIN_CAMEL="MyItem"
 
 echo "Creating plugin: $PLUGIN_NAME"
 

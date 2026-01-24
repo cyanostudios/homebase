@@ -18,8 +18,8 @@ interface PanelFooterProps {
 
 export const PanelFooter: React.FC<PanelFooterProps> = ({
   currentMode,
-  currentItem,
-  currentPluginContext,
+  currentItem: _currentItem,
+  currentPluginContext: _currentPluginContext,
   validationErrors,
   onDeleteItem,
   onClosePanel,
@@ -80,7 +80,7 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 /**
  * Hyphen-safe opener resolver.
  * Examples:
- *  - 'products' + 'edit' -> context.openProductForEdit
+ *  - 'contacts' + 'edit' -> context.openContactForEdit
  *  - 'notes' + 'view' -> context.openNoteForView
  */
 function findOpenFunction(context: any, mode: 'edit' | 'view', pluginName?: string): any {
@@ -89,8 +89,8 @@ function findOpenFunction(context: any, mode: 'edit' | 'view', pluginName?: stri
   }
 
   // Generic: convert kebab to camel, singularize trailing 's'
-  const camel = pluginName.replace(/-([a-z])/g, (_, c) => c.toUpperCase()); // e.g., woocommerceProducts
-  const singular = camel.endsWith('s') ? camel.slice(0, -1) : camel; // products -> product
+  const camel = pluginName.replace(/-([a-z])/g, (_, c) => c.toUpperCase()); // e.g., invoices -> Invoices
+  const singular = camel.endsWith('s') ? camel.slice(0, -1) : camel; // contacts -> contact
   const fnName = `open${cap(singular)}For${cap(mode)}`; // openProductForEdit
   const fn = context[fnName];
   return typeof fn === 'function' ? fn : null;

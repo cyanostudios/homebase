@@ -1,4 +1,4 @@
-﻿CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
@@ -31,13 +31,12 @@ INSERT INTO user_plugin_access (user_id, plugin_name, enabled)
 SELECT u.id, p.plugin_name, true
 FROM u CROSS JOIN (
   VALUES 
-    ('channels'),
     ('contacts'),
     ('estimates'),
+    ('files'),
+    ('invoices'),
     ('notes'),
-    ('products'),
-    ('rail'),
-    ('tasks'),
-    ('woocommerce-products')
+    ('profixio'),
+    ('tasks')
 ) AS p(plugin_name)
 ON CONFLICT (user_id, plugin_name) DO UPDATE SET enabled = EXCLUDED.enabled;

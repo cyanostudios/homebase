@@ -5,9 +5,9 @@ import { PLUGIN_REGISTRY, type PluginRegistryEntry } from '@/core/pluginRegistry
 // --- helpers: hyphen-safe singular + capitalization ---
 const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 const singularCap = (pluginName: string) => {
-  const camel = toCamel(pluginName); // e.g., "woocommerceProducts"
-  const base = camel.endsWith('s') ? camel.slice(0, -1) : camel; // -> "woocommerceProduct"
-  return base.charAt(0).toUpperCase() + base.slice(1); // -> "WoocommerceProduct"
+  const camel = toCamel(pluginName); // e.g., "invoices" -> "invoices"
+  const base = camel.endsWith('s') ? camel.slice(0, -1) : camel; // -> "invoice"
+  return base.charAt(0).toUpperCase() + base.slice(1); // -> "Invoice"
 };
 
 // Utility function to find plugin functions dynamically
@@ -85,7 +85,11 @@ export const createPanelHandlers = (
       }
 
       // DYNAMIC: Find appropriate functions based on mode
-      const openForViewFunction = findOpenFunction(currentPluginContext, 'view', currentPlugin.name);
+      const openForViewFunction = findOpenFunction(
+        currentPluginContext,
+        'view',
+        currentPlugin.name,
+      );
 
       if (currentMode === 'edit' && currentItem && openForViewFunction) {
         openForViewFunction(currentItem);

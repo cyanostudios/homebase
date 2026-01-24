@@ -572,6 +572,63 @@ catch (error) {
   console.error('Save failed:', error);
 }
 
+Plugin Registration & Sidebar Visibility
+
+After implementing your plugin, you must register it to make it visible in the sidebar:
+
+1. Register in pluginRegistry.ts
+   // client/src/core/pluginRegistry.ts
+   {
+     name: 'my-plugins',
+     Provider: MyPluginProvider,
+     hook: useMyPlugins,
+     panelKey: 'isMyPluginPanelOpen',
+     components: {
+       List: MyPluginList,
+       Form: MyPluginForm,
+       View: MyPluginView,
+     },
+     navigation: { // REQUIRED for sidebar visibility
+       category: 'Main', // or 'Business', 'Tools', etc.
+       label: 'My Plugins',
+       icon: MyIcon, // Import from lucide-react
+       order: 1, // Order within category
+     }
+   }
+
+2. Add to available plugins
+   // server/core/config/constants.js
+   DEFAULT_AVAILABLE_PLUGINS: [
+     // ... existing plugins
+     'my-plugins', // Add your plugin here
+   ]
+
+3. Grant access to superadmin
+   The superadmin (admin@homebase.se) needs the plugin added to their user_plugin_access.
+
+   Option A: Use a script (recommended)
+   // Create scripts/add-my-plugin-to-admin.js (similar to add-profixio-to-admin.js)
+   // Run: node scripts/add-my-plugin-to-admin.js
+
+   Option B: Manual SQL
+   INSERT INTO user_plugin_access (user_id, plugin_name, enabled)
+   VALUES (
+     (SELECT id FROM users WHERE email = 'admin@homebase.se'),
+     'my-plugins',
+     true
+   )
+   ON CONFLICT (user_id, plugin_name) DO UPDATE SET enabled = true;
+
+4. Verify sidebar visibility
+   - Log in as a user with the plugin enabled
+   - The plugin should appear in the sidebar under the specified category
+   - Clicking it should open the plugin's list view
+
+⚠️ Important Notes:
+- Plugins only appear in sidebar for users who have them enabled in user_plugin_access
+- New users get plugins from DEFAULT_USER_PLUGINS in constants.js
+- Superadmin must have plugins manually added (they don't get defaults automatically)
+
 Conclusion
 Frontend plugins now:
 
@@ -581,6 +638,8 @@ Frontend plugins now:
 ✅ Sanitize user input
 ✅ Support keyboard navigation
 ✅ Responsive mobile/desktop
+✅ Visible in sidebar after registration
+✅ Accessible to superadmin after granting permissions
 
 Result: Secure, accessible, user-friendly frontend code.
 

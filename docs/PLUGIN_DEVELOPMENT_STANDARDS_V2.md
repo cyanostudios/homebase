@@ -24,8 +24,21 @@ This document defines MANDATORY naming conventions and patterns for all Homebase
    List: MyPluginList,
    Form: MyPluginForm,
    View: MyPluginView,
+   },
+   navigation: { // REQUIRED for sidebar visibility
+   category: 'Main', // or 'Business', 'Tools', etc.
+   label: 'My Plugins',
+   icon: MyIcon, // Import from lucide-react
+   order: 1, // Order within category
    }
    }
+
+   ⚠️ IMPORTANT: After registering a plugin:
+   - The plugin will automatically appear in the sidebar for users who have it enabled
+   - Add the plugin name to server/core/config/constants.js in DEFAULT_AVAILABLE_PLUGINS
+   - Superadmin (admin@homebase.se) needs the plugin added to their user_plugin_access
+   - Run: node scripts/add-profixio-to-admin.js (or create similar script for your plugin)
+
 2. Context Interface (MANDATORY Properties)
    interface MyPluginContextType {
    // Panel State - EXACT naming required

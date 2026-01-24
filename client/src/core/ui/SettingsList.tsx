@@ -2,7 +2,7 @@
 // Settings list component showing settings categories
 // Updated: Added Activity Log category
 
-import { User, Globe, History } from 'lucide-react';
+import { User, Globe, History, Trophy } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 
 import { Card } from '@/components/ui/card';
@@ -12,7 +12,7 @@ interface SettingsCategory {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  category: 'profile' | 'preferences' | 'activity-log';
+  category: 'profile' | 'preferences' | 'activity-log' | 'profixio';
   description: string;
 }
 
@@ -37,6 +37,13 @@ const settingsCategories: SettingsCategory[] = [
     icon: History,
     category: 'activity-log',
     description: 'View your activity history',
+  },
+  {
+    id: 'profixio',
+    label: 'Profixio',
+    icon: Trophy,
+    category: 'profixio',
+    description: 'Configure Profixio API integration',
   },
 ];
 
