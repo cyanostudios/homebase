@@ -10,17 +10,20 @@ const ServiceManager = require('../ServiceManager');
 let pool = null;
 let authLimiter = null;
 let requireAuth = null;
+let pluginLoader = null;
 
 /**
  * Setup auth routes with dependencies
  * @param {Pool} mainPool - Main database pool
  * @param {Function} limiter - Auth rate limiter
  * @param {Function} authMiddleware - Auth middleware
+ * @param {Object} loader - Plugin loader instance
  */
-function setupAuthRoutes(mainPool, limiter, authMiddleware) {
+function setupAuthRoutes(mainPool, limiter, authMiddleware, loader) {
   pool = mainPool;
   authLimiter = limiter;
   requireAuth = authMiddleware;
+  pluginLoader = loader;
 }
 
 /**
@@ -144,18 +147,25 @@ router.post('/signup', async (req, res) => {
     }
 
     // Validate and set plugins (default to all main plugins if not provided)
-    const availablePlugins = [
-      'contacts',
-      'notes',
-      'estimates',
-      'tasks',
-      'invoices',
-      'products',
-      'channels',
-      'files',
-      'rail',
-      'woocommerce-products',
-    ];
+    // Use dynamic plugin list from PluginLoader if available, otherwise fallback (failsafe)
+    let availablePlugins = [];
+    if (pluginLoader) {
+      availablePlugins = pluginLoader.getAllPlugins().map((p) => p.name);
+    } else {
+      // Fallback if pluginLoader not injected (should not happen in prod)
+      availablePlugins = [
+        'contacts',
+        'notes',
+        'estimates',
+        'tasks',
+        'invoices',
+        'products',
+        'channels',
+        'files',
+        'rail',
+        'woocommerce-products',
+      ];
+    }
     // Default plugins for new users - all main registered plugins
     let selectedPlugins = ['contacts', 'notes', 'tasks', 'estimates', 'invoices', 'files'];
 

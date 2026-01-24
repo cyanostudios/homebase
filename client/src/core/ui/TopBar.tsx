@@ -1,4 +1,4 @@
-import { Bell, Filter, Menu, Search, Settings, User, X } from 'lucide-react';
+import { Bell, Filter, Menu, Search, Settings, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import {
@@ -55,6 +55,65 @@ interface Tenant {
   neon_connection_string: string;
 }
 
+// Helper function to get user initials from name or email
+const getUserInitials = (name: string | undefined, email: string | undefined): string => {
+  // First try to use name from settings
+  if (name && name.trim().length > 0) {
+    const nameParts = name.trim().split(/\s+/);
+    if (nameParts.length >= 2) {
+      // Use first letter of first and last name
+      return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
+    }
+    // Single name - use first two letters
+    if (nameParts[0].length >= 2) {
+      return nameParts[0].substring(0, 2).toUpperCase();
+    }
+    return nameParts[0][0].toUpperCase();
+  }
+  
+  // Fallback to email if no name
+  if (!email) return 'U';
+  const localPart = email.split('@')[0];
+  const parts = localPart.split(/[._-]/);
+  
+  if (parts.length >= 2 && parts[0].length > 0 && parts[1].length > 0) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  
+  if (localPart.length >= 2) {
+    return localPart.substring(0, 2).toUpperCase();
+  }
+  
+  return localPart[0].toUpperCase();
+};
+
+// Helper function to generate a consistent color from email
+const getUserColor = (email: string | undefined): string => {
+  if (!email) return 'bg-gray-500';
+  
+  // Generate a color based on email hash
+  let hash = 0;
+  for (let i = 0; i < email.length; i++) {
+    hash = email.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  // Color palette for avatars
+  const colors = [
+    'bg-blue-500',
+    'bg-green-500',
+    'bg-purple-500',
+    'bg-pink-500',
+    'bg-indigo-500',
+    'bg-yellow-500',
+    'bg-red-500',
+    'bg-teal-500',
+    'bg-orange-500',
+    'bg-cyan-500',
+  ];
+  
+  return colors[Math.abs(hash) % colors.length];
+};
+
 export function TopBar({
   currentPage,
   onPageChange,
@@ -62,9 +121,10 @@ export function TopBar({
   detailPanelTitle,
   onDetailPanelClose,
 }: TopBarProps) {
-  const { user, logout } = useApp();
+  const { user, logout, getSettings } = useApp();
   const [searchOpen, setSearchOpen] = useState(false);
   const [openPanel, setOpenPanel] = useState<'pomodoro' | 'clock' | null>(null);
+  const [profileSettings, setProfileSettings] = useState<{ name?: string; title?: string } | null>(null);
 
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [currentTenantUserId, setCurrentTenantUserId] = useState<number | null>(null);
@@ -77,6 +137,25 @@ export function TopBar({
       loadTenants();
     }
   }, [isAdmin]);
+
+  // Load profile settings for name and title
+  useEffect(() => {
+    const loadProfileSettings = async () => {
+      try {
+        const settings = await getSettings('profile');
+        setProfileSettings({
+          name: settings?.name,
+          title: settings?.title,
+        });
+      } catch (error) {
+        console.error('Failed to load profile settings:', error);
+      }
+    };
+
+    if (user) {
+      loadProfileSettings();
+    }
+  }, [user, getSettings]);
 
   const loadCurrentTenant = async () => {
     try {
@@ -279,16 +358,32 @@ export function TopBar({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="User menu">
-                <User className="h-4 w-4" />
+              <Button variant="ghost" size="icon" aria-label="User menu" className="rounded-full">
+                <div
+                  className={`${getUserColor(user?.email)} text-white text-xs font-semibold rounded-full w-8 h-8 flex items-center justify-center`}
+                >
+                  {getUserInitials(profileSettings?.name, user?.email)}
+                </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
-                <div className="text-sm font-medium">{user?.email || 'User'}</div>
-                <div className="text-xs text-muted-foreground capitalize">
-                  {user?.role || 'user'}
-                </div>
+                {profileSettings?.name ? (
+                  <>
+                    <div className="text-sm font-medium">{profileSettings.name}</div>
+                    {profileSettings.title && (
+                      <div className="text-xs text-muted-foreground">{profileSettings.title}</div>
+                    )}
+                    <div className="text-xs text-muted-foreground mt-1">{user?.email}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-sm font-medium">{user?.email || 'User'}</div>
+                    <div className="text-xs text-muted-foreground capitalize">
+                      {user?.role || 'user'}
+                    </div>
+                  </>
+                )}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               {isAdmin && (

@@ -35,6 +35,7 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
       const settings = await getSettings('profile');
       setFormData({
         name: settings?.name || '',
+        title: settings?.title || '',
         email: user?.email || '',
       });
     } catch (error) {

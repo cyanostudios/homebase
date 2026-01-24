@@ -16,7 +16,7 @@ function setupCoreRoutes(app, dependencies) {
   const { pool, authLimiter, requireAuth, pluginLoader } = dependencies;
 
   // Setup route dependencies
-  authRoutes.setupAuthRoutes(pool, authLimiter, requireAuth);
+  authRoutes.setupAuthRoutes(pool, authLimiter, requireAuth, pluginLoader);
   adminRoutes.setupAdminRoutes(pool, requireAuth);
   settingsRoutes.setupSettingsRoutes(pool, requireAuth);
   activityLogRoutes.setupActivityLogRoutes(requireAuth);
