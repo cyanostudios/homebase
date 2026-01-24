@@ -59,7 +59,7 @@ export function DetailPanel({
   }
 
   return (
-    <div className="w-full h-full flex-shrink-0 flex flex-col">
+    <div className="w-full h-full flex-shrink-0 flex flex-col border-2 border-primary/30 rounded-md animate-border-pulse">
       {/* Fixed Header */}
       <div className="flex items-start justify-between py-6 px-6 border-b border-border flex-shrink-0">
         <div className="flex-1 mr-4 space-y-3 min-w-0">

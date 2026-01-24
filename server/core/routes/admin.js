@@ -4,18 +4,20 @@
 const express = require('express');
 const router = express.Router();
 const ServiceManager = require('../ServiceManager');
+const AdminService = require('../services/admin/AdminService');
 
 // Dependencies will be injected by setupAdminRoutes()
-let pool = null;
 let requireAuth = null;
+
+const adminService = new AdminService();
 
 /**
  * Setup admin routes with dependencies
- * @param {Pool} mainPool - Main database pool
+ * @param {Pool} mainPool - Main database pool (Unused in new Service pattern)
  * @param {Function} authMiddleware - Auth middleware
  */
 function setupAdminRoutes(mainPool, authMiddleware) {
-  pool = mainPool;
+  // pool = mainPool; // Managed by Service layer
   requireAuth = authMiddleware;
 }
 
@@ -45,23 +47,18 @@ router.post(
         return res.status(400).json({ error: 'Email and role are required' });
       }
 
-      if (!['user', 'superuser'].includes(role)) {
-        return res.status(400).json({ error: 'Invalid role. Must be "user" or "superuser"' });
-      }
-
-      await pool.query('UPDATE users SET role = $1 WHERE email = $2', [role, email]);
-
-      const result = await pool.query('SELECT id, email, role FROM users WHERE email = $1', [
-        email,
-      ]);
+      const user = await adminService.updateRole(email, role);
 
       res.json({
         message: 'Role updated successfully',
-        user: result.rows[0],
+        user: { id: user.id, email: user.email, role: user.role },
       });
     } catch (error) {
       const logger = ServiceManager.get('logger');
       logger.error('Failed to update role', error, { email: req.body.email });
+      if (error.message.includes('Invalid role')) {
+        return res.status(400).json({ error: error.message });
+      }
       res.status(500).json({ error: 'Failed to update role' });
     }
   },
@@ -77,15 +74,8 @@ router.get(
   requireSuperuser,
   async (req, res) => {
     try {
-      const result = await pool.query(`
-      SELECT u.id, u.email, u.role, t.neon_project_id, t.neon_database_name, t.neon_connection_string
-      FROM users u
-      INNER JOIN tenants t ON u.id = t.user_id
-      WHERE t.neon_connection_string IS NOT NULL
-      ORDER BY u.id
-    `);
-
-      res.json({ tenants: result.rows });
+      const tenants = await adminService.getAllTenants();
+      res.json({ tenants });
     } catch (error) {
       const logger = ServiceManager.get('logger');
       logger.error('Failed to fetch tenants', error, { adminId: req.session.user.id });
@@ -110,32 +100,15 @@ router.post(
         return res.status(400).json({ error: 'userId is required' });
       }
 
-      const tenantResult = await pool.query(
-        'SELECT neon_connection_string FROM tenants WHERE user_id = $1',
-        [userId],
-      );
-
-      if (!tenantResult.rows.length) {
-        return res.status(404).json({ error: 'Tenant not found' });
-      }
-
-      const newTenantConnectionString = tenantResult.rows[0].neon_connection_string;
+      const { tenantConnectionString, targetUserId } = await adminService.switchTenant(req.session.user, userId);
 
       // Update session with new tenant connection
-      req.session.tenantConnectionString = newTenantConnectionString;
-      req.session.currentTenantUserId = userId;
-
-      const logger = ServiceManager.get('logger');
-      const dbHost = newTenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
-      logger.info('Admin switched tenant', {
-        adminId: req.session.user.id,
-        tenantUserId: userId,
-        tenantDb: dbHost,
-      });
+      req.session.tenantConnectionString = tenantConnectionString;
+      req.session.currentTenantUserId = targetUserId;
 
       res.json({
         message: 'Switched tenant successfully',
-        tenantUserId: userId,
+        tenantUserId: targetUserId,
       });
     } catch (error) {
       const logger = ServiceManager.get('logger');
@@ -143,6 +116,9 @@ router.post(
         adminId: req.session.user.id,
         targetUserId: req.body.userId,
       });
+      if (error.message === 'Tenant not found') {
+        return res.status(404).json({ error: 'Tenant not found' });
+      }
       res.status(500).json({ error: 'Failed to switch tenant' });
     }
   },
@@ -159,33 +135,12 @@ router.delete(
   async (req, res) => {
     try {
       const { userId } = req.params;
-
-      // Get user info before deletion
-      const userResult = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
-      if (!userResult.rows.length) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      // Delete from tenants only (user remains)
-      const tenantResult = await pool.query('DELETE FROM tenants WHERE user_id = $1 RETURNING id', [
-        userId,
-      ]);
-
-      if (!tenantResult.rows.length) {
-        return res.status(404).json({ error: 'Tenant entry not found' });
-      }
-
-      const logger = ServiceManager.get('logger');
-      logger.info('Admin deleted tenant entry', {
-        adminId: req.session.user.id,
-        tenantUserId: userId,
-        userEmail: userResult.rows[0].email,
-      });
+      const result = await adminService.deleteTenantEntry(req.session.user.id, userId);
 
       res.json({
         message: 'Tenant entry deleted successfully',
         userId: userId,
-        email: userResult.rows[0].email,
+        email: result.email,
       });
     } catch (error) {
       const logger = ServiceManager.get('logger');
@@ -193,6 +148,9 @@ router.delete(
         adminId: req.session.user.id,
         targetUserId: req.params.userId,
       });
+      if (error.message === 'User not found' || error.message === 'Tenant entry not found') {
+        return res.status(404).json({ error: error.message });
+      }
       res.status(500).json({ error: 'Failed to delete tenant entry' });
     }
   },
@@ -209,27 +167,18 @@ router.delete(
   async (req, res) => {
     try {
       const { userId } = req.params;
+      const result = await adminService.deleteUser(req.session.user.id, userId);
 
-      // Delete from user_plugin_access
-      await pool.query('DELETE FROM user_plugin_access WHERE user_id = $1', [userId]);
-
-      // Delete from tenants
-      await pool.query('DELETE FROM tenants WHERE user_id = $1', [userId]);
-
-      // Delete from users
-      const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING email', [userId]);
-
-      if (!result.rows.length) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      res.json({ message: 'User deleted', email: result.rows[0].email });
+      res.json({ message: 'User deleted', email: result.email });
     } catch (error) {
       const logger = ServiceManager.get('logger');
       logger.error('Failed to delete user', error, {
         adminId: req.session.user.id,
         targetUserId: req.params.userId,
       });
+      if (error.message === 'User not found') {
+        return res.status(404).json({ error: 'User not found' });
+      }
       res.status(500).json({ error: 'Failed to delete user' });
     }
   },

@@ -3,24 +3,26 @@
 
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcrypt');
+const AuthService = require('../services/auth/AuthService');
 const ServiceManager = require('../ServiceManager');
 
 // Dependencies will be injected by setupAuthRoutes()
-let pool = null;
 let authLimiter = null;
 let requireAuth = null;
 let pluginLoader = null;
 
+// Initialize AuthService
+const authService = new AuthService();
+
 /**
  * Setup auth routes with dependencies
- * @param {Pool} mainPool - Main database pool
+ * @param {Pool} mainPool - Main database pool (Unused in new Service pattern, kept for compatibility)
  * @param {Function} limiter - Auth rate limiter
  * @param {Function} authMiddleware - Auth middleware
  * @param {Object} loader - Plugin loader instance
  */
 function setupAuthRoutes(mainPool, limiter, authMiddleware, loader) {
-  pool = mainPool;
+  // pool = mainPool; // Managed by Service layer now
   authLimiter = limiter;
   requireAuth = authMiddleware;
   pluginLoader = loader;
@@ -37,45 +39,20 @@ router.post(
     const { email, password } = req.body;
 
     try {
-      const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+      const result = await authService.login(email, password);
 
-      if (!result.rows.length) {
+      if (!result) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      const user = result.rows[0];
-      const validPassword = await bcrypt.compare(password, user.password_hash);
-
-      if (!validPassword) {
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
-
-      // Get user's plugin access
-      const pluginAccess = await pool.query(
-        'SELECT plugin_name FROM user_plugin_access WHERE user_id = $1 AND enabled = true',
-        [user.id],
-      );
-
-      // Get tenant's connection string
-      const tenantResult = await pool.query(
-        'SELECT neon_connection_string FROM tenants WHERE user_id = $1',
-        [user.id],
-      );
-
-      if (!tenantResult.rows.length) {
-        const logger = ServiceManager.get('logger');
-        logger.error('No tenant database found', null, { userId: user.id });
-        return res.status(500).json({ error: 'Tenant database not configured' });
-      }
-
-      const tenantConnectionString = tenantResult.rows[0].neon_connection_string;
+      const { user, tenantConnectionString } = result;
 
       // Save user info in session
       req.session.user = {
         id: user.id,
         email: user.email,
         role: user.role,
-        plugins: pluginAccess.rows.map((row) => row.plugin_name),
+        plugins: user.plugins,
       };
 
       // Save tenant connection string in session
@@ -105,7 +82,7 @@ router.post(
             id: user.id,
             email: user.email,
             role: user.role,
-            plugins: req.session.user.plugins,
+            plugins: user.plugins,
           },
         });
       });
@@ -138,130 +115,48 @@ router.post('/signup', async (req, res) => {
   const { email, password, plugins } = req.body;
 
   try {
-    // Validate input
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
-    }
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
-    }
+    const { user, tenantDb } = await authService.signup({ email, password, plugins });
 
-    // Validate and set plugins (default to all main plugins if not provided)
-    // Use dynamic plugin list from PluginLoader if available, otherwise fallback (failsafe)
-    let availablePlugins = [];
-    if (pluginLoader) {
-      availablePlugins = pluginLoader.getAllPlugins().map((p) => p.name);
-    } else {
-      // Fallback if pluginLoader not injected (should not happen in prod)
-      availablePlugins = [
-        'contacts',
-        'notes',
-        'estimates',
-        'tasks',
-        'invoices',
-        'products',
-        'channels',
-        'files',
-        'rail',
-        'woocommerce-products',
-      ];
-    }
-    // Default plugins for new users - all main registered plugins
-    let selectedPlugins = ['contacts', 'notes', 'tasks', 'estimates', 'invoices', 'files'];
-
-    if (plugins && Array.isArray(plugins) && plugins.length > 0) {
-      const invalidPlugins = plugins.filter((p) => !availablePlugins.includes(p));
-      if (invalidPlugins.length > 0) {
-        return res.status(400).json({
-          error: `Invalid plugins: ${invalidPlugins.join(', ')}`,
-          availablePlugins: availablePlugins,
-        });
-      }
-      selectedPlugins = plugins;
-    }
-
-    // Check if user exists
-    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'Email already registered' });
-    }
-
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    // Always create regular users via signup (superusers must be created manually)
-    const userRole = 'user';
-
-    // Create user in main database
-    const userResult = await pool.query(
-      'INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role',
-      [email, passwordHash, userRole],
-    );
-
-    const user = userResult.rows[0];
-    const logger = ServiceManager.get('logger');
-    logger.info('User created', { userId: user.id, email: user.email });
-
-    // Create tenant database using TenantService
-    logger.info('Creating tenant database', { userId: user.id });
-    const tenantService = ServiceManager.get('tenant');
-    const tenantDb = await tenantService.createTenant(user.id, user.email);
-
-    // Save tenant info in main database
-    await pool.query(
-      'INSERT INTO tenants (user_id, neon_project_id, neon_database_name, neon_connection_string) VALUES ($1, $2, $3, $4)',
-      [user.id, tenantDb.projectId, tenantDb.databaseName, tenantDb.connectionString],
-    );
-
-    logger.info('Tenant database created', {
-      userId: user.id,
-      databaseName: tenantDb.databaseName,
-    });
-
-    // Give selected plugin access
-    for (const pluginName of selectedPlugins) {
-      await pool.query(
-        'INSERT INTO user_plugin_access (user_id, plugin_name, enabled) VALUES ($1, $2, true)',
-        [user.id, pluginName],
-      );
-    }
-
-    logger.info('Plugin access granted', {
-      userId: user.id,
-      plugins: selectedPlugins,
-    });
-
-    // Auto-login
+    // Auto-login logic
     req.session.user = {
       id: user.id,
       email: user.email,
       role: user.role,
-      plugins: selectedPlugins,
+      plugins: user.plugins,
     };
 
-    // Set tenant connection string for auto-login
     req.session.tenantConnectionString = tenantDb.connectionString;
     req.session.currentTenantUserId = user.id;
 
-    // Save session before responding (important for signup auto-login)
+    // Save session before responding
     req.session.save((err) => {
       if (err) {
+        const logger = ServiceManager.get('logger');
         logger.error('Session save failed after signup', err, { userId: user.id });
         return res.status(500).json({ error: 'Session creation failed' });
       }
 
       res.status(201).json({
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-          plugins: selectedPlugins,
-        },
+        user,
       });
     });
   } catch (error) {
     const logger = ServiceManager.get('logger');
     logger.error('Signup failed', error, { email: req.body.email });
+
+    if (error.message.includes('Email already registered')) {
+      return res.status(400).json({ error: error.message });
+    }
+    if (error.message.includes('Invalid plugins')) {
+      return res.status(400).json({
+        error: error.message,
+        availablePlugins: error.availablePlugins
+      });
+    }
+    if (error.message.includes('Password')) {
+      return res.status(400).json({ error: error.message });
+    }
+
     res.status(500).json({ error: 'Failed to create account. Please try again.' });
   }
 });
@@ -281,11 +176,10 @@ router.get(
       let plugins = req.session.user.plugins;
 
       if (req.session.user.role === 'superuser' && currentTenantUserId !== req.session.user.id) {
-        const tenantPlugins = await pool.query(
-          'SELECT plugin_name FROM user_plugin_access WHERE user_id = $1 AND enabled = true',
-          [currentTenantUserId],
-        );
-        plugins = tenantPlugins.rows.map((row) => row.plugin_name);
+        // We can use UserService for this lookup now strictly speaking, but keeping it simple for "me" route
+        // Or we can import UserService here too.
+        // Let's use authService.userService
+        plugins = await authService.userService.getPluginAccess(currentTenantUserId);
       }
 
       res.json({

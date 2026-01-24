@@ -76,28 +76,37 @@ export default {
   				ring: 'hsl(var(--sidebar-ring))'
   			}
   		},
-  		keyframes: {
-  			'accordion-down': {
-  				from: {
-  					height: '0'
-  				},
-  				to: {
-  					height: 'var(--radix-accordion-content-height)'
-  				}
-  			},
-  			'accordion-up': {
-  				from: {
-  					height: 'var(--radix-accordion-content-height)'
-  				},
-  				to: {
-  					height: '0'
-  				}
-  			}
-  		},
-  		animation: {
-  			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
-  		}
+		keyframes: {
+			'accordion-down': {
+				from: {
+					height: '0'
+				},
+				to: {
+					height: 'var(--radix-accordion-content-height)'
+				}
+			},
+			'accordion-up': {
+				from: {
+					height: 'var(--radix-accordion-content-height)'
+				},
+				to: {
+					height: '0'
+				}
+			},
+			'border-pulse': {
+				'0%, 100%': {
+					borderColor: 'hsl(var(--primary) / 0.2)'
+				},
+				'50%': {
+					borderColor: 'hsl(var(--primary) / 0.8)'
+				}
+			}
+		},
+		animation: {
+			'accordion-down': 'accordion-down 0.2s ease-out',
+			'accordion-up': 'accordion-up 0.2s ease-out',
+			'border-pulse': 'border-pulse 3s ease-in-out infinite'
+		}
   	}
   },
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
