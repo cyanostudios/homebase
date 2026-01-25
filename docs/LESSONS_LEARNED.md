@@ -440,6 +440,37 @@ Det finns TVÅ databaser: AUTH-databas (users, sessions, tenants) och TENANT-dat
 
 ---
 
+### Login 500 error efter refactoring - .rows problem i AuthService/UserService
+
+❌ **What we did (that didn't work):**
+Efter att ha refaktorerat `constants.js` började login ge 500 Internal Server Error. Felet var att `AuthService` och `UserService` använde `.rows` på resultat från `PostgreSQLAdapter.query()`, men adaptern returnerar rows direkt (array), inte `{rows: [...]}`.
+
+```javascript
+// ❌ FEL - PostgreSQLAdapter returnerar array direkt
+const tenantResult = await db.query('SELECT ...', [userId]);
+if (!tenantResult.rows.length) {
+  // ❌ tenantResult.rows är undefined
+  throw new Error('No tenant found');
+}
+const connectionString = tenantResult.rows[0].neon_connection_string; // ❌ Crash
+```
+
+✅ **What we do instead (that works):**
+
+```javascript
+// ✅ KORREKT - PostgreSQLAdapter returnerar rows direkt (array)
+const tenantResult = await db.query('SELECT ...', [userId]);
+if (!tenantResult || tenantResult.length === 0) {
+  throw new Error('No tenant found');
+}
+const connectionString = tenantResult[0].neon_connection_string; // ✅ Fungerar
+```
+
+💡 **Why (lesson learned):**
+`PostgreSQLAdapter.query()` returnerar `result.rows` direkt (en array), inte ett objekt med `.rows` property. Detta är samma problem som dokumenteras tidigare i LESSONS_LEARNED.md, men det kan uppstå även i core services som `AuthService` och `UserService`. När du ser 500-fel vid login och loggarna visar att användaren hittas men tenant-query misslyckas → kontrollera att du inte använder `.rows` på PostgreSQLAdapter-resultat. Använd `result.length` och `result[0]` direkt istället. Debug-scriptet `scripts/debug-login.js` kan hjälpa till att identifiera problemet.
+
+---
+
 ## Development Workflow
 
 ### React Hooks måste ALLTID vara före early returns i viktiga filer
@@ -1242,6 +1273,6 @@ Oanvända filer skapar förvirring och gör det svårt att förstå var kod fakt
 
 ---
 
-**Senast uppdaterad:** 2026-01-24  
+**Senast uppdaterad:** 2026-01-25  
 **Syfte:** Undvika att upprepa samma misstag  
-**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles, använd PluginLoader för dynamiska plugin-listor, ta bort oanvända filer
+**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles, använd PluginLoader för dynamiska plugin-listor, ta bort oanvända filer, PostgreSQLAdapter returnerar rows direkt (array) - använd inte .rows i core services
