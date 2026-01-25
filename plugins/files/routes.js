@@ -14,7 +14,10 @@ function ensureDirSync(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
-function createFilesRoutes(controller, requirePlugin) {
+function createFilesRoutes(controller, context) {
+  // V3: Get requirePlugin from context.middleware instead of parameter
+  const requirePlugin =
+    context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin(config.name); // auth/enablement guard
 
   // Where files are stored on disk
@@ -28,17 +31,22 @@ function createFilesRoutes(controller, requirePlugin) {
   // Common safe document/image types
   const ALLOWED_MIME = new Set([
     // images
-    'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml',
+    'image/png',
+    'image/jpeg',
+    'image/gif',
+    'image/webp',
+    'image/svg+xml',
     // docs
     'application/pdf',
-    'text/plain', 'text/csv',
+    'text/plain',
+    'text/csv',
     'application/zip',
     'application/vnd.ms-excel',
     'application/vnd.ms-powerpoint',
     'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',   // .docx
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',        // .xlsx
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation' // .pptx
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
   ]);
 
   const storage = multer.diskStorage({
@@ -99,46 +107,104 @@ function createFilesRoutes(controller, requirePlugin) {
 
   // ---- CRUD (metadata) ----
   router.get('/', gate, (req, res) => controller.getAll(req, res));
-  
-  router.post('/',
+
+  router.post(
+    '/',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.string('name', 1, 255),
     commonRules.optionalString('url', 500),
     validateRequest,
-    (req, res) => controller.create(req, res)
+    (req, res) => controller.create(req, res),
   );
-  
-  router.put('/:id',
+
+  router.put(
+    '/:id',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     commonRules.string('name', 1, 255).optional(),
     commonRules.optionalString('url', 500),
     validateRequest,
-    (req, res) => controller.update(req, res)
+    (req, res) => controller.update(req, res),
   );
-  
-  router.delete('/:id',
+
+  // DELETE /api/files/batch - Bulk delete (MUST be before '/:id' route)
+  router.delete(
+    '/batch',
+    gate,
+    /* csrfProtection, */ // Temporarily disabled
+    [commonRules.array('ids', 500)],
+    validateRequest,
+    (req, res) => controller.bulkDelete(req, res),
+  );
+
+  router.delete(
+    '/:id',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     validateRequest,
-    (req, res) => controller.delete(req, res)
+    (req, res) => controller.delete(req, res),
   );
 
   // ---- MULTIPART upload: returns array of created FileItems ----
-  router.post('/upload',
+  router.post(
+    '/upload',
     gate,
     uploadLimiter,
     /* csrfProtection, */ // Temporarily disabled
     runUpload,
-    (req, res) => controller.upload(req, res, { uploadRoot })
+    (req, res) => controller.upload(req, res, { uploadRoot }),
   );
 
   // ---- RAW file serving by stored filename (behind auth gate) ----
-  router.get('/raw/:filename', gate, (req, res) =>
-    controller.raw(req, res, { uploadRoot })
+  router.get('/raw/:filename', gate, (req, res) => controller.raw(req, res, { uploadRoot }));
+
+  // ---- Cloud Storage Integration ----
+  const CloudStorageModel = require('./cloudStorageModel');
+  const CloudStorageController = require('./cloudStorageController');
+  const cloudStorageModel = new CloudStorageModel();
+  const cloudStorageController = new CloudStorageController(cloudStorageModel);
+
+  // GET /api/files/cloud/:service/settings
+  router.get('/cloud/:service/settings', gate, (req, res) =>
+    cloudStorageController.getSettings(req, res),
+  );
+
+  // GET /api/files/cloud/:service/auth/start - Start OAuth flow
+  router.get('/cloud/:service/auth/start', gate, (req, res) =>
+    cloudStorageController.startAuth(req, res),
+  );
+
+  // GET /api/files/cloud/:service/auth/callback - OAuth callback
+  // Note: We check session in controller, but don't use gate here since OAuth provider redirects here
+  router.get('/cloud/:service/auth/callback', (req, res) =>
+    cloudStorageController.handleCallback(req, res),
+  );
+
+  // POST /api/files/cloud/:service/disconnect
+  router.post(
+    '/cloud/:service/disconnect',
+    gate,
+    /* csrfProtection, */ // Temporarily disabled
+    (req, res) => cloudStorageController.disconnect(req, res),
+  );
+
+  // POST /api/files/cloud/:service/credentials - Save OAuth app credentials (per-user)
+  router.post(
+    '/cloud/:service/credentials',
+    gate,
+    /* csrfProtection, */ // Temporarily disabled
+    commonRules.string('clientId', 1, 500),
+    commonRules.string('clientSecret', 1, 500),
+    validateRequest,
+    (req, res) => cloudStorageController.saveOAuthCredentials(req, res),
+  );
+
+  // GET /api/files/cloud/:service/embed - Get embed URL for file manager
+  router.get('/cloud/:service/embed', gate, (req, res) =>
+    cloudStorageController.getEmbedUrl(req, res),
   );
 
   return router;

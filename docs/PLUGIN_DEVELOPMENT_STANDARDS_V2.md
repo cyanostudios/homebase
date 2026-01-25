@@ -35,7 +35,10 @@ This document defines MANDATORY naming conventions and patterns for all Homebase
 
    ⚠️ IMPORTANT: After registering a plugin:
    - The plugin will automatically appear in the sidebar for users who have it enabled
-   - Add the plugin name to server/core/config/constants.js in DEFAULT_AVAILABLE_PLUGINS
+   - ✅ AUTOMATED: Plugin name is automatically added to server/core/config/constants.js via filesystem discovery
+     - Only directories with plugin.config.js are included (validated)
+     - Plugins are sorted alphabetically for consistency
+     - Some plugins (read-only, experimental) are excluded from DEFAULT_USER_PLUGINS
    - Superadmin (admin@homebase.se) needs the plugin added to their user_plugin_access
    - Run: node scripts/add-profixio-to-admin.js (or create similar script for your plugin)
 

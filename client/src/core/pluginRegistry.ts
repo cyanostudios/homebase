@@ -57,6 +57,7 @@ import { EstimateList } from '@/plugins/estimates/components/EstimateList';
 import { EstimateView } from '@/plugins/estimates/components/EstimateView';
 import { EstimateProvider } from '@/plugins/estimates/context/EstimateContext';
 import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';
+// Files
 import { FileForm } from '@/plugins/files/components/FileForm';
 import { FileList } from '@/plugins/files/components/FileList';
 import { FileView } from '@/plugins/files/components/FileView';
@@ -173,7 +174,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     name: 'files',
     Provider: FilesProvider,
     hook: useFiles,
-    panelKey: 'isFilePanelOpen',
+    panelKey: 'isFilesPanelOpen',
     components: {
       List: FileList,
       Form: FileForm,

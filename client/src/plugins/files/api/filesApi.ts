@@ -8,21 +8,23 @@ export class FilesApi {
   constructor(private basePath: string = '/api/files') {}
 
   async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) return this.csrfToken;
-    
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
+
     try {
       const response = await fetch('/api/csrf-token', {
-        credentials: 'include'
+        credentials: 'include',
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('CSRF token fetch failed:', {
           status: response.status,
           statusText: response.statusText,
-          error: errorData
+          error: errorData,
         });
-        
+
         if (response.status === 401) {
           throw new Error('Session required. Please log in again.');
         } else if (response.status === 503) {
@@ -31,12 +33,12 @@ export class FilesApi {
           throw new Error(`Failed to get CSRF token: ${errorData.error || response.statusText}`);
         }
       }
-      
+
       const data = await response.json();
       if (!data.csrfToken) {
         throw new Error('CSRF token not found in response');
       }
-      
+
       this.csrfToken = data.csrfToken;
       return this.csrfToken;
     } catch (error: any) {
@@ -50,7 +52,7 @@ export class FilesApi {
 
   private async request(path: string, options: RequestInit = {}) {
     const headers: Record<string, string> = {
-      ...(options.headers as Record<string, string> || {}),
+      ...((options.headers as Record<string, string>) || {}),
     };
 
     // Add CSRF token for mutations (but not for multipart uploads - browser sets Content-Type)
@@ -79,22 +81,29 @@ export class FilesApi {
 
     if (!response.ok) {
       let payload: any = null;
-      try { payload = await response.json(); } catch {}
+      try {
+        payload = await response.json();
+      } catch {
+        // Response is not JSON, use default error message
+      }
 
       // Handle standardized error format from backend
-      const errorMessage = payload?.error || payload?.message || response.statusText || 'Request failed';
+      const errorMessage =
+        payload?.error || payload?.message || response.statusText || 'Request failed';
       const errorCode = payload?.code;
       const errorDetails = payload?.details;
 
       const err: any = new Error(
         response.status === 409 && payload?.errors?.[0]?.message
           ? payload.errors[0].message
-          : errorMessage
+          : errorMessage,
       );
       err.status = response.status;
       err.code = errorCode;
       err.details = errorDetails;
-      if (payload?.errors) err.errors = payload.errors as ApiFieldError[];
+      if (payload?.errors) {
+        err.errors = payload.errors as ApiFieldError[];
+      }
       throw err;
     }
 
@@ -107,7 +116,7 @@ export class FilesApi {
   getItems() {
     return this.request('/');
   }
-  
+
   createItem(data: any) {
     return this.request('/', {
       method: 'POST',
@@ -115,7 +124,7 @@ export class FilesApi {
       body: JSON.stringify(data),
     });
   }
-  
+
   updateItem(id: string, data: any) {
     return this.request(`/${id}`, {
       method: 'PUT',
@@ -123,15 +132,30 @@ export class FilesApi {
       body: JSON.stringify(data),
     });
   }
-  
+
   deleteItem(id: string) {
     return this.request(`/${id}`, { method: 'DELETE' });
+  }
+
+  // ---- Bulk delete ----
+  // DELETE /api/files/batch
+  // body: { ids: string[] }
+  async deleteFilesBulk(
+    ids: string[],
+  ): Promise<{ ok: true; requested: number; deleted: number; deletedIds: string[] }> {
+    return this.request('/batch', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
   }
 
   // MULTIPART upload (returns array of created items)
   async uploadFiles(files: File[]): Promise<any[]> {
     const fd = new FormData();
-    for (const f of files) fd.append('files', f, f.name);
+    for (const f of files) {
+      fd.append('files', f, f.name);
+    }
     return this.request('/upload', {
       method: 'POST',
       body: fd,

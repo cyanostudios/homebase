@@ -119,6 +119,84 @@ class FilesController {
     }
   }
 
+  // DELETE /api/files/batch
+  // body: { ids: string[] }
+  async bulkDelete(req, res) {
+    try {
+      const idsRaw = req.body?.ids;
+      if (!Array.isArray(idsRaw)) {
+        return res
+          .status(400)
+          .json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
+      }
+
+      const ids = Array.from(new Set(idsRaw.map((x) => String(x).trim()).filter(Boolean)));
+
+      if (!ids.length) {
+        return res.json({ ok: true, requested: 0, deleted: 0 });
+      }
+
+      if (ids.length > 500) {
+        return res
+          .status(400)
+          .json({ error: 'Too many ids (max 500 per request)', code: 'VALIDATION_ERROR' });
+      }
+
+      // Get all files first to delete physical files
+      const uploadRoot = path.join(process.cwd(), 'server', 'uploads', 'files');
+      const itemsToDelete = [];
+      for (const id of ids) {
+        try {
+          const item = await this.model.getById(req, id);
+          if (item) itemsToDelete.push(item);
+        } catch (e) {
+          // Skip if not found
+        }
+      }
+
+      // Delete physical files
+      for (const item of itemsToDelete) {
+        try {
+          if (item.url && item.url.startsWith('/api/files/raw/')) {
+            const filename = path.basename(item.url.replace('/api/files/raw/', ''));
+            const abs = path.join(uploadRoot, filename);
+            if (fs.existsSync(abs)) {
+              fs.unlinkSync(abs);
+              Logger.info('Physical file deleted', { filename, fileId: item.id });
+            }
+          }
+        } catch (fsErr) {
+          Logger.warn('Failed to delete physical file', fsErr, { fileId: item.id });
+        }
+      }
+
+      // Delete metadata in DB
+      const result = await this.model.bulkDelete(req, ids);
+
+      const deleted =
+        typeof result?.deletedCount === 'number'
+          ? result.deletedCount
+          : Array.isArray(result?.deletedIds)
+            ? result.deletedIds.length
+            : 0;
+
+      return res.json({
+        ok: true,
+        requested: ids.length,
+        deleted,
+        deletedIds: result?.deletedIds || [],
+      });
+    } catch (error) {
+      Logger.error('Bulk delete error', error, { userId: Context.getUserId(req) });
+
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+
+      return res.status(500).json({ error: 'Bulk delete failed' });
+    }
+  }
+
   async upload(req, res, { uploadRoot }) {
     try {
       const files = Array.isArray(req.files) ? req.files : [];

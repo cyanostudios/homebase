@@ -596,12 +596,13 @@ After implementing your plugin, you must register it to make it visible in the s
      }
    }
 
-2. Add to available plugins
+2. Plugin discovery (AUTOMATED)
    // server/core/config/constants.js
-   DEFAULT_AVAILABLE_PLUGINS: [
-     // ... existing plugins
-     'my-plugins', // Add your plugin here
-   ]
+   ✅ AUTOMATED: Plugins are automatically discovered from the filesystem.
+   - Only directories containing plugin.config.js are included
+   - Plugins are validated and sorted automatically
+   - Some plugins (read-only, experimental) are excluded from DEFAULT_USER_PLUGINS
+   No manual update required.
 
 3. Grant access to superadmin
    The superadmin (admin@homebase.se) needs the plugin added to their user_plugin_access.

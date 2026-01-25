@@ -78,12 +78,6 @@ export const createPanelHandlers = (
     if (currentPluginContext && currentPlugin) {
       const closeFunction = findPanelFunction(currentPluginContext, 'close', currentPlugin.name);
 
-      // ✅ Files: stäng panel direkt vid Cancel i edit (hoppa inte till view)
-      if (currentPlugin.name === 'files' && closeFunction) {
-        closeFunction();
-        return;
-      }
-
       // DYNAMIC: Find appropriate functions based on mode
       const openForViewFunction = findOpenFunction(
         currentPluginContext,

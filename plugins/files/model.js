@@ -6,7 +6,7 @@ const { AppError } = require('../../server/core/errors/AppError');
 
 class FilesModel {
   constructor() {
-    // No pool needed - ServiceManager provides database service
+    // No pool needed - @homebase/core Database provides database service
   }
 
   // DB table (snake_case)
@@ -34,8 +34,7 @@ class FilesModel {
 
   async getById(req, itemId) {
     try {
-      const database = ServiceManager.get('database', req);
-      const context = this._getContext(req);
+      const db = Database.get(req);
 
       const result = await db.query(
         `SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
@@ -43,14 +42,13 @@ class FilesModel {
          WHERE id = $1
          LIMIT 1`,
         [itemId],
-        context,
       );
 
-      if (result.rows.length === 0) {
+      if (result.length === 0) {
         return null;
       }
 
-      return this.transformRow(rows[0]);
+      return this.transformRow(result[0]);
     } catch (error) {
       Logger.error('Failed to get file', error, { itemId });
       throw new AppError('Failed to get file', 500, AppError.CODES.DATABASE_ERROR);
@@ -60,8 +58,7 @@ class FilesModel {
   // Find by stored filename in url (/api/files/raw/<filename>)
   async getByStoredFilename(req, filename) {
     try {
-      const database = ServiceManager.get('database', req);
-      const context = this._getContext(req);
+      const db = Database.get(req);
 
       const like = `%/api/files/raw/${filename}`;
       const result = await db.query(
@@ -71,14 +68,13 @@ class FilesModel {
          ORDER BY id DESC
          LIMIT 1`,
         [like],
-        context,
       );
 
-      if (result.rows.length === 0) {
+      if (result.length === 0) {
         return null;
       }
 
-      return this.transformRow(rows[0]);
+      return this.transformRow(result[0]);
     } catch (error) {
       Logger.error('Failed to get file by stored filename', error, { filename });
       throw new AppError(
@@ -172,6 +168,40 @@ class FilesModel {
         throw error;
       }
       throw new AppError('Failed to delete file metadata', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async bulkDelete(req, idsTextArray) {
+    try {
+      const db = Database.get(req);
+
+      const ids = Array.isArray(idsTextArray)
+        ? idsTextArray.map((x) => String(x).trim()).filter(Boolean)
+        : [];
+
+      if (!ids.length) {
+        return { deletedCount: 0, deletedIds: [] };
+      }
+
+      const sql = `
+        DELETE FROM ${FilesModel.TABLE}
+        WHERE id::text = ANY($1::text[])
+        RETURNING id::text AS id
+      `;
+
+      const rows = await db.query(sql, [ids]);
+
+      Logger.info('Files bulk deleted', { count: rows.length });
+      return {
+        deletedCount: rows.length,
+        deletedIds: rows.map((r) => r.id),
+      };
+    } catch (error) {
+      Logger.error('Failed to bulk delete files', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to bulk delete files', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
