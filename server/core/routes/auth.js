@@ -38,10 +38,26 @@ router.post(
   async (req, res) => {
     const { email, password } = req.body;
 
+    // Debug logging
+    const logger = ServiceManager.get('logger');
+    logger.info('Login request received', {
+      email: email ? 'provided' : 'missing',
+      hasPassword: !!password,
+    });
+
+    if (!email || !password) {
+      logger.warn('Login attempt with missing credentials', {
+        hasEmail: !!email,
+        hasPassword: !!password,
+      });
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
     try {
       const result = await authService.login(email, password);
 
       if (!result) {
+        logger.warn('Login failed: Invalid credentials', { email });
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
@@ -150,7 +166,7 @@ router.post('/signup', async (req, res) => {
     if (error.message.includes('Invalid plugins')) {
       return res.status(400).json({
         error: error.message,
-        availablePlugins: error.availablePlugins
+        availablePlugins: error.availablePlugins,
       });
     }
     if (error.message.includes('Password')) {

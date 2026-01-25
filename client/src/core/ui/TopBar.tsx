@@ -70,33 +70,37 @@ const getUserInitials = (name: string | undefined, email: string | undefined): s
     }
     return nameParts[0][0].toUpperCase();
   }
-  
+
   // Fallback to email if no name
-  if (!email) return 'U';
+  if (!email) {
+    return 'U';
+  }
   const localPart = email.split('@')[0];
   const parts = localPart.split(/[._-]/);
-  
+
   if (parts.length >= 2 && parts[0].length > 0 && parts[1].length > 0) {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
-  
+
   if (localPart.length >= 2) {
     return localPart.substring(0, 2).toUpperCase();
   }
-  
+
   return localPart[0].toUpperCase();
 };
 
 // Helper function to generate a consistent color from email
 const getUserColor = (email: string | undefined): string => {
-  if (!email) return 'bg-gray-500';
-  
+  if (!email) {
+    return 'bg-gray-500';
+  }
+
   // Generate a color based on email hash
   let hash = 0;
   for (let i = 0; i < email.length; i++) {
     hash = email.charCodeAt(i) + ((hash << 5) - hash);
   }
-  
+
   // Color palette for avatars
   const colors = [
     'bg-blue-500',
@@ -110,7 +114,7 @@ const getUserColor = (email: string | undefined): string => {
     'bg-orange-500',
     'bg-cyan-500',
   ];
-  
+
   return colors[Math.abs(hash) % colors.length];
 };
 
@@ -124,7 +128,9 @@ export function TopBar({
   const { user, logout, getSettings } = useApp();
   const [searchOpen, setSearchOpen] = useState(false);
   const [openPanel, setOpenPanel] = useState<'pomodoro' | 'clock' | null>(null);
-  const [profileSettings, setProfileSettings] = useState<{ name?: string; title?: string } | null>(null);
+  const [profileSettings, setProfileSettings] = useState<{ name?: string; title?: string } | null>(
+    null,
+  );
 
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [currentTenantUserId, setCurrentTenantUserId] = useState<number | null>(null);
@@ -175,10 +181,13 @@ export function TopBar({
       const response = await fetch('/api/admin/tenants', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
-        setTenants(data.tenants);
+        setTenants(data.tenants || []); // Ensure it's always an array
+      } else {
+        setTenants([]); // Set to empty array on error
       }
     } catch (error) {
       console.error('Failed to load tenants:', error);
+      setTenants([]); // Set to empty array on error
     } finally {
       setIsLoadingTenants(false);
     }
@@ -392,7 +401,7 @@ export function TopBar({
                   <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
                     {isLoadingTenants ? (
                       <DropdownMenuItem disabled>Loading tenants...</DropdownMenuItem>
-                    ) : tenants.length === 0 ? (
+                    ) : !tenants || tenants.length === 0 ? (
                       <DropdownMenuItem disabled>No tenants found</DropdownMenuItem>
                     ) : (
                       tenants.map((tenant) => (

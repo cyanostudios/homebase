@@ -320,12 +320,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      console.log('Attempting login with:', { email, hasPassword: !!password });
       const response = await api.login(email, password);
+      console.log('Login successful:', response);
       setUser(response.user);
       setIsAuthenticated(true);
       return true;
-    } catch (error) {
-      console.error('Login failed:', error);
+    } catch (error: any) {
+      console.error('Login failed:', {
+        message: error.message,
+        status: error.status,
+        code: error.code,
+        details: error.details,
+        fullError: error,
+      });
       return false;
     }
   };

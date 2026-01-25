@@ -10,6 +10,11 @@ import React, {
 
 import { useApp } from '@/core/api/AppContext';
 
+import {
+  cloudStorageApi,
+  type CloudStorageService,
+  type CloudStorageSettings,
+} from '../api/cloudStorageApi';
 import { filesApi, type FilesApi } from '../api/filesApi';
 import type { ValidationError, FileItem } from '../types/files';
 
@@ -38,6 +43,22 @@ interface FilesContextType {
   ) => string;
   getPanelSubtitle: (mode: 'create' | 'edit' | 'view', item: FileItem | null) => React.ReactNode;
   getDeleteMessage: (item: FileItem | null) => string;
+
+  // Cloud Storage
+  cloudStorageSettings: {
+    onedrive: CloudStorageSettings | null;
+    dropbox: CloudStorageSettings | null;
+    googledrive: CloudStorageSettings | null;
+  };
+  loadCloudStorageSettings: () => Promise<void>;
+  connectCloudStorage: (service: CloudStorageService) => Promise<void>;
+  disconnectCloudStorage: (service: CloudStorageService) => Promise<void>;
+  getCloudStorageEmbedUrl: (service: CloudStorageService) => Promise<string | null>;
+  selectedFileIds: string[];
+  toggleFileSelected: (id: string) => void;
+  selectAllFiles: (ids: string[]) => void;
+  clearFileSelection: () => void;
+  deleteFiles: (ids: string[]) => Promise<void>;
 }
 
 const FilesContext = createContext<FilesContextType | undefined>(undefined);
@@ -72,14 +93,6 @@ export function FilesProvider({
     dropbox: null,
     googledrive: null,
   });
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      void loadItems();
-    } else {
-      setFiles([]);
-    }
-  }, [isAuthenticated, loadItems]);
 
   useEffect(() => {
     registerPanelCloseFunction('files', closeFilePanel);
@@ -117,6 +130,14 @@ export function FilesProvider({
       setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
   }, [api]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      void loadItems();
+    } else {
+      setFiles([]);
+    }
+  }, [isAuthenticated, loadItems]);
 
   const validate = (data: any): ValidationError[] => {
     const errs: ValidationError[] = [];

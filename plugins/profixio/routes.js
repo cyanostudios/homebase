@@ -7,6 +7,19 @@ const config = require('./plugin.config');
 function createProfixioRoutes(controller, requirePlugin, csrfProtection, validateRequest) {
   const gate = requirePlugin(config.name);
 
+  // Debug: Check if controller and methods exist
+  if (!controller) {
+    console.error('Profixio: controller is undefined');
+    return router;
+  }
+  if (typeof controller.getSettings !== 'function') {
+    console.error('Profixio: controller.getSettings is not a function', {
+      controllerType: typeof controller,
+      controllerKeys: controller ? Object.keys(controller) : [],
+      hasGetSettings: controller ? 'getSettings' in controller : false,
+    });
+  }
+
   // GET /api/profixio/matches
   router.get(
     '/matches',
@@ -68,7 +81,13 @@ function createProfixioRoutes(controller, requirePlugin, csrfProtection, validat
   );
 
   // GET /api/profixio/settings
-  router.get('/settings', gate, (req, res, next) => controller.getSettings(req, res, next));
+  router.get('/settings', gate, (req, res, next) => {
+    if (controller && typeof controller.getSettings === 'function') {
+      return controller.getSettings(req, res, next);
+    } else {
+      return res.status(500).json({ error: 'Profixio settings endpoint not available' });
+    }
+  });
 
   // PUT /api/profixio/settings
   router.put(
