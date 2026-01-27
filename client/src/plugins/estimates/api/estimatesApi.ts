@@ -156,8 +156,8 @@ class EstimatesApi {
           if (match) {
             errorMessage = match[1];
           }
-        } catch (_err) {
-          // ESLint no-empty: ignore parse errors when response body isn't JSON
+        } catch {
+          // Ignore parse errors when response body isn't JSON
         }
         throw new Error(errorMessage);
       }

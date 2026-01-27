@@ -78,7 +78,9 @@ export class InvoicesApi {
       let payload: any = null;
       try {
         payload = await response.json();
-      } catch {}
+      } catch {
+        // Ignore JSON parse errors - payload will remain null
+      }
 
       // Handle standardized error format from backend
       const errorMessage =

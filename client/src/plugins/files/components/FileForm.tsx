@@ -1,6 +1,6 @@
 // client/src/plugins/files/components/FileForm.tsx
 import { Upload, File as FileIcon, Trash2, AlertTriangle } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Card } from '@/components/ui/card';
 import { Heading, Text } from '@/core/ui/Typography';
@@ -113,7 +113,9 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
     }
     try {
       dt?.clearData();
-    } catch {}
+    } catch {
+      // Ignore errors when clearing drag data
+    }
   };
   const onDragOver: React.DragEventHandler<HTMLDivElement> = (e) => {
     e.preventDefault();

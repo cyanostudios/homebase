@@ -1,4 +1,4 @@
-import { Share, Copy, Check, Download, Copy as CopyIcon } from 'lucide-react';
+import { Share, Copy, Check, Download } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';

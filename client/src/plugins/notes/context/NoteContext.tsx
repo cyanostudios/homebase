@@ -79,6 +79,14 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     selectedCount,
   } = useBulkSelection();
 
+  // Define closeNotePanel BEFORE useEffect that uses it (TDZ fix)
+  const closeNotePanel = useCallback(() => {
+    setIsNotePanelOpen(false);
+    setCurrentNote(null);
+    setPanelMode('create');
+    setValidationErrors([]);
+  }, []);
+
   // Load data when authenticated
   useEffect(() => {
     if (isAuthenticated) {
@@ -176,13 +184,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setValidationErrors([]);
     onCloseOtherPanels();
   };
-
-  const closeNotePanel = useCallback(() => {
-    setIsNotePanelOpen(false);
-    setCurrentNote(null);
-    setPanelMode('create');
-    setValidationErrors([]);
-  }, []);
 
   const clearValidationErrors = () => {
     setValidationErrors([]);
