@@ -1273,6 +1273,146 @@ Oanvända filer skapar förvirring och gör det svårt att förstå var kod fakt
 
 ---
 
-**Senast uppdaterad:** 2026-01-25  
+---
+
+## Bulk Operations & Hybrid Approach
+
+### Hybrid-lösning för bulk delete: Plugin-specifik pre-deletion + generisk core-helper
+
+❌ **What we did (that didn't work):**
+
+```javascript
+// Försökte göra allt i BulkOperationsHelper
+// Men notes har kopplingar till tasks som måste raderas först
+// BulkOperationsHelper kunde inte hantera plugin-specifik logik
+```
+
+✅ **What we do instead (that works):**
+
+```javascript
+// plugins/notes/model.js - Hybrid approach
+async bulkDelete(req, idsTextArray) {
+  try {
+    const pool = req.tenantPool;
+    const userId = req.session?.user?.id;
+
+    // 1. PLUGIN-SPECIFIC: Delete related tasks FIRST
+    if (pool && userId) {
+      const ids = Array.isArray(idsTextArray)
+        ? idsTextArray.map((x) => String(x).trim()).filter(Boolean)
+        : [];
+      if (ids.length > 0) {
+        const integerIds = ids.map((id) => {
+          const parsed = parseInt(id, 10);
+          if (isNaN(parsed)) {
+            throw new AppError(`Invalid ID format: ${id}`, 400, AppError.CODES.VALIDATION_ERROR);
+          }
+          return parsed;
+        });
+
+        // Delete tasks created from these notes
+        await pool.query(
+          'DELETE FROM tasks WHERE created_from_note = ANY($1::int[]) AND user_id = $2',
+          [integerIds, userId],
+        );
+      }
+    }
+
+    // 2. GENERIC: Use core BulkOperationsHelper for the actual deletion
+    return await BulkOperationsHelper.bulkDelete(req, 'notes', idsTextArray);
+  } catch (error) {
+    Logger.error('Failed to bulk delete notes', error);
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError('Failed to bulk delete notes', 500, AppError.CODES.DATABASE_ERROR);
+  }
+}
+```
+
+💡 **Why (lesson learned):**
+
+**Hybrid-lösning kombinerar plugin-specifik logik med generisk core-funktionalitet:**
+
+1. **Plugin-specifik pre-deletion**: Vissa plugins har kopplingar till andra tabeller (t.ex. notes → tasks via `created_from_note`). Dessa måste raderas FÖRE huvudobjektet för att undvika foreign key-fel eller orphaned records. Denna logik är plugin-specifik och kan inte generaliseras.
+
+2. **Generisk core-helper**: Efter pre-deletion används `BulkOperationsHelper.bulkDelete()` för den faktiska raderingen. Detta ger:
+   - Konsistent validering (max items, ID-format)
+   - Automatisk tenant isolation via Database SDK
+   - Korrekt SQL-syntax med `ANY($1::int[])` för PostgreSQL
+   - Enhetlig error handling och logging
+
+**När du implementerar bulk delete för plugins med kopplingar:**
+- Lägg plugin-specifik pre-deletion logik i plugin's `model.bulkDelete()` FÖRE anropet till `BulkOperationsHelper`
+- Använd `req.tenantPool.query()` direkt för pre-deletion (eftersom det är plugin-specifik logik)
+- Använd `BulkOperationsHelper.bulkDelete()` för den faktiska raderingen (eftersom det är generisk logik)
+- Konvertera alltid string IDs till integers för INTEGER-kolumner: `parseInt(id, 10)` och använd `ANY($1::int[])`
+
+**Exempel på när hybrid-lösning behövs:**
+- Notes → Tasks (via `created_from_note`)
+- Invoices → Invoice items (via `invoice_id`)
+- Contacts → Products (via `contact_id`)
+- Alla plugins med foreign key-kopplingar som måste raderas före huvudobjektet
+
+---
+
+### PostgreSQLAdapter._addTenantFilter() måste hantera RETURNING-klausuler korrekt
+
+❌ **What we did (that didn't work):**
+
+```javascript
+// _addTenantFilter() lade till user_id filter EFTER RETURNING
+// DELETE FROM notes WHERE id = ANY($1::int[]) RETURNING id AND user_id = $2
+// ❌ SQL syntax error: "argument of AND must be type boolean, not type integer"
+```
+
+✅ **What we do instead (that works):**
+
+```javascript
+// server/core/services/database/adapters/PostgreSQLAdapter.js
+_addTenantFilter(sql, userId) {
+  const upperSql = sql.trim().toUpperCase();
+  
+  if (upperSql.startsWith('UPDATE') || upperSql.startsWith('DELETE')) {
+    const whereIndex = upperSql.indexOf('WHERE');
+    if (whereIndex === -1) {
+      return `${sql} WHERE user_id = $${this._getParamCount(sql) + 1}`;
+    } else {
+      if (!upperSql.includes('USER_ID')) {
+        // ✅ KORREKT: Hitta RETURNING i original SQL (inte upperSql) för korrekt position
+        const returningIndex = sql.toUpperCase().indexOf('RETURNING');
+        if (returningIndex !== -1) {
+          // ✅ Infoga user_id filter FÖRE RETURNING
+          const beforeReturning = sql.substring(0, returningIndex).trim();
+          const returningClause = sql.substring(returningIndex);
+          const paramNum = this._getParamCount(sql) + 1;
+          return `${beforeReturning} AND user_id = $${paramNum} ${returningClause}`;
+        } else {
+          return `${sql} AND user_id = $${this._getParamCount(sql) + 1}`;
+        }
+      }
+    }
+  }
+  return sql;
+}
+```
+
+💡 **Why (lesson learned):**
+
+**PostgreSQLAdapter lägger automatiskt till `user_id` filter för tenant isolation på alla UPDATE/DELETE queries.** Men när SQL innehåller `RETURNING`-klausul måste `user_id`-filtret infogas FÖRE `RETURNING`, inte efter. 
+
+**Viktiga detaljer:**
+1. Använd `sql.toUpperCase().indexOf('RETURNING')` (inte `upperSql.indexOf()`) för att hitta korrekt position i original SQL-strängen
+2. Infoga `AND user_id = $N` FÖRE `RETURNING`, inte efter
+3. Behåll `RETURNING`-klausulen oförändrad efter filtret
+
+**Om du ser SQL syntax errors med "argument of AND must be type boolean":**
+- Kontrollera att `_addTenantFilter()` hanterar `RETURNING`-klausuler korrekt
+- Verifiera att `user_id`-filtret infogas FÖRE `RETURNING`, inte efter
+- Testa med bulk delete queries som använder `RETURNING id`
+
+---
+
+**Senast uppdaterad:** 2026-01-27  
 **Syfte:** Undvika att upprepa samma misstag  
-**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles, använd PluginLoader för dynamiska plugin-listor, ta bort oanvända filer, PostgreSQLAdapter returnerar rows direkt (array) - använd inte .rows i core services
+**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles, använd PluginLoader för dynamiska plugin-listor, ta bort oanvända filer, PostgreSQLAdapter returnerar rows direkt (array) - använd inte .rows i core services, hybrid-lösning för bulk delete: plugin-specifik pre-deletion + generisk core-helper, PostgreSQLAdapter._addTenantFilter() måste hantera RETURNING-klausuler korrekt

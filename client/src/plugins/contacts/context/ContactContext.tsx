@@ -1,8 +1,8 @@
 import { Building, User } from 'lucide-react';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-import { useApp } from '@/core/api/AppContext';
 import { Badge } from '@/components/ui/badge';
+import { useApp } from '@/core/api/AppContext';
 
 import { contactsApi } from '../api/contactsApi';
 import { Contact, ValidationError } from '../types/contacts';
@@ -276,10 +276,10 @@ export function ContactProvider({
       return true;
     } catch (error: any) {
       console.error('Failed to save contact:', error);
-      
+
       // V2: Handle standardized error format from backend
       const validationErrors: ValidationError[] = [];
-      
+
       // Check if backend returned validation errors in details array
       if (error?.details && Array.isArray(error.details)) {
         error.details.forEach((detail: any) => {
@@ -292,13 +292,14 @@ export function ContactProvider({
           }
         });
       }
-      
+
       // If no validation errors from backend, use error message
       if (validationErrors.length === 0) {
-        const errorMessage = error?.message || error?.error || 'Failed to save contact. Please try again.';
+        const errorMessage =
+          error?.message || error?.error || 'Failed to save contact. Please try again.';
         validationErrors.push({ field: 'general', message: errorMessage });
       }
-      
+
       setValidationErrors(validationErrors);
       return false;
     }
@@ -330,7 +331,9 @@ export function ContactProvider({
             <div>
               {contactNumber} • {name}
             </div>
-            <div className="text-sm font-normal text-gray-600 dark:text-gray-400 mt-1">{orgNumber}</div>
+            <div className="text-sm font-normal text-gray-600 dark:text-gray-400 mt-1">
+              {orgNumber}
+            </div>
           </div>
         );
       }

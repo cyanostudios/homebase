@@ -114,7 +114,19 @@ class PostgreSQLAdapter extends DatabaseService {
       } else {
         // Check if user_id already in WHERE
         if (!upperSql.includes('USER_ID')) {
-          return `${sql} AND user_id = $${this._getParamCount(sql) + 1}`;
+          // Check if query has RETURNING clause - if so, insert AND before RETURNING
+          // Use case-insensitive search in original SQL to get correct position
+          const returningIndex = sql.toUpperCase().indexOf('RETURNING');
+          if (returningIndex !== -1) {
+            // Insert AND user_id = $N before RETURNING
+            const beforeReturning = sql.substring(0, returningIndex).trim();
+            const returningClause = sql.substring(returningIndex);
+            const paramNum = this._getParamCount(sql) + 1;
+            return `${beforeReturning} AND user_id = $${paramNum} ${returningClause}`;
+          } else {
+            // No RETURNING clause - append at end
+            return `${sql} AND user_id = $${this._getParamCount(sql) + 1}`;
+          }
         }
       }
     }

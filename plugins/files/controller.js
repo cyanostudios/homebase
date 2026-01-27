@@ -123,8 +123,22 @@ class FilesController {
   // body: { ids: string[] }
   async bulkDelete(req, res) {
     try {
+      // Debug logging
+      Logger.info('Bulk delete request received', {
+        body: req.body,
+        bodyType: typeof req.body,
+        bodyKeys: req.body ? Object.keys(req.body) : 'null/undefined',
+        idsRaw: req.body?.ids,
+        idsType: typeof req.body?.ids,
+        isArray: Array.isArray(req.body?.ids),
+      });
+
       const idsRaw = req.body?.ids;
       if (!Array.isArray(idsRaw)) {
+        Logger.warn('Bulk delete validation failed - not an array', {
+          idsRaw,
+          idsType: typeof idsRaw,
+        });
         return res
           .status(400)
           .json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });

@@ -1,6 +1,5 @@
 import React from 'react';
 
-import { cn } from '@/lib/utils';
 import {
   Sheet,
   SheetContent,
@@ -9,6 +8,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
 
 interface UniversalPanelProps {
   isOpen: boolean;
@@ -68,13 +68,15 @@ export function UniversalPanel({
     <>
       {/* Hide overlay if showBackdrop is false */}
       {!showBackdrop && isOpen && (
-        <style dangerouslySetInnerHTML={{
-          __html: `
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
             [data-radix-dialog-overlay] {
               display: none !important;
             }
-          `
-        }} />
+          `,
+          }}
+        />
       )}
       <Sheet open={isOpen} onOpenChange={handleOpenChange} modal={showBackdrop}>
         <SheetContent

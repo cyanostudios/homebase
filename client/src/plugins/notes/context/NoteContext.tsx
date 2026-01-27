@@ -1,7 +1,16 @@
 import { StickyNote } from 'lucide-react';
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import { bulkApi } from '@/core/api/bulkApi';
+import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 
 import { notesApi } from '../api/notesApi';
 import { Note, ValidationError } from '../types/notes';
@@ -23,8 +32,16 @@ interface NoteContextType {
   closeNotePanel: () => void;
   saveNote: (noteData: any) => Promise<boolean>;
   deleteNote: (id: string) => Promise<void>;
+  deleteNotes: (ids: string[]) => Promise<void>;
   duplicateNote: (note: Note) => Promise<void>;
   clearValidationErrors: () => void;
+  // Bulk selection
+  selectedNoteIds: string[];
+  toggleNoteSelected: (id: string) => void;
+  selectAllNotes: (ids: string[]) => void;
+  clearNoteSelection: () => void;
+  selectedCount: number;
+  isSelected: (id: string) => boolean;
 
   // NEW: Panel Title Functions
   getPanelTitle: (mode: string, item: Note | null, isMobileView: boolean) => any;
@@ -52,6 +69,16 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   // Data state
   const [notes, setNotes] = useState<Note[]>([]);
 
+  // Use core bulk selection hook
+  const {
+    selectedIds: selectedNoteIds,
+    toggleSelection: toggleNoteSelectedCore,
+    selectAll: selectAllNotesCore,
+    clearSelection: clearNoteSelectionCore,
+    isSelected,
+    selectedCount,
+  } = useBulkSelection();
+
   // Load data when authenticated
   useEffect(() => {
     if (isAuthenticated) {
@@ -67,7 +94,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return () => {
       unregisterPanelCloseFunction('notes');
     };
-  }, []);
+  }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeNotePanel]);
 
   // Global functions for form submission
   useEffect(() => {
@@ -150,12 +177,12 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     onCloseOtherPanels();
   };
 
-  const closeNotePanel = () => {
+  const closeNotePanel = useCallback(() => {
     setIsNotePanelOpen(false);
     setCurrentNote(null);
     setPanelMode('create');
     setValidationErrors([]);
-  };
+  }, []);
 
   const clearValidationErrors = () => {
     setValidationErrors([]);
@@ -214,10 +241,10 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       return true;
     } catch (error: any) {
       console.error('Failed to save note:', error);
-      
+
       // V2: Handle standardized error format from backend
       const validationErrors: ValidationError[] = [];
-      
+
       // Check if backend returned validation errors in details array
       if (error?.details && Array.isArray(error.details)) {
         error.details.forEach((detail: any) => {
@@ -230,13 +257,14 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           }
         });
       }
-      
+
       // If no validation errors from backend, use error message
       if (validationErrors.length === 0) {
-        const errorMessage = error?.message || error?.error || 'Failed to save note. Please try again.';
+        const errorMessage =
+          error?.message || error?.error || 'Failed to save note. Please try again.';
         validationErrors.push({ field: 'general', message: errorMessage });
       }
-      
+
       setValidationErrors(validationErrors);
       return false;
     }
@@ -251,6 +279,10 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         console.log('Notes after delete:', newNotes);
         return newNotes;
       });
+      // Remove from selection if selected
+      if (isSelected(id)) {
+        toggleNoteSelectedCore(id);
+      }
     } catch (error: any) {
       console.error('Failed to delete note:', error);
       // V2: Handle standardized error format
@@ -258,6 +290,43 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       alert(errorMessage);
     }
   };
+
+  // Bulk delete using core bulkApi
+  const deleteNotes = async (ids: string[]) => {
+    const uniqueIds = Array.from(new Set((ids || []).map(String))).filter(Boolean);
+    if (!uniqueIds.length) {
+      return;
+    }
+
+    try {
+      await bulkApi.bulkDelete('notes', uniqueIds);
+      setNotes((prev) => prev.filter((note) => !uniqueIds.includes(String(note.id))));
+      clearNoteSelectionCore();
+    } catch (error: any) {
+      console.error('Bulk delete failed:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to delete notes';
+      setValidationErrors([{ field: 'general', message: errorMessage }]);
+    }
+  };
+
+  // Selection helpers - wrap core hook functions for backward compatibility
+  const toggleNoteSelected = useCallback(
+    (id: string) => {
+      toggleNoteSelectedCore(id);
+    },
+    [toggleNoteSelectedCore],
+  );
+
+  const selectAllNotes = useCallback(
+    (ids: string[]) => {
+      selectAllNotesCore(ids);
+    },
+    [selectAllNotesCore],
+  );
+
+  const clearNoteSelection = useCallback(() => {
+    clearNoteSelectionCore();
+  }, [clearNoteSelectionCore]);
 
   const duplicateNote = async (originalNote: Note) => {
     try {
@@ -282,13 +351,14 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     } catch (error: any) {
       console.error('Failed to duplicate note:', error);
       // V2: Handle standardized error format
-      const errorMessage = error?.message || error?.error || 'Failed to duplicate note. Please try again.';
+      const errorMessage =
+        error?.message || error?.error || 'Failed to duplicate note. Please try again.';
       alert(errorMessage);
     }
   };
 
   // NEW: Panel Title Functions (moved from PanelTitles.tsx)
-  const getPanelTitle = (mode: string, item: Note | null, isMobileView: boolean) => {
+  const getPanelTitle = (mode: string, item: Note | null, _isMobileView: boolean) => {
     // View mode with item
     if (mode === 'view' && item) {
       return item.title || `Note #${item.id}`;
@@ -355,8 +425,16 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     closeNotePanel,
     saveNote,
     deleteNote,
+    deleteNotes,
     duplicateNote,
     clearValidationErrors,
+    // Bulk selection
+    selectedNoteIds,
+    toggleNoteSelected,
+    selectAllNotes,
+    clearNoteSelection,
+    selectedCount,
+    isSelected,
 
     // NEW: Panel Title Functions
     getPanelTitle,

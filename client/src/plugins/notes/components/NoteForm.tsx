@@ -90,7 +90,9 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   }, [markClean]);
 
   const handleSubmit = useCallback(async () => {
-    if (isCurrentlySubmitting) return; // Prevent double submission
+    if (isCurrentlySubmitting) {
+      return;
+    } // Prevent double submission
 
     setIsSubmitting(true);
     try {
@@ -180,7 +182,11 @@ export const NoteForm: React.FC<NoteFormProps> = ({
             <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400 dark:text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                  <svg
+                    className="h-5 w-5 text-red-400 dark:text-red-500"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
                     <path
                       fillRule="evenodd"
                       d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -189,7 +195,9 @@ export const NoteForm: React.FC<NoteFormProps> = ({
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800 dark:text-red-400">Cannot save note</h3>
+                  <h3 className="text-sm font-medium text-red-800 dark:text-red-400">
+                    Cannot save note
+                  </h3>
                   <div className="mt-2 text-sm text-red-700 dark:text-red-300">
                     <p>Please fix the following errors before saving:</p>
                     <ul className="list-disc list-inside mt-1">
@@ -212,7 +220,9 @@ export const NoteForm: React.FC<NoteFormProps> = ({
             Note Title
           </Heading>
           <div>
-            <Label htmlFor="note-title" className="mb-1">Title</Label>
+            <Label htmlFor="note-title" className="mb-1">
+              Title
+            </Label>
             <Input
               id="note-title"
               type="text"
@@ -223,7 +233,9 @@ export const NoteForm: React.FC<NoteFormProps> = ({
               required
             />
             {getFieldError('title') && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{getFieldError('title')?.message}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                {getFieldError('title')?.message}
+              </p>
             )}
           </div>
         </Card>
@@ -235,7 +247,10 @@ export const NoteForm: React.FC<NoteFormProps> = ({
           </Heading>
           <div>
             <Label htmlFor="note-content" className="mb-1">
-              Content <span className="text-xs text-gray-500 dark:text-gray-400">(Type @ to mention contacts)</span>
+              Content{' '}
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                (Type @ to mention contacts)
+              </span>
             </Label>
             <MentionTextarea
               value={formData.content}
@@ -245,7 +260,9 @@ export const NoteForm: React.FC<NoteFormProps> = ({
               className={getFieldError('content') ? 'border-red-500' : ''}
             />
             {getFieldError('content') && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{getFieldError('content')?.message}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                {getFieldError('content')?.message}
+              </p>
             )}
 
             {/* Mentions preview */}

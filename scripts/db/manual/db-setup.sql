@@ -36,7 +36,6 @@ FROM u CROSS JOIN (
     ('files'),
     ('invoices'),
     ('notes'),
-    ('profixio'),
     ('tasks')
 ) AS p(plugin_name)
 ON CONFLICT (user_id, plugin_name) DO UPDATE SET enabled = EXCLUDED.enabled;

@@ -1,15 +1,15 @@
 // plugins/notes/index.js
-// Notes plugin initialization (V2 - uses ServiceManager)
+// V3: Uses PluginSDK context instead of legacy (pool, requirePlugin) signature
 const NoteModel = require('./model');
 const NoteController = require('./controller');
 const createNoteRoutes = require('./routes');
 const config = require('./plugin.config');
 
-function initializeNotesPlugin(pool, requirePlugin) {
-  // V2: Model and controller no longer need pool - ServiceManager provides database service
+function initializeNotesPlugin(context) {
+  // V3: Model and controller use @homebase/core SDK (no pool needed)
   const model = new NoteModel();
   const controller = new NoteController(model);
-  const router = createNoteRoutes(controller, requirePlugin);
+  const router = createNoteRoutes(controller, context);
 
   return {
     config,

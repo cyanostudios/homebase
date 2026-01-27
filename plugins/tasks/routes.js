@@ -2,18 +2,24 @@
 // Tasks routes with V2 security (CSRF protection and input validation)
 const express = require('express');
 const router = express.Router();
+const config = require('./plugin.config');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
 
-function createTaskRoutes(controller, requirePlugin) {
+function createTaskRoutes(controller, context) {
+  // V3: Get requirePlugin from context.middleware instead of parameter
+  const requirePlugin =
+    context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
+  const gate = requirePlugin(config.name); // auth/enablement guard
+
   // GET /api/tasks
-  router.get('/', requirePlugin('tasks'), (req, res) => {
+  router.get('/', gate, (req, res) => {
     controller.getAll(req, res);
   });
 
   // POST /api/tasks - Create new task
   router.post('/',
-    requirePlugin('tasks'),
+    gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.string('title', 1, 255),
     commonRules.optionalString('content', 10000),
@@ -29,7 +35,7 @@ function createTaskRoutes(controller, requirePlugin) {
 
   // PUT /api/tasks/:id - Update task
   router.put('/:id',
-    requirePlugin('tasks'),
+    gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     commonRules.string('title', 1, 255),
@@ -46,7 +52,7 @@ function createTaskRoutes(controller, requirePlugin) {
 
   // DELETE /api/tasks/:id - Delete task
   router.delete('/:id',
-    requirePlugin('tasks'),
+    gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     validateRequest,

@@ -144,7 +144,7 @@ if (!success) {
    ✅ AUTOMATED: Plugins are automatically discovered from the filesystem.
    - Only directories with plugin.config.js are included
    - Plugins are validated before being added to available list
-   - Some plugins (e.g., read-only like profixio) are excluded from DEFAULT_USER_PLUGINS
+   - Some plugins (e.g., read-only or experimental) are excluded from DEFAULT_USER_PLUGINS
      No manual update required in constants.js.
 
    b) Grant access to superadmin:

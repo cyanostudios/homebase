@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
 import { Share, Copy, Check, Download, Copy as CopyIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Invoice } from '../types/invoices';
+
 import { invoicesApi } from '../api/invoicesApi';
+import { useInvoiceStatusActions } from '../hooks/useInvoiceStatusActions';
+import { Invoice } from '../types/invoices';
+
 import { InvoiceStatusButtons } from './InvoiceStatusButtons';
 import { InvoiceStatusModal } from './InvoiceStatusModal';
-import { useInvoiceStatusActions } from '../hooks/useInvoiceStatusActions';
 
 interface InvoiceShare {
   id: string;
@@ -27,7 +30,7 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
   // Status actions
   const {
     showStatusModal,
-    pendingStatus, 
+    pendingStatus,
     pendingInvoice,
     handleStatusChange,
     handleModalConfirm,
@@ -40,7 +43,7 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
   const [copied, setCopied] = useState(false);
   const [showCreateShareModal, setShowCreateShareModal] = useState(false);
   const [shareValidUntil, setShareValidUntil] = useState('');
-  
+
   // PDF state
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
 
@@ -60,8 +63,8 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
     try {
       const shares = await invoicesApi.getShares(invoice.id);
       // Get the most recent active share (not expired)
-      const activeShare = shares.find((share: InvoiceShare) => 
-        new Date(share.validUntil) > new Date()
+      const activeShare = shares.find(
+        (share: InvoiceShare) => new Date(share.validUntil) > new Date(),
       );
       setExistingShare(activeShare || null);
     } catch (error) {
@@ -74,7 +77,7 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
     setIsDownloadingPDF(true);
     try {
       const blob = await invoicesApi.downloadPdf(invoice.id);
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -84,7 +87,6 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
     } catch (error) {
       console.error('Failed to download PDF:', error);
       alert('Failed to download PDF. Please try again.');
@@ -95,11 +97,13 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
 
   // Handle share creation
   const handleCreateShare = async () => {
-    if (!shareValidUntil) return;
+    if (!shareValidUntil) {
+      return;
+    }
 
     try {
       setIsCreatingShare(true);
-      
+
       const share = await invoicesApi.createShare(invoice.id, shareValidUntil);
       setExistingShare(share);
       setShowCreateShareModal(false);
@@ -108,7 +112,6 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
-      
     } catch (error) {
       console.error('Failed to create share:', error);
       alert(error instanceof Error ? error.message : 'Failed to create share link');
@@ -119,8 +122,10 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
 
   // Handle copy share URL
   const handleCopyUrl = async () => {
-    if (!existingShare) return;
-    
+    if (!existingShare) {
+      return;
+    }
+
     try {
       const url = generateShareUrl(existingShare.shareToken);
       await navigator.clipboard.writeText(url);
@@ -133,8 +138,10 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
 
   // Handle revoke share
   const handleRevokeShare = async () => {
-    if (!existingShare) return;
-    
+    if (!existingShare) {
+      return;
+    }
+
     try {
       await invoicesApi.revokeShare(existingShare.id);
       setExistingShare(null);
@@ -155,9 +162,9 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
   return (
     <>
       {/* Status Actions */}
-      <InvoiceStatusButtons 
-        invoice={invoice} 
-        onStatusChange={(status) => handleStatusChange(invoice, status)} 
+      <InvoiceStatusButtons
+        invoice={invoice}
+        onStatusChange={(status) => handleStatusChange(invoice, status)}
       />
 
       {/* Other Actions */}
@@ -165,8 +172,8 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
         <div className="text-xs font-medium text-foreground mb-2">Other Actions</div>
         <div className="flex flex-wrap gap-3">
           {!existingShare && (
-            <Button 
-              variant="secondary" 
+            <Button
+              variant="secondary"
               size="sm"
               icon={Share}
               onClick={() => setShowCreateShareModal(true)}
@@ -174,9 +181,9 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
               Share Invoice
             </Button>
           )}
-          
-          <Button 
-            variant="secondary" 
+
+          <Button
+            variant="secondary"
             size="sm"
             icon={Download}
             onClick={handleDownloadPDF}
@@ -189,45 +196,56 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
 
       {/* Share URL Display */}
       {existingShare && (
-        <div className={`mt-4 p-4 rounded-lg border ${
-          isShareExpired 
-            ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800' 
-            : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
-        }`}>
-          <div className={`text-sm font-medium mb-2 ${
-            isShareExpired ? 'text-red-900 dark:text-red-400' : 'text-blue-900 dark:text-blue-400'
-          }`}>
+        <div
+          className={`mt-4 p-4 rounded-lg border ${
+            isShareExpired
+              ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+              : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+          }`}
+        >
+          <div
+            className={`text-sm font-medium mb-2 ${
+              isShareExpired ? 'text-red-900 dark:text-red-400' : 'text-blue-900 dark:text-blue-400'
+            }`}
+          >
             {isShareExpired ? 'Share Link Expired' : 'Active Share Link'}
           </div>
-          
+
           <div className="flex items-center gap-2 mb-2">
             <div className="flex-1 p-2 bg-background rounded border border-border text-sm font-mono break-all text-foreground">
               {shareUrl}
             </div>
             {!isShareExpired && (
-              <Button 
-                variant="secondary" 
+              <Button
+                variant="secondary"
                 size="sm"
                 icon={copied ? Check : Copy}
                 onClick={handleCopyUrl}
-                className={copied ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' : ''}
+                className={
+                  copied
+                    ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300'
+                    : ''
+                }
               >
                 {copied ? 'Copied!' : 'Copy'}
               </Button>
             )}
           </div>
 
-          <div className={`text-xs ${
-            isShareExpired ? 'text-red-700 dark:text-red-400' : 'text-blue-700 dark:text-blue-400'
-          }`}>
+          <div
+            className={`text-xs ${
+              isShareExpired ? 'text-red-700 dark:text-red-400' : 'text-blue-700 dark:text-blue-400'
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div>
-                {isShareExpired ? 'Expired on' : 'Expires on'} {new Date(existingShare.validUntil).toLocaleDateString()}
+                {isShareExpired ? 'Expired on' : 'Expires on'}{' '}
+                {new Date(existingShare.validUntil).toLocaleDateString()}
                 {existingShare.accessedCount > 0 && (
                   <span className="ml-2">• Accessed {existingShare.accessedCount} times</span>
                 )}
               </div>
-              <button 
+              <button
                 onClick={handleRevokeShare}
                 className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-xs underline"
               >
@@ -255,7 +273,9 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Create Share Link</h2>
-                <p className="text-xs text-muted-foreground">Invoice {invoice.invoiceNumber || invoice.id}</p>
+                <p className="text-xs text-muted-foreground">
+                  Invoice {invoice.invoiceNumber || invoice.id}
+                </p>
               </div>
             </div>
 
@@ -264,7 +284,7 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
               <p className="text-sm text-muted-foreground mb-4">
                 Create a secure link to share this invoice with your customer or stakeholders.
               </p>
-              
+
               <div className="mb-4">
                 <Label htmlFor="share-valid-until" className="mb-1">
                   Valid Until
@@ -285,11 +305,7 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
 
             {/* Footer */}
             <div className="flex justify-end space-x-3 p-4 border-t border-border">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowCreateShareModal(false)}
-              >
+              <Button variant="secondary" size="sm" onClick={() => setShowCreateShareModal(false)}>
                 Cancel
               </Button>
               <Button

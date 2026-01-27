@@ -165,7 +165,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
   // ⬇️ Fix: Sluta testa truthiness på en void-retur. Hantera istället via try/catch.
   const handleSubmit = useCallback(async () => {
-    if (isCurrentlySubmitting) return; // Prevent double submission
+    if (isCurrentlySubmitting) {
+      return;
+    } // Prevent double submission
 
     setIsSubmitting(true);
     try {
@@ -315,7 +317,11 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400 dark:text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                  <svg
+                    className="h-5 w-5 text-red-400 dark:text-red-500"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
                     <path
                       fillRule="evenodd"
                       d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -324,7 +330,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800 dark:text-red-400">Cannot save contact</h3>
+                  <h3 className="text-sm font-medium text-red-800 dark:text-red-400">
+                    Cannot save contact
+                  </h3>
                   <div className="mt-2 text-sm text-red-700 dark:text-red-300">
                     <p>Please fix the following errors before saving:</p>
                     <ul className="list-disc list-inside mt-1">
@@ -350,7 +358,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           {/* Mobile: Stack vertically, Desktop: Side by side */}
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
-              <Label htmlFor="contactNumber" className="mb-1">Contact Number</Label>
+              <Label htmlFor="contactNumber" className="mb-1">
+                Contact Number
+              </Label>
               <Input
                 id="contactNumber"
                 type="text"
@@ -410,7 +420,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           {formData.contactType === 'company' ? (
             <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
               <div>
-                <Label htmlFor="companyName" className="mb-1">Company Name</Label>
+                <Label htmlFor="companyName" className="mb-1">
+                  Company Name
+                </Label>
                 <Input
                   id="companyName"
                   type="text"
@@ -427,7 +439,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               </div>
 
               <div>
-                <Label htmlFor="companyType" className="mb-1">Company Type</Label>
+                <Label htmlFor="companyType" className="mb-1">
+                  Company Type
+                </Label>
                 <NativeSelect
                   id="companyType"
                   value={formData.companyType}
@@ -460,7 +474,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               </div>
 
               <div>
-                <Label htmlFor="vatNumber" className="mb-1">VAT Number</Label>
+                <Label htmlFor="vatNumber" className="mb-1">
+                  VAT Number
+                </Label>
                 <Input
                   id="vatNumber"
                   type="text"
@@ -473,7 +489,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           ) : (
             <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
               <div>
-                <Label htmlFor="fullName" className="mb-1">Full Name</Label>
+                <Label htmlFor="fullName" className="mb-1">
+                  Full Name
+                </Label>
                 <Input
                   id="fullName"
                   type="text"
@@ -518,7 +536,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           </Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
-              <Label htmlFor="email" className="mb-1">Email</Label>
+              <Label htmlFor="email" className="mb-1">
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -540,7 +560,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             </div>
 
             <div>
-              <Label htmlFor="website" className="mb-1">Website</Label>
+              <Label htmlFor="website" className="mb-1">
+                Website
+              </Label>
               <Input
                 id="website"
                 type="url"
@@ -551,7 +573,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             </div>
 
             <div>
-              <Label htmlFor="phone" className="mb-1">Phone 1</Label>
+              <Label htmlFor="phone" className="mb-1">
+                Phone 1
+              </Label>
               <Input
                 id="phone"
                 type="tel"
@@ -562,7 +586,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             </div>
 
             <div>
-              <Label htmlFor="phone2" className="mb-1">Phone 2</Label>
+              <Label htmlFor="phone2" className="mb-1">
+                Phone 2
+              </Label>
               <Input
                 id="phone2"
                 type="tel"
@@ -593,7 +619,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   className="border-b border-gray-100 dark:border-gray-800 last:border-b-0 pb-4 last:pb-0"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Address {index + 1}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Address {index + 1}
+                    </span>
                     <Button
                       type="button"
                       onClick={() => removeAddress(address.id)}
@@ -672,7 +700,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                     </div>
 
                     <div>
-                      <Label htmlFor={`address-city-${address.id}`} className="mb-1">City</Label>
+                      <Label htmlFor={`address-city-${address.id}`} className="mb-1">
+                        City
+                      </Label>
                       <Input
                         id={`address-city-${address.id}`}
                         type="text"
@@ -682,7 +712,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                     </div>
 
                     <div>
-                      <Label htmlFor={`address-region-${address.id}`} className="mb-1">Region</Label>
+                      <Label htmlFor={`address-region-${address.id}`} className="mb-1">
+                        Region
+                      </Label>
                       <Input
                         id={`address-region-${address.id}`}
                         type="text"
@@ -731,7 +763,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             </div>
 
             {formData.contactPersons.length === 0 ? (
-              <p className="text-gray-500 dark:text-gray-400 text-sm">No contact persons added yet.</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                No contact persons added yet.
+              </p>
             ) : (
               <div className="space-y-4">
                 {formData.contactPersons.map((person, index) => (
@@ -754,7 +788,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
                     <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
                       <div>
-                        <Label htmlFor={`person-name-${person.id}`} className="mb-1">Name</Label>
+                        <Label htmlFor={`person-name-${person.id}`} className="mb-1">
+                          Name
+                        </Label>
                         <Input
                           id={`person-name-${person.id}`}
                           type="text"
@@ -814,7 +850,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           </Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
-              <Label htmlFor="taxRate" className="mb-1">Tax Rate (%)</Label>
+              <Label htmlFor="taxRate" className="mb-1">
+                Tax Rate (%)
+              </Label>
               <NativeSelect
                 id="taxRate"
                 value={formData.taxRate}
@@ -844,7 +882,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             </div>
 
             <div>
-              <Label htmlFor="currency" className="mb-1">Currency</Label>
+              <Label htmlFor="currency" className="mb-1">
+                Currency
+              </Label>
               <NativeSelect
                 id="currency"
                 value={formData.currency}
@@ -859,7 +899,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             </div>
 
             <div>
-              <Label htmlFor="fTax" className="mb-1">F-Tax</Label>
+              <Label htmlFor="fTax" className="mb-1">
+                F-Tax
+              </Label>
               <NativeSelect
                 id="fTax"
                 value={formData.fTax}
@@ -878,7 +920,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             Notes
           </Heading>
           <div>
-            <Label htmlFor="notes" className="mb-1">Additional Notes</Label>
+            <Label htmlFor="notes" className="mb-1">
+              Additional Notes
+            </Label>
             <Textarea
               id="notes"
               value={formData.notes}

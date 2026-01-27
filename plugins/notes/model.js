@@ -2,6 +2,7 @@
 // Notes model - handles note CRUD operations with V2 ServiceManager
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 class NoteModel {
   constructor() {
@@ -109,6 +110,44 @@ class NoteModel {
         throw error;
       }
       throw new AppError('Failed to delete note', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async bulkDelete(req, idsTextArray) {
+    try {
+      const pool = req.tenantPool;
+      const userId = req.session?.user?.id;
+
+      // First, delete all tasks that were created from these notes
+      if (pool && userId) {
+        const ids = Array.isArray(idsTextArray)
+          ? idsTextArray.map((x) => String(x).trim()).filter(Boolean)
+          : [];
+        if (ids.length > 0) {
+          // Convert string IDs to integers for INTEGER column comparison
+          const integerIds = ids.map((id) => {
+            const parsed = parseInt(id, 10);
+            if (isNaN(parsed)) {
+              throw new AppError(`Invalid ID format: ${id}`, 400, AppError.CODES.VALIDATION_ERROR);
+            }
+            return parsed;
+          });
+
+          await pool.query(
+            'DELETE FROM tasks WHERE created_from_note = ANY($1::int[]) AND user_id = $2',
+            [integerIds, userId],
+          );
+        }
+      }
+
+      // Use core BulkOperationsHelper for generic bulk delete logic
+      return await BulkOperationsHelper.bulkDelete(req, 'notes', idsTextArray);
+    } catch (error) {
+      Logger.error('Failed to bulk delete notes', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to bulk delete notes', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 

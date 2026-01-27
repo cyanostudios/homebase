@@ -264,6 +264,113 @@ Key Features:
 ✅ Keyboard navigation attributes
 ✅ Search functionality
 ✅ Empty states
+✅ Bulk selection support (using core hooks)
+
+Bulk Operations
+For bulk delete and other bulk operations, use core hooks and components:
+
+client/src/plugins/my-plugin/components/MyPluginList.tsx:
+import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { bulkApi } from '@/core/api/bulkApi';
+import { Trash2 } from 'lucide-react';
+
+export const MyPluginList: React.FC = () => {
+  const { items, deleteItems } = useMyPlugin();
+  const {
+    selectedIds,
+    toggleSelection,
+    selectAll,
+    clearSelection,
+    selectedCount,
+    isSelected,
+  } = useBulkSelection();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setDeleting(true);
+    try {
+      await bulkApi.bulkDelete('my-plugin', selectedIds);
+      // Update local state
+      setItems((prev) => prev.filter((item) => !selectedIds.includes(String(item.id))));
+      clearSelection();
+      setShowDeleteModal(false);
+    } catch (error) {
+      console.error('Bulk delete failed:', error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div>
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={selectedCount}
+        onClearSelection={clearSelection}
+        actions={[
+          {
+            label: 'Delete…',
+            icon: Trash2,
+            onClick: () => setShowDeleteModal(true),
+            variant: 'destructive',
+          },
+        ]}
+      />
+
+      {/* List with checkboxes */}
+      <table>
+        <thead>
+          <tr>
+            <th>
+              <input
+                type="checkbox"
+                checked={visibleIds.every((id) => isSelected(id))}
+                onChange={() => {
+                  if (visibleIds.every((id) => isSelected(id))) {
+                    const remaining = selectedIds.filter((id) => !visibleIds.includes(id));
+                    selectAll(remaining);
+                  } else {
+                    selectAll([...selectedIds, ...visibleIds]);
+                  }
+                }}
+              />
+            </th>
+            {/* ... other columns */}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr key={item.id}>
+              <td>
+                <input
+                  type="checkbox"
+                  checked={isSelected(item.id)}
+                  onChange={() => toggleSelection(item.id)}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </td>
+              {/* ... other cells */}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Bulk Delete Modal */}
+      <BulkDeleteModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleBulkDelete}
+        itemCount={selectedCount}
+        itemLabel="items"
+        isLoading={deleting}
+      />
+    </div>
+  );
+};
 
 
 Form Component
@@ -608,7 +715,7 @@ After implementing your plugin, you must register it to make it visible in the s
    The superadmin (admin@homebase.se) needs the plugin added to their user_plugin_access.
 
    Option A: Use a script (recommended)
-   // Create scripts/add-my-plugin-to-admin.js (similar to add-profixio-to-admin.js)
+   // Create scripts/add-my-plugin-to-admin.js (similar to other plugin scripts)
    // Run: node scripts/add-my-plugin-to-admin.js
 
    Option B: Manual SQL

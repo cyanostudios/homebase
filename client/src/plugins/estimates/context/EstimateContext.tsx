@@ -1,8 +1,8 @@
 import { Calculator } from 'lucide-react';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-import { useApp } from '@/core/api/AppContext';
 import { Badge } from '@/components/ui/badge';
+import { useApp } from '@/core/api/AppContext';
 
 import { estimatesApi } from '../api/estimatesApi';
 import { PublicRouteHandler } from '../components/PublicRouteHandler';
@@ -241,10 +241,10 @@ export function EstimateProvider({
       return true;
     } catch (error: any) {
       console.error('API Error when saving estimate:', error);
-      
+
       // V2: Handle standardized error format from backend
       const validationErrors: ValidationError[] = [];
-      
+
       // Check if backend returned validation errors in details array
       if (error?.details && Array.isArray(error.details)) {
         error.details.forEach((detail: any) => {
@@ -257,13 +257,14 @@ export function EstimateProvider({
           }
         });
       }
-      
+
       // If no validation errors from backend, use error message
       if (validationErrors.length === 0) {
-        const errorMessage = error?.message || error?.error || 'Failed to save estimate. Please try again.';
+        const errorMessage =
+          error?.message || error?.error || 'Failed to save estimate. Please try again.';
         validationErrors.push({ field: 'general', message: errorMessage });
       }
-      
+
       setValidationErrors(validationErrors);
       return false;
     }
@@ -314,7 +315,8 @@ export function EstimateProvider({
     } catch (error: any) {
       console.error('Failed to duplicate estimate:', error);
       // V2: Handle standardized error format
-      const errorMessage = error?.message || error?.error || 'Failed to duplicate estimate. Please try again.';
+      const errorMessage =
+        error?.message || error?.error || 'Failed to duplicate estimate. Please try again.';
       alert(errorMessage);
     }
   };

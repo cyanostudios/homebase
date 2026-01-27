@@ -1,8 +1,10 @@
 // client/src/plugins/files/components/FileForm.tsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Upload, File as FileIcon, Trash2, AlertTriangle } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
 import { Card } from '@/components/ui/card';
 import { Heading, Text } from '@/core/ui/Typography';
+
 import { useFiles } from '../hooks/useFiles';
 import type { ValidationError } from '../types/files';
 
@@ -25,7 +27,8 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const getErrors = useCallback(
-    (field: string) => validationErrors.filter((e: ValidationError) => e.field === field).map((e) => e.message),
+    (field: string) =>
+      validationErrors.filter((e: ValidationError) => e.field === field).map((e) => e.message),
     [validationErrors],
   );
   const filesErrors = getErrors('_files');
@@ -58,22 +61,30 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
   const toId = (f: File) => `${f.name}-${f.size}-${f.lastModified}`;
   const addFiles = (fs: File[] | FileList) => {
     const list: File[] = Array.from(fs as ArrayLike<File>);
-    if (!list.length) return;
+    if (!list.length) {
+      return;
+    }
     setItems((prev) => {
       const existing = new Set(prev.map((p) => p.id));
       const merged = [...prev];
       for (const f of list) {
         const id = toId(f);
-        if (!existing.has(id)) merged.push({ id, file: f });
+        if (!existing.has(id)) {
+          merged.push({ id, file: f });
+        }
       }
       return merged;
     });
     // användaren ändrade valet → rensa visade fel
-    if (hasAnyError) clearValidationErrors();
+    if (hasAnyError) {
+      clearValidationErrors();
+    }
   };
   const remove = (id: string) => {
     setItems((prev) => prev.filter((p) => p.id !== id));
-    if (hasAnyError) clearValidationErrors();
+    if (hasAnyError) {
+      clearValidationErrors();
+    }
   };
 
   const onDrop: React.DragEventHandler<HTMLDivElement> = (e) => {
@@ -87,11 +98,16 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
         const it = dt.items[i];
         if (it.kind === 'file') {
           const f = it.getAsFile();
-          if (f) picked.push(f);
+          if (f) {
+            picked.push(f);
+          }
         }
       }
-      if (picked.length) addFiles(picked);
-      else if (dt.files?.length) addFiles(dt.files);
+      if (picked.length) {
+        addFiles(picked);
+      } else if (dt.files?.length) {
+        addFiles(dt.files);
+      }
     } else if (dt?.files?.length) {
       addFiles(dt.files);
     }
@@ -102,12 +118,16 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
   const onDragOver: React.DragEventHandler<HTMLDivElement> = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!dragOver) setDragOver(true);
+    if (!dragOver) {
+      setDragOver(true);
+    }
   };
   const onDragEnter: React.DragEventHandler<HTMLDivElement> = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!dragOver) setDragOver(true);
+    if (!dragOver) {
+      setDragOver(true);
+    }
   };
   const onDragLeave: React.DragEventHandler<HTMLDivElement> = (e) => {
     e.preventDefault();
@@ -115,7 +135,9 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
     setDragOver(false);
   };
   const onChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
-    if (e.target.files) addFiles(e.target.files);
+    if (e.target.files) {
+      addFiles(e.target.files);
+    }
     e.target.value = '';
   };
   const sizeStr = (bytes: number) => {
@@ -131,7 +153,9 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
 
   // ------------ submit/cancel via universal footer ------------
   const handleSubmit = useCallback(async () => {
-    if (isSubmitting) return; // Prevent double submission
+    if (isSubmitting) {
+      return;
+    } // Prevent double submission
 
     setIsSubmitting(true);
     try {
@@ -142,7 +166,9 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
       } else {
         // CREATE: skicka alla valda filer (_files) för multi-create
         const ok = await onSave({ _files: items.map((p) => p.file) });
-        if (ok) setItems([]);
+        if (ok) {
+          setItems([]);
+        }
         return ok;
       }
     } catch (error) {
@@ -191,7 +217,9 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
           value={name}
           onChange={(e) => {
             setName(e.target.value);
-            if (hasAnyError) clearValidationErrors();
+            if (hasAnyError) {
+              clearValidationErrors();
+            }
           }}
           className={nameErrors.length ? 'border-red-400' : ''}
           placeholder="document.pdf"
@@ -244,7 +272,8 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
         <div className="flex flex-col items-center gap-3 text-center">
           <Upload className="w-8 h-8" />
           <div className="text-sm text-gray-700 dark:text-gray-300">
-            Släpp filer här eller <span className="text-blue-600 dark:text-blue-400 underline">välj filer</span>
+            Släpp filer här eller{' '}
+            <span className="text-blue-600 dark:text-blue-400 underline">välj filer</span>
           </div>
           <input ref={inputRef} type="file" multiple className="hidden" onChange={onChange} />
         </div>
@@ -261,7 +290,9 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
                 <div className="flex items-center gap-3 min-w-0">
                   <FileIcon className="w-5 h-5 text-gray-500 dark:text-gray-400 shrink-0" />
                   <div className="min-w-0">
-                    <div className="text-sm text-gray-900 dark:text-gray-100 truncate">{file.name}</div>
+                    <div className="text-sm text-gray-900 dark:text-gray-100 truncate">
+                      {file.name}
+                    </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
                       {file.type || 'application/octet-stream'} • {sizeStr(file.size)}
                     </div>

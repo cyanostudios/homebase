@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Receipt } from 'lucide-react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+
 import { Badge } from '@/components/ui/badge';
-import { InvoicesApi, invoicesApi } from '../api/invoicesApi';
 import { useApp } from '@/core/api/AppContext';
+
+import { InvoicesApi, invoicesApi } from '../api/invoicesApi';
 
 export type ValidationError = { field: string; message: string };
 
@@ -177,14 +179,17 @@ export function InvoicesProvider({
     const errors = validate(raw);
     setValidationErrors(errors);
     const blocking = errors.filter((e) => !e.message.includes('Warning'));
-    if (blocking.length > 0) return false;
+    if (blocking.length > 0) {
+      return false;
+    }
 
     try {
       // Format dates for API (convert Date objects to ISO strings)
       const formattedData = {
         ...raw,
-        issueDate: raw.issueDate instanceof Date ? raw.issueDate.toISOString() : (raw.issueDate || null),
-        dueDate: raw.dueDate instanceof Date ? raw.dueDate.toISOString() : (raw.dueDate || null),
+        issueDate:
+          raw.issueDate instanceof Date ? raw.issueDate.toISOString() : raw.issueDate || null,
+        dueDate: raw.dueDate instanceof Date ? raw.dueDate.toISOString() : raw.dueDate || null,
       };
 
       if (currentInvoice) {
@@ -196,7 +201,9 @@ export function InvoicesProvider({
           issueDate: saved.issueDate ? new Date(saved.issueDate) : null,
           dueDate: saved.dueDate ? new Date(saved.dueDate) : null,
         };
-        setInvoices((prev) => prev.map((i) => (i.id === (currentInvoice as any).id ? normalized : i)));
+        setInvoices((prev) =>
+          prev.map((i) => (i.id === (currentInvoice as any).id ? normalized : i)),
+        );
         setCurrentInvoice(normalized as any);
         setPanelMode('view');
         setValidationErrors([]);
@@ -215,10 +222,10 @@ export function InvoicesProvider({
       return true;
     } catch (err: any) {
       console.error('Failed to save invoice:', err);
-      
+
       // V2: Handle standardized error format from backend
       const validationErrors: ValidationError[] = [];
-      
+
       // Check for field-level errors (409 conflicts)
       if (err?.status === 409 && Array.isArray(err.errors)) {
         validationErrors.push(...err.errors);
@@ -235,13 +242,13 @@ export function InvoicesProvider({
           }
         });
       }
-      
+
       // If no validation errors from backend, use error message
       if (validationErrors.length === 0) {
         const errorMessage = err?.message || err?.error || 'Failed to save. Please try again.';
         validationErrors.push({ field: 'general', message: errorMessage });
       }
-      
+
       setValidationErrors(validationErrors);
       return false;
     }
@@ -271,7 +278,9 @@ export function InvoicesProvider({
         return (
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-foreground">{invoiceNumber} • @{contactName}</span>
+              <span className="text-foreground">
+                {invoiceNumber} • @{contactName}
+              </span>
             </div>
             <div className="text-sm font-normal text-muted-foreground mt-1">
               {total} {currency}
@@ -345,7 +354,9 @@ export function InvoicesProvider({
   };
 
   const getDeleteMessage = (item: Invoice | null) => {
-    if (!item) return 'Are you sure you want to delete this invoice?';
+    if (!item) {
+      return 'Are you sure you want to delete this invoice?';
+    }
     const itemName = item.invoiceNumber || 'this invoice';
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
@@ -374,6 +385,8 @@ export function InvoicesProvider({
 
 export function useInvoicesContext() {
   const ctx = useContext(InvoicesContext);
-  if (!ctx) throw new Error('useInvoicesContext must be used within an InvoicesProvider');
+  if (!ctx) {
+    throw new Error('useInvoicesContext must be used within an InvoicesProvider');
+  }
   return ctx;
 }

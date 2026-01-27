@@ -524,6 +524,76 @@ await cache.invalidate('my-plugin:items:\*');
 return updated;
 }
 
+Using Bulk Operations Helper
+For bulk delete operations:
+const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+
+// In model.js
+async bulkDelete(req, idsTextArray) {
+  // Use core helper for generic bulk delete logic
+  return await BulkOperationsHelper.bulkDelete(req, MyPluginModel.TABLE, idsTextArray);
+}
+
+// In controller.js
+async bulkDelete(req, res) {
+  try {
+    const idsRaw = req.body?.ids;
+    if (!Array.isArray(idsRaw)) {
+      return res.status(400).json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
+    }
+
+    const ids = Array.from(new Set(idsRaw.map((x) => String(x).trim()).filter(Boolean)));
+
+    if (!ids.length) {
+      return res.json({ ok: true, requested: 0, deleted: 0 });
+    }
+
+    // Plugin-specific pre-delete logic (e.g., delete physical files)
+    const itemsToDelete = [];
+    for (const id of ids) {
+      try {
+        const item = await this.model.getById(req, id);
+        if (item) itemsToDelete.push(item);
+      } catch (e) {
+        // Skip if not found
+      }
+    }
+
+    // Perform plugin-specific cleanup (e.g., delete physical files)
+    for (const item of itemsToDelete) {
+      // Plugin-specific deletion logic here
+    }
+
+    // Use model's bulkDelete which uses BulkOperationsHelper
+    const result = await this.model.bulkDelete(req, ids);
+
+    return res.json({
+      ok: true,
+      requested: ids.length,
+      deleted: result.deletedCount,
+      deletedIds: result.deletedIds || [],
+    });
+  } catch (error) {
+    Logger.error('Bulk delete error', error, { userId: Context.getUserId(req) });
+
+    if (error instanceof AppError) {
+      return res.status(error.statusCode).json(error.toJSON());
+    }
+
+    return res.status(500).json({ error: 'Bulk delete failed' });
+  }
+}
+
+// In routes.js - MUST be before '/:id' route
+router.delete(
+  '/batch',
+  requirePlugin('my-plugin'),
+  csrfProtection,
+  [commonRules.array('ids', 500)],
+  validateRequest,
+  (req, res) => controller.bulkDelete(req, res),
+);
+
 Security Best Practices
 Input Validation Checklist
 Every endpoint MUST validate:

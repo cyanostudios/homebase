@@ -11,8 +11,10 @@ function validateRequest(req, res, next) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     // Log validation errors for debugging
-    console.log('Validation failed for:', req.path);
+    console.log('Validation failed for:', req.method, req.path);
     console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('Request body type:', typeof req.body);
+    console.log('Request body keys:', req.body ? Object.keys(req.body) : 'null/undefined');
     console.log('Validation errors:', JSON.stringify(errors.array(), null, 2));
     return res.status(400).json({
       error: 'Validation failed',
@@ -111,6 +113,46 @@ const commonRules = {
         }
         return true;
       }),
+  
+  requiredArray: (field, max = 100) => {
+    return [
+      body(field)
+        .custom((value, { req }) => {
+          // Additional debug logging for DELETE requests
+          if (req.method === 'DELETE') {
+            console.log(`[requiredArray] Validating ${field} for DELETE request`);
+            console.log(`[requiredArray] Value:`, value);
+            console.log(`[requiredArray] Type:`, typeof value);
+            console.log(`[requiredArray] IsArray:`, Array.isArray(value));
+            console.log(`[requiredArray] req.body:`, req.body);
+            console.log(`[requiredArray] req.body type:`, typeof req.body);
+            console.log(`[requiredArray] req.body keys:`, req.body ? Object.keys(req.body) : 'null/undefined');
+          }
+          
+          // Check if field exists
+          if (value === undefined || value === null) {
+            throw new Error(`${field} is required`);
+          }
+          
+          // Check if it's an array
+          if (!Array.isArray(value)) {
+            throw new Error(`${field} must be an array`);
+          }
+          
+          // Check if array is not empty
+          if (value.length === 0) {
+            throw new Error(`${field} cannot be empty`);
+          }
+          
+          // Check max length
+          if (value.length > max) {
+            throw new Error(`${field} must have at most ${max} items`);
+          }
+          
+          return true;
+        }),
+    ];
+  },
   
   id: (field = 'id') => param(field).isInt().withMessage(`${field} must be a valid integer`),
   

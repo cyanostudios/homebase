@@ -4,7 +4,6 @@ import {
   CheckSquare,
   Calculator,
   Files as FilesIcon,
-  Trophy,
   LucideIcon,
 } from 'lucide-react';
 import React from 'react';
@@ -78,16 +77,11 @@ import { NoteProvider } from '@/plugins/notes/context/NoteContext';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 // Estimates
 // Tasks
-import { ProfixioList } from '@/plugins/profixio/components/ProfixioList';
-import { ProfixioView } from '@/plugins/profixio/components/ProfixioView';
-import { ProfixioProvider } from '@/plugins/profixio/context/ProfixioContext';
-import { useProfixio } from '@/plugins/profixio/hooks/useProfixio';
 import { TaskForm } from '@/plugins/tasks/components/TaskForm';
 import { TaskList } from '@/plugins/tasks/components/TaskList';
 import { TaskView } from '@/plugins/tasks/components/TaskView';
 import { TaskProvider } from '@/plugins/tasks/context/TaskContext';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
-// Profixio
 
 export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   {
@@ -185,22 +179,6 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       label: 'Files',
       icon: FilesIcon,
       order: 0,
-    },
-  },
-  {
-    name: 'profixio',
-    Provider: ProfixioProvider,
-    hook: useProfixio,
-    panelKey: 'isProfixioPanelOpen',
-    components: {
-      List: ProfixioList,
-      View: ProfixioView,
-    },
-    navigation: {
-      category: 'Tools',
-      label: 'Profixio',
-      icon: Trophy,
-      order: 1,
     },
   },
 ];

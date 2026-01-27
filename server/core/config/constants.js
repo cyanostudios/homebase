@@ -5,7 +5,7 @@ const path = require('path');
 
 // Plugins that should NOT be enabled by default for new users
 // (e.g., read-only plugins, experimental plugins, or plugins requiring special setup)
-const DEFAULT_DISABLED_PLUGINS = ['profixio'];
+const DEFAULT_DISABLED_PLUGINS = [];
 
 // Dynamically discover available plugins
 // Only includes directories that contain a valid plugin.config.js file

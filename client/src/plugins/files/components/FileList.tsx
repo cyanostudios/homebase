@@ -12,6 +12,8 @@ import {
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 
 import { Card } from '@/components/ui/card';
+import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { Heading, Text } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
@@ -67,6 +69,7 @@ export const FileList: React.FC = () => {
     toggleFileSelected,
     selectAllFiles,
     clearFileSelection,
+    selectedCount,
     // Bulk delete
     deleteFiles,
   } = useFiles();
@@ -135,12 +138,6 @@ export const FileList: React.FC = () => {
     return filtered.sort(cmp);
   }, [files, searchTerm, sortField, sortOrder]);
 
-  // Selected files (actual objects)
-  const selectedFiles = useMemo(() => {
-    const set = new Set(selectedFileIds.map(String));
-    return files.filter((f: any) => set.has(String(f?.id)));
-  }, [files, selectedFileIds]);
-
   // Selection helpers
   const visibleIds = useMemo(
     () => filteredAndSorted.map((f: any) => String(f.id)),
@@ -203,9 +200,10 @@ export const FileList: React.FC = () => {
     try {
       await deleteFiles(selectedFileIds);
       setShowDeleteModal(false);
-      clearFileSelection();
+      // clearFileSelection is called automatically by deleteFiles
     } catch (err: any) {
       console.error('Bulk delete failed:', err);
+      // Error is already handled in context
     } finally {
       setDeleting(false);
     }
@@ -287,23 +285,18 @@ export const FileList: React.FC = () => {
               </button>
             </div>
           )}
-          {selectedFileIds.length > 0 && (
-            <div className="mt-2 text-sm flex items-center flex-wrap gap-2">
-              <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-                {selectedFileIds.length} selected
-              </span>
-              <button className="underline text-blue-700" onClick={() => clearFileSelection()}>
-                Clear selection
-              </button>
-              <button
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-600 text-red-700 hover:bg-red-50 text-sm"
-                onClick={() => setShowDeleteModal(true)}
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Delete…
-              </button>
-            </div>
-          )}
+          <BulkActionBar
+            selectedCount={selectedCount}
+            onClearSelection={clearFileSelection}
+            actions={[
+              {
+                label: 'Delete…',
+                icon: Trash2,
+                onClick: () => setShowDeleteModal(true),
+                variant: 'destructive',
+              },
+            ]}
+          />
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative">
@@ -513,45 +506,16 @@ export const FileList: React.FC = () => {
         )}
       </Card>
 
-      {/* Delete-modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowDeleteModal(false)} />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-xl">
-            <div className="bg-white rounded-xl shadow-xl border">
-              <div className="p-4 border-b">
-                <Heading level={3} className="mb-0">
-                  Delete selected files
-                </Heading>
-                <div className="text-xs text-gray-500">{selectedFiles.length} files selected</div>
-              </div>
-              <div className="p-4">
-                <p className="text-sm text-gray-700">
-                  Are you sure you want to delete {selectedFiles.length} file
-                  {selectedFiles.length !== 1 ? 's' : ''}? This will also remove the physical files.
-                  This action cannot be undone.
-                </p>
-              </div>
-              <div className="p-4 border-t flex items-center justify-end gap-2">
-                <button
-                  className="px-3 py-1.5 rounded-md border text-sm"
-                  onClick={() => setShowDeleteModal(false)}
-                  disabled={deleting}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm disabled:opacity-50"
-                  disabled={deleting || selectedFiles.length === 0}
-                  onClick={runDeleteFlow}
-                >
-                  {deleting ? 'Deleting…' : 'Delete'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Bulk Delete Modal */}
+      <BulkDeleteModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={runDeleteFlow}
+        itemCount={selectedCount}
+        itemLabel="files"
+        isLoading={deleting}
+        warningMessage="This will also remove the physical files."
+      />
 
       {/* Cloud Storage Settings Modal */}
       {showCloudSettings && (

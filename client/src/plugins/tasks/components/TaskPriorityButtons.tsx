@@ -12,7 +12,9 @@ interface TaskPriorityButtonsProps {
 export function TaskPriorityButtons({ task, onPriorityChange }: TaskPriorityButtonsProps) {
   return (
     <div className="mb-4">
-      <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Change Priority</div>
+      <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Change Priority
+      </div>
       <div className="flex flex-wrap gap-2">
         {TASK_PRIORITY_OPTIONS.map((priority) => {
           const isActive = task.priority === priority;

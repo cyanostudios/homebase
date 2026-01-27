@@ -24,7 +24,6 @@ const PLUGIN_ICON_COLORS: Record<string, string> = {
   estimates: 'text-blue-600 dark:text-blue-400', // #2563eb from EstimateContext.tsx
   invoices: 'text-primary', // No specific color found, uses primary
   files: 'text-muted-foreground', // No specific color found, uses muted
-  profixio: 'text-yellow-600 dark:text-yellow-400', // Trophy icon, using yellow like notes
 };
 
 export type NavPage =
@@ -37,7 +36,6 @@ export type NavPage =
   | 'invoices-reports'
   | 'tasks'
   | 'files'
-  | 'profixio'
   | 'settings';
 
 interface SidebarProps {

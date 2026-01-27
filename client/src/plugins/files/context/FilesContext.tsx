@@ -9,6 +9,8 @@ import React, {
 } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import { bulkApi } from '@/core/api/bulkApi';
+import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 
 import {
   cloudStorageApi,
@@ -59,6 +61,9 @@ interface FilesContextType {
   selectAllFiles: (ids: string[]) => void;
   clearFileSelection: () => void;
   deleteFiles: (ids: string[]) => Promise<void>;
+  // Bulk selection from core hook (for compatibility)
+  selectedCount: number;
+  isSelected: (id: string) => boolean;
 }
 
 const FilesContext = createContext<FilesContextType | undefined>(undefined);
@@ -83,7 +88,17 @@ export function FilesProvider({
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
-  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+
+  // Use core bulk selection hook
+  const {
+    selectedIds: selectedFileIds,
+    toggleSelection: toggleFileSelectedCore,
+    selectAll: selectAllFilesCore,
+    clearSelection: clearFileSelectionCore,
+    isSelected,
+    selectedCount,
+  } = useBulkSelection();
+
   const [cloudStorageSettings, setCloudStorageSettings] = useState<{
     onedrive: CloudStorageSettings | null;
     dropbox: CloudStorageSettings | null;
@@ -290,7 +305,10 @@ export function FilesProvider({
     try {
       await api.deleteItem(id);
       setFiles((prev) => prev.filter((i) => i.id !== id));
-      setSelectedFileIds((prev) => prev.filter((fid) => fid !== id));
+      // Remove from selection if selected
+      if (isSelected(id)) {
+        toggleFileSelectedCore(id);
+      }
     } catch (err: any) {
       console.error('Failed to delete file:', err);
       // V2: Handle standardized error format
@@ -299,7 +317,7 @@ export function FilesProvider({
     }
   };
 
-  // Bulk delete
+  // Bulk delete using core bulkApi
   const deleteFiles = async (ids: string[]) => {
     const uniqueIds = Array.from(new Set((ids || []).map(String))).filter(Boolean);
     if (!uniqueIds.length) {
@@ -307,9 +325,9 @@ export function FilesProvider({
     }
 
     try {
-      await api.deleteFilesBulk(uniqueIds);
+      await bulkApi.bulkDelete('files', uniqueIds);
       setFiles((prev) => prev.filter((f) => !uniqueIds.includes(String(f.id))));
-      setSelectedFileIds((prev) => prev.filter((id) => !uniqueIds.includes(id)));
+      clearFileSelectionCore();
     } catch (error: any) {
       console.error('Bulk delete failed:', error);
       const errorMessage = error?.message || error?.error || 'Failed to delete files';
@@ -317,22 +335,24 @@ export function FilesProvider({
     }
   };
 
-  // Selection helpers
-  const toggleFileSelected = (id: string) => {
-    const key = String(id);
-    setSelectedFileIds((prev) =>
-      prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key],
-    );
-  };
+  // Selection helpers - wrap core hook functions for backward compatibility
+  const toggleFileSelected = useCallback(
+    (id: string) => {
+      toggleFileSelectedCore(id);
+    },
+    [toggleFileSelectedCore],
+  );
 
-  const selectAllFiles = (ids: string[]) => {
-    const norm = Array.isArray(ids) ? ids.map(String) : [];
-    setSelectedFileIds(norm);
-  };
+  const selectAllFiles = useCallback(
+    (ids: string[]) => {
+      selectAllFilesCore(ids);
+    },
+    [selectAllFilesCore],
+  );
 
-  const clearFileSelection = () => {
-    setSelectedFileIds([]);
-  };
+  const clearFileSelection = useCallback(() => {
+    clearFileSelectionCore();
+  }, [clearFileSelectionCore]);
 
   // Cloud storage functions
   const loadCloudStorageSettings = async () => {
@@ -441,6 +461,8 @@ export function FilesProvider({
     toggleFileSelected,
     selectAllFiles,
     clearFileSelection,
+    selectedCount,
+    isSelected,
     openFilesPanel,
     openFilePanel: openFilesPanel, // Alias for App.tsx primaryAction (singular)
     openFileForEdit,

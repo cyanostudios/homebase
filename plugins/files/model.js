@@ -3,6 +3,7 @@
 // Note: Binary upload handled elsewhere, this only manages metadata
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
 
 class FilesModel {
   constructor() {
@@ -172,37 +173,8 @@ class FilesModel {
   }
 
   async bulkDelete(req, idsTextArray) {
-    try {
-      const db = Database.get(req);
-
-      const ids = Array.isArray(idsTextArray)
-        ? idsTextArray.map((x) => String(x).trim()).filter(Boolean)
-        : [];
-
-      if (!ids.length) {
-        return { deletedCount: 0, deletedIds: [] };
-      }
-
-      const sql = `
-        DELETE FROM ${FilesModel.TABLE}
-        WHERE id::text = ANY($1::text[])
-        RETURNING id::text AS id
-      `;
-
-      const rows = await db.query(sql, [ids]);
-
-      Logger.info('Files bulk deleted', { count: rows.length });
-      return {
-        deletedCount: rows.length,
-        deletedIds: rows.map((r) => r.id),
-      };
-    } catch (error) {
-      Logger.error('Failed to bulk delete files', error);
-      if (error instanceof AppError) {
-        throw error;
-      }
-      throw new AppError('Failed to bulk delete files', 500, AppError.CODES.DATABASE_ERROR);
-    }
+    // Use core BulkOperationsHelper for generic bulk delete logic
+    return await BulkOperationsHelper.bulkDelete(req, FilesModel.TABLE, idsTextArray);
   }
 
   // Map DB row -> API shape (camelCase)

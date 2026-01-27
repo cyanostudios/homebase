@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+
 import { Heading, Text } from '../Typography';
 
 import { pomodoroAudio } from './pomodoroAudio';
@@ -252,40 +253,20 @@ export function PomodoroTimer({
             {/* Kontroller */}
             <div className="flex justify-center gap-2">
               {state === 'idle' || state === 'paused' ? (
-                <Button
-                  onClick={start}
-                  variant="primary"
-                  size="sm"
-                  icon={Play}
-                >
+                <Button onClick={start} variant="primary" size="sm" icon={Play}>
                   Start
                 </Button>
               ) : (
-                <Button
-                  onClick={pause}
-                  variant="primary"
-                  size="sm"
-                  icon={Pause}
-                >
+                <Button onClick={pause} variant="primary" size="sm" icon={Pause}>
                   Pause
                 </Button>
               )}
 
-              <Button
-                onClick={reset}
-                variant="secondary"
-                size="sm"
-                icon={RotateCcw}
-              >
+              <Button onClick={reset} variant="secondary" size="sm" icon={RotateCcw}>
                 Reset
               </Button>
 
-              <Button
-                onClick={skip}
-                variant="secondary"
-                size="sm"
-                icon={SkipForward}
-              >
+              <Button onClick={skip} variant="secondary" size="sm" icon={SkipForward}>
                 Skip
               </Button>
             </div>
@@ -645,40 +626,20 @@ export function PomodoroTimer({
       {/* Kontroller */}
       <div className="flex justify-center gap-2">
         {state === 'idle' || state === 'paused' ? (
-          <Button
-            onClick={start}
-            variant="primary"
-            size="sm"
-            icon={Play}
-          >
+          <Button onClick={start} variant="primary" size="sm" icon={Play}>
             Start
           </Button>
         ) : (
-          <Button
-            onClick={pause}
-            variant="primary"
-            size="sm"
-            icon={Pause}
-          >
+          <Button onClick={pause} variant="primary" size="sm" icon={Pause}>
             Pause
           </Button>
         )}
 
-        <Button
-          onClick={reset}
-          variant="secondary"
-          size="sm"
-          icon={RotateCcw}
-        >
+        <Button onClick={reset} variant="secondary" size="sm" icon={RotateCcw}>
           Reset
         </Button>
 
-        <Button
-          onClick={skip}
-          variant="secondary"
-          size="sm"
-          icon={SkipForward}
-        >
+        <Button onClick={skip} variant="secondary" size="sm" icon={SkipForward}>
           Skip
         </Button>
       </div>

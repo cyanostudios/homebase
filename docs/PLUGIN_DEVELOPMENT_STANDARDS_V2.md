@@ -40,7 +40,7 @@ This document defines MANDATORY naming conventions and patterns for all Homebase
      - Plugins are sorted alphabetically for consistency
      - Some plugins (read-only, experimental) are excluded from DEFAULT_USER_PLUGINS
    - Superadmin (admin@homebase.se) needs the plugin added to their user_plugin_access
-   - Run: node scripts/add-profixio-to-admin.js (or create similar script for your plugin)
+   - Run: node scripts/add-your-plugin-to-admin.js (create a script similar to other plugin scripts)
 
 2. Context Interface (MANDATORY Properties)
    interface MyPluginContextType {
@@ -570,12 +570,76 @@ const results = await database.query('SELECT \* FROM items', []);
 
 ---
 
+Bulk Operations
+For bulk operations (delete, update, etc.), use core helpers:
+
+Backend:
+```javascript
+// In model.js
+const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+
+async bulkDelete(req, idsTextArray) {
+  // Use core helper for generic bulk delete logic
+  return await BulkOperationsHelper.bulkDelete(req, MyPluginModel.TABLE, idsTextArray);
+}
+```
+
+Frontend:
+```typescript
+// In context
+import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { bulkApi } from '@/core/api/bulkApi';
+
+const {
+  selectedIds,
+  toggleSelection,
+  selectAll,
+  clearSelection,
+  selectedCount,
+  isSelected,
+} = useBulkSelection();
+
+const deleteItems = async (ids: string[]) => {
+  await bulkApi.bulkDelete('my-plugin', ids);
+  // Update state...
+};
+```
+
+```typescript
+// In list component
+import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+
+<BulkActionBar
+  selectedCount={selectedCount}
+  onClearSelection={clearSelection}
+  actions={[
+    {
+      label: 'Delete…',
+      icon: Trash2,
+      onClick: () => setShowDeleteModal(true),
+      variant: 'destructive',
+    },
+  ]}
+/>
+
+<BulkDeleteModal
+  isOpen={showDeleteModal}
+  onClose={() => setShowDeleteModal(false)}
+  onConfirm={handleBulkDelete}
+  itemCount={selectedCount}
+  itemLabel="items"
+  isLoading={deleting}
+/>
+```
+
 ## Success Criteria
 
 Plugin is ready when:
 - ✅ All naming conventions followed exactly
 - ✅ Zero console errors or warnings
 - ✅ All CRUD operations functional
+- ✅ Bulk operations use core helpers (if implemented)
 - ✅ Keyboard navigation works
 - ✅ Mobile/desktop responsive
 - ✅ Panel coordination works with other plugins

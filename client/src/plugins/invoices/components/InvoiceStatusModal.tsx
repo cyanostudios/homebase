@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { Button } from '@/components/ui/button';
 
 interface InvoiceStatusModalProps {
@@ -9,28 +10,32 @@ interface InvoiceStatusModalProps {
   invoiceNumber: string;
 }
 
-export function InvoiceStatusModal({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  status, 
-  invoiceNumber 
+export function InvoiceStatusModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  status,
+  invoiceNumber,
 }: InvoiceStatusModalProps) {
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   const getModalContent = () => {
     switch (status) {
       case 'sent':
         return {
           title: 'Mark invoice as sent?',
-          message: 'This will change the status to "Sent" and indicate that the invoice has been delivered to the customer.',
+          message:
+            'This will change the status to "Sent" and indicate that the invoice has been delivered to the customer.',
           helpText: 'You can change it back to "Draft" at any time if needed.',
           buttonText: 'Mark as Sent',
         };
       case 'paid':
         return {
           title: 'Mark invoice as paid?',
-          message: 'This will change the status to "Paid" and record that payment has been received.',
+          message:
+            'This will change the status to "Paid" and record that payment has been received.',
           helpText: 'This action can be undone if needed.',
           buttonText: 'Mark as Paid',
         };
@@ -44,7 +49,8 @@ export function InvoiceStatusModal({
       case 'canceled':
         return {
           title: 'Mark invoice as canceled?',
-          message: 'This will change the status to "Canceled" and indicate the invoice is no longer valid.',
+          message:
+            'This will change the status to "Canceled" and indicate the invoice is no longer valid.',
           helpText: 'This action can be undone if needed.',
           buttonText: 'Mark as Canceled',
         };
@@ -73,28 +79,16 @@ export function InvoiceStatusModal({
 
         {/* Content */}
         <div className="p-4">
-          <p className="text-sm text-muted-foreground mb-4">
-            {content.message}
-          </p>
-          <p className="text-xs text-muted-foreground italic">
-            {content.helpText}
-          </p>
+          <p className="text-sm text-muted-foreground mb-4">{content.message}</p>
+          <p className="text-xs text-muted-foreground italic">{content.helpText}</p>
         </div>
 
         {/* Footer */}
         <div className="flex justify-end space-x-3 p-4 border-t border-border">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onClose}
-          >
+          <Button variant="secondary" size="sm" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onConfirm}
-          >
+          <Button variant="primary" size="sm" onClick={onConfirm}>
             {content.buttonText}
           </Button>
         </div>

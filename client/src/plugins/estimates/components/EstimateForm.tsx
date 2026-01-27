@@ -1,13 +1,13 @@
 import { Plus, Trash2, Copy } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
-import { useApp } from '@/core/api/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -288,7 +288,11 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
             <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400 dark:text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                  <svg
+                    className="h-5 w-5 text-red-400 dark:text-red-500"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
                     <path
                       fillRule="evenodd"
                       d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -297,7 +301,9 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800 dark:text-red-400">Cannot save estimate</h3>
+                  <h3 className="text-sm font-medium text-red-800 dark:text-red-400">
+                    Cannot save estimate
+                  </h3>
                   <div className="mt-2 text-sm text-red-700 dark:text-red-300">
                     <p>Please fix the following errors before saving:</p>
                     <ul className="list-disc list-inside mt-1">
@@ -321,7 +327,9 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
           </Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
-              <Label htmlFor="estimate-contact" className="mb-1">Customer</Label>
+              <Label htmlFor="estimate-contact" className="mb-1">
+                Customer
+              </Label>
               <NativeSelect
                 id="estimate-contact"
                 value={formData.contactId}
@@ -338,12 +346,16 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                 ))}
               </NativeSelect>
               {getFieldError('contactId') && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{getFieldError('contactId')?.message}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {getFieldError('contactId')?.message}
+                </p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="estimate-currency" className="mb-1">Currency</Label>
+              <Label htmlFor="estimate-currency" className="mb-1">
+                Currency
+              </Label>
               <NativeSelect
                 id="estimate-currency"
                 value={formData.currency}
@@ -366,7 +378,9 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
           </Heading>
           <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
             <div>
-              <Label htmlFor="estimate-valid-to" className="mb-1">Valid To</Label>
+              <Label htmlFor="estimate-valid-to" className="mb-1">
+                Valid To
+              </Label>
               <Input
                 id="estimate-valid-to"
                 type="date"
@@ -377,7 +391,9 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
             </div>
 
             <div>
-              <Label htmlFor="estimate-status" className="mb-1">Status</Label>
+              <Label htmlFor="estimate-status" className="mb-1">
+                Status
+              </Label>
               <NativeSelect
                 id="estimate-status"
                 value={formData.status}
@@ -547,7 +563,12 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         {formData.lineItems.length > 0 && (
           <Card padding="sm" className="shadow-none px-0">
             <div className="flex items-center gap-4 mb-2">
-              <Label htmlFor="estimate-discount" className="text-sm font-medium text-gray-700 dark:text-gray-300">Estimate Discount (%)</Label>
+              <Label
+                htmlFor="estimate-discount"
+                className="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Estimate Discount (%)
+              </Label>
               <div className="max-w-xs">
                 <Input
                   id="estimate-discount"
@@ -582,13 +603,17 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Total Line Item Discounts:</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Total Line Item Discounts:
+                </span>
                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   -{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}
                 </span>
               </div>
               <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal after line discounts:</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Subtotal after line discounts:
+                </span>
                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}
                 </span>
@@ -605,7 +630,9 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                     </span>
                   </div>
                   <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal after estimate discount:</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      Subtotal after estimate discount:
+                    </span>
                     <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {(totals.subtotalAfterEstimateDiscount || 0).toFixed(2)} {formData.currency}
                     </span>
@@ -634,7 +661,9 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
             Notes
           </Heading>
           <div>
-            <Label htmlFor="estimate-notes" className="mb-1">Additional Notes</Label>
+            <Label htmlFor="estimate-notes" className="mb-1">
+              Additional Notes
+            </Label>
             <Textarea
               id="estimate-notes"
               value={formData.notes}

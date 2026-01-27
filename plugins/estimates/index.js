@@ -1,14 +1,15 @@
 // plugins/estimates/index.js
+// V3: Uses PluginSDK context instead of legacy (pool, requirePlugin) signature
 const EstimateModel = require('./model');
 const EstimateController = require('./controller');
 const createEstimateRoutes = require('./routes');
 const config = require('./plugin.config');
 
-function initializeEstimatesPlugin(pool, requirePlugin) {
-  // V2: Model and controller no longer need pool - ServiceManager provides database service
+function initializeEstimatesPlugin(context) {
+  // V3: Model and controller use @homebase/core SDK (no pool needed)
   const model = new EstimateModel();
   const controller = new EstimateController(model);
-  const router = createEstimateRoutes(controller, requirePlugin);
+  const router = createEstimateRoutes(controller, context);
 
   return {
     config,

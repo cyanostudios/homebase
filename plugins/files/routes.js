@@ -134,7 +134,7 @@ function createFilesRoutes(controller, context) {
     '/batch',
     gate,
     /* csrfProtection, */ // Temporarily disabled
-    [commonRules.array('ids', 500)],
+    ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
   );

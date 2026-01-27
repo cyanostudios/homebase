@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-import { useApp } from '@/core/api/AppContext';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
+import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -111,7 +111,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   }, [markClean]);
 
   const handleSubmit = useCallback(async () => {
-    if (isCurrentlySubmitting) return; // Prevent double submission
+    if (isCurrentlySubmitting) {
+      return;
+    } // Prevent double submission
 
     setIsSubmitting(true);
     try {
@@ -132,7 +134,15 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, onSave, markClean, currentTask, resetForm, validationErrors, isCurrentlySubmitting]);
+  }, [
+    formData,
+    onSave,
+    markClean,
+    currentTask,
+    resetForm,
+    validationErrors,
+    isCurrentlySubmitting,
+  ]);
 
   const handleCancel = useCallback(() => {
     attemptAction(() => {
@@ -217,7 +227,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400 dark:text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                  <svg
+                    className="h-5 w-5 text-red-400 dark:text-red-500"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
                     <path
                       fillRule="evenodd"
                       d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -226,7 +240,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800 dark:text-red-400">Cannot save task</h3>
+                  <h3 className="text-sm font-medium text-red-800 dark:text-red-400">
+                    Cannot save task
+                  </h3>
                   <div className="mt-2 text-sm text-red-700 dark:text-red-300">
                     <p>Please fix the following errors before saving:</p>
                     <ul className="list-disc list-inside mt-1">
@@ -249,7 +265,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             Task Title
           </Heading>
           <div>
-            <Label htmlFor="task-title" className="mb-1">Title</Label>
+            <Label htmlFor="task-title" className="mb-1">
+              Title
+            </Label>
             <Input
               id="task-title"
               type="text"
@@ -260,7 +278,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
               required
             />
             {getFieldError('title') && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{getFieldError('title')?.message}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                {getFieldError('title')?.message}
+              </p>
             )}
           </div>
         </Card>
@@ -273,7 +293,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Status */}
             <div>
-              <Label htmlFor="task-status" className="mb-1">Status</Label>
+              <Label htmlFor="task-status" className="mb-1">
+                Status
+              </Label>
               <NativeSelect
                 id="task-status"
                 value={formData.status}
@@ -289,7 +311,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
 
             {/* Priority */}
             <div>
-              <Label htmlFor="task-priority" className="mb-1">Priority</Label>
+              <Label htmlFor="task-priority" className="mb-1">
+                Priority
+              </Label>
               <NativeSelect
                 id="task-priority"
                 value={formData.priority}
@@ -313,7 +337,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Due Date */}
             <div>
-              <Label htmlFor="task-due-date" className="mb-1">Due Date</Label>
+              <Label htmlFor="task-due-date" className="mb-1">
+                Due Date
+              </Label>
               <Input
                 id="task-due-date"
                 type="date"
@@ -324,7 +350,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
 
             {/* Assigned To */}
             <div>
-              <Label htmlFor="task-assigned-to" className="mb-1">Assigned To</Label>
+              <Label htmlFor="task-assigned-to" className="mb-1">
+                Assigned To
+              </Label>
               <NativeSelect
                 id="task-assigned-to"
                 value={formData.assignedTo || ''}
@@ -349,7 +377,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           <div>
             <Label htmlFor="task-description" className="mb-1">
               Description{' '}
-              <span className="text-xs text-gray-500 dark:text-gray-400">(Type @ to mention contacts)</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                (Type @ to mention contacts)
+              </span>
             </Label>
             <MentionTextarea
               value={formData.content}
@@ -359,7 +389,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
               className={getFieldError('content') ? 'border-red-500' : ''}
             />
             {getFieldError('content') && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{getFieldError('content')?.message}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                {getFieldError('content')?.message}
+              </p>
             )}
 
             {/* Show mentions preview */}

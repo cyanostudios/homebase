@@ -1,8 +1,9 @@
 // server/neon-service.ts
-import axios from 'axios';
-import { Pool } from 'pg';
 import * as fs from 'fs';
 import * as path from 'path';
+
+import axios from 'axios';
+import { Pool } from 'pg';
 
 class NeonService {
   private apiKey: string;
@@ -13,18 +14,18 @@ class NeonService {
     this.baseUrl = 'https://console.neon.tech/api/v2';
   }
 
-  async createTenantDatabase(userId: number, userEmail: string) {
+  async createTenantDatabase(userId: number, _userEmail: string) {
     try {
       // 1. Create Neon project
       const projectName = `homebase-tenant-${userId}`;
       const project = await this.createProject(projectName);
-      
+
       // 2. Get default database connection string
       const connectionString = project.connection_uris[0].connection_uri;
-      
+
       // 3. Run migrations on new database
       await this.runMigrations(connectionString);
-      
+
       return {
         projectId: project.project.id,
         databaseName: project.databases[0].name,
@@ -47,30 +48,31 @@ class NeonService {
       },
       {
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
-      }
+      },
     );
-    
+
     return response.data;
   }
 
   async runMigrations(connectionString: string) {
     const pool = new Pool({ connectionString });
-    
+
     try {
       // Get all migration files
       const migrationsDir = path.join(__dirname, 'migrations');
-      
+
       // Skip if migrations folder doesn't exist
       if (!fs.existsSync(migrationsDir)) {
         console.log('⚠️  No migrations folder found, skipping migrations');
         return;
       }
-      
-      const migrationFiles = fs.readdirSync(migrationsDir)
-        .filter(f => f.endsWith('.sql'))
+
+      const migrationFiles = fs
+        .readdirSync(migrationsDir)
+        .filter((f) => f.endsWith('.sql'))
         .sort();
 
       console.log(`Running ${migrationFiles.length} migrations...`);
@@ -92,14 +94,11 @@ class NeonService {
 
   async deleteTenantDatabase(projectId: string) {
     try {
-      await axios.delete(
-        `${this.baseUrl}/projects/${projectId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-          },
-        }
-      );
+      await axios.delete(`${this.baseUrl}/projects/${projectId}`, {
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+      });
       console.log(`Deleted Neon project: ${projectId}`);
     } catch (error: any) {
       console.error('Failed to delete project:', error.response?.data || error.message);

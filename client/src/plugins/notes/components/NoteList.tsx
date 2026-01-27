@@ -1,5 +1,5 @@
-import { StickyNote, ArrowUp, ArrowDown } from 'lucide-react';
-import React, { useState, useMemo } from 'react';
+import { StickyNote, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Card } from '@/components/ui/card';
 import {
@@ -10,6 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -20,7 +22,18 @@ type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
 export const NoteList: React.FC = () => {
-  const { notes, openNoteForView, deleteNote } = useNotes();
+  const {
+    notes,
+    openNoteForView,
+    deleteNote,
+    deleteNotes,
+    selectedNoteIds,
+    toggleNoteSelected,
+    selectAllNotes,
+    clearNoteSelection,
+    selectedCount,
+    isSelected,
+  } = useNotes();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -32,6 +45,8 @@ export const NoteList: React.FC = () => {
     noteId: '',
     noteTitle: '',
   });
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -87,6 +102,54 @@ export const NoteList: React.FC = () => {
     });
   }, [notes, searchTerm, sortField, sortOrder]);
 
+  // Visible note IDs for selection
+  const visibleNoteIds = useMemo(() => sortedNotes.map((note) => String(note.id)), [sortedNotes]);
+
+  // Selection helpers
+  const allVisibleSelected = useMemo(
+    () => visibleNoteIds.length > 0 && visibleNoteIds.every((id) => isSelected(id)),
+    [visibleNoteIds, isSelected],
+  );
+  const someVisibleSelected = useMemo(
+    () => visibleNoteIds.some((id) => isSelected(id)),
+    [visibleNoteIds, isSelected],
+  );
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!headerCheckboxRef.current) {
+      return;
+    }
+    headerCheckboxRef.current.indeterminate = !allVisibleSelected && someVisibleSelected;
+  }, [allVisibleSelected, someVisibleSelected]);
+
+  const onToggleAllVisible = () => {
+    if (allVisibleSelected) {
+      const set = new Set(visibleNoteIds);
+      const remaining = selectedNoteIds.filter((id) => !set.has(id));
+      selectAllNotes(remaining);
+    } else {
+      const union = Array.from(new Set([...selectedNoteIds, ...visibleNoteIds]));
+      selectAllNotes(union);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedNoteIds.length === 0) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await deleteNotes(selectedNoteIds);
+      setShowBulkDeleteModal(false);
+      // clearNoteSelection is called automatically by deleteNotes
+    } catch (err: any) {
+      console.error('Bulk delete failed:', err);
+      // Error is already handled in context
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const _handleDelete = (id: string, title: string) => {
     setDeleteConfirm({
       isOpen: true,
@@ -134,6 +197,19 @@ export const NoteList: React.FC = () => {
         searchPlaceholder="Search notes..."
       />
 
+      <BulkActionBar
+        selectedCount={selectedCount}
+        onClearSelection={clearNoteSelection}
+        actions={[
+          {
+            label: 'Delete…',
+            icon: Trash2,
+            onClick: () => setShowBulkDeleteModal(true),
+            variant: 'destructive',
+          },
+        ]}
+      />
+
       <Card className="shadow-none">
         {sortedNotes.length === 0 ? (
           <div className="p-6 text-center text-muted-foreground">
@@ -145,6 +221,16 @@ export const NoteList: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    className="h-4 w-4"
+                    aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
+                    checked={allVisibleSelected}
+                    onChange={onToggleAllVisible}
+                  />
+                </TableHead>
                 <TableHead className="w-12"></TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-muted/50 select-none"
@@ -193,49 +279,61 @@ export const NoteList: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedNotes.map((note) => (
-                <TableRow
-                  key={note.id}
-                  className="cursor-pointer hover:bg-accent"
-                  tabIndex={0}
-                  data-list-item={JSON.stringify(note)}
-                  data-plugin-name="notes"
-                  role="button"
-                  aria-label={`Open note ${note.title}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleOpenForView(note);
-                  }}
-                >
-                  <TableCell className="w-12">
-                    <StickyNote className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
-                  </TableCell>
-                  <TableCell className="font-semibold">{note.title}</TableCell>
-                  <TableCell>
-                    <div className="text-sm text-muted-foreground line-clamp-2 max-w-[300px]">
-                      {truncateContent(note.content, 100)}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {note.mentions && note.mentions.length > 0 ? (
-                      <div className="text-sm">
-                        <span>
-                          @{note.mentions[0].contactName}
-                          {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
-                        </span>
+              {sortedNotes.map((note) => {
+                const noteIsSelected = isSelected(note.id);
+                return (
+                  <TableRow
+                    key={note.id}
+                    className="cursor-pointer hover:bg-accent"
+                    tabIndex={0}
+                    data-list-item={JSON.stringify(note)}
+                    data-plugin-name="notes"
+                    role="button"
+                    aria-label={`Open note ${note.title}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleOpenForView(note);
+                    }}
+                  >
+                    <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={noteIsSelected}
+                        onChange={() => toggleNoteSelected(note.id)}
+                        aria-label={noteIsSelected ? 'Unselect note' : 'Select note'}
+                      />
+                    </TableCell>
+                    <TableCell className="w-12">
+                      <StickyNote className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
+                    </TableCell>
+                    <TableCell className="font-semibold">{note.title}</TableCell>
+                    <TableCell>
+                      <div className="text-sm text-muted-foreground line-clamp-2 max-w-[300px]">
+                        {truncateContent(note.content, 100)}
                       </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {new Date(note.updatedAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {new Date(note.createdAt).toLocaleDateString()}
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>
+                      {note.mentions && note.mentions.length > 0 ? (
+                        <div className="text-sm">
+                          <span>
+                            @{note.mentions[0].contactName}
+                            {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {new Date(note.updatedAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(note.createdAt).toLocaleDateString()}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
@@ -250,6 +348,16 @@ export const NoteList: React.FC = () => {
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
         variant="danger"
+      />
+
+      {/* Bulk Delete Modal */}
+      <BulkDeleteModal
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        onConfirm={handleBulkDelete}
+        itemCount={selectedCount}
+        itemLabel="notes"
+        isLoading={deleting}
       />
     </div>
   );

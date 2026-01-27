@@ -22,7 +22,6 @@ import { createPanelTitles } from '@/core/ui/PanelTitles';
 import { ActivityLogForm } from '@/core/ui/SettingsForms/ActivityLogForm';
 import { PreferencesSettingsForm } from '@/core/ui/SettingsForms/PreferencesSettingsForm';
 import { ProfileSettingsForm } from '@/core/ui/SettingsForms/ProfileSettingsForm';
-import { ProfixioSettingsForm } from '@/core/ui/SettingsForms/ProfixioSettingsForm';
 import { SettingsList } from '@/core/ui/SettingsList';
 import type { NavPage } from '@/core/ui/Sidebar'; // <-- viktig typ-import
 import {
@@ -220,11 +219,6 @@ function AppContent() {
       return null;
     }
 
-    // Disable Add button for profixio plugin (read-only)
-    if (currentPagePlugin.name === 'profixio') {
-      return null;
-    }
-
     const context = pluginContexts.find(
       ({ plugin }) => plugin.name === currentPagePlugin.name,
     )?.context;
@@ -311,9 +305,7 @@ function AppContent() {
         ? 'Preferences'
         : settingsCategory === 'activity-log'
           ? 'Activity Log'
-          : settingsCategory === 'profixio'
-            ? 'Profixio'
-            : 'Settings';
+          : 'Settings';
 
   const settingsPanelContent =
     settingsCategory === 'profile' ? (
@@ -330,12 +322,6 @@ function AppContent() {
       />
     ) : settingsCategory === 'activity-log' ? (
       <ActivityLogForm
-        onCancel={() => {
-          setSettingsCategory(null);
-        }}
-      />
-    ) : settingsCategory === 'profixio' ? (
-      <ProfixioSettingsForm
         onCancel={() => {
           setSettingsCategory(null);
         }}

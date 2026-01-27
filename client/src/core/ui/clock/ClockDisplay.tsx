@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+
 import { Heading, Text } from '../Typography';
 
 import { ClockSettings, COMMON_TIMEZONES } from './clockSettings';
@@ -46,7 +47,9 @@ export function ClockDisplay({
           {settings.showClock ? (
             <>
               <div className="text-sm font-medium text-foreground">{formattedTime}</div>
-              {settings.showDate && <div className="text-xs text-muted-foreground">{formattedDate}</div>}
+              {settings.showDate && (
+                <div className="text-xs text-muted-foreground">{formattedDate}</div>
+              )}
             </>
           ) : (
             <div className="flex items-center justify-center p-1">
@@ -80,7 +83,9 @@ export function ClockDisplay({
             {/* Clock Display */}
             <div className="text-center mb-6">
               <div className="text-4xl font-bold text-foreground mb-2">{formattedTime}</div>
-              {settings.showDate && <div className="text-lg text-muted-foreground">{formattedDate}</div>}
+              {settings.showDate && (
+                <div className="text-lg text-muted-foreground">{formattedDate}</div>
+              )}
               <Text variant="muted" className="text-xs mt-2">
                 {settings.timezone}
               </Text>
@@ -132,7 +137,9 @@ export function ClockDisplay({
             {/* Time Format */}
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Time Format</label>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Time Format
+                </label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleSettingsChange('timeFormat', '24h')}
@@ -158,7 +165,9 @@ export function ClockDisplay({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Date Format</label>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Date Format
+                </label>
                 <select
                   value={settings.dateFormat}
                   onChange={(e) => handleSettingsChange('dateFormat', e.target.value)}

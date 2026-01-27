@@ -63,12 +63,21 @@ router.post(
 
       const { user, tenantConnectionString } = result;
 
+      if (!user || !tenantConnectionString) {
+        logger.error('Login result missing required fields', null, {
+          hasUser: !!user,
+          hasTenantConnectionString: !!tenantConnectionString,
+          email,
+        });
+        return res.status(500).json({ error: 'Login failed: Invalid response from auth service' });
+      }
+
       // Save user info in session
       req.session.user = {
         id: user.id,
         email: user.email,
         role: user.role,
-        plugins: user.plugins,
+        plugins: user.plugins || [],
       };
 
       // Save tenant connection string in session
@@ -78,7 +87,6 @@ router.post(
       req.session.currentTenantUserId = user.id;
 
       // Log tenant routing info
-      const logger = ServiceManager.get('logger');
       const dbHost = tenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
       logger.info('User logged in', {
         userId: user.id,
@@ -89,7 +97,11 @@ router.post(
       // Save session explicitly before responding
       req.session.save((err) => {
         if (err) {
-          logger.error('Session save failed after login', err, { userId: user.id });
+          logger.error('Session save failed after login', err, {
+            userId: user.id,
+            errorMessage: err.message,
+            errorStack: err.stack,
+          });
           return res.status(500).json({ error: 'Session creation failed' });
         }
 
@@ -98,13 +110,17 @@ router.post(
             id: user.id,
             email: user.email,
             role: user.role,
-            plugins: user.plugins,
+            plugins: user.plugins || [],
           },
         });
       });
     } catch (error) {
       const logger = ServiceManager.get('logger');
-      logger.error('Login failed', error, { email: req.body.email });
+      logger.error('Login failed', error, {
+        email: req.body.email,
+        errorMessage: error.message,
+        errorStack: error.stack,
+      });
       res.status(500).json({ error: 'Internal server error' });
     }
   },
@@ -186,16 +202,35 @@ router.get(
   (req, res, next) => requireAuth(req, res, next),
   async (req, res) => {
     try {
+      if (!req.session || !req.session.user) {
+        const logger = ServiceManager.get('logger');
+        logger.error('Session or user missing in /me endpoint', null, {
+          hasSession: !!req.session,
+          hasUser: !!(req.session && req.session.user),
+        });
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
       const currentTenantUserId = req.session.currentTenantUserId || req.session.user.id;
 
       // If admin has switched to another tenant, get that tenant's plugins
-      let plugins = req.session.user.plugins;
+      let plugins = req.session.user.plugins || [];
 
       if (req.session.user.role === 'superuser' && currentTenantUserId !== req.session.user.id) {
-        // We can use UserService for this lookup now strictly speaking, but keeping it simple for "me" route
-        // Or we can import UserService here too.
-        // Let's use authService.userService
-        plugins = await authService.userService.getPluginAccess(currentTenantUserId);
+        try {
+          // We can use UserService for this lookup now strictly speaking, but keeping it simple for "me" route
+          // Or we can import UserService here too.
+          // Let's use authService.userService
+          plugins = await authService.userService.getPluginAccess(currentTenantUserId);
+        } catch (pluginError) {
+          const logger = ServiceManager.get('logger');
+          logger.error('Failed to get plugin access for tenant user', pluginError, {
+            currentTenantUserId,
+            userId: req.session.user.id,
+          });
+          // Fallback to user's own plugins if tenant lookup fails
+          plugins = req.session.user.plugins || [];
+        }
       }
 
       res.json({
@@ -207,7 +242,11 @@ router.get(
       });
     } catch (error) {
       const logger = ServiceManager.get('logger');
-      logger.error('Failed to fetch user info', error, { userId: req.session.user.id });
+      logger.error('Failed to fetch user info', error, {
+        userId: req.session?.user?.id,
+        errorMessage: error.message,
+        errorStack: error.stack,
+      });
       res.status(500).json({ error: 'Failed to fetch user info' });
     }
   },
