@@ -260,37 +260,37 @@ export function TopBar({
 
   return (
     <header className="fixed left-0 right-0 top-0 h-14 bg-background border-b border-border z-40">
-      <div className="h-full flex items-center justify-between pl-4 pr-4 sm:pr-6">
-        <div className="flex items-center gap-3">
+      <div className="h-full flex items-center justify-between pl-4 pr-2 sm:pr-4 md:pr-6">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
+            className="md:hidden flex-shrink-0"
             onClick={onOpenMobileNav}
             aria-label="Open navigation"
           >
             <Menu className="h-5 w-5" />
           </Button>
 
-          <div className="hidden md:flex items-center gap-2 ml-8 mr-4">
+          <div className="hidden md:flex items-center gap-2 ml-8 mr-4 flex-shrink-0">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
               <span className="text-xs font-bold">H</span>
             </div>
             <span className="text-sm font-semibold">Homebase</span>
           </div>
 
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
+          <Breadcrumb className="min-w-0 flex-1">
+            <BreadcrumbList className="flex-wrap">
+              <BreadcrumbItem className="hidden sm:inline-flex">
                 <BreadcrumbLink asChild>
                   <button type="button" onClick={() => onPageChange('contacts')}>
                     Homebase
                   </button>
                 </BreadcrumbLink>
               </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="flex items-center gap-2">
+              <BreadcrumbSeparator className="hidden sm:inline-flex" />
+              <BreadcrumbItem className="min-w-0">
+                <BreadcrumbPage className="flex items-center gap-1 sm:gap-2 min-w-0">
                   <BreadcrumbLink asChild>
                     <button
                       type="button"
@@ -301,22 +301,24 @@ export function TopBar({
                           onPageChange(currentPage);
                         }
                       }}
-                      className="hover:underline"
+                      className="hover:underline truncate text-sm sm:text-base"
                     >
                       {pageLabel}
                     </button>
                   </BreadcrumbLink>
                   {detailPanelTitle && onDetailPanelClose && (
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-md border border-primary/20">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                      {detailPanelTitle}
+                    <span className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-md border border-primary/20 flex-shrink-0">
+                      <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-primary"></span>
+                      <span className="hidden xs:inline truncate max-w-[100px] sm:max-w-none">
+                        {detailPanelTitle}
+                      </span>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onDetailPanelClose();
                         }}
-                        className="ml-0.5 hover:bg-primary/20 rounded p-0.5 transition-colors"
+                        className="ml-0.5 hover:bg-primary/20 rounded p-0.5 transition-colors flex-shrink-0"
                         aria-label="Close detail panel"
                       >
                         <X className="h-3 w-3" />
@@ -329,19 +331,30 @@ export function TopBar({
           </Breadcrumb>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setSearchOpen(true)}
             aria-label="Search"
+            className="h-9 w-9 sm:h-10 sm:w-10"
           >
             <Search className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Filter">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Filter"
+            className="hidden sm:inline-flex h-9 w-9 sm:h-10 sm:w-10"
+          >
             <Filter className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Notifications">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Notifications"
+            className="hidden md:inline-flex h-9 w-9 sm:h-10 sm:w-10"
+          >
             <Bell className="h-4 w-4" />
           </Button>
 
@@ -361,15 +374,20 @@ export function TopBar({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="User menu" className="rounded-full">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="User menu"
+                className="rounded-full h-9 w-9 sm:h-10 sm:w-10"
+              >
                 <div
-                  className={`${getUserColor(user?.email)} text-white text-xs font-semibold rounded-full w-8 h-8 flex items-center justify-center`}
+                  className={`${getUserColor(user?.email)} text-white text-xs font-semibold rounded-full w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center`}
                 >
                   {getUserInitials(profileSettings?.name, user?.email)}
                 </div>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-56 min-w-[200px]">
               <DropdownMenuLabel>
                 {profileSettings?.name ? (
                   <>

@@ -19,14 +19,18 @@ export function ContentHeader({
   trailing,
 }: ContentHeaderProps) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4">
       <div className="flex items-center gap-2">
-        {Icon && <Icon className="h-5 w-5 text-muted-foreground" />}
-        <h1 className="text-xl font-semibold text-foreground">{title}</h1>
+        {Icon && <Icon className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />}
+        <h1 className="text-lg md:text-xl font-semibold text-foreground">{title}</h1>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {trailing}
-        {actionLabel && onAction && <Button onClick={onAction}>{actionLabel}</Button>}
+        {actionLabel && onAction && (
+          <Button onClick={onAction} className="w-full md:w-auto">
+            {actionLabel}
+          </Button>
+        )}
       </div>
     </div>
   );

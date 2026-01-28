@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import React, { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 interface DetailPanelProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface DetailPanelProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   mode?: 'view' | 'create' | 'edit';
+  isMobile?: boolean;
 }
 
 export function DetailPanel({
@@ -21,6 +23,7 @@ export function DetailPanel({
   children,
   footer,
   mode: _mode = 'view',
+  isMobile = false,
 }: DetailPanelProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const previousTitleRef = useRef<string>('');
@@ -54,6 +57,40 @@ export function DetailPanel({
     }
   }, [title, isOpen]);
 
+  // Mobile: Render as Sheet overlay
+  if (isMobile) {
+    return (
+      <Sheet open={isOpen} onOpenChange={onClose}>
+        <SheetContent side="right" className="w-full sm:w-[90%] sm:max-w-lg p-0 flex flex-col">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
+            <SheetTitle className="text-left">{title}</SheetTitle>
+            {subtitle && (
+              <div className="text-sm text-muted-foreground text-left mt-2">
+                {typeof subtitle === 'string' ? <p>{subtitle}</p> : subtitle}
+              </div>
+            )}
+          </SheetHeader>
+
+          {/* Scrollable Content */}
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto py-4 px-6 [&_.shadow-none]:border-none [&_.shadow-sm]:shadow-none [&_.shadow-sm]:border-none"
+          >
+            {children}
+          </div>
+
+          {/* Fixed Footer */}
+          {footer && (
+            <div className="py-4 px-6 border-t border-border flex-shrink-0 flex flex-col sm:flex-row sm:justify-end gap-3">
+              {footer}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  // Desktop: Render as div (existing behavior)
   if (!isOpen) {
     return null;
   }

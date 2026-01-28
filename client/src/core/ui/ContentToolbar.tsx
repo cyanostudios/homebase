@@ -29,9 +29,9 @@ export function ContentToolbar({
           className="w-full pl-10"
         />
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 w-full sm:w-auto">
         {rightActions ?? (
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="w-full sm:w-auto">
             <Filter className="mr-2 h-4 w-4" />
             Filter
           </Button>

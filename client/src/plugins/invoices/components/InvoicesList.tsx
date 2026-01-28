@@ -39,6 +39,15 @@ export function InvoicesList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Read currentPage from localStorage (same as App.tsx does)
   useEffect(() => {
@@ -297,7 +306,7 @@ export function InvoicesList() {
     <div className="space-y-4">
       {/* Sub-navigation buttons */}
       {invoicesNavigation.submenu && (
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {invoicesNavigation.submenu
             .sort((a, b) => a.order - b.order)
             .map((subItem) => {
@@ -310,14 +319,14 @@ export function InvoicesList() {
                   variant="ghost"
                   onClick={() => handleSubNavClick(subItem.page)}
                   className={cn(
-                    'h-auto px-5 py-3 rounded-lg text-sm font-medium transition-colors',
-                    'flex items-center gap-2',
+                    'h-auto px-3 sm:px-5 py-2 sm:py-3 rounded-lg text-xs sm:text-sm font-medium transition-colors',
+                    'flex items-center gap-1.5 sm:gap-2',
                     isActive
                       ? 'bg-primary/10 text-primary border border-primary hover:bg-primary/15'
                       : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
                   )}
                 >
-                  <SubIcon className="h-4 w-4" />
+                  <SubIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   <span>{subItem.label}</span>
                 </Button>
               );
@@ -382,27 +391,31 @@ export function InvoicesList() {
                     checked={invoiceIsSelected}
                     onChange={() => toggleInvoiceSelected(invoice.id)}
                     onClick={(e) => e.stopPropagation()}
-                    className="cursor-pointer flex-shrink-0"
+                    className="cursor-pointer flex-shrink-0 h-5 w-5 sm:h-4 sm:w-4"
                     aria-label={invoiceIsSelected ? 'Unselect invoice' : 'Select invoice'}
                   />
                   <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
                     {invoice.invoiceNumber || `DRAFT-${invoice.id}`}
                   </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
                     {getTypeBadge((invoice as any).invoiceType)}
                     {getStatusBadge(invoice.status || 'draft')}
                   </div>
                 </div>
 
                 {/* Rad 2: Contact + Total + Due Date */}
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div
+                  className={`flex ${isMobile ? 'flex-col' : 'items-center'} gap-2 sm:gap-3 text-xs text-muted-foreground`}
+                >
                   <div className="flex-1 min-w-0 truncate">
                     {invoice.contactName || '—'}
                     {invoice.organizationNumber && (
                       <span className="ml-1">• {invoice.organizationNumber}</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div
+                    className={`flex items-center gap-2 flex-shrink-0 ${isMobile ? 'flex-wrap' : ''}`}
+                  >
                     <span className="text-sm font-medium text-foreground">
                       {(invoice.total || 0).toFixed(2)} {invoice.currency || 'SEK'}
                     </span>

@@ -54,9 +54,18 @@ export const TaskList: React.FC = () => {
   });
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -380,7 +389,74 @@ export const TaskList: React.FC = () => {
               ? 'No tasks found matching your search.'
               : 'No tasks yet. Click "Add Task" to get started.'}
           </div>
+        ) : isMobile ? (
+          // Mobile: Card layout
+          <div className="space-y-2 p-4">
+            {sortedTasks.map((task) => {
+              const taskIsSelected = isSelected(task.id);
+              const assignedContact = task.assignedTo
+                ? contacts.find((c: any) => String(c.id) === String(task.assignedTo))
+                : null;
+              return (
+                <Card
+                  key={task.id}
+                  className="p-4 cursor-pointer hover:bg-accent transition-colors"
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                      return;
+                    }
+                    e.preventDefault();
+                    handleOpenForView(task);
+                  }}
+                  data-list-item={JSON.stringify(task)}
+                  data-plugin-name="tasks"
+                  role="button"
+                  aria-label={`Open task ${task.title}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={taskIsSelected}
+                          onChange={() => toggleTaskSelected(task.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
+                          aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
+                        />
+                        <h3 className="font-semibold text-base truncate">{task.title}</h3>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <Badge className={TASK_STATUS_COLORS[task.status]}>
+                          {formatStatusForDisplay(task.status)}
+                        </Badge>
+                        <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
+                          {task.priority}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-col gap-1 text-sm">
+                        {task.dueDate && (
+                          <div className={formatDueDate(task.dueDate)?.className || ''}>
+                            {formatDueDate(task.dueDate)?.text}
+                          </div>
+                        )}
+                        {assignedContact && (
+                          <div className="text-blue-600 dark:text-blue-400">
+                            Assigned: {assignedContact.companyName}
+                          </div>
+                        )}
+                        <div className="text-muted-foreground">
+                          Updated {new Date(task.updatedAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
         ) : (
+          // Desktop: Table layout
           <Table>
             <TableHeader>
               <TableRow>

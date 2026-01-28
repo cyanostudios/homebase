@@ -51,9 +51,18 @@ export const ContactList: React.FC = () => {
   });
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const [sortField, setSortField] = useState<SortField>('contactNumber');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -330,7 +339,84 @@ export const ContactList: React.FC = () => {
               ? 'No contacts found matching your search.'
               : 'No contacts yet. Click "Add Contact" to get started.'}
           </div>
+        ) : isMobile ? (
+          // Mobile: Card layout
+          <div className="space-y-2 p-4">
+            {sortedContacts.map((contact) => {
+              const contactIsSelected = isSelected(contact.id);
+              return (
+                <Card
+                  key={contact.id}
+                  className="p-4 cursor-pointer hover:bg-accent transition-colors"
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                      return;
+                    }
+                    e.preventDefault();
+                    handleOpenForView(contact);
+                  }}
+                  data-list-item={JSON.stringify(contact)}
+                  data-plugin-name="contacts"
+                  role="button"
+                  aria-label={`Open contact ${contact.companyName}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={contactIsSelected}
+                          onChange={() => toggleContactSelected(contact.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
+                          aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
+                        />
+                        <span className="font-mono text-xs text-muted-foreground">
+                          #{contact.contactNumber}
+                        </span>
+                        <Badge
+                          className={
+                            contact.contactType === 'company'
+                              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                              : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                          }
+                        >
+                          {contact.contactType === 'company' ? 'Company' : 'Private'}
+                        </Badge>
+                      </div>
+                      <h3 className="font-semibold text-base mb-1 truncate">
+                        {contact.companyName}
+                      </h3>
+                      {contact.contactType === 'company' && contact.organizationNumber && (
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Org: {contact.organizationNumber}
+                        </p>
+                      )}
+                      {contact.contactType === 'private' && contact.personalNumber && (
+                        <p className="text-xs text-muted-foreground mb-1">
+                          PN: {contact.personalNumber.substring(0, 9)}XXXX
+                        </p>
+                      )}
+                      <div className="flex flex-col gap-1 mt-2">
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                          <span className="truncate">{contact.email}</span>
+                        </div>
+                        {contact.phone && (
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <Phone className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                            <span>{contact.phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
         ) : (
+          // Desktop: Table layout
           <Table>
             <TableHeader>
               <TableRow>

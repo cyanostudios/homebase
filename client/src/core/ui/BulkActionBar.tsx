@@ -35,34 +35,42 @@ export function BulkActionBar({
   }
 
   return (
-    <div className={`mt-2 text-sm flex items-center flex-wrap gap-2 ${className}`}>
-      <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-        {selectedCount} selected
-      </span>
-      <button
-        className="underline text-blue-700 hover:text-blue-900"
-        onClick={onClearSelection}
-        type="button"
-      >
-        Clear selection
-      </button>
-      {actions.map((action) => {
-        const Icon = action.icon;
-        return (
-          <Button
-            key={action.label}
-            variant={action.variant === 'destructive' ? 'destructive' : 'outline'}
-            size="sm"
-            onClick={action.onClick}
-            className={
-              action.variant === 'destructive' ? 'border-red-600 text-red-700 hover:bg-red-50' : ''
-            }
-          >
-            {Icon && <Icon className="w-4 h-4" />}
-            {action.label}
-          </Button>
-        );
-      })}
+    <div
+      className={`mt-2 text-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2 ${className}`}
+    >
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="px-2 py-1.5 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
+          {selectedCount} selected
+        </span>
+        <button
+          className="underline text-blue-700 hover:text-blue-900 py-1.5 min-h-[44px] sm:min-h-0"
+          onClick={onClearSelection}
+          type="button"
+        >
+          Clear selection
+        </button>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 w-full sm:w-auto">
+        {actions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <Button
+              key={action.label}
+              variant={action.variant === 'destructive' ? 'destructive' : 'outline'}
+              size="sm"
+              onClick={action.onClick}
+              className={`min-h-[44px] sm:min-h-0 w-full sm:w-auto ${
+                action.variant === 'destructive'
+                  ? 'border-red-600 text-red-700 hover:bg-red-50'
+                  : ''
+              }`}
+            >
+              {Icon && <Icon className="w-4 h-4" />}
+              {action.label}
+            </Button>
+          );
+        })}
+      </div>
     </div>
   );
 }

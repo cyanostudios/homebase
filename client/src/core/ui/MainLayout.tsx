@@ -43,6 +43,15 @@ export function MainLayout({
 }: MainLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [headerTrailing, setHeaderTrailing] = useState<React.ReactNode>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Clear trailing when page changes
   useEffect(() => {
@@ -75,35 +84,76 @@ export function MainLayout({
       />
 
       <main className="flex h-[calc(100vh-3.5rem)] pt-14 md:pl-[252px] md:pr-4">
-        {detailPanelOpen ? (
-          <ContentSurface>
+        {/* Mobile: Show DetailPanel as overlay, hide list view when open */}
+        {/* Desktop: Show DetailPanel as column alongside list view */}
+        {isMobile ? (
+          <>
+            {/* Mobile: Always show list view when DetailPanel is closed */}
+            {!detailPanelOpen && (
+              <ContentSurface>
+                <ContentLayoutProvider onTrailingChange={setHeaderTrailing}>
+                  <div className="flex h-full flex-col gap-4">
+                    <ContentHeader
+                      title={contentTitle}
+                      icon={contentIcon}
+                      actionLabel={contentActionLabel}
+                      onAction={onContentAction}
+                      trailing={headerTrailing}
+                    />
+                    <div className="flex flex-1 flex-col overflow-hidden">
+                      <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+                    </div>
+                  </div>
+                </ContentLayoutProvider>
+              </ContentSurface>
+            )}
+            {/* Mobile: DetailPanel as Sheet overlay */}
             <DetailPanel
               isOpen={detailPanelOpen}
               onClose={onDetailPanelClose}
               title={detailPanelTitle}
               subtitle={detailPanelSubtitle}
               footer={detailPanelFooter}
+              isMobile={isMobile}
             >
               {detailPanelContent}
             </DetailPanel>
-          </ContentSurface>
+          </>
         ) : (
-          <ContentSurface>
-            <ContentLayoutProvider onTrailingChange={setHeaderTrailing}>
-              <div className="flex h-full flex-col gap-4">
-                <ContentHeader
-                  title={contentTitle}
-                  icon={contentIcon}
-                  actionLabel={contentActionLabel}
-                  onAction={onContentAction}
-                  trailing={headerTrailing}
-                />
-                <div className="flex flex-1 flex-col overflow-hidden">
-                  <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
-                </div>
-              </div>
-            </ContentLayoutProvider>
-          </ContentSurface>
+          <>
+            {/* Desktop: Show DetailPanel as column when open, otherwise show list view */}
+            {detailPanelOpen ? (
+              <ContentSurface>
+                <DetailPanel
+                  isOpen={detailPanelOpen}
+                  onClose={onDetailPanelClose}
+                  title={detailPanelTitle}
+                  subtitle={detailPanelSubtitle}
+                  footer={detailPanelFooter}
+                  isMobile={isMobile}
+                >
+                  {detailPanelContent}
+                </DetailPanel>
+              </ContentSurface>
+            ) : (
+              <ContentSurface>
+                <ContentLayoutProvider onTrailingChange={setHeaderTrailing}>
+                  <div className="flex h-full flex-col gap-4">
+                    <ContentHeader
+                      title={contentTitle}
+                      icon={contentIcon}
+                      actionLabel={contentActionLabel}
+                      onAction={onContentAction}
+                      trailing={headerTrailing}
+                    />
+                    <div className="flex flex-1 flex-col overflow-hidden">
+                      <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+                    </div>
+                  </div>
+                </ContentLayoutProvider>
+              </ContentSurface>
+            )}
+          </>
         )}
       </main>
     </div>

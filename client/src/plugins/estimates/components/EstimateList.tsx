@@ -44,6 +44,15 @@ export function EstimateList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -302,7 +311,76 @@ export function EstimateList() {
               ? 'No estimates found matching your search.'
               : 'No estimates yet. Click "Add Estimate" to get started.'}
           </div>
+        ) : isMobile ? (
+          // Mobile: Card layout
+          <div className="space-y-2 p-4">
+            {sortedEstimates.map((estimate) => {
+              const estimateIsSelected = isSelected(estimate.id);
+              const totals = calculateEstimateTotals(
+                estimate.lineItems || [],
+                estimate.estimateDiscount || 0,
+              );
+              return (
+                <Card
+                  key={estimate.id}
+                  className="p-4 cursor-pointer hover:bg-accent transition-colors"
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                      return;
+                    }
+                    e.preventDefault();
+                    handleOpenForView(estimate);
+                  }}
+                  data-list-item={JSON.stringify(estimate)}
+                  data-plugin-name="estimates"
+                  role="button"
+                  aria-label={`Open estimate ${estimate.estimateNumber}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={estimateIsSelected}
+                          onChange={() => toggleEstimateSelected(estimate.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
+                          aria-label={estimateIsSelected ? 'Unselect estimate' : 'Select estimate'}
+                        />
+                        <span className="font-semibold text-base">{estimate.estimateNumber}</span>
+                        {getStatusBadge(estimate.status)}
+                      </div>
+                      <h3 className="font-semibold mb-1 truncate">{estimate.contactName}</h3>
+                      {estimate.organizationNumber && (
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Org: {estimate.organizationNumber}
+                        </p>
+                      )}
+                      <div className="flex flex-col gap-1 text-sm">
+                        <div className="font-medium">
+                          {totals.total.toFixed(2)} {estimate.currency}
+                        </div>
+                        <div className="text-muted-foreground">
+                          {estimate.lineItems.length} item
+                          {estimate.lineItems.length !== 1 ? 's' : ''}
+                          {totals.totalVat > 0 &&
+                            ` • VAT: ${totals.totalVat.toFixed(2)} ${estimate.currency}`}
+                        </div>
+                        <div className="text-muted-foreground">
+                          Valid to: {new Date(estimate.validTo).toLocaleDateString()}
+                        </div>
+                        <div className="text-muted-foreground">
+                          Created: {new Date(estimate.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
         ) : (
+          // Desktop: Table layout
           <Table>
             <TableHeader>
               <TableRow>
