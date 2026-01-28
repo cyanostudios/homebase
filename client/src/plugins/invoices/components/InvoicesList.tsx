@@ -1,4 +1,4 @@
-import { Receipt, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
+import { Trash2, FileSpreadsheet, FileText } from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -375,7 +375,7 @@ export function InvoicesList() {
                   handleOpenForView(invoice);
                 }}
               >
-                {/* Rad 1: Checkbox + Icon + Invoice Number + Badges */}
+                {/* Rad 1: Checkbox + Invoice Number + Badges */}
                 <div className="flex items-center gap-2 mb-1.5">
                   <input
                     type="checkbox"
@@ -385,7 +385,6 @@ export function InvoicesList() {
                     className="cursor-pointer flex-shrink-0"
                     aria-label={invoiceIsSelected ? 'Unselect invoice' : 'Select invoice'}
                   />
-                  <Receipt className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
                   <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
                     {invoice.invoiceNumber || `DRAFT-${invoice.id}`}
                   </div>

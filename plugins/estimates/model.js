@@ -3,10 +3,28 @@
 const crypto = require('crypto');
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const ServiceManager = require('../../server/core/ServiceManager');
 
 class EstimateModel {
   constructor() {
     // No pool needed - ServiceManager provides database service
+  }
+
+  // Get context for database operations
+  _getContext(req) {
+    if (!req) {
+      throw new Error('Request object is required');
+    }
+
+    const pool = req.tenantPool;
+    if (!pool) {
+      throw new Error('Tenant pool not found in request. Ensure auth middleware is applied.');
+    }
+
+    return {
+      pool,
+      userId: req.session?.currentTenantUserId || req.session?.user?.id,
+    };
   }
 
   // Existing calculation method (unchanged)
@@ -632,6 +650,19 @@ class EstimateModel {
       if (error instanceof AppError) {
         throw error;
       }
+
+      // Check if table doesn't exist (common migration issue)
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        Logger.error('estimate_shares table does not exist. Please run migrations.', error, {
+          estimateId,
+        });
+        throw new AppError(
+          'Shares table not found. Please run database migrations.',
+          500,
+          AppError.CODES.DATABASE_ERROR,
+        );
+      }
+
       throw new AppError('Failed to get shares for estimate', 500, AppError.CODES.DATABASE_ERROR);
     }
   }

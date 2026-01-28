@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { LucideIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 
 import { ContentHeader } from './ContentHeader';
 import { ContentLayoutProvider } from './ContentLayoutContext';
@@ -13,6 +14,7 @@ interface MainLayoutProps {
   currentPage: NavPage;
   onPageChange: (page: NavPage) => void;
   contentTitle: string;
+  contentIcon?: LucideIcon;
   contentActionLabel?: string;
   onContentAction?: () => void;
   // DetailPanel props
@@ -29,6 +31,7 @@ export function MainLayout({
   currentPage,
   onPageChange,
   contentTitle,
+  contentIcon,
   contentActionLabel,
   onContentAction,
   detailPanelOpen,
@@ -40,6 +43,11 @@ export function MainLayout({
 }: MainLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [headerTrailing, setHeaderTrailing] = useState<React.ReactNode>(null);
+
+  // Clear trailing when page changes
+  useEffect(() => {
+    setHeaderTrailing(null);
+  }, [currentPage]);
 
   // Wrapper to close detail panel when navigating
   const handlePageChange = (page: NavPage) => {
@@ -85,6 +93,7 @@ export function MainLayout({
               <div className="flex h-full flex-col gap-4">
                 <ContentHeader
                   title={contentTitle}
+                  icon={contentIcon}
                   actionLabel={contentActionLabel}
                   onAction={onContentAction}
                   trailing={headerTrailing}

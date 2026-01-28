@@ -178,7 +178,7 @@ export function PomodoroTimer({
 
         {/* Expanded panel */}
         {expanded && !showSettings && (
-          <div className="absolute top-full right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg p-4 z-50">
+          <div className="absolute top-full right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg p-4 z-[60]">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -275,7 +275,7 @@ export function PomodoroTimer({
 
         {/* Settings-panel i compact-läge */}
         {expanded && showSettings && (
-          <div className="absolute top-full right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg p-4 z-50">
+          <div className="absolute top-full right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg p-4 z-[60]">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">

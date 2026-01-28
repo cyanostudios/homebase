@@ -1,4 +1,4 @@
-import { Bell, Filter, Menu, Search, Settings, X } from 'lucide-react';
+import { Bell, Filter, Menu, Moon, Search, Sun, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import {
@@ -31,8 +31,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Switch } from '@/components/ui/switch';
 import { useApp } from '@/core/api/AppContext';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
+import { useTheme } from '@/hooks/useTheme';
 
 import { ClockDisplay } from './clock/ClockDisplay';
 import { PomodoroTimer } from './pomodoro/PomodoroTimer';
@@ -126,6 +128,7 @@ export function TopBar({
   onDetailPanelClose,
 }: TopBarProps) {
   const { user, logout, getSettings } = useApp();
+  const { theme, toggleTheme } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
   const [openPanel, setOpenPanel] = useState<'pomodoro' | 'clock' | null>(null);
   const [profileSettings, setProfileSettings] = useState<{ name?: string; title?: string } | null>(
@@ -239,7 +242,6 @@ export function TopBar({
         });
       }
     });
-    items.push({ label: 'Settings', page: 'settings' });
     return items;
   }, [user]);
 
@@ -257,7 +259,7 @@ export function TopBar({
   };
 
   return (
-    <header className="fixed left-0 right-0 top-0 h-14 bg-background border-b border-border z-20">
+    <header className="fixed left-0 right-0 top-0 h-14 bg-background border-b border-border z-40">
       <div className="h-full flex items-center justify-between pl-4 pr-4 sm:pr-6">
         <div className="flex items-center gap-3">
           <Button
@@ -339,14 +341,6 @@ export function TopBar({
           <Button variant="ghost" size="icon" aria-label="Filter">
             <Filter className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Settings"
-            onClick={() => onPageChange('settings')}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
           <Button variant="ghost" size="icon" aria-label="Notifications">
             <Bell className="h-4 w-4" />
           </Button>
@@ -418,6 +412,19 @@ export function TopBar({
                 </DropdownMenuSub>
               )}
               <DropdownMenuItem onClick={() => onPageChange('settings')}>Settings</DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                }}
+                className="flex items-center justify-between cursor-default"
+              >
+                <div className="flex items-center gap-2">
+                  <Sun className="h-4 w-4 text-muted-foreground" />
+                  <span>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</span>
+                  <Moon className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <Switch checked={theme === 'dark'} onCheckedChange={toggleTheme} />
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout} className="text-destructive">
                 Log out

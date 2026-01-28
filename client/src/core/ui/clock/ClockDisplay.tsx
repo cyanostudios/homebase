@@ -60,7 +60,7 @@ export function ClockDisplay({
 
         {/* Expanded/Settings panels */}
         {expanded && !showSettings && (
-          <div className="absolute top-full right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg p-4 z-50">
+          <div className="absolute top-full right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg p-4 z-[60]">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -117,7 +117,7 @@ export function ClockDisplay({
 
         {/* Settings panel */}
         {expanded && showSettings && (
-          <div className="absolute top-full right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg p-4 z-50">
+          <div className="absolute top-full right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg p-4 z-[60]">
             {/* Settings Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">

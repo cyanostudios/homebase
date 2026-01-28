@@ -1,4 +1,4 @@
-import { CheckSquare, ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
+import { ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -394,7 +394,6 @@ export const TaskList: React.FC = () => {
                     aria-label={allVisibleSelected ? 'Deselect all tasks' : 'Select all tasks'}
                   />
                 </TableHead>
-                <TableHead className="w-12"></TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-muted/50 select-none"
                   onClick={() => handleSort('title')}
@@ -497,9 +496,6 @@ export const TaskList: React.FC = () => {
                         className="cursor-pointer"
                         aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
                       />
-                    </TableCell>
-                    <TableCell className="w-12">
-                      <CheckSquare className="w-4 h-4 text-purple-500 dark:text-purple-400" />
                     </TableCell>
                     <TableCell className="font-semibold">{task.title}</TableCell>
                     <TableCell>

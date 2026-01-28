@@ -1,14 +1,4 @@
-import {
-  Mail,
-  Phone,
-  Building,
-  User,
-  ArrowUp,
-  ArrowDown,
-  Trash2,
-  FileSpreadsheet,
-  FileText,
-} from 'lucide-react';
+import { Mail, Phone, ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -356,7 +346,6 @@ export const ContactList: React.FC = () => {
                     }
                   />
                 </TableHead>
-                <TableHead className="w-12"></TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-muted/50 select-none"
                   onClick={() => handleSort('contactNumber')}
@@ -445,13 +434,6 @@ export const ContactList: React.FC = () => {
                         className="cursor-pointer"
                         aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
                       />
-                    </TableCell>
-                    <TableCell className="w-12">
-                      {contact.contactType === 'company' ? (
-                        <Building className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                      ) : (
-                        <User className="w-4 h-4 text-green-500 dark:text-green-400" />
-                      )}
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       #{contact.contactNumber}

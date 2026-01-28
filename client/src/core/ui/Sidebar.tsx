@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, LogOut, Settings } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -51,7 +51,7 @@ export function Sidebar({
   mobileOpen,
   onMobileOpenChange,
 }: SidebarProps) {
-  const { logout, user } = useApp();
+  const { user } = useApp();
   const [isMobile, setIsMobile] = useState(false);
   const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set());
 
@@ -113,10 +113,6 @@ export function Sidebar({
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
-
-  const handleLogout = async () => {
-    await logout();
-  };
 
   const handleMenuItemClick = (page: NavPage | null) => {
     if (isMobile) {
@@ -253,57 +249,9 @@ export function Sidebar({
     </div>
   );
 
-  const renderFooterActions = () => (
-    <NavigationMenu className="w-full max-w-full justify-start">
-      <NavigationMenuList className="flex-col items-stretch">
-        <NavigationMenuItem>
-          <NavigationMenuLink asChild>
-            <button type="button" onClick={() => handleMenuItemClick('settings')}>
-              <div
-                className={cn(
-                  'w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors',
-                  'justify-start',
-                  'text-muted-foreground hover:text-foreground hover:bg-accent',
-                )}
-              >
-                <Settings
-                  className={cn(
-                    'h-4 w-4 flex-shrink-0',
-                    currentPage === 'settings' ? 'text-primary' : 'text-muted-foreground',
-                  )}
-                />
-                <span className={cn(currentPage === 'settings' ? 'text-primary font-medium' : '')}>
-                  Settings
-                </span>
-              </div>
-            </button>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
-
-        <NavigationMenuItem>
-          <NavigationMenuLink asChild>
-            <button type="button" onClick={handleLogout}>
-              <div
-                className={cn(
-                  'w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors text-destructive hover:bg-destructive/10',
-                  'justify-start',
-                )}
-              >
-                <LogOut className="h-4 w-4 flex-shrink-0" />
-                <span>Logout</span>
-              </div>
-            </button>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
-      </NavigationMenuList>
-    </NavigationMenu>
-  );
-
   const SidebarContent = () => (
     <div className="flex h-full flex-col pt-14">
       <div className="flex-1 overflow-y-auto px-2 pt-4">{renderCategories()}</div>
-
-      <div className="px-2 pb-4">{renderFooterActions()}</div>
     </div>
   );
 

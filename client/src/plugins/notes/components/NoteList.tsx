@@ -1,4 +1,4 @@
-import { StickyNote, ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
+import { ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Card } from '@/components/ui/card';
@@ -301,7 +301,6 @@ export const NoteList: React.FC = () => {
                     onChange={onToggleAllVisible}
                   />
                 </TableHead>
-                <TableHead className="w-12"></TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-muted/50 select-none"
                   onClick={() => handleSort('title')}
@@ -373,9 +372,6 @@ export const NoteList: React.FC = () => {
                         onChange={() => toggleNoteSelected(note.id)}
                         aria-label={noteIsSelected ? 'Unselect note' : 'Select note'}
                       />
-                    </TableCell>
-                    <TableCell className="w-12">
-                      <StickyNote className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
                     </TableCell>
                     <TableCell className="font-semibold">{note.title}</TableCell>
                     <TableCell>

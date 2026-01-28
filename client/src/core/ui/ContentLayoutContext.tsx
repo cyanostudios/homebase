@@ -1,7 +1,7 @@
 // client/src/core/ui/ContentLayoutContext.tsx
 // Context for allowing list components to inject content into ContentHeader
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useCallback } from 'react';
 
 interface ContentLayoutContextType {
   setHeaderTrailing: (node: ReactNode) => void;
@@ -23,9 +23,12 @@ interface ContentLayoutProviderProps {
 }
 
 export function ContentLayoutProvider({ children, onTrailingChange }: ContentLayoutProviderProps) {
-  const setHeaderTrailing = (node: ReactNode) => {
-    onTrailingChange(node);
-  };
+  const setHeaderTrailing = useCallback(
+    (node: ReactNode) => {
+      onTrailingChange(node);
+    },
+    [onTrailingChange],
+  );
 
   return (
     <ContentLayoutContext.Provider value={{ setHeaderTrailing }}>

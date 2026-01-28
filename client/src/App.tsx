@@ -214,6 +214,23 @@ function AppContent() {
     return sub?.label || currentPagePlugin.navigation.label;
   }, [currentPage, currentPagePlugin]);
 
+  const contentIcon = useMemo(() => {
+    if (currentPage === 'settings') {
+      return undefined;
+    }
+
+    if (!currentPagePlugin?.navigation) {
+      return undefined;
+    }
+
+    if (currentPagePlugin.name === currentPage) {
+      return currentPagePlugin.navigation.icon;
+    }
+
+    const sub = currentPagePlugin.navigation.submenu?.find((item) => item.page === currentPage);
+    return sub?.icon || currentPagePlugin.navigation.icon;
+  }, [currentPage, currentPagePlugin]);
+
   const primaryAction = useMemo(() => {
     if (!currentPagePlugin || currentPagePlugin.name !== currentPage) {
       return null;
@@ -345,6 +362,7 @@ function AppContent() {
         currentPage={currentPage}
         onPageChange={handlePageChange}
         contentTitle={contentTitle}
+        contentIcon={contentIcon}
         contentActionLabel={primaryAction?.label}
         onContentAction={primaryAction?.onClick}
         detailPanelOpen={detailPanelOpen}

@@ -1,4 +1,4 @@
-import { Calculator, ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
+import { ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -318,7 +318,6 @@ export function EstimateList() {
                     }
                   />
                 </TableHead>
-                <TableHead className="w-12"></TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-muted/50 select-none"
                   onClick={() => handleSort('estimateNumber')}
@@ -413,9 +412,6 @@ export function EstimateList() {
                         className="cursor-pointer"
                         aria-label={estimateIsSelected ? 'Unselect estimate' : 'Select estimate'}
                       />
-                    </TableCell>
-                    <TableCell className="w-12">
-                      <Calculator className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                     </TableCell>
                     <TableCell className="font-semibold">{estimate.estimateNumber}</TableCell>
                     <TableCell>
