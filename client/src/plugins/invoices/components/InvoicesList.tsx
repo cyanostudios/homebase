@@ -1,9 +1,11 @@
-import { Receipt } from 'lucide-react';
+import { Receipt, Trash2 } from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { GroupedList } from '@/core/ui/GroupedList';
@@ -17,11 +19,23 @@ type SortField = 'invoiceNumber' | 'contactName' | 'total' | 'createdAt' | 'stat
 type SortOrder = 'asc' | 'desc';
 
 export function InvoicesList() {
-  const { invoices, openInvoiceForView, deleteInvoice } = useInvoices();
+  const {
+    invoices,
+    openInvoiceForView,
+    deleteInvoice,
+    deleteInvoices,
+    selectedInvoiceIds,
+    toggleInvoiceSelected,
+    clearInvoiceSelection,
+    selectedCount,
+    isSelected,
+  } = useInvoices();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [currentPage, setCurrentPage] = useState<string>('invoices');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Read currentPage from localStorage (same as App.tsx does)
   useEffect(() => {
@@ -150,6 +164,22 @@ export function InvoicesList() {
     return <Badge className={colorClass}>{label}</Badge>;
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedInvoiceIds.length === 0) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await deleteInvoices(selectedInvoiceIds);
+      setShowBulkDeleteModal(false);
+    } catch (err: any) {
+      console.error('Bulk delete failed:', err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // Protected navigation handlers
   const handleOpenForView = (invoice: any) => {
     attemptNavigation(() => {
@@ -208,6 +238,20 @@ export function InvoicesList() {
         searchPlaceholder="Search invoices..."
       />
 
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={selectedCount}
+        onClearSelection={clearInvoiceSelection}
+        actions={[
+          {
+            label: 'Delete…',
+            icon: Trash2,
+            onClick: () => setShowBulkDeleteModal(true),
+            variant: 'destructive',
+          },
+        ]}
+      />
+
       <Card className="shadow-none">
         <GroupedList
           items={sortedInvoices}
@@ -217,60 +261,86 @@ export function InvoicesList() {
               ? 'No invoices found matching your search.'
               : 'No invoices yet. Click "Add Invoice" to get started.'
           }
-          renderItem={(invoice, idx) => (
-            <div
-              key={invoice.id}
-              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3`}
-              tabIndex={0}
-              data-list-item={JSON.stringify(invoice)}
-              data-plugin-name="invoices"
-              role="button"
-              aria-label={`Open invoice ${invoice.invoiceNumber || invoice.id}`}
-              onClick={(e) => {
-                e.preventDefault();
-                handleOpenForView(invoice);
-              }}
-            >
-              {/* Rad 1: Icon + Invoice Number + Badges */}
-              <div className="flex items-center gap-2 mb-1.5">
-                <Receipt className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
-                <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
-                  {invoice.invoiceNumber || `DRAFT-${invoice.id}`}
+          renderItem={(invoice, idx) => {
+            const invoiceIsSelected = isSelected(invoice.id);
+            return (
+              <div
+                key={invoice.id}
+                className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3`}
+                tabIndex={0}
+                data-list-item={JSON.stringify(invoice)}
+                data-plugin-name="invoices"
+                role="button"
+                aria-label={`Open invoice ${invoice.invoiceNumber || invoice.id}`}
+                onClick={(e) => {
+                  // Don't open if clicking checkbox
+                  if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                    return;
+                  }
+                  e.preventDefault();
+                  handleOpenForView(invoice);
+                }}
+              >
+                {/* Rad 1: Checkbox + Icon + Invoice Number + Badges */}
+                <div className="flex items-center gap-2 mb-1.5">
+                  <input
+                    type="checkbox"
+                    checked={invoiceIsSelected}
+                    onChange={() => toggleInvoiceSelected(invoice.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="cursor-pointer flex-shrink-0"
+                    aria-label={invoiceIsSelected ? 'Unselect invoice' : 'Select invoice'}
+                  />
+                  <Receipt className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                  <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
+                    {invoice.invoiceNumber || `DRAFT-${invoice.id}`}
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {getTypeBadge((invoice as any).invoiceType)}
+                    {getStatusBadge(invoice.status || 'draft')}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {getTypeBadge((invoice as any).invoiceType)}
-                  {getStatusBadge(invoice.status || 'draft')}
-                </div>
-              </div>
 
-              {/* Rad 2: Contact + Total + Due Date */}
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <div className="flex-1 min-w-0 truncate">
-                  {invoice.contactName || '—'}
-                  {invoice.organizationNumber && (
-                    <span className="ml-1">• {invoice.organizationNumber}</span>
-                  )}
+                {/* Rad 2: Contact + Total + Due Date */}
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <div className="flex-1 min-w-0 truncate">
+                    {invoice.contactName || '—'}
+                    {invoice.organizationNumber && (
+                      <span className="ml-1">• {invoice.organizationNumber}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-sm font-medium text-foreground">
+                      {(invoice.total || 0).toFixed(2)} {invoice.currency || 'SEK'}
+                    </span>
+                    {invoice.dueDate && (
+                      <span>• Due {new Date(invoice.dueDate).toLocaleDateString()}</span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-sm font-medium text-foreground">
-                    {(invoice.total || 0).toFixed(2)} {invoice.currency || 'SEK'}
-                  </span>
-                  {invoice.dueDate && (
-                    <span>• Due {new Date(invoice.dueDate).toLocaleDateString()}</span>
-                  )}
-                </div>
-              </div>
 
-              {/* Rad 3: VAT (optional) */}
-              {invoice.totalVat && invoice.totalVat > 0 && (
-                <div className="mt-1 text-xs text-muted-foreground">
-                  VAT: {(invoice.totalVat || 0).toFixed(2)} {invoice.currency || 'SEK'}
-                </div>
-              )}
-            </div>
-          )}
+                {/* Rad 3: VAT (optional) */}
+                {invoice.totalVat && invoice.totalVat > 0 && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    VAT: {(invoice.totalVat || 0).toFixed(2)} {invoice.currency || 'SEK'}
+                  </div>
+                )}
+              </div>
+            );
+          }}
         />
       </Card>
+
+      {/* Bulk Delete Modal */}
+      <BulkDeleteModal
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        onConfirm={handleBulkDelete}
+        itemCount={selectedCount}
+        singularLabel="invoice"
+        pluralLabel="invoices"
+        isLoading={deleting}
+      />
 
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}

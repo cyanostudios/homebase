@@ -10,6 +10,8 @@ import React, {
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
+import { bulkApi } from '@/core/api/bulkApi';
+import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 
 import { tasksApi } from '../api/tasksApi';
 import { Task, ValidationError } from '../types/tasks';
@@ -28,8 +30,16 @@ interface TaskContextType {
   closeTaskPanel: () => void;
   saveTask: (taskData: any, taskId?: string) => Promise<boolean>;
   deleteTask: (id: string) => Promise<void>;
+  deleteTasks: (ids: string[]) => Promise<void>;
   duplicateTask: (task: Task) => Promise<void>;
   clearValidationErrors: () => void;
+  // Bulk selection
+  selectedTaskIds: string[];
+  toggleTaskSelected: (id: string) => void;
+  selectAllTasks: (ids: string[]) => void;
+  clearTaskSelection: () => void;
+  selectedCount: number;
+  isSelected: (id: string) => boolean;
 
   // NEW: Panel Title Functions
   getPanelTitle: (mode: string, item: Task | null, isMobileView: boolean) => any;
@@ -54,6 +64,16 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
 
   const [tasks, setTasks] = useState<Task[]>([]);
+
+  // Use core bulk selection hook
+  const {
+    selectedIds: selectedTaskIds,
+    toggleSelection: toggleTaskSelectedCore,
+    selectAll: selectAllTasksCore,
+    clearSelection: clearTaskSelectionCore,
+    isSelected,
+    selectedCount,
+  } = useBulkSelection();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -293,6 +313,31 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   };
 
+  const deleteTasks = async (ids: string[]) => {
+    const uniqueIds = Array.from(new Set((ids || []).map(String).filter(Boolean)));
+    if (uniqueIds.length === 0) {
+      return;
+    }
+
+    try {
+      await bulkApi.bulkDelete('tasks', uniqueIds);
+
+      const idSet = new Set(uniqueIds);
+      setTasks((prev) => prev.filter((task) => !idSet.has(String(task.id))));
+
+      // If the currently open task was deleted, close the panel.
+      if (currentTask && idSet.has(String(currentTask.id))) {
+        closeTaskPanel();
+      }
+
+      clearTaskSelectionCore();
+    } catch (error: any) {
+      console.error('Failed to bulk delete tasks:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to delete tasks';
+      alert(errorMessage);
+    }
+  };
+
   const duplicateTask = async (originalTask: Task) => {
     try {
       const duplicateData = {
@@ -453,8 +498,17 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     closeTaskPanel,
     saveTask,
     deleteTask,
+    deleteTasks,
     duplicateTask,
     clearValidationErrors,
+
+    // Bulk selection
+    selectedTaskIds,
+    toggleTaskSelected: toggleTaskSelectedCore,
+    selectAllTasks: selectAllTasksCore,
+    clearTaskSelection: clearTaskSelectionCore,
+    selectedCount,
+    isSelected,
 
     // NEW: Panel Title Functions
     getPanelTitle,

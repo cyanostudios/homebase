@@ -1,5 +1,5 @@
-import { Mail, Phone, Building, User, ArrowUp, ArrowDown } from 'lucide-react';
-import React, { useState, useMemo } from 'react';
+import { Mail, Phone, Building, User, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -11,6 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -21,7 +23,18 @@ type SortField = 'contactNumber' | 'name' | 'type' | 'email';
 type SortOrder = 'asc' | 'desc';
 
 export const ContactList: React.FC = () => {
-  const { contacts, openContactForView, deleteContact } = useContacts();
+  const {
+    contacts,
+    openContactForView,
+    deleteContact,
+    deleteContacts,
+    selectedContactIds,
+    toggleContactSelected,
+    selectAllContacts,
+    clearContactSelection,
+    selectedCount,
+    isSelected,
+  } = useContacts();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -33,6 +46,8 @@ export const ContactList: React.FC = () => {
     contactId: '',
     contactName: '',
   });
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [sortField, setSortField] = useState<SortField>('contactNumber');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -82,6 +97,56 @@ export const ContactList: React.FC = () => {
     });
   }, [contacts, searchTerm, sortField, sortOrder]);
 
+  // Visible contact IDs for selection
+  const visibleContactIds = useMemo(
+    () => sortedContacts.map((contact) => String(contact.id)),
+    [sortedContacts],
+  );
+
+  // Selection helpers
+  const allVisibleSelected = useMemo(
+    () => visibleContactIds.length > 0 && visibleContactIds.every((id) => isSelected(id)),
+    [visibleContactIds, isSelected],
+  );
+
+  const someVisibleSelected = useMemo(
+    () => visibleContactIds.some((id) => isSelected(id)),
+    [visibleContactIds, isSelected],
+  );
+
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!headerCheckboxRef.current) {
+      return;
+    }
+    headerCheckboxRef.current.indeterminate = !allVisibleSelected && someVisibleSelected;
+  }, [allVisibleSelected, someVisibleSelected]);
+
+  const handleHeaderCheckboxChange = () => {
+    if (allVisibleSelected) {
+      clearContactSelection();
+    } else {
+      selectAllContacts(visibleContactIds);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedContactIds.length === 0) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await deleteContacts(selectedContactIds);
+      setShowBulkDeleteModal(false);
+    } catch (err: any) {
+      console.error('Bulk delete failed:', err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const _handleDelete = (id: string, name: string) => {
     setDeleteConfirm({ isOpen: true, contactId: id, contactName: name });
   };
@@ -97,12 +162,27 @@ export const ContactList: React.FC = () => {
 
   // Protected navigation handlers
   const handleOpenForView = (contact: any) => attemptNavigation(() => openContactForView(contact));
+
   return (
     <div className="space-y-4">
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder="Search contacts..."
+      />
+
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={selectedCount}
+        onClearSelection={clearContactSelection}
+        actions={[
+          {
+            label: 'Delete…',
+            icon: Trash2,
+            onClick: () => setShowBulkDeleteModal(true),
+            variant: 'destructive',
+          },
+        ]}
       />
 
       <Card className="shadow-none">
@@ -116,6 +196,18 @@ export const ContactList: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={handleHeaderCheckboxChange}
+                    className="cursor-pointer"
+                    aria-label={
+                      allVisibleSelected ? 'Deselect all contacts' : 'Select all contacts'
+                    }
+                  />
+                </TableHead>
                 <TableHead className="w-12"></TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-muted/50 select-none"
@@ -177,76 +269,103 @@ export const ContactList: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedContacts.map((contact) => (
-                <TableRow
-                  key={contact.id}
-                  className="cursor-pointer hover:bg-accent"
-                  tabIndex={0}
-                  data-list-item={JSON.stringify(contact)}
-                  data-plugin-name="contacts"
-                  role="button"
-                  aria-label={`Open contact ${contact.companyName}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleOpenForView(contact);
-                  }}
-                >
-                  <TableCell className="w-12">
-                    {contact.contactType === 'company' ? (
-                      <Building className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                    ) : (
-                      <User className="w-4 h-4 text-green-500 dark:text-green-400" />
-                    )}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    #{contact.contactNumber}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold">{contact.companyName}</span>
-                      {contact.contactType === 'company' && contact.organizationNumber && (
-                        <span className="text-xs text-muted-foreground">
-                          Org: {contact.organizationNumber}
-                        </span>
-                      )}
-                      {contact.contactType === 'private' && contact.personalNumber && (
-                        <span className="text-xs text-muted-foreground">
-                          PN: {contact.personalNumber.substring(0, 9)}XXXX
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      className={
-                        contact.contactType === 'company'
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                          : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+              {sortedContacts.map((contact) => {
+                const contactIsSelected = isSelected(contact.id);
+                return (
+                  <TableRow
+                    key={contact.id}
+                    className="cursor-pointer hover:bg-accent"
+                    tabIndex={0}
+                    data-list-item={JSON.stringify(contact)}
+                    data-plugin-name="contacts"
+                    role="button"
+                    aria-label={`Open contact ${contact.companyName}`}
+                    onClick={(e) => {
+                      // Don't open if clicking checkbox
+                      if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                        return;
                       }
-                    >
-                      {contact.contactType === 'company' ? 'Company' : 'Private'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <Mail className="w-3 h-3 text-muted-foreground" />
-                      <span className="truncate max-w-[200px]">{contact.email}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {contact.phone && (
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <Phone className="w-3 h-3 text-muted-foreground" />
-                        <span>{contact.phone}</span>
+                      e.preventDefault();
+                      handleOpenForView(contact);
+                    }}
+                  >
+                    <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={contactIsSelected}
+                        onChange={() => toggleContactSelected(contact.id)}
+                        className="cursor-pointer"
+                        aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
+                      />
+                    </TableCell>
+                    <TableCell className="w-12">
+                      {contact.contactType === 'company' ? (
+                        <Building className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                      ) : (
+                        <User className="w-4 h-4 text-green-500 dark:text-green-400" />
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      #{contact.contactNumber}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-semibold">{contact.companyName}</span>
+                        {contact.contactType === 'company' && contact.organizationNumber && (
+                          <span className="text-xs text-muted-foreground">
+                            Org: {contact.organizationNumber}
+                          </span>
+                        )}
+                        {contact.contactType === 'private' && contact.personalNumber && (
+                          <span className="text-xs text-muted-foreground">
+                            PN: {contact.personalNumber.substring(0, 9)}XXXX
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        className={
+                          contact.contactType === 'company'
+                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                            : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                        }
+                      >
+                        {contact.contactType === 'company' ? 'Company' : 'Private'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5 text-sm">
+                        <Mail className="w-3 h-3 text-muted-foreground" />
+                        <span className="truncate max-w-[200px]">{contact.email}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {contact.phone && (
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <Phone className="w-3 h-3 text-muted-foreground" />
+                          <span>{contact.phone}</span>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
       </Card>
+
+      {/* Bulk Delete Modal */}
+      <BulkDeleteModal
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        onConfirm={handleBulkDelete}
+        itemCount={selectedCount}
+        singularLabel="contact"
+        pluralLabel="contacts"
+        isLoading={deleting}
+      />
 
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}

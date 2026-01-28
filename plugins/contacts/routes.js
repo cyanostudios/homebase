@@ -18,7 +18,8 @@ function createContactRoutes(controller, context) {
   });
 
   // POST /api/contacts - Create new contact
-  router.post('/',
+  router.post(
+    '/',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.string('companyName', 1, 255),
@@ -32,11 +33,12 @@ function createContactRoutes(controller, context) {
     validateRequest,
     (req, res) => {
       controller.create(req, res);
-    }
+    },
   );
 
   // PUT /api/contacts/:id - Update contact
-  router.put('/:id',
+  router.put(
+    '/:id',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
@@ -51,18 +53,29 @@ function createContactRoutes(controller, context) {
     validateRequest,
     (req, res) => {
       controller.update(req, res);
-    }
+    },
+  );
+
+  // DELETE /api/contacts/batch - Bulk delete (MUST be before '/:id' route)
+  router.delete(
+    '/batch',
+    gate,
+    // /* csrfProtection, */ // Temporarily disabled
+    ...commonRules.requiredArray('ids', 500),
+    validateRequest,
+    (req, res) => controller.bulkDelete(req, res),
   );
 
   // DELETE /api/contacts/:id - Delete contact
-  router.delete('/:id',
+  router.delete(
+    '/:id',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     validateRequest,
     (req, res) => {
       controller.delete(req, res);
-    }
+    },
   );
 
   return router;

@@ -651,13 +651,219 @@ const database = ServiceManager.get('database');
 const results = await database.query('SELECT _ FROM contacts', []);
 // Tenant filtering automatic
 
-```
+````
 
 **Benefits:**
 - Infrastructure swappable
 - Security enforced
 - Testing simplified
 - Tenant isolation automatic
+
+---
+
+## Core Implementation Details
+
+### Middleware måste registreras i server/index.ts
+
+❌ **FEL:**
+```javascript
+// Skapade middleware i server/core/middleware/activityLog.js
+// Registrerade den i server/core/middleware/setup.js
+// Men server/index.ts använder INTE setupMiddleware() - den registrerar middleware direkt!
+// Resultat: Middleware kördes aldrig, inga logs skapades
+````
+
+✅ **KORREKT:**
+
+```javascript
+// server/index.ts
+const { activityLogMiddleware } = require('./core/middleware/activityLog');
+
+// Global rate limiting
+app.use('/api', globalLimiter);
+
+// Activity log middleware (after rate limiting, before routes)
+app.use(activityLogMiddleware);
+
+// Setup core routes
+setupCoreRoutes(app, { pool, authLimiter, requireAuth, pluginLoader });
+```
+
+💡 **Lärdom:** `server/index.ts` registrerar middleware direkt, inte via `setupMiddleware()`. När du skapar ny middleware, måste den registreras i `server/index.ts` också, inte bara i `setup.js`.
+
+---
+
+### Activity Log: DELETE requests kräver entity name FÖRE deletion
+
+❌ **FEL:**
+
+```javascript
+// Försökte hämta entity name från response efter DELETE
+res.json({ message: 'Note deleted successfully' }); // ❌ Inget entity name här!
+const entityName = extractEntityName(data, entityType); // ❌ null
+```
+
+✅ **KORREKT:**
+
+```javascript
+// För DELETE, hämta entity name FÖRE deletion med async closure
+const getEntityNameForDelete = (() => {
+  let promise = null;
+  if (action === 'delete' && entityId && req.tenantPool) {
+    promise = req.tenantPool
+      .query('SELECT title FROM notes WHERE id = $1', [entityId])
+      .then((result) => {
+        return result.rows[0]?.title || null;
+      });
+  }
+  return () => promise || Promise.resolve(null);
+})();
+
+// I res.on('finish'), vänta på promise
+if (action === 'delete') {
+  getEntityNameForDelete().then((entityName) => {
+    activityLogService.logActivity(req, action, entityType, entityId, entityName, {});
+  });
+  return;
+}
+```
+
+💡 **Lärdom:** DELETE responses innehåller bara `{ message: "Deleted successfully" }` - inget entity name. För att logga vad som raderades måste vi hämta namnet FÖRE deletion.
+
+---
+
+### Activity Log: CREATE requests måste hämta entity ID från response
+
+❌ **FEL:**
+
+```javascript
+// För POST /api/notes finns inget ID i URL
+const entityId = extractEntityId(req.path); // ❌ null för POST
+// Loggar utan ID, vilket gör det svårt att spåra vad som skapades
+```
+
+✅ **KORREKT:**
+
+```javascript
+// I res.on('finish'), hämta ID från response om det saknas
+if (!entityId && data && data.id) {
+  entityId = data.id; // ✅ Hämta från response för CREATE
+}
+
+activityLogService.logActivity(req, action, entityType, entityId, entityName, metadata);
+```
+
+💡 **Lärdom:** POST requests har inget ID i URL (t.ex. `POST /api/notes`). Men response innehåller det skapade objektet med ID. För att logga korrekt måste vi hämta ID från response för CREATE-actions.
+
+---
+
+### Activity log tabeller måste skapas per tenant via migration
+
+❌ **FEL:**
+
+```javascript
+// Skapade migration i server/migrations/006-activity-log.sql
+// Men körde aldrig migrationen på tenant-databaser
+// Resultat: Tabellen fanns inte, alla INSERT queries misslyckades tyst
+```
+
+✅ **KORREKT:**
+
+```bash
+# Kör migration på alla tenant-databaser
+npm run migrate:activity-log
+
+# Scriptet hittar alla tenants och kör migrationen på varje
+# För LocalTenantProvider: använder schema-per-tenant
+# För NeonTenantProvider: använder database-per-tenant
+```
+
+💡 **Lärdom:** Activity log tabellen måste finnas i VARJE tenant-databas (eller schema), inte bara i main-databasen. Eftersom varje tenant har sin egen databas/schema måste migrationen köras på alla.
+
+---
+
+### PostgreSQLAdapter.\_addTenantFilter() måste hantera RETURNING-klausuler korrekt
+
+❌ **FEL:**
+
+```javascript
+// _addTenantFilter() lade till user_id filter EFTER RETURNING
+// DELETE FROM notes WHERE id = ANY($1::int[]) RETURNING id AND user_id = $2
+// ❌ SQL syntax error: "argument of AND must be type boolean, not type integer"
+```
+
+✅ **KORREKT:**
+
+```javascript
+// server/core/services/database/adapters/PostgreSQLAdapter.js
+_addTenantFilter(sql, userId) {
+  const upperSql = sql.trim().toUpperCase();
+
+  if (upperSql.startsWith('UPDATE') || upperSql.startsWith('DELETE')) {
+    const whereIndex = upperSql.indexOf('WHERE');
+    if (whereIndex === -1) {
+      return `${sql} WHERE user_id = $${this._getParamCount(sql) + 1}`;
+    } else {
+      if (!upperSql.includes('USER_ID')) {
+        // ✅ KORREKT: Hitta RETURNING i original SQL (inte upperSql) för korrekt position
+        const returningIndex = sql.toUpperCase().indexOf('RETURNING');
+        if (returningIndex !== -1) {
+          // ✅ Infoga user_id filter FÖRE RETURNING
+          const beforeReturning = sql.substring(0, returningIndex).trim();
+          const returningClause = sql.substring(returningIndex);
+          const paramNum = this._getParamCount(sql) + 1;
+          return `${beforeReturning} AND user_id = $${paramNum} ${returningClause}`;
+        } else {
+          return `${sql} AND user_id = $${this._getParamCount(sql) + 1}`;
+        }
+      }
+    }
+  }
+  return sql;
+}
+```
+
+💡 **Lärdom:** PostgreSQLAdapter lägger automatiskt till `user_id` filter för tenant isolation på alla UPDATE/DELETE queries. Men när SQL innehåller `RETURNING`-klausul måste `user_id`-filtret infogas FÖRE `RETURNING`, inte efter.
+
+**Viktiga detaljer:**
+
+1. Använd `sql.toUpperCase().indexOf('RETURNING')` (inte `upperSql.indexOf()`) för att hitta korrekt position i original SQL-strängen
+2. Infoga `AND user_id = $N` FÖRE `RETURNING`, inte efter
+3. Behåll `RETURNING`-klausulen oförändrad efter filtret
+
+---
+
+### Debug logging är kritisk för middleware-felsökning
+
+❌ **FEL:**
+
+```javascript
+// Middleware kördes tyst, inga logs
+// Kunde inte se om den kördes, om den hoppade över requests, eller om den misslyckades
+```
+
+✅ **KORREKT:**
+
+```javascript
+// Lägg till omfattande debug logging
+console.log('[ActivityLog Middleware] Request:', req.method, req.path, {
+  hasSession: !!req.session,
+  hasUserId: !!req.session?.user?.id,
+});
+
+console.log('[ActivityLog Middleware] Will log:', { action, entityType });
+
+console.log('[ActivityLogService] logActivity called:', { action, entityType, entityId });
+
+// I error handling
+console.error('[ActivityLogService] ❌ Failed:', {
+  message: error.message,
+  code: error.code,
+  table: error.table, // Viktigt för att se om tabellen saknas
+});
+```
+
+💡 **Lärdom:** Middleware körs asynkront och kan misslyckas tyst. Utan debug logging är det omöjligt att veta om middleware körs, om den hoppar över requests, eller var den misslyckas. Lägg ALLTID till omfattande debug logging när du skapar middleware.
 
 ---
 
@@ -677,10 +883,13 @@ Homebase core architecture provides:
 ---
 
 **See Also:**
+
 - `CORE_SERVICES_ARCHITECTURE.md` - Service details
 - `SECURITY_GUIDELINES.md` - Security layers
 - `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` - Plugin conventions
 - `BACKEND_PLUGIN_GUIDE_V2.md` - Backend implementation
 - `FRONTEND_PLUGIN_GUIDE_V2.md` - Frontend implementation
+
+```
 
 ```

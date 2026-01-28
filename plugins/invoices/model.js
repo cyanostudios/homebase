@@ -516,6 +516,46 @@ class InvoiceModel {
     }
   }
 
+  // Bulk delete invoices (hybrid approach - pre-delete invoice_shares)
+  async bulkDelete(req, idsTextArray) {
+    try {
+      const pool = req.tenantPool;
+      const userId = req.session?.user?.id;
+
+      // First, delete all invoice_shares for these invoices
+      if (pool && userId) {
+        const ids = Array.isArray(idsTextArray)
+          ? idsTextArray.map((x) => String(x).trim()).filter(Boolean)
+          : [];
+        if (ids.length > 0) {
+          // Convert string IDs to integers for INTEGER column comparison
+          const integerIds = ids.map((id) => {
+            const parsed = parseInt(id, 10);
+            if (isNaN(parsed)) {
+              throw new AppError(`Invalid ID format: ${id}`, 400, AppError.CODES.VALIDATION_ERROR);
+            }
+            return parsed;
+          });
+
+          // Delete invoice_shares (even though CASCADE handles it, explicit deletion is cleaner)
+          await pool.query('DELETE FROM invoice_shares WHERE invoice_id = ANY($1::int[])', [
+            integerIds,
+          ]);
+        }
+      }
+
+      // Use core BulkOperationsHelper for generic bulk delete logic
+      const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+      return await BulkOperationsHelper.bulkDelete(req, 'invoices', idsTextArray);
+    } catch (error) {
+      Logger.error('Failed to bulk delete invoices', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to bulk delete invoices', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   // Delete invoice
   async delete(req, invoiceId) {
     try {

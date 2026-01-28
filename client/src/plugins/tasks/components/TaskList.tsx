@@ -1,5 +1,5 @@
-import { CheckSquare, ArrowUp, ArrowDown } from 'lucide-react';
-import React, { useState, useMemo } from 'react';
+import { CheckSquare, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -12,6 +12,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
+import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -23,7 +25,18 @@ type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'up
 type SortOrder = 'asc' | 'desc';
 
 export const TaskList: React.FC = () => {
-  const { tasks, openTaskForView, deleteTask } = useTasks();
+  const {
+    tasks,
+    openTaskForView,
+    deleteTask,
+    deleteTasks,
+    selectedTaskIds,
+    toggleTaskSelected,
+    selectAllTasks,
+    clearTaskSelection,
+    selectedCount,
+    isSelected,
+  } = useTasks();
   const { contacts } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,6 +49,8 @@ export const TaskList: React.FC = () => {
     taskId: '',
     taskTitle: '',
   });
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -126,6 +141,53 @@ export const TaskList: React.FC = () => {
     });
   }, [tasks, searchTerm, sortField, sortOrder, contacts]);
 
+  // Visible task IDs for selection
+  const visibleTaskIds = useMemo(() => sortedTasks.map((task) => String(task.id)), [sortedTasks]);
+
+  // Selection helpers
+  const allVisibleSelected = useMemo(
+    () => visibleTaskIds.length > 0 && visibleTaskIds.every((id) => isSelected(id)),
+    [visibleTaskIds, isSelected],
+  );
+
+  const someVisibleSelected = useMemo(
+    () => visibleTaskIds.some((id) => isSelected(id)),
+    [visibleTaskIds, isSelected],
+  );
+
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!headerCheckboxRef.current) {
+      return;
+    }
+    headerCheckboxRef.current.indeterminate = !allVisibleSelected && someVisibleSelected;
+  }, [allVisibleSelected, someVisibleSelected]);
+
+  const handleHeaderCheckboxChange = () => {
+    if (allVisibleSelected) {
+      clearTaskSelection();
+    } else {
+      selectAllTasks(visibleTaskIds);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTaskIds.length === 0) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await deleteTasks(selectedTaskIds);
+      setShowBulkDeleteModal(false);
+    } catch (err: any) {
+      console.error('Bulk delete failed:', err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const _handleDelete = (id: string, title: string) => {
     setDeleteConfirm({
       isOpen: true,
@@ -189,6 +251,20 @@ export const TaskList: React.FC = () => {
         searchPlaceholder="Search tasks..."
       />
 
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={selectedCount}
+        onClearSelection={clearTaskSelection}
+        actions={[
+          {
+            label: 'Delete…',
+            icon: Trash2,
+            onClick: () => setShowBulkDeleteModal(true),
+            variant: 'destructive',
+          },
+        ]}
+      />
+
       <Card className="shadow-none">
         {sortedTasks.length === 0 ? (
           <div className="p-6 text-center text-muted-foreground">
@@ -200,6 +276,16 @@ export const TaskList: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={handleHeaderCheckboxChange}
+                    className="cursor-pointer"
+                    aria-label={allVisibleSelected ? 'Deselect all tasks' : 'Select all tasks'}
+                  />
+                </TableHead>
                 <TableHead className="w-12"></TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-muted/50 select-none"
@@ -275,70 +361,97 @@ export const TaskList: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedTasks.map((task) => (
-                <TableRow
-                  key={task.id}
-                  className="cursor-pointer hover:bg-accent"
-                  tabIndex={0}
-                  data-list-item={JSON.stringify(task)}
-                  data-plugin-name="tasks"
-                  role="button"
-                  aria-label={`Open task ${task.title}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleOpenForView(task);
-                  }}
-                >
-                  <TableCell className="w-12">
-                    <CheckSquare className="w-4 h-4 text-purple-500 dark:text-purple-400" />
-                  </TableCell>
-                  <TableCell className="font-semibold">{task.title}</TableCell>
-                  <TableCell>
-                    <Badge className={TASK_STATUS_COLORS[task.status]}>
-                      {formatStatusForDisplay(task.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={TASK_PRIORITY_COLORS[task.priority]}>{task.priority}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {task.dueDate ? (
-                      <div className={formatDueDate(task.dueDate)?.className || ''}>
-                        {formatDueDate(task.dueDate)?.text}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {task.assignedTo ? (
-                      (() => {
-                        const assignedContact = contacts.find((c: any) => {
-                          const contactId = String(c.id);
-                          const assignedId = String(task.assignedTo);
-                          return contactId === assignedId;
-                        });
-                        return assignedContact ? (
-                          <div className="text-sm text-blue-600 dark:text-blue-400">
-                            {assignedContact.companyName}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        );
-                      })()
-                    ) : (
-                      <span className="text-muted-foreground text-sm">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {new Date(task.updatedAt).toLocaleDateString()}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {sortedTasks.map((task) => {
+                const taskIsSelected = isSelected(task.id);
+                return (
+                  <TableRow
+                    key={task.id}
+                    className="cursor-pointer hover:bg-accent"
+                    tabIndex={0}
+                    data-list-item={JSON.stringify(task)}
+                    data-plugin-name="tasks"
+                    role="button"
+                    aria-label={`Open task ${task.title}`}
+                    onClick={(e) => {
+                      // Don't open if clicking checkbox
+                      if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                        return;
+                      }
+                      e.preventDefault();
+                      handleOpenForView(task);
+                    }}
+                  >
+                    <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={taskIsSelected}
+                        onChange={() => toggleTaskSelected(task.id)}
+                        className="cursor-pointer"
+                        aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
+                      />
+                    </TableCell>
+                    <TableCell className="w-12">
+                      <CheckSquare className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+                    </TableCell>
+                    <TableCell className="font-semibold">{task.title}</TableCell>
+                    <TableCell>
+                      <Badge className={TASK_STATUS_COLORS[task.status]}>
+                        {formatStatusForDisplay(task.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={TASK_PRIORITY_COLORS[task.priority]}>{task.priority}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {task.dueDate ? (
+                        <div className={formatDueDate(task.dueDate)?.className || ''}>
+                          {formatDueDate(task.dueDate)?.text}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {task.assignedTo ? (
+                        (() => {
+                          const assignedContact = contacts.find((c: any) => {
+                            const contactId = String(c.id);
+                            const assignedId = String(task.assignedTo);
+                            return contactId === assignedId;
+                          });
+                          return assignedContact ? (
+                            <div className="text-sm text-blue-600 dark:text-blue-400">
+                              {assignedContact.companyName}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          );
+                        })()
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(task.updatedAt).toLocaleDateString()}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
       </Card>
+
+      {/* Bulk Delete Modal */}
+      <BulkDeleteModal
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        onConfirm={handleBulkDelete}
+        itemCount={selectedCount}
+        singularLabel="task"
+        pluralLabel="tasks"
+        isLoading={deleting}
+      />
 
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}

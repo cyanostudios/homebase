@@ -530,17 +530,17 @@ const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHe
 
 // In model.js
 async bulkDelete(req, idsTextArray) {
-  // Use core helper for generic bulk delete logic
-  return await BulkOperationsHelper.bulkDelete(req, MyPluginModel.TABLE, idsTextArray);
+// Use core helper for generic bulk delete logic
+return await BulkOperationsHelper.bulkDelete(req, MyPluginModel.TABLE, idsTextArray);
 }
 
 // In controller.js
 async bulkDelete(req, res) {
-  try {
-    const idsRaw = req.body?.ids;
-    if (!Array.isArray(idsRaw)) {
-      return res.status(400).json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
-    }
+try {
+const idsRaw = req.body?.ids;
+if (!Array.isArray(idsRaw)) {
+return res.status(400).json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
+}
 
     const ids = Array.from(new Set(idsRaw.map((x) => String(x).trim()).filter(Boolean)));
 
@@ -573,25 +573,27 @@ async bulkDelete(req, res) {
       deleted: result.deletedCount,
       deletedIds: result.deletedIds || [],
     });
-  } catch (error) {
-    Logger.error('Bulk delete error', error, { userId: Context.getUserId(req) });
+
+} catch (error) {
+Logger.error('Bulk delete error', error, { userId: Context.getUserId(req) });
 
     if (error instanceof AppError) {
       return res.status(error.statusCode).json(error.toJSON());
     }
 
     return res.status(500).json({ error: 'Bulk delete failed' });
-  }
+
+}
 }
 
 // In routes.js - MUST be before '/:id' route
 router.delete(
-  '/batch',
-  requirePlugin('my-plugin'),
-  csrfProtection,
-  [commonRules.array('ids', 500)],
-  validateRequest,
-  (req, res) => controller.bulkDelete(req, res),
+'/batch',
+requirePlugin('my-plugin'),
+csrfProtection,
+[commonRules.array('ids', 500)],
+validateRequest,
+(req, res) => controller.bulkDelete(req, res),
 );
 
 Security Best Practices
@@ -687,6 +689,234 @@ content: 'Test'
 
 });
 });
+
+## Database SDK Common Pitfalls
+
+### query() returnerar rows direkt, inte {rows: [...]}
+
+❌ **FEL:**
+
+```javascript
+// Antog att SDK fungerar som pool.query()
+const result = await db.query('SELECT * FROM notes', []);
+return result.rows.map(this.transformRow); // ❌ result.rows är undefined!
+```
+
+✅ **KORREKT:**
+
+```javascript
+// SDK returnerar rows direkt
+const rows = await db.query('SELECT * FROM notes', []);
+return rows.map(this.transformRow);
+```
+
+💡 **Lärdom:** SDK:er kan ha helt annorlunda API än det man är van vid. Läs SDK-implementationen FÖRST - `packages/core/src/Database.js` visar exakt vad som returneras.
+
+---
+
+### Använd INTE ServiceManager direkt i plugins
+
+❌ **FEL:**
+
+```javascript
+// ServiceManager är inte tillgänglig i plugin context
+const database = ServiceManager.get('database', req);
+const logger = ServiceManager.get('logger');
+```
+
+✅ **KORREKT:**
+
+```javascript
+// Använd SDK som är designad för plugins
+const { Logger, Database } = require('@homebase/core');
+const db = Database.get(req);
+Logger.info('Message', { data });
+```
+
+💡 **Lärdom:** Plugins ska använda SDK, inte core-tjänster direkt. ServiceManager är en intern implementation detail.
+
+---
+
+### Context är redan inbyggt - skicka INTE manuellt
+
+❌ **FEL:**
+
+```javascript
+// Trodde att context måste skickas manuellt
+const db = Database.get(req);
+const context = this._getContext(req); // Onödig!
+const rows = await db.query('SELECT * FROM notes', [], context); // context ignoreras
+```
+
+✅ **KORREKT:**
+
+```javascript
+// Context är redan inbyggt i Database.get(req)
+const db = Database.get(req);
+const rows = await db.query('SELECT * FROM notes', []); // Context hanteras automatiskt
+```
+
+💡 **Lärdom:** SDK:er abstraherar bort komplexitet - om SDK kräver något, kommer det att vara tydligt.
+
+---
+
+### insert() returnerar record direkt, inte {rows: [...]}
+
+❌ **FEL:**
+
+```javascript
+// Antog att insert returnerar { rows: [...] }
+const result = await db.insert('notes', data);
+return this.transformRow(result.rows[0]); // ❌ result.rows finns inte
+```
+
+✅ **KORREKT:**
+
+```javascript
+// insert() returnerar record direkt
+const record = await db.insert('notes', data);
+return this.transformRow(record);
+```
+
+💡 **Lärdom:** Varje metod kan ha olika return-format - läs dokumentationen för varje metod.
+
+---
+
+### existing.rows.length vs existing.length
+
+❌ **FEL:**
+
+```javascript
+// Antog att db.query() returnerar {rows: [...]} format
+const existing = await db.query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+if (existing.rows.length === 0) {
+  // ❌ existing.rows är undefined
+  throw new AppError('Task not found', 404);
+}
+```
+
+✅ **KORREKT:**
+
+```javascript
+// db.query() returnerar rows-array direkt
+const existing = await db.query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+if (!existing || existing.length === 0) {
+  throw new AppError('Task not found', 404);
+}
+```
+
+💡 **Lärdom:** PostgreSQLAdapter.query() returnerar `result.rows` direkt (en array), inte ett objekt med `.rows` property.
+
+---
+
+### "User context required for update" - userId saknas
+
+❌ **FEL:**
+
+```javascript
+// Database.get(req) använde bara req.session?.user?.id
+const context = {
+  pool,
+  userId: req.session?.user?.id, // Saknar currentTenantUserId!
+};
+```
+
+✅ **KORREKT:**
+
+```javascript
+// Använd både currentTenantUserId och user.id
+const context = {
+  pool,
+  userId: req.session?.currentTenantUserId || req.session?.user?.id,
+};
+```
+
+💡 **Lärdom:** PostgreSQLAdapter.\_getContext() använder `req.session?.currentTenantUserId || req.session?.user?.id`. Database.get(req) måste matcha detta.
+
+---
+
+### Priority kan skrivas över med || operator
+
+❌ **FEL:**
+
+```javascript
+// Om priority är 'Low', blir det 'Medium' eftersom 'Low' är truthy
+priority: priority || 'Medium', // ❌ Överskriver 'Low'
+```
+
+✅ **KORREKT:**
+
+```javascript
+// Använd nullish coalescing för att bara använda default vid null/undefined
+priority: priority ?? 'Medium', // ✅ Bevara 'Low', 'Medium', 'High'
+```
+
+💡 **Lärdom:** `||` returnerar höger operand om vänster är falsy. `??` returnerar höger operand endast om vänster är null eller undefined.
+
+---
+
+## Bulk Operations with Foreign Key Relationships
+
+### Hybrid-lösning: Plugin-specifik pre-deletion + generisk core-helper
+
+Vissa plugins har kopplingar till andra tabeller som måste raderas FÖRE huvudobjektet. Använd hybrid-lösning:
+
+```javascript
+// plugins/notes/model.js - Hybrid approach
+async bulkDelete(req, idsTextArray) {
+  try {
+    const pool = req.tenantPool;
+    const userId = req.session?.user?.id;
+
+    // 1. PLUGIN-SPECIFIC: Delete related tasks FIRST
+    if (pool && userId) {
+      const ids = Array.isArray(idsTextArray)
+        ? idsTextArray.map((x) => String(x).trim()).filter(Boolean)
+        : [];
+      if (ids.length > 0) {
+        const integerIds = ids.map((id) => {
+          const parsed = parseInt(id, 10);
+          if (isNaN(parsed)) {
+            throw new AppError(`Invalid ID format: ${id}`, 400, AppError.CODES.VALIDATION_ERROR);
+          }
+          return parsed;
+        });
+
+        // Delete tasks created from these notes
+        await pool.query(
+          'DELETE FROM tasks WHERE created_from_note = ANY($1::int[]) AND user_id = $2',
+          [integerIds, userId],
+        );
+      }
+    }
+
+    // 2. GENERIC: Use core BulkOperationsHelper for the actual deletion
+    return await BulkOperationsHelper.bulkDelete(req, 'notes', idsTextArray);
+  } catch (error) {
+    Logger.error('Failed to bulk delete notes', error);
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError('Failed to bulk delete notes', 500, AppError.CODES.DATABASE_ERROR);
+  }
+}
+```
+
+**När du implementerar bulk delete för plugins med kopplingar:**
+
+- Lägg plugin-specifik pre-deletion logik i plugin's `model.bulkDelete()` FÖRE anropet till `BulkOperationsHelper`
+- Använd `req.tenantPool.query()` direkt för pre-deletion (eftersom det är plugin-specifik logik)
+- Använd `BulkOperationsHelper.bulkDelete()` för den faktiska raderingen (eftersom det är generisk logik)
+- Konvertera alltid string IDs till integers för INTEGER-kolumner: `parseInt(id, 10)` och använd `ANY($1::int[])`
+
+**Exempel på när hybrid-lösning behövs:**
+
+- Notes → Tasks (via `created_from_note`)
+- Invoices → Invoice items (via `invoice_id`)
+- Contacts → Products (via `contact_id`)
+- Alla plugins med foreign key-kopplingar som måste raderas före huvudobjektet
+
+---
 
 Common Patterns
 Cross-Plugin References

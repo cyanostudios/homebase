@@ -3,6 +3,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
+import { bulkApi } from '@/core/api/bulkApi';
+import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 
 import { contactsApi } from '../api/contactsApi';
 import { Contact, ValidationError } from '../types/contacts';
@@ -24,7 +26,15 @@ interface ContactContextType {
   closeContactPanel: () => void;
   saveContact: (contactData: any) => Promise<boolean>;
   deleteContact: (id: string) => Promise<void>;
+  deleteContacts: (ids: string[]) => Promise<void>;
   clearValidationErrors: () => void;
+  // Bulk selection
+  selectedContactIds: string[];
+  toggleContactSelected: (id: string) => void;
+  selectAllContacts: (ids: string[]) => void;
+  clearContactSelection: () => void;
+  selectedCount: number;
+  isSelected: (id: string) => boolean;
 
   // Panel Title helpers
   getPanelTitle: (mode: string, item: Contact | null, isMobileView: boolean) => any;
@@ -55,6 +65,16 @@ export function ContactProvider({
 
   // Data state
   const [contacts, setContacts] = useState<Contact[]>([]);
+
+  // Use core bulk selection hook
+  const {
+    selectedIds: selectedContactIds,
+    toggleSelection: toggleContactSelectedCore,
+    selectAll: selectAllContactsCore,
+    clearSelection: clearContactSelectionCore,
+    isSelected,
+    selectedCount,
+  } = useBulkSelection();
 
   // Load data when authenticated
   useEffect(() => {
@@ -317,6 +337,31 @@ export function ContactProvider({
     }
   };
 
+  // Bulk delete using core bulkApi
+  const deleteContacts = async (ids: string[]) => {
+    if (ids.length === 0) {
+      return;
+    }
+
+    const uniqueIds = Array.from(new Set(ids.map(String).filter(Boolean)));
+    if (uniqueIds.length === 0) {
+      return;
+    }
+
+    try {
+      await bulkApi.bulkDelete('contacts', uniqueIds);
+      // Update local state - remove deleted contacts
+      setContacts((prev) => prev.filter((c) => !uniqueIds.includes(String(c.id))));
+      // Clear selection after successful delete
+      clearContactSelectionCore();
+    } catch (error: any) {
+      console.error('Bulk delete failed:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to delete contacts';
+      alert(errorMessage);
+      throw error;
+    }
+  };
+
   // Panel title helpers
   const getPanelTitle = (mode: string, item: Contact | null, isMobileView: boolean) => {
     if (mode === 'view' && item) {
@@ -401,7 +446,16 @@ export function ContactProvider({
     closeContactPanel,
     saveContact,
     deleteContact,
+    deleteContacts,
     clearValidationErrors,
+
+    // Bulk selection
+    selectedContactIds,
+    toggleContactSelected: toggleContactSelectedCore,
+    selectAllContacts: selectAllContactsCore,
+    clearContactSelection: clearContactSelectionCore,
+    selectedCount,
+    isSelected,
 
     // Panel Title helpers
     getPanelTitle,

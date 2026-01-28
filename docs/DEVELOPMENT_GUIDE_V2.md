@@ -51,7 +51,7 @@ Homebase is a modular plugin-based platform with service abstraction architectur
 
 ## Project Structure
 
-```
+````
 homebase/
 ├── vite.config.ts          # Vite configuration (ROOT)
 ├── tailwind.config.ts      # Tailwind CSS configuration (ROOT)
@@ -509,6 +509,150 @@ Test with mock adapters for speed
 Test edge cases and error conditions
 
 
+## Development Workflow
+
+### npm run dev startar BARA backend per default
+
+❌ **FEL:**
+Körde `npm run dev` och trodde att både backend och frontend skulle starta.
+
+✅ **KORREKT:**
+```bash
+# Antingen separata terminals:
+npm run dev:api  # Backend (port 3002)
+npm run dev:ui   # Frontend (port 3001)
+
+# Eller allt i en terminal:
+npm run dev:all  # Båda samtidigt med concurrently
+````
+
+💡 **Lärdom:** `npm run dev` kör bara `dev:api`, inte frontend. Frontend måste startas separat med `npm run dev:ui`, eller använd `npm run dev:all` för båda.
+
+---
+
+### Login fungerar men UI visar inte - kolla båda servrarna
+
+❌ **FEL:**
+Backend fungerar (login returnerar 200) men frontend visar inte inloggningsskärmen eller data.
+
+✅ **KORREKT:**
+
+```bash
+# Kolla om båda servrar körs:
+lsof -i:3001  # Frontend (Vite)
+lsof -i:3002  # Backend (Express)
+
+# Starta båda:
+npm run dev:all  # Eller i separata terminals:
+npm run dev:api  # Backend
+npm run dev:ui   # Frontend
+```
+
+💡 **Lärdom:** Vanliga orsaker: 1) Frontend körs inte - `npm run dev` startar bara backend, 2) Port-konflikt - Frontend ska vara på port 3001, backend på 3002, 3) Browser cache - Hårda refresh krävs (Cmd+Shift+R).
+
+---
+
+### @homebase/core måste finnas i dependencies för att plugins ska ladda
+
+❌ **FEL:**
+Backend kraschade med "Cannot find module '@homebase/core'" när plugins försökte ladda.
+
+✅ **KORREKT:**
+
+```json
+// package.json
+{
+  "dependencies": {
+    "@homebase/core": "file:packages/core"
+    // ...
+  }
+}
+```
+
+```bash
+npm install  # Installerar lokal dependency
+```
+
+💡 **Lärdom:** Plugins använder `require('@homebase/core')` men paketet måste vara installerat som dependency, även om det är ett lokalt paket. Efter att ha lagt till dependency måste `npm install` köras.
+
+---
+
+### Git commit kräver att ESLint/Prettier passerar INNAN commit
+
+❌ **FEL:**
+
+```bash
+# Försöker committa direkt utan att fixa ESLint-fel först
+git add -A
+git commit -m "feat: add new feature"
+# ❌ FAILED: husky - pre-commit script failed (code 1)
+# ESLint hittade 20 warnings/errors som måste fixas
+```
+
+✅ **KORREKT:**
+
+```bash
+# 1. KÖR ESLint FÖRST för att se vad som behöver fixas
+npm run lint
+# Eller för att auto-fixa så mycket som möjligt:
+npm run lint -- --fix
+
+# 2. Kolla att inga fel kvarstår
+npm run lint
+
+# 3. FÖRST DÅ - committa (husky hooks kommer att passera)
+git add -A
+git commit -m "feat: add new feature"
+# ✅ Success - lint-staged kör ESLint igen men hittar inga fel
+
+# 4. Push
+git push
+```
+
+💡 **Lärdom:** Projektet använder **husky pre-commit hooks** med **lint-staged** som automatiskt kör ESLint och Prettier på staged filer före varje commit. Om ESLint hittar fel (warnings eller errors) stoppas commit-processen. **Kör alltid `npm run lint` eller `npx lint-staged` INNAN du committar**, fixa alla fel, och committa igen.
+
+---
+
+### Nya tabeller kräver att setup-database.js körs
+
+❌ **FEL:**
+Lade till `user_settings`-tabellen i `scripts/setup-database.js` men körde INTE scriptet.
+
+✅ **KORREKT:**
+
+```bash
+# Kör setup-database.js för att skapa alla tabeller
+node scripts/setup-database.js
+
+# Verifiera att tabellen skapades
+psql $DATABASE_URL -c "\dt" | grep user_settings
+```
+
+💡 **Lärdom:** När du lägger till nya tabeller i setup-database.js, måste du **ALLTID** köra scriptet för att uppdatera databasen. Bara att ändra koden räcker inte! Om du ser "relation does not exist" fel → tabellen finns inte i databasen.
+
+---
+
+### AUTH-databas vs TENANT-databas - viktigt!
+
+❌ **FEL:**
+Försökte skapa plugin-tabeller (invoices, user_files) i AUTH-databasen via setup-database.js.
+
+✅ **KORREKT:**
+
+```bash
+# AUTH-databas tabeller (DATABASE_URL):
+# - users, sessions, tenants, user_plugin_access, user_settings
+
+# TENANT-databas tabeller (per tenant/user):
+# - contacts, notes, tasks, estimates, invoices, user_files
+
+# För att skapa tenant-tabeller, använd migrations i server/migrations/
+```
+
+💡 **Lärdom:** Det finns TVÅ databaser: AUTH-databas (users, sessions, tenants) och TENANT-databas (contacts, notes, tasks, etc.). `setup-database.js` skapar tabeller i AUTH-databasen. Plugin-tabeller behöver finnas i TENANT-databasen. Core settings (user_settings) → AUTH-databas. Plugin data (invoices, files) → TENANT-databas.
+
+---
+
 Troubleshooting
 Development Environment
 Frontend not loading:
@@ -532,7 +676,6 @@ Verify plugin enabled for user in database
 Check console for loading errors
 Verify all required files exist
 
-
 Conclusion
 Development workflow:
 
@@ -551,4 +694,7 @@ SECURITY_GUIDELINES.md - Security requirements
 PLUGIN_DEVELOPMENT_STANDARDS_V2.md - Plugin conventions
 BACKEND_PLUGIN_GUIDE_V2.md - Backend development
 FRONTEND_PLUGIN_GUIDE_V2.md - Frontend development
+
+```
+
 ```

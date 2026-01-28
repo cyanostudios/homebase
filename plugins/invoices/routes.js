@@ -14,62 +14,77 @@ function createInvoiceRoutes(controller, context) {
 
   // Core (auth required)
   router.get('/', gate, (req, res) => controller.getInvoices(req, res));
-  
+
   // Number endpoint MUST be before /:id to avoid route conflicts
   router.get('/number/next', gate, (req, res) => controller.getNextInvoiceNumber(req, res));
-  
-  router.post('/',
+
+  router.post(
+    '/',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.string('contactName', 0, 255).optional(),
     commonRules.optionalString('notes', 5000),
     validateRequest,
-    (req, res) => controller.createInvoice(req, res)
+    (req, res) => controller.createInvoice(req, res),
   );
 
   // Public (NO auth) — keep before /:id to avoid conflicts
   router.get('/public/:token', (req, res) => controller.getPublicInvoice(req, res));
 
+  // DELETE /api/invoices/batch - Bulk delete (MUST be before '/:id' route)
+  router.delete(
+    '/batch',
+    gate,
+    // /* csrfProtection, */ // Temporarily disabled
+    ...commonRules.requiredArray('ids', 500),
+    validateRequest,
+    (req, res) => controller.bulkDelete(req, res),
+  );
+
   // Item operations (auth required)
-  router.put('/:id',
+  router.put(
+    '/:id',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     commonRules.string('contactName', 0, 255).optional(),
     commonRules.optionalString('notes', 5000),
     validateRequest,
-    (req, res) => controller.updateInvoice(req, res)
+    (req, res) => controller.updateInvoice(req, res),
   );
-  
-  router.delete('/:id',
+
+  router.delete(
+    '/:id',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     validateRequest,
-    (req, res) => controller.deleteInvoice(req, res)
+    (req, res) => controller.deleteInvoice(req, res),
   );
 
   // PDF (auth required)
   router.get('/:id/pdf', gate, (req, res) => controller.generatePDF(req, res));
 
   // Shares (auth required)
-  router.post('/shares',
+  router.post(
+    '/shares',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('invoiceId'),
     commonRules.date('validUntil'),
     validateRequest,
-    (req, res) => controller.createShare(req, res)
+    (req, res) => controller.createShare(req, res),
   );
-  
+
   router.get('/:invoiceId/shares', gate, (req, res) => controller.getShares(req, res));
-  
-  router.delete('/shares/:shareId',
+
+  router.delete(
+    '/shares/:shareId',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('shareId'),
     validateRequest,
-    (req, res) => controller.revokeShare(req, res)
+    (req, res) => controller.revokeShare(req, res),
   );
 
   return router;

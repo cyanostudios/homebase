@@ -14,66 +14,81 @@ function createEstimateRoutes(controller, context) {
 
   // Regular estimate routes (require authentication via gate middleware)
   router.get('/', gate, (req, res) => controller.getEstimates(req, res));
-  
-  router.post('/', 
+
+  router.post(
+    '/',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.string('contactName', 0, 255).optional(),
     commonRules.optionalString('notes', 5000),
     validateRequest,
-    (req, res) => controller.createEstimate(req, res)
+    (req, res) => controller.createEstimate(req, res),
   );
-  
+
   router.get('/number/next', gate, (req, res) => controller.getNextEstimateNumber(req, res));
-  
+
   // Statistics routes (must come before /:id to avoid conflicts)
   router.get('/stats/status', gate, (req, res) => controller.getStatusStats(req, res));
   router.get('/stats/reasons/:status', gate, (req, res) => controller.getReasonStats(req, res));
-  
+
   // Public routes (no authentication required) - MOVED BEFORE /:id to prevent conflicts
   router.get('/public/:token', (req, res) => controller.getPublicEstimate(req, res));
-  
+
+  // DELETE /api/estimates/batch - Bulk delete (MUST be before '/:id' route)
+  router.delete(
+    '/batch',
+    gate,
+    // /* csrfProtection, */ // Temporarily disabled
+    ...commonRules.requiredArray('ids', 500),
+    validateRequest,
+    (req, res) => controller.bulkDelete(req, res),
+  );
+
   router.get('/:id', gate, (req, res) => controller.getEstimate(req, res));
-  
-  router.put('/:id',
+
+  router.put(
+    '/:id',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     commonRules.string('contactName', 0, 255).optional(),
     commonRules.optionalString('notes', 5000),
     validateRequest,
-    (req, res) => controller.updateEstimate(req, res)
+    (req, res) => controller.updateEstimate(req, res),
   );
-  
-  router.delete('/:id',
+
+  router.delete(
+    '/:id',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     validateRequest,
-    (req, res) => controller.deleteEstimate(req, res)
+    (req, res) => controller.deleteEstimate(req, res),
   );
 
   // PDF generation route (requires authentication)
   router.get('/:id/pdf', gate, (req, res) => controller.generatePDF(req, res));
 
   // Sharing routes (protected - require authentication)
-  router.post('/shares',
+  router.post(
+    '/shares',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('estimateId'),
     commonRules.date('validUntil'),
     validateRequest,
-    (req, res) => controller.createShare(req, res)
+    (req, res) => controller.createShare(req, res),
   );
-  
+
   router.get('/:estimateId/shares', gate, (req, res) => controller.getShares(req, res));
-  
-  router.delete('/shares/:shareId',
+
+  router.delete(
+    '/shares/:shareId',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('shareId'),
     validateRequest,
-    (req, res) => controller.revokeShare(req, res)
+    (req, res) => controller.revokeShare(req, res),
   );
 
   return router;

@@ -18,7 +18,8 @@ function createTaskRoutes(controller, context) {
   });
 
   // POST /api/tasks - Create new task
-  router.post('/',
+  router.post(
+    '/',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.string('title', 1, 255),
@@ -30,11 +31,12 @@ function createTaskRoutes(controller, context) {
     validateRequest,
     (req, res) => {
       controller.create(req, res);
-    }
+    },
   );
 
   // PUT /api/tasks/:id - Update task
-  router.put('/:id',
+  router.put(
+    '/:id',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
@@ -47,18 +49,29 @@ function createTaskRoutes(controller, context) {
     validateRequest,
     (req, res) => {
       controller.update(req, res);
-    }
+    },
+  );
+
+  // DELETE /api/tasks/batch - Bulk delete (MUST be before '/:id' route)
+  router.delete(
+    '/batch',
+    gate,
+    // /* csrfProtection, */ // Temporarily disabled
+    ...commonRules.requiredArray('ids', 500),
+    validateRequest,
+    (req, res) => controller.bulkDelete(req, res),
   );
 
   // DELETE /api/tasks/:id - Delete task
-  router.delete('/:id',
+  router.delete(
+    '/:id',
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
     validateRequest,
     (req, res) => {
       controller.delete(req, res);
-    }
+    },
   );
 
   return router;

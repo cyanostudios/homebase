@@ -124,6 +124,20 @@ class ContactModel {
     }
   }
 
+  async bulkDelete(req, idsTextArray) {
+    try {
+      const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+      // Use core BulkOperationsHelper for generic bulk delete logic
+      return await BulkOperationsHelper.bulkDelete(req, 'contacts', idsTextArray);
+    } catch (error) {
+      Logger.error('Failed to bulk delete contacts', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to bulk delete contacts', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async delete(req, contactId) {
     try {
       const db = Database.get(req);

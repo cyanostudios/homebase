@@ -3,6 +3,8 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
+import { bulkApi } from '@/core/api/bulkApi';
+import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 
 import { InvoicesApi, invoicesApi } from '../api/invoicesApi';
 
@@ -48,6 +50,14 @@ interface InvoicesContextType {
   closeInvoicePanel: () => void; // ⬅️ singular alias for UniversalPanel handlers
   saveInvoice: (data: any) => Promise<boolean>;
   deleteInvoice: (id: string) => Promise<void>;
+  deleteInvoices: (ids: string[]) => Promise<void>;
+  // Bulk selection
+  selectedInvoiceIds: string[];
+  toggleInvoiceSelected: (id: string) => void;
+  selectAllInvoices: (ids: string[]) => void;
+  clearInvoiceSelection: () => void;
+  selectedCount: number;
+  isSelected: (id: string) => boolean;
   clearValidationErrors: () => void;
 
   // Panel Title Functions
@@ -81,6 +91,16 @@ export function InvoicesProvider({
 
   // Data
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+
+  // Use core bulk selection hook
+  const {
+    selectedIds: selectedInvoiceIds,
+    toggleSelection: toggleInvoiceSelectedCore,
+    selectAll: selectAllInvoicesCore,
+    clearSelection: clearInvoiceSelectionCore,
+    isSelected,
+    selectedCount,
+  } = useBulkSelection();
 
   // Load when authenticated
   useEffect(() => {
@@ -254,6 +274,31 @@ export function InvoicesProvider({
     }
   };
 
+  // Bulk delete using core bulkApi
+  const deleteInvoices = async (ids: string[]) => {
+    if (ids.length === 0) {
+      return;
+    }
+
+    const uniqueIds = Array.from(new Set(ids.map(String).filter(Boolean)));
+    if (uniqueIds.length === 0) {
+      return;
+    }
+
+    try {
+      await bulkApi.bulkDelete('invoices', uniqueIds);
+      // Update local state - remove deleted invoices
+      setInvoices((prev) => prev.filter((i) => !uniqueIds.includes(String(i.id))));
+      // Clear selection after successful delete
+      clearInvoiceSelectionCore();
+    } catch (error: any) {
+      console.error('Bulk delete failed:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to delete invoices';
+      alert(errorMessage);
+      throw error;
+    }
+  };
+
   const deleteInvoice = async (id: string) => {
     try {
       await api.deleteItem(id);
@@ -374,7 +419,15 @@ export function InvoicesProvider({
     closeInvoicePanel, // ⬅️ include alias in context value
     saveInvoice,
     deleteInvoice,
+    deleteInvoices,
     clearValidationErrors,
+    // Bulk selection
+    selectedInvoiceIds,
+    toggleInvoiceSelected: toggleInvoiceSelectedCore,
+    selectAllInvoices: selectAllInvoicesCore,
+    clearInvoiceSelection: clearInvoiceSelectionCore,
+    selectedCount,
+    isSelected,
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,

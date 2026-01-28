@@ -17,7 +17,7 @@ Frontend plugins provide React contexts, UI components, and user interactions us
 
 ## Plugin Structure
 
-```
+````
 client/src/plugins/my-plugin/
 ├── types/my-plugin.ts           # TypeScript interfaces
 ├── context/MyPluginContext.tsx  # Plugin state management
@@ -737,6 +737,262 @@ After implementing your plugin, you must register it to make it visible in the s
 - New users get plugins from DEFAULT_USER_PLUGINS in constants.js
 - Superadmin must have plugins manually added (they don't get defaults automatically)
 
+## Common Pitfalls & Best Practices
+
+### React Hooks måste ALLTID vara före early returns
+
+❌ **FEL:**
+```tsx
+// ❌ KRITISK FEL - Hooks efter early returns bryter Rules of Hooks
+const AppContent = () => {
+  const [currentPage, setCurrentPage] = useState(...);
+
+  if (isLoading) {
+    return <LoadingScreen />; // Early return
+  }
+
+  // ❌ FEL - useMemo efter early returns
+  const currentPagePlugin = useMemo(() => {...}, [currentPage]);
+  // React Error: "Rendered more hooks than during the previous render"
+};
+````
+
+✅ **KORREKT:**
+
+```tsx
+// ✅ KORREKT - ALLA hooks före early returns
+const AppContent = () => {
+  const [currentPage, setCurrentPage] = useState(...);
+
+  // ✅ ALLA useMemo/useEffect/useCallback MÅSTE vara här, FÖRE early returns
+  const currentPagePlugin = useMemo(() => {...}, [currentPage]);
+
+  // ✅ FÖRST EFTER alla hooks - då kan vi ha early returns
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  // Resten av komponenten...
+};
+```
+
+💡 **Lärdom:** React's Rules of Hooks kräver att hooks anropas i **exakt samma ordning** vid varje render. **ALLA hooks (useState, useEffect, useMemo, useCallback) MÅSTE alltid vara före eventuella early returns.**
+
+---
+
+### Variabler måste deklareras FÖRE de används (TDZ - Temporal Dead Zone)
+
+❌ **FEL:**
+
+```javascript
+// useEffect använder navCategories FÖRE den är deklarerad
+useEffect(() => {
+  navCategories.forEach((category) => {
+    // ❌ ReferenceError: Cannot access 'navCategories' before initialization
+  });
+}, [navCategories]);
+
+const navCategories = useMemo(() => {
+  // ...
+}, [user]);
+```
+
+✅ **KORREKT:**
+
+```javascript
+// Deklarera FÖRST, använd SEDAN
+const navCategories = useMemo(() => {
+  // ...
+}, [user]);
+
+useEffect(() => {
+  navCategories.forEach((category) => {
+    // ✅ navCategories är redan deklarerad
+  });
+}, [navCategories]);
+```
+
+💡 **Lärdom:** JavaScript har **Temporal Dead Zone (TDZ)** för `const` och `let` - de kan INTE användas före deklarationen. **Kontrollera ALLTID att variabler är deklarerade FÖRE de används** - detta gäller särskilt för React hooks.
+
+---
+
+### saveTask måste acceptera explicit taskId för quick actions
+
+❌ **FEL:**
+
+```typescript
+// Quick actions i TaskView anropade saveTask utan taskId
+const success = await saveTask(updatedData); // Använder currentTask.id
+// Men task prop i TaskView kanske inte matchar currentTask i context
+```
+
+✅ **KORREKT:**
+
+```typescript
+// saveTask accepterar valfritt taskId som andra parameter
+const saveTask = async (taskData: any, taskId?: string): Promise<boolean> => {
+  const idToUpdate = taskId || currentTask?.id || taskData.id;
+  // ...
+};
+
+// Quick actions skickar explicit task.id
+const success = await saveTask(updatedData, task.id);
+```
+
+💡 **Lärdom:** När quick actions anropas från TaskView, används `task` prop. Men `saveTask` använder `currentTask.id` från context, vilket kanske inte matchar `task` prop. Genom att acceptera explicit `taskId` kan quick actions fungera oavsett om `currentTask` är uppdaterad eller inte.
+
+---
+
+### getPanelSubtitle måste använda useCallback med dependencies för cross-plugin data
+
+❌ **FEL:**
+
+```typescript
+// getPanelSubtitle använder contacts från useApp() men är inte wrappad i useCallback
+const getPanelSubtitle = (mode: string, item: Task | null) => {
+  if (mode === 'view' && item) {
+    const assignedContact = item.assignedTo
+      ? contacts.find((c: any) => c.id === item.assignedTo) // ❌ contacts kan vara stale
+      : null;
+  }
+};
+```
+
+✅ **KORREKT:**
+
+```typescript
+// Wrappar i useCallback med contacts som dependency
+const getPanelSubtitle = useCallback(
+  (mode: string, item: Task | null) => {
+    if (mode === 'view' && item) {
+      const assignedContact = item.assignedTo
+        ? contacts.find((c: any) => c.id === item.assignedTo) // ✅ Alltid rätt contacts
+        : null;
+    }
+  },
+  [contacts], // ✅ Uppdateras när contacts ändras
+);
+```
+
+💡 **Lärdom:** När `getPanelSubtitle` använder data från andra contexts (t.ex. `contacts` från `AppContext`), måste funktionen wrappas i `useCallback` med dessa dependencies. Utan `useCallback` kan funktionen ha "stale" data från tidigare renders.
+
+---
+
+### ID-jämförelse måste hantera både string och number
+
+❌ **FEL:**
+
+```typescript
+// Direkt jämförelse kan misslyckas om en är string och en är number
+const assignedContact = contacts.find((c: any) => c.id === item.assignedTo);
+// ❌ '123' !== 123 i JavaScript
+```
+
+✅ **KORREKT:**
+
+```typescript
+// Konvertera båda till string för säker jämförelse
+const assignedContact = item.assignedTo
+  ? contacts.find((c: any) => {
+      const contactId = String(c.id);
+      const assignedId = String(item.assignedTo);
+      return contactId === assignedId; // ✅ Fungerar oavsett typ
+    })
+  : null;
+```
+
+💡 **Lärdom:** ID:n kan komma från olika källor som string eller number. För att säkerställa att ID-jämförelser fungerar oavsett typ, konvertera båda till string innan jämförelse.
+
+---
+
+### Date-objekt måste konverteras till sträng för backend
+
+❌ **FEL:**
+
+```typescript
+// Skickar Date-objekt direkt till backend
+const updatedData = {
+  dueDate: task.dueDate, // Date-objekt
+};
+await saveTask(updatedData); // Backend förväntar sig sträng
+```
+
+✅ **KORREKT:**
+
+```typescript
+// Konvertera Date till ISO-sträng för backend
+const updatedData = {
+  dueDate: task.dueDate instanceof Date ? task.dueDate.toISOString().split('T')[0] : task.dueDate,
+};
+await saveTask(updatedData); // Backend får korrekt format
+```
+
+💡 **Lärdom:** Backend förväntar sig datum som ISO-strängar eller null, inte Date-objekt. API-lagret måste konvertera Date-objekt till strängar innan de skickas.
+
+---
+
+### formatDueDate behöver error handling för ogiltiga datum
+
+❌ **FEL:**
+
+```typescript
+// Funktion kraschar med ogiltiga datum
+const formatDueDate = (dueDate: any) => {
+  const due = new Date(dueDate); // ❌ Kan bli Invalid Date
+  const diffTime = due.getTime() - now.getTime(); // ❌ NaN om ogiltigt datum
+};
+```
+
+✅ **KORREKT:**
+
+```typescript
+const formatDueDate = (dueDate: any) => {
+  if (!dueDate) return null;
+
+  try {
+    const due = new Date(dueDate);
+    if (isNaN(due.getTime())) {
+      return null; // Ogiltigt datum
+    }
+
+    const diffTime = due.getTime() - now.getTime();
+    // ... resten av logiken
+  } catch (error) {
+    return null; // Hantera fel gracefully
+  }
+};
+```
+
+💡 **Lärdom:** Datum kan vara null, undefined, eller ogiltiga strängar. Alltid validera datum med `isNaN(date.getTime())` innan du använder dem.
+
+---
+
+### ESLint react/no-array-index-key varningar i listor
+
+❌ **FEL:**
+
+```typescript
+// Använder index som key i map-funktioner
+{mentions.map((mention, index) => (
+  <div key={index}>...</div> // ❌ ESLint varning
+))}
+```
+
+✅ **KORREKT:**
+
+```typescript
+// Använd unika identifierare från data
+{mentions.map((mention) => (
+  <div key={`mention-${mention.contactId}-${mention.contactName || 'unknown'}`}>
+    ...
+  </div>
+))}
+```
+
+💡 **Lärdom:** Array index som keys kan orsaka rendering-problem när listan ändras. Använd alltid unika identifierare från data (ID, kombination av fält).
+
+---
+
 Conclusion
 Frontend plugins now:
 
@@ -757,4 +1013,7 @@ PLUGIN_DEVELOPMENT_STANDARDS_V2.md - Naming conventions
 SECURITY_GUIDELINES.md - Security requirements
 BACKEND_PLUGIN_GUIDE_V2.md - Backend integration
 STYLE_GUIDE.md - UI/UX standards
+
+```
+
 ```

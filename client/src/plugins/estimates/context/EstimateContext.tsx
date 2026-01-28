@@ -3,6 +3,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
+import { bulkApi } from '@/core/api/bulkApi';
+import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 
 import { estimatesApi } from '../api/estimatesApi';
 import { PublicRouteHandler } from '../components/PublicRouteHandler';
@@ -25,8 +27,16 @@ interface EstimateContextType {
   closeEstimatePanel: () => void;
   saveEstimate: (estimateData: any) => Promise<boolean>;
   deleteEstimate: (id: string) => Promise<void>;
+  deleteEstimates: (ids: string[]) => Promise<void>;
   duplicateEstimate: (estimate: Estimate) => Promise<void>;
   clearValidationErrors: () => void;
+  // Bulk selection
+  selectedEstimateIds: string[];
+  toggleEstimateSelected: (id: string) => void;
+  selectAllEstimates: (ids: string[]) => void;
+  clearEstimateSelection: () => void;
+  selectedCount: number;
+  isSelected: (id: string) => boolean;
 
   // Panel Title helpers
   getPanelTitle: (
@@ -62,6 +72,16 @@ export function EstimateProvider({
 
   // Data state
   const [estimates, setEstimates] = useState<Estimate[]>([]);
+
+  // Use core bulk selection hook
+  const {
+    selectedIds: selectedEstimateIds,
+    toggleSelection: toggleEstimateSelectedCore,
+    selectAll: selectAllEstimatesCore,
+    clearSelection: clearEstimateSelectionCore,
+    isSelected,
+    selectedCount,
+  } = useBulkSelection();
 
   // Load on auth
   useEffect(() => {
@@ -283,6 +303,31 @@ export function EstimateProvider({
     }
   };
 
+  // Bulk delete using core bulkApi
+  const deleteEstimates = async (ids: string[]) => {
+    if (ids.length === 0) {
+      return;
+    }
+
+    const uniqueIds = Array.from(new Set(ids.map(String).filter(Boolean)));
+    if (uniqueIds.length === 0) {
+      return;
+    }
+
+    try {
+      await bulkApi.bulkDelete('estimates', uniqueIds);
+      // Update local state - remove deleted estimates
+      setEstimates((prev) => prev.filter((e) => !uniqueIds.includes(String(e.id))));
+      // Clear selection after successful delete
+      clearEstimateSelectionCore();
+    } catch (error: any) {
+      console.error('Bulk delete failed:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to delete estimates';
+      alert(errorMessage);
+      throw error;
+    }
+  };
+
   const duplicateEstimate = async (original: Estimate) => {
     try {
       const estimateNumber = await generateNextEstimateNumber();
@@ -438,8 +483,17 @@ export function EstimateProvider({
     closeEstimatePanel,
     saveEstimate,
     deleteEstimate,
+    deleteEstimates,
     duplicateEstimate,
     clearValidationErrors,
+
+    // Bulk selection
+    selectedEstimateIds,
+    toggleEstimateSelected: toggleEstimateSelectedCore,
+    selectAllEstimates: selectAllEstimatesCore,
+    clearEstimateSelection: clearEstimateSelectionCore,
+    selectedCount,
+    isSelected,
 
     getPanelTitle,
     getPanelSubtitle,
