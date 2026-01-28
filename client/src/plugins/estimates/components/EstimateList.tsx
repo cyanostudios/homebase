@@ -1,4 +1,4 @@
-import { Calculator, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
+import { Calculator, ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +14,9 @@ import {
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
+import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
 import { useEstimates } from '../hooks/useEstimates';
@@ -37,6 +39,7 @@ export function EstimateList() {
     isSelected,
   } = useEstimates();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const { setHeaderTrailing } = useContentLayout();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('createdAt');
@@ -178,6 +181,90 @@ export function EstimateList() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (selectedEstimateIds.length === 0) {
+      alert('Please select estimates to export');
+      return;
+    }
+    const selectedEstimates = estimates.filter((est) =>
+      selectedEstimateIds.includes(String(est.id)),
+    );
+    const csvHeaders = [
+      'estimateNumber',
+      'contactName',
+      'organizationNumber',
+      'currency',
+      'total',
+      'status',
+      'validTo',
+      'createdAt',
+      'updatedAt',
+    ];
+    const csvData = selectedEstimates.map((est) => ({
+      estimateNumber: est.estimateNumber ?? '',
+      contactName: est.contactName ?? '',
+      organizationNumber: est.organizationNumber ?? '',
+      currency: est.currency ?? '',
+      total: est.total ?? 0,
+      status: est.status ?? '',
+      validTo: est.validTo instanceof Date ? est.validTo.toISOString() : String(est.validTo ?? ''),
+      createdAt:
+        est.createdAt instanceof Date ? est.createdAt.toISOString() : String(est.createdAt ?? ''),
+      updatedAt:
+        est.updatedAt instanceof Date ? est.updatedAt.toISOString() : String(est.updatedAt ?? ''),
+    }));
+    const filename = `estimates-export-${new Date().toISOString().split('T')[0]}`;
+    exportToCSV(csvData, filename, csvHeaders);
+  };
+
+  const handleExportPDF = async () => {
+    if (selectedEstimateIds.length === 0) {
+      alert('Please select estimates to export');
+      return;
+    }
+    const selectedEstimates = estimates.filter((est) =>
+      selectedEstimateIds.includes(String(est.id)),
+    );
+    const pdfHeaders = [
+      { key: 'estimateNumber', label: 'Estimate #' },
+      { key: 'contactName', label: 'Contact' },
+      { key: 'currency', label: 'Currency' },
+      { key: 'total', label: 'Total' },
+      { key: 'status', label: 'Status' },
+      { key: 'validTo', label: 'Valid To' },
+      { key: 'createdAt', label: 'Created' },
+    ];
+    const pdfData = selectedEstimates.map((est) => ({
+      estimateNumber: est.estimateNumber ?? '',
+      contactName: est.contactName ?? '',
+      currency: est.currency ?? '',
+      total: est.total ?? 0,
+      status: est.status ?? '',
+      validTo:
+        est.validTo instanceof Date
+          ? est.validTo.toLocaleDateString('sv-SE')
+          : String(est.validTo ?? ''),
+      createdAt:
+        est.createdAt instanceof Date
+          ? est.createdAt.toLocaleDateString('sv-SE')
+          : String(est.createdAt ?? ''),
+    }));
+    const filename = `estimates-export-${new Date().toISOString().split('T')[0]}`;
+    await exportToPDF(pdfData, filename, pdfHeaders, 'Estimates Export');
+  };
+
+  // Set header trailing (search + filter) in ContentHeader
+  useEffect(() => {
+    setHeaderTrailing(
+      <ContentToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search estimates..."
+      />,
+    );
+    return () => setHeaderTrailing(null);
+  }, [searchTerm, setSearchTerm, setHeaderTrailing]);
+
   // Protected navigation handlers
   const handleOpenForView = (estimate: any) => {
     attemptNavigation(() => {
@@ -187,17 +274,18 @@ export function EstimateList() {
 
   return (
     <div className="space-y-4">
-      <ContentToolbar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search estimates..."
-      />
-
       {/* Bulk Action Bar */}
       <BulkActionBar
         selectedCount={selectedCount}
         onClearSelection={clearEstimateSelection}
         actions={[
+          {
+            label: 'Export CSV',
+            icon: FileSpreadsheet,
+            onClick: handleExportCSV,
+            variant: 'default',
+          },
+          { label: 'Export PDF', icon: FileText, onClick: handleExportPDF, variant: 'default' },
           {
             label: 'Delete…',
             icon: Trash2,
@@ -372,8 +460,7 @@ export function EstimateList() {
         onClose={() => setShowBulkDeleteModal(false)}
         onConfirm={handleBulkDelete}
         itemCount={selectedCount}
-        singularLabel="estimate"
-        pluralLabel="estimates"
+        itemLabel="estimates"
         isLoading={deleting}
       />
 

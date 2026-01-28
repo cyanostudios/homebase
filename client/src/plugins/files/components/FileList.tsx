@@ -14,7 +14,9 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { Heading, Text } from '@/core/ui/Typography';
+import { useContentLayout } from '@/core/ui/ContentLayoutContext';
+import { ContentToolbar } from '@/core/ui/ContentToolbar';
+import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
 import { useFiles } from '../hooks/useFiles';
@@ -74,6 +76,7 @@ export const FileList: React.FC = () => {
     deleteFiles,
   } = useFiles();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const { setHeaderTrailing } = useContentLayout();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('name');
@@ -190,6 +193,44 @@ export const FileList: React.FC = () => {
     }
   };
 
+  // Set header trailing (search + view mode toggle) in ContentHeader
+  useEffect(() => {
+    setHeaderTrailing(
+      <ContentToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by name, id, or type..."
+        rightActions={
+          <div className="flex gap-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-2 rounded-md border text-sm ${
+                viewMode === 'grid'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+              title="Grid view"
+            >
+              <Grid3x3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-2 rounded-md border text-sm ${
+                viewMode === 'list'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+              title="List view"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+        }
+      />,
+    );
+    return () => setHeaderTrailing(null);
+  }, [searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing]);
+
   const handleOpenForView = (item: any) => attemptNavigation(() => openFileForView(item));
 
   const runDeleteFlow = async () => {
@@ -208,9 +249,6 @@ export const FileList: React.FC = () => {
       setDeleting(false);
     }
   };
-
-  const total = files.length;
-  const filtered = filteredAndSorted.length;
 
   const handleOpenCloudStorage = async (service: 'onedrive' | 'dropbox' | 'googledrive') => {
     setOpeningCloudService(service);
@@ -238,102 +276,59 @@ export const FileList: React.FC = () => {
   ].filter(Boolean) as Array<{ name: string; label: string; icon: string }>;
 
   return (
-    <div className="p-4 sm:p-8">
-      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-4">
+      {/* Cloud Storage Info */}
+      {connectedServices.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-gray-600">Cloud storage:</span>
+          {connectedServices.map((service) => (
+            <button
+              key={service.name}
+              onClick={() => handleOpenCloudStorage(service.name as any)}
+              disabled={openingCloudService === service.name}
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+              title={`Open ${service.label}`}
+            >
+              <span>{service.icon}</span>
+              <span>{service.label}</span>
+              {openingCloudService === service.name && <span className="animate-pulse">...</span>}
+            </button>
+          ))}
+          <button
+            onClick={() => setShowCloudSettings(true)}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-gray-300 hover:bg-gray-50"
+            title="Manage cloud storage"
+          >
+            <Settings className="w-3 h-3" />
+            <span>Settings</span>
+          </button>
+        </div>
+      )}
+      {connectedServices.length === 0 && (
         <div>
-          <Heading level={1}>
-            Files ({filtered}
-            {filtered !== total ? ` of ${total}` : ''})
-          </Heading>
-          <Text variant="caption">Manage your files</Text>
-          {connectedServices.length > 0 && (
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-gray-600">Cloud storage:</span>
-              {connectedServices.map((service) => (
-                <button
-                  key={service.name}
-                  onClick={() => handleOpenCloudStorage(service.name as any)}
-                  disabled={openingCloudService === service.name}
-                  className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
-                  title={`Open ${service.label}`}
-                >
-                  <span>{service.icon}</span>
-                  <span>{service.label}</span>
-                  {openingCloudService === service.name && (
-                    <span className="animate-pulse">...</span>
-                  )}
-                </button>
-              ))}
-              <button
-                onClick={() => setShowCloudSettings(true)}
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-gray-300 hover:bg-gray-50"
-                title="Manage cloud storage"
-              >
-                <Settings className="w-3 h-3" />
-                <span>Settings</span>
-              </button>
-            </div>
-          )}
-          {connectedServices.length === 0 && (
-            <div className="mt-2">
-              <button
-                onClick={() => setShowCloudSettings(true)}
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-blue-300 text-blue-700 hover:bg-blue-50"
-              >
-                <Cloud className="w-3 h-3" />
-                <span>Connect cloud storage</span>
-              </button>
-            </div>
-          )}
-          <BulkActionBar
-            selectedCount={selectedCount}
-            onClearSelection={clearFileSelection}
-            actions={[
-              {
-                label: 'Delete…',
-                icon: Trash2,
-                onClick: () => setShowDeleteModal(true),
-                variant: 'destructive',
-              },
-            ]}
-          />
+          <button
+            onClick={() => setShowCloudSettings(true)}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-blue-300 text-blue-700 hover:bg-blue-50"
+          >
+            <Cloud className="w-3 h-3" />
+            <span>Connect cloud storage</span>
+          </button>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search by name, id, or type..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-80 pl-4 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`px-3 py-2 rounded-md border text-sm ${
-                viewMode === 'grid'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-              title="Grid view"
-            >
-              <Grid3x3 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`px-3 py-2 rounded-md border text-sm ${
-                viewMode === 'list'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-              title="List view"
-            >
-              <List className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
+      )}
+
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={selectedCount}
+        onClearSelection={clearFileSelection}
+        actions={[
+          {
+            label: 'Delete…',
+            icon: Trash2,
+            onClick: () => setShowDeleteModal(true),
+            variant: 'destructive',
+          },
+        ]}
+      />
 
       <Card>
         {viewMode === 'grid' ? (

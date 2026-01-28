@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 import { ContentHeader } from './ContentHeader';
+import { ContentLayoutProvider } from './ContentLayoutContext';
 import { ContentSurface } from './ContentSurface';
 import { DetailPanel } from './DetailPanel';
 import { Sidebar } from './Sidebar';
@@ -38,6 +39,7 @@ export function MainLayout({
   onDetailPanelClose,
 }: MainLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [headerTrailing, setHeaderTrailing] = useState<React.ReactNode>(null);
 
   // Wrapper to close detail panel when navigating
   const handlePageChange = (page: NavPage) => {
@@ -79,16 +81,19 @@ export function MainLayout({
           </ContentSurface>
         ) : (
           <ContentSurface>
-            <div className="flex h-full flex-col gap-4">
-              <ContentHeader
-                title={contentTitle}
-                actionLabel={contentActionLabel}
-                onAction={onContentAction}
-              />
-              <div className="flex flex-1 flex-col overflow-hidden">
-                <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+            <ContentLayoutProvider onTrailingChange={setHeaderTrailing}>
+              <div className="flex h-full flex-col gap-4">
+                <ContentHeader
+                  title={contentTitle}
+                  actionLabel={contentActionLabel}
+                  onAction={onContentAction}
+                  trailing={headerTrailing}
+                />
+                <div className="flex flex-1 flex-col overflow-hidden">
+                  <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+                </div>
               </div>
-            </div>
+            </ContentLayoutProvider>
           </ContentSurface>
         )}
       </main>

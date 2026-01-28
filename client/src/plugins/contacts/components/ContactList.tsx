@@ -1,4 +1,14 @@
-import { Mail, Phone, Building, User, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
+import {
+  Mail,
+  Phone,
+  Building,
+  User,
+  ArrowUp,
+  ArrowDown,
+  Trash2,
+  FileSpreadsheet,
+  FileText,
+} from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +24,9 @@ import {
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
+import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
 import { useContacts } from '../hooks/useContacts';
@@ -36,6 +48,7 @@ export const ContactList: React.FC = () => {
     isSelected,
   } = useContacts();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
@@ -160,22 +173,157 @@ export const ContactList: React.FC = () => {
     setDeleteConfirm({ isOpen: false, contactId: '', contactName: '' });
   };
 
+  // Export handlers
+  const handleExportCSV = () => {
+    if (selectedContactIds.length === 0) {
+      alert('Please select contacts to export');
+      return;
+    }
+
+    // Get selected contacts
+    const selectedContacts = contacts.filter((contact) =>
+      selectedContactIds.includes(String(contact.id)),
+    );
+
+    // Define CSV headers
+    const csvHeaders = [
+      'contactNumber',
+      'contactType',
+      'companyName',
+      'companyType',
+      'organizationNumber',
+      'vatNumber',
+      'personalNumber',
+      'email',
+      'phone',
+      'phone2',
+      'website',
+      'taxRate',
+      'paymentTerms',
+      'currency',
+      'fTax',
+      'notes',
+      'createdAt',
+      'updatedAt',
+    ];
+
+    // Format data for CSV
+    const csvData = selectedContacts.map((contact) => ({
+      contactNumber: contact.contactNumber || '',
+      contactType: contact.contactType || '',
+      companyName: contact.companyName || '',
+      companyType: contact.companyType || '',
+      organizationNumber: contact.organizationNumber || '',
+      vatNumber: contact.vatNumber || '',
+      personalNumber: contact.personalNumber || '',
+      email: contact.email || '',
+      phone: contact.phone || '',
+      phone2: contact.phone2 || '',
+      website: contact.website || '',
+      taxRate: contact.taxRate || '',
+      paymentTerms: contact.paymentTerms || '',
+      currency: contact.currency || '',
+      fTax: contact.fTax || '',
+      notes: contact.notes || '',
+      createdAt:
+        contact.createdAt instanceof Date
+          ? contact.createdAt.toISOString()
+          : contact.createdAt || '',
+      updatedAt:
+        contact.updatedAt instanceof Date
+          ? contact.updatedAt.toISOString()
+          : contact.updatedAt || '',
+    }));
+
+    const filename = `contacts-export-${new Date().toISOString().split('T')[0]}`;
+    exportToCSV(csvData, filename, csvHeaders);
+  };
+
+  const handleExportPDF = async () => {
+    if (selectedContactIds.length === 0) {
+      alert('Please select contacts to export');
+      return;
+    }
+
+    // Get selected contacts
+    const selectedContacts = contacts.filter((contact) =>
+      selectedContactIds.includes(String(contact.id)),
+    );
+
+    // Define PDF headers with labels
+    const pdfHeaders = [
+      { key: 'contactNumber', label: 'Contact #' },
+      { key: 'contactType', label: 'Type' },
+      { key: 'companyName', label: 'Company Name' },
+      { key: 'organizationNumber', label: 'Org. Number' },
+      { key: 'vatNumber', label: 'VAT Number' },
+      { key: 'personalNumber', label: 'Personal Number' },
+      { key: 'email', label: 'Email' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'phone2', label: 'Phone 2' },
+      { key: 'website', label: 'Website' },
+      { key: 'taxRate', label: 'Tax Rate' },
+      { key: 'paymentTerms', label: 'Payment Terms' },
+      { key: 'currency', label: 'Currency' },
+      { key: 'notes', label: 'Notes' },
+    ];
+
+    // Format data for PDF
+    const pdfData = selectedContacts.map((contact) => ({
+      contactNumber: contact.contactNumber || '',
+      contactType: contact.contactType === 'company' ? 'Company' : 'Private',
+      companyName: contact.companyName || '',
+      organizationNumber: contact.organizationNumber || '',
+      vatNumber: contact.vatNumber || '',
+      personalNumber: contact.personalNumber || '',
+      email: contact.email || '',
+      phone: contact.phone || '',
+      phone2: contact.phone2 || '',
+      website: contact.website || '',
+      taxRate: contact.taxRate || '',
+      paymentTerms: contact.paymentTerms || '',
+      currency: contact.currency || '',
+      notes: contact.notes || '',
+    }));
+
+    const filename = `contacts-export-${new Date().toISOString().split('T')[0]}`;
+    await exportToPDF(pdfData, filename, pdfHeaders, 'Contacts Export');
+  };
+
+  // Set header trailing (search + filter) in ContentHeader
+  useEffect(() => {
+    setHeaderTrailing(
+      <ContentToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search contacts..."
+      />,
+    );
+    return () => setHeaderTrailing(null);
+  }, [searchTerm, setSearchTerm, setHeaderTrailing]);
+
   // Protected navigation handlers
   const handleOpenForView = (contact: any) => attemptNavigation(() => openContactForView(contact));
 
   return (
     <div className="space-y-4">
-      <ContentToolbar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search contacts..."
-      />
-
       {/* Bulk Action Bar */}
       <BulkActionBar
         selectedCount={selectedCount}
         onClearSelection={clearContactSelection}
         actions={[
+          {
+            label: 'Export CSV',
+            icon: FileSpreadsheet,
+            onClick: handleExportCSV,
+            variant: 'default',
+          },
+          {
+            label: 'Export PDF',
+            icon: FileText,
+            onClick: handleExportPDF,
+            variant: 'default',
+          },
           {
             label: 'Delete…',
             icon: Trash2,

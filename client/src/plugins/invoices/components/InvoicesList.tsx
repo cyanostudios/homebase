@@ -1,4 +1,4 @@
-import { Receipt, Trash2 } from 'lucide-react';
+import { Receipt, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -7,8 +7,10 @@ import { Card } from '@/components/ui/card';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { GroupedList } from '@/core/ui/GroupedList';
+import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +33,7 @@ export function InvoicesList() {
     isSelected,
   } = useInvoices();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const { setHeaderTrailing } = useContentLayout();
 
   const [currentPage, setCurrentPage] = useState<string>('invoices');
   const [searchTerm, setSearchTerm] = useState('');
@@ -180,6 +183,96 @@ export function InvoicesList() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (selectedInvoiceIds.length === 0) {
+      alert('Please select invoices to export');
+      return;
+    }
+    const selectedInvoices = invoices.filter((inv) => selectedInvoiceIds.includes(String(inv.id)));
+    const csvHeaders = [
+      'invoiceNumber',
+      'contactName',
+      'currency',
+      'total',
+      'status',
+      'issueDate',
+      'dueDate',
+      'createdAt',
+    ];
+    const csvData = selectedInvoices.map((inv) => ({
+      invoiceNumber: inv.invoiceNumber ?? '',
+      contactName: inv.contactName ?? '',
+      currency: inv.currency ?? '',
+      total: inv.total ?? 0,
+      status: inv.status ?? '',
+      issueDate: inv.issueDate
+        ? inv.issueDate instanceof Date
+          ? inv.issueDate.toISOString()
+          : String(inv.issueDate)
+        : '',
+      dueDate: inv.dueDate
+        ? inv.dueDate instanceof Date
+          ? inv.dueDate.toISOString()
+          : String(inv.dueDate)
+        : '',
+      createdAt: inv.createdAt
+        ? inv.createdAt instanceof Date
+          ? inv.createdAt.toISOString()
+          : String(inv.createdAt)
+        : '',
+    }));
+    const filename = `invoices-export-${new Date().toISOString().split('T')[0]}`;
+    exportToCSV(csvData, filename, csvHeaders);
+  };
+
+  const handleExportPDF = async () => {
+    if (selectedInvoiceIds.length === 0) {
+      alert('Please select invoices to export');
+      return;
+    }
+    const selectedInvoices = invoices.filter((inv) => selectedInvoiceIds.includes(String(inv.id)));
+    const pdfHeaders = [
+      { key: 'invoiceNumber', label: 'Invoice #' },
+      { key: 'contactName', label: 'Contact' },
+      { key: 'currency', label: 'Currency' },
+      { key: 'total', label: 'Total' },
+      { key: 'status', label: 'Status' },
+      { key: 'issueDate', label: 'Issue Date' },
+      { key: 'dueDate', label: 'Due Date' },
+    ];
+    const pdfData = selectedInvoices.map((inv) => ({
+      invoiceNumber: inv.invoiceNumber ?? '',
+      contactName: inv.contactName ?? '',
+      currency: inv.currency ?? '',
+      total: inv.total ?? 0,
+      status: inv.status ?? '',
+      issueDate: inv.issueDate
+        ? inv.issueDate instanceof Date
+          ? inv.issueDate.toLocaleDateString('sv-SE')
+          : String(inv.issueDate)
+        : '',
+      dueDate: inv.dueDate
+        ? inv.dueDate instanceof Date
+          ? inv.dueDate.toLocaleDateString('sv-SE')
+          : String(inv.dueDate)
+        : '',
+    }));
+    const filename = `invoices-export-${new Date().toISOString().split('T')[0]}`;
+    await exportToPDF(pdfData, filename, pdfHeaders, 'Invoices Export');
+  };
+
+  // Set header trailing (search + filter) in ContentHeader
+  useEffect(() => {
+    setHeaderTrailing(
+      <ContentToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search invoices..."
+      />,
+    );
+    return () => setHeaderTrailing(null);
+  }, [searchTerm, setSearchTerm, setHeaderTrailing]);
+
   // Protected navigation handlers
   const handleOpenForView = (invoice: any) => {
     attemptNavigation(() => {
@@ -232,17 +325,18 @@ export function InvoicesList() {
         </div>
       )}
 
-      <ContentToolbar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search invoices..."
-      />
-
       {/* Bulk Action Bar */}
       <BulkActionBar
         selectedCount={selectedCount}
         onClearSelection={clearInvoiceSelection}
         actions={[
+          {
+            label: 'Export CSV',
+            icon: FileSpreadsheet,
+            onClick: handleExportCSV,
+            variant: 'default',
+          },
+          { label: 'Export PDF', icon: FileText, onClick: handleExportPDF, variant: 'default' },
           {
             label: 'Delete…',
             icon: Trash2,

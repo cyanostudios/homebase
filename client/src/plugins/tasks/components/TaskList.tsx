@@ -1,4 +1,4 @@
-import { CheckSquare, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
+import { CheckSquare, ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +15,9 @@ import { useApp } from '@/core/api/AppContext';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
+import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
 import { useTasks } from '../hooks/useTasks';
@@ -39,6 +41,7 @@ export const TaskList: React.FC = () => {
   } = useTasks();
   const { contacts } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
@@ -213,6 +216,98 @@ export const TaskList: React.FC = () => {
     });
   };
 
+  const handleExportCSV = () => {
+    if (selectedTaskIds.length === 0) {
+      alert('Please select tasks to export');
+      return;
+    }
+    const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(String(task.id)));
+    const getAssignedName = (assignedTo: string | null) => {
+      if (!assignedTo || !contacts.length) {
+        return '';
+      }
+      const c = contacts.find((x: any) => String(x.id) === String(assignedTo));
+      return c ? c.companyName || '' : '';
+    };
+    const csvHeaders = [
+      'title',
+      'content',
+      'status',
+      'priority',
+      'dueDate',
+      'assignedTo',
+      'createdAt',
+      'updatedAt',
+    ];
+    const csvData = selectedTasks.map((task) => ({
+      title: task.title || '',
+      content: (task.content || '').slice(0, 500),
+      status: task.status || '',
+      priority: task.priority || '',
+      dueDate: task.dueDate
+        ? task.dueDate instanceof Date
+          ? task.dueDate.toISOString()
+          : String(task.dueDate)
+        : '',
+      assignedTo: getAssignedName(task.assignedTo),
+      createdAt:
+        task.createdAt instanceof Date
+          ? task.createdAt.toISOString()
+          : String(task.createdAt ?? ''),
+      updatedAt:
+        task.updatedAt instanceof Date
+          ? task.updatedAt.toISOString()
+          : String(task.updatedAt ?? ''),
+    }));
+    const filename = `tasks-export-${new Date().toISOString().split('T')[0]}`;
+    exportToCSV(csvData, filename, csvHeaders);
+  };
+
+  const handleExportPDF = async () => {
+    if (selectedTaskIds.length === 0) {
+      alert('Please select tasks to export');
+      return;
+    }
+    const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(String(task.id)));
+    const getAssignedName = (assignedTo: string | null) => {
+      if (!assignedTo || !contacts.length) {
+        return '';
+      }
+      const c = contacts.find((x: any) => String(x.id) === String(assignedTo));
+      return c ? c.companyName || '' : '';
+    };
+    const pdfHeaders = [
+      { key: 'title', label: 'Title' },
+      { key: 'status', label: 'Status' },
+      { key: 'priority', label: 'Priority' },
+      { key: 'dueDate', label: 'Due Date' },
+      { key: 'assignedTo', label: 'Assigned To' },
+      { key: 'createdAt', label: 'Created' },
+      { key: 'updatedAt', label: 'Updated' },
+    ];
+    const pdfData = selectedTasks.map((task) => ({
+      title: (task.title || '').slice(0, 30),
+      status: task.status || '',
+      priority: task.priority || '',
+      dueDate: task.dueDate
+        ? task.dueDate instanceof Date
+          ? task.dueDate.toLocaleDateString('sv-SE')
+          : String(task.dueDate)
+        : '',
+      assignedTo: getAssignedName(task.assignedTo),
+      createdAt:
+        task.createdAt instanceof Date
+          ? task.createdAt.toLocaleDateString('sv-SE')
+          : String(task.createdAt ?? ''),
+      updatedAt:
+        task.updatedAt instanceof Date
+          ? task.updatedAt.toLocaleDateString('sv-SE')
+          : String(task.updatedAt ?? ''),
+    }));
+    const filename = `tasks-export-${new Date().toISOString().split('T')[0]}`;
+    await exportToPDF(pdfData, filename, pdfHeaders, 'Tasks Export');
+  };
+
   const formatDueDate = (dueDate: Date | null) => {
     if (!dueDate) {
       return null;
@@ -236,6 +331,18 @@ export const TaskList: React.FC = () => {
     }
   };
 
+  // Set header trailing (search + filter) in ContentHeader
+  useEffect(() => {
+    setHeaderTrailing(
+      <ContentToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search tasks..."
+      />,
+    );
+    return () => setHeaderTrailing(null);
+  }, [searchTerm, setSearchTerm, setHeaderTrailing]);
+
   // Protected navigation handlers
   const handleOpenForView = (task: any) => {
     attemptNavigation(() => {
@@ -245,17 +352,18 @@ export const TaskList: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <ContentToolbar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search tasks..."
-      />
-
       {/* Bulk Action Bar */}
       <BulkActionBar
         selectedCount={selectedCount}
         onClearSelection={clearTaskSelection}
         actions={[
+          {
+            label: 'Export CSV',
+            icon: FileSpreadsheet,
+            onClick: handleExportCSV,
+            variant: 'default',
+          },
+          { label: 'Export PDF', icon: FileText, onClick: handleExportPDF, variant: 'default' },
           {
             label: 'Delete…',
             icon: Trash2,

@@ -3,9 +3,10 @@
 // Updated: Added Activity Log category
 
 import { User, Globe, History } from 'lucide-react';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 
 import { Card } from '@/components/ui/card';
+import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 
 interface SettingsCategory {
@@ -46,6 +47,7 @@ interface SettingsListProps {
 
 export function SettingsList({ onCategoryClick }: SettingsListProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const { setHeaderTrailing } = useContentLayout();
 
   const filteredCategories = useMemo(() => {
     const filtered = settingsCategories.filter(
@@ -56,14 +58,20 @@ export function SettingsList({ onCategoryClick }: SettingsListProps) {
     return filtered;
   }, [searchTerm]);
 
-  return (
-    <div className="space-y-4">
+  // Set header trailing (search + filter) in ContentHeader
+  useEffect(() => {
+    setHeaderTrailing(
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder="Search settings..."
-      />
+      />,
+    );
+    return () => setHeaderTrailing(null);
+  }, [searchTerm, setSearchTerm, setHeaderTrailing]);
 
+  return (
+    <div className="space-y-4">
       <Card>
         <div className="divide-y divide-border">
           {filteredCategories.length === 0 ? (
