@@ -21,6 +21,11 @@ export default defineConfig({
       interval: 100,
       ignored: ['**/node_modules/**', '**/.git/**'],
     },
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    },
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:3002',
@@ -37,6 +42,11 @@ export default defineConfig({
           }
         },
         onProxyRes: (proxyRes, req, res) => {
+          // Disable caching for API responses in development
+          proxyRes.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
+          proxyRes.headers['Pragma'] = 'no-cache';
+          proxyRes.headers['Expires'] = '0';
+          
           // Forward Set-Cookie headers
           if (proxyRes.headers['set-cookie']) {
             proxyRes.headers['set-cookie'] = proxyRes.headers['set-cookie'].map((cookie: string) => {
@@ -54,5 +64,18 @@ export default defineConfig({
         },
       }
     }
-  }
+  },
+  // Disable build cache in development to ensure fresh builds
+  build: {
+    rollupOptions: {
+      output: {
+        // Ensure unique file names to prevent browser caching
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]',
+      },
+    },
+  },
+  // Clear Vite cache on startup in development
+  clearScreen: false,
 })

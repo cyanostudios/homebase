@@ -20,7 +20,9 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [mentionStart, setMentionStart] = useState(0);
+  const [suggestionPosition, setSuggestionPosition] = useState({ top: 0, left: 0 });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   // Load contacts when component mounts
   useEffect(() => {
@@ -66,6 +68,77 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     return mentions;
   };
 
+  const calculateSuggestionPosition = (
+    textarea: HTMLTextAreaElement,
+    mentionStartPos: number,
+    textValue: string,
+  ) => {
+    // Get text before the @ symbol
+    const textBeforeMention = textValue.substring(0, mentionStartPos);
+    const textareaStyle = window.getComputedStyle(textarea);
+
+    // Create a temporary div to measure text dimensions accurately
+    const measureDiv = document.createElement('div');
+    measureDiv.style.position = 'absolute';
+    measureDiv.style.visibility = 'hidden';
+    measureDiv.style.whiteSpace = 'pre-wrap';
+    measureDiv.style.font = textareaStyle.font;
+    measureDiv.style.padding = textareaStyle.padding;
+    measureDiv.style.width = textareaStyle.width;
+    measureDiv.style.wordWrap = 'break-word';
+    measureDiv.textContent = textBeforeMention;
+    document.body.appendChild(measureDiv);
+
+    // Calculate line height
+    const lineHeight =
+      parseFloat(textareaStyle.lineHeight) || parseFloat(textareaStyle.fontSize) * 1.2;
+    const paddingTop = parseFloat(textareaStyle.paddingTop) || 0;
+    const paddingLeft = parseFloat(textareaStyle.paddingLeft) || 0;
+
+    // Count newlines before mention
+    const linesBeforeMention = textBeforeMention.split('\n').length - 1;
+    const textInCurrentLine = textBeforeMention.split('\n').pop() || '';
+
+    // Measure width of text in current line
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) {
+      document.body.removeChild(measureDiv);
+      return { top: 0, left: 0 };
+    }
+    context.font = textareaStyle.font;
+    const textWidth = context.measureText(textInCurrentLine).width;
+
+    // Calculate position relative to viewport
+    const rect = textarea.getBoundingClientRect();
+    const scrollTop = textarea.scrollTop;
+    let top = rect.top + paddingTop + linesBeforeMention * lineHeight - scrollTop + lineHeight;
+    let left = rect.left + paddingLeft + textWidth;
+
+    // Ensure dropdown doesn't go off screen
+    const dropdownHeight = 160; // max-h-40 = 10rem = 160px
+    const dropdownWidth = 300; // max-w-[300px]
+
+    if (top + dropdownHeight > window.innerHeight) {
+      // Position above cursor if not enough space below
+      top = rect.top + paddingTop + linesBeforeMention * lineHeight - scrollTop - dropdownHeight;
+    }
+
+    if (left + dropdownWidth > window.innerWidth) {
+      // Adjust left if dropdown would go off right edge
+      left = window.innerWidth - dropdownWidth - 10;
+    }
+
+    if (left < 10) {
+      // Ensure minimum margin from left edge
+      left = 10;
+    }
+
+    document.body.removeChild(measureDiv);
+
+    return { top, left };
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     const cursorPos = e.target.selectionStart;
@@ -86,14 +159,30 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
 
         if (filteredContacts.length > 0 && query.length > 0) {
           setSuggestions(filteredContacts);
-          setShowSuggestions(true);
           setMentionStart(lastAtIndex);
           setSelectedIndex(0);
+          if (textareaRef.current) {
+            const position = calculateSuggestionPosition(
+              textareaRef.current,
+              lastAtIndex,
+              newValue,
+            );
+            setSuggestionPosition(position);
+            setShowSuggestions(true);
+          }
         } else if (query.length === 0) {
           setSuggestions(contacts.slice(0, 5));
-          setShowSuggestions(true);
           setMentionStart(lastAtIndex);
           setSelectedIndex(0);
+          if (textareaRef.current) {
+            const position = calculateSuggestionPosition(
+              textareaRef.current,
+              lastAtIndex,
+              newValue,
+            );
+            setSuggestionPosition(position);
+            setShowSuggestions(true);
+          }
         } else {
           setShowSuggestions(false);
         }
@@ -161,11 +250,45 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     }
   };
 
+  // Update suggestion position when scrolling or resizing
+  useEffect(() => {
+    if (!showSuggestions || !textareaRef.current) {
+      return;
+    }
+
+    const updatePosition = () => {
+      if (textareaRef.current) {
+        const position = calculateSuggestionPosition(textareaRef.current, mentionStart, value);
+        setSuggestionPosition(position);
+      }
+    };
+
+    const textarea = textareaRef.current;
+    textarea.addEventListener('scroll', updatePosition);
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      textarea.removeEventListener('scroll', updatePosition);
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [showSuggestions, mentionStart, value]);
+
   // Close suggestions when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => setShowSuggestions(false);
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target as Node) &&
+        textareaRef.current &&
+        !textareaRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   return (
@@ -181,7 +304,14 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
       />
 
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-40 overflow-y-auto">
+        <div
+          ref={suggestionsRef}
+          className="fixed z-50 bg-popover border border-border rounded-md shadow-lg max-h-40 overflow-y-auto min-w-[200px] max-w-[300px]"
+          style={{
+            top: `${suggestionPosition.top}px`,
+            left: `${suggestionPosition.left}px`,
+          }}
+        >
           {suggestions.map((contact, index) => (
             <button
               key={contact.id}
