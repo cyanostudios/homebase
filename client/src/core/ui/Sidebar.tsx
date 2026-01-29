@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Home } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,7 @@ const PLUGIN_ICON_COLORS: Record<string, string> = {
 };
 
 export type NavPage =
+  | 'dashboard'
   | 'contacts'
   | 'notes'
   | 'estimates'
@@ -57,6 +58,10 @@ export function Sidebar({
 
   const navCategories = useMemo(() => {
     const categoriesMap = new Map<string, any[]>();
+    // Dashboard längst upp i Main (order 0) – alltid tillgänglig för inloggade
+    categoriesMap.set('Main', [
+      { label: 'Dashboard', icon: Home, page: 'dashboard' as NavPage, order: 0 },
+    ]);
 
     PLUGIN_REGISTRY.forEach((plugin) => {
       if (user?.plugins.includes(plugin.name) && plugin.navigation) {

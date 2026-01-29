@@ -7,6 +7,7 @@
  * Last Modified: August 2025 - Global Navigation Guard Integration
  */
 
+import { Home } from 'lucide-react';
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 
 import { AppProvider, useApp } from '@/core/api/AppContext';
@@ -15,6 +16,7 @@ import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { createPanelRenderers } from '@/core/rendering/panelRendering';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { Dashboard } from '@/core/ui/Dashboard';
 import { LoginComponent } from '@/core/ui/LoginComponent';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { createPanelFooter } from '@/core/ui/PanelFooter';
@@ -129,10 +131,10 @@ function AppContent() {
   const [isMobileView, setIsMobileView] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Initialize currentPage from localStorage, fallback to 'contacts'
+  // Initialize currentPage from localStorage, fallback to 'dashboard' (första sidan efter inloggning)
   const [currentPage, setCurrentPage] = useState<NavPage>(() => {
     const saved = localStorage.getItem('homebase:currentPage');
-    return (saved as NavPage) || 'contacts';
+    return (saved as NavPage) || 'dashboard';
   });
 
   const [settingsCategory, setSettingsCategory] = useState<string | null>(null);
@@ -198,6 +200,9 @@ function AppContent() {
   }, [currentPage]);
 
   const contentTitle = useMemo(() => {
+    if (currentPage === 'dashboard') {
+      return 'Dashboard';
+    }
     if (currentPage === 'settings') {
       return 'Settings';
     }
@@ -215,6 +220,9 @@ function AppContent() {
   }, [currentPage, currentPagePlugin]);
 
   const contentIcon = useMemo(() => {
+    if (currentPage === 'dashboard') {
+      return Home;
+    }
     if (currentPage === 'settings') {
       return undefined;
     }
@@ -372,7 +380,9 @@ function AppContent() {
         detailPanelFooter={detailPanelFooter}
         onDetailPanelClose={onDetailPanelClose}
       >
-        {currentPage === 'settings' ? (
+        {currentPage === 'dashboard' ? (
+          <Dashboard onPageChange={handlePageChange} />
+        ) : currentPage === 'settings' ? (
           <SettingsList
             onCategoryClick={(categoryId) => {
               setSettingsCategory(categoryId);

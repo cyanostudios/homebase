@@ -27,6 +27,11 @@ export interface PluginNavigationConfig {
   };
 }
 
+/** Props som dashboard-widgets får från core. onOpenPlugin anropas för att navigera till plugin-sidan. */
+export interface DashboardWidgetProps {
+  onOpenPlugin: () => void;
+}
+
 export interface PluginRegistryEntry {
   name: string;
   Provider: React.ComponentType<{
@@ -42,27 +47,33 @@ export interface PluginRegistryEntry {
     View?: React.ComponentType<any>;
   };
   navigation?: PluginNavigationConfig;
+  /** Valfri widget för Dashboard. Visas endast om plugin är aktiverad för användaren. */
+  dashboardWidget?: React.ComponentType<DashboardWidgetProps>;
 }
 
 // Contacts
 import { ContactForm } from '@/plugins/contacts/components/ContactForm';
 import { ContactList } from '@/plugins/contacts/components/ContactList';
+import { ContactsDashboardWidget } from '@/plugins/contacts/components/ContactsDashboardWidget';
 import { ContactView } from '@/plugins/contacts/components/ContactView';
 import { ContactProvider } from '@/plugins/contacts/context/ContactContext';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
-// Files
+// Estimates
 import { EstimateForm } from '@/plugins/estimates/components/EstimateForm';
 import { EstimateList } from '@/plugins/estimates/components/EstimateList';
+import { EstimatesDashboardWidget } from '@/plugins/estimates/components/EstimatesDashboardWidget';
 import { EstimateView } from '@/plugins/estimates/components/EstimateView';
 import { EstimateProvider } from '@/plugins/estimates/context/EstimateContext';
 import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';
 // Files
 import { FileForm } from '@/plugins/files/components/FileForm';
 import { FileList } from '@/plugins/files/components/FileList';
+import { FilesDashboardWidget } from '@/plugins/files/components/FilesDashboardWidget';
 import { FileView } from '@/plugins/files/components/FileView';
 import { FilesProvider } from '@/plugins/files/context/FilesContext';
 import { useFiles } from '@/plugins/files/hooks/useFiles';
 // Invoices
+import { InvoicesDashboardWidget } from '@/plugins/invoices/components/InvoicesDashboardWidget';
 import { InvoicesForm } from '@/plugins/invoices/components/InvoicesForm';
 import { InvoicesList } from '@/plugins/invoices/components/InvoicesList';
 import { InvoicesView } from '@/plugins/invoices/components/InvoicesView';
@@ -72,13 +83,14 @@ import { invoicesNavigation } from '@/plugins/invoices/navigation';
 // Notes
 import { NoteForm } from '@/plugins/notes/components/NoteForm';
 import { NoteList } from '@/plugins/notes/components/NoteList';
+import { NotesDashboardWidget } from '@/plugins/notes/components/NotesDashboardWidget';
 import { NoteView } from '@/plugins/notes/components/NoteView';
 import { NoteProvider } from '@/plugins/notes/context/NoteContext';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
-// Estimates
 // Tasks
 import { TaskForm } from '@/plugins/tasks/components/TaskForm';
 import { TaskList } from '@/plugins/tasks/components/TaskList';
+import { TasksDashboardWidget } from '@/plugins/tasks/components/TasksDashboardWidget';
 import { TaskView } from '@/plugins/tasks/components/TaskView';
 import { TaskProvider } from '@/plugins/tasks/context/TaskContext';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
@@ -100,6 +112,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: Users,
       order: 1,
     },
+    dashboardWidget: ContactsDashboardWidget,
   },
   {
     name: 'notes',
@@ -117,6 +130,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: StickyNote,
       order: 2,
     },
+    dashboardWidget: NotesDashboardWidget,
   },
   {
     name: 'tasks',
@@ -134,6 +148,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: CheckSquare,
       order: 3,
     },
+    dashboardWidget: TasksDashboardWidget,
   },
   {
     name: 'estimates',
@@ -151,6 +166,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: Calculator,
       order: 0,
     },
+    dashboardWidget: EstimatesDashboardWidget,
   },
   {
     name: 'invoices',
@@ -163,6 +179,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       View: InvoicesView,
     },
     navigation: invoicesNavigation,
+    dashboardWidget: InvoicesDashboardWidget,
   },
   {
     name: 'files',
@@ -180,5 +197,6 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: FilesIcon,
       order: 0,
     },
+    dashboardWidget: FilesDashboardWidget,
   },
 ];

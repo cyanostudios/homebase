@@ -215,6 +215,9 @@ export function TopBar({
   };
 
   const pageLabel = useMemo(() => {
+    if (currentPage === 'dashboard') {
+      return 'Dashboard';
+    }
     if (currentPage === 'settings') {
       return 'Settings';
     }
@@ -233,7 +236,7 @@ export function TopBar({
   }, [currentPage]);
 
   const commandItems = useMemo(() => {
-    const items: { label: string; page: NavPage }[] = [];
+    const items: { label: string; page: NavPage }[] = [{ label: 'Dashboard', page: 'dashboard' }];
     PLUGIN_REGISTRY.forEach((plugin) => {
       if (user?.plugins.includes(plugin.name) && plugin.navigation) {
         items.push({ label: plugin.navigation.label, page: plugin.name as NavPage });
@@ -283,7 +286,7 @@ export function TopBar({
             <BreadcrumbList className="flex-wrap">
               <BreadcrumbItem className="hidden sm:inline-flex">
                 <BreadcrumbLink asChild>
-                  <button type="button" onClick={() => onPageChange('contacts')}>
+                  <button type="button" onClick={() => onPageChange('dashboard')}>
                     Homebase
                   </button>
                 </BreadcrumbLink>
