@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 
@@ -25,7 +26,7 @@ interface EstimateContextType {
   openEstimateForEdit: (estimate: Estimate) => void;
   openEstimateForView: (estimate: Estimate) => void;
   closeEstimatePanel: () => void;
-  saveEstimate: (estimateData: any) => Promise<boolean>;
+  saveEstimate: (estimateData: any, estimateId?: string) => Promise<{ success: boolean; message?: string }>;
   deleteEstimate: (id: string) => Promise<void>;
   deleteEstimates: (ids: string[]) => Promise<void>;
   duplicateEstimate: (estimate: Estimate) => Promise<void>;
@@ -212,21 +213,30 @@ export function EstimateProvider({
 
   const clearValidationErrors = () => setValidationErrors([]);
 
-  const saveEstimate = async (estimateData: any): Promise<boolean> => {
-    const errors = validateEstimate(estimateData);
-    setValidationErrors(errors);
-    if (errors.length > 0) {
-      return false;
+  const saveEstimate = async (
+    estimateData: any,
+    estimateId?: string,
+  ): Promise<{ success: boolean; message?: string }> => {
+    // When estimateId is provided we're updating an existing estimate (e.g. quick action status change).
+    // Skip create-style validation so we don't block on contact/validTo/lineItems.
+    if (!estimateId) {
+      const errors = validateEstimate(estimateData);
+      setValidationErrors(errors);
+      if (errors.length > 0) {
+        const message = errors.map((e) => e.message).join('. ');
+        return { success: false, message };
+      }
     }
 
     try {
       let saved: Estimate;
+      const idToUpdate = estimateId ?? currentEstimate?.id ?? null;
 
-      if (currentEstimate) {
-        saved = await estimatesApi.updateEstimate(currentEstimate.id, estimateData);
+      if (idToUpdate) {
+        saved = await estimatesApi.updateEstimate(idToUpdate, estimateData);
         setEstimates((prev) =>
           prev.map((e) =>
-            e.id === currentEstimate.id
+            e.id === idToUpdate
               ? {
                   ...saved,
                   validTo: new Date(saved.validTo),
@@ -236,12 +246,14 @@ export function EstimateProvider({
               : e,
           ),
         );
-        setCurrentEstimate({
-          ...saved,
-          validTo: new Date(saved.validTo),
-          createdAt: new Date(saved.createdAt),
-          updatedAt: new Date(saved.updatedAt),
-        });
+        if (currentEstimate?.id === idToUpdate) {
+          setCurrentEstimate({
+            ...saved,
+            validTo: new Date(saved.validTo),
+            createdAt: new Date(saved.createdAt),
+            updatedAt: new Date(saved.updatedAt),
+          });
+        }
         setPanelMode('view');
         setValidationErrors([]);
       } else {
@@ -258,7 +270,7 @@ export function EstimateProvider({
         closeEstimatePanel();
       }
 
-      return true;
+      return { success: true };
     } catch (error: any) {
       console.error('API Error when saving estimate:', error);
 
@@ -286,7 +298,8 @@ export function EstimateProvider({
       }
 
       setValidationErrors(validationErrors);
-      return false;
+      const message = validationErrors.map((e) => e.message).join('. ');
+      return { success: false, message };
     }
   };
 
@@ -375,7 +388,10 @@ export function EstimateProvider({
   ) => {
     if (mode === 'view' && item) {
       const totals = calculateEstimateTotals(item.lineItems || [], item.estimateDiscount || 0);
-      const estimateNumber = item.estimateNumber || `#${item.id}`;
+      const estimateNumber = formatDisplayNumber(
+        'estimates',
+        item.estimateNumber || item.id,
+      );
       const total = totals.total.toFixed(2);
       const currency = item.currency || 'SEK';
       const contactId = item.contactId;
@@ -465,7 +481,7 @@ export function EstimateProvider({
     if (!item) {
       return 'Are you sure you want to delete this estimate?';
     }
-    const itemName = item.estimateNumber || 'this estimate';
+    const itemName = formatDisplayNumber('estimates', item.estimateNumber || item.id);
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 

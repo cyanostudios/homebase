@@ -49,6 +49,8 @@ export interface PluginRegistryEntry {
   navigation?: PluginNavigationConfig;
   /** Valfri widget för Dashboard. Visas endast om plugin är aktiverad för användaren. */
   dashboardWidget?: React.ComponentType<DashboardWidgetProps>;
+  /** Prefix för visning av entitetsnummer (t.ex. CNT-1, EST-2025-001). */
+  displayPrefix?: string;
 }
 
 // Contacts
@@ -113,6 +115,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       order: 1,
     },
     dashboardWidget: ContactsDashboardWidget,
+    displayPrefix: 'CNT',
   },
   {
     name: 'notes',
@@ -131,6 +134,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       order: 2,
     },
     dashboardWidget: NotesDashboardWidget,
+    displayPrefix: 'NTS',
   },
   {
     name: 'tasks',
@@ -149,6 +153,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       order: 3,
     },
     dashboardWidget: TasksDashboardWidget,
+    displayPrefix: 'TSK',
   },
   {
     name: 'estimates',
@@ -167,6 +172,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       order: 0,
     },
     dashboardWidget: EstimatesDashboardWidget,
+    displayPrefix: 'EST',
   },
   {
     name: 'invoices',
@@ -180,6 +186,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     navigation: invoicesNavigation,
     dashboardWidget: InvoicesDashboardWidget,
+    displayPrefix: 'INV',
   },
   {
     name: 'files',
@@ -198,5 +205,6 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       order: 0,
     },
     dashboardWidget: FilesDashboardWidget,
+    displayPrefix: 'FLS',
   },
 ];

@@ -2,6 +2,8 @@
 import { Upload } from 'lucide-react';
 import React from 'react';
 
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
+
 // Reduced PLUGIN_CONFIGS - only for plugins not yet migrated
 const PLUGIN_CONFIGS: Record<string, any> = {
   import: {
@@ -86,12 +88,15 @@ export const createPanelTitles = (
         return currentItem.companyName;
       }
       if (currentItem.estimateNumber) {
-        return currentItem.estimateNumber;
+        return formatDisplayNumber(currentPlugin.name, currentItem.estimateNumber);
+      }
+      if (currentItem.invoiceNumber) {
+        return formatDisplayNumber(currentPlugin.name, currentItem.invoiceNumber);
       }
       if (currentItem.fileName) {
         return `Import: ${currentItem.fileName}`;
       }
-      return `${currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1)} #${currentItem.id}`;
+      return formatDisplayNumber(currentPlugin.name, currentItem.id);
     }
 
     // Non-view modes for non-migrated plugins
@@ -205,13 +210,19 @@ export const createPanelTitles = (
       return pluginContext.getDeleteMessage(currentItem);
     }
 
-    // Generic fallback
+    // Generic fallback (format display numbers with plugin prefix)
     const itemName =
       currentItem.companyName ||
       currentItem.title ||
-      currentItem.estimateNumber ||
+      (currentItem.estimateNumber
+        ? formatDisplayNumber(currentPlugin.name, currentItem.estimateNumber)
+        : undefined) ||
+      (currentItem.invoiceNumber
+        ? formatDisplayNumber(currentPlugin.name, currentItem.invoiceNumber)
+        : undefined) ||
       currentItem.fileName ||
       currentItem.name ||
+      (currentItem.id ? formatDisplayNumber(currentPlugin.name, currentItem.id) : undefined) ||
       'this item';
 
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;

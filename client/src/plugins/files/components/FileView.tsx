@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { Text } from '@/core/ui/Typography';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import type { FileItem } from '../types/files';
 
@@ -64,7 +65,9 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
             </div>
             <div>
               <div className="text-xs text-muted-foreground">ID</div>
-              <div className="text-sm font-mono text-foreground">{f.id}</div>
+              <div className="text-sm font-mono text-foreground">
+                {formatDisplayNumber('files', f.id)}
+              </div>
             </div>
             {f.url && (
               <div>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
@@ -509,7 +510,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                       <Calculator className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {estimate.estimateNumber}
+                          {formatDisplayNumber('estimates', estimate.estimateNumber)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
@@ -597,7 +598,9 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <div className="text-xs text-gray-500 dark:text-gray-400">System ID</div>
-              <div className="text-sm font-mono text-gray-900 dark:text-gray-100">{contact.id}</div>
+              <div className="text-sm font-mono text-gray-900 dark:text-gray-100">
+                {formatDisplayNumber('contacts', contact.id)}
+              </div>
             </div>
             <div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>

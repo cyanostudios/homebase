@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { GroupedList } from '@/core/ui/GroupedList';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -374,7 +375,7 @@ export function InvoicesList() {
                 data-list-item={JSON.stringify(invoice)}
                 data-plugin-name="invoices"
                 role="button"
-                aria-label={`Open invoice ${invoice.invoiceNumber || invoice.id}`}
+                aria-label={`Open invoice ${formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id)}`}
                 onClick={(e) => {
                   // Don't open if clicking checkbox
                   if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -395,7 +396,7 @@ export function InvoicesList() {
                     aria-label={invoiceIsSelected ? 'Unselect invoice' : 'Select invoice'}
                   />
                   <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
-                    {invoice.invoiceNumber || `DRAFT-${invoice.id}`}
+                    {formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id)}
                   </div>
                   <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
                     {getTypeBadge((invoice as any).invoiceType)}
@@ -451,7 +452,7 @@ export function InvoicesList() {
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         title="Delete Invoice"
-        message={`Are you sure you want to delete invoice "${deleteConfirm.invoiceNumber}"? This action cannot be undone.`}
+        message={`Are you sure you want to delete invoice "${formatDisplayNumber('invoices', deleteConfirm.invoiceNumber)}"? This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
         onConfirm={confirmDelete}

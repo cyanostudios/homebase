@@ -16,6 +16,7 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
@@ -372,7 +373,7 @@ export const ContactList: React.FC = () => {
                           aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
                         />
                         <span className="font-mono text-xs text-muted-foreground">
-                          #{contact.contactNumber}
+                          {formatDisplayNumber('contacts', contact.contactNumber || contact.id)}
                         </span>
                         <Badge
                           className={
@@ -522,7 +523,7 @@ export const ContactList: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
-                      #{contact.contactNumber}
+                      {formatDisplayNumber('contacts', contact.contactNumber || contact.id)}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-0.5">

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import { invoicesApi } from '../api/invoicesApi';
 import { useInvoiceStatusActions } from '../hooks/useInvoiceStatusActions';
@@ -82,7 +83,7 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `invoice-${invoice.invoiceNumber || invoice.id}.pdf`;
+      link.download = `invoice-${formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id)}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -262,7 +263,7 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
         onClose={handleModalCancel}
         onConfirm={handleModalConfirm}
         status={pendingStatus || ''}
-        invoiceNumber={pendingInvoice?.invoiceNumber || pendingInvoice?.id || ''}
+        invoiceNumber={formatDisplayNumber('invoices', pendingInvoice?.invoiceNumber || pendingInvoice?.id || '')}
       />
 
       {/* Create Share Modal */}
@@ -274,7 +275,7 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Create Share Link</h2>
                 <p className="text-xs text-muted-foreground">
-                  Invoice {invoice.invoiceNumber || invoice.id}
+                  Invoice {formatDisplayNumber('invoices', invoice.invoiceNumber || invoice.id)}
                 </p>
               </div>
             </div>

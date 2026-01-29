@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 
@@ -300,12 +301,15 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
 
                   const getDisplayText = () => {
                     if (!contactData) {
-                      const contactNumber = `#${mention.contactId}`;
+                      const contactNumber = formatDisplayNumber('contacts', mention.contactId);
                       const name = mention.contactName;
                       return `${contactNumber} • ${name} (deleted contact)`;
                     }
 
-                    const contactNumber = `#${contactData.contactNumber || contactData.id}`;
+                    const contactNumber = formatDisplayNumber(
+                      'contacts',
+                      contactData.contactNumber || contactData.id,
+                    );
                     const name = mention.contactName;
                     const orgPersonNumber =
                       contactData.organizationNumber || contactData.personalNumber || '';
@@ -377,7 +381,9 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <div className="text-xs text-gray-500 dark:text-gray-400">System ID</div>
-              <div className="text-sm font-mono text-gray-900 dark:text-gray-100">{task.id}</div>
+              <div className="text-sm font-mono text-gray-900 dark:text-gray-100">
+                {formatDisplayNumber('tasks', task.id)}
+              </div>
             </div>
             <div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>

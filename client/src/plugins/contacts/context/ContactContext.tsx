@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 
@@ -365,7 +366,7 @@ export function ContactProvider({
   // Panel title helpers
   const getPanelTitle = (mode: string, item: Contact | null, isMobileView: boolean) => {
     if (mode === 'view' && item) {
-      const contactNumber = `#${item.contactNumber || item.id}`;
+      const contactNumber = formatDisplayNumber('contacts', item.contactNumber || item.id);
       // För privatpersoner lagras fullständigt namn i companyName i vår typ
       const name = item.companyName || '';
       const orgNumber = item.organizationNumber || item.personalNumber || '';

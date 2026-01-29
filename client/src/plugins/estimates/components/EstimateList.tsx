@@ -16,6 +16,7 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
@@ -334,7 +335,7 @@ export function EstimateList() {
                   data-list-item={JSON.stringify(estimate)}
                   data-plugin-name="estimates"
                   role="button"
-                  aria-label={`Open estimate ${estimate.estimateNumber}`}
+                  aria-label={`Open estimate ${formatDisplayNumber('estimates', estimate.estimateNumber)}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -347,7 +348,9 @@ export function EstimateList() {
                           className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
                           aria-label={estimateIsSelected ? 'Unselect estimate' : 'Select estimate'}
                         />
-                        <span className="font-semibold text-base">{estimate.estimateNumber}</span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {formatDisplayNumber('estimates', estimate.estimateNumber)}
+                        </span>
                         {getStatusBadge(estimate.status)}
                       </div>
                       <h3 className="font-semibold mb-1 truncate">{estimate.contactName}</h3>
@@ -472,7 +475,7 @@ export function EstimateList() {
                     data-list-item={JSON.stringify(estimate)}
                     data-plugin-name="estimates"
                     role="button"
-                    aria-label={`Open estimate ${estimate.estimateNumber}`}
+                    aria-label={`Open estimate ${formatDisplayNumber('estimates', estimate.estimateNumber)}`}
                     onClick={(e) => {
                       // Don't open if clicking checkbox
                       if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -491,7 +494,9 @@ export function EstimateList() {
                         aria-label={estimateIsSelected ? 'Unselect estimate' : 'Select estimate'}
                       />
                     </TableCell>
-                    <TableCell className="font-semibold">{estimate.estimateNumber}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {formatDisplayNumber('estimates', estimate.estimateNumber)}
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-0.5">
                         <span>{estimate.contactName}</span>
@@ -541,7 +546,7 @@ export function EstimateList() {
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         title="Delete Estimate"
-        message={`Are you sure you want to delete estimate "${deleteConfirm.estimateNumber}"? This action cannot be undone.`}
+        message={`Are you sure you want to delete estimate "${formatDisplayNumber('estimates', deleteConfirm.estimateNumber)}"? This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
         onConfirm={confirmDelete}

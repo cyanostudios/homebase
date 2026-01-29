@@ -18,7 +18,7 @@ import { Estimate, LineItem, calculateLineItem, calculateEstimateTotals } from '
 
 interface EstimateFormProps {
   currentEstimate?: Estimate;
-  onSave: (data: any) => Promise<boolean>;
+  onSave: (data: any) => Promise<{ success: boolean; message?: string }>;
   onCancel: () => void;
 }
 
@@ -138,8 +138,8 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
     setIsSubmitting(true);
     try {
-      const success = await onSave(formData);
-      if (success) {
+      const result = await onSave(formData);
+      if (result?.success) {
         markClean();
         setDuplicatedItemIds(new Set());
         if (!currentEstimate) {

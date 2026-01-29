@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 
@@ -314,7 +315,7 @@ export function InvoicesProvider({
   // Panel Title Functions
   const getPanelTitle = (mode: string, item: Invoice | null, isMobileView: boolean) => {
     if (mode === 'view' && item) {
-      const invoiceNumber = item.invoiceNumber || `DRAFT-${item.id}`;
+      const invoiceNumber = formatDisplayNumber('invoices', item.invoiceNumber || item.id);
       const total = (item.total || 0).toFixed(2);
       const currency = item.currency || 'SEK';
       const contactName = item.contactName || 'Customer';
@@ -402,7 +403,7 @@ export function InvoicesProvider({
     if (!item) {
       return 'Are you sure you want to delete this invoice?';
     }
-    const itemName = item.invoiceNumber || 'this invoice';
+    const itemName = formatDisplayNumber('invoices', item.invoiceNumber || item.id);
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 

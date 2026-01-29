@@ -2,6 +2,7 @@ import { Share, Copy, Check, Download, Copy as CopyIcon } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import { estimateShareApi, estimatesApi } from '../api/estimatesApi';
 import { useEstimates } from '../hooks/useEstimates';
@@ -240,7 +241,7 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
                   Cannot create share link
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Estimate {estimate.estimateNumber}
+                  Estimate {formatDisplayNumber('estimates', estimate.estimateNumber)}
                 </p>
               </div>
             </div>

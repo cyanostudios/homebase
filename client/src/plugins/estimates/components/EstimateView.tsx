@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import { useEstimateStatusActions } from '../hooks/useEstimateStatusActions';
 import { Estimate, calculateEstimateTotals } from '../types/estimate';
@@ -33,9 +34,46 @@ export function EstimateView({ estimate }: EstimateViewProps) {
 
   // Calculate totals from line items WITH estimate discount
   const totals = calculateEstimateTotals(estimate.lineItems || [], estimate.estimateDiscount || 0);
+  const estimateNumberDisplay = formatDisplayNumber('estimates', estimate.estimateNumber);
 
   return (
     <div className="space-y-4">
+      {/* Summary */}
+      <Card padding="sm" className="shadow-none px-0">
+        <DetailSection title="Estimate">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+            <div>
+              <div className="text-xs text-muted-foreground">Number</div>
+              <div className="text-foreground font-medium font-mono">{estimateNumberDisplay || '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Status</div>
+              <div className="text-foreground capitalize">{estimate.status}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Contact</div>
+              <div className="text-foreground">{estimate.contactName || '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Valid To</div>
+              <div className="text-foreground">
+                {estimate.validTo ? new Date(estimate.validTo).toLocaleDateString() : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Currency</div>
+              <div className="text-foreground">{estimate.currency}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Total</div>
+              <div className="text-foreground font-medium">
+                {totals.total.toFixed(2)} {estimate.currency}
+              </div>
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+
       {/* Line Items */}
       <Card padding="sm" className="shadow-none px-0">
         <DetailSection title={`Line Items (${estimate.lineItems.length})`}>
@@ -212,7 +250,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
             <div>
               <div className="text-xs text-gray-500 dark:text-gray-400">System ID</div>
               <div className="text-sm font-mono text-gray-900 dark:text-gray-100">
-                {estimate.id}
+                {formatDisplayNumber('estimates', estimate.estimateNumber)}
               </div>
             </div>
             <div>
@@ -237,7 +275,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
         onClose={handleModalCancel}
         onConfirm={(reasons) => handleModalConfirm(estimate, reasons)}
         status={pendingStatus || 'accepted'}
-        estimateNumber={estimate.estimateNumber}
+        estimateNumber={formatDisplayNumber('estimates', estimate.estimateNumber)}
       />
 
       {/* Sent Confirmation Dialog */}
@@ -251,7 +289,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                   Mark estimate as sent?
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Estimate {estimate.estimateNumber}
+                  Estimate {formatDisplayNumber('estimates', estimate.estimateNumber)}
                 </p>
               </div>
             </div>

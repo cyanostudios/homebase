@@ -268,15 +268,11 @@ class EstimateModel {
   // Get single estimate by ID
   async getById(req, estimateId) {
     try {
-      const database = ServiceManager.get('database', req);
-      const context = this._getContext(req);
-
-      const result = await db.query('SELECT * FROM estimates WHERE id = $1', [estimateId], context);
-
-      if (result.rows.length === 0) {
+      const db = Database.get(req);
+      const rows = await db.query('SELECT * FROM estimates WHERE id = $1', [estimateId]);
+      if (rows.length === 0) {
         return null;
       }
-
       return this.transformRow(rows[0]);
     } catch (error) {
       Logger.error('Failed to get estimate', error, { estimateId });
@@ -520,7 +516,7 @@ class EstimateModel {
 
   async createShare(req, estimateId, validUntil) {
     try {
-      const db = Database.get(req);
+      const context = this._getContext(req);
       const pool = context.pool;
 
       // Verify estimate exists and user owns it
@@ -669,24 +665,10 @@ class EstimateModel {
 
   async revokeShare(req, shareId) {
     try {
-      const database = ServiceManager.get('database', req);
       const context = this._getContext(req);
       const pool = context.pool;
 
-      // Verify share belongs to user's estimate
-      const result = await pool.query(
-        `
-        DELETE FROM estimate_shares 
-        WHERE id = $1 
-        AND estimate_id IN (
-          SELECT id FROM estimates WHERE id = estimate_shares.estimate_id
-        )
-        RETURNING *
-      `,
-        [shareId],
-      );
-
-      // Better approach: Get estimate_id first, then verify ownership
+      // Get estimate_id first, then verify ownership before deleting
       const shareCheck = await pool.query('SELECT estimate_id FROM estimate_shares WHERE id = $1', [
         shareId,
       ]);

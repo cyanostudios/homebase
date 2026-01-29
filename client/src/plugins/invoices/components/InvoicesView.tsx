@@ -2,6 +2,7 @@ import React from 'react';
 
 import { Card } from '@/components/ui/card';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import { Invoice } from '../types/invoices';
 
@@ -26,7 +27,10 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
   const paidAt = actualItem.paidAt ? new Date(actualItem.paidAt) : null;
 
   // Summary fields
-  const invoiceNumber: string = actualItem.invoiceNumber ?? '';
+  const invoiceNumberDisplay = formatDisplayNumber(
+    'invoices',
+    actualItem.invoiceNumber || actualItem.id,
+  );
   const status: string = actualItem.status ?? 'draft';
   const contactName: string = actualItem.contactName ?? '';
   const currency: string = actualItem.currency ?? 'SEK';
@@ -39,7 +43,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
             <div>
               <div className="text-xs text-muted-foreground">Number</div>
-              <div className="text-foreground font-medium">{invoiceNumber || '—'}</div>
+              <div className="text-foreground font-medium">{invoiceNumberDisplay || '—'}</div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Status</div>

@@ -12,13 +12,16 @@ export function useEstimateStatusActions() {
   const [showSentConfirmation, setShowSentConfirmation] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<'accepted' | 'rejected' | null>(null);
 
-  // Format validTo date to prevent timezone issues
-  const formatValidTo = (dateValue: any) => {
-    if (!dateValue) {
+  // Format validTo for API (YYYY-MM-DD) to avoid timezone/format issues
+  const formatValidTo = (dateValue: any): string | null => {
+    if (dateValue == null || dateValue === '') {
       return null;
     }
     const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
-    return date.toLocaleDateString('sv-SE'); // Swedish locale gives YYYY-MM-DD format
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+    return date.toISOString().split('T')[0];
   };
 
   // Perform status change with proper date handling
@@ -28,28 +31,33 @@ export function useEstimateStatusActions() {
     reasons: string[] = [],
   ) => {
     try {
+      const validTo = formatValidTo(estimate.validTo);
+      const lineItems = estimate.lineItems ?? [];
+
       const updatedData = {
-        contactId: estimate.contactId,
-        contactName: estimate.contactName,
-        organizationNumber: estimate.organizationNumber,
-        currency: estimate.currency,
-        lineItems: estimate.lineItems,
-        estimateDiscount: estimate.estimateDiscount || 0,
-        notes: estimate.notes,
-        validTo: formatValidTo(estimate.validTo),
+        contactId: estimate.contactId ?? null,
+        contactName: estimate.contactName ?? '',
+        organizationNumber: estimate.organizationNumber ?? '',
+        currency: estimate.currency ?? 'SEK',
+        lineItems,
+        estimateDiscount: estimate.estimateDiscount ?? 0,
+        notes: estimate.notes ?? '',
+        validTo,
         status: newStatus,
-        acceptanceReasons: newStatus === 'accepted' ? reasons : estimate.acceptanceReasons,
-        rejectionReasons: newStatus === 'rejected' ? reasons : estimate.rejectionReasons,
+        acceptanceReasons: newStatus === 'accepted' ? reasons : (estimate.acceptanceReasons ?? []),
+        rejectionReasons: newStatus === 'rejected' ? reasons : (estimate.rejectionReasons ?? []),
       };
 
-      const success = await saveEstimate(updatedData);
+      // Pass estimate.id so update works even when called from view (currentEstimate may be out of sync)
+      const result = await saveEstimate(updatedData, estimate.id);
 
-      if (!success) {
-        alert('Failed to update status. Please try again.');
+      if (!result.success) {
+        alert(result.message ?? 'Failed to update status. Please try again.');
       }
     } catch (error) {
       console.error('Failed to update status:', error);
-      alert('Failed to update status. Please try again.');
+      const msg = error instanceof Error ? error.message : 'Failed to update status. Please try again.';
+      alert(msg);
     }
   };
 
