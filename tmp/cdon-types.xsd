@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<xs:schema
+	attributeFormDefault="unqualified"
+	elementFormDefault="qualified"
+	xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:simpleType name="stringNotNull">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1" />
+			<xs:maxLength value="2000" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="nonNegativeDecimal">
+		<xs:restriction base="xs:decimal">
+			<xs:minInclusive value="0" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="url">
+		<xs:restriction base="xs:anyURI">
+			<xs:minLength value="1" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="nonNegativeInt" id="nonNegativeInt">
+		<xs:restriction base="xs:int">
+			<xs:minInclusive value="0" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:complexType name="languageString">
+		<xs:sequence>
+			<xs:element name="se" minOccurs="0" maxOccurs="1" type="descriptionString" />
+			<xs:element name="dk" minOccurs="0" maxOccurs="1" type="descriptionString" />
+			<xs:element name="no" minOccurs="0" maxOccurs="1" type="descriptionString" />
+			<xs:element name="fi" minOccurs="0" maxOccurs="1" type="descriptionString" />
+			<xs:element name="en" minOccurs="0" maxOccurs="1" type="descriptionString" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:simpleType name="descriptionString">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1" />
+			<xs:maxLength value="10000" />
+		</xs:restriction>
+	</xs:simpleType>
+
+</xs:schema>
