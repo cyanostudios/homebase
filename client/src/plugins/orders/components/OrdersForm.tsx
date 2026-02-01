@@ -10,7 +10,7 @@ interface OrdersFormProps {
 
 const STATUSES: Array<{ value: OrderStatus; label: string }> = [
   { value: 'processing', label: 'Processing' },
-  { value: 'shipped', label: 'Shipped' },
+  { value: 'shipped', label: 'Delivered' },
   { value: 'delivered', label: 'Delivered' },
   { value: 'cancelled', label: 'Cancelled' },
 ];

@@ -37,6 +37,15 @@ function createOrdersRoutes(controller, context) {
     (req, res) => controller.deleteAll(req, res),
   );
 
+  // POST /api/orders/renumber - Renumber order_number by placed_at (oldest = 1) across all channels
+  router.post(
+    '/renumber',
+    gate,
+    csrfProtection,
+    validateRequest,
+    (req, res) => controller.renumber(req, res),
+  );
+
   // PUT /api/orders/batch/status - Batch update status (must be before /:id route)
   router.put(
     '/batch/status',

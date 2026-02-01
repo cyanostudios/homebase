@@ -772,7 +772,18 @@ class FyndiqProductsController {
         const platformOrderNumber = primary?.orderNumber ?? primary?.order_number ?? primary?.number ?? String(channelOrderId);
         const placedAt = primary?.createdAt ?? primary?.created_at ?? primary?.orderDate ?? primary?.order_date ?? primary?.date ?? null;
         let totalAmount = null;
-        const currency = primary?.currency ?? primary?.Currency ?? 'SEK';
+        let currency = primary?.currency ?? primary?.Currency ?? null;
+        if (!currency) {
+          for (const o of group) {
+            const lineItems = Array.isArray(o?.items) ? o.items : Array.isArray(o?.orderItems) ? o.orderItems : Array.isArray(o?.order_items) ? o.order_items : Array.isArray(o?.Items) ? o.Items : Array.isArray(o?.line_items) ? o.line_items : Array.isArray(o?.lineItems) ? o.lineItems : Array.isArray(o?.products) ? o.products : Array.isArray(o?.Products) ? o.Products : [];
+            for (const li of lineItems) {
+              const cur = li?.price?.currency ?? li?.price?.Currency ?? li?.total_price?.currency ?? li?.total_price?.Currency ?? li?.currency ?? li?.Currency;
+              if (cur) { currency = String(cur).trim().toUpperCase(); break; }
+            }
+            if (currency) break;
+          }
+        }
+        currency = currency ? String(currency).trim().toUpperCase() : 'SEK';
         const status = this.mapFyndiqOrderStatusToHomebase(primary?.status ?? primary?.Status);
 
         const pickCustomer = (o) => ({
@@ -843,74 +854,45 @@ class FyndiqProductsController {
             const title =
               li?.title ?? li?.Title ?? li?.name ?? li?.Name ?? li?.product_name ?? li?.productName ?? li?.article_name ?? li?.articleName ?? li?.product_title ?? li?.productTitle ?? o?.title ?? o?.Title ?? o?.name ?? o?.Name ?? (li?.raw && (li.raw.title ?? li.raw.name ?? li.raw.product_name)) ?? null;
             
-            // Try multiple possible price fields
-            // Fyndiq API structure: price.amount (ex VAT), price.vat_amount (VAT), total_price.amount (incl VAT)
+            // Price and VAT: only use values derived from Fyndiq API data — no guessing of VAT rates or ex/incl.
             let unitPrice = null;
             let vatRate = null;
-            
-            // First, try to get price from price object (Fyndiq API structure)
+
             if (li?.price?.amount != null) {
-              const priceExVat = Number(li.price.amount);
+              const amount = Number(li.price.amount);
               const vatAmount = li?.price?.vat_amount != null ? Number(li.price.vat_amount) : null;
-              if (Number.isFinite(priceExVat)) {
-                // Calculate price incl VAT: amount + vat_amount
+              if (Number.isFinite(amount)) {
                 if (Number.isFinite(vatAmount)) {
-                  unitPrice = priceExVat + vatAmount;
-                  // Calculate VAT rate
-                  if (priceExVat > 0) {
-                    vatRate = (vatAmount / priceExVat) * 100;
-                  }
+                  unitPrice = amount + vatAmount;
+                  if (amount > 0) vatRate = (vatAmount / amount) * 100;
                 } else {
-                  // If no VAT amount, assume price.amount is incl VAT
-                  unitPrice = priceExVat;
+                  unitPrice = amount;
                 }
               }
-            } else if (li?.total_price?.amount != null) {
-              // total_price.amount is usually incl VAT
+            }
+            if (unitPrice == null && li?.total_price?.amount != null) {
               const totalPrice = Number(li.total_price.amount);
               const vatAmount = li?.total_price?.vat_amount != null ? Number(li.total_price.vat_amount) : null;
               if (Number.isFinite(totalPrice)) {
                 unitPrice = totalPrice;
-                // Calculate VAT rate if we have VAT amount
                 if (Number.isFinite(vatAmount) && totalPrice > vatAmount) {
-                  const priceExVat = totalPrice - vatAmount;
-                  if (priceExVat > 0) {
-                    vatRate = (vatAmount / priceExVat) * 100;
-                  }
+                  const exVat = totalPrice - vatAmount;
+                  if (exVat > 0) vatRate = (vatAmount / exVat) * 100;
                 }
               }
-            } else {
-              // Fallback to other possible price fields
+            }
+            if (unitPrice == null) {
               unitPrice =
-                li?.unit_price != null ? Number(li.unit_price) : 
-                li?.unitPrice != null ? Number(li.unitPrice) : 
-                li?.price != null ? Number(li.price) : 
-                li?.price_per_unit != null ? Number(li.price_per_unit) : 
-                li?.pricePerUnit != null ? Number(li.pricePerUnit) : 
+                li?.unit_price != null ? Number(li.unit_price) :
+                li?.unitPrice != null ? Number(li.unitPrice) :
+                li?.price != null ? Number(li.price) :
+                li?.price_per_unit != null ? Number(li.price_per_unit) :
+                li?.pricePerUnit != null ? Number(li.pricePerUnit) :
                 li?.Price != null ? Number(li.Price) :
                 li?.selling_price != null ? Number(li.selling_price) :
                 li?.sellingPrice != null ? Number(li.sellingPrice) :
                 o?.price != null ? Number(o.price) :
                 o?.Price != null ? Number(o.Price) : null;
-              
-              // If we got a price but no VAT rate, try to calculate from lineTotal / qty
-              if (Number.isFinite(unitPrice) && !Number.isFinite(vatRate)) {
-                const lineTotal = li?.line_total != null ? Number(li.line_total) :
-                                 li?.lineTotal != null ? Number(li.lineTotal) :
-                                 li?.total != null ? Number(li.total) :
-                                 li?.Total != null ? Number(li.Total) : null;
-                if (Number.isFinite(lineTotal) && qty > 0) {
-                  const unitPriceFromTotal = lineTotal / qty;
-                  // If lineTotal is higher, assume it's incl VAT
-                  if (unitPriceFromTotal > unitPrice) {
-                    const vatAmount = unitPriceFromTotal - unitPrice;
-                    if (unitPrice > 0) {
-                      vatRate = (vatAmount / unitPrice) * 100;
-                      unitPrice = unitPriceFromTotal; // Use price incl VAT
-                    }
-                  }
-                }
-              }
             }
             
             // If unit price not found, try to calculate from total

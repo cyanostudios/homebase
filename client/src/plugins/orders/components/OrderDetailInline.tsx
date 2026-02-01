@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 
 import { ordersApi } from '../api/ordersApi';
 import type { OrderDetails, OrderItem, OrderStatus } from '../types/orders';
+import { statusDisplayLabel } from '../utils/statusDisplay';
 
 function fmtDate(d: any) {
   if (!d) return '';
@@ -109,7 +110,8 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
             <span className="text-sm font-normal text-gray-500 ml-2">{order.channelOrderId}</span>
           </div>
           <div className="text-sm text-gray-600 mt-1">
-            {fmtDate(order.placedAt)} · {fmtMoney(order.totalAmount, order.currency)} inkl. moms
+            {fmtDate(order.placedAt)} · {fmtMoney(order.totalAmount, order.currency)}
+            {order.items?.some((it) => it.unitPrice != null && Number.isFinite(Number(it.unitPrice))) ? ' inkl. moms' : ''}
           </div>
         </div>
         {!editing ? (
@@ -158,7 +160,7 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
               >
                 {STATUS_OPTIONS.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {statusDisplayLabel(s)}
                   </option>
                 ))}
               </select>
@@ -180,7 +182,7 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
           ) : (
             <div className="space-y-1">
               <div className="text-xs text-gray-800">
-                <span className="text-gray-500">Status:</span> {order.status}
+                <span className="text-gray-500">Status:</span> {statusDisplayLabel(order.status)}
               </div>
               <div className="text-xs text-gray-800">
                 <span className="text-gray-500">Carrier:</span> {order.shippingCarrier || '—'}

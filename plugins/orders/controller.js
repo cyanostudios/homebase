@@ -49,6 +49,18 @@ class OrdersController {
     }
   }
 
+  /** Renumber order_number by placed_at (oldest = 1, newest = highest) across all channels. */
+  async renumber(req, res) {
+    try {
+      const result = await this.model.renumberOrderNumbersByPlacedAt(req);
+      return res.json({ ok: true, ...result });
+    } catch (error) {
+      Logger.error('Orders renumber error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to renumber orders' });
+    }
+  }
+
   async updateStatus(req, res) {
     try {
       const status = req.body?.status ? String(req.body.status).trim().toLowerCase() : null;

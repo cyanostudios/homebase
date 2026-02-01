@@ -828,9 +828,9 @@ class CdonProductsController {
   }
 
   // --------- Order import (Merchants API) ---------
-  // GET /v1/orders?state=...&limit=...&page=1. No market param; filter client-side by order.market / order.country_code (SE, DK, FI).
+  // GET /v1/orders?state=... Valid states per CDON: CREATED (ny), ACCEPTED (accepterad), FULFILLED (hanterad/skickad), NOT_FULFILLED (avbokad/återbetald). CANCELLED is not valid.
 
-  static CDON_ORDER_STATES = ['CREATED', 'ACCEPTED', 'NOT_FULFILLED'];
+  static CDON_ORDER_STATES = ['CREATED', 'ACCEPTED', 'NOT_FULFILLED', 'FULFILLED'];
   static CDON_ORDER_MARKETS = ['SE', 'DK', 'FI'];
 
   async pullOrders(req, res) {
@@ -891,9 +891,12 @@ class CdonProductsController {
         allOrderPayloads.push(...payloads);
       }
 
-      // Merchants API may return flat order lines (one object per line with id=order_id, article_*, quantity, shipping_address). Group by order id.
+      // Merchants API may return: (A) flat lines (one object per line with id/customer_order_id, article_*, price, quantity), or (B) orders with nested line array.
       const flatLines = allOrderPayloads.filter(
-        (p) => p && (p.article_id != null || p.article_sku != null) && p.id != null
+        (p) => {
+          const r = p?.OrderDetails ?? p;
+          return r && (r.article_id != null || r.article_sku != null) && (r.id != null || r.customer_order_id != null);
+        }
       );
       const hasFlatFormat = flatLines.length > 0 && flatLines.length >= allOrderPayloads.length * 0.5;
       let orderList;
@@ -901,8 +904,9 @@ class CdonProductsController {
         const byOrderId = new Map();
         for (const row of allOrderPayloads) {
           const raw = row?.OrderDetails ?? row;
-          if (!raw || raw.id == null) continue;
-          const orderId = String(raw.id);
+          if (!raw || (raw.id == null && raw.customer_order_id == null)) continue;
+          const orderId = String(raw.customer_order_id ?? raw.id ?? raw.order_id ?? raw.orderId ?? '');
+          if (!orderId) continue;
           if (!byOrderId.has(orderId)) {
             byOrderId.set(orderId, {
               id: orderId,
@@ -917,12 +921,12 @@ class CdonProductsController {
           }
           const order = byOrderId.get(orderId);
           order.order_rows.push(raw);
-          const lineAmount = raw.total_price?.amount ?? raw.total_price ?? 0;
+          const lineAmount = raw.total_price?.amount ?? raw.price?.amount ?? raw.total_price ?? raw.price ?? 0;
           const amt = Number(lineAmount);
           if (Number.isFinite(amt)) {
-            order.total_price = order.total_price ?? { amount: 0, currency: raw.total_price?.currency ?? 'SEK' };
+            order.total_price = order.total_price ?? { amount: 0, currency: raw.total_price?.currency ?? raw.price?.currency ?? 'SEK' };
             order.total_price.amount = (order.total_price.amount || 0) + amt;
-            if (raw.total_price?.currency) order.total_price.currency = raw.total_price.currency;
+            if (raw.total_price?.currency || raw.price?.currency) order.total_price.currency = raw.total_price?.currency ?? raw.price?.currency;
           }
         }
         orderList = Array.from(byOrderId.values());
@@ -1003,7 +1007,7 @@ class CdonProductsController {
       null;
 
     const totalPriceObj = o?.total_price ?? o?.totalPrice;
-    const totalAmount =
+    const orderLevelTotal =
       totalPriceObj != null && typeof totalPriceObj === 'object' && totalPriceObj.amount != null
         ? Number(totalPriceObj.amount)
         : Number(o?.TotalAmount ?? o?.total_amount ?? o?.totalAmount ?? NaN);
@@ -1019,7 +1023,7 @@ class CdonProductsController {
       platformOrderNumber:
         o?.OrderNumber ?? o?.order_number ?? o?.orderNumber ?? String(channelOrderId),
       placedAt,
-      totalAmount: Number.isFinite(totalAmount) ? totalAmount : null,
+      totalAmount: Number.isFinite(orderLevelTotal) ? orderLevelTotal : null,
       currency: currency || 'SEK',
       status: this.mapCdonOrderStatusToHomebase(o?.State ?? o?.state),
       shippingAddress:
@@ -1048,10 +1052,10 @@ class CdonProductsController {
     };
 
     let lineItems = [];
-    if (Array.isArray(o?.order_rows) && o.order_rows.length > 0) lineItems = o.order_rows;
-    else if (Array.isArray(o?.OrderRows)) lineItems = o.OrderRows;
-    else if (Array.isArray(o?.orderRows)) lineItems = o.orderRows;
-    else if (Array.isArray(o?.lines)) lineItems = o.lines;
+    const rows = o?.order_rows ?? o?.OrderRows ?? o?.orderRows ?? o?.lines ?? o?.Lines ??
+      o?.items ?? o?.Items ?? o?.line_items ?? o?.lineItems ?? o?.LineItems ??
+      o?.rows ?? o?.Rows ?? o?.order_lines ?? o?.orderLines ?? o?.OrderLines;
+    if (Array.isArray(rows) && rows.length > 0) lineItems = rows;
     else if (o?.article_id != null || o?.article_sku != null) lineItems = [o];
     for (const li of lineItems) {
       const qty = Number(li?.Quantity ?? li?.quantity ?? li?.qty ?? li?.Qty ?? 0);
@@ -1068,20 +1072,89 @@ class CdonProductsController {
         if (mapRes.length) platformProductId = String(mapRes[0].id);
       }
 
-      const totalPriceLine = li?.total_price ?? li?.totalPrice;
-      const lineAmount = totalPriceLine?.amount ?? totalPriceLine;
+      // CDON: price.amount + price.vat_amount = line total incl VAT (support says amount is incl; some responses send amount ex VAT). When both present, use amount+vat_amount so ex-VAT amount (319.20) + vat (79.80) = 399.
+      const priceObj = li?.price ?? li?.Price;
+      const totalPriceLine = li?.total_price ?? li?.totalPrice ?? li?.TotalPrice;
+      const amountFromPrice = priceObj != null && typeof priceObj === 'object'
+        ? (priceObj.amount ?? priceObj.Amount ?? priceObj.value ?? priceObj.Value)
+        : typeof priceObj === 'number' && Number.isFinite(priceObj)
+          ? priceObj
+          : typeof priceObj === 'string' && priceObj.trim() !== ''
+            ? Number(priceObj)
+            : null;
+      const vatAmountFromPrice = priceObj != null && typeof priceObj === 'object'
+        ? (priceObj.vat_amount ?? priceObj.vatAmount ?? priceObj.VatAmount)
+        : null;
+      const amt = amountFromPrice != null ? Number(amountFromPrice) : null;
+      const vatAmt = vatAmountFromPrice != null && Number.isFinite(Number(vatAmountFromPrice)) ? Number(vatAmountFromPrice) : null;
+      const lineTotalFromPrice =
+        amt != null && vatAmt != null ? amt + vatAmt : amountFromPrice;
+      const amountFromTotalPrice = totalPriceLine != null && typeof totalPriceLine === 'object'
+        ? (totalPriceLine.amount ?? totalPriceLine.Amount ?? totalPriceLine.value ?? totalPriceLine.Value)
+        : typeof totalPriceLine === 'number'
+          ? totalPriceLine
+          : typeof totalPriceLine === 'string' && totalPriceLine.trim() !== ''
+            ? Number(totalPriceLine)
+            : null;
+      const vatAmountFromTotalPrice = totalPriceLine != null && typeof totalPriceLine === 'object'
+        ? (totalPriceLine.vat_amount ?? totalPriceLine.vatAmount ?? totalPriceLine.VatAmount)
+        : null;
+      const amtT = amountFromTotalPrice != null ? Number(amountFromTotalPrice) : null;
+      const vatAmtT = vatAmountFromTotalPrice != null && Number.isFinite(Number(vatAmountFromTotalPrice)) ? Number(vatAmountFromTotalPrice) : null;
+      const lineTotalFromTotalPrice =
+        amtT != null && vatAmtT != null ? amtT + vatAmtT : amountFromTotalPrice;
+      const lineTotalFromDoc = lineTotalFromPrice ?? lineTotalFromTotalPrice;
+      const debitedAmount = li?.debited_amount ?? li?.DebitedAmount;
+      const lineTotalFromOther =
+        lineTotalFromDoc == null
+          ? (li?.line_total ?? li?.lineTotal ?? li?.LineTotal ??
+            li?.total ?? li?.Total ?? li?.row_total ?? li?.RowTotal ??
+            debitedAmount ??
+            li?.article_price ?? li?.ArticlePrice ??
+            li?.amount ?? li?.Amount)
+          : null;
+      const lineAmountRaw = lineTotalFromDoc ?? lineTotalFromOther;
+      const lineAmount = lineAmountRaw != null && Number.isFinite(Number(lineAmountRaw)) ? Number(lineAmountRaw) : null;
+      const lineAmountSourceIsDebitedAmount = lineTotalFromDoc == null && lineAmount != null && debitedAmount != null && Number(lineAmountRaw) === Number(debitedAmount);
+      const unitPriceFromTotal = lineAmount != null && qty > 0 ? lineAmount / qty : null;
       const unitPriceRaw =
-        li?.PricePerUnit ?? li?.price_per_unit ?? li?.pricePerUnit ?? li?.unit_price ?? li?.price ??
-        (Number.isFinite(Number(lineAmount)) && qty > 0 ? Number(lineAmount) / qty : null);
-      const unitPrice = unitPriceRaw != null ? Number(unitPriceRaw) : null;
-      const vatRaw = li?.VatPercentage ?? li?.vat_percentage ?? li?.vatPercentage ?? li?.vat_rate ?? li?.vat;
-      const vatRate = vatRaw != null ? Number(vatRaw) : null;
+        li?.PricePerUnit ?? li?.price_per_unit ?? li?.pricePerUnit ??
+        li?.unit_price ?? li?.unitPrice ?? li?.UnitPrice ??
+        (typeof li?.price === 'number' ? li.price / qty : null) ??
+        (typeof li?.total_price === 'number' ? li.total_price / qty : null) ??
+        (li?.Price != null ? Number(li.Price) / (qty || 1) : null);
+      const unitPrice =
+        lineTotalFromDoc != null
+          ? unitPriceFromTotal
+          : (unitPriceRaw != null ? Number(unitPriceRaw) : unitPriceFromTotal);
+      const hasAmountInclVat =
+        (lineTotalFromPrice != null && priceObj != null) ||
+        (lineTotalFromTotalPrice != null && totalPriceLine != null) ||
+        li?.amount_including_vat != null ||
+        li?.price_including_vat != null ||
+        lineAmountSourceIsDebitedAmount;
+      // Doc: price.vat_rate (decimal 0.25), price.vat_amount; store vat_rate as percentage (25).
+      const vatRaw =
+        (priceObj && typeof priceObj === 'object' ? (priceObj.vat_rate ?? priceObj.vatRate ?? priceObj.VatRate) : null) ??
+        (totalPriceLine && typeof totalPriceLine === 'object' ? (totalPriceLine.vat_rate ?? totalPriceLine.vatRate ?? totalPriceLine.VatRate) : null) ??
+        li?.article_vat_rate ??
+        li?.vat_percentage ?? li?.vatPercentage ?? li?.VatPercentage ?? li?.vat_rate ?? li?.vat ??
+        li?.tax_rate ?? li?.taxRate ?? o?.vat_percentage ?? o?.vat_rate ?? o?.vat ?? o?.VatPercentage ?? o?.VatRate;
+      let vatRate = vatRaw != null ? Number(vatRaw) : null;
+      if (Number.isFinite(vatRate) && vatRate > 0 && vatRate <= 1) {
+        vatRate = vatRate * 100;
+      }
       const title =
-        li?.ProductName ?? li?.product_name ?? li?.productName ?? li?.article_title ?? li?.Name ?? li?.name ?? li?.title ?? null;
+        li?.ProductName ?? li?.product_name ?? li?.productName ?? li?.article_title ?? li?.article_title ?? li?.Name ?? li?.name ?? li?.title ?? null;
 
-      // CDON often returns prices ex VAT: convert to incl VAT for display when vatRate is present
-      let unitPriceToStore = Number.isFinite(unitPrice) ? unitPrice : null;
-      if (unitPriceToStore != null && Number.isFinite(vatRate) && vatRate > 0) {
+      // CDON: price.amount is always INCLUDING VAT — use as-is. Only convert to incl when we got the value from other fields (no price.amount) and we have vat_rate from CDON.
+      let unitPriceToStore = unitPrice != null && Number.isFinite(unitPrice) ? unitPrice : null;
+      if (
+        unitPriceToStore != null &&
+        !hasAmountInclVat &&
+        Number.isFinite(vatRate) &&
+        vatRate > 0
+      ) {
         unitPriceToStore = unitPriceToStore * (1 + vatRate / 100);
       }
 
@@ -1096,24 +1169,25 @@ class CdonProductsController {
       });
     }
 
-    // If we converted line prices to incl VAT, use sum of line totals as order total for consistency
+    // CDON: order total = sum of line totals (price.amount is incl VAT). Always overwrite with line sum when we have items so we never show order-level total that might be ex-VAT.
     const lineTotalSum = normalized.items.reduce((sum, it) => {
       const p = it.unitPrice != null && Number.isFinite(it.unitPrice) ? it.unitPrice : 0;
       const q = Number(it.quantity) || 0;
       return sum + p * q;
     }, 0);
-    if (normalized.items.length > 0 && Number.isFinite(lineTotalSum) && lineTotalSum > 0) {
-      normalized.totalAmount = Math.round(lineTotalSum * 100) / 100;
+    if (normalized.items.length > 0 && Number.isFinite(lineTotalSum)) {
+      normalized.totalAmount = lineTotalSum > 0 ? Math.round(lineTotalSum * 100) / 100 : (normalized.totalAmount ?? 0);
     }
 
     return normalized;
   }
 
+  // CDON GET /v1/orders valid states: CREATED (ny), ACCEPTED (accepterad), FULFILLED (hanterad/skickad), NOT_FULFILLED (avbokad/återbetald). CANCELLED is not valid.
   mapCdonOrderStatusToHomebase(status) {
     const s = String(status || '').toUpperCase();
-    if (s === 'CANCELLED' || s.includes('CANCEL') || s.includes('RETURNED')) return 'cancelled';
+    if (s === 'NOT_FULFILLED' || s === 'CANCELLED' || s.includes('CANCEL') || s.includes('RETURNED')) return 'cancelled';
     if (s === 'FULFILLED' || s.includes('DELIVERED') || s.includes('SHIPPED')) return 'shipped';
-    if (s === 'CREATED' || s === 'ACCEPTED' || s === 'NOT_FULFILLED') return 'processing';
+    if (s === 'CREATED' || s === 'ACCEPTED') return 'processing';
     const lower = s.toLowerCase();
     if (lower.includes('cancelled') || lower.includes('annulerad') || lower.includes('returned')) return 'cancelled';
     if (lower.includes('delivered') || lower.includes('levererad')) return 'delivered';

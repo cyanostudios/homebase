@@ -96,6 +96,11 @@ class OrdersApi {
     return (await this.request('/', { method: 'DELETE' })) as any;
   }
 
+  // Renumber order_number by placed_at (oldest = 1, newest = highest) across all channels
+  async renumber(): Promise<{ ok: true; renumbered: number }> {
+    return (await this.request('/renumber', { method: 'POST' })) as any;
+  }
+
   // Batch update status for multiple orders
   async batchUpdateStatus(
     ids: string[],

@@ -249,41 +249,51 @@ class OrdersModel {
       const currency = order?.currency ? String(order.currency).trim().toUpperCase() : null;
       const status = order?.status ? String(order.status).trim().toLowerCase() : null;
 
-      // Check if order already exists to preserve order_number
+      // If order already exists (same channel + channel_order_id), skip — no update. Delete and re-import to refresh.
       const existing = await db.query(
-        `SELECT id, order_number FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1 AND channel = $2 AND channel_order_id = $3 LIMIT 1`,
+        `SELECT id FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1 AND channel = $2 AND channel_order_id = $3 LIMIT 1`,
         [userId, channel, channelOrderId],
       );
+      if (existing.length) {
+        return { created: false, orderId: Number(existing[0].id) };
+      }
+
+      // New order: allocate order_number and insert
+      const counterRes = await db.query(
+        `
+        INSERT INTO ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} (user_id, next_number)
+        VALUES ($1, 1)
+        ON CONFLICT (user_id) DO UPDATE SET next_number = ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}.next_number + 1
+        RETURNING next_number
+        `,
+        [userId],
+      );
+      const orderNumber = Number(counterRes[0]?.next_number ?? 1);
 
       let orderId;
-      let orderNumber;
-      let isNewOrder = false;
-
-      if (existing.length) {
-        // Order exists: preserve order_number and update data
-        orderId = Number(existing[0].id);
-        orderNumber = Number(existing[0].order_number);
-        
-        // Update order data
-        await db.query(
+      try {
+        const createRes = await db.query(
           `
-          UPDATE ${OrdersModel.ORDERS_TABLE}
-          SET
-            platform_order_number = $2,
-            placed_at = $3,
-            total_amount = $4,
-            currency = COALESCE($5, 'SEK'),
-            status = COALESCE($6, 'processing'),
-            shipping_address = $7,
-            billing_address = $8,
-            customer = $9,
-            raw = $10,
-            updated_at = NOW()
-          WHERE id = $1
+          INSERT INTO ${OrdersModel.ORDERS_TABLE} (
+            user_id, channel, channel_order_id, platform_order_number, order_number,
+            placed_at, total_amount, currency, status,
+            shipping_address, billing_address, customer, raw,
+            created_at, updated_at
+          )
+          VALUES (
+            $1, $2, $3, $4, $5,
+            $6, $7, COALESCE($8, 'SEK'), COALESCE($9, 'processing'),
+            $10, $11, $12, $13,
+            NOW(), NOW()
+          )
+          RETURNING id
           `,
           [
-            orderId,
+            userId,
+            channel,
+            channelOrderId,
             order?.platformOrderNumber != null ? String(order.platformOrderNumber) : null,
+            orderNumber,
             placedAt,
             Number.isFinite(totalAmount) ? totalAmount : null,
             currency || null,
@@ -294,113 +304,24 @@ class OrdersModel {
             order?.raw ? JSON.stringify(order.raw) : null,
           ],
         );
-
-        // Delete existing items to replace with new ones
-        // Use subquery to ensure tenant isolation via orders table
-        // Note: Tenant isolation will try to add user_id to order_items, but that table doesn't have user_id
-        // So we use EXISTS with a subquery that already includes user_id check from orders table
-        // The tenant isolation will see "USER_ID" in the query and won't add it again
-        await db.query(
-          `DELETE FROM ${OrdersModel.ITEMS_TABLE} 
-           WHERE order_id = $1 
-           AND EXISTS (SELECT 1 FROM ${OrdersModel.ORDERS_TABLE} WHERE id = ${OrdersModel.ITEMS_TABLE}.order_id AND user_id = $2)`,
-          [orderId, userId],
-        );
-      } else {
-        // New order: allocate order_number atomically to avoid duplicate key under concurrency
-        const counterRes = await db.query(
-          `
-          INSERT INTO ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} (user_id, next_number)
-          VALUES ($1, 1)
-          ON CONFLICT (user_id) DO UPDATE SET next_number = ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}.next_number + 1
-          RETURNING next_number
-          `,
-          [userId],
-        );
-        orderNumber = Number(counterRes[0]?.next_number ?? 1);
-        isNewOrder = true;
-
-        try {
-          const createRes = await db.query(
-            `
-            INSERT INTO ${OrdersModel.ORDERS_TABLE} (
-              user_id, channel, channel_order_id, platform_order_number, order_number,
-              placed_at, total_amount, currency, status,
-              shipping_address, billing_address, customer, raw,
-              created_at, updated_at
-            )
-            VALUES (
-              $1, $2, $3, $4, $5,
-              $6, $7, COALESCE($8, 'SEK'), COALESCE($9, 'processing'),
-              $10, $11, $12, $13,
-              NOW(), NOW()
-            )
-            RETURNING id
-            `,
-            [
-              userId,
-              channel,
-              channelOrderId,
-              order?.platformOrderNumber != null ? String(order.platformOrderNumber) : null,
-              orderNumber,
-              placedAt,
-              Number.isFinite(totalAmount) ? totalAmount : null,
-              currency || null,
-              status || null,
-              order?.shippingAddress ? JSON.stringify(order.shippingAddress) : null,
-              order?.billingAddress ? JSON.stringify(order.billingAddress) : null,
-              order?.customer ? JSON.stringify(order.customer) : null,
-              order?.raw ? JSON.stringify(order.raw) : null,
-            ],
-          );
-          orderId = Number(createRes[0].id);
-        } catch (err) {
-          // Duplicate (user_id, order_number) or (user_id, channel, channel_order_id): treat as existing order
-          const pgCode = err?.details?.code ?? err?.code;
-          const rawMsg = String(err?.details?.originalError ?? err?.message ?? '');
-          const isDuplicate =
-            pgCode === '23505' ||
-            (rawMsg.includes('duplicate key') && (rawMsg.includes('ux_orders_user_order_number') || rawMsg.includes('channel_order_id')));
-          if (!isDuplicate) throw err;
+        orderId = Number(createRes[0].id);
+      } catch (err) {
+        const pgCode = err?.details?.code ?? err?.code;
+        const rawMsg = String(err?.details?.originalError ?? err?.message ?? '');
+        const isDuplicate =
+          pgCode === '23505' &&
+          (rawMsg.includes('ux_orders_user_order_number') || rawMsg.includes('channel_order_id'));
+        if (isDuplicate) {
           const recheck = await db.query(
-            `SELECT id, order_number FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1 AND channel = $2 AND channel_order_id = $3 LIMIT 1`,
+            `SELECT id FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1 AND channel = $2 AND channel_order_id = $3 LIMIT 1`,
             [userId, channel, channelOrderId],
           );
-          if (recheck.length) {
-            orderId = Number(recheck[0].id);
-            orderNumber = Number(recheck[0].order_number);
-            isNewOrder = false;
-            await db.query(
-              `
-              UPDATE ${OrdersModel.ORDERS_TABLE}
-              SET platform_order_number = $2, placed_at = $3, total_amount = $4, currency = COALESCE($5, 'SEK'),
-                  status = COALESCE($6, 'processing'), shipping_address = $7, billing_address = $8, customer = $9, raw = $10, updated_at = NOW()
-              WHERE id = $1
-              `,
-              [
-                orderId,
-                order?.platformOrderNumber != null ? String(order.platformOrderNumber) : null,
-                placedAt,
-                Number.isFinite(totalAmount) ? totalAmount : null,
-                currency || null,
-                status || null,
-                order?.shippingAddress ? JSON.stringify(order.shippingAddress) : null,
-                order?.billingAddress ? JSON.stringify(order.billingAddress) : null,
-                order?.customer ? JSON.stringify(order.customer) : null,
-                order?.raw ? JSON.stringify(order.raw) : null,
-              ],
-            );
-            await db.query(
-              `DELETE FROM ${OrdersModel.ITEMS_TABLE} WHERE order_id = $1 AND EXISTS (SELECT 1 FROM ${OrdersModel.ORDERS_TABLE} WHERE id = ${OrdersModel.ITEMS_TABLE}.order_id AND user_id = $2)`,
-              [orderId, userId],
-            );
-          } else {
-            throw err;
-          }
+          if (recheck.length) return { created: false, orderId: Number(recheck[0].id) };
         }
+        throw err;
       }
 
-      // Insert items (for both new and updated orders)
+      // Insert items (new order only)
       const items = Array.isArray(order?.items) ? order.items : [];
       for (const it of items) {
         const sku = it?.sku != null ? String(it.sku).trim() : null;
@@ -431,7 +352,7 @@ class OrdersModel {
         );
       }
 
-      return { created: isNewOrder, orderId };
+      return { created: true, orderId };
     } catch (error) {
       Logger.error('Order ingest failed', error);
       if (error instanceof AppError) throw error;
@@ -485,6 +406,64 @@ class OrdersModel {
       Logger.error('Failed to delete all orders', error);
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to delete all orders', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  /**
+   * Renumber order_number by placed_at so oldest = 1, newest = highest. One sequence across all channels.
+   */
+  async renumberOrderNumbersByPlacedAt(req) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+
+      await db.query('DROP INDEX IF EXISTS ux_orders_user_order_number');
+      await db.query(
+        `
+        WITH ranked AS (
+          SELECT id, user_id,
+                 ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY placed_at ASC NULLS LAST, id ASC) AS rn
+          FROM ${OrdersModel.ORDERS_TABLE}
+          WHERE user_id = $1
+        )
+        UPDATE ${OrdersModel.ORDERS_TABLE} o
+        SET order_number = r.rn
+        FROM ranked r
+        WHERE o.id = r.id AND o.user_id = r.user_id AND o.user_id = $1
+        `,
+        [userId],
+      );
+      await db.query(
+        `CREATE UNIQUE INDEX IF NOT EXISTS ux_orders_user_order_number ON ${OrdersModel.ORDERS_TABLE}(user_id, order_number)`,
+      );
+      await db.query(
+        `
+        INSERT INTO ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} (user_id, next_number)
+        SELECT $1, COALESCE(MAX(order_number), 0) + 1
+        FROM ${OrdersModel.ORDERS_TABLE}
+        WHERE user_id = $1
+        GROUP BY user_id
+        ON CONFLICT (user_id) DO UPDATE
+        SET next_number = GREATEST(
+          ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}.next_number,
+          (SELECT COALESCE(MAX(order_number), 0) + 1 FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1)
+        )
+        `,
+        [userId],
+      );
+
+      const countRes = await db.query(
+        `SELECT COUNT(*)::int AS count FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1`,
+        [userId],
+      );
+      const count = countRes[0]?.count ?? 0;
+      Logger.info('Orders renumbered by placed_at', { userId, count });
+      return { renumbered: count };
+    } catch (error) {
+      Logger.error('Failed to renumber order numbers', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to renumber order numbers', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 

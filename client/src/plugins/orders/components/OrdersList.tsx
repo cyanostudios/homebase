@@ -23,6 +23,7 @@ import { channelsApi } from '@/plugins/channels/api/channelsApi';
 import { ordersApi } from '../api/ordersApi';
 import { useOrders } from '../hooks/useOrders';
 import type { OrderDetails, OrderListItem, OrderStatus } from '../types/orders';
+import { statusDisplayLabel } from '../utils/statusDisplay';
 import { OrderDetailInline } from './OrderDetailInline';
 
 function fmtDate(d: any) {
@@ -54,12 +55,13 @@ export const OrdersList: React.FC = () => {
   const { orders, filters, setFilters, reloadOrders } = useOrders();
   const [search, setSearch] = useState('');
   const [importing, setImporting] = useState<{ channel: string | null }>({ channel: null });
-  const [importResult, setImportResult] = useState<{
+  const [importResult, setImportResult] = useState<Array<{
     channel: string;
     fetched: number;
     created: number;
     skippedExisting: number;
-  } | null>(null);
+    error?: string;
+  }> | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
   const [wooInstances, setWooInstances] = useState<Array<{ id: string; instanceKey?: string; label?: string | null; credentials?: any }>>([]);
 
@@ -247,36 +249,49 @@ export const OrdersList: React.FC = () => {
     setFilters(next);
   };
 
-  const handleImportOrders = async (channel: 'woocommerce' | 'cdon' | 'fyndiq') => {
-    try {
-      setImporting({ channel });
-      setImportResult(null);
+  const handleImportAll = async () => {
+    setImporting({ channel: 'all' });
+    setImportResult(null);
 
-      let result: any;
-      if (channel === 'woocommerce') {
-        result = await woocommerceApi.pullOrders({ perPage: 20 });
-      } else if (channel === 'cdon') {
-        result = await cdonApi.pullOrders({ daysBack: 30 });
-      } else if (channel === 'fyndiq') {
-        result = await fyndiqApi.pullOrders({ perPage: 20, status: 'pending' });
+    const channels = [
+      { key: 'woocommerce' as const, pull: () => woocommerceApi.pullOrders({ perPage: 20 }) },
+      { key: 'cdon' as const, pull: () => cdonApi.pullOrders({ daysBack: 30 }) },
+      { key: 'fyndiq' as const, pull: () => fyndiqApi.pullOrders({ perPage: 20, status: 'pending' }) },
+    ];
+
+    const settled = await Promise.allSettled(channels.map((c) => c.pull()));
+
+    const results: Array<{ channel: string; fetched: number; created: number; skippedExisting: number; error?: string }> = [];
+    for (let i = 0; i < channels.length; i++) {
+      const ch = channels[i].key;
+      const s = settled[i];
+      if (s.status === 'fulfilled') {
+        const r = s.value as any;
+        results.push({
+          channel: ch,
+          fetched: r.fetched ?? 0,
+          created: r.created ?? 0,
+          skippedExisting: r.skippedExisting ?? 0,
+        });
       } else {
-        throw new Error(`Unknown channel: ${channel}`);
+        results.push({
+          channel: ch,
+          fetched: 0,
+          created: 0,
+          skippedExisting: 0,
+          error: (s.reason?.message ?? String(s.reason)) || 'Failed',
+        });
       }
-
-      setImportResult({
-        channel,
-        fetched: result.fetched || 0,
-        created: result.created || 0,
-        skippedExisting: result.skippedExisting || 0,
-      });
-
-      setTimeout(() => reloadOrders(), 500);
-    } catch (err: any) {
-      alert(`Failed to import orders from ${channel}: ${err.message || err}`);
-      console.error('Import error:', err);
-    } finally {
-      setImporting({ channel: null });
     }
+
+    setImportResult(results);
+    try {
+      await ordersApi.renumber();
+    } catch (_e) {
+      // Non-fatal: list may still show old numbers until next renumber
+    }
+    setTimeout(() => reloadOrders(), 300);
+    setImporting({ channel: null });
   };
 
   const handleDetailUpdated = useCallback(
@@ -372,31 +387,13 @@ export const OrdersList: React.FC = () => {
         {deletingAll ? 'Deleting…' : 'Delete All'}
       </Button>
       <Button
-        onClick={() => handleImportOrders('woocommerce')}
+        onClick={handleImportAll}
         disabled={importing.channel !== null}
         variant="outline"
         size="sm"
         icon={Download}
       >
-        {importing.channel === 'woocommerce' ? 'Importing…' : 'WooCommerce'}
-      </Button>
-      <Button
-        onClick={() => handleImportOrders('cdon')}
-        disabled={importing.channel !== null}
-        variant="outline"
-        size="sm"
-        icon={Download}
-      >
-        {importing.channel === 'cdon' ? 'Importing…' : 'CDON'}
-      </Button>
-      <Button
-        onClick={() => handleImportOrders('fyndiq')}
-        disabled={importing.channel !== null}
-        variant="outline"
-        size="sm"
-        icon={Download}
-      >
-        {importing.channel === 'fyndiq' ? 'Importing…' : 'Fyndiq'}
+        {importing.channel === 'all' ? 'Importing…' : 'Import orders'}
       </Button>
     </div>
   );
@@ -404,12 +401,20 @@ export const OrdersList: React.FC = () => {
   return (
     <div className="space-y-4">
 
-      {importResult && (
+      {importResult && importResult.length > 0 && (
         <div className="p-3 rounded-md bg-green-50 border border-green-200">
-          <div className="text-sm text-green-900">
-            <strong>Import from {importResult.channel}:</strong> Fetched {importResult.fetched} orders,{' '}
-            {importResult.created} new, {importResult.skippedExisting} already existed.
-          </div>
+          <div className="text-sm font-medium text-green-900 mb-1">Import result</div>
+          <ul className="text-sm text-green-800 space-y-0.5">
+            {importResult.map((r) => (
+              <li key={r.channel}>
+                {r.error ? (
+                  <span><strong className="capitalize">{r.channel}:</strong> <span className="text-amber-700">{r.error}</span></span>
+                ) : (
+                  <span><strong className="capitalize">{r.channel}:</strong> {r.fetched} fetched, {r.created} new, {r.skippedExisting} already existed</span>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -429,7 +434,7 @@ export const OrdersList: React.FC = () => {
         >
           <option value="">All statuses</option>
           <option value="processing">Processing</option>
-          <option value="shipped">Shipped</option>
+          <option value="shipped">Delivered</option>
           <option value="delivered">Delivered</option>
           <option value="cancelled">Cancelled</option>
         </NativeSelect>
@@ -456,7 +461,7 @@ export const OrdersList: React.FC = () => {
                   onChange={(e) => setBatchStatus(e.target.value as OrderStatus)}
                 >
                   <option value="processing">Processing</option>
-                  <option value="shipped">Shipped</option>
+                  <option value="shipped">Delivered</option>
                   <option value="delivered">Delivered</option>
                   <option value="cancelled">Cancelled</option>
                 </NativeSelect>
@@ -582,7 +587,7 @@ export const OrdersList: React.FC = () => {
                       </TableCell>
                       <TableCell>{fmtDate(o.placedAt)}</TableCell>
                       <TableCell>{fmtMoney(o.totalAmount, o.currency)}</TableCell>
-                      <TableCell>{o.status}</TableCell>
+                      <TableCell>{statusDisplayLabel(o.status)}</TableCell>
                     </TableRow>
                     {isExpanded && (
                       <TableRow>

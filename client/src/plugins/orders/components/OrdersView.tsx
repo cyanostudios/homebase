@@ -2,6 +2,7 @@ import React from 'react';
 
 import { useOrders } from '../hooks/useOrders';
 import type { OrderDetails, OrderListItem } from '../types/orders';
+import { statusDisplayLabel } from '../utils/statusDisplay';
 
 function fmtDate(d: any) {
   if (!d) return '';
@@ -49,7 +50,7 @@ export const OrdersView: React.FC<{ order?: OrderDetails; item?: any }> = ({ ord
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div className="text-sm font-semibold text-gray-900 mb-2">Status</div>
-          <div className="text-sm text-gray-800">Status: {o.status}</div>
+          <div className="text-sm text-gray-800">Status: {statusDisplayLabel(o.status)}</div>
           <div className="text-sm text-gray-800 mt-1">Carrier: {o.shippingCarrier || '—'}</div>
           <div className="text-sm text-gray-800 mt-1">Tracking: {o.shippingTrackingNumber || '—'}</div>
         </div>
