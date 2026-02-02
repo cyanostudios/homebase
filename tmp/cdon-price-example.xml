@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<marketplace xmlns="https://schemas.cdon.com/product/4.0/4.12.2/price">
+  <product>
+    <id>100</id>
+    <se>
+      <salePrice>9.99</salePrice>
+      <originalPrice>11.99</originalPrice>
+      <isShippedFromEU>true</isShippedFromEU>
+      <shippingMethod>HomeDelivery</shippingMethod>
+      <carrier>PostNord</carrier>
+      <shippingCost>29</shippingCost>
+      <vat>25</vat>
+
+    </se>
+    <dk>
+      <salePrice>1.99</salePrice>
+      <originalPrice>2.99</originalPrice>
+      <isShippedFromEU>true</isShippedFromEU>
+      <shippingMethod>PickupPoint</shippingMethod>
+      <carrier>Dhl</carrier>
+      <shippingCost>29</shippingCost>
+      <vat>25</vat>
+    </dk>
+    <no>
+      <salePrice>10.99</salePrice>
+      <originalPrice>11.99</originalPrice>
+      <isShippedFromEU>true</isShippedFromEU>
+      <shippingMethod>PickupPoint</shippingMethod>
+      <carrier>Dhl</carrier>
+      <shippingCost>39</shippingCost>
+      <vat>15</vat>
+    </no>
+    <fi>
+      <salePrice>8.99</salePrice>
+      <originalPrice>10.99</originalPrice>
+      <isShippedFromEU>true</isShippedFromEU>
+      <shippingMethod>PickupPoint</shippingMethod>
+      <carrier>Dhl</carrier>
+      <shippingCost>3.95</shippingCost>
+      <vat>24</vat>
+    </fi>
+    <b2b_se>
+      <salePrice>99.99</salePrice>
+      <originalPrice>101.99</originalPrice>
+      <isShippedFromEU>true</isShippedFromEU>
+      <vat>25</vat>
+    </b2b_se>
+  </product>
+</marketplace>

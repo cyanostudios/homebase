@@ -1,0 +1,271 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<marketplace xmlns="https://schemas.cdon.com/product/4.0/4.12.1/product">
+
+	<!-- This represents a simple product (i.e. without variations). -->
+	<product>
+		<identity>
+			<id>100</id>
+			<gtin>0123456789302</gtin>
+		</identity>
+		<title>
+			<default>Snabb dator</default>
+		</title>
+		<formattedDescription>
+			<summary>
+				<se>Exklusiva gamingdatorer, den bästa som finns. Köp den nu.</se>
+			</summary>
+			<sections>
+				<se>
+					<section>
+						<header>Fokus på hög Stabilitet</header>
+						<body>
+							<paragraph>Exklusiva gamingdatorer med mycket kraft.</paragraph>
+							<paragraph>För att uppnå maximal spelprestanda har vi den bästa processorn och bästa grafikkortet.</paragraph>
+						</body>
+					</section>
+					<section>
+						<header>Garanti</header>
+						<body>
+							<paragraph>Skulle den gå sönder inom 3 år får du en ny. Skulle du inte vara nöjd efter beställning kan du skicka tillbaka den och få tillbaka alla pengarna.</paragraph>
+						</body>
+					</section>
+				</se>
+			</sections>
+		</formattedDescription>
+		<category>
+			<google>1480</google>
+			<attributes>
+				<network_cable_category>network_cable_category_cat6a</network_cable_category>
+			</attributes>
+		</category>
+		<brand>Intel</brand>
+		<usp>
+			<value>
+				<default>Very quick</default>
+				<se>Snabb som katten</se>
+			</value>
+			<value>
+				<default>Lasts long</default>
+				<se>Räcker länge</se>
+			</value>
+		</usp>
+		<energy>
+			<class>APlusPlus</class>
+			<label>https://yourwebsite.com/label.jpg</label>
+			<arrow>https://yourwebsite.com/arrow.png</arrow>
+			<sheet>https://yourwebsite.com/sheet.pdf</sheet>
+		</energy>
+		<dimensions>
+			<length>
+				<value>5</value>
+				<unit>m</unit>
+			</length>
+		</dimensions>
+		<releaseDate>2025-01-01</releaseDate>
+		<link>
+			<se>http://www.yourwebsite/sv/product112</se>
+			<en>http://www.yourwebsite/en/product112</en>
+		</link>
+		<productType>
+			<se>Hem &gt; Dator &gt; Nätverk &gt; Kablar</se>
+			<en>Home &gt; Computer &gt; Network &gt; Cables</en>
+		</productType>
+		<discs>
+			<disc>
+				<name>
+					<se>Disk 1</se>
+				</name>
+				<tracks>
+					<track>
+						<title>
+							<se>Ljuv musik 1</se>
+						</title>
+					</track>
+					<track>
+						<title>
+							<se>Ljuv musik 2</se>
+						</title>
+					</track>
+				</tracks>
+			</disc>
+			<disc>
+				<name>
+					<se>Disk 2</se>
+				</name>
+				<tracks>
+					<track>
+						<title>
+							<se>Skön musik 1</se>
+						</title>
+					</track>
+					<track>
+						<title>
+							<se>Skön musik 2</se>
+						</title>
+					</track>
+				</tracks>
+			</disc>
+		</discs>
+		<specifications>
+			<specification>
+				<header>
+					<se>Hardwere</se>
+				</header>
+				<rows>
+					<row>
+						<name>
+							<se>Grafikkort</se>
+						</name>
+						<value>
+							<se>MSI GeForce RTX 3060 Ti 8GB</se>
+						</value>
+					</row>
+					<row>
+						<name>
+							<se>Processor</se>
+						</name>
+						<value>
+							<se>Intel Core i5 11400 4.4 GHz (turbo)</se>
+						</value>
+					</row>
+				</rows>
+			</specification>
+			<specification>
+				<header>
+					<se>Softwere</se>
+				</header>
+				<rows>
+					<row>
+						<name>
+							<se>Operativsystem</se>
+						</name>
+						<value>
+							<se>Windows</se>
+						</value>
+					</row>
+					<row>
+						<name>
+							<se>Anitivirus</se>
+						</name>
+						<value>
+							<se>F-Secure</se>
+						</value>
+					</row>
+				</rows>
+			</specification>
+		</specifications>
+	</product>
+
+	<!-- This represents a complex product (i.e. with variations). -->
+	<product>
+		<!--
+      This is the identity of the model product.
+      This is required for ALL products (even with variations).
+    -->
+		<identity>
+			<id>200</id>
+		</identity>
+		<title>
+			<default>Big Tablet</default>
+		</title>
+		<description>
+			<default>Not your ordinary tablet</default>
+		</description>
+		<category>
+			<cdon>computers_and_peripheral_equipment_tablets</cdon>
+			<attributes>
+				<operating_system>operating_system_android</operating_system>
+				<screen_resolution>screen_resolution_2560x1440</screen_resolution>
+				<screen_size_inch>9</screen_size_inch>
+			</attributes>
+		</category>
+		<brand>Intel</brand>
+		<usp>
+			<value>
+				<default>Waterproof</default>
+			</value>
+			<value>
+				<default>Photo realistic display</default>
+			</value>
+		</usp>
+		<link>
+			<se>http://www.yourwebsite/sv/product113</se>
+			<en>http://www.yourwebsite/en/product113</en>
+		</link>
+		<productType>
+			<se>Hem &gt; Dator &gt; Monitor &gt; Professionell</se>
+			<en>Home &gt; Computer &gt; Screen &gt; Professional</en>
+		</productType>
+		<variants>
+			<variantByColor>
+				<identity>
+					<id>201</id>
+				</identity>
+				<color>
+					<default>Graphite Gray</default>
+				</color>
+			</variantByColor>
+			<variantByColor>
+				<identity>
+					<id>202</id>
+				</identity>
+				<color>
+					<default>Matte Black</default>
+				</color>
+			</variantByColor>
+		</variants>
+	</product>
+
+	<!-- This product demonstrates the use of the optional identity data. -->
+	<product>
+		<!--
+      This is the identity of the model product.
+      This is required for ALL products (even with variations).
+      Values in GTIN/MPN are discarded for the model product.
+    -->
+		<identity>
+			<id>300</id>
+		</identity>
+		<title>
+			<default>Terasaurus Disk</default>
+		</title>
+		<description>
+			<default>Go big or go home</default>
+		</description>
+		<category>
+			<google>380</google>
+			<attributes>
+				<hard_drive_form_factor>hard_drive_form_factor_3_5_inch</hard_drive_form_factor>
+				<memory_capacity_gb>10000</memory_capacity_gb>
+			</attributes>
+		</category>
+		<brand>Intel</brand>
+		<isPreOwned>false</isPreOwned>
+		<variants>
+			<variantByColor>
+				<identity>
+					<id>301</id>
+					<gtin>0123456789301</gtin>
+					<mpn>WD100EFAX</mpn>
+					<sku>TD-10#Red</sku>
+				</identity>
+				<color>
+					<default>Red</default>
+				</color>
+			</variantByColor>
+			<variantByColor>
+				<identity>
+					<id>302</id>
+					<gtin>0123456789302</gtin>
+					<mpn>WD101KFBX</mpn>
+					<sku>TD-10#RedPro</sku>
+				</identity>
+				<color>
+					<default>Red Pro</default>
+				</color>
+			</variantByColor>
+		</variants>
+	</product>
+
+</marketplace>

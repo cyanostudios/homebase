@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<xs:schema id="media"
+           targetNamespace="https://schemas.cdon.com/product/4.0/4.12.2/media"
+           xmlns="https://schemas.cdon.com/product/4.0/4.12.2/media"
+           attributeFormDefault="unqualified"
+           elementFormDefault="qualified"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:include schemaLocation="identities.xsd" />
+	<xs:include schemaLocation="types.xsd" />
+
+	<xs:complexType name="images">
+		<xs:sequence>
+			<xs:element name="main" type="url" minOccurs="1" maxOccurs="1" />
+			<xs:element name="extra" type="url" minOccurs="0" maxOccurs="10" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:simpleType name="youtubeId">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1" />
+			<xs:maxLength value="20" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:complexType name="videos">
+		<xs:sequence>
+			<xs:element name="youtube" type="youtubeId" minOccurs="0" maxOccurs="1" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="product">
+		<xs:sequence>
+			<xs:element name="id" type="id" />
+			<xs:element name="images" type="images" minOccurs="1" maxOccurs="1" />
+			<xs:element name="videos" type="videos" minOccurs="0" maxOccurs="1" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:element name="marketplace">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="product" type="product" minOccurs="1" maxOccurs="unbounded" />
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>
