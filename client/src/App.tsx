@@ -7,7 +7,7 @@
  * Last Modified: August 2025 - Global Navigation Guard Integration
  */
 
-import { Home } from 'lucide-react';
+import { Home, Settings } from 'lucide-react';
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 
 import { AppProvider, useApp } from '@/core/api/AppContext';
@@ -73,7 +73,7 @@ function findCurrentItem(pluginContexts: any[]): any {
 }
 
 // Helper: find current mode
-function findCurrentMode(pluginContexts: any[]): 'create' | 'edit' | 'view' {
+function findCurrentMode(pluginContexts: any[]): 'create' | 'edit' | 'view' | 'settings' {
   for (const { plugin, context } of pluginContexts) {
     if (!context) {
       continue;
@@ -84,7 +84,7 @@ function findCurrentMode(pluginContexts: any[]): 'create' | 'edit' | 'view' {
         continue;
       }
       const mode = context.panelMode;
-      if (mode === 'create' || mode === 'edit' || mode === 'view') {
+      if (mode === 'create' || mode === 'edit' || mode === 'view' || mode === 'settings') {
         return mode;
       }
     } catch {
@@ -224,7 +224,7 @@ function AppContent() {
       return Home;
     }
     if (currentPage === 'settings') {
-      return undefined;
+      return Settings;
     }
 
     if (!currentPagePlugin?.navigation) {
@@ -395,11 +395,10 @@ function AppContent() {
 
       <ConfirmDialog
         isOpen={showDeleteConfirm}
-        title={`Delete ${
-          currentPlugin
-            ? currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1)
-            : 'Item'
-        }`}
+        title={`Delete ${currentPlugin
+          ? currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1)
+          : 'Item'
+          }`}
         message={panelTitles.getDeleteMessage()}
         confirmText="Delete"
         cancelText="Cancel"

@@ -19,7 +19,7 @@ interface NoteContextType {
   // Note Panel State
   isNotePanelOpen: boolean;
   currentNote: Note | null;
-  panelMode: 'create' | 'edit' | 'view';
+  panelMode: 'create' | 'edit' | 'view' | 'settings';
   validationErrors: ValidationError[];
 
   // Notes Data
@@ -29,6 +29,7 @@ interface NoteContextType {
   openNotePanel: (note: Note | null) => void;
   openNoteForEdit: (note: Note) => void;
   openNoteForView: (note: Note) => void;
+  openNoteSettings: () => void;
   closeNotePanel: () => void;
   saveNote: (noteData: any) => Promise<boolean>;
   deleteNote: (id: string) => Promise<void>;
@@ -63,7 +64,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   // Panel states
   const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
 
   // Data state
@@ -185,6 +186,14 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     onCloseOtherPanels();
   };
 
+  const openNoteSettings = () => {
+    setCurrentNote(null);
+    setPanelMode('settings');
+    setIsNotePanelOpen(true);
+    setValidationErrors([]);
+    onCloseOtherPanels();
+  };
+
   const clearValidationErrors = () => {
     setValidationErrors([]);
   };
@@ -211,10 +220,10 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           prev.map((note) =>
             note.id === currentNote.id
               ? {
-                  ...savedNote,
-                  createdAt: new Date(savedNote.createdAt),
-                  updatedAt: new Date(savedNote.updatedAt),
-                }
+                ...savedNote,
+                createdAt: new Date(savedNote.createdAt),
+                updatedAt: new Date(savedNote.updatedAt),
+              }
               : note,
           ),
         );
@@ -371,6 +380,8 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         return 'Edit Note';
       case 'create':
         return 'Create Note';
+      case 'settings':
+        return 'Notes Settings';
       default:
         return 'Note';
     }
@@ -395,6 +406,8 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         return 'Update note information';
       case 'create':
         return 'Enter new note details';
+      case 'settings':
+        return 'Configure plugin preferences';
       default:
         return '';
     }
@@ -423,6 +436,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     openNotePanel,
     openNoteForEdit,
     openNoteForView,
+    openNoteSettings,
     closeNotePanel,
     saveNote,
     deleteNote,

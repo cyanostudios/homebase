@@ -97,7 +97,7 @@ function findOpenFunction(context: any, mode: 'edit' | 'view', pluginName?: stri
 }
 
 export const createPanelFooter = (
-  currentMode: 'create' | 'edit' | 'view',
+  currentMode: 'create' | 'edit' | 'view' | 'settings',
   currentItem: any,
   currentPluginContext: any,
   validationErrors: any[],

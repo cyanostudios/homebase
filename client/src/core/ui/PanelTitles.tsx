@@ -122,6 +122,8 @@ export const createPanelTitles = (
         return `Edit ${itemType}`;
       case 'create':
         return `Create ${itemType}`;
+      case 'settings':
+        return `${itemType} Settings`;
       default:
         return itemType;
     }

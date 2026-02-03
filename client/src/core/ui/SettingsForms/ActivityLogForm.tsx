@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { activityLogApi, ActivityLogEntry, ActivityLogParams } from '@/core/api/activityLogApi';
+import { notesApi } from '@/plugins/notes/api/notesApi';
 
 interface ActivityLogFormProps {
   onCancel: () => void;
@@ -30,15 +31,7 @@ const ACTION_COLORS: Record<string, string> = {
   settings: 'bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300',
 };
 
-const ENTITY_TYPE_LABELS: Record<string, string> = {
-  contact: 'Contact',
-  note: 'Note',
-  task: 'Task',
-  estimate: 'Estimate',
-  invoice: 'Invoice',
-  file: 'File',
-  settings: 'Settings',
-};
+const formatValue = (val: string) => val.charAt(0).toUpperCase() + val.slice(1);
 
 export function ActivityLogForm({ onCancel }: ActivityLogFormProps) {
   const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
@@ -117,6 +110,30 @@ export function ActivityLogForm({ onCancel }: ActivityLogFormProps) {
     });
   };
 
+  const handleRestore = async (log: ActivityLogEntry) => {
+    if (!confirm(`Are you sure you want to restore this ${log.entityType}?`)) {
+      return;
+    }
+
+    try {
+      if (log.entityType === 'note' && (log.metadata.backup || log.metadata.backups)) {
+        const backups = log.metadata.backups || [log.metadata.backup];
+        for (const backup of backups) {
+          // Remove ID and timestamps from backup to create a new record
+          const { id, createdAt, updatedAt, ...rest } = backup;
+          await notesApi.createNote(rest);
+        }
+        alert('Restoration successful!');
+        loadLogs(false);
+      } else {
+        alert(`Restore for ${log.entityType} is not handled yet.`);
+      }
+    } catch (error) {
+      console.error('Restore failed:', error);
+      alert('Failed to restore. Check console for details.');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleString('sv-SE', {
@@ -143,6 +160,7 @@ export function ActivityLogForm({ onCancel }: ActivityLogFormProps) {
               className="w-full"
             >
               <option value="">All Types</option>
+              {/* Common hints, but display in table is generic */}
               <option value="contact">Contact</option>
               <option value="note">Note</option>
               <option value="task">Task</option>
@@ -210,11 +228,11 @@ export function ActivityLogForm({ onCancel }: ActivityLogFormProps) {
                         <TableCell className="text-sm">{formatDate(log.createdAt)}</TableCell>
                         <TableCell>
                           <Badge className={ACTION_COLORS[log.action] || ''}>
-                            {log.action.charAt(0).toUpperCase() + log.action.slice(1)}
+                            {formatValue(log.action)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm">
-                          {ENTITY_TYPE_LABELS[log.entityType] || log.entityType}
+                          {formatValue(log.entityType)}
                         </TableCell>
                         <TableCell className="text-sm">
                           {log.entityName || <span className="text-muted-foreground">—</span>}
@@ -258,6 +276,18 @@ export function ActivityLogForm({ onCancel }: ActivityLogFormProps) {
                                 <div className="text-xs">
                                   <span className="font-medium">Export Format:</span>{' '}
                                   {log.metadata.exportFormat}
+                                </div>
+                              )}
+                              {(log.metadata.backup || log.metadata.backups) && log.action === 'delete' && (
+                                <div className="pt-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                                    onClick={() => handleRestore(log)}
+                                  >
+                                    Restore {formatValue(log.entityType)}
+                                  </Button>
                                 </div>
                               )}
                             </div>

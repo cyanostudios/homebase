@@ -1,7 +1,7 @@
 // client/src/core/settings/types.ts
 // Types for settings system
 
-export type SettingsCategory = 'profile' | 'preferences' | 'plugin';
+export type SettingsCategory = 'profile' | 'preferences' | 'activity-log';
 
 export interface ProfileSettings {
   name?: string;
@@ -12,10 +12,6 @@ export interface ProfileSettings {
 export interface PreferencesSettings {
   timezone?: string;
   language?: string;
-}
-
-export interface PluginSettings {
-  [key: string]: any;
 }
 
 export interface UserSettings {

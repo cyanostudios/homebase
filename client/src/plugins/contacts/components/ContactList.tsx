@@ -1,4 +1,4 @@
-import { Mail, Phone, ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
+import { Mail, Phone, ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText, Grid3x3, List as ListIcon } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,7 @@ import { useContacts } from '../hooks/useContacts';
 
 type SortField = 'contactNumber' | 'name' | 'type' | 'email';
 type SortOrder = 'asc' | 'desc';
+type ViewMode = 'grid' | 'list';
 
 export const ContactList: React.FC = () => {
   const {
@@ -56,6 +57,15 @@ export const ContactList: React.FC = () => {
 
   const [sortField, setSortField] = useState<SortField>('contactNumber');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem('homebase:contacts:viewMode');
+    return (saved as ViewMode) || 'list';
+  });
+
+  // Save viewMode to localStorage
+  useEffect(() => {
+    localStorage.setItem('homebase:contacts:viewMode', viewMode);
+  }, [viewMode]);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -290,17 +300,41 @@ export const ContactList: React.FC = () => {
     await exportToPDF(pdfData, filename, pdfHeaders, 'Contacts Export');
   };
 
-  // Set header trailing (search + filter) in ContentHeader
+  // Set header trailing (search + view mode toggle) in ContentHeader
   useEffect(() => {
     setHeaderTrailing(
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder="Search contacts..."
+        rightActions={
+          <div className="flex gap-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-2 rounded-md border text-sm ${viewMode === 'grid'
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              title="Grid view"
+            >
+              <Grid3x3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-2 rounded-md border text-sm ${viewMode === 'list'
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              title="List view"
+            >
+              <ListIcon className="w-4 h-4" />
+            </button>
+          </div>
+        }
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [searchTerm, setSearchTerm, setHeaderTrailing]);
+  }, [searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing]);
 
   // Protected navigation handlers
   const handleOpenForView = (contact: any) => attemptNavigation(() => openContactForView(contact));
@@ -333,22 +367,26 @@ export const ContactList: React.FC = () => {
         ]}
       />
 
-      <Card className="shadow-none">
+      <Card className="shadow-none border-none bg-transparent">
         {sortedContacts.length === 0 ? (
-          <div className="p-6 text-center text-muted-foreground">
-            {searchTerm
-              ? 'No contacts found matching your search.'
-              : 'No contacts yet. Click "Add Contact" to get started.'}
-          </div>
-        ) : isMobile ? (
-          // Mobile: Card layout
-          <div className="space-y-2 p-4">
+          <Card className="shadow-none">
+            <div className="p-6 text-center text-muted-foreground">
+              {searchTerm
+                ? 'No contacts found matching your search.'
+                : 'No contacts yet. Click "Add Contact" to get started.'}
+            </div>
+          </Card>
+        ) : viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {sortedContacts.map((contact) => {
               const contactIsSelected = isSelected(contact.id);
               return (
                 <Card
                   key={contact.id}
-                  className="p-4 cursor-pointer hover:bg-accent transition-colors"
+                  className={`relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] ${contactIsSelected
+                      ? 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500'
+                      : 'hover:border-blue-300 hover:shadow-md'
+                    }`}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                       return;
@@ -361,20 +399,261 @@ export const ContactList: React.FC = () => {
                   role="button"
                   aria-label={`Open contact ${contact.companyName}`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={contactIsSelected}
+                        onChange={() => toggleContactSelected(contact.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="cursor-pointer h-4 w-4"
+                        aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
+                      />
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        {formatDisplayNumber('contacts', contact.contactNumber || contact.id)}
+                      </span>
+                    </div>
+                    <Badge
+                      className={
+                        contact.contactType === 'company'
+                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                          : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                      }
+                    >
+                      {contact.contactType === 'company' ? 'Company' : 'Private'}
+                    </Badge>
+                  </div>
+                  <h3 className="font-semibold text-base mb-1 line-clamp-1">
+                    {contact.companyName}
+                  </h3>
+                  <div className="text-xs text-muted-foreground mb-4">
+                    {contact.contactType === 'company' && contact.organizationNumber && (
+                      <span>Org: {contact.organizationNumber}</span>
+                    )}
+                    {contact.contactType === 'private' && contact.personalNumber && (
+                      <span>PN: {contact.personalNumber.substring(0, 9)}XXXX</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
+                    <div className="flex items-center gap-2 text-xs">
+                      <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                      <span className="truncate">{contact.email}</span>
+                    </div>
+                    {contact.phone && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <Phone className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                        <span>{contact.phone}</span>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        ) : isMobile ? (
+          // Mobile: Card layout
+          <Card className="shadow-none">
+            <div className="space-y-2 p-4">
+              {sortedContacts.map((contact) => {
+                const contactIsSelected = isSelected(contact.id);
+                return (
+                  <Card
+                    key={contact.id}
+                    className="p-4 cursor-pointer hover:bg-accent transition-colors"
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                        return;
+                      }
+                      e.preventDefault();
+                      handleOpenForView(contact);
+                    }}
+                    data-list-item={JSON.stringify(contact)}
+                    data-plugin-name="contacts"
+                    role="button"
+                    aria-label={`Open contact ${contact.companyName}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <input
+                            type="checkbox"
+                            checked={contactIsSelected}
+                            onChange={() => toggleContactSelected(contact.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
+                            aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
+                          />
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {formatDisplayNumber('contacts', contact.contactNumber || contact.id)}
+                          </span>
+                          <Badge
+                            className={
+                              contact.contactType === 'company'
+                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                                : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                            }
+                          >
+                            {contact.contactType === 'company' ? 'Company' : 'Private'}
+                          </Badge>
+                        </div>
+                        <h3 className="font-semibold text-base mb-1 truncate">
+                          {contact.companyName}
+                        </h3>
+                        {contact.contactType === 'company' && contact.organizationNumber && (
+                          <p className="text-xs text-muted-foreground mb-1">
+                            Org: {contact.organizationNumber}
+                          </p>
+                        )}
+                        {contact.contactType === 'private' && contact.personalNumber && (
+                          <p className="text-xs text-muted-foreground mb-1">
+                            PN: {contact.personalNumber.substring(0, 9)}XXXX
+                          </p>
+                        )}
+                        <div className="flex flex-col gap-1 mt-2">
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                            <span className="truncate">{contact.email}</span>
+                          </div>
+                          {contact.phone && (
+                            <div className="flex items-center gap-1.5 text-sm">
+                              <Phone className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                              <span>{contact.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </Card>
+        ) : (
+          // Desktop: Table layout
+          <Card className="shadow-none">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <input
+                      ref={headerCheckboxRef}
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={handleHeaderCheckboxChange}
+                      className="cursor-pointer"
+                      aria-label={
+                        allVisibleSelected ? 'Deselect all contacts' : 'Select all contacts'
+                      }
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('contactNumber')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>#</span>
+                      {sortField === 'contactNumber' &&
+                        (sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3 w-3 inline" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 inline" />
+                        ))}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('name')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>Name</span>
+                      {sortField === 'name' &&
+                        (sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3 w-3 inline" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 inline" />
+                        ))}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('type')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>Type</span>
+                      {sortField === 'type' &&
+                        (sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3 w-3 inline" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 inline" />
+                        ))}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('email')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>Email</span>
+                      {sortField === 'email' &&
+                        (sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3 w-3 inline" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 inline" />
+                        ))}
+                    </div>
+                  </TableHead>
+                  <TableHead>Phone</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedContacts.map((contact) => {
+                  const contactIsSelected = isSelected(contact.id);
+                  return (
+                    <TableRow
+                      key={contact.id}
+                      className="cursor-pointer hover:bg-accent"
+                      tabIndex={0}
+                      data-list-item={JSON.stringify(contact)}
+                      data-plugin-name="contacts"
+                      role="button"
+                      aria-label={`Open contact ${contact.companyName}`}
+                      onClick={(e) => {
+                        // Don't open if clicking checkbox
+                        if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                          return;
+                        }
+                        e.preventDefault();
+                        handleOpenForView(contact);
+                      }}
+                    >
+                      <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={contactIsSelected}
                           onChange={() => toggleContactSelected(contact.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
+                          className="cursor-pointer"
                           aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
                         />
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {formatDisplayNumber('contacts', contact.contactNumber || contact.id)}
-                        </span>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {formatDisplayNumber('contacts', contact.contactNumber || contact.id)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-semibold">{contact.companyName}</span>
+                          {contact.contactType === 'company' && contact.organizationNumber && (
+                            <span className="text-xs text-muted-foreground">
+                              Org: {contact.organizationNumber}
+                            </span>
+                          )}
+                          {contact.contactType === 'private' && contact.personalNumber && (
+                            <span className="text-xs text-muted-foreground">
+                              PN: {contact.personalNumber.substring(0, 9)}XXXX
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         <Badge
                           className={
                             contact.contactType === 'company'
@@ -384,192 +663,27 @@ export const ContactList: React.FC = () => {
                         >
                           {contact.contactType === 'company' ? 'Company' : 'Private'}
                         </Badge>
-                      </div>
-                      <h3 className="font-semibold text-base mb-1 truncate">
-                        {contact.companyName}
-                      </h3>
-                      {contact.contactType === 'company' && contact.organizationNumber && (
-                        <p className="text-xs text-muted-foreground mb-1">
-                          Org: {contact.organizationNumber}
-                        </p>
-                      )}
-                      {contact.contactType === 'private' && contact.personalNumber && (
-                        <p className="text-xs text-muted-foreground mb-1">
-                          PN: {contact.personalNumber.substring(0, 9)}XXXX
-                        </p>
-                      )}
-                      <div className="flex flex-col gap-1 mt-2">
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-1.5 text-sm">
-                          <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                          <span className="truncate">{contact.email}</span>
+                          <Mail className="w-3 h-3 text-muted-foreground" />
+                          <span className="truncate max-w-[200px]">{contact.email}</span>
                         </div>
+                      </TableCell>
+                      <TableCell>
                         {contact.phone && (
                           <div className="flex items-center gap-1.5 text-sm">
-                            <Phone className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                            <Phone className="w-3 h-3 text-muted-foreground" />
                             <span>{contact.phone}</span>
                           </div>
                         )}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          // Desktop: Table layout
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <input
-                    ref={headerCheckboxRef}
-                    type="checkbox"
-                    checked={allVisibleSelected}
-                    onChange={handleHeaderCheckboxChange}
-                    className="cursor-pointer"
-                    aria-label={
-                      allVisibleSelected ? 'Deselect all contacts' : 'Select all contacts'
-                    }
-                  />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('contactNumber')}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>#</span>
-                    {sortField === 'contactNumber' &&
-                      (sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3 w-3 inline" />
-                      ) : (
-                        <ArrowDown className="h-3 w-3 inline" />
-                      ))}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('name')}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>Name</span>
-                    {sortField === 'name' &&
-                      (sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3 w-3 inline" />
-                      ) : (
-                        <ArrowDown className="h-3 w-3 inline" />
-                      ))}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('type')}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>Type</span>
-                    {sortField === 'type' &&
-                      (sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3 w-3 inline" />
-                      ) : (
-                        <ArrowDown className="h-3 w-3 inline" />
-                      ))}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('email')}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>Email</span>
-                    {sortField === 'email' &&
-                      (sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3 w-3 inline" />
-                      ) : (
-                        <ArrowDown className="h-3 w-3 inline" />
-                      ))}
-                  </div>
-                </TableHead>
-                <TableHead>Phone</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedContacts.map((contact) => {
-                const contactIsSelected = isSelected(contact.id);
-                return (
-                  <TableRow
-                    key={contact.id}
-                    className="cursor-pointer hover:bg-accent"
-                    tabIndex={0}
-                    data-list-item={JSON.stringify(contact)}
-                    data-plugin-name="contacts"
-                    role="button"
-                    aria-label={`Open contact ${contact.companyName}`}
-                    onClick={(e) => {
-                      // Don't open if clicking checkbox
-                      if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                        return;
-                      }
-                      e.preventDefault();
-                      handleOpenForView(contact);
-                    }}
-                  >
-                    <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={contactIsSelected}
-                        onChange={() => toggleContactSelected(contact.id)}
-                        className="cursor-pointer"
-                        aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
-                      />
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {formatDisplayNumber('contacts', contact.contactNumber || contact.id)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-semibold">{contact.companyName}</span>
-                        {contact.contactType === 'company' && contact.organizationNumber && (
-                          <span className="text-xs text-muted-foreground">
-                            Org: {contact.organizationNumber}
-                          </span>
-                        )}
-                        {contact.contactType === 'private' && contact.personalNumber && (
-                          <span className="text-xs text-muted-foreground">
-                            PN: {contact.personalNumber.substring(0, 9)}XXXX
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        className={
-                          contact.contactType === 'company'
-                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                            : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-                        }
-                      >
-                        {contact.contactType === 'company' ? 'Company' : 'Private'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <Mail className="w-3 h-3 text-muted-foreground" />
-                        <span className="truncate max-w-[200px]">{contact.email}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {contact.phone && (
-                        <div className="flex items-center gap-1.5 text-sm">
-                          <Phone className="w-3 h-3 text-muted-foreground" />
-                          <span>{contact.phone}</span>
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Card>
         )}
       </Card>
 
@@ -579,8 +693,7 @@ export const ContactList: React.FC = () => {
         onClose={() => setShowBulkDeleteModal(false)}
         onConfirm={handleBulkDelete}
         itemCount={selectedCount}
-        singularLabel="contact"
-        pluralLabel="contacts"
+        itemLabel="contacts"
         isLoading={deleting}
       />
 
@@ -596,4 +709,4 @@ export const ContactList: React.FC = () => {
       />
     </div>
   );
-};
+};;

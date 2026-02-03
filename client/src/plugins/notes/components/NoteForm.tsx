@@ -11,6 +11,7 @@ import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { useNotes } from '../hooks/useNotes';
 
 import { MentionTextarea } from './MentionTextarea';
+import { NoteSettingsForm } from './NoteSettingsForm';
 
 interface NoteFormState {
   title: string;
@@ -31,7 +32,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   onCancel,
   isSubmitting: externalIsSubmitting = false,
 }) => {
-  const { validationErrors, clearValidationErrors } = useNotes();
+  const { validationErrors, clearValidationErrors, panelMode } = useNotes();
   const {
     isDirty,
     showWarning,
@@ -166,6 +167,10 @@ export const NoteForm: React.FC<NoteFormProps> = ({
 
   // Check if there are any blocking errors (non-warning)
   const hasBlockingErrors = validationErrors.some((error) => !error.message.includes('Warning'));
+
+  if (panelMode === 'settings') {
+    return <NoteSettingsForm onCancel={onCancel} />;
+  }
 
   return (
     <div className="space-y-4">

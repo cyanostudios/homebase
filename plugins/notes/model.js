@@ -86,6 +86,10 @@ class NoteModel {
     try {
       const db = Database.get(req);
 
+      // Fetch note before deletion for backup/logging
+      const existing = await db.query('SELECT * FROM notes WHERE id = $1', [noteId]);
+      const backup = existing.length > 0 ? this.transformRow(existing[0]) : null;
+
       // First, delete all tasks that were created from this note
       // Use direct pool access for cross-plugin operations
       const pool = req.tenantPool;
@@ -102,7 +106,7 @@ class NoteModel {
 
       Logger.info('Note deleted', { noteId });
 
-      return { id: noteId };
+      return { id: noteId, backup };
     } catch (error) {
       Logger.error('Failed to delete note', error, { noteId });
 
@@ -117,6 +121,21 @@ class NoteModel {
     try {
       const pool = req.tenantPool;
       const userId = req.session?.user?.id;
+
+      // Fetch notes before deletion for backup
+      let backups = [];
+      if (pool && userId && Array.isArray(idsTextArray) && idsTextArray.length > 0) {
+        const ids = idsTextArray
+          .map((id) => parseInt(id, 10))
+          .filter((id) => !isNaN(id));
+        if (ids.length > 0) {
+          const existing = await pool.query(
+            'SELECT * FROM notes WHERE id = ANY($1::int[]) AND user_id = $2',
+            [ids, userId],
+          );
+          backups = existing.rows.map((row) => this.transformRow(row));
+        }
+      }
 
       // First, delete all tasks that were created from these notes
       if (pool && userId) {
@@ -141,7 +160,8 @@ class NoteModel {
       }
 
       // Use core BulkOperationsHelper for generic bulk delete logic
-      return await BulkOperationsHelper.bulkDelete(req, 'notes', idsTextArray);
+      const result = await BulkOperationsHelper.bulkDelete(req, 'notes', idsTextArray);
+      return { ...result, backups };
     } catch (error) {
       Logger.error('Failed to bulk delete notes', error);
       if (error instanceof AppError) {

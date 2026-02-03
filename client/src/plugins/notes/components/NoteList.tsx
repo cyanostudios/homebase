@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
+import { ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText, Grid3x3, List, Settings } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Card } from '@/components/ui/card';
@@ -22,11 +22,13 @@ import { useNotes } from '../hooks/useNotes';
 
 type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
+type ViewMode = 'grid' | 'list';
 
 export const NoteList: React.FC = () => {
   const {
     notes,
     openNoteForView,
+    openNoteSettings,
     deleteNote,
     deleteNotes,
     selectedNoteIds,
@@ -54,6 +56,15 @@ export const NoteList: React.FC = () => {
 
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem('homebase:notes:viewMode');
+    return (saved as ViewMode) || 'list';
+  });
+
+  // Save viewMode to localStorage
+  useEffect(() => {
+    localStorage.setItem('homebase:notes:viewMode', viewMode);
+  }, [viewMode]);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -248,17 +259,48 @@ export const NoteList: React.FC = () => {
     return content.substring(0, maxLength) + '...';
   };
 
-  // Set header trailing (search + filter) in ContentHeader
+  // Set header trailing (search + view mode toggle) in ContentHeader
   useEffect(() => {
     setHeaderTrailing(
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder="Search notes..."
+        rightActions={
+          <div className="flex gap-2">
+            <button
+              onClick={() => openNoteSettings()}
+              className="px-3 py-2 rounded-md border text-sm bg-white text-gray-700 border-gray-300 hover:bg-gray-50 mr-2"
+              title="Note Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-2 rounded-md border text-sm ${viewMode === 'grid'
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              title="Grid view"
+            >
+              <Grid3x3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-2 rounded-md border text-sm ${viewMode === 'list'
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              title="List view"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+        }
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [searchTerm, setSearchTerm, setHeaderTrailing]);
+  }, [searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing, openNoteSettings]);
 
   // Protected navigation handlers
   const handleOpenForView = (note: any) => {
@@ -289,22 +331,26 @@ export const NoteList: React.FC = () => {
         ]}
       />
 
-      <Card className="shadow-none">
+      <Card className="shadow-none border-none bg-transparent">
         {sortedNotes.length === 0 ? (
-          <div className="p-6 text-center text-muted-foreground">
-            {searchTerm
-              ? 'No notes found matching your search.'
-              : 'No notes yet. Click "Add Note" to get started.'}
-          </div>
-        ) : isMobile ? (
-          // Mobile: Card layout
-          <div className="space-y-2 p-4">
+          <Card className="shadow-none">
+            <div className="p-6 text-center text-muted-foreground">
+              {searchTerm
+                ? 'No notes found matching your search.'
+                : 'No notes yet. Click "Add Note" to get started.'}
+            </div>
+          </Card>
+        ) : viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {sortedNotes.map((note) => {
               const noteIsSelected = isSelected(note.id);
               return (
                 <Card
                   key={note.id}
-                  className="p-4 cursor-pointer hover:bg-accent transition-colors"
+                  className={`relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] ${noteIsSelected
+                    ? 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500'
+                    : 'hover:border-blue-300 hover:shadow-md'
+                    }`}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                       return;
@@ -317,156 +363,216 @@ export const NoteList: React.FC = () => {
                   role="button"
                   aria-label={`Open note ${note.title}`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <input
-                          type="checkbox"
-                          checked={noteIsSelected}
-                          onChange={() => toggleNoteSelected(note.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
-                          aria-label={noteIsSelected ? 'Unselect note' : 'Select note'}
-                        />
-                        <h3 className="font-semibold text-base truncate">{note.title}</h3>
-                      </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                        {truncateContent(note.content, 100)}
-                      </p>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={noteIsSelected}
+                        onChange={() => toggleNoteSelected(note.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="cursor-pointer h-4 w-4"
+                        aria-label={noteIsSelected ? 'Unselect note' : 'Select note'}
+                      />
+                      <h3 className="font-semibold text-base line-clamp-1">{note.title}</h3>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground line-clamp-3 mb-4 flex-1">
+                    {truncateContent(note.content, 150)}
+                  </p>
+                  <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
                         {note.mentions && note.mentions.length > 0 ? (
-                          <span>
+                          <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
                             @{note.mentions[0].contactName}
                             {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
                           </span>
                         ) : (
-                          <span>—</span>
+                          <span className="italic">No mentions</span>
                         )}
-                        <span>•</span>
-                        <span>Updated {new Date(note.updatedAt).toLocaleDateString()}</span>
                       </div>
+                      <span>{new Date(note.updatedAt).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </Card>
               );
             })}
           </div>
-        ) : (
-          // Desktop: Table layout
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <input
-                    ref={headerCheckboxRef}
-                    type="checkbox"
-                    className="h-4 w-4"
-                    aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
-                    checked={allVisibleSelected}
-                    onChange={onToggleAllVisible}
-                  />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('title')}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>Title</span>
-                    {sortField === 'title' &&
-                      (sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3 w-3 inline" />
-                      ) : (
-                        <ArrowDown className="h-3 w-3 inline" />
-                      ))}
-                  </div>
-                </TableHead>
-                <TableHead>Content</TableHead>
-                <TableHead>Mentions</TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('updatedAt')}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>Updated</span>
-                    {sortField === 'updatedAt' &&
-                      (sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3 w-3 inline" />
-                      ) : (
-                        <ArrowDown className="h-3 w-3 inline" />
-                      ))}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('createdAt')}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>Created</span>
-                    {sortField === 'createdAt' &&
-                      (sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3 w-3 inline" />
-                      ) : (
-                        <ArrowDown className="h-3 w-3 inline" />
-                      ))}
-                  </div>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        ) : isMobile ? (
+          // Mobile: Card layout
+          <Card className="shadow-none">
+            <div className="space-y-2 p-4">
               {sortedNotes.map((note) => {
                 const noteIsSelected = isSelected(note.id);
                 return (
-                  <TableRow
+                  <Card
                     key={note.id}
-                    className="cursor-pointer hover:bg-accent"
-                    tabIndex={0}
+                    className="p-4 cursor-pointer hover:bg-accent transition-colors"
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                        return;
+                      }
+                      e.preventDefault();
+                      handleOpenForView(note);
+                    }}
                     data-list-item={JSON.stringify(note)}
                     data-plugin-name="notes"
                     role="button"
                     aria-label={`Open note ${note.title}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleOpenForView(note);
-                    }}
                   >
-                    <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4"
-                        checked={noteIsSelected}
-                        onChange={() => toggleNoteSelected(note.id)}
-                        aria-label={noteIsSelected ? 'Unselect note' : 'Select note'}
-                      />
-                    </TableCell>
-                    <TableCell className="font-semibold">{note.title}</TableCell>
-                    <TableCell>
-                      <div className="text-sm text-muted-foreground line-clamp-2 max-w-[300px]">
-                        {truncateContent(note.content, 100)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {note.mentions && note.mentions.length > 0 ? (
-                        <div className="text-sm">
-                          <span>
-                            @{note.mentions[0].contactName}
-                            {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
-                          </span>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <input
+                            type="checkbox"
+                            checked={noteIsSelected}
+                            onChange={() => toggleNoteSelected(note.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
+                            aria-label={noteIsSelected ? 'Unselect note' : 'Select note'}
+                          />
+                          <h3 className="font-semibold text-base truncate">{note.title}</h3>
                         </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {new Date(note.updatedAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(note.createdAt).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                          {truncateContent(note.content, 100)}
+                        </p>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          {note.mentions && note.mentions.length > 0 ? (
+                            <span>
+                              @{note.mentions[0].contactName}
+                              {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
+                            </span>
+                          ) : (
+                            <span>—</span>
+                          )}
+                          <span>•</span>
+                          <span>Updated {new Date(note.updatedAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
                 );
               })}
-            </TableBody>
-          </Table>
+            </div>
+          </Card>
+        ) : (
+          // Desktop: Table layout
+          <Card className="shadow-none">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <input
+                      ref={headerCheckboxRef}
+                      type="checkbox"
+                      className="h-4 w-4"
+                      aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
+                      checked={allVisibleSelected}
+                      onChange={onToggleAllVisible}
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('title')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>Title</span>
+                      {sortField === 'title' &&
+                        (sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3 w-3 inline" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 inline" />
+                        ))}
+                    </div>
+                  </TableHead>
+                  <TableHead>Content</TableHead>
+                  <TableHead>Mentions</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('updatedAt')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>Updated</span>
+                      {sortField === 'updatedAt' &&
+                        (sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3 w-3 inline" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 inline" />
+                        ))}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('createdAt')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>Created</span>
+                      {sortField === 'createdAt' &&
+                        (sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3 w-3 inline" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 inline" />
+                        ))}
+                    </div>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedNotes.map((note) => {
+                  const noteIsSelected = isSelected(note.id);
+                  return (
+                    <TableRow
+                      key={note.id}
+                      className="cursor-pointer hover:bg-accent"
+                      tabIndex={0}
+                      data-list-item={JSON.stringify(note)}
+                      data-plugin-name="notes"
+                      role="button"
+                      aria-label={`Open note ${note.title}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleOpenForView(note);
+                      }}
+                    >
+                      <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4"
+                          checked={noteIsSelected}
+                          onChange={() => toggleNoteSelected(note.id)}
+                          aria-label={noteIsSelected ? 'Unselect note' : 'Select note'}
+                        />
+                      </TableCell>
+                      <TableCell className="font-semibold">{note.title}</TableCell>
+                      <TableCell>
+                        <div className="text-sm text-muted-foreground line-clamp-2 max-w-[300px]">
+                          {truncateContent(note.content, 100)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {note.mentions && note.mentions.length > 0 ? (
+                          <div className="text-sm">
+                            <span>
+                              @{note.mentions[0].contactName}
+                              {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {new Date(note.updatedAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(note.createdAt).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Card>
         )}
       </Card>
 

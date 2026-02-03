@@ -4,6 +4,7 @@ import {
   CheckSquare,
   Calculator,
   Files as FilesIcon,
+  Mail,
   LucideIcon,
 } from 'lucide-react';
 import React from 'react';
@@ -96,6 +97,11 @@ import { TasksDashboardWidget } from '@/plugins/tasks/components/TasksDashboardW
 import { TaskView } from '@/plugins/tasks/components/TaskView';
 import { TaskProvider } from '@/plugins/tasks/context/TaskContext';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
+// Mail
+import { MailList } from '@/plugins/mail/components/MailList';
+import { MailSettingsForm } from '@/plugins/mail/components/MailSettingsForm';
+import { MailProvider } from '@/plugins/mail/context/MailContext';
+import { useMail } from '@/plugins/mail/hooks/useMail';
 
 export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   {
@@ -206,5 +212,22 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: FilesDashboardWidget,
     displayPrefix: 'FLS',
+  },
+  {
+    name: 'mail',
+    Provider: MailProvider,
+    hook: useMail,
+    panelKey: 'isMailPanelOpen',
+    components: {
+      List: MailList,
+      Form: MailSettingsForm,
+    },
+    navigation: {
+      category: 'Tools',
+      label: 'Mail',
+      icon: Mail,
+      order: 1,
+    },
+    displayPrefix: 'MAIL',
   },
 ];

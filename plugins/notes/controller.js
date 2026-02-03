@@ -58,7 +58,14 @@ class NoteController {
 
   async delete(req, res) {
     try {
-      await this.model.delete(req, req.params.id);
+      const result = await this.model.delete(req, req.params.id);
+
+      // Attach metadata for activity log middleware
+      req.activityLogEntityName = result.backup?.title || 'Unknown Note';
+      req.activityLogMetadata = {
+        backup: result.backup,
+      };
+
       res.json({ message: 'Note deleted successfully' });
     } catch (error) {
       Logger.error('Delete note failed', error, {
@@ -120,6 +127,14 @@ class NoteController {
           : Array.isArray(result?.deletedIds)
             ? result.deletedIds.length
             : 0;
+
+      // Attach metadata for activity log middleware
+      req.activityLogEntityName = `${deleted} notes`;
+      req.activityLogMetadata = {
+        count: deleted,
+        ids: result.deletedIds || ids,
+        backups: result.backups || [], // Multiple backups for bulk delete
+      };
 
       return res.json({
         ok: true,
