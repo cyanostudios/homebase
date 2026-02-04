@@ -6,7 +6,9 @@ const { AppError } = require('../../server/core/errors/AppError');
 
 const WooCommerceModel = require('../woocommerce-products/model');
 const WooCommerceController = require('../woocommerce-products/controller');
+const CdonProductsController = require('../cdon-products/controller');
 const CdonProductsModel = require('../cdon-products/model');
+const FyndiqProductsController = require('../fyndiq-products/controller');
 const FyndiqProductsModel = require('../fyndiq-products/model');
 
 class OrdersController {
@@ -17,7 +19,197 @@ class OrdersController {
     this.wooModel = new WooCommerceModel();
     this.wooController = new WooCommerceController(this.wooModel);
     this.cdonModel = new CdonProductsModel();
+    this.cdonController = new CdonProductsController(this.cdonModel);
     this.fyndiqModel = new FyndiqProductsModel();
+    this.fyndiqController = new FyndiqProductsController(this.fyndiqModel);
+  }
+
+  normalizeStatusForStorage(status) {
+    const s = String(status || '').trim().toLowerCase();
+    if (!s) return null;
+    // Internal canonical status: shipped is treated as delivered (UI only shows Delivered)
+    if (s === 'shipped') return 'delivered';
+    return s;
+  }
+
+  getCdonBaseUrl() {
+    const raw = process.env.CDON_MERCHANTS_API != null ? String(process.env.CDON_MERCHANTS_API).trim() : '';
+    const base = raw || 'https://merchants-api.cdon.com/api';
+    return base.replace(/\/+$/, '');
+  }
+
+  async validateCdonTrackingRequirement({ order, nextStatus, nextTrackingNumber }) {
+    const channel = String(order?.channel || '').trim().toLowerCase();
+    const status = String(nextStatus || '').trim().toLowerCase();
+    if (channel !== 'cdon') return null;
+    if (status !== 'delivered' && status !== 'shipped') return null;
+
+    const total = Number(order?.totalAmount);
+    const needsTracking = Number.isFinite(total) && total >= 299;
+    if (!needsTracking) return null;
+
+    const tracking = String(nextTrackingNumber || '').trim();
+    if (tracking) return null;
+
+    return {
+      field: 'trackingNumber',
+      message: 'Tracking number is required for CDON orders >= 299 SEK when marking as Delivered.',
+    };
+  }
+
+  buildCdonTrackingInformation({ carrier, trackingNumber }) {
+    const t = String(trackingNumber || '').trim();
+    if (!t) return [];
+
+    // Allow multiple tracking numbers separated by comma/semicolon/newline.
+    const parts = t.split(/[,;\n]+/g).map((x) => x.trim()).filter(Boolean);
+    const unique = Array.from(new Set(parts));
+    const c = carrier != null && String(carrier).trim() !== '' ? String(carrier).trim() : null;
+
+    return unique.map((num) => ({
+      ...(c != null ? { carrier_name: c } : {}),
+      tracking_number: num,
+    }));
+  }
+
+  buildFyndiqTrackingInformation({ carrier, trackingNumber }) {
+    const t = String(trackingNumber || '').trim();
+    if (!t) return [];
+
+    // Allow multiple tracking numbers separated by comma/semicolon/newline.
+    const parts = t.split(/[,;\n]+/g).map((x) => x.trim()).filter(Boolean);
+    const unique = Array.from(new Set(parts));
+    const c = carrier != null && String(carrier).trim() !== '' ? String(carrier).trim() : null;
+
+    return unique.map((num) => ({
+      ...(c != null ? { carrier_name: c } : {}),
+      tracking_number: num,
+    }));
+  }
+
+  async syncStatusToCdon(req, { channelOrderId, status, carrier, trackingNumber }) {
+    const settings = await this.cdonModel.getSettings(req);
+    const merchantId = String(settings?.apiKey ?? '').trim();
+    const apiToken = String(settings?.apiSecret ?? '').trim();
+    if (!merchantId || !apiToken) {
+      await this.cdonModel.logChannelError(req, {
+        channel: 'cdon',
+        productId: null,
+        payload: { channelOrderId, status },
+        response: null,
+        message: 'CDON settings missing; cannot sync order status',
+      });
+      return;
+    }
+
+    const s = String(status || '').trim().toLowerCase();
+    const base = this.getCdonBaseUrl();
+
+    if (s === 'cancelled') {
+      const url = `${base}/v1/orders/${encodeURIComponent(channelOrderId)}/cancel`;
+      const { resp, text, json } = await this.cdonController.cdonRequest(url, {
+        merchantId,
+        apiToken,
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!resp.ok) {
+        await this.cdonModel.logChannelError(req, {
+          channel: 'cdon',
+          productId: null,
+          payload: { channelOrderId, status: s },
+          response: { status: resp.status, statusText: resp.statusText, body: json || text },
+          message: 'CDON cancel failed',
+        });
+      }
+      return;
+    }
+
+    if (s === 'delivered' || s === 'shipped') {
+      const tracking_information = this.buildCdonTrackingInformation({ carrier, trackingNumber });
+      const url = `${base}/v1/orders/${encodeURIComponent(channelOrderId)}/fulfill`;
+      const { resp, text, json } = await this.cdonController.cdonRequest(url, {
+        merchantId,
+        apiToken,
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tracking_information }),
+      });
+      if (!resp.ok) {
+        await this.cdonModel.logChannelError(req, {
+          channel: 'cdon',
+          productId: null,
+          payload: { channelOrderId, status: s, tracking_information },
+          response: { status: resp.status, statusText: resp.statusText, body: json || text },
+          message: 'CDON fulfill failed',
+        });
+      }
+    }
+  }
+
+  async syncStatusToFyndiq(req, { channelOrderId, status, carrier, trackingNumber }) {
+    const settings = await this.fyndiqModel.getSettings(req);
+    const username = String(settings?.apiKey ?? '').trim();
+    const password = String(settings?.apiSecret ?? '').trim();
+    if (!username || !password) {
+      await this.fyndiqModel.logChannelError(req, {
+        channel: 'fyndiq',
+        productId: null,
+        payload: { channelOrderId, status },
+        response: null,
+        message: 'Fyndiq settings missing; cannot sync order status',
+      });
+      return;
+    }
+
+    const s = String(status || '').trim().toLowerCase();
+
+    if (s === 'delivered' || s === 'shipped') {
+      const tracking_information = this.buildFyndiqTrackingInformation({ carrier, trackingNumber });
+      const { url, resp, text, json } = await this.fyndiqController.fyndiqRequest(
+        `/api/v1/orders/${encodeURIComponent(channelOrderId)}/fulfill`,
+        {
+          username,
+          password,
+          method: 'PUT',
+          body: JSON.stringify({ tracking_information }),
+        },
+      );
+
+      if (!resp.ok) {
+        await this.fyndiqModel.logChannelError(req, {
+          channel: 'fyndiq',
+          productId: null,
+          payload: { channelOrderId, status: s, tracking_information },
+          response: { endpoint: url, status: resp.status, statusText: resp.statusText, body: json || text },
+          message: 'Fyndiq fulfill failed',
+        });
+      }
+      return;
+    }
+
+    if (s === 'cancelled') {
+      const { url, resp, text, json } = await this.fyndiqController.fyndiqRequest(
+        `/api/v1/orders/${encodeURIComponent(channelOrderId)}/cancel`,
+        {
+          username,
+          password,
+          method: 'PUT',
+          body: JSON.stringify({}),
+        },
+      );
+
+      if (!resp.ok) {
+        await this.fyndiqModel.logChannelError(req, {
+          channel: 'fyndiq',
+          productId: null,
+          payload: { channelOrderId, status: s },
+          response: { endpoint: url, status: resp.status, statusText: resp.statusText, body: json || text },
+          message: 'Fyndiq cancel failed',
+        });
+      }
+    }
   }
 
   async list(req, res) {
@@ -63,9 +255,22 @@ class OrdersController {
 
   async updateStatus(req, res) {
     try {
-      const status = req.body?.status ? String(req.body.status).trim().toLowerCase() : null;
+      const statusRaw = req.body?.status ? String(req.body.status).trim().toLowerCase() : null;
+      const status = this.normalizeStatusForStorage(statusRaw);
       const carrier = req.body?.carrier ? String(req.body.carrier).trim() : null;
       const trackingNumber = req.body?.trackingNumber ? String(req.body.trackingNumber).trim() : null;
+
+      // CDON: for Delivered on orders >= 299 SEK, require tracking number (either existing or provided).
+      const current = await this.model.getById(req, req.params.id);
+      const effectiveTracking = trackingNumber || current?.shippingTrackingNumber || null;
+      const cdonErr = await this.validateCdonTrackingRequirement({
+        order: current,
+        nextStatus: status,
+        nextTrackingNumber: effectiveTracking,
+      });
+      if (cdonErr) {
+        return res.status(400).json({ errors: [cdonErr] });
+      }
 
       const updated = await this.model.updateStatus(req, req.params.id, {
         status,
@@ -398,23 +603,20 @@ class OrdersController {
       return;
     }
 
-    // CDON/Fyndiq: placeholder (will be implemented in connector plugins)
     if (channel === 'cdon') {
-      await this.cdonModel.logChannelError(req, {
-        channel: 'cdon',
-        productId: null,
-        payload: { channelOrderId, status },
-        response: null,
-        message: 'CDON order status sync not implemented yet',
+      await this.syncStatusToCdon(req, {
+        channelOrderId,
+        status,
+        carrier: order?.shippingCarrier || null,
+        trackingNumber: order?.shippingTrackingNumber || null,
       });
     }
     if (channel === 'fyndiq') {
-      await this.fyndiqModel.logChannelError(req, {
-        channel: 'fyndiq',
-        productId: null,
-        payload: { channelOrderId, status },
-        response: null,
-        message: 'Fyndiq order status sync not implemented yet',
+      await this.syncStatusToFyndiq(req, {
+        channelOrderId,
+        status,
+        carrier: order?.shippingCarrier || null,
+        trackingNumber: order?.shippingTrackingNumber || null,
       });
     }
   }
@@ -439,12 +641,61 @@ class OrdersController {
         return res.status(400).json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
       }
 
-      const status = req.body?.status ? String(req.body.status).trim().toLowerCase() : null;
+      const statusRaw = req.body?.status ? String(req.body.status).trim().toLowerCase() : null;
+      const status = this.normalizeStatusForStorage(statusRaw);
       const carrier = req.body?.carrier ? String(req.body.carrier).trim() : null;
       const trackingNumber = req.body?.trackingNumber ? String(req.body.trackingNumber).trim() : null;
 
       if (!status) {
         return res.status(400).json({ error: 'status is required', code: 'VALIDATION_ERROR' });
+      }
+
+      // CDON: for Delivered on orders >= 299 SEK, require trackingNumber (either provided, or already on each order).
+      if (status === 'delivered') {
+        const userId = req.session?.user?.id || req.session?.user?.uuid;
+        if (!userId) return res.status(401).json({ error: 'User not authenticated' });
+
+        const validIds = idsRaw
+          .map((id) => {
+            const num = Number(id);
+            return Number.isFinite(num) && num > 0 ? num : null;
+          })
+          .filter((id) => id !== null);
+
+        if (validIds.length > 0) {
+          const db = Database.get(req);
+          const rows = await db.query(
+            `
+            SELECT id, order_number, channel, total_amount, shipping_tracking_number
+            FROM orders
+            WHERE user_id = $1
+              AND id = ANY($2::int[])
+            `,
+            [userId, validIds],
+          );
+
+          const offenders = [];
+          for (const r of rows) {
+            const ch = String(r.channel || '').trim().toLowerCase();
+            if (ch !== 'cdon') continue;
+            const total = Number(r.total_amount);
+            const needs = Number.isFinite(total) && total >= 299;
+            if (!needs) continue;
+            const effective = String(trackingNumber || r.shipping_tracking_number || '').trim();
+            if (!effective) offenders.push(r.order_number != null ? `#${r.order_number}` : `id:${r.id}`);
+          }
+
+          if (offenders.length) {
+            return res.status(400).json({
+              errors: [
+                {
+                  field: 'trackingNumber',
+                  message: `Tracking number is required for CDON orders >= 299 SEK when marking as Delivered. Missing for: ${offenders.join(', ')}`,
+                },
+              ],
+            });
+          }
+        }
       }
 
       const result = await this.model.batchUpdateStatus(req, idsRaw, {

@@ -9,7 +9,11 @@ const { AppError } = require('../../server/core/errors/AppError');
 
 const OrdersModel = require('../orders/model');
 
-const CDON_MERCHANTS_API = 'https://merchants-api.cdon.com/api';
+const CDON_MERCHANTS_API = (() => {
+  const raw = process.env.CDON_MERCHANTS_API != null ? String(process.env.CDON_MERCHANTS_API).trim() : '';
+  const base = raw || 'https://merchants-api.cdon.com/api';
+  return base.replace(/\/+$/, '');
+})();
 const CDON_CATEGORIZATION_API = 'https://cdonexternalapi-prod-apim.azure-api.net/categorization/api/v1';
 
 class CdonProductsController {
@@ -34,10 +38,10 @@ class CdonProductsController {
     return typeof fetch === 'function'
       ? fetch
       : async (...args) => {
-          const mod = await import('node-fetch').catch(() => null);
-          if (!mod?.default) throw new Error('fetch is not available (Node <18) and node-fetch is not installed');
-          return mod.default(...args);
-        };
+        const mod = await import('node-fetch').catch(() => null);
+        if (!mod?.default) throw new Error('fetch is not available (Node <18) and node-fetch is not installed');
+        return mod.default(...args);
+      };
   }
 
   async cdonRequest(url, { merchantId, apiToken, method = 'GET', headers = {}, body, timeoutMs = 30_000 } = {}) {
@@ -891,58 +895,73 @@ class CdonProductsController {
         allOrderPayloads.push(...payloads);
       }
 
-      // Merchants API may return: (A) flat lines (one object per line with id/customer_order_id, article_*, price, quantity), or (B) orders with nested line array.
-      const flatLines = allOrderPayloads.filter(
-        (p) => {
-          const r = p?.OrderDetails ?? p;
-          return r && (r.article_id != null || r.article_sku != null) && (r.id != null || r.customer_order_id != null);
+      // Group CDON orders: robust grouping per user requirements.
+      const groupKey = (o) => {
+        // 1. Try explicit grouping identifiers mapping to "Customer ID"
+        const g = o?.OrderGroupId ?? o?.orderGroupId ?? o?.parent_order_id ?? o?.parentOrderId ?? o?.group_id ?? o?.groupId ?? o?.customer_id ?? o?.customerId;
+        if (g != null) return `id:${g}`;
+
+        // 2. Fallback: Phone + Normalized Name + Same Hour
+        const ci = o?.CustomerInfo ?? o?.customer_info ?? o?.customerInfo ?? {};
+        const ship = ci?.ShippingAddress ?? ci?.shipping_address ?? ci?.shippingAddress ?? o?.shipping_address ?? {};
+        const phones = ci?.Phones ?? ci?.phones ?? {};
+        const phone = String(ship?.phone_number ?? ship?.phoneNumber ?? phones?.PhoneMobile ?? phones?.phone_mobile ?? phones?.phoneMobile ?? phones?.PhoneWork ?? phones?.phone_work ?? phones?.phoneWork ?? '').trim();
+        const fName = String(ship?.first_name ?? ship?.firstName ?? ship?.Name ?? ship?.name ?? '').trim();
+        const lName = String(ship?.last_name ?? ship?.lastName ?? '').trim();
+        const name = `${fName} ${lName}`.trim().toLowerCase();
+
+        const dt = o?.CreatedDateUtc ?? o?.created_date_utc ?? o?.createdDateUtc ?? o?.OrderDate ?? o?.order_date ?? o?.orderDate ?? o?.created_at;
+        const hour = dt ? new Date(dt).toISOString().slice(0, 13) : ''; // YYYY-MM-DDTHH
+
+        if (phone || name) {
+          return `match:${phone}|${name}|${hour}`;
         }
-      );
-      const hasFlatFormat = flatLines.length > 0 && flatLines.length >= allOrderPayloads.length * 0.5;
-      let orderList;
-      if (hasFlatFormat) {
-        const byOrderId = new Map();
-        for (const row of allOrderPayloads) {
-          const raw = row?.OrderDetails ?? row;
-          if (!raw || (raw.id == null && raw.customer_order_id == null)) continue;
-          const orderId = String(raw.customer_order_id ?? raw.id ?? raw.order_id ?? raw.orderId ?? '');
-          if (!orderId) continue;
-          if (!byOrderId.has(orderId)) {
-            byOrderId.set(orderId, {
-              id: orderId,
-              market: raw.market,
-              state: raw.state,
-              created_at: raw.created_at,
-              shipping_address: raw.shipping_address,
-              tracking_information: raw.tracking_information,
-              total_price: null,
-              order_rows: [],
-            });
-          }
-          const order = byOrderId.get(orderId);
-          order.order_rows.push(raw);
-          const lineAmount = raw.total_price?.amount ?? raw.price?.amount ?? raw.total_price ?? raw.price ?? 0;
-          const amt = Number(lineAmount);
-          if (Number.isFinite(amt)) {
-            order.total_price = order.total_price ?? { amount: 0, currency: raw.total_price?.currency ?? raw.price?.currency ?? 'SEK' };
-            order.total_price.amount = (order.total_price.amount || 0) + amt;
-            if (raw.total_price?.currency || raw.price?.currency) order.total_price.currency = raw.total_price?.currency ?? raw.price?.currency;
-          }
+
+        // 3. Last resort: Unique order ID (no grouping)
+        const singleId = o?.OrderKey ?? o?.OrderId ?? o?.orderId ?? o?.id ?? o?.OrderNumber ?? o?.orderNumber;
+        return `alone:${singleId}`;
+      };
+
+      const byGroup = new Map();
+      for (const row of allOrderPayloads) {
+        const raw = row?.OrderDetails ?? row;
+        if (!raw) continue;
+        const key = groupKey(raw);
+        if (!byGroup.has(key)) {
+          byGroup.set(key, {
+            id: String(raw.customer_order_id ?? raw.id ?? raw.order_id ?? raw.orderId ?? raw.OrderKey ?? raw.OrderId ?? ''),
+            market: raw.market,
+            state: raw.state,
+            created_at: raw.created_at,
+            shipping_address: raw.shipping_address,
+            tracking_information: raw.tracking_information,
+            total_price: null,
+            order_rows: [],
+          });
         }
-        orderList = Array.from(byOrderId.values());
-      } else {
-        orderList = allOrderPayloads.map((p) => p?.OrderDetails ?? p).filter(Boolean);
+        const order = byGroup.get(key);
+        order.order_rows.push(raw);
+
+        // Accumulate total price if it's a flat line item format
+        const lineAmount = raw.total_price?.amount ?? raw.price?.amount ?? raw.total_price ?? raw.price ?? 0;
+        const amt = Number(lineAmount);
+        if (Number.isFinite(amt)) {
+          order.total_price = order.total_price ?? { amount: 0, currency: raw.total_price?.currency ?? raw.price?.currency ?? 'SEK' };
+          order.total_price.amount += amt;
+          if (raw.total_price?.currency || raw.price?.currency) order.total_price.currency = raw.total_price?.currency ?? raw.price?.currency;
+        }
       }
+      const orderList = Array.from(byGroup.values());
 
       const seen = new Set();
       let orders = orderList.filter((o) => {
-          const key = o?.OrderKey ?? o?.OrderId ?? o?.orderId ?? o?.id ?? o?.OrderNumber ?? o?.orderNumber;
-          if (key == null) return false;
-          const k = String(key);
-          if (seen.has(k)) return false;
-          seen.add(k);
-          return true;
-        });
+        const key = o?.OrderKey ?? o?.OrderId ?? o?.orderId ?? o?.id ?? o?.OrderNumber ?? o?.orderNumber;
+        if (key == null) return false;
+        const k = String(key);
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
       // Client-side market filter: keep only SE, DK, FI; keep orders with no market info
       orders = orders.filter((o) => {
         const market = String(
@@ -1013,9 +1032,15 @@ class CdonProductsController {
         : Number(o?.TotalAmount ?? o?.total_amount ?? o?.totalAmount ?? NaN);
     const currency =
       (totalPriceObj?.currency ?? o?.CurrencyCode ?? o?.currency_code ?? o?.currencyCode ?? o?.currency ?? 'SEK').toString().toUpperCase();
-    const placedAt =
-      o?.CreatedDateUtc ?? o?.created_date_utc ?? o?.createdDateUtc ??
-      o?.OrderDate ?? o?.order_date ?? o?.orderDate ?? o?.created_at ?? null;
+    let placedAt = o?.CreatedDateUtc ?? o?.created_date_utc ?? o?.createdDateUtc ?? null;
+    if (placedAt) {
+      placedAt = String(placedAt).trim();
+      if (placedAt && !placedAt.endsWith('Z') && !placedAt.includes('+') && !placedAt.includes('GMT')) {
+        placedAt += 'Z';
+      }
+    } else {
+      placedAt = o?.OrderDate ?? o?.order_date ?? o?.orderDate ?? o?.created_at ?? null;
+    }
 
     const normalized = {
       channel: 'cdon',
@@ -1029,13 +1054,13 @@ class CdonProductsController {
       shippingAddress:
         ship && typeof ship === 'object' && Object.keys(ship).length
           ? {
-              ...ship,
-              name: shipName ?? ship?.name ?? ship?.Name ?? ([ship?.first_name, ship?.last_name].filter(Boolean).join(' ').trim() || undefined),
-              street_address: ship?.street_address ?? ship?.streetAddress ?? ship?.StreetAddress ?? ship?.Street,
-              postal_code: ship?.postal_code ?? ship?.postalCode ?? ship?.PostalCode ?? ship?.ZipCode,
-              city: ship?.city ?? ship?.City,
-              country: ship?.country ?? ship?.Country,
-            }
+            ...ship,
+            name: shipName ?? ship?.name ?? ship?.Name ?? ([ship?.first_name, ship?.last_name].filter(Boolean).join(' ').trim() || undefined),
+            street_address: ship?.street_address ?? ship?.streetAddress ?? ship?.StreetAddress ?? ship?.Street,
+            postal_code: ship?.postal_code ?? ship?.postalCode ?? ship?.PostalCode ?? ship?.ZipCode,
+            city: ship?.city ?? ship?.City,
+            country: ship?.country ?? ship?.Country,
+          }
           : null,
       billingAddress:
         bill && typeof bill === 'object' && Object.keys(bill).length
@@ -1186,12 +1211,13 @@ class CdonProductsController {
   mapCdonOrderStatusToHomebase(status) {
     const s = String(status || '').toUpperCase();
     if (s === 'NOT_FULFILLED' || s === 'CANCELLED' || s.includes('CANCEL') || s.includes('RETURNED')) return 'cancelled';
-    if (s === 'FULFILLED' || s.includes('DELIVERED') || s.includes('SHIPPED')) return 'shipped';
+    // UI only exposes Delivered; treat shipped and delivered as the same internal status.
+    if (s === 'FULFILLED' || s.includes('DELIVERED') || s.includes('SHIPPED')) return 'delivered';
     if (s === 'CREATED' || s === 'ACCEPTED') return 'processing';
     const lower = s.toLowerCase();
     if (lower.includes('cancelled') || lower.includes('annulerad') || lower.includes('returned')) return 'cancelled';
     if (lower.includes('delivered') || lower.includes('levererad')) return 'delivered';
-    if (lower.includes('shipped') || lower.includes('skickad') || lower.includes('sent')) return 'shipped';
+    if (lower.includes('shipped') || lower.includes('skickad') || lower.includes('sent')) return 'delivered';
     return 'processing';
   }
 

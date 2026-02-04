@@ -101,7 +101,7 @@ function createFilesRoutes(controller, context) {
 
   // ---- CRUD (metadata) ----
   router.get('/', gate, (req, res) => controller.getAll(req, res));
-  
+
   router.post('/',
     gate,
     /* csrfProtection, */ // Temporarily disabled
@@ -110,7 +110,7 @@ function createFilesRoutes(controller, context) {
     validateRequest,
     (req, res) => controller.create(req, res)
   );
-  
+
   router.put('/:id',
     gate,
     /* csrfProtection, */ // Temporarily disabled
@@ -120,7 +120,7 @@ function createFilesRoutes(controller, context) {
     validateRequest,
     (req, res) => controller.update(req, res)
   );
-  
+
   // DELETE /api/files/batch - Bulk delete (MUST be before '/:id' route)
   router.delete('/batch',
     gate,
@@ -131,7 +131,7 @@ function createFilesRoutes(controller, context) {
     validateRequest,
     (req, res) => controller.bulkDelete(req, res)
   );
-  
+
   router.delete('/:id',
     gate,
     /* csrfProtection, */ // Temporarily disabled
@@ -192,11 +192,27 @@ function createFilesRoutes(controller, context) {
     validateRequest,
     (req, res) => cloudStorageController.saveOAuthCredentials(req, res)
   );
+  // GET /api/files/cloud/dropbox/app-key - App key for Dropbox Chooser (popup)
+  router.get('/cloud/dropbox/app-key', gate, (req, res) =>
+    cloudStorageController.getDropboxAppKey(req, res)
+  );
+
+  // GET /api/files/cloud/dropbox/embed - HTML page with Dropbox Embedder (for iframe; no popup)
+  router.get('/cloud/dropbox/embed', gate, (req, res) =>
+    cloudStorageController.getDropboxEmbedPage(req, res)
+  );
 
   // GET /api/files/cloud/:service/embed - Get embed URL for file manager
   router.get('/cloud/:service/embed', gate, (req, res) =>
     cloudStorageController.getEmbedUrl(req, res)
   );
+
+  // GET /api/files/cloud/dropbox/files - List files from Dropbox /Homebase folder
+  router.get('/cloud/dropbox/files', gate, (req, res) =>
+    cloudStorageController.listDropboxFiles(req, res)
+  );
+
+
 
   return router;
 }

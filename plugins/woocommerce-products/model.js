@@ -477,19 +477,58 @@ class WooCommerceModel {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
       }
 
-      // Check if table exists, if not skip logging
+      // Backward/forward compatible: older tenants may not have payload/response columns.
+      // Detect existing columns once per process and only insert into those.
+      if (!WooCommerceModel._errorLogCols) {
+        const cols = await db.query(
+          `
+          SELECT column_name
+          FROM information_schema.columns
+          WHERE table_name = $1
+          `,
+          [WooCommerceModel.ERROR_LOG_TABLE],
+        );
+        WooCommerceModel._errorLogCols = new Set(cols.map((r) => String(r.column_name)));
+      }
+
+      const cols = WooCommerceModel._errorLogCols;
+      const insertCols = ['user_id', 'channel'];
+      const values = [userId, String(channel)];
+
+      if (cols.has('product_id')) {
+        insertCols.push('product_id');
+        values.push(productId != null ? String(productId) : null);
+      }
+      if (cols.has('payload')) {
+        insertCols.push('payload');
+        values.push(payload ? JSON.stringify(payload) : null);
+      }
+      if (cols.has('response')) {
+        insertCols.push('response');
+        values.push(response ? JSON.stringify(response) : null);
+      }
+      if (cols.has('error_message')) {
+        insertCols.push('error_message');
+        values.push(message || null);
+      }
+      if (cols.has('created_at')) {
+        insertCols.push('created_at');
+        values.push('CURRENT_TIMESTAMP');
+      }
+
+      const placeholders = insertCols.map((_, i) => `$${i + 1}`);
+      // If created_at exists, we inserted a literal string; replace that placeholder with CURRENT_TIMESTAMP.
+      if (cols.has('created_at')) {
+        const idx = insertCols.indexOf('created_at');
+        placeholders[idx] = 'CURRENT_TIMESTAMP';
+        values.pop(); // remove the literal marker from bind params
+      }
+
       const sql = `
-        INSERT INTO ${WooCommerceModel.ERROR_LOG_TABLE} (user_id, channel, product_id, payload, response, error_message, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+        INSERT INTO ${WooCommerceModel.ERROR_LOG_TABLE} (${insertCols.join(', ')})
+        VALUES (${placeholders.join(', ')})
       `;
-      await db.query(sql, [
-        userId,
-        String(channel),
-        productId != null ? String(productId) : null,
-        payload ? JSON.stringify(payload) : null,
-        response ? JSON.stringify(response) : null,
-        message || null,
-      ]);
+      await db.query(sql, values);
     } catch (error) {
       // Don't throw - error logging should not break the main flow
       Logger.warn('Failed to log channel error', error);

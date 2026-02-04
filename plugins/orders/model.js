@@ -20,8 +20,12 @@ class OrdersModel {
       const params = [userId];
 
       if (status) {
-        params.push(String(status));
-        clauses.push(`status = $${params.length}`);
+        if (status === 'delivered') {
+          clauses.push(`status IN ('delivered', 'shipped')`);
+        } else {
+          params.push(String(status));
+          clauses.push(`status = $${params.length}`);
+        }
       }
       if (channel) {
         params.push(String(channel));
@@ -244,18 +248,46 @@ class OrdersModel {
         throw new AppError('channel and channelOrderId are required', 400, AppError.CODES.VALIDATION_ERROR);
       }
 
-      const placedAt = order?.placedAt ? new Date(order.placedAt) : null;
+      const placedAtStr = this.toISOUTC(order?.placedAt);
+      const placedAt = placedAtStr ? new Date(placedAtStr) : null;
       const totalAmount = order?.totalAmount != null ? Number(order.totalAmount) : null;
       const currency = order?.currency ? String(order.currency).trim().toUpperCase() : null;
       const status = order?.status ? String(order.status).trim().toLowerCase() : null;
 
-      // If order already exists (same channel + channel_order_id), skip — no update. Delete and re-import to refresh.
+      // If order already exists (same channel + channel_order_id), update it and return.
       const existing = await db.query(
         `SELECT id FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1 AND channel = $2 AND channel_order_id = $3 LIMIT 1`,
         [userId, channel, channelOrderId],
       );
       if (existing.length) {
-        return { created: false, orderId: Number(existing[0].id) };
+        const orderId = Number(existing[0].id);
+        await db.query(
+          `UPDATE ${OrdersModel.ORDERS_TABLE}
+           SET
+             platform_order_number = COALESCE($3, platform_order_number),
+             total_amount = COALESCE($4, total_amount),
+             currency = COALESCE($5, currency),
+             status = COALESCE($6, status),
+             shipping_address = COALESCE($7, shipping_address),
+             billing_address = COALESCE($8, billing_address),
+             customer = COALESCE($9, customer),
+             raw = $10,
+             updated_at = NOW()
+           WHERE user_id = $1 AND id = $2`,
+          [
+            userId,
+            orderId,
+            order?.platformOrderNumber != null ? String(order.platformOrderNumber) : null,
+            Number.isFinite(totalAmount) ? totalAmount : null,
+            currency || null,
+            status || null,
+            order?.shippingAddress ? JSON.stringify(order.shippingAddress) : null,
+            order?.billingAddress ? JSON.stringify(order.billingAddress) : null,
+            order?.customer ? JSON.stringify(order.customer) : null,
+            order?.raw ? JSON.stringify(order.raw) : null,
+          ],
+        );
+        return { created: false, orderId };
       }
 
       // New order: allocate order_number and insert

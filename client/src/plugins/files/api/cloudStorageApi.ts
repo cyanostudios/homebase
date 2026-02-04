@@ -106,6 +106,11 @@ class CloudStorageApi {
   async getEmbedUrl(service: CloudStorageService): Promise<{ embedUrl: string; service: string }> {
     return this.request(`/cloud/${service}/embed`);
   }
+
+  // GET /api/files/cloud/dropbox/app-key - For Dropbox Chooser (popup, not iframe)
+  async getDropboxAppKey(): Promise<{ appKey: string }> {
+    return this.request('/cloud/dropbox/app-key');
+  }
 }
 
 export const cloudStorageApi = new CloudStorageApi();

@@ -112,19 +112,50 @@ class CdonProductsModel {
       const userId = req.session?.user?.id || req.session?.user?.uuid;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
+      if (!CdonProductsModel._errorLogCols) {
+        const cols = await db.query(
+          `
+          SELECT column_name
+          FROM information_schema.columns
+          WHERE table_name = $1
+          `,
+          [CdonProductsModel.ERROR_LOG_TABLE],
+        );
+        CdonProductsModel._errorLogCols = new Set(cols.map((r) => String(r.column_name)));
+      }
+
+      const cols = CdonProductsModel._errorLogCols;
+      const insertCols = ['user_id', 'channel'];
+      const values = [userId, String(channel)];
+
+      if (cols.has('product_id')) {
+        insertCols.push('product_id');
+        values.push(productId != null ? String(productId) : null);
+      }
+      if (cols.has('payload')) {
+        insertCols.push('payload');
+        values.push(payload ? JSON.stringify(payload) : null);
+      }
+      if (cols.has('response')) {
+        insertCols.push('response');
+        values.push(response ? JSON.stringify(response) : null);
+      }
+      if (cols.has('error_message')) {
+        insertCols.push('error_message');
+        values.push(message || null);
+      }
+
+      const placeholders = insertCols.map((_, i) => `$${i + 1}`);
+      if (cols.has('created_at')) {
+        insertCols.push('created_at');
+        placeholders.push('CURRENT_TIMESTAMP');
+      }
+
       const sql = `
-        INSERT INTO ${CdonProductsModel.ERROR_LOG_TABLE}
-          (user_id, channel, product_id, payload, response, error_message, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+        INSERT INTO ${CdonProductsModel.ERROR_LOG_TABLE} (${insertCols.join(', ')})
+        VALUES (${placeholders.join(', ')})
       `;
-      await db.query(sql, [
-        userId,
-        String(channel),
-        productId != null ? String(productId) : null,
-        payload ? JSON.stringify(payload) : null,
-        response ? JSON.stringify(response) : null,
-        message || null,
-      ]);
+      await db.query(sql, values);
     } catch (e) {
       // Don't break primary flow
       Logger.warn('Failed to log channel error (CDON)', e);

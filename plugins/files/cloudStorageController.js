@@ -12,7 +12,7 @@ class CloudStorageController {
   // Checks user-specific credentials first, then falls back to env vars
   async getOAuthConfig(req, service) {
     const baseUrl = process.env.APP_URL || 'http://localhost:3000';
-    
+
     // Try to get user-specific credentials from database
     let userClientId = null;
     let userClientSecret = null;
@@ -41,7 +41,7 @@ class CloudStorageController {
         redirectUri: `${baseUrl}/api/files/cloud/dropbox/auth/callback`,
         authUrl: 'https://www.dropbox.com/oauth2/authorize',
         tokenUrl: 'https://api.dropbox.com/oauth2/token',
-        scope: 'files.content.read files.content.write',
+        scope: 'files.content.read files.content.write sharing.read sharing.write',
       },
       googledrive: {
         clientId: userClientId || process.env.GOOGLEDRIVE_CLIENT_ID || '',
@@ -114,7 +114,7 @@ class CloudStorageController {
 
       const config = await this.getOAuthConfig(req, service);
       if (!config || !config.clientId) {
-        return res.status(500).json({ 
+        return res.status(500).json({
           error: 'OAuth not configured for this service. Please configure OAuth credentials in settings or contact your administrator.',
           code: 'OAUTH_NOT_CONFIGURED'
         });
@@ -323,6 +323,201 @@ class CloudStorageController {
     } catch (error) {
       Logger.error('Get embed URL error', error, { userId: Context.getUserId(req) });
       res.status(500).json({ error: 'Failed to get embed URL' });
+    }
+  }
+
+  /**
+   * Return Dropbox app key (client ID) for the Chooser component.
+   */
+  async getDropboxAppKey(req, res) {
+    try {
+      const config = await this.getOAuthConfig(req, 'dropbox');
+      const appKey = config?.clientId || '';
+      res.json({ appKey });
+    } catch (error) {
+      Logger.error('Get Dropbox app key error', error, { userId: Context.getUserId(req) });
+      res.status(500).json({ appKey: '' });
+    }
+  }
+
+  /**
+   * Serve HTML page that uses Dropbox Embedder (not plain iframe to dropbox.com).
+   * Embedder creates an allowed embed; page is loaded in iframe from APP_URL so session works.
+   */
+  async getDropboxEmbedPage(req, res) {
+    try {
+      const settings = await this.model.getSettings(req, 'dropbox');
+      if (!settings?.connected || !settings?.accessToken) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(401).send(
+          '<!DOCTYPE html><html><body><p>Dropbox not connected. Connect in Settings first.</p></body></html>'
+        );
+      }
+      const config = await this.getOAuthConfig(req, 'dropbox');
+      const appKey = config?.clientId || '';
+
+      // Create /Homebase folder if it doesn't exist
+      const folderPath = '/Homebase';
+      try {
+        await fetch('https://api.dropboxapi.com/2/files/create_folder_v2', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${settings.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ path: folderPath }),
+        });
+        // Folder created or already exists (error ignored)
+      } catch (err) {
+        // Folder might already exist, continue
+      }
+
+      let sharedLink = '';
+      try {
+        const listRes = await fetch('https://api.dropboxapi.com/2/sharing/list_shared_links', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${settings.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ path: folderPath, direct_only: true }),
+        });
+        const listData = await listRes.json();
+        if (listData.links?.length > 0 && listData.links[0].url) {
+          sharedLink = listData.links[0].url;
+        }
+      } catch (err) {
+        Logger.warn('Dropbox list_shared_links failed', err);
+      }
+
+      if (!sharedLink) {
+        try {
+          const createRes = await fetch('https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${settings.accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ path: folderPath, settings: {} }),
+          });
+
+          if (!createRes.ok) {
+            const errText = await createRes.text();
+            throw new Error(`Dropbox API returned ${createRes.status}: ${errText}`);
+          }
+
+          const createData = await createRes.json();
+          if (createData.url) sharedLink = createData.url;
+        } catch (err) {
+          Logger.warn('Dropbox create_shared_link failed', err);
+          if (err instanceof Error) {
+            console.error('Dropbox create error details:', err.message);
+          }
+        }
+      }
+
+      const linkEsc = sharedLink.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const appKeyEsc = (appKey || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dropbox</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; }
+    #dropbox-embed { width: 100%; min-height: 70vh; }
+    .no-link { padding: 1rem; color: #666; }
+  </style>
+</head>
+<body>
+  <div id="dropbox-embed"></div>
+  <script>
+    (function() {
+      var link = "${linkEsc}";
+      var appKey = "${appKeyEsc}";
+      if (!link) {
+        document.getElementById('dropbox-embed').innerHTML = '<p class="no-link">No shared link. In Dropbox, right‑click a folder → Share → Create link, then reload.</p>';
+        return;
+      }
+      var s = document.createElement('script');
+      s.src = 'https://www.dropbox.com/static/api/2/dropins.js';
+      s.id = 'dropboxjs';
+      s.setAttribute('data-app-key', appKey);
+      s.onload = function() {
+        if (typeof Dropbox !== 'undefined' && Dropbox.embed) {
+          Dropbox.embed({
+            link: link,
+            folder: { view: "list", headerSize: "normal" }
+          }, document.getElementById('dropbox-embed'));
+        }
+      };
+      document.head.appendChild(s);
+    })();
+  </script>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (error) {
+      Logger.error('Dropbox embed page error', error, { userId: Context.getUserId(req) });
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.status(500).send(
+        '<!DOCTYPE html><html><body><p>Failed to load Dropbox. Try again later.</p></body></html>'
+      );
+    }
+  }
+
+  /**
+   * List files from Dropbox /Homebase folder
+   */
+  async listDropboxFiles(req, res) {
+    try {
+      const settings = await this.model.getSettings(req, 'dropbox');
+      if (!settings?.connected || !settings?.accessToken) {
+        return res.status(401).json({ error: 'Dropbox not connected' });
+      }
+
+      const folderPath = '';
+
+      // List files in root folder
+      const listRes = await fetch('https://api.dropboxapi.com/2/files/list_folder', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${settings.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          path: folderPath,
+          limit: 100,
+        }),
+      });
+
+      if (!listRes.ok) {
+        const errText = await listRes.text();
+        Logger.error('Dropbox list_folder failed', new Error(errText), { userId: Context.getUserId(req) });
+        return res.status(listRes.status).json({ error: 'Failed to list Dropbox files' });
+      }
+
+      const listData = await listRes.json();
+
+      // Transform to simpler format
+      const files = (listData.entries || []).map(entry => ({
+        id: entry.id,
+        name: entry.name,
+        path: entry.path_display,
+        type: entry['.tag'], // file or folder
+        size: entry.size || 0,
+        modified: entry.client_modified || entry.server_modified,
+        isFolder: entry['.tag'] === 'folder',
+      }));
+
+      res.json({ files, hasMore: listData.has_more || false });
+    } catch (error) {
+      Logger.error('List Dropbox files error', error, { userId: Context.getUserId(req) });
+      res.status(500).json({ error: 'Failed to list Dropbox files' });
     }
   }
 }

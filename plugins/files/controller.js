@@ -240,16 +240,20 @@ class FilesController {
       if (!fs.existsSync(abs)) return res.status(404).json({ error: 'File not found' });
 
       // Look up DB record to suggest original name for download
-      let suggested = null;
+      let item = null;
       try {
-        const item = await this.model.getByStoredFilename(req, filename);
-        if (item?.name) suggested = item.name;
+        item = await this.model.getByStoredFilename(req, filename);
       } catch (e) {
-        // Soft error – continue without suggested name
+        // Soft error – continue without metadata
       }
 
-      if (suggested) {
-        return res.download(abs, suggested);
+      if (req.query.download === '1' && item?.name) {
+        return res.download(abs, item.name);
+      }
+
+      // Serve inline for previews/viewing
+      if (item?.mimeType) {
+        res.setHeader('Content-Type', item.mimeType);
       }
       return res.sendFile(abs);
     } catch (error) {

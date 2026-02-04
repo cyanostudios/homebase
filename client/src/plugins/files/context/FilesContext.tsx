@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useApp } from '@/core/api/AppContext';
 import { filesApi, type FilesApi } from '../api/filesApi';
+import { cloudStorageApi, type CloudStorageSettings, type CloudStorageService } from '../api/cloudStorageApi';
 import type { ValidationError, FileItem } from '../types/files';
 
 interface FilesContextType {
@@ -10,6 +11,7 @@ interface FilesContextType {
   panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
   files: FileItem[];
+  refetchFiles: () => Promise<void>;
 
   openFilesPanel: (item: FileItem | null) => void;
   openFilePanel: (item: FileItem | null) => void; // Alias for App.tsx primaryAction
@@ -61,8 +63,12 @@ export function FilesProvider({
   });
 
   useEffect(() => {
-    if (isAuthenticated) void loadItems();
-    else setFiles([]);
+    if (isAuthenticated) {
+      void loadItems();
+      void loadCloudStorageSettings();
+    } else {
+      setFiles([]);
+    }
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -368,12 +374,17 @@ export function FilesProvider({
     return `Are you sure you want to delete "${name}"? This will also remove the physical file.`;
   };
 
+  const refetchFiles = async () => {
+    await loadItems();
+  };
+
   const value: FilesContextType = {
     isFilesPanelOpen,
     currentFile,
     panelMode,
     validationErrors,
     files,
+    refetchFiles,
     cloudStorageSettings,
     loadCloudStorageSettings,
     connectCloudStorage,

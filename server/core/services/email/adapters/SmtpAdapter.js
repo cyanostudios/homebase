@@ -15,14 +15,14 @@ class SmtpAdapter {
       auth:
         smtp.auth?.user && smtp.auth?.pass
           ? {
-              user: smtp.auth.user,
-              pass: smtp.auth.pass,
-            }
+            user: smtp.auth.user,
+            pass: smtp.auth.pass,
+          }
           : process.env.SMTP_USER && process.env.SMTP_PASS
             ? {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
-              }
+              user: process.env.SMTP_USER,
+              pass: process.env.SMTP_PASS,
+            }
             : undefined,
     });
   }
@@ -32,6 +32,7 @@ class SmtpAdapter {
     const mailOptions = {
       from: options.from || this.from,
       to: to.join(', '),
+      bcc: options.bcc ? (Array.isArray(options.bcc) ? options.bcc.join(', ') : options.bcc) : undefined,
       subject: options.subject,
       html: options.html,
       text: options.text,

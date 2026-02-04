@@ -41,14 +41,18 @@ async function getEmailServiceForUser(req) {
 /**
  * Send email using the current user's saved mail settings (Resend or SMTP).
  * @param {object} req - Express request
- * @param {object} payload - { to, subject, html?, text?, attachments? }
+ * @param {object} payload - { to, bcc, subject, html?, text?, attachments? }
  * @param {object} logOpts - { pluginSource?, referenceId? } for mail_log
  */
 async function sendWithUserSettings(req, payload, logOpts = {}) {
-  const recipients = Array.isArray(payload.to) ? payload.to : [payload.to];
-  const normalizedRecipients = recipients.map((r) => String(r).trim()).filter(Boolean);
-  if (normalizedRecipients.length === 0) {
-    throw new Error('At least one valid recipient is required');
+  const toRecipients = Array.isArray(payload.to) ? payload.to : (payload.to ? [payload.to] : []);
+  const bccRecipients = Array.isArray(payload.bcc) ? payload.bcc : (payload.bcc ? [payload.bcc] : []);
+
+  const normalizedTo = toRecipients.map((r) => String(r).trim()).filter(Boolean);
+  const normalizedBcc = bccRecipients.map((r) => String(r).trim()).filter(Boolean);
+
+  if (normalizedTo.length === 0 && normalizedBcc.length === 0) {
+    throw new Error('At least one valid recipient (to or bcc) is required');
   }
 
   const attachmentBuffers = (payload.attachments || []).map((a) => ({
@@ -57,8 +61,18 @@ async function sendWithUserSettings(req, payload, logOpts = {}) {
   }));
 
   const emailService = await getEmailServiceForUser(req);
+
+  // If we only have BCC, default 'to' to the sender's address to satisfy API requirements
+  let finalTo = normalizedTo;
+  if (finalTo.length === 0 && normalizedBcc.length > 0) {
+    const userSettings = await model.getSettings(req);
+    const sender = userSettings?.fromAddress || userSettings?.resendFromAddress || 'noreply@homebase.se';
+    finalTo = [sender];
+  }
+
   await emailService.send({
-    to: normalizedRecipients,
+    to: finalTo,
+    bcc: normalizedBcc.length > 0 ? normalizedBcc : undefined,
     subject: String(payload.subject || '').trim(),
     html: payload.html ? String(payload.html) : undefined,
     text: payload.text ? String(payload.text) : undefined,
@@ -66,7 +80,8 @@ async function sendWithUserSettings(req, payload, logOpts = {}) {
   });
 
   const logEntry = await model.logSent(req, {
-    to: normalizedRecipients,
+    to: normalizedTo,
+    bcc: normalizedBcc,
     subject: String(payload.subject || '').trim(),
     pluginSource: logOpts.pluginSource || null,
     referenceId: logOpts.referenceId || null,

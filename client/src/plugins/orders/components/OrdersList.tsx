@@ -117,7 +117,7 @@ export const OrdersList: React.FC = () => {
           else if (country.includes('finland') || country === 'fi') market = 'FI';
         }
       }
-      
+
       // Fallback to currency-based detection
       if (!market) {
         if (currency === 'SEK') market = 'SE';
@@ -156,7 +156,7 @@ export const OrdersList: React.FC = () => {
       if (wooInstances.length > 0 && raw) {
         // Try to get store URL from raw data (saved when order was imported)
         const orderStoreUrl = raw?._homebase_store_url || raw?.store_url || raw?.storeUrl;
-        
+
         if (orderStoreUrl) {
           // Normalize URLs for comparison (remove trailing slashes, http/https, www)
           const normalizeUrl = (url: string) => {
@@ -167,9 +167,9 @@ export const OrdersList: React.FC = () => {
               return url.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
             }
           };
-          
+
           const normalizedOrderUrl = normalizeUrl(orderStoreUrl);
-          
+
           // Find matching instance by store URL
           const matchingInstance = wooInstances.find((inst) => {
             const instStoreUrl = inst.credentials?.storeUrl || inst.credentials?.store_url;
@@ -177,23 +177,23 @@ export const OrdersList: React.FC = () => {
             const normalizedInstUrl = normalizeUrl(instStoreUrl);
             return normalizedInstUrl === normalizedOrderUrl;
           });
-          
+
           if (matchingInstance?.label) {
             return matchingInstance.label;
           }
         }
-        
+
         // Fallback: If there's only one instance, use its label
         if (wooInstances.length === 1 && wooInstances[0]?.label) {
           return wooInstances[0].label;
         }
-        
+
         // Fallback: Try to find default instance
         const defaultInstance = wooInstances.find((inst) => inst.instanceKey === 'default');
         if (defaultInstance?.label) {
           return defaultInstance.label;
         }
-        
+
         // Fallback: Use first instance with a label
         const instanceWithLabel = wooInstances.find((inst) => inst.label);
         if (instanceWithLabel?.label) {
@@ -256,7 +256,7 @@ export const OrdersList: React.FC = () => {
     const channels = [
       { key: 'woocommerce' as const, pull: () => woocommerceApi.pullOrders({ perPage: 20 }) },
       { key: 'cdon' as const, pull: () => cdonApi.pullOrders({ daysBack: 30 }) },
-      { key: 'fyndiq' as const, pull: () => fyndiqApi.pullOrders({ perPage: 20, status: 'pending' }) },
+      { key: 'fyndiq' as const, pull: () => fyndiqApi.pullOrders({ perPage: 30 }) },
     ];
 
     const settled = await Promise.allSettled(channels.map((c) => c.pull()));
@@ -434,7 +434,6 @@ export const OrdersList: React.FC = () => {
         >
           <option value="">All statuses</option>
           <option value="processing">Processing</option>
-          <option value="shipped">Delivered</option>
           <option value="delivered">Delivered</option>
           <option value="cancelled">Cancelled</option>
         </NativeSelect>
@@ -461,7 +460,6 @@ export const OrdersList: React.FC = () => {
                   onChange={(e) => setBatchStatus(e.target.value as OrderStatus)}
                 >
                   <option value="processing">Processing</option>
-                  <option value="shipped">Delivered</option>
                   <option value="delivered">Delivered</option>
                   <option value="cancelled">Cancelled</option>
                 </NativeSelect>
@@ -556,15 +554,14 @@ export const OrdersList: React.FC = () => {
                           void toggleExpand(o);
                         }
                       }}
-                      className={`cursor-pointer ${
-                        isExpanded ? 'bg-muted/50' : isSelected ? 'bg-muted/30' : ''
-                      }`}
+                      className={`cursor-pointer ${isExpanded ? 'bg-muted/50' : isSelected ? 'bg-muted/30' : ''
+                        }`}
                     >
                       <TableCell onClick={(e) => handleToggleSelect(id, e)}>
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => {}}
+                          onChange={() => { }}
                           onClick={(e) => e.stopPropagation()}
                           className="rounded border-input"
                         />

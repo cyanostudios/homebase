@@ -182,7 +182,7 @@ class InspectionController {
       const logEntry = await sendWithUserSettings(
         req,
         {
-          to: emailList,
+          bcc: emailList,
           subject: `Besiktning: ${project.name}`,
           html: bodyText.replace(/\n/g, '<br>'),
           text: bodyText,

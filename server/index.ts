@@ -46,8 +46,10 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", 'data:', 'https:'],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://*.dropbox.com", "https://*.dropboxstatic.com"],
+        imgSrc: ["'self'", 'data:', 'https:', "https://*.dropbox.com", "https://*.dropboxusercontent.com"],
+        frameSrc: ["'self'", "https://*.dropbox.com", "https://*.dropboxusercontent.com"],
+        connectSrc: ["'self'", "https://*.dropboxapi.com", "https://*.dropbox.com"],
       },
     },
   }),

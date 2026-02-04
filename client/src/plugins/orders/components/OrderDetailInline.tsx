@@ -30,7 +30,7 @@ function customerLines(c: Record<string, unknown> | null | undefined): string[] 
 function formatAddress(addr: any): string[] {
   if (!addr || typeof addr !== 'object') return [];
   const parts: string[] = [];
-  
+
   // Fyndiq format: full_name, street_address, postal_code, city, country
   if (addr.full_name || addr.fullName) {
     parts.push(addr.full_name || addr.fullName);
@@ -40,7 +40,7 @@ function formatAddress(addr: any): string[] {
     if (name) parts.push(name);
     if (addr.company) parts.push(addr.company);
   }
-  
+
   // Street address (Fyndiq) or address_1/address_2 (WooCommerce)
   if (addr.street_address || addr.streetAddress) {
     parts.push(addr.street_address || addr.streetAddress);
@@ -48,17 +48,17 @@ function formatAddress(addr: any): string[] {
     if (addr.address_1) parts.push(addr.address_1);
     if (addr.address_2) parts.push(addr.address_2);
   }
-  
+
   const cityState = [addr.city, addr.state].filter(Boolean).join(', ').trim();
   const postal = addr.postcode || addr.postal_code || addr.postalCode;
   const location = [postal, cityState].filter(Boolean).join(' ').trim();
   if (location) parts.push(location);
   if (addr.country) parts.push(addr.country);
-  
+
   return parts;
 }
 
-const STATUS_OPTIONS: OrderStatus[] = ['processing', 'shipped', 'delivered', 'cancelled'];
+const STATUS_OPTIONS: OrderStatus[] = ['processing', 'delivered', 'cancelled'];
 
 export interface OrderDetailInlineProps {
   order: OrderDetails;
@@ -207,7 +207,7 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
                 </div>
               </div>
             )}
-            
+
             {/* Billing Address */}
             {(order.billingAddress || (order.customer as any)?.billingAddress) && (
               <div>
@@ -219,7 +219,7 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
                 </div>
               </div>
             )}
-            
+
             {/* Customer Contact Info */}
             <div>
               <div className="text-xs font-medium text-gray-600 mb-1">Contact</div>

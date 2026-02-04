@@ -10,7 +10,6 @@ interface OrdersFormProps {
 
 const STATUSES: Array<{ value: OrderStatus; label: string }> = [
   { value: 'processing', label: 'Processing' },
-  { value: 'shipped', label: 'Delivered' },
   { value: 'delivered', label: 'Delivered' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
@@ -94,9 +93,8 @@ export const OrdersForm: React.FC<OrdersFormProps> = ({ onSave, onCancel }) => {
           <select
             value={formData.status}
             onChange={(e) => setFormData((p) => ({ ...p, status: e.target.value as OrderStatus }))}
-            className={`w-full px-3 py-2 border rounded-md ${
-              getFieldError('status') ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full px-3 py-2 border rounded-md ${getFieldError('status') ? 'border-red-500' : 'border-gray-300'
+              }`}
             disabled={isSaving}
           >
             {STATUSES.map((s) => (
@@ -116,9 +114,8 @@ export const OrdersForm: React.FC<OrdersFormProps> = ({ onSave, onCancel }) => {
             <input
               value={formData.carrier}
               onChange={(e) => setFormData((p) => ({ ...p, carrier: e.target.value }))}
-              className={`w-full px-3 py-2 border rounded-md ${
-                getFieldError('carrier') ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`w-full px-3 py-2 border rounded-md ${getFieldError('carrier') ? 'border-red-500' : 'border-gray-300'
+                }`}
               disabled={isSaving}
             />
             {getFieldError('carrier') ? (
@@ -131,9 +128,8 @@ export const OrdersForm: React.FC<OrdersFormProps> = ({ onSave, onCancel }) => {
             <input
               value={formData.trackingNumber}
               onChange={(e) => setFormData((p) => ({ ...p, trackingNumber: e.target.value }))}
-              className={`w-full px-3 py-2 border rounded-md ${
-                getFieldError('trackingNumber') ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`w-full px-3 py-2 border rounded-md ${getFieldError('trackingNumber') ? 'border-red-500' : 'border-gray-300'
+                }`}
               disabled={isSaving}
             />
             {getFieldError('trackingNumber') ? (

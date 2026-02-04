@@ -27,6 +27,7 @@ class ResendAdapter {
     const { error } = await this.resend.emails.send({
       from: options.from || this.from,
       to,
+      bcc: options.bcc,
       subject: options.subject,
       html: options.html,
       text: options.text,
