@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText, Grid3x3, List, Settings } from 'lucide-react';
+import { ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText, Grid3x3, List, Settings, Upload } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Card } from '@/components/ui/card';
@@ -17,12 +17,21 @@ import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { ImportWizard } from '@/core/ui/ImportWizard';
+import { ImportSchema } from '@/core/utils/importUtils';
 
 import { useNotes } from '../hooks/useNotes';
 
 type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
+
+const NOTE_IMPORT_SCHEMA: ImportSchema = {
+  fields: [
+    { key: 'title', label: 'Title', required: true },
+    { key: 'content', label: 'Content', required: true },
+  ],
+};
 
 export const NoteList: React.FC = () => {
   const {
@@ -37,7 +46,9 @@ export const NoteList: React.FC = () => {
     clearNoteSelection,
     selectedCount,
     isSelected,
+    importNotes,
   } = useNotes();
+  const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
   const { attemptNavigation } = useGlobalNavigationGuard();
   const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
@@ -276,6 +287,13 @@ export const NoteList: React.FC = () => {
               <Settings className="w-4 h-4" />
             </button>
             <button
+              onClick={() => setIsImportWizardOpen(true)}
+              className="px-3 py-2 rounded-md border text-sm bg-white text-gray-700 border-gray-300 hover:bg-gray-50 mr-2"
+              title="Import Notes"
+            >
+              <Upload className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => setViewMode('grid')}
               className={`px-3 py-2 rounded-md border text-sm ${viewMode === 'grid'
                 ? 'bg-blue-600 text-white border-blue-600'
@@ -380,18 +398,21 @@ export const NoteList: React.FC = () => {
                     {truncateContent(note.content, 150)}
                   </p>
                   <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                       <div className="flex items-center gap-1">
                         {note.mentions && note.mentions.length > 0 ? (
-                          <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                          <span className="font-medium text-blue-600 dark:text-blue-400">
                             @{note.mentions[0].contactName}
                             {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
                           </span>
                         ) : (
-                          <span className="italic">No mentions</span>
+                          <span>No mentions</span>
                         )}
                       </div>
-                      <span>{new Date(note.updatedAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
+                      <div>Updated: {new Date(note.updatedAt).toLocaleDateString()}</div>
+                      <div>Created: {new Date(note.createdAt).toLocaleDateString()}</div>
                     </div>
                   </div>
                 </Card>
@@ -465,7 +486,7 @@ export const NoteList: React.FC = () => {
                     <input
                       ref={headerCheckboxRef}
                       type="checkbox"
-                      className="h-4 w-4"
+                      className="h-4 w-4 cursor-pointer"
                       aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
                       checked={allVisibleSelected}
                       onChange={onToggleAllVisible}
@@ -537,7 +558,7 @@ export const NoteList: React.FC = () => {
                       <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          className="h-4 w-4"
+                          className="h-4 w-4 cursor-pointer"
                           checked={noteIsSelected}
                           onChange={() => toggleNoteSelected(note.id)}
                           aria-label={noteIsSelected ? 'Unselect note' : 'Select note'}
@@ -595,6 +616,14 @@ export const NoteList: React.FC = () => {
         itemCount={selectedCount}
         itemLabel="notes"
         isLoading={deleting}
+      />
+
+      <ImportWizard
+        isOpen={isImportWizardOpen}
+        onClose={() => setIsImportWizardOpen(false)}
+        onImport={importNotes}
+        schema={NOTE_IMPORT_SCHEMA}
+        title="Import Notes"
       />
     </div>
   );

@@ -10,6 +10,7 @@
 import { Home, Settings } from 'lucide-react';
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 
+import { ActionProvider } from '@/core/api/ActionContext';
 import { AppProvider, useApp } from '@/core/api/AppContext';
 import { createPanelHandlers } from '@/core/handlers/panelHandlers';
 import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
@@ -441,11 +442,13 @@ function App() {
 
   return (
     <AppProvider>
-      <GlobalNavigationGuardProvider>
-        <PluginProviders>
-          <AppContent />
-        </PluginProviders>
-      </GlobalNavigationGuardProvider>
+      <ActionProvider>
+        <GlobalNavigationGuardProvider>
+          <PluginProviders>
+            <AppContent />
+          </PluginProviders>
+        </GlobalNavigationGuardProvider>
+      </ActionProvider>
     </AppProvider>
   );
 }

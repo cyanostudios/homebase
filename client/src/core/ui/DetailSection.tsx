@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Heading } from './Typography';
 
 interface DetailSectionProps {
-  title: string;
+  title: string | React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }

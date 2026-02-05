@@ -1,4 +1,3 @@
-import DOMPurify from 'dompurify';
 import React, { useState, useEffect } from 'react';
 
 import { estimateShareApi } from '../api/estimatesApi';
@@ -122,46 +121,14 @@ export function PublicEstimateView({ token }: PublicEstimateViewProps) {
   // Generera HTML via webTemplate
   const webHTML = generateWebHTML(templateInput);
 
-  // Sanitize HTML to prevent XSS attacks
-  const sanitizedHTML = DOMPurify.sanitize(webHTML, {
-    ALLOWED_TAGS: [
-      'div',
-      'p',
-      'span',
-      'h1',
-      'h2',
-      'h3',
-      'h4',
-      'h5',
-      'h6',
-      'ul',
-      'ol',
-      'li',
-      'strong',
-      'em',
-      'br',
-      'hr',
-      'table',
-      'thead',
-      'tbody',
-      'tfoot',
-      'tr',
-      'th',
-      'td',
-      'a',
-      'img',
-      'b',
-      'i',
-      'u',
-      'small',
-      'sup',
-      'sub',
-    ],
-    ALLOWED_ATTR: ['class', 'style', 'href', 'src', 'alt', 'title', 'colspan', 'rowspan'],
-    ALLOW_DATA_ATTR: false,
-  });
-
   return (
-    <div dangerouslySetInnerHTML={{ __html: sanitizedHTML }} className="web-template-container" />
+    <div className="fixed inset-0 bg-white">
+      <iframe
+        srcDoc={webHTML}
+        className="w-full h-full border-none"
+        title={`Estimate ${estimate.estimateNumber}`}
+        sandbox="allow-scripts allow-same-origin"
+      />
+    </div>
   );
 }

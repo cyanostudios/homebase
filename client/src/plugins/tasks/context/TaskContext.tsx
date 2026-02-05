@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 
 import { Badge } from '@/components/ui/badge';
+import { useActionRegistry } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
@@ -56,7 +57,9 @@ interface TaskProviderProps {
 }
 
 export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: TaskProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction, contacts } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, contacts, refreshData } =
+    useApp();
+  const { registerAction } = useActionRegistry();
 
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
@@ -114,7 +117,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     };
   }, []);
 
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     try {
       const tasksData = await tasksApi.getTasks();
       const transformedTasks = tasksData.map((task: any) => ({
@@ -130,9 +133,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       const errorMessage = error?.message || error?.error || 'Failed to load tasks';
       setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
-  };
+  }, []);
 
-  const validateTask = (taskData: any): ValidationError[] => {
+  const validateTask = useCallback((taskData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
 
     if (!taskData.title?.trim()) {
@@ -170,133 +173,179 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
 
     return errors;
-  };
+  }, []);
 
-  const openTaskPanel = (task: Task | null) => {
-    setCurrentTask(task);
-    setPanelMode(task ? 'edit' : 'create');
-    setIsTaskPanelOpen(true);
+  const openTaskPanel = useCallback(
+    (task: Task | null) => {
+      setCurrentTask(task);
+      setPanelMode(task ? 'edit' : 'create');
+      setIsTaskPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
+
+  const openTaskForEdit = useCallback(
+    (task: Task) => {
+      setCurrentTask(task);
+      setPanelMode('edit');
+      setIsTaskPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
+
+  const openTaskForView = useCallback(
+    (task: Task) => {
+      setCurrentTask(task);
+      setPanelMode('view');
+      setIsTaskPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
+
+  const clearValidationErrors = useCallback(() => {
     setValidationErrors([]);
-    onCloseOtherPanels();
-  };
+  }, []);
 
-  const openTaskForEdit = (task: Task) => {
-    setCurrentTask(task);
-    setPanelMode('edit');
-    setIsTaskPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  };
+  const saveTask = useCallback(
+    async (taskData: any, taskId?: string): Promise<boolean> => {
+      console.log('TaskContext saveTask called with:', taskData, 'taskId:', taskId);
 
-  const openTaskForView = (task: Task) => {
-    setCurrentTask(task);
-    setPanelMode('view');
-    setIsTaskPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  };
+      const errors = validateTask(taskData);
+      console.log('Validation errors:', errors);
+      setValidationErrors(errors);
 
-  const clearValidationErrors = () => {
-    setValidationErrors([]);
-  };
+      const blockingErrors = errors.filter((error) => !error.message.includes('Warning'));
+      if (blockingErrors.length > 0) {
+        console.log('Validation failed:', blockingErrors);
+        return false;
+      }
 
-  const saveTask = async (taskData: any, taskId?: string): Promise<boolean> => {
-    console.log('TaskContext saveTask called with:', taskData, 'taskId:', taskId);
+      console.log('Validation passed, attempting to save...');
 
-    const errors = validateTask(taskData);
-    console.log('Validation errors:', errors);
-    setValidationErrors(errors);
+      try {
+        let savedTask: Task;
 
-    const blockingErrors = errors.filter((error) => !error.message.includes('Warning'));
-    if (blockingErrors.length > 0) {
-      console.log('Validation failed:', blockingErrors);
-      return false;
-    }
+        // Use provided taskId, or currentTask.id, or taskData.id
+        const idToUpdate = taskId || currentTask?.id || taskData.id;
 
-    console.log('Validation passed, attempting to save...');
-
-    try {
-      let savedTask: Task;
-
-      // Use provided taskId, or currentTask.id, or taskData.id
-      const idToUpdate = taskId || currentTask?.id || taskData.id;
-
-      if (idToUpdate) {
-        console.log('Updating existing task:', idToUpdate);
-        savedTask = await tasksApi.updateTask(idToUpdate, taskData);
-        setTasks((prev) =>
-          prev.map((task) =>
-            task.id === idToUpdate
-              ? {
+        if (idToUpdate) {
+          console.log('Updating existing task:', idToUpdate);
+          savedTask = await tasksApi.updateTask(idToUpdate, taskData);
+          setTasks((prev) =>
+            prev.map((task) =>
+              task.id === idToUpdate
+                ? {
                   ...savedTask,
                   createdAt: new Date(savedTask.createdAt),
                   updatedAt: new Date(savedTask.updatedAt),
                   dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
                 }
-              : task,
-          ),
-        );
-        // Only update currentTask if it matches the updated task
-        if (currentTask && currentTask.id === idToUpdate) {
-          setCurrentTask({
-            ...savedTask,
-            createdAt: new Date(savedTask.createdAt),
-            updatedAt: new Date(savedTask.updatedAt),
-            dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
+                : task,
+            ),
+          );
+          // Only update currentTask if it matches the updated task
+          if (currentTask && currentTask.id === idToUpdate) {
+            setCurrentTask({
+              ...savedTask,
+              createdAt: new Date(savedTask.createdAt),
+              updatedAt: new Date(savedTask.updatedAt),
+              dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
+            });
+          }
+          setPanelMode('view');
+          setValidationErrors([]);
+        } else {
+          console.log('Creating new task...');
+          savedTask = await tasksApi.createTask(taskData);
+          console.log('Task created successfully:', savedTask);
+          setTasks((prev) => [
+            ...prev,
+            {
+              ...savedTask,
+              createdAt: new Date(savedTask.createdAt),
+              updatedAt: new Date(savedTask.updatedAt),
+              dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
+            },
+          ]);
+          closeTaskPanel();
+        }
+
+        console.log('Task saved successfully');
+        return true;
+      } catch (error: any) {
+        console.error('API Error when saving task:', error);
+
+        // V2: Handle standardized error format from backend
+        const validationErrors: ValidationError[] = [];
+
+        // Check if backend returned validation errors in details array
+        if (error?.details && Array.isArray(error.details)) {
+          error.details.forEach((detail: any) => {
+            if (typeof detail === 'string') {
+              validationErrors.push({ field: 'general', message: detail });
+            } else if (detail?.field && detail?.message) {
+              validationErrors.push({ field: detail.field, message: detail.message });
+            } else if (detail?.msg) {
+              validationErrors.push({ field: detail.param || 'general', message: detail.msg });
+            }
           });
         }
-        setPanelMode('view');
-        setValidationErrors([]);
-      } else {
-        console.log('Creating new task...');
-        savedTask = await tasksApi.createTask(taskData);
-        console.log('Task created successfully:', savedTask);
-        setTasks((prev) => [
-          ...prev,
-          {
-            ...savedTask,
-            createdAt: new Date(savedTask.createdAt),
-            updatedAt: new Date(savedTask.updatedAt),
-            dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
-          },
-        ]);
-        closeTaskPanel();
+
+        // If no validation errors from backend, use error message
+        if (validationErrors.length === 0) {
+          const errorMessage =
+            error?.message || error?.error || 'Failed to save task. Please try again.';
+          validationErrors.push({ field: 'general', message: errorMessage });
+        }
+
+        setValidationErrors(validationErrors);
+        return false;
       }
+    }, [currentTask, closeTaskPanel, validateTask]);
 
-      console.log('Task saved successfully');
-      return true;
-    } catch (error: any) {
-      console.error('API Error when saving task:', error);
+  // Register cross-plugin actions - Moved here to avoid saveTask TDZ
+  useEffect(() => {
+    const unregister = registerAction('note', {
+      id: 'create-task-from-note',
+      label: 'To Task',
+      icon: CheckSquare,
+      variant: 'primary',
+      className: 'bg-green-600 hover:bg-green-700 text-white border-none',
+      onClick: async (note: any) => {
+        try {
+          const taskData = {
+            title: note.title || '',
+            content: note.content || '',
+            mentions: note.mentions || [],
+            status: 'not started',
+            priority: 'Medium',
+            dueDate: null,
+            assignedTo: null,
+            createdFromNote: note.id,
+          };
 
-      // V2: Handle standardized error format from backend
-      const validationErrors: ValidationError[] = [];
-
-      // Check if backend returned validation errors in details array
-      if (error?.details && Array.isArray(error.details)) {
-        error.details.forEach((detail: any) => {
-          if (typeof detail === 'string') {
-            validationErrors.push({ field: 'general', message: detail });
-          } else if (detail?.field && detail?.message) {
-            validationErrors.push({ field: detail.field, message: detail.message });
-          } else if (detail?.msg) {
-            validationErrors.push({ field: detail.param || 'general', message: detail.msg });
+          const success = await saveTask(taskData);
+          if (success) {
+            alert('Task created successfully!');
+            await refreshData();
           }
-        });
-      }
+        } catch (error) {
+          console.error('Failed to convert note to task:', error);
+          alert('Failed to convert note to task. Please try again.');
+        }
+      },
+    });
 
-      // If no validation errors from backend, use error message
-      if (validationErrors.length === 0) {
-        const errorMessage =
-          error?.message || error?.error || 'Failed to save task. Please try again.';
-        validationErrors.push({ field: 'general', message: errorMessage });
-      }
+    return unregister;
+  }, [registerAction, saveTask, refreshData]);
 
-      setValidationErrors(validationErrors);
-      return false;
-    }
-  };
-
-  const deleteTask = async (id: string) => {
+  const deleteTask = useCallback(async (id: string) => {
     console.log('Deleting task with id:', id);
     try {
       await tasksApi.deleteTask(id);
@@ -311,34 +360,37 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       const errorMessage = error?.message || error?.error || 'Failed to delete task';
       alert(errorMessage);
     }
-  };
+  }, []);
 
-  const deleteTasks = async (ids: string[]) => {
-    const uniqueIds = Array.from(new Set((ids || []).map(String).filter(Boolean)));
-    if (uniqueIds.length === 0) {
-      return;
-    }
-
-    try {
-      await bulkApi.bulkDelete('tasks', uniqueIds);
-
-      const idSet = new Set(uniqueIds);
-      setTasks((prev) => prev.filter((task) => !idSet.has(String(task.id))));
-
-      // If the currently open task was deleted, close the panel.
-      if (currentTask && idSet.has(String(currentTask.id))) {
-        closeTaskPanel();
+  const deleteTasks = useCallback(
+    async (ids: string[]) => {
+      const uniqueIds = Array.from(new Set((ids || []).map(String).filter(Boolean)));
+      if (uniqueIds.length === 0) {
+        return;
       }
 
-      clearTaskSelectionCore();
-    } catch (error: any) {
-      console.error('Failed to bulk delete tasks:', error);
-      const errorMessage = error?.message || error?.error || 'Failed to delete tasks';
-      alert(errorMessage);
-    }
-  };
+      try {
+        await bulkApi.bulkDelete('tasks', uniqueIds);
 
-  const duplicateTask = async (originalTask: Task) => {
+        const idSet = new Set(uniqueIds);
+        setTasks((prev) => prev.filter((task) => !idSet.has(String(task.id))));
+
+        // If the currently open task was deleted, close the panel.
+        if (currentTask && idSet.has(String(currentTask.id))) {
+          closeTaskPanel();
+        }
+
+        clearTaskSelectionCore();
+      } catch (error: any) {
+        console.error('Failed to bulk delete tasks:', error);
+        const errorMessage = error?.message || error?.error || 'Failed to delete tasks';
+        alert(errorMessage);
+      }
+    },
+    [currentTask, closeTaskPanel, clearTaskSelectionCore],
+  );
+
+  const duplicateTask = useCallback(async (originalTask: Task) => {
     try {
       const duplicateData = {
         title: `${originalTask.title} (Copy)`,
@@ -369,7 +421,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         error?.message || error?.error || 'Failed to duplicate task. Please try again.';
       alert(errorMessage);
     }
-  };
+  }, []);
 
   // NEW: Panel Title Functions (moved from PanelTitles.tsx)
   const getPanelTitle = (mode: string, item: Task | null, isMobileView: boolean) => {
@@ -432,11 +484,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         // Get assigned contact if exists
         const assignedContact = item.assignedTo
           ? contacts.find((c: any) => {
-              // Handle both string and number ID comparison
-              const contactId = String(c.id);
-              const assignedId = String(item.assignedTo);
-              return contactId === assignedId;
-            })
+            // Handle both string and number ID comparison
+            const contactId = String(c.id);
+            const assignedId = String(item.assignedTo);
+            return contactId === assignedId;
+          })
           : null;
 
         return (
@@ -526,3 +578,4 @@ export function useTaskContext() {
   }
   return context;
 }
+

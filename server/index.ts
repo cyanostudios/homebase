@@ -55,10 +55,16 @@ app.use(
 app.use(compression());
 app.use(
   cors({
-    origin: process.env.NODE_ENV === 'production' ? false : 'http://localhost:3001',
+    origin: process.env.NODE_ENV === 'production' ? false : (process.env.FRONTEND_URL || 'http://localhost:3001'),
     credentials: true,
   }),
 );
+
+const sessionSecret = process.env.SESSION_SECRET;
+if (process.env.NODE_ENV === 'production' && (!sessionSecret || sessionSecret === 'homebase-dev-secret-change-in-production')) {
+  console.error('❌ CRITICAL: SESSION_SECRET must be set to a strong random string in production!');
+  process.exit(1);
+}
 
 // Session
 app.use(
@@ -67,7 +73,7 @@ app.use(
       pool: pool,
       tableName: 'sessions',
     }),
-    secret: process.env.SESSION_SECRET || 'homebase-dev-secret-change-in-production',
+    secret: sessionSecret || 'homebase-dev-secret-change-in-production',
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -84,7 +90,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Tenant Pool Middleware
-app.use((req, res, next) => {
+app.use((req: any, res: any, next: any) => {
   if (req.session && req.session.tenantConnectionString) {
     const connectionPool = ServiceManager.get('connectionPool');
     req.tenantPool = connectionPool.getTenantPool(req.session.tenantConnectionString);
@@ -94,15 +100,15 @@ app.use((req, res, next) => {
 });
 
 // Auth middleware
-function requireAuth(req, res, next) {
+function requireAuth(req: any, res: any, next: any) {
   if (!req.session.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
   next();
 }
 
-function requirePlugin(pluginName) {
-  return async (req, res, next) => {
+function requirePlugin(pluginName: string) {
+  return async (req: any, res: any, next: any) => {
     if (!req.session || !req.session.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
@@ -139,7 +145,7 @@ setupCoreRoutes(app, { pool, authLimiter, requireAuth, pluginLoader });
 if (process.env.NODE_ENV === 'production') {
   const buildPath = path.join(__dirname, 'public');
   app.use(express.static(buildPath));
-  app.get('*', (req, res, next) => {
+  app.get('*', (req: any, res: any, next: any) => {
     if (req.path.startsWith('/api')) {
       return next();
     }
@@ -151,7 +157,7 @@ if (process.env.NODE_ENV === 'production') {
 pluginLoader.loadPlugins(app);
 
 // Plugin info endpoint
-app.get('/api/plugins', requireAuth, (req, res) => {
+app.get('/api/plugins', requireAuth, (req: any, res: any) => {
   const plugins = pluginLoader.getAllPlugins();
   res.json(plugins);
 });

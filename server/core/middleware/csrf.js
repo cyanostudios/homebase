@@ -13,9 +13,10 @@ try {
 }
 
 // CSRF protection for state-changing operations
-// TEMPORARILY DISABLED FOR DEBUGGING
 let csrfProtection;
-if (false && csrf) { // Disabled: change false to true to re-enable
+const enableCsrf = process.env.ENABLE_CSRF === 'true';
+
+if (enableCsrf && csrf) {
   csrfProtection = csrf({
     cookie: {
       httpOnly: true,
@@ -24,18 +25,21 @@ if (false && csrf) { // Disabled: change false to true to re-enable
     },
   });
 } else {
-  // CSRF protection disabled for debugging
+  // CSRF protection disabled
   csrfProtection = (req, res, next) => {
     // No-op middleware - CSRF protection disabled
     next();
   };
 }
 
-// CSRF token endpoint handler (must be before CSRF protection middleware)
-// TEMPORARILY DISABLED - Returns a dummy token
+// CSRF token endpoint handler
 function csrfTokenHandler(req, res, next) {
-  // CSRF protection disabled - return dummy token
-  res.json({ csrfToken: 'csrf-disabled' });
+  if (enableCsrf && req.csrfToken) {
+    res.json({ csrfToken: req.csrfToken() });
+  } else {
+    // CSRF protection disabled - return dummy token
+    res.json({ csrfToken: 'csrf-disabled' });
+  }
 }
 
 module.exports = {

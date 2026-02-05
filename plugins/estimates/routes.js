@@ -74,7 +74,7 @@ function createEstimateRoutes(controller, context) {
     '/shares',
     gate,
     /* csrfProtection, */ // Temporarily disabled
-    commonRules.id('estimateId'),
+    commonRules.requiredId('estimateId'),
     commonRules.date('validUntil'),
     validateRequest,
     (req, res) => controller.createShare(req, res),

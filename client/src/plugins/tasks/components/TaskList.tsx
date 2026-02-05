@@ -436,8 +436,8 @@ export const TaskList: React.FC = () => {
                 <Card
                   key={task.id}
                   className={`relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] ${taskIsSelected
-                      ? 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500'
-                      : 'hover:border-blue-300 hover:shadow-md'
+                    ? 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500'
+                    : 'hover:border-blue-300 hover:shadow-md'
                     }`}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -473,7 +473,7 @@ export const TaskList: React.FC = () => {
                     </Badge>
                   </div>
                   <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
-                    <div className="flex flex-col gap-1 text-xs">
+                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
                       {task.dueDate && (
                         <div className={formatDueDate(task.dueDate)?.className || ''}>
                           {formatDueDate(task.dueDate)?.text}
@@ -484,9 +484,7 @@ export const TaskList: React.FC = () => {
                           Assigned: {assignedContact.companyName}
                         </div>
                       )}
-                      <div className="text-muted-foreground">
-                        Updated {new Date(task.updatedAt).toLocaleDateString()}
-                      </div>
+                      <div>Updated {new Date(task.updatedAt).toLocaleDateString()}</div>
                     </div>
                   </div>
                 </Card>
@@ -573,7 +571,7 @@ export const TaskList: React.FC = () => {
                       type="checkbox"
                       checked={allVisibleSelected}
                       onChange={handleHeaderCheckboxChange}
-                      className="cursor-pointer"
+                      className="h-4 w-4 cursor-pointer"
                       aria-label={allVisibleSelected ? 'Deselect all tasks' : 'Select all tasks'}
                     />
                   </TableHead>
@@ -676,7 +674,7 @@ export const TaskList: React.FC = () => {
                           type="checkbox"
                           checked={taskIsSelected}
                           onChange={() => toggleTaskSelected(task.id)}
-                          className="cursor-pointer"
+                          className="h-4 w-4 cursor-pointer"
                           aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
                         />
                       </TableCell>

@@ -229,7 +229,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [contactsData, notesData, tasksData] = await Promise.all([
         api.getContacts(),
@@ -264,13 +264,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Failed to load data:', error);
     }
-  };
+  }, []);
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     if (isAuthenticated) {
       await loadData();
     }
-  };
+  }, [isAuthenticated, loadData]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {

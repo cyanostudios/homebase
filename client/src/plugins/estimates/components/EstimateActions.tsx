@@ -1,5 +1,7 @@
-import { Share, Copy, Check, Download, Copy as CopyIcon } from 'lucide-react';
+import { Share, Copy, Check, Download, Copy as CopyIcon, ExternalLink } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+
+import { ShareDialog } from './ShareDialog';
 
 import { Button } from '@/components/ui/button';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -20,6 +22,7 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
   const [existingShare, setExistingShare] = useState<EstimateShare | null>(null);
   const [copied, setCopied] = useState(false);
   const [showExpiredModal, setShowExpiredModal] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
 
   // PDF state
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
@@ -81,11 +84,7 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
       });
 
       setExistingShare(share);
-
-      const url = estimateShareApi.generateShareUrl(share.shareToken);
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 3000);
+      setShowShareDialog(true);
     } catch (error) {
       console.error('Failed to create share:', error);
       alert(error instanceof Error ? error.message : 'Failed to create share link');
@@ -136,17 +135,15 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
           Other Actions
         </div>
         <div className="flex flex-wrap gap-3">
-          {!existingShare && (
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={Share}
-              onClick={handleCreateShare}
-              disabled={isCreatingShare}
-            >
-              {isCreatingShare ? 'Creating Share...' : 'Share Estimate'}
-            </Button>
-          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={existingShare ? ExternalLink : Share}
+            onClick={existingShare ? () => setShowShareDialog(true) : handleCreateShare}
+            disabled={isCreatingShare}
+          >
+            {isCreatingShare ? 'Creating Share...' : existingShare ? 'Share Settings' : 'Share Estimate'}
+          </Button>
 
           <Button
             variant="secondary"
@@ -173,16 +170,14 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
       {/* Share URL Display */}
       {existingShare && (
         <div
-          className={`mt-4 p-4 rounded-lg border ${
-            isShareExpired
-              ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
-              : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
-          }`}
+          className={`mt-4 p-4 rounded-lg border ${isShareExpired
+            ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+            : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+            }`}
         >
           <div
-            className={`text-sm font-medium mb-2 ${
-              isShareExpired ? 'text-red-900 dark:text-red-400' : 'text-blue-900 dark:text-blue-400'
-            }`}
+            className={`text-sm font-medium mb-2 ${isShareExpired ? 'text-red-900 dark:text-red-400' : 'text-blue-900 dark:text-blue-400'
+              }`}
           >
             {isShareExpired ? 'Share Link Expired' : 'Active Share Link'}
           </div>
@@ -192,19 +187,25 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
               {shareUrl}
             </div>
             {!isShareExpired && (
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={copied ? Check : Copy}
-                onClick={handleCopyUrl}
-                className={
-                  copied
-                    ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300'
-                    : ''
-                }
-              >
-                {copied ? 'Copied!' : 'Copy'}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={copied ? Check : Copy}
+                  onClick={handleCopyUrl}
+                  className={copied ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' : ''}
+                >
+                  {copied ? 'Copied' : 'Copy'}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={ExternalLink}
+                  onClick={() => setShowShareDialog(true)}
+                >
+                  View Share
+                </Button>
+              </div>
             )}
           </div>
 
@@ -271,6 +272,13 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
           </div>
         </div>
       )}
+      {/* Share Dialog */}
+      <ShareDialog
+        isOpen={showShareDialog}
+        onClose={() => setShowShareDialog(false)}
+        shareUrl={shareUrl}
+        estimateNumber={formatDisplayNumber('estimates', estimate.estimateNumber)}
+      />
     </>
   );
 }

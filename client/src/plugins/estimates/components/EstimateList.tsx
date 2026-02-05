@@ -500,7 +500,7 @@ export function EstimateList() {
                       type="checkbox"
                       checked={allVisibleSelected}
                       onChange={handleHeaderCheckboxChange}
-                      className="cursor-pointer"
+                      className="h-4 w-4 cursor-pointer"
                       aria-label={
                         allVisibleSelected ? 'Deselect all estimates' : 'Select all estimates'
                       }
@@ -597,7 +597,7 @@ export function EstimateList() {
                           type="checkbox"
                           checked={estimateIsSelected}
                           onChange={() => toggleEstimateSelected(estimate.id)}
-                          className="cursor-pointer"
+                          className="h-4 w-4 cursor-pointer"
                           aria-label={estimateIsSelected ? 'Unselect estimate' : 'Select estimate'}
                         />
                       </TableCell>

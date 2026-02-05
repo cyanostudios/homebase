@@ -382,8 +382,7 @@ class EstimateModel {
   // Get status transition statistics
   async getStatusStats(req, startDate = null, endDate = null) {
     try {
-      const database = ServiceManager.get('database', req);
-      const context = this._getContext(req);
+      const db = Database.get(req);
 
       let dateFilter = '';
       let params = [];
@@ -393,7 +392,7 @@ class EstimateModel {
         params = [startDate, endDate];
       }
 
-      const result = await db.query(
+      const rows = await db.query(
         `
         SELECT 
           status,
@@ -411,7 +410,7 @@ class EstimateModel {
         params,
       );
 
-      return result.rows.map((row) => {
+      return rows.map((row) => {
         let acceptanceReasons = row.acceptance_reasons || [];
         if (typeof acceptanceReasons === 'string') {
           try {
@@ -447,8 +446,7 @@ class EstimateModel {
   // Get aggregated reason statistics
   async getReasonStats(req, status, startDate = null, endDate = null) {
     try {
-      const database = ServiceManager.get('database', req);
-      const context = this._getContext(req);
+      const db = Database.get(req);
 
       let dateFilter = '';
       let params = [status];
@@ -460,7 +458,7 @@ class EstimateModel {
 
       const reasonField = status === 'accepted' ? 'acceptance_reasons' : 'rejection_reasons';
 
-      const result = await db.query(
+      const rows = await db.query(
         `
         SELECT ${reasonField} as reasons
         FROM estimates 

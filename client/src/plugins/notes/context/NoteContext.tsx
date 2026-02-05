@@ -1,4 +1,4 @@
-import { StickyNote } from 'lucide-react';
+import { CheckSquare, Copy, Download, StickyNote } from 'lucide-react';
 import React, {
   createContext,
   useContext,
@@ -8,9 +8,12 @@ import React, {
   ReactNode,
 } from 'react';
 
+import { Button } from '@/components/ui/button';
+import { usePluginActions } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { cn } from '@/lib/utils';
 
 import { notesApi } from '../api/notesApi';
 import { Note, ValidationError } from '../types/notes';
@@ -43,6 +46,7 @@ interface NoteContextType {
   clearNoteSelection: () => void;
   selectedCount: number;
   isSelected: (id: string) => boolean;
+  importNotes: (data: any[]) => Promise<void>;
 
   // NEW: Panel Title Functions
   getPanelTitle: (mode: string, item: Note | null, isMobileView: boolean) => any;
@@ -59,7 +63,8 @@ interface NoteProviderProps {
 }
 
 export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: NoteProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData } = useApp();
+  const pluginActions = usePluginActions('note');
 
   // Panel states
   const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
@@ -123,7 +128,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     };
   }, []);
 
-  const loadNotes = async () => {
+  const loadNotes = useCallback(async () => {
     try {
       const notesData = await notesApi.getNotes();
 
@@ -140,9 +145,9 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       const errorMessage = error?.message || error?.error || 'Failed to load notes';
       setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
-  };
+  }, []);
 
-  const validateNote = (noteData: any): ValidationError[] => {
+  const validateNote = useCallback((noteData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
 
     if (!noteData.title?.trim()) {
@@ -160,149 +165,160 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
 
     return errors;
-  };
+  }, []);
 
-  const openNotePanel = (note: Note | null) => {
-    setCurrentNote(note);
-    setPanelMode(note ? 'edit' : 'create');
-    setIsNotePanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  };
+  const openNotePanel = useCallback(
+    (note: Note | null) => {
+      setCurrentNote(note);
+      setPanelMode(note ? 'edit' : 'create');
+      setIsNotePanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
-  const openNoteForEdit = (note: Note) => {
-    setCurrentNote(note);
-    setPanelMode('edit');
-    setIsNotePanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  };
+  const openNoteForEdit = useCallback(
+    (note: Note) => {
+      setCurrentNote(note);
+      setPanelMode('edit');
+      setIsNotePanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
-  const openNoteForView = (note: Note) => {
-    setCurrentNote(note);
-    setPanelMode('view');
-    setIsNotePanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  };
+  const openNoteForView = useCallback(
+    (note: Note) => {
+      setCurrentNote(note);
+      setPanelMode('view');
+      setIsNotePanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
-  const openNoteSettings = () => {
+  const openNoteSettings = useCallback(() => {
     setCurrentNote(null);
     setPanelMode('settings');
     setIsNotePanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
-  };
+  }, [onCloseOtherPanels]);
 
-  const clearValidationErrors = () => {
+  const clearValidationErrors = useCallback(() => {
     setValidationErrors([]);
-  };
+  }, []);
 
-  const saveNote = async (noteData: any): Promise<boolean> => {
-    console.log('Validating note data:', noteData);
+  const saveNote = useCallback(
+    async (noteData: any): Promise<boolean> => {
+      console.log('Validating note data:', noteData);
 
-    const errors = validateNote(noteData);
-    setValidationErrors(errors);
+      const errors = validateNote(noteData);
+      setValidationErrors(errors);
 
-    const blockingErrors = errors.filter((error) => !error.message.includes('Warning'));
-    if (blockingErrors.length > 0) {
-      console.log('Validation failed:', blockingErrors);
-      return false;
-    }
+      const blockingErrors = errors.filter((error) => !error.message.includes('Warning'));
+      if (blockingErrors.length > 0) {
+        console.log('Validation failed:', blockingErrors);
+        return false;
+      }
 
-    try {
-      let savedNote: Note;
+      try {
+        let savedNote: Note;
 
-      if (currentNote) {
-        // Update existing note
-        savedNote = await notesApi.updateNote(currentNote.id, noteData);
-        setNotes((prev) =>
-          prev.map((note) =>
-            note.id === currentNote.id
-              ? {
-                ...savedNote,
-                createdAt: new Date(savedNote.createdAt),
-                updatedAt: new Date(savedNote.updatedAt),
-              }
-              : note,
-          ),
-        );
-        setCurrentNote({
-          ...savedNote,
-          createdAt: new Date(savedNote.createdAt),
-          updatedAt: new Date(savedNote.updatedAt),
-        });
-        setPanelMode('view');
-        setValidationErrors([]);
-      } else {
-        // Create new note
-        savedNote = await notesApi.createNote(noteData);
-        setNotes((prev) => [
-          ...prev,
-          {
+        if (currentNote) {
+          // Update existing note
+          savedNote = await notesApi.updateNote(currentNote.id, noteData);
+          setNotes((prev) =>
+            prev.map((note) =>
+              note.id === currentNote.id
+                ? {
+                  ...savedNote,
+                  createdAt: new Date(savedNote.createdAt),
+                  updatedAt: new Date(savedNote.updatedAt),
+                }
+                : note,
+            ),
+          );
+          setCurrentNote({
             ...savedNote,
             createdAt: new Date(savedNote.createdAt),
             updatedAt: new Date(savedNote.updatedAt),
-          },
-        ]);
-        closeNotePanel();
+          });
+          setPanelMode('view');
+          setValidationErrors([]);
+        } else {
+          // Create new note
+          savedNote = await notesApi.createNote(noteData);
+          setNotes((prev) => [
+            ...prev,
+            {
+              ...savedNote,
+              createdAt: new Date(savedNote.createdAt),
+              updatedAt: new Date(savedNote.updatedAt),
+            },
+          ]);
+          closeNotePanel();
+        }
+
+        return true;
+      } catch (error: any) {
+        console.error('Failed to save note:', error);
+
+        // V2: Handle standardized error format from backend
+        const validationErrors: ValidationError[] = [];
+
+        // Check if backend returned validation errors in details array
+        if (error?.details && Array.isArray(error.details)) {
+          error.details.forEach((detail: any) => {
+            if (typeof detail === 'string') {
+              validationErrors.push({ field: 'general', message: detail });
+            } else if (detail?.field && detail?.message) {
+              validationErrors.push({ field: detail.field, message: detail.message });
+            } else if (detail?.msg) {
+              validationErrors.push({ field: detail.param || 'general', message: detail.msg });
+            }
+          });
+        }
+
+        // If no validation errors from backend, use error message
+        if (validationErrors.length === 0) {
+          const errorMessage =
+            error?.message || error?.error || 'Failed to save note. Please try again.';
+          validationErrors.push({ field: 'general', message: errorMessage });
+        }
+
+        setValidationErrors(validationErrors);
+        return false;
       }
+    }, [currentNote, closeNotePanel, validateNote]);
 
-      return true;
-    } catch (error: any) {
-      console.error('Failed to save note:', error);
-
-      // V2: Handle standardized error format from backend
-      const validationErrors: ValidationError[] = [];
-
-      // Check if backend returned validation errors in details array
-      if (error?.details && Array.isArray(error.details)) {
-        error.details.forEach((detail: any) => {
-          if (typeof detail === 'string') {
-            validationErrors.push({ field: 'general', message: detail });
-          } else if (detail?.field && detail?.message) {
-            validationErrors.push({ field: detail.field, message: detail.message });
-          } else if (detail?.msg) {
-            validationErrors.push({ field: detail.param || 'general', message: detail.msg });
-          }
+  const deleteNote = useCallback(
+    async (id: string) => {
+      console.log('Deleting note with id:', id);
+      try {
+        await notesApi.deleteNote(id);
+        setNotes((prev) => {
+          const newNotes = prev.filter((note) => note.id !== id);
+          console.log('Notes after delete:', newNotes);
+          return newNotes;
         });
+        // Remove from selection if selected
+        if (isSelected(id)) {
+          toggleNoteSelectedCore(id);
+        }
+      } catch (error: any) {
+        console.error('Failed to delete note:', error);
+        // V2: Handle standardized error format
+        const errorMessage = error?.message || error?.error || 'Failed to delete note';
+        alert(errorMessage);
       }
-
-      // If no validation errors from backend, use error message
-      if (validationErrors.length === 0) {
-        const errorMessage =
-          error?.message || error?.error || 'Failed to save note. Please try again.';
-        validationErrors.push({ field: 'general', message: errorMessage });
-      }
-
-      setValidationErrors(validationErrors);
-      return false;
-    }
-  };
-
-  const deleteNote = async (id: string) => {
-    console.log('Deleting note with id:', id);
-    try {
-      await notesApi.deleteNote(id);
-      setNotes((prev) => {
-        const newNotes = prev.filter((note) => note.id !== id);
-        console.log('Notes after delete:', newNotes);
-        return newNotes;
-      });
-      // Remove from selection if selected
-      if (isSelected(id)) {
-        toggleNoteSelectedCore(id);
-      }
-    } catch (error: any) {
-      console.error('Failed to delete note:', error);
-      // V2: Handle standardized error format
-      const errorMessage = error?.message || error?.error || 'Failed to delete note';
-      alert(errorMessage);
-    }
-  };
+    }, [isSelected, toggleNoteSelectedCore]);
 
   // Bulk delete using core bulkApi
-  const deleteNotes = async (ids: string[]) => {
+  const deleteNotes = useCallback(async (ids: string[]) => {
     const uniqueIds = Array.from(new Set((ids || []).map(String))).filter(Boolean);
     if (!uniqueIds.length) {
       return;
@@ -317,7 +333,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       const errorMessage = error?.message || error?.error || 'Failed to delete notes';
       setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
-  };
+  }, [clearNoteSelectionCore]);
 
   // Selection helpers - wrap core hook functions for backward compatibility
   const toggleNoteSelected = useCallback(
@@ -338,34 +354,61 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     clearNoteSelectionCore();
   }, [clearNoteSelectionCore]);
 
-  const duplicateNote = async (originalNote: Note) => {
-    try {
-      const duplicateData = {
-        title: `${originalNote.title} (Copy)`,
-        content: originalNote.content,
-        mentions: originalNote.mentions || [],
-      };
+  const duplicateNote = useCallback(
+    async (originalNote: Note) => {
+      try {
+        const duplicateData = {
+          title: `${originalNote.title} (Copy)`,
+          content: originalNote.content,
+          mentions: originalNote.mentions || [],
+        };
 
-      const newNote = await notesApi.createNote(duplicateData);
+        const newNote = await notesApi.createNote(duplicateData);
 
-      setNotes((prev) => [
-        {
-          ...newNote,
-          createdAt: new Date(newNote.createdAt),
-          updatedAt: new Date(newNote.updatedAt),
-        },
-        ...prev,
-      ]);
+        setNotes((prev) => [
+          {
+            ...newNote,
+            createdAt: new Date(newNote.createdAt),
+            updatedAt: new Date(newNote.updatedAt),
+          },
+          ...prev,
+        ]);
 
-      console.log('Note duplicated successfully');
-    } catch (error: any) {
-      console.error('Failed to duplicate note:', error);
-      // V2: Handle standardized error format
-      const errorMessage =
-        error?.message || error?.error || 'Failed to duplicate note. Please try again.';
-      alert(errorMessage);
-    }
-  };
+        console.log('Note duplicated successfully');
+      } catch (error: any) {
+        console.error('Failed to duplicate note:', error);
+        // V2: Handle standardized error format
+        const errorMessage =
+          error?.message || error?.error || 'Failed to duplicate note. Please try again.';
+        alert(errorMessage);
+      }
+    },
+    [],
+  );
+
+  const exportNote = useCallback((note: Note) => {
+    const content = `${note.title}\n\n${note.content}\n\nCreated: ${new Date(note.createdAt).toLocaleDateString()}`;
+    const element = document.createElement('a');
+    const file = new Blob([content], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    element.download = `${note.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  }, []);
+
+  const convertToTask = useCallback(
+    async (note: Note) => {
+      // Find the specific action for task conversion if it exists in pluginActions
+      const taskAction = pluginActions.find((a) => a.id === 'create-task-from-note');
+      if (taskAction) {
+        await taskAction.onClick(note);
+      } else {
+        alert('Task plugin is not available.');
+      }
+    },
+    [pluginActions],
+  );
 
   // NEW: Panel Title Functions (moved from PanelTitles.tsx)
   const getPanelTitle = (mode: string, item: Note | null, _isMobileView: boolean) => {
@@ -391,11 +434,51 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     // View mode with item
     if (mode === 'view' && item) {
       return (
-        <div className="flex items-center gap-2">
-          <StickyNote className="w-4 h-4" style={{ color: '#ca8a04' }} />
-          <span className="text-xs text-gray-600 dark:text-gray-400">
-            Created {new Date(item.createdAt).toLocaleDateString()}
-          </span>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-600 dark:text-gray-400">
+              Created {new Date(item.createdAt).toLocaleDateString()}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Download}
+              onClick={() => exportNote(item)}
+              className="h-7 text-[10px] px-2"
+            >
+              Export
+            </Button>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Copy}
+              onClick={() => {
+                duplicateNote(item);
+                closeNotePanel();
+              }}
+              className="h-7 text-[10px] px-2"
+            >
+              Duplicate
+            </Button>
+
+            {/* Render dynamic plugin actions (e.g. "To Task") */}
+            {pluginActions.map((action) => (
+              <Button
+                key={action.id}
+                variant={action.variant || 'secondary'}
+                size="sm"
+                icon={action.icon}
+                onClick={() => action.onClick(item)}
+                className={cn('h-7 text-[10px] px-2', action.className)}
+              >
+                {action.label}
+              </Button>
+            ))}
+          </div>
         </div>
       );
     }
@@ -450,6 +533,20 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     clearNoteSelection,
     selectedCount,
     isSelected,
+    importNotes: async (data: any[]) => {
+      let successCount = 0;
+      for (const item of data) {
+        try {
+          await notesApi.createNote(item);
+          successCount++;
+        } catch (error) {
+          console.error('Failed to import note', item, error);
+        }
+      }
+      if (successCount > 0) {
+        await loadNotes();
+      }
+    },
 
     // NEW: Panel Title Functions
     getPanelTitle,

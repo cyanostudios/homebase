@@ -1,34 +1,29 @@
 // plugins/estimates/pdfTemplate.js
 // PDF-optimized template for estimate rendering
 
-function calculateTotals(lineItems, discount = 0) {
-    const subtotal = lineItems.reduce((sum, item) => {
-      return sum + (item.quantity * item.unitPrice);
-    }, 0);
-    
-    const discountAmount = subtotal * (discount / 100);
-    const discountedSubtotal = subtotal - discountAmount;
-    const vatAmount = discountedSubtotal * 0.25;
-    const total = discountedSubtotal + vatAmount;
-    
-    return { subtotal, discountAmount, discountedSubtotal, vatAmount, total };
-  }
-  
-  function formatDate(date) {
-    return new Date(date).toLocaleDateString('sv-SE');
-  }
-  
-  function formatCurrency(amount, currency = 'SEK') {
-    return new Intl.NumberFormat('sv-SE', {
-      style: 'currency',
-      currency: currency
-    }).format(amount);
-  }
-  
-  function generatePDFHTML(estimate) {
-    const totals = calculateTotals(estimate.lineItems || [], estimate.estimateDiscount || 0);
-    
-    return `
+function formatDate(date) {
+  return new Date(date).toLocaleDateString('sv-SE');
+}
+
+function formatCurrency(amount, currency = 'SEK') {
+  return new Intl.NumberFormat('sv-SE', {
+    style: 'currency',
+    currency: currency,
+  }).format(amount);
+}
+
+function generatePDFHTML(estimate) {
+  const totals = {
+    subtotal: estimate.subtotal || 0,
+    totalDiscount: estimate.totalDiscount || 0,
+    subtotalAfterDiscount: estimate.subtotalAfterDiscount || 0,
+    estimateDiscountAmount: estimate.estimateDiscountAmount || 0,
+    subtotalAfterEstimateDiscount: estimate.subtotalAfterEstimateDiscount || 0,
+    totalVat: estimate.totalVat || 0,
+    total: estimate.total || 0,
+  };
+
+  return `
       <!DOCTYPE html>
       <html>
       <head>
@@ -36,275 +31,287 @@ function calculateTotals(lineItems, discount = 0) {
         <title>Estimate ${estimate.estimateNumber}</title>
         <style>
           body {
-            font-family: Arial, sans-serif;
+            font-family: 'Helvetica', 'Arial', sans-serif;
             margin: 0;
-            padding: 20px;
-            font-size: 14px;
-            line-height: 1.4;
-            color: #333;
+            padding: 40px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #1a1a1a;
+            background: #fff;
           }
           
-          .estimate-container {
-            max-width: 800px;
-            margin: 0 auto;
-          }
-          
-          .estimate-header {
+          .document-header {
+            border-bottom: 3px solid #000;
+            padding-bottom: 20px;
+            margin-bottom: 40px;
             display: flex;
             justify-content: space-between;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #2563eb;
-            padding-bottom: 20px;
           }
           
-          .company-info h1 {
-            margin: 0 0 10px 0;
-            color: #2563eb;
-            font-size: 24px;
+          .title {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: -1px;
+            margin: 0;
           }
           
-          .company-info p {
-            margin: 5px 0;
-            color: #666;
-          }
-          
-          .estimate-info {
+          .header-meta {
             text-align: right;
           }
           
-          .estimate-info h2 {
-            margin: 0 0 10px 0;
-            font-size: 20px;
-            color: #333;
+          .meta-item {
+            margin-bottom: 5px;
           }
           
-          .estimate-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-          }
-          
-          .customer-section,
-          .estimate-meta {
-            background: #f8fafc;
-            padding: 20px;
-            border-radius: 8px;
-          }
-          
-          .section-title {
+          .meta-label {
+            color: #777;
+            text-transform: uppercase;
+            font-size: 10px;
             font-weight: bold;
-            margin-bottom: 15px;
-            color: #1f2937;
-            border-bottom: 1px solid #d1d5db;
+            margin-right: 10px;
+          }
+          
+          .meta-value {
+            font-weight: bold;
+          }
+
+          .address-grid {
+            margin-bottom: 40px;
+          }
+          
+          .address-section {
+            width: 45%;
+            display: inline-block;
+            vertical-align: top;
+          }
+          
+          .address-label {
+            font-size: 10px;
+            font-weight: bold;
+            color: #777;
+            text-transform: uppercase;
+            border-bottom: 1px solid #eee;
             padding-bottom: 5px;
+            margin-bottom: 10px;
           }
           
-          .line-items {
-            margin: 30px 0;
+          .address-content {
+            font-size: 12px;
           }
-          
+
           .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
-          }
-          
-          .items-table th,
-          .items-table td {
-            padding: 12px 8px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 40px;
           }
           
           .items-table th {
-            background-color: #f3f4f6;
-            font-weight: bold;
-            font-size: 12px;
+            text-align: left;
+            font-size: 10px;
             text-transform: uppercase;
-            color: #374151;
+            font-weight: bold;
+            padding: 10px 0;
+            border-bottom: 2px solid #000;
           }
           
-          .items-table td.number {
-            text-align: right;
+          .items-table td {
+            padding: 15px 0;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
           }
           
-          .items-table th.number {
-            text-align: right;
-          }
+          .text-right { text-align: right; }
           
-          .totals-section {
-            margin-top: 30px;
-            display: flex;
-            justify-content: flex-end;
+          .totals-container {
+            width: 100%;
+            margin-top: 20px;
           }
           
           .totals-table {
-            width: 300px;
+            width: 250px;
+            float: right;
             border-collapse: collapse;
           }
           
           .totals-table td {
-            padding: 8px 12px;
-            border: none;
+            padding: 8px 0;
           }
           
-          .totals-table .label {
-            text-align: right;
-            font-weight: normal;
-          }
-          
-          .totals-table .amount {
-            text-align: right;
-            font-weight: bold;
-            width: 120px;
-          }
-          
-          .total-row {
-            border-top: 2px solid #2563eb;
+          .total-row td {
+            border-top: 2px solid #000;
+            padding-top: 15px;
             font-size: 16px;
-            color: #2563eb;
+            font-weight: bold;
+          }
+          
+          .notes-section {
+            margin-top: 60px;
+            clear: both;
+          }
+          
+          .notes-label {
+            font-size: 10px;
+            font-weight: bold;
+            color: #777;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+          }
+          
+          .notes-content {
+            font-size: 11px;
+            color: #555;
+            white-space: pre-wrap;
           }
           
           .footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
+            position: fixed;
+            bottom: 40px;
+            left: 40px;
+            right: 40px;
             text-align: center;
-            color: #6b7280;
-            font-size: 12px;
+            font-size: 9px;
+            color: #aaa;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
           }
           
-          .status-badge {
+          .badge {
             display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
+            padding: 4px 8px;
+            font-size: 10px;
             font-weight: bold;
             text-transform: uppercase;
-          }
-          
-          .status-draft { background: #f3f4f6; color: #374151; }
-          .status-sent { background: #dbeafe; color: #1d4ed8; }
-          .status-accepted { background: #d1fae5; color: #065f46; }
-          .status-rejected { background: #fee2e2; color: #991b1b; }
-          
-          @media print {
-            body { margin: 0; padding: 15px; }
-            .estimate-container { max-width: none; }
+            border: 1px solid #000;
           }
         </style>
       </head>
       <body>
-        <div class="estimate-container">
-          <!-- Header -->
-          <div class="estimate-header">
-            <div class="company-info">
-              <h1>Professional Services Ltd</h1>
-              <p>Business Address Line 1</p>
-              <p>City, Postal Code</p>
-              <p>Email: hello@company.com</p>
-              <p>Phone: +1 (234) 567-8900</p>
-            </div>
-            <div class="estimate-info">
-              <h2>ESTIMATE</h2>
-              <p><strong>Number:</strong> ${estimate.estimateNumber}</p>
-              <p><strong>Date:</strong> ${formatDate(estimate.createdAt)}</p>
-              <p><strong>Valid Until:</strong> ${formatDate(estimate.validTo)}</p>
-              <div class="status-badge status-${estimate.status}">${estimate.status}</div>
+        <div class="document-header">
+          <div>
+            <h1 class="title">ESTIMATE</h1>
+            <div style="margin-top: 10px;">
+              <span class="badge">${estimate.status || 'DRAFT'}</span>
             </div>
           </div>
-  
-          <!-- Customer and Estimate Details -->
-          <div class="estimate-details">
-            <div class="customer-section">
-              <div class="section-title">Bill To:</div>
-              <div><strong>${estimate.customerName || 'Customer Name'}</strong></div>
-              <div>${estimate.customerEmail || ''}</div>
-              <div>${estimate.customerAddress || ''}</div>
+          <div class="header-meta">
+            <div class="meta-item">
+              <span class="meta-label">Number</span>
+              <span class="meta-value">${estimate.estimateNumber}</span>
             </div>
-            
-            <div class="estimate-meta">
-              <div class="section-title">Estimate Details:</div>
-              <p><strong>Title:</strong> ${estimate.title || 'Professional Services'}</p>
-              <p><strong>Currency:</strong> ${estimate.currency || 'SEK'}</p>
-              <p><strong>Payment Terms:</strong> ${estimate.paymentTerms || 'Net 30'}</p>
+            <div class="meta-item">
+              <span class="meta-label">Date</span>
+              <span class="meta-value">${formatDate(estimate.createdAt)}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Valid Until</span>
+              <span class="meta-value">${formatDate(estimate.validTo)}</span>
             </div>
           </div>
-  
-          <!-- Line Items -->
-          <div class="line-items">
-            <div class="section-title">Items & Services</div>
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th class="number">Qty</th>
-                  <th class="number">Unit Price</th>
-                  <th class="number">Discount</th>
-                  <th class="number">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${(estimate.lineItems || []).map(item => `
-                  <tr>
-                    <td>${item.description || 'Service Item'}</td>
-                    <td class="number">${item.quantity || 1}</td>
-                    <td class="number">${formatCurrency(item.unitPrice || 0, estimate.currency)}</td>
-                    <td class="number">${item.discount || 0}%</td>
-                    <td class="number">${formatCurrency((item.quantity || 1) * (item.unitPrice || 0), estimate.currency)}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
+        </div>
+
+        <div class="address-grid">
+          <div class="address-section">
+            <div class="address-label">From</div>
+            <div class="address-content">
+              <strong>Your Organization</strong><br>
+              Billing Address Line 1<br>
+              Postal Code, City<br>
+              hello@organization.com
+            </div>
           </div>
-  
-          <!-- Totals -->
-          <div class="totals-section">
-            <table class="totals-table">
+          <div class="address-section" style="margin-left: 5%;">
+            <div class="address-label">Bill To</div>
+            <div class="address-content">
+              <strong>${estimate.contactName || 'Customer'}</strong><br>
+              ${estimate.organizationNumber ? `Org: ${estimate.organizationNumber}<br>` : ''}
+              ${estimate.customerEmail || ''}
+            </div>
+          </div>
+        </div>
+
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th class="text-right" style="width: 60px;">Qty</th>
+              <th class="text-right" style="width: 100px;">Price</th>
+              <th class="text-right" style="width: 100px;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(estimate.lineItems || [])
+      .map(
+        (item) => `
               <tr>
-                <td class="label">Subtotal:</td>
-                <td class="amount">${formatCurrency(totals.subtotal, estimate.currency)}</td>
+                <td><strong>${item.description || 'Service Item'}</strong></td>
+                <td class="text-right">${item.quantity || 1}</td>
+                <td class="text-right">${formatCurrency(item.unitPrice || 0, estimate.currency)}</td>
+                <td class="text-right"><strong>${formatCurrency(item.lineTotal || 0, estimate.currency)}</strong></td>
               </tr>
-              ${totals.discountAmount > 0 ? `
-              <tr>
-                <td class="label">Discount:</td>
-                <td class="amount">-${formatCurrency(totals.discountAmount, estimate.currency)}</td>
-              </tr>
-              ` : ''}
-              <tr>
-                <td class="label">VAT (25%):</td>
-                <td class="amount">${formatCurrency(totals.vatAmount, estimate.currency)}</td>
-              </tr>
-              <tr class="total-row">
-                <td class="label"><strong>Total:</strong></td>
-                <td class="amount"><strong>${formatCurrency(totals.total, estimate.currency)}</strong></td>
-              </tr>
-            </table>
-          </div>
-  
-          <!-- Notes -->
-          ${estimate.notes ? `
-          <div style="margin-top: 30px;">
-            <div class="section-title">Notes</div>
-            <div style="background: #f8fafc; padding: 15px; border-radius: 8px; white-space: pre-wrap;">${estimate.notes}</div>
-          </div>
-          ` : ''}
-  
-          <!-- Footer -->
-          <div class="footer">
-            <p>Generated on ${formatDate(new Date())} • This estimate is valid until ${formatDate(estimate.validTo)}</p>
-            <p>Thank you for your business!</p>
-          </div>
+            `,
+      )
+      .join('')}
+          </tbody>
+        </table>
+
+        <div class="totals-container">
+          <table class="totals-table">
+            <tr>
+              <td style="color: #777;">Subtotal</td>
+              <td class="text-right">${formatCurrency(totals.subtotal, estimate.currency)}</td>
+            </tr>
+            ${totals.totalDiscount > 0
+      ? `
+            <tr>
+              <td style="color: #c00;">Discounts</td>
+              <td class="text-right" style="color: #c00;">-${formatCurrency(totals.totalDiscount, estimate.currency)}</td>
+            </tr>
+            `
+      : ''
+    }
+            ${totals.estimateDiscountAmount > 0
+      ? `
+            <tr>
+              <td style="color: #c00;">Adjustment</td>
+              <td class="text-right" style="color: #c00;">-${formatCurrency(totals.estimateDiscountAmount, estimate.currency)}</td>
+            </tr>
+            `
+      : ''
+    }
+            <tr>
+              <td style="color: #777;">Tax (VAT)</td>
+              <td class="text-right">${formatCurrency(totals.totalVat, estimate.currency)}</td>
+            </tr>
+            <tr class="total-row">
+              <td>TOTAL</td>
+              <td class="text-right">${formatCurrency(totals.total, estimate.currency)}</td>
+            </tr>
+          </table>
+        </div>
+
+        ${estimate.notes
+      ? `
+        <div class="notes-section">
+          <div class="address-label">Notes</div>
+          <div class="notes-content">${estimate.notes}</div>
+        </div>
+        `
+      : ''
+    }
+
+        <div class="footer">
+          Generated on ${formatDate(new Date())} • This estimate is valid until ${formatDate(
+      estimate.validTo,
+    )}<br>
+          PROCESSED BY HOMEBASE
         </div>
       </body>
       </html>
     `;
-  }
-  
-  module.exports = {
-    generatePDFHTML,
-    calculateTotals,
-    formatDate,
-    formatCurrency
-  };
+}
+
+module.exports = {
+  generatePDFHTML,
+  formatDate,
+  formatCurrency,
+};

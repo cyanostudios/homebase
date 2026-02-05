@@ -32,9 +32,10 @@ class PostgreSQLAdapter extends DatabaseService {
     }
 
     const upperSql = sql.toUpperCase().trim();
-    
-    // Skip if already has user_id filter
-    if (upperSql.includes('USER_ID')) {
+
+    // Skip if already has user_id filter (case-insensitive word match)
+    const userIdPattern = /\buser_id\b/i;
+    if (userIdPattern.test(sql)) {
       return sql;
     }
 
@@ -45,7 +46,7 @@ class PostgreSQLAdapter extends DatabaseService {
       const groupByIndex = upperSql.indexOf(' GROUP BY ');
       const limitIndex = upperSql.indexOf(' LIMIT ');
       const offsetIndex = upperSql.indexOf(' OFFSET ');
-      
+
       // Find the last clause that must come after WHERE
       const lastClauseIndex = Math.max(
         orderByIndex === -1 ? -1 : orderByIndex,
@@ -53,7 +54,7 @@ class PostgreSQLAdapter extends DatabaseService {
         limitIndex === -1 ? -1 : limitIndex,
         offsetIndex === -1 ? -1 : offsetIndex
       );
-      
+
       const whereIndex = upperSql.indexOf(' WHERE ');
       if (whereIndex === -1) {
         // No WHERE clause
@@ -84,19 +85,19 @@ class PostgreSQLAdapter extends DatabaseService {
           const groupByPos = sql.toUpperCase().indexOf(' GROUP BY ');
           const limitPos = sql.toUpperCase().indexOf(' LIMIT ');
           const offsetPos = sql.toUpperCase().indexOf(' OFFSET ');
-          
+
           // Find the earliest clause position
           const positions = [orderByPos, groupByPos, limitPos, offsetPos].filter(p => p !== -1);
           if (positions.length > 0) {
             insertPos = Math.min(...positions);
           }
-          
+
           if (insertPos === -1) {
             // Fallback: add at the end
             const paramNum = this._getParamCount(sql) + 1;
             return `${sql} AND user_id = $${paramNum}`;
           }
-          
+
           const beforeClause = sql.substring(0, insertPos).trim();
           const afterClause = sql.substring(insertPos);
           const paramNum = this._getParamCount(sql) + 1;
@@ -202,7 +203,7 @@ class PostgreSQLAdapter extends DatabaseService {
 
     try {
       const startTime = Date.now();
-      
+
       // Log SQL query details for debugging
       this.logger?.info('Executing SQL query', {
         sql: finalSql,
@@ -210,7 +211,7 @@ class PostgreSQLAdapter extends DatabaseService {
         userId: userId,
         paramCount: finalParams.length,
       });
-      
+
       const result = await pool.query(finalSql, finalParams);
       const duration = Date.now() - startTime;
 
@@ -345,7 +346,7 @@ class PostgreSQLAdapter extends DatabaseService {
       if (error instanceof AppError) {
         throw error;
       }
-      
+
       throw new AppError(
         `Failed to insert into ${table}: ${error.message || 'Unknown error'}`,
         500,
