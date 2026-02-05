@@ -592,9 +592,15 @@ export const OrdersList: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <div className="font-medium text-sm">
-                          {o.customer?.firstName || o.customer?.lastName
-                            ? `${o.customer.firstName ?? ''} ${o.customer.lastName ?? ''}`.trim()
-                            : (o.shippingAddress as any)?.name || '—'}
+                          {(() => {
+                            const s = o.shippingAddress as any;
+                            const full = s?.full_name || s?.fullName || s?.name;
+                            if (full) return full;
+                            if (s?.first_name || s?.last_name) {
+                              return `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim();
+                            }
+                            return '—';
+                          })()}
                         </div>
                       </TableCell>
                       <TableCell>{fmtDate(o.placedAt)}</TableCell>

@@ -106,8 +106,7 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
         <div>
           <div className="text-sm text-gray-500">{order.channel}</div>
           <div className="text-lg font-semibold text-gray-900">
-            {order.platformOrderNumber || 'Order'}
-            <span className="text-sm font-normal text-gray-500 ml-2">{order.channelOrderId}</span>
+            {order.platformOrderNumber || order.channelOrderId || 'Order'}
           </div>
           <div className="text-sm text-gray-600 mt-1">
             {fmtDate(order.placedAt)} · {fmtMoney(order.totalAmount, order.currency)}
@@ -149,51 +148,6 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-gray-200 rounded-lg p-3">
-          <div className="text-sm font-semibold text-gray-900 mb-2">Status</div>
-          {editing ? (
-            <div className="space-y-2">
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as OrderStatus)}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-md bg-white text-sm"
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {statusDisplayLabel(s)}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="text"
-                value={carrier}
-                onChange={(e) => setCarrier(e.target.value)}
-                placeholder="Carrier"
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
-              />
-              <input
-                type="text"
-                value={tracking}
-                onChange={(e) => setTracking(e.target.value)}
-                placeholder="Tracking number"
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
-              />
-            </div>
-          ) : (
-            <div className="space-y-1">
-              <div className="text-xs text-gray-800">
-                <span className="text-gray-500">Status:</span> {statusDisplayLabel(order.status)}
-              </div>
-              <div className="text-xs text-gray-800">
-                <span className="text-gray-500">Carrier:</span> {order.shippingCarrier || '—'}
-              </div>
-              <div className="text-xs text-gray-800">
-                <span className="text-gray-500">Tracking:</span> {order.shippingTrackingNumber || '—'}
-              </div>
-            </div>
-          )}
-        </div>
-
         <div className="lg:col-span-3 bg-white border border-gray-200 rounded-lg p-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Shipping Address */}
@@ -234,6 +188,51 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
               )}
             </div>
           </div>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-lg p-3">
+          <div className="text-sm font-semibold text-gray-900 mb-2">Status</div>
+          {editing ? (
+            <div className="space-y-2">
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as OrderStatus)}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md bg-white text-sm"
+              >
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {statusDisplayLabel(s)}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={carrier}
+                onChange={(e) => setCarrier(e.target.value)}
+                placeholder="Carrier"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+              />
+              <input
+                type="text"
+                value={tracking}
+                onChange={(e) => setTracking(e.target.value)}
+                placeholder="Tracking number"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+              />
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <div className="text-sm text-gray-800">
+                <span className="text-gray-500">Status:</span> {statusDisplayLabel(order.status)}
+              </div>
+              <div className="text-sm text-gray-800">
+                <span className="text-gray-500">Carrier:</span> {order.shippingCarrier || '—'}
+              </div>
+              <div className="text-sm text-gray-800">
+                <span className="text-gray-500">Tracking:</span> {order.shippingTrackingNumber || '—'}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

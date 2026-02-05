@@ -17,6 +17,8 @@ export interface OrderListItem {
   status: OrderStatus | string;
   shippingCarrier?: string | null;
   shippingTrackingNumber?: string | null;
+  shippingAddress?: any;
+  customer?: any;
   raw?: any;
   createdAt?: Date | string | null;
   updatedAt?: Date | string | null;
