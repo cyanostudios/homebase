@@ -471,20 +471,40 @@ class WooCommerceModel {
   async logChannelError(req, { channel, productId, payload, response, message }) {
     try {
       const db = Database.get(req);
+      const pool = db.getPool();
       const userId = req.session?.user?.id || req.session?.user?.uuid;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
       }
 
+      // IMPORTANT: Do NOT query information_schema via db.query() (tenant-isolation may inject user_id).
+      // Use the raw pool instead (and set search_path for local schema-per-tenant).
+      const rawQuery = async (sql, params = []) => {
+        const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
+        if (isLocalProvider) {
+          const client = await pool.connect();
+          try {
+            const schemaName = `tenant_${req.session?.currentTenantUserId || userId}`;
+            await client.query(`SET search_path TO ${schemaName}`);
+            const res = await client.query(sql, params);
+            return res.rows || [];
+          } finally {
+            client.release();
+          }
+        }
+        const res = await pool.query(sql, params);
+        return res.rows || [];
+      };
+
       // Backward/forward compatible: older tenants may not have payload/response columns.
-      // Detect existing columns once per process and only insert into those.
       if (!WooCommerceModel._errorLogCols) {
-        const cols = await db.query(
+        const cols = await rawQuery(
           `
           SELECT column_name
           FROM information_schema.columns
           WHERE table_name = $1
+            AND table_schema = current_schema()
           `,
           [WooCommerceModel.ERROR_LOG_TABLE],
         );
@@ -492,8 +512,18 @@ class WooCommerceModel {
       }
 
       const cols = WooCommerceModel._errorLogCols;
-      const insertCols = ['user_id', 'channel'];
-      const values = [userId, String(channel)];
+      if (!cols || cols.size === 0) return;
+
+      if (!cols.has('channel')) return;
+      const insertCols = [];
+      const values = [];
+
+      if (cols.has('user_id')) {
+        insertCols.push('user_id');
+        values.push(userId);
+      }
+      insertCols.push('channel');
+      values.push(String(channel));
 
       if (cols.has('product_id')) {
         insertCols.push('product_id');
@@ -511,24 +541,17 @@ class WooCommerceModel {
         insertCols.push('error_message');
         values.push(message || null);
       }
+      const placeholders = insertCols.map((_, i) => `$${i + 1}`);
       if (cols.has('created_at')) {
         insertCols.push('created_at');
-        values.push('CURRENT_TIMESTAMP');
-      }
-
-      const placeholders = insertCols.map((_, i) => `$${i + 1}`);
-      // If created_at exists, we inserted a literal string; replace that placeholder with CURRENT_TIMESTAMP.
-      if (cols.has('created_at')) {
-        const idx = insertCols.indexOf('created_at');
-        placeholders[idx] = 'CURRENT_TIMESTAMP';
-        values.pop(); // remove the literal marker from bind params
+        placeholders.push('CURRENT_TIMESTAMP');
       }
 
       const sql = `
         INSERT INTO ${WooCommerceModel.ERROR_LOG_TABLE} (${insertCols.join(', ')})
         VALUES (${placeholders.join(', ')})
       `;
-      await db.query(sql, values);
+      await rawQuery(sql, values);
     } catch (error) {
       // Don't throw - error logging should not break the main flow
       Logger.warn('Failed to log channel error', error);

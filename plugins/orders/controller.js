@@ -24,6 +24,86 @@ class OrdersController {
     this.fyndiqController = new FyndiqProductsController(this.fyndiqModel);
   }
 
+  normalizeUrlForMatch(url) {
+    let s = String(url || '').trim();
+    if (!s) return '';
+    s = s.replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
+    try {
+      const u = new URL(s);
+      const host = u.hostname.replace(/^www\./i, '').toLowerCase();
+      const path = (u.pathname || '/').replace(/\/$/, '');
+      const port = u.port ? `:${u.port}` : '';
+      return `${host}${port}${path}`;
+    } catch {
+      // last resort: strip protocol + www + trailing slash
+      return s
+        .toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/^www\./, '')
+        .replace(/\/$/, '');
+    }
+  }
+
+  extractWooStoreUrlFromOrder(order) {
+    let raw = order?.raw ?? null;
+    if (typeof raw === 'string') {
+      try {
+        raw = JSON.parse(raw);
+      } catch {
+        raw = null;
+      }
+    }
+    if (!raw || typeof raw !== 'object') return null;
+    const u =
+      raw?._homebase_store_url ||
+      raw?.store_url ||
+      raw?.storeUrl ||
+      raw?.store ||
+      null;
+    return u != null ? String(u).trim() : null;
+  }
+
+  async getWooSettingsForOrder(req, order) {
+    const instances = await this.wooModel.listInstances(req).catch(() => []);
+    const hintedStoreUrl = this.extractWooStoreUrlFromOrder(order);
+
+    if (hintedStoreUrl && instances.length > 0) {
+      const targetKey = this.normalizeUrlForMatch(hintedStoreUrl);
+      const match = instances.find((inst) => {
+        const storeUrl = inst?.credentials?.storeUrl || inst?.credentials?.store_url;
+        if (!storeUrl) return false;
+        return this.normalizeUrlForMatch(storeUrl) === targetKey;
+      });
+
+      if (match?.credentials) {
+        const creds = match.credentials;
+        return {
+          storeUrl: creds.storeUrl || creds.store_url || hintedStoreUrl,
+          consumerKey: creds.consumerKey || creds.consumer_key || '',
+          consumerSecret: creds.consumerSecret || creds.consumer_secret || '',
+          useQueryAuth: !!creds.useQueryAuth,
+          _homebase: { instanceId: match.id, instanceKey: match.instanceKey, label: match.label || null },
+        };
+      }
+    }
+
+    // If only one store is configured, use it (even if not marked as default).
+    if (!hintedStoreUrl && instances.length === 1 && instances[0]?.credentials) {
+      const creds = instances[0].credentials;
+      return {
+        storeUrl: creds.storeUrl || creds.store_url || '',
+        consumerKey: creds.consumerKey || creds.consumer_key || '',
+        consumerSecret: creds.consumerSecret || creds.consumer_secret || '',
+        useQueryAuth: !!creds.useQueryAuth,
+        _homebase: { instanceId: instances[0].id, instanceKey: instances[0].instanceKey, label: instances[0].label || null },
+      };
+    }
+
+    // Backwards compatibility: default instance / legacy table.
+    return await this.wooModel.getSettings(req);
+  }
+
   normalizeStatusForStorage(status) {
     const s = String(status || '').trim().toLowerCase();
     if (!s) return null;
@@ -33,9 +113,7 @@ class OrdersController {
   }
 
   getCdonBaseUrl() {
-    const raw = process.env.CDON_MERCHANTS_API != null ? String(process.env.CDON_MERCHANTS_API).trim() : '';
-    const base = raw || 'https://merchants-api.cdon.com/api';
-    return base.replace(/\/+$/, '');
+    return 'https://merchants-api.cdon.com/api';
   }
 
   async validateCdonTrackingRequirement({ order, nextStatus, nextTrackingNumber }) {
@@ -148,7 +226,7 @@ class OrdersController {
     }
   }
 
-  async syncStatusToFyndiq(req, { channelOrderId, status, carrier, trackingNumber }) {
+  async syncStatusToFyndiq(req, { channelOrderId, status, carrier, trackingNumber }, order = null) {
     const settings = await this.fyndiqModel.getSettings(req);
     const username = String(settings?.apiKey ?? '').trim();
     const password = String(settings?.apiSecret ?? '').trim();
@@ -167,7 +245,9 @@ class OrdersController {
 
     if (s === 'delivered' || s === 'shipped') {
       const tracking_information = this.buildFyndiqTrackingInformation({ carrier, trackingNumber });
-      const { url, resp, text, json } = await this.fyndiqController.fyndiqRequest(
+      const url = `https://merchants-api.fyndiq.se/api/v1/orders/${encodeURIComponent(channelOrderId)}/fulfill`;
+      Logger.info('Fyndiq fulfill', { channelOrderId, url });
+      const { resp, text, json } = await this.fyndiqController.fyndiqRequest(
         `/api/v1/orders/${encodeURIComponent(channelOrderId)}/fulfill`,
         {
           username,
@@ -177,15 +257,25 @@ class OrdersController {
         },
       );
 
-      if (!resp.ok) {
-        await this.fyndiqModel.logChannelError(req, {
-          channel: 'fyndiq',
-          productId: null,
-          payload: { channelOrderId, status: s, tracking_information },
-          response: { endpoint: url, status: resp.status, statusText: resp.statusText, body: json || text },
-          message: 'Fyndiq fulfill failed',
-        });
+      if (resp.ok) {
+        Logger.info('Fyndiq fulfill succeeded', { channelOrderId });
+        return;
       }
+
+      Logger.warn('Fyndiq fulfill failed', {
+        channelOrderId,
+        status: resp.status,
+        statusText: resp.statusText,
+        body: json || text,
+        url,
+      });
+      await this.fyndiqModel.logChannelError(req, {
+        channel: 'fyndiq',
+        productId: null,
+        payload: { channelOrderId, status: s, tracking_information },
+        response: { endpoint: url, status: resp.status, statusText: resp.statusText, body: json || text },
+        message: 'Fyndiq fulfill failed',
+      });
       return;
     }
 
@@ -201,6 +291,7 @@ class OrdersController {
       );
 
       if (!resp.ok) {
+        Logger.warn('Fyndiq cancel failed', { channelOrderId, status: resp.status, body: json || text, url });
         await this.fyndiqModel.logChannelError(req, {
           channel: 'fyndiq',
           productId: null,
@@ -576,8 +667,21 @@ class OrdersController {
     if (!channel || !channelOrderId) return;
 
     if (channel === 'woocommerce') {
-      const settings = await this.wooModel.getSettings(req);
-      if (!settings?.storeUrl || !settings?.consumerKey || !settings?.consumerSecret) return;
+      const settings = await this.getWooSettingsForOrder(req, order);
+      if (!settings?.storeUrl || !settings?.consumerKey || !settings?.consumerSecret) {
+        await this.wooModel.logChannelError(req, {
+          channel: 'woocommerce',
+          productId: null,
+          payload: {
+            channelOrderId,
+            status,
+            hintedStoreUrl: this.extractWooStoreUrlFromOrder(order),
+          },
+          response: null,
+          message: 'Woo settings missing for this order; cannot sync status (check instances/default store).',
+        });
+        return;
+      }
 
       const base = this.wooController.normalizeBaseUrl(settings.storeUrl);
       const url = `${base}/wp-json/wc/v3/orders/${encodeURIComponent(channelOrderId)}`;
@@ -595,7 +699,12 @@ class OrdersController {
         await this.wooModel.logChannelError(req, {
           channel: 'woocommerce',
           productId: null,
-          payload: { channelOrderId, status },
+          payload: {
+            channelOrderId,
+            status,
+            storeUrl: settings.storeUrl,
+            instance: settings?._homebase || null,
+          },
           response: { status: resp.status, statusText: resp.statusText, body: text },
           message: 'Woo order status sync failed',
         });
@@ -617,7 +726,7 @@ class OrdersController {
         status,
         carrier: order?.shippingCarrier || null,
         trackingNumber: order?.shippingTrackingNumber || null,
-      });
+      }, order);
     }
   }
 

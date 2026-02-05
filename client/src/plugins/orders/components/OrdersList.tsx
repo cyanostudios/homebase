@@ -561,7 +561,14 @@ export const OrdersList: React.FC = () => {
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => { }}
+                          onChange={() =>
+                            setSelectedIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(id)) next.delete(id);
+                              else next.add(id);
+                              return next;
+                            })
+                          }
                           onClick={(e) => e.stopPropagation()}
                           className="rounded border-input"
                         />

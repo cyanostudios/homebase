@@ -111,15 +111,34 @@ class FyndiqProductsModel {
   async logChannelError(req, { channel, productId, payload, response, message }) {
     try {
       const db = Database.get(req);
+      const pool = db.getPool();
       const userId = req.session?.user?.id || req.session?.user?.uuid;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
+      const rawQuery = async (sql, params = []) => {
+        const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
+        if (isLocalProvider) {
+          const client = await pool.connect();
+          try {
+            const schemaName = `tenant_${req.session?.currentTenantUserId || userId}`;
+            await client.query(`SET search_path TO ${schemaName}`);
+            const res = await client.query(sql, params);
+            return res.rows || [];
+          } finally {
+            client.release();
+          }
+        }
+        const res = await pool.query(sql, params);
+        return res.rows || [];
+      };
+
       if (!FyndiqProductsModel._errorLogCols) {
-        const cols = await db.query(
+        const cols = await rawQuery(
           `
           SELECT column_name
           FROM information_schema.columns
           WHERE table_name = $1
+            AND table_schema = current_schema()
           `,
           [FyndiqProductsModel.ERROR_LOG_TABLE],
         );
@@ -127,8 +146,17 @@ class FyndiqProductsModel {
       }
 
       const cols = FyndiqProductsModel._errorLogCols;
-      const insertCols = ['user_id', 'channel'];
-      const values = [userId, String(channel)];
+      if (!cols || cols.size === 0) return;
+      if (!cols.has('channel')) return;
+      const insertCols = [];
+      const values = [];
+
+      if (cols.has('user_id')) {
+        insertCols.push('user_id');
+        values.push(userId);
+      }
+      insertCols.push('channel');
+      values.push(String(channel));
 
       if (cols.has('product_id')) {
         insertCols.push('product_id');
@@ -157,7 +185,7 @@ class FyndiqProductsModel {
         INSERT INTO ${FyndiqProductsModel.ERROR_LOG_TABLE} (${insertCols.join(', ')})
         VALUES (${placeholders.join(', ')})
       `;
-      await db.query(sql, values);
+      await rawQuery(sql, values);
     } catch (e) {
       Logger.warn('Failed to log channel error (Fyndiq)', e);
     }

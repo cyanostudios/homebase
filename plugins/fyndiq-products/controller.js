@@ -758,37 +758,12 @@ class FyndiqProductsController {
       const userId = req.session?.user?.id || req.session?.user?.uuid;
       const db = Database.get(req);
 
-      // Group Fyndiq orders by customer_order_id if available, otherwise fallback.
-      const groupKey = (o) => {
-        // 1. Primary: Use customer_order_id if available (this is the most stable order identifier)
-        const orderId = o?.customer_order_id ?? o?.customerOrderId;
-        if (orderId) return `order:${orderId}`;
-
-        // 2. Secondary: Try explicit grouping identifiers
-        const g = o?.order_group_id ?? o?.orderGroupId ?? o?.parent_order_id ?? o?.parentOrderId ?? o?.group_id ?? o?.groupId ?? o?.customer_id ?? o?.customerId;
-        if (g != null) return `id:${g}`;
-
-        // 3. Fallback: Phone + Normalized Name + Same Hour
-        const ship = o?.shipping_address ?? o?.shippingAddress ?? o?.shipping ?? o?.customer ?? {};
-        const phone = String(o?.customer_phone ?? o?.customerPhone ?? o?.phone ?? o?.Phone ?? ship?.phone_number ?? ship?.phoneNumber ?? ship?.phone ?? '').trim();
-        const fName = String(o?.customer_first_name ?? o?.customerFirstName ?? o?.first_name ?? o?.firstName ?? ship?.first_name ?? ship?.firstName ?? ship?.name ?? '').trim();
-        const lName = String(o?.customer_last_name ?? o?.customerLastName ?? o?.last_name ?? o?.lastName ?? ship?.last_name ?? ship?.lastName ?? '').trim();
-        const name = `${fName} ${lName}`.trim().toLowerCase();
-
-        const dt = o?.created_at ?? o?.createdAt ?? o?.order_date ?? o?.orderDate ?? o?.date;
-        const hour = dt ? new Date(dt).toISOString().slice(0, 13) : ''; // YYYY-MM-DDTHH
-
-        if (phone || name) {
-          return `match:${phone}|${name}|${hour}`;
-        }
-
-        // 4. Last resort: Unique item/row ID (no grouping)
-        const singleId = o?.id ?? o?.orderId ?? o?.order_id ?? o?.OrderNumber ?? o?.order_number;
-        return `alone:${singleId}`;
-      };
+      // Group Fyndiq orders by Fyndiq order id (UUID) only. No fallbacks.
+      const groupKey = (o) => (o?.id != null ? `id:${o.id}` : null);
       const byGroup = new Map();
       for (const o of orders) {
         const key = groupKey(o);
+        if (key == null) continue;
         if (!byGroup.has(key)) byGroup.set(key, []);
         byGroup.get(key).push(o);
       }
@@ -796,12 +771,11 @@ class FyndiqProductsController {
       const results = [];
       for (const [, group] of byGroup) {
         const primary = group[0];
-        // Use customer_order_id as the stable Homebase channelOrderId, fallback to item ID if missing.
-        const channelOrderId =
-          primary?.customer_order_id ?? primary?.customerOrderId ?? primary?.id ?? primary?.orderId ?? primary?.order_id;
+        // Fyndiq API: use only id (UUID) as order identifier. No fallbacks.
+        const channelOrderId = primary?.id != null ? String(primary.id) : null;
         if (!channelOrderId) continue;
 
-        const platformOrderNumber = primary?.customer_order_id ?? primary?.customerOrderId ?? primary?.orderNumber ?? primary?.order_number ?? String(channelOrderId);
+        const platformOrderNumber = channelOrderId;
         let placedAt = primary?.createdAt ?? primary?.created_at ?? primary?.orderDate ?? primary?.order_date ?? primary?.date ?? null;
         if (placedAt) {
           placedAt = String(placedAt).trim();

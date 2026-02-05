@@ -9,11 +9,7 @@ const { AppError } = require('../../server/core/errors/AppError');
 
 const OrdersModel = require('../orders/model');
 
-const CDON_MERCHANTS_API = (() => {
-  const raw = process.env.CDON_MERCHANTS_API != null ? String(process.env.CDON_MERCHANTS_API).trim() : '';
-  const base = raw || 'https://merchants-api.cdon.com/api';
-  return base.replace(/\/+$/, '');
-})();
+const CDON_MERCHANTS_API = 'https://merchants-api.cdon.com/api';
 const CDON_CATEGORIZATION_API = 'https://cdonexternalapi-prod-apim.azure-api.net/categorization/api/v1';
 
 class CdonProductsController {
@@ -895,41 +891,18 @@ class CdonProductsController {
         allOrderPayloads.push(...payloads);
       }
 
-      // Group CDON orders: robust grouping per user requirements.
-      const groupKey = (o) => {
-        // 1. Try explicit grouping identifiers mapping to "Customer ID"
-        const g = o?.OrderGroupId ?? o?.orderGroupId ?? o?.parent_order_id ?? o?.parentOrderId ?? o?.group_id ?? o?.groupId ?? o?.customer_id ?? o?.customerId;
-        if (g != null) return `id:${g}`;
-
-        // 2. Fallback: Phone + Normalized Name + Same Hour
-        const ci = o?.CustomerInfo ?? o?.customer_info ?? o?.customerInfo ?? {};
-        const ship = ci?.ShippingAddress ?? ci?.shipping_address ?? ci?.shippingAddress ?? o?.shipping_address ?? {};
-        const phones = ci?.Phones ?? ci?.phones ?? {};
-        const phone = String(ship?.phone_number ?? ship?.phoneNumber ?? phones?.PhoneMobile ?? phones?.phone_mobile ?? phones?.phoneMobile ?? phones?.PhoneWork ?? phones?.phone_work ?? phones?.phoneWork ?? '').trim();
-        const fName = String(ship?.first_name ?? ship?.firstName ?? ship?.Name ?? ship?.name ?? '').trim();
-        const lName = String(ship?.last_name ?? ship?.lastName ?? '').trim();
-        const name = `${fName} ${lName}`.trim().toLowerCase();
-
-        const dt = o?.CreatedDateUtc ?? o?.created_date_utc ?? o?.createdDateUtc ?? o?.OrderDate ?? o?.order_date ?? o?.orderDate ?? o?.created_at;
-        const hour = dt ? new Date(dt).toISOString().slice(0, 13) : ''; // YYYY-MM-DDTHH
-
-        if (phone || name) {
-          return `match:${phone}|${name}|${hour}`;
-        }
-
-        // 3. Last resort: Unique order ID (no grouping)
-        const singleId = o?.OrderKey ?? o?.OrderId ?? o?.orderId ?? o?.id ?? o?.OrderNumber ?? o?.orderNumber;
-        return `alone:${singleId}`;
-      };
+      // Group CDON orders by CDON order id only. No fallbacks.
+      const groupKey = (o) => (o?.id != null ? `id:${o.id}` : null);
 
       const byGroup = new Map();
       for (const row of allOrderPayloads) {
         const raw = row?.OrderDetails ?? row;
         if (!raw) continue;
         const key = groupKey(raw);
+        if (key == null) continue;
         if (!byGroup.has(key)) {
           byGroup.set(key, {
-            id: String(raw.customer_order_id ?? raw.id ?? raw.order_id ?? raw.orderId ?? raw.OrderKey ?? raw.OrderId ?? ''),
+            id: String(raw.id),
             market: raw.market,
             state: raw.state,
             created_at: raw.created_at,
@@ -1006,8 +979,8 @@ class CdonProductsController {
    * Merchants API: id, market, state, created_at, shipping_address (first_name, last_name, street_address, city, postal_code, country, phone_number), total_price { amount, currency }, order_rows or flat article_* per line.
    */
   async normalizeCdonOrderToHomebase(o, userId, db) {
-    const channelOrderId =
-      o?.OrderId ?? o?.orderId ?? o?.OrderKey ?? o?.id ?? o?.OrderNumber ?? o?.orderNumber;
+    // CDON Merchants API: use only id as order identifier. No fallbacks.
+    const channelOrderId = o?.id != null ? String(o.id) : null;
     if (channelOrderId == null) return null;
 
     const ci = o?.CustomerInfo ?? o?.customer_info ?? o?.customerInfo ?? {};
@@ -1044,9 +1017,8 @@ class CdonProductsController {
 
     const normalized = {
       channel: 'cdon',
-      channelOrderId: String(channelOrderId),
-      platformOrderNumber:
-        o?.OrderNumber ?? o?.order_number ?? o?.orderNumber ?? String(channelOrderId),
+      channelOrderId,
+      platformOrderNumber: channelOrderId,
       placedAt,
       totalAmount: Number.isFinite(orderLevelTotal) ? orderLevelTotal : null,
       currency: currency || 'SEK',
