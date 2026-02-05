@@ -523,6 +523,7 @@ export const OrdersList: React.FC = () => {
                 </TableHead>
                 <TableHead>Channel</TableHead>
                 <TableHead>Order #</TableHead>
+                <TableHead>Customer</TableHead>
                 <TableHead>Placed</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Status</TableHead>
@@ -589,13 +590,20 @@ export const OrdersList: React.FC = () => {
                           {o.platformOrderNumber || o.channelOrderId || '—'}
                         </div>
                       </TableCell>
+                      <TableCell>
+                        <div className="font-medium text-sm">
+                          {o.customer?.firstName || o.customer?.lastName
+                            ? `${o.customer.firstName ?? ''} ${o.customer.lastName ?? ''}`.trim()
+                            : (o.shippingAddress as any)?.name || '—'}
+                        </div>
+                      </TableCell>
                       <TableCell>{fmtDate(o.placedAt)}</TableCell>
                       <TableCell>{fmtMoney(o.totalAmount, o.currency)}</TableCell>
                       <TableCell>{statusDisplayLabel(o.status)}</TableCell>
                     </TableRow>
                     {isExpanded && (
                       <TableRow>
-                        <TableCell colSpan={6} className="p-0 align-top">
+                        <TableCell colSpan={7} className="p-0 align-top">
                           {loading ? (
                             <div className="px-4 py-8 text-center text-sm text-muted-foreground">Loading…</div>
                           ) : detail ? (

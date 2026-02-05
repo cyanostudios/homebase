@@ -59,6 +59,8 @@ class OrdersModel {
           status,
           shipping_carrier,
           shipping_tracking_number,
+          shipping_address,
+          customer,
           raw,
           created_at,
           updated_at
