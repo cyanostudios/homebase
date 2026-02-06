@@ -605,46 +605,53 @@ class WooCommerceController {
 
           // Process orders from this instance
           for (const o of orders) {
-        const channelOrderId = o?.id != null ? String(o.id) : '';
-        if (!channelOrderId) continue;
+            const channelOrderId = o?.id != null ? String(o.id) : '';
+            if (!channelOrderId) continue;
 
-        const normalized = {
-          channel: 'woocommerce',
-          channelOrderId,
-          platformOrderNumber: o?.number != null ? String(o.number) : null,
-          placedAt: o?.date_created || o?.date_created_gmt || null,
-          totalAmount: o?.total != null ? Number(o.total) : null,
-          currency: o?.currency || null,
-          status: this.mapWooOrderStatusToHomebase(o?.status),
-          shippingAddress: o?.shipping || null,
-          billingAddress: o?.billing || null,
-          customer: {
-            email: o?.billing?.email || null,
-            firstName: o?.billing?.first_name || null,
-            lastName: o?.billing?.last_name || null,
-            phone: o?.billing?.phone || null,
-            shippingAddress: o?.shipping || null,
-            billingAddress: o?.billing || null,
-          },
-          items: [],
-          raw: {
-            ...o,
-            _homebase_store_url: settings.storeUrl, // Save store URL for matching instances
-          },
-        };
+            // Clean up raw data to reduce SQL log size and storage
+            const rawClean = { ...o };
+            delete rawClean._links;
+            delete rawClean.meta_data;
+            delete rawClean.cart_hash;
+            delete rawClean.user_agent;
+            delete rawClean.customer_ip_address;
+            delete rawClean.version;
+            rawClean._homebase_store_url = settings.storeUrl;
 
-        // Map Woo line_items.product_id -> platform product_id via channel_product_map.external_id
-        const lineItems = Array.isArray(o?.line_items) ? o.line_items : [];
-        for (const li of lineItems) {
-          const qty = Number(li?.quantity);
-          if (!Number.isFinite(qty) || qty <= 0) continue;
+            const normalized = {
+              channel: 'woocommerce',
+              channelOrderId,
+              platformOrderNumber: o?.number != null ? String(o.number) : null,
+              placedAt: o?.date_created || o?.date_created_gmt || null,
+              totalAmount: o?.total != null ? Number(o.total) : null,
+              currency: o?.currency || null,
+              status: this.mapWooOrderStatusToHomebase(o?.status),
+              shippingAddress: o?.shipping || null,
+              billingAddress: o?.billing || null,
+              customer: {
+                email: o?.billing?.email || null,
+                firstName: o?.billing?.first_name || null,
+                lastName: o?.billing?.last_name || null,
+                phone: o?.billing?.phone || null,
+                shippingAddress: o?.shipping || null,
+                billingAddress: o?.billing || null,
+              },
+              items: [],
+              raw: rawClean,
+            };
 
-          const wooProductId = li?.product_id != null ? String(li.product_id) : null;
-          let platformProductId = null;
+            // Map Woo line_items.product_id -> platform product_id via channel_product_map.external_id
+            const lineItems = Array.isArray(o?.line_items) ? o.line_items : [];
+            for (const li of lineItems) {
+              const qty = Number(li?.quantity);
+              if (!Number.isFinite(qty) || qty <= 0) continue;
 
-          if (wooProductId && userId) {
-            const mapRes = await db.query(
-              `
+              const wooProductId = li?.product_id != null ? String(li.product_id) : null;
+              let platformProductId = null;
+
+              if (wooProductId && userId) {
+                const mapRes = await db.query(
+                  `
               SELECT product_id
               FROM channel_product_map
               WHERE user_id = $1
@@ -652,111 +659,111 @@ class WooCommerceController {
                 AND external_id = $2
               LIMIT 1
               `,
-              [userId, wooProductId],
-            );
-            if (mapRes.length) platformProductId = String(mapRes[0].product_id);
-          }
+                  [userId, wooProductId],
+                );
+                if (mapRes.length) platformProductId = String(mapRes[0].product_id);
+              }
 
-          // WooCommerce line item pricing structure (from API docs and actual data):
-          // - price: unit price ex VAT (read-only)
-          // - subtotal: line subtotal ex VAT (quantity * price)
-          // - subtotal_tax: tax on subtotal
-          // - total: line total ex VAT (same as subtotal if no discounts)
-          // - total_tax: same as subtotal_tax for line items
-          // 
-          // To get unit price incl VAT: (subtotal + subtotal_tax) / quantity
-          const subtotal = li?.subtotal != null ? Number(li.subtotal) : null;
-          const subtotalTax = li?.subtotal_tax != null ? Number(li.subtotal_tax) : null;
-          
-          // Calculate unit price including VAT: (subtotal + tax) / quantity
-          let unitPriceInclVat = null;
-          if (Number.isFinite(subtotal) && Number.isFinite(subtotalTax) && qty > 0) {
-            unitPriceInclVat = (subtotal + subtotalTax) / qty;
-          }
-          
-          // Calculate VAT rate from subtotal and tax
-          let vatRate = null;
-          if (Number.isFinite(subtotal) && Number.isFinite(subtotalTax) && subtotal > 0) {
-            vatRate = (subtotalTax / subtotal) * 100;
-          } else if (Array.isArray(li?.taxes) && li.taxes.length > 0) {
-            // Fallback: try to get from taxes array
-            const tax = li.taxes[0];
-            const taxTotal = tax?.total != null ? Number(tax.total) : tax?.subtotal != null ? Number(tax.subtotal) : null;
-            const priceExVat = li?.price != null ? Number(li.price) : null;
-            if (Number.isFinite(taxTotal) && Number.isFinite(priceExVat) && priceExVat > 0) {
-              vatRate = (taxTotal / priceExVat) * 100;
+              // WooCommerce line item pricing structure (from API docs and actual data):
+              // - price: unit price ex VAT (read-only)
+              // - subtotal: line subtotal ex VAT (quantity * price)
+              // - subtotal_tax: tax on subtotal
+              // - total: line total ex VAT (same as subtotal if no discounts)
+              // - total_tax: same as subtotal_tax for line items
+              // 
+              // To get unit price incl VAT: (subtotal + subtotal_tax) / quantity
+              const subtotal = li?.subtotal != null ? Number(li.subtotal) : null;
+              const subtotalTax = li?.subtotal_tax != null ? Number(li.subtotal_tax) : null;
+
+              // Calculate unit price including VAT: (subtotal + tax) / quantity
+              let unitPriceInclVat = null;
+              if (Number.isFinite(subtotal) && Number.isFinite(subtotalTax) && qty > 0) {
+                unitPriceInclVat = (subtotal + subtotalTax) / qty;
+              }
+
+              // Calculate VAT rate from subtotal and tax
+              let vatRate = null;
+              if (Number.isFinite(subtotal) && Number.isFinite(subtotalTax) && subtotal > 0) {
+                vatRate = (subtotalTax / subtotal) * 100;
+              } else if (Array.isArray(li?.taxes) && li.taxes.length > 0) {
+                // Fallback: try to get from taxes array
+                const tax = li.taxes[0];
+                const taxTotal = tax?.total != null ? Number(tax.total) : tax?.subtotal != null ? Number(tax.subtotal) : null;
+                const priceExVat = li?.price != null ? Number(li.price) : null;
+                if (Number.isFinite(taxTotal) && Number.isFinite(priceExVat) && priceExVat > 0) {
+                  vatRate = (taxTotal / priceExVat) * 100;
+                }
+              }
+
+              // If still no price incl VAT, calculate from price + default VAT
+              if (!Number.isFinite(unitPriceInclVat)) {
+                const priceExVat = li?.price != null ? Number(li.price) : null;
+                if (Number.isFinite(priceExVat)) {
+                  vatRate = vatRate || 25;
+                  unitPriceInclVat = priceExVat * (1 + vatRate / 100);
+                }
+              }
+
+              normalized.items.push({
+                sku: li?.sku || null,
+                productId: platformProductId,
+                title: li?.name != null ? String(li.name) : null,
+                quantity: Math.trunc(qty),
+                unitPrice: Number.isFinite(unitPriceInclVat) ? unitPriceInclVat : null,
+                vatRate: Number.isFinite(vatRate) ? vatRate : null,
+                raw: li,
+              });
             }
-          }
-          
-          // If still no price incl VAT, calculate from price + default VAT
-          if (!Number.isFinite(unitPriceInclVat)) {
-            const priceExVat = li?.price != null ? Number(li.price) : null;
-            if (Number.isFinite(priceExVat)) {
-              vatRate = vatRate || 25;
-              unitPriceInclVat = priceExVat * (1 + vatRate / 100);
-            }
-          }
 
-          normalized.items.push({
-            sku: li?.sku || null,
-            productId: platformProductId,
-            title: li?.name != null ? String(li.name) : null,
-            quantity: Math.trunc(qty),
-            unitPrice: Number.isFinite(unitPriceInclVat) ? unitPriceInclVat : null,
-            vatRate: Number.isFinite(vatRate) ? vatRate : null,
-            raw: li,
-          });
-        }
+            // Add shipping as a line item
+            // WooCommerce shipping_lines structure (same as line_items):
+            // - total: shipping cost ex VAT
+            // - total_tax: tax on shipping
+            // To get shipping cost incl VAT: total + total_tax
+            const shippingLines = Array.isArray(o?.shipping_lines) ? o.shipping_lines : [];
+            for (const sl of shippingLines) {
+              const shippingTotalExVat = sl?.total != null ? Number(sl.total) : null;
+              const shippingTax = sl?.total_tax != null ? Number(sl.total_tax) : null;
 
-        // Add shipping as a line item
-        // WooCommerce shipping_lines structure (same as line_items):
-        // - total: shipping cost ex VAT
-        // - total_tax: tax on shipping
-        // To get shipping cost incl VAT: total + total_tax
-        const shippingLines = Array.isArray(o?.shipping_lines) ? o.shipping_lines : [];
-        for (const sl of shippingLines) {
-          const shippingTotalExVat = sl?.total != null ? Number(sl.total) : null;
-          const shippingTax = sl?.total_tax != null ? Number(sl.total_tax) : null;
-          
-          // Calculate shipping cost including VAT
-          let shippingTotalInclVat = null;
-          if (Number.isFinite(shippingTotalExVat) && Number.isFinite(shippingTax)) {
-            shippingTotalInclVat = shippingTotalExVat + shippingTax;
-          } else if (Number.isFinite(shippingTotalExVat)) {
-            // If no tax info, assume shippingTotalExVat is actually incl VAT (fallback)
-            shippingTotalInclVat = shippingTotalExVat;
-          }
-          
-          if (Number.isFinite(shippingTotalInclVat) && shippingTotalInclVat > 0) {
-            // Calculate VAT rate from shipping total and tax
-            let shippingVatRate = null;
-            if (Number.isFinite(shippingTotalExVat) && Number.isFinite(shippingTax) && shippingTotalExVat > 0) {
-              shippingVatRate = (shippingTax / shippingTotalExVat) * 100;
-            } else if (Array.isArray(sl?.taxes) && sl.taxes.length > 0) {
-              // Fallback: try to get from taxes array
-              const tax = sl.taxes[0];
-              const taxTotal = tax?.total != null ? Number(tax.total) : tax?.subtotal != null ? Number(tax.subtotal) : null;
-              if (Number.isFinite(taxTotal) && Number.isFinite(shippingTotalExVat) && shippingTotalExVat > 0) {
-                shippingVatRate = (taxTotal / shippingTotalExVat) * 100;
+              // Calculate shipping cost including VAT
+              let shippingTotalInclVat = null;
+              if (Number.isFinite(shippingTotalExVat) && Number.isFinite(shippingTax)) {
+                shippingTotalInclVat = shippingTotalExVat + shippingTax;
+              } else if (Number.isFinite(shippingTotalExVat)) {
+                // If no tax info, assume shippingTotalExVat is actually incl VAT (fallback)
+                shippingTotalInclVat = shippingTotalExVat;
+              }
+
+              if (Number.isFinite(shippingTotalInclVat) && shippingTotalInclVat > 0) {
+                // Calculate VAT rate from shipping total and tax
+                let shippingVatRate = null;
+                if (Number.isFinite(shippingTotalExVat) && Number.isFinite(shippingTax) && shippingTotalExVat > 0) {
+                  shippingVatRate = (shippingTax / shippingTotalExVat) * 100;
+                } else if (Array.isArray(sl?.taxes) && sl.taxes.length > 0) {
+                  // Fallback: try to get from taxes array
+                  const tax = sl.taxes[0];
+                  const taxTotal = tax?.total != null ? Number(tax.total) : tax?.subtotal != null ? Number(tax.subtotal) : null;
+                  if (Number.isFinite(taxTotal) && Number.isFinite(shippingTotalExVat) && shippingTotalExVat > 0) {
+                    shippingVatRate = (taxTotal / shippingTotalExVat) * 100;
+                  }
+                }
+
+                // If no VAT rate found, default to 25% for shipping in Sweden
+                if (!Number.isFinite(shippingVatRate)) {
+                  shippingVatRate = 25;
+                }
+
+                normalized.items.push({
+                  sku: null,
+                  productId: null,
+                  title: sl?.method_title || 'Shipping',
+                  quantity: 1,
+                  unitPrice: shippingTotalInclVat, // Shipping cost including VAT
+                  vatRate: shippingVatRate,
+                  raw: sl,
+                });
               }
             }
-            
-            // If no VAT rate found, default to 25% for shipping in Sweden
-            if (!Number.isFinite(shippingVatRate)) {
-              shippingVatRate = 25;
-            }
-
-            normalized.items.push({
-              sku: null,
-              productId: null,
-              title: sl?.method_title || 'Shipping',
-              quantity: 1,
-              unitPrice: shippingTotalInclVat, // Shipping cost including VAT
-              vatRate: shippingVatRate,
-              raw: sl,
-            });
-          }
-        }
 
             const ingestRes = await this.ordersModel.ingest(req, normalized);
 
@@ -991,10 +998,10 @@ class WooCommerceController {
     const fetchFn = typeof fetch === 'function'
       ? fetch
       : async (...args) => {
-          const mod = await import('node-fetch').catch(() => null);
-          if (!mod?.default) throw new Error('fetch is not available (Node <18) and node-fetch is not installed');
-          return mod.default(...args);
-        };
+        const mod = await import('node-fetch').catch(() => null);
+        if (!mod?.default) throw new Error('fetch is not available (Node <18) and node-fetch is not installed');
+        return mod.default(...args);
+      };
 
     return fetchFn(finalUrl, { ...init, headers });
   }
