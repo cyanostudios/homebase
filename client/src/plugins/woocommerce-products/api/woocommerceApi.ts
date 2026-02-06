@@ -83,25 +83,13 @@ class WooCommerceApi {
   }
 
   // ---- Woo settings ----
-  async getSettings(): Promise<WooSettings | null> {
-    return this.request('/settings');
-  }
-
-  async putSettings(data: {
-    storeUrl: string;
-    consumerKey: string;
-    consumerSecret: string;
-    useQueryAuth?: boolean;
-  }): Promise<WooSettings> {
-    return this.request('/settings', { method: 'PUT', body: JSON.stringify(data) });
-  }
-
   // ---- Connection test ----
   async testConnection(data?: {
     storeUrl?: string;
     consumerKey?: string;
     consumerSecret?: string;
     useQueryAuth?: boolean;
+    instanceId?: string;
   }): Promise<WooTestResult> {
     return this.request('/test', { method: 'POST', body: JSON.stringify(data || {}) });
   }
@@ -120,7 +108,16 @@ class WooCommerceApi {
     wooId: number;
     product: any;
   }> {
-    return this.request(`/products/import?sku=${encodeURIComponent(sku)}`);
+    throw new Error('importProductBySku now requires instanceId; use importProductBySkuForInstance() instead.');
+  }
+
+  async importProductBySkuForInstance(instanceId: string, sku: string): Promise<{
+    ok: boolean;
+    source: string;
+    wooId: number;
+    product: any;
+  }> {
+    return this.request(`/products/import?instanceId=${encodeURIComponent(instanceId)}&sku=${encodeURIComponent(sku)}`);
   }
 
   // ---- Orders pull ----

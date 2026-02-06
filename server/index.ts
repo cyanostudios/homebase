@@ -86,11 +86,51 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Tenant Pool Middleware
-app.use((req, res, next) => {
-  if (req.session && req.session.tenantConnectionString) {
-    const connectionPool = ServiceManager.get('connectionPool');
-    req.tenantPool = connectionPool.getTenantPool(req.session.tenantConnectionString);
+//
+// - TENANT_PROVIDER=neon: database-per-tenant → req.tenantPool is created from session.tenantConnectionString
+// - TENANT_PROVIDER=local: schema-per-tenant in ONE database (often Neon Postgres via pooler).
+//   IMPORTANT: Neon pooler does NOT support setting search_path via startup "options".
+//   For local provider we therefore rely on PostgreSQLAdapter's per-query `SET search_path TO tenant_<userId>, public`
+//   and DO NOT create a separate tenant pool based on a connection string with search_path options.
+app.use(async (req, res, next) => {
+  const userId = req.session?.user?.id ?? req.session?.user?.uuid;
+
+  // Always keep currentTenantUserId in sync when logged in (used by DB adapter)
+  if (req.session?.user && req.session.currentTenantUserId == null) {
+    req.session.currentTenantUserId = userId;
   }
+
+  if (process.env.TENANT_PROVIDER === 'neon') {
+    // Ensure tenant connection string is present in session (restore from DB if missing)
+    if (req.session?.user && !req.session.tenantConnectionString) {
+      try {
+        const r = await pool.query(
+          'SELECT neon_connection_string FROM tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL',
+          [userId],
+        );
+        if (r.rows?.length && r.rows[0].neon_connection_string) {
+          req.session.tenantConnectionString = r.rows[0].neon_connection_string;
+          await new Promise<void>((resolve, reject) => {
+            req.session!.save((err: Error | undefined) => {
+              if (err) reject(err);
+              else resolve();
+            });
+          });
+        }
+      } catch (_e) {
+        // ignore lookup/save errors
+      }
+    }
+
+    if (req.session?.tenantConnectionString) {
+      const connectionPool = ServiceManager.get('connectionPool');
+      req.tenantPool = connectionPool.getTenantPool(req.session.tenantConnectionString);
+    }
+  } else {
+    // local (schema-per-tenant): no tenant pool; DB adapter will SET search_path per query.
+    req.tenantPool = undefined;
+  }
+
   ServiceManager.initialize(req);
   next();
 });
@@ -130,6 +170,14 @@ app.get('/api/csrf-token', csrfTokenHandler);
 
 // Global rate limiting
 app.use('/api', globalLimiter);
+
+// Prevent browser/proxy from caching API responses (avoids stale Channels, Products, etc. on refresh)
+app.use('/api', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
 
 // Activity log middleware (after rate limiting, before routes)
 app.use(activityLogMiddleware);

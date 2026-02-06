@@ -49,7 +49,9 @@ class LocalTenantProvider extends TenantService {
         await this._runMigrations(client, schemaName);
         
         // 4. Create connection string with schema
-        const tenantConnectionString = `${this.connectionString}?options=-csearch_path%3D${schemaName}`;
+        // IMPORTANT: When using Neon Postgres via the pooler, startup "options" like search_path are not supported.
+        // We return the base connection string and rely on the DB adapter to SET search_path per query.
+        const tenantConnectionString = `${this.connectionString}`;
         
         console.log(`✅ Local tenant created: ${schemaName}`);
         
@@ -99,7 +101,8 @@ class LocalTenantProvider extends TenantService {
       throw new Error(`No tenant schema found for user ${userId}`);
     }
     
-    return `${this.connectionString}?options=-csearch_path%3D${schemaName}`;
+    // See note above: return base connection string; adapter handles search_path.
+    return `${this.connectionString}`;
   }
 
   /**
@@ -156,7 +159,7 @@ class LocalTenantProvider extends TenantService {
     return {
       projectId: schemaName,
       databaseName: schemaName,
-      connectionString: `${this.connectionString}?options=-csearch_path%3D${schemaName}`,
+      connectionString: `${this.connectionString}`,
     };
   }
 

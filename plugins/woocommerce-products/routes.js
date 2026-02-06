@@ -35,22 +35,6 @@ function createWooCommerceRoutes(controller, context) {
   const requirePlugin = context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin('woocommerce-products');
 
-  // ---- Settings (backwards compatibility - uses default instance) ----
-  router.get('/settings', gate, (req, res) => controller.getSettings(req, res));
-  
-  router.put('/settings',
-    gate,
-    csrfProtection,
-    [
-      storeUrlRequired(),
-      commonRules.string('consumerKey', 1, 255),
-      commonRules.string('consumerSecret', 1, 255),
-      body('useQueryAuth').optional().isBoolean(),
-    ],
-    validateRequest,
-    (req, res) => controller.putSettings(req, res)
-  );
-
   // ---- Instances (multi-store support) ----
   router.get('/instances', gate, (req, res) => controller.listInstances(req, res));
   
@@ -167,34 +151,6 @@ function createWooCommerceRoutes(controller, context) {
   );
 
   // ---- Template parity CRUD (optional) ----
-  router.get('/', gate, (req, res) => controller.getAll(req, res));
-  
-  router.post('/',
-    gate,
-    csrfProtection,
-    (req, res) => controller.create(req, res)
-  );
-  
-  router.put('/:id',
-    gate,
-    csrfProtection,
-    [
-      commonRules.id('id'),
-    ],
-    validateRequest,
-    (req, res) => controller.update(req, res)
-  );
-  
-  router.delete('/:id',
-    gate,
-    csrfProtection,
-    [
-      commonRules.id('id'),
-    ],
-    validateRequest,
-    (req, res) => controller.delete(req, res)
-  );
-
   return router;
 }
 

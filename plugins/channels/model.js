@@ -10,7 +10,6 @@ const { AppError } = require('../../server/core/errors/AppError');
 
 class ChannelsModel {
   static CHANNEL_MAP_TABLE = 'channel_product_map';
-  static WOO_SETTINGS_TABLE = 'woocommerce_settings';
   static CDON_SETTINGS_TABLE = 'cdon_settings';
   static FYNDIQ_SETTINGS_TABLE = 'fyndiq_settings';
   static ERROR_LOG_TABLE = 'channel_error_log';
@@ -34,12 +33,12 @@ class ChannelsModel {
       );
       const channels = channelsRes.map(r => r.channel);
 
-      // 2) Is Woo configured?
-      const wooCfgRes = await db.query(
-        `SELECT 1 FROM ${ChannelsModel.WOO_SETTINGS_TABLE} WHERE user_id = $1 LIMIT 1`,
-        [userId]
+      // 2) Is Woo configured? (multi-store: channel_instances = stores)
+      const wooInstancesRes = await db.query(
+        `SELECT 1 FROM ${ChannelsModel.CHANNEL_INSTANCES_TABLE} WHERE user_id = $1 AND channel = $2 LIMIT 1`,
+        [userId, 'woocommerce'],
       );
-      const wooConfigured = wooCfgRes.length > 0;
+      const wooConfigured = wooInstancesRes.length > 0;
 
       // 2b) Is CDON configured?
       const cdonCfgRes = await db.query(

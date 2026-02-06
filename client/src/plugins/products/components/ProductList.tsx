@@ -60,7 +60,6 @@ export const ProductList: React.FC = () => {
     importProducts,
   } = useProducts();
 
-  const { settings: wooSettings } = useWooCommerce();
   const { settings: cdonSettings } = useCdonProducts();
   const { settings: fyndiqSettings } = useFyndiqProducts();
 
@@ -77,10 +76,9 @@ export const ProductList: React.FC = () => {
     }).catch(() => setWooInstances([]));
   }, []);
 
-  // Publish-modal state (when no Woo instances, use default store: don't send instanceIds)
+  // Publish-modal state (WooCommerce is per-store)
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishWooInstanceIds, setPublishWooInstanceIds] = useState<string[]>([]);
-  const [publishWooDefaultStore, setPublishWooDefaultStore] = useState(false);
   const [publishCdonMarkets, setPublishCdonMarkets] = useState<string[]>([]);
   const [publishFyndiqMarkets, setPublishFyndiqMarkets] = useState<string[]>([]);
   const [publishing, setPublishing] = useState(false);
@@ -90,10 +88,9 @@ export const ProductList: React.FC = () => {
     fyndiq?: { ok: boolean; counts?: { requested?: number; success?: number; error?: number }; endpoint?: string };
   } | null>(null);
 
-  // Delete-modal state (when no Woo instances, use default store)
+  // Delete-modal state (WooCommerce is per-store)
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteFromWooInstanceIds, setDeleteFromWooInstanceIds] = useState<string[]>([]);
-  const [deleteFromWooDefaultStore, setDeleteFromWooDefaultStore] = useState(false);
   const [deleteFromCdonMarkets, setDeleteFromCdonMarkets] = useState<string[]>([]);
   const [deleteFromFyndiqMarkets, setDeleteFromFyndiqMarkets] = useState<string[]>([]);
   const [alsoDeleteFromPlatform, setAlsoDeleteFromPlatform] = useState(false);
@@ -279,11 +276,7 @@ export const ProductList: React.FC = () => {
 
   const total = products.length;
   const filtered = filteredAndSorted.length;
-  const isWooConfigured = wooInstances.length > 0 || !!(
-    wooSettings?.storeUrl &&
-    wooSettings?.consumerKey &&
-    wooSettings?.consumerSecret
-  );
+  const isWooConfigured = wooInstances.length > 0;
   const isCdonConfigured = !!(cdonSettings?.connected && cdonSettings?.apiKey && cdonSettings?.apiSecret);
   const isFyndiqConfigured = !!(fyndiqSettings?.connected && fyndiqSettings?.apiKey && fyndiqSettings?.apiSecret);
 
@@ -302,8 +295,8 @@ export const ProductList: React.FC = () => {
         platform?: { ok: boolean; deleted: number };
       } = {};
 
-      // 1) WooCommerce (per-instance: send productIds + instanceIds so backend resolves external_id per store; or default store with no instanceIds)
-      if ((deleteFromWooInstanceIds.length > 0 || deleteFromWooDefaultStore) && isWooConfigured) {
+      // 1) WooCommerce (per-instance: send productIds + instanceIds so backend resolves external_id per store)
+      if (deleteFromWooInstanceIds.length > 0 && isWooConfigured) {
         const wooResp = await woocommerceApi.deleteProducts({
           productIds: attemptedPlatformIds,
           ...(deleteFromWooInstanceIds.length > 0 ? { instanceIds: deleteFromWooInstanceIds } : {}),
@@ -372,7 +365,7 @@ export const ProductList: React.FC = () => {
     } catch (err: any) {
       console.error('Bulk delete failed', err);
       setLastDeleteResult({
-        woo: (deleteFromWooInstanceIds.length > 0 || deleteFromWooDefaultStore) ? { ok: false, deleted: 0, errors: [String(err?.message || err)] } : undefined,
+        woo: deleteFromWooInstanceIds.length > 0 ? { ok: false, deleted: 0, errors: [String(err?.message || err)] } : undefined,
         cdon: deleteFromCdonMarkets.length ? { ok: false, deleted: 0 } : undefined,
         fyndiq: deleteFromFyndiqMarkets.length ? { ok: false, deleted: 0 } : undefined,
         platform: alsoDeleteFromPlatform ? { ok: false, deleted: 0 } : undefined,
@@ -423,13 +416,7 @@ export const ProductList: React.FC = () => {
               <button
                 className="ml-1 inline-flex items-center px-3 py-1.5 rounded-md border border-blue-600 text-blue-700 hover:bg-blue-50 text-sm"
                 onClick={() => {
-                  if (isWooConfigured && wooInstances.length > 0) {
-                    setPublishWooInstanceIds(wooInstances.map((i) => i.id));
-                    setPublishWooDefaultStore(false);
-                  } else {
-                    setPublishWooInstanceIds([]);
-                    setPublishWooDefaultStore(!!isWooConfigured);
-                  }
+                  setPublishWooInstanceIds(isWooConfigured ? wooInstances.map((i) => i.id) : []);
                   setPublishCdonMarkets(isCdonConfigured ? ['se'] : []);
                   setPublishFyndiqMarkets(isFyndiqConfigured ? ['se'] : []);
                   setLastPublishResult(null);
@@ -457,7 +444,6 @@ export const ProductList: React.FC = () => {
                 className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-600 text-red-700 hover:bg-red-50 text-sm"
                 onClick={() => {
                   setDeleteFromWooInstanceIds([]);
-                  setDeleteFromWooDefaultStore(false);
                   setDeleteFromCdonMarkets(isCdonConfigured ? ['se'] : []);
                   setDeleteFromFyndiqMarkets(isFyndiqConfigured ? ['se'] : []);
                   setAlsoDeleteFromPlatform(false);
@@ -872,15 +858,6 @@ export const ProductList: React.FC = () => {
                             </label>
                           ))}
                         </div>
-                      ) : isWooConfigured ? (
-                        <label className="flex items-center gap-2 pl-5">
-                          <input
-                            type="checkbox"
-                            checked={publishWooDefaultStore}
-                            onChange={(e) => setPublishWooDefaultStore(e.target.checked)}
-                          />
-                          <span>Default store (legacy)</span>
-                        </label>
                       ) : (
                         <p className="text-xs text-gray-500 pl-5">No WooCommerce stores added. Add a store in Settings.</p>
                       )}
@@ -943,7 +920,7 @@ export const ProductList: React.FC = () => {
                   disabled={
                     publishing ||
                     selectedProducts.length === 0 ||
-                    (publishWooInstanceIds.length === 0 && !publishWooDefaultStore && !publishCdonMarkets.length && !publishFyndiqMarkets.length)
+                    (publishWooInstanceIds.length === 0 && !publishCdonMarkets.length && !publishFyndiqMarkets.length)
                   }
                   onClick={async () => {
                     const payload = selectedProducts.map((p: any) => ({
@@ -969,7 +946,7 @@ export const ProductList: React.FC = () => {
                     setPublishing(true);
                     const result: NonNullable<typeof lastPublishResult> = {};
                     try {
-                      if ((publishWooInstanceIds.length > 0 || publishWooDefaultStore) && isWooConfigured) {
+                      if (publishWooInstanceIds.length > 0 && isWooConfigured) {
                         try {
                           const r = await woocommerceApi.exportProducts(
                             payload,
@@ -1300,15 +1277,6 @@ export const ProductList: React.FC = () => {
                             </label>
                           ))}
                         </div>
-                      ) : isWooConfigured ? (
-                        <label className="flex items-center gap-2 pl-5">
-                          <input
-                            type="checkbox"
-                            checked={deleteFromWooDefaultStore}
-                            onChange={(e) => setDeleteFromWooDefaultStore(e.target.checked)}
-                          />
-                          <span>Default store (legacy)</span>
-                        </label>
                       ) : (
                         <p className="text-xs text-gray-500 pl-5">No WooCommerce stores added.</p>
                       )}
@@ -1391,7 +1359,6 @@ export const ProductList: React.FC = () => {
                     deleting ||
                     selectedProducts.length === 0 ||
                     (deleteFromWooInstanceIds.length === 0 &&
-                      !deleteFromWooDefaultStore &&
                       !deleteFromCdonMarkets.length &&
                       !deleteFromFyndiqMarkets.length &&
                       !alsoDeleteFromPlatform)

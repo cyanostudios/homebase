@@ -14,6 +14,22 @@ import { useApp } from '@/core/api/AppContext';
 import { woocommerceApi } from '../api/woocommerceApi';
 import type { WooSettings, WooTestResult, WooExportResult, MvpProduct, ValidationError } from '../types/woocommerce';
 
+type WooInstance = {
+  id: string;
+  channel: string;
+  instanceKey: string;
+  market: string | null;
+  label: string | null;
+  credentials: {
+    storeUrl: string;
+    consumerKey: string;
+    consumerSecret: string;
+    useQueryAuth: boolean;
+  } | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
 interface WooContextType {
   // Panel state
   isWoocommerceProductsPanelOpen: boolean;
@@ -45,7 +61,7 @@ interface WooContextType {
   deleteWooCommerce: (_id: string) => Promise<void>; // Required by interface
 
   // Data
-  settings: WooSettings | null;
+  instances: WooInstance[];
 
   // Panel Title Functions
   getPanelTitle: (mode: string, item: WooSettings | null, isMobileView: boolean) => any;
@@ -89,7 +105,7 @@ export function WooCommerceProvider({
   }, [isWoocommerceProductsPanelOpen, panelMode, currentWooSettings]);
 
   // Data
-  const [settings, setSettings] = useState<WooSettings | null>(null);
+  const [instances, setInstances] = useState<WooInstance[]>([]);
 
   // Ops state
   const [isTesting, setIsTesting] = useState(false);
@@ -104,27 +120,13 @@ export function WooCommerceProvider({
 
   const loadWooSettings = useCallback(async () => {
     try {
-      const s = await woocommerceApi.getSettings();
-      const normalized: WooSettings | null = s
-        ? {
-            ...s,
-            createdAt: s.createdAt ? new Date(s.createdAt) : null,
-            updatedAt: s.updatedAt ? new Date(s.updatedAt) : null,
-          }
-        : null;
-      setSettings(normalized);
-      // Only update currentWooSettings if:
-      // 1. Panel is not open in create mode with null currentSettings
-      // 2. We're not viewing a specific instance (instance with numeric ID)
-      // This prevents overwriting currentWooSettings when user is creating a new store
-      // or viewing/editing a specific instance
-      const { isOpen, mode, currentSettings } = panelStateRef.current;
-      const isViewingSpecificInstance = currentSettings?.id && /^\d+$/.test(String(currentSettings.id));
-      if (!(isOpen && mode === 'create' && currentSettings === null) && !isViewingSpecificInstance) {
-        setCurrentWooSettings(normalized);
-      }
+      // Multi-store: always load instances and treat "configured" as instances.length > 0.
+      const resp = await woocommerceApi.getInstances();
+      const items = Array.isArray(resp?.items) ? (resp.items as WooInstance[]) : [];
+      setInstances(items);
     } catch (err) {
       console.error('Failed to load Woo settings:', err);
+      setInstances([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -134,7 +136,7 @@ export function WooCommerceProvider({
     if (isAuthenticated) {
       loadWooSettings();
     } else {
-      setSettings(null);
+      setInstances([]);
     }
   }, [isAuthenticated, loadWooSettings]);
 
@@ -178,7 +180,7 @@ export function WooCommerceProvider({
     return errs;
   };
 
-  const saveWooSettings = async (raw: Partial<WooSettings & { instanceKey?: string }>): Promise<boolean> => {
+  const saveWooSettings = async (raw: Partial<WooSettings>): Promise<boolean> => {
     const errs = validate(raw);
     setValidationErrors(errs);
     if (errs.length) {
@@ -197,7 +199,7 @@ export function WooCommerceProvider({
           consumerKey: String(raw.consumerKey),
           consumerSecret: String(raw.consumerSecret),
           useQueryAuth: !!raw.useQueryAuth,
-          label: (raw as any).label || undefined,
+          label: raw.label || undefined,
         });
         saved = {
           id: result.instance.id,
@@ -210,8 +212,8 @@ export function WooCommerceProvider({
           label: result.instance.label || undefined,
           instanceKey: result.instance.instanceKey || undefined,
         } as any;
-      } else if (panelMode === 'create' && currentWooSettings === null) {
-        // Creating a new instance - generate instanceKey from store URL if not provided
+      } else {
+        // Creating a new instance (multi-store). Generate instanceKey from store URL if not provided.
         const instanceKey = raw.instanceKey || (() => {
           try {
             const url = new URL(String(raw.storeUrl));
@@ -222,7 +224,7 @@ export function WooCommerceProvider({
         })();
         const result = await woocommerceApi.createInstance({
           instanceKey,
-          label: (raw as any).label || undefined,
+          label: raw.label || undefined,
           storeUrl: String(raw.storeUrl),
           consumerKey: String(raw.consumerKey),
           consumerSecret: String(raw.consumerSecret),
@@ -239,35 +241,6 @@ export function WooCommerceProvider({
           label: result.instance.label || undefined,
           instanceKey: result.instance.instanceKey || undefined,
         } as any;
-      } else if (raw.instanceKey && raw.instanceKey !== 'default') {
-        // Creating a new instance with explicit instanceKey
-        const result = await woocommerceApi.createInstance({
-          instanceKey: raw.instanceKey,
-          label: (raw as any).label || undefined,
-          storeUrl: String(raw.storeUrl),
-          consumerKey: String(raw.consumerKey),
-          consumerSecret: String(raw.consumerSecret),
-          useQueryAuth: !!raw.useQueryAuth,
-        });
-        saved = {
-          id: result.instance.id,
-          storeUrl: result.instance.credentials?.storeUrl || '',
-          consumerKey: result.instance.credentials?.consumerKey || '',
-          consumerSecret: result.instance.credentials?.consumerSecret || '',
-          useQueryAuth: result.instance.credentials?.useQueryAuth || false,
-          createdAt: result.instance.createdAt ? new Date(result.instance.createdAt) : null,
-          updatedAt: result.instance.updatedAt ? new Date(result.instance.updatedAt) : null,
-          label: result.instance.label || undefined,
-          instanceKey: result.instance.instanceKey || undefined,
-        } as any;
-      } else {
-        // Default instance (backwards compatibility)
-        saved = await woocommerceApi.putSettings({
-          storeUrl: String(raw.storeUrl),
-          consumerKey: String(raw.consumerKey),
-          consumerSecret: String(raw.consumerSecret),
-          useQueryAuth: !!raw.useQueryAuth,
-        });
       }
       
       const normalized: WooSettings = {
@@ -276,22 +249,13 @@ export function WooCommerceProvider({
         updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
       };
       
-      // Update settings
-      if (raw.id && /^\d+$/.test(String(raw.id))) {
-        // This was an instance update - update settings but don't change currentWooSettings
-        // since we're closing the panel anyway
-      } else {
-        // This was default instance - update both
-        setSettings(normalized);
-      }
-      
       setValidationErrors([]);
       
       // WooCommerce has no View component, so close the panel after saving
       // This matches the behavior when canceling - user returns to the list
       closeWooSettingsPanel();
       
-      // Reload settings to refresh instances list
+      // Reload instances to refresh store list
       await loadWooSettings();
       
       return true;
@@ -319,10 +283,10 @@ export function WooCommerceProvider({
     try {
       const body = override || {};
       const result = await woocommerceApi.testConnection({
-        storeUrl: body.storeUrl ?? settings?.storeUrl,
-        consumerKey: body.consumerKey ?? settings?.consumerKey,
-        consumerSecret: body.consumerSecret ?? settings?.consumerSecret,
-        useQueryAuth: body.useQueryAuth ?? settings?.useQueryAuth,
+        storeUrl: body.storeUrl,
+        consumerKey: body.consumerKey,
+        consumerSecret: body.consumerSecret,
+        useQueryAuth: body.useQueryAuth,
       });
       setLastTestResult(result as WooTestResult);
     } catch (err) {
@@ -432,7 +396,7 @@ export function WooCommerceProvider({
       exportProducts,
       clearValidationErrors,
       deleteWooCommerce,
-      settings,
+      instances,
       getPanelTitle,
       getPanelSubtitle,
       getDeleteMessage,
@@ -447,7 +411,7 @@ export function WooCommerceProvider({
       exporting,
       lastTestResult,
       lastExportResult,
-      settings,
+      instances,
       loadWooSettings,
       clearValidationErrors,
     ],

@@ -18,6 +18,36 @@ class WooCommerceController {
     this.fyndiqModel = new FyndiqProductsModel();
   }
 
+  async _getInstanceOrThrow(req) {
+    const instanceId = String(req.query?.instanceId || req.body?.instanceId || '').trim();
+    if (!instanceId) {
+      throw new AppError('instanceId is required (WooCommerce is multi-store)', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+    const inst = await this.model.getInstanceById(req, instanceId);
+    if (!inst?.credentials?.storeUrl || !inst?.credentials?.consumerKey || !inst?.credentials?.consumerSecret) {
+      throw new AppError('WooCommerce instance credentials not found', 404, AppError.CODES.NOT_FOUND);
+    }
+    return inst;
+  }
+
+  async _getInstancesFromBodyOrThrow(req) {
+    const rawInstanceIds = req.body?.instanceIds;
+    if (!Array.isArray(rawInstanceIds) || rawInstanceIds.length === 0) {
+      throw new AppError('instanceIds is required (select one or more WooCommerce stores)', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+    const instances = [];
+    for (const id of rawInstanceIds) {
+      const inst = await this.model.getInstanceById(req, id);
+      if (inst?.credentials?.storeUrl && inst?.credentials?.consumerKey && inst?.credentials?.consumerSecret) {
+        instances.push(inst);
+      }
+    }
+    if (instances.length === 0) {
+      throw new AppError('No valid WooCommerce instances found for instanceIds', 404, AppError.CODES.NOT_FOUND);
+    }
+    return instances;
+  }
+
   // ---- Utility: map PG 23505 -> 409 field error ----
   mapUniqueViolation(error) {
     if (error?.code !== '23505') return null;
@@ -30,42 +60,6 @@ class WooCommerceController {
       field,
       message: val ? `Unique value "${val}" already exists for ${field}` : 'Unique constraint violated',
     };
-  }
-
-  // ---- Settings endpoints ----
-
-  async getSettings(req, res) {
-    try {
-      const settings = await this.model.getSettings(req);
-      res.json(settings || null);
-    } catch (error) {
-      Logger.error('Get Woo settings error', error, { userId: Context.getUserId(req) });
-
-      if (error instanceof AppError) {
-        return res.status(error.statusCode).json(error.toJSON());
-      }
-
-      res.status(500).json({ error: 'Failed to fetch WooCommerce settings' });
-    }
-  }
-
-  async putSettings(req, res) {
-    try {
-      const saved = await this.model.upsertSettings(req, req.body);
-      res.json(saved);
-    } catch (error) {
-      Logger.error('Save Woo settings error', error, { userId: Context.getUserId(req) });
-
-      if (error instanceof AppError) {
-        const mapped = this.mapUniqueViolation(error);
-        if (mapped) return res.status(409).json({ errors: [mapped] });
-        return res.status(error.statusCode).json(error.toJSON());
-      }
-
-      const mapped = this.mapUniqueViolation(error);
-      if (mapped) return res.status(409).json({ errors: [mapped] });
-      res.status(500).json({ error: 'Failed to save WooCommerce settings' });
-    }
   }
 
   // ---- Instances (multi-store support) ----
@@ -196,12 +190,15 @@ class WooCommerceController {
   async testConnection(req, res) {
     try {
       const inBody = req.body || {};
-      const settings = inBody.storeUrl ? {
-        storeUrl: String(inBody.storeUrl || '').trim(),
-        consumerKey: String(inBody.consumerKey || '').trim(),
-        consumerSecret: String(inBody.consumerSecret || '').trim(),
-        useQueryAuth: !!inBody.useQueryAuth,
-      } : await this.model.getSettings(req);
+      // Either test explicit credentials (from form) OR test a saved instance by instanceId.
+      const settings = inBody.storeUrl
+        ? {
+            storeUrl: String(inBody.storeUrl || '').trim(),
+            consumerKey: String(inBody.consumerKey || '').trim(),
+            consumerSecret: String(inBody.consumerSecret || '').trim(),
+            useQueryAuth: !!inBody.useQueryAuth,
+          }
+        : (await this._getInstanceOrThrow(req)).credentials;
 
       if (!settings?.storeUrl || !settings?.consumerKey || !settings?.consumerSecret) {
         return res.status(400).json({ error: 'Missing WooCommerce credentials (storeUrl, consumerKey, consumerSecret).' });
@@ -232,8 +229,8 @@ class WooCommerceController {
   // ---- IMPORT (read-only) by SKU ----
   async importProductBySku(req, res) {
     try {
-      const settings = await this.model.getSettings(req);
-      if (!settings) return res.status(400).json({ error: 'WooCommerce settings not found. Save settings first.' });
+      const inst = await this._getInstanceOrThrow(req);
+      const settings = inst.credentials;
 
       const sku = String(req.query?.sku || '').trim();
       if (!sku) return res.status(400).json({ error: 'Missing required query param: sku' });
@@ -256,7 +253,7 @@ class WooCommerceController {
   }
 
   // ---- Batch export (create OR update: prefer channel map external_id, fallback to SKU) ----
-  // body: { products: MVPProduct[], instanceIds?: string[] } — if instanceIds omitted/empty, use default instance (backwards compat)
+  // body: { products: MVPProduct[], instanceIds: string[] }
   async exportProducts(req, res) {
     try {
       const products = Array.isArray(req.body?.products) ? req.body.products : null;
@@ -264,21 +261,7 @@ class WooCommerceController {
         return res.status(400).json({ error: 'Request must include products: [] with MVP product fields.' });
       }
 
-      const rawInstanceIds = req.body?.instanceIds;
-      let instances = [];
-      if (Array.isArray(rawInstanceIds) && rawInstanceIds.length > 0) {
-        for (const id of rawInstanceIds) {
-          const inst = await this.model.getInstanceById(req, id);
-          if (inst?.credentials) instances.push(inst);
-        }
-      }
-      if (instances.length === 0) {
-        const settings = await this.model.getSettings(req);
-        if (!settings) {
-          return res.status(400).json({ error: 'WooCommerce settings not found. Save settings first or pass instanceIds.' });
-        }
-        instances = [{ id: null, label: null, credentials: settings }];
-      }
+      const instances = await this._getInstancesFromBodyOrThrow(req);
 
       const channel = 'woocommerce';
       const productIds = products.map(p => String(p.id));
@@ -433,25 +416,11 @@ class WooCommerceController {
   async batchDelete(req, res) {
     try {
       const body = req.body || {};
-      const rawInstanceIds = body.instanceIds;
       const inProductIds = Array.isArray(body.productIds) ? body.productIds.map(String) : [];
       const inExternalIds = Array.isArray(body.externalIds) ? body.externalIds : [];
       const inSkus = Array.isArray(body.skus) ? body.skus : [];
 
-      let instances = [];
-      if (Array.isArray(rawInstanceIds) && rawInstanceIds.length > 0) {
-        for (const id of rawInstanceIds) {
-          const inst = await this.model.getInstanceById(req, id);
-          if (inst?.credentials) instances.push(inst);
-        }
-      }
-      if (instances.length === 0) {
-        const settings = await this.model.getSettings(req);
-        if (!settings) {
-          return res.status(400).json({ error: 'WooCommerce settings not found. Save settings first or pass instanceIds.' });
-        }
-        instances = [{ id: null, label: null, credentials: settings }];
-      }
+      const instances = await this._getInstancesFromBodyOrThrow(req);
 
       const channel = 'woocommerce';
       let totalDeleted = 0;
@@ -526,8 +495,8 @@ class WooCommerceController {
   // GET /api/woocommerce-products/categories?perPage=100&search=...
   async getCategories(req, res) {
     try {
-      const settings = await this.model.getSettings(req);
-      if (!settings) return res.status(400).json({ error: 'WooCommerce settings not found. Save settings first.' });
+      const inst = await this._getInstanceOrThrow(req);
+      const settings = inst.credentials;
 
       const base = this.normalizeBaseUrl(settings.storeUrl);
       const perPageRaw = req.query?.perPage != null ? Number(req.query.perPage) : 100;
@@ -913,86 +882,6 @@ class WooCommerceController {
   }
 
   // ---- Template parity CRUD (kept) ----
-
-  async getAll(req, res) {
-    try {
-      const items = await this.model.getAll(req);
-      res.json(items);
-    } catch (error) {
-      Logger.error('Get items error', error, { userId: Context.getUserId(req) });
-
-      if (error instanceof AppError) {
-        return res.status(error.statusCode).json(error.toJSON());
-      }
-
-      res.status(500).json({ error: 'Failed to fetch items' });
-    }
-  }
-
-  async create(req, res) {
-    try {
-      const item = await this.model.create(req, req.body);
-      res.json(item);
-    } catch (error) {
-      Logger.error('Create item error', error, { userId: Context.getUserId(req) });
-
-      if (error instanceof AppError) {
-        const mapped = this.mapUniqueViolation(error);
-        if (mapped) return res.status(409).json({ errors: [mapped] });
-        return res.status(error.statusCode).json(error.toJSON());
-      }
-
-      const mapped = this.mapUniqueViolation(error);
-      if (mapped) return res.status(409).json({ errors: [mapped] });
-      res.status(500).json({ error: 'Failed to create item' });
-    }
-  }
-
-  async update(req, res) {
-    try {
-      const item = await this.model.update(req, req.params.id, req.body);
-      res.json(item);
-    } catch (error) {
-      Logger.error('Update item error', error, { userId: Context.getUserId(req) });
-
-      if (error instanceof AppError) {
-        if (error.code === 'NOT_FOUND') {
-          return res.status(404).json(error.toJSON());
-        }
-        const mapped = this.mapUniqueViolation(error);
-        if (mapped) return res.status(409).json({ errors: [mapped] });
-        return res.status(error.statusCode).json(error.toJSON());
-      }
-
-      if (/not found/i.test(String(error?.message))) {
-        return res.status(404).json({ error: 'Item not found' });
-      }
-      const mapped = this.mapUniqueViolation(error);
-      if (mapped) return res.status(409).json({ errors: [mapped] });
-      res.status(500).json({ error: 'Failed to update item' });
-    }
-  }
-
-  async delete(req, res) {
-    try {
-      await this.model.delete(req, req.params.id);
-      res.json({ message: 'Item deleted successfully' });
-    } catch (error) {
-      Logger.error('Delete item error', error, { userId: Context.getUserId(req) });
-
-      if (error instanceof AppError) {
-        if (error.code === 'NOT_FOUND') {
-          return res.status(404).json(error.toJSON());
-        }
-        return res.status(error.statusCode).json(error.toJSON());
-      }
-
-      if (/not found/i.test(String(error?.message))) {
-        return res.status(404).json({ error: 'Item not found' });
-      }
-      res.status(500).json({ error: 'Failed to delete item' });
-    }
-  }
 
   // ---- Helpers ----
 

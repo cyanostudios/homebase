@@ -90,6 +90,18 @@ export function ChannelsProvider({ children, isAuthenticated, onCloseOtherPanels
     }
   }, [isAuthenticated, loadChannels]);
 
+  // Reload when user returns to tab (helps recover from transient tenant/session glitches)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadChannels();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [isAuthenticated, loadChannels]);
+
   // Register panel close with App
   useEffect(() => {
     registerPanelCloseFunction('channels', closeChannelsPanel);

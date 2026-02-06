@@ -83,19 +83,24 @@ router.post(
       const pluginNames = pluginAccess.rows.map((row) => row.plugin_name);
       const plugins = await ensurePluginAccess(user.id, pluginNames);
 
-      // Get tenant's connection string
-      const tenantResult = await pool.query(
-        'SELECT neon_connection_string FROM tenants WHERE user_id = $1',
-        [user.id],
-      );
-
-      if (!tenantResult.rows.length) {
-        const logger = ServiceManager.get('logger');
-        logger.error('No tenant database found', null, { userId: user.id });
-        return res.status(500).json({ error: 'Tenant database not configured' });
+      // Get tenant's connection string.
+      // NOTE: For TENANT_PROVIDER=local (schema-per-tenant in one DB), we do NOT need a per-tenant connection string.
+      // We keep DATABASE_URL here and rely on the DB adapter to SET search_path per query.
+      let tenantConnectionString = null;
+      if (process.env.TENANT_PROVIDER === 'local' && process.env.DATABASE_URL) {
+        tenantConnectionString = process.env.DATABASE_URL;
+      } else {
+        const tenantResult = await pool.query(
+          'SELECT neon_connection_string FROM tenants WHERE user_id = $1',
+          [user.id],
+        );
+        if (!tenantResult.rows.length || !tenantResult.rows[0]?.neon_connection_string) {
+          const logger = ServiceManager.get('logger');
+          logger.error('No tenant database found', null, { userId: user.id });
+          return res.status(500).json({ error: 'Tenant database not configured' });
+        }
+        tenantConnectionString = tenantResult.rows[0].neon_connection_string;
       }
-
-      const tenantConnectionString = tenantResult.rows[0].neon_connection_string;
 
       // Save user info in session
       req.session.user = {

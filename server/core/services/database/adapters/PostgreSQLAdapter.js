@@ -208,8 +208,10 @@ class PostgreSQLAdapter extends DatabaseService {
       // LocalTenantProvider uses schema-per-tenant. In practice we must include BOTH
       // the tenant schema and public, because older installs may have tables in public.
       //
-      // IMPORTANT: always RESET search_path before releasing to pool to avoid leaking
-      // schema state between requests.
+      // IMPORTANT (Neon pooler / transaction pooling):
+      // search_path is session-local. With poolers, state may not persist across statements.
+      // We therefore run `BEGIN; SET LOCAL search_path ...; <query>; COMMIT;` to guarantee
+      // the query executes with the intended schema on the same backend connection.
       const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
 
       if (userId && isLocalProvider) {
@@ -218,34 +220,45 @@ class PostgreSQLAdapter extends DatabaseService {
 
         const client = await pool.connect();
         try {
+          await client.query('BEGIN');
           try {
-            // Prefer public first to avoid resolving to empty per-tenant schemas
-            // in installs where tables/data live in public.
-            await client.query(`SET search_path TO public, ${schemaName}`);
-          } catch (e) {
-            // If schema doesn't exist (legacy), fallback to public so the app still works.
-            await client.query('SET search_path TO public');
-          }
+            try {
+              // Prefer tenant schema (data migrated from public in 3.1.3)
+              await client.query(`SET LOCAL search_path TO ${schemaName}, public`);
+            } catch (e) {
+              this.logger?.warn?.('Failed to SET LOCAL search_path to tenant schema; falling back to public', {
+                schemaName,
+                userId,
+                error: e?.message || String(e),
+              });
+              // If schema doesn't exist (legacy), fallback to public so the app still works.
+              await client.query('SET LOCAL search_path TO public');
+            }
 
-          const result = await client.query(finalSql, finalParams);
-          const duration = Date.now() - startTime;
+            const result = await client.query(finalSql, finalParams);
+            await client.query('COMMIT');
 
-          this.logger?.info('SQL query completed', {
-            duration,
-            rowCount: result.rows?.length || 0,
-            sql: finalSql.substring(0, 200),
-          });
+            const duration = Date.now() - startTime;
 
-          if (duration > 1000) {
-            this.logger?.warn('Slow query detected', {
+            this.logger?.info('SQL query completed', {
               duration,
-              sql: finalSql.substring(0, 100),
+              rowCount: result.rows?.length || 0,
+              sql: finalSql.substring(0, 200),
             });
-          }
 
-          return result.rows;
+            if (duration > 1000) {
+              this.logger?.warn('Slow query detected', {
+                duration,
+                sql: finalSql.substring(0, 100),
+              });
+            }
+
+            return result.rows;
+          } catch (inner) {
+            try { await client.query('ROLLBACK'); } catch {}
+            throw inner;
+          }
         } finally {
-          try { await client.query('RESET search_path'); } catch {}
           client.release();
         }
       }
@@ -356,7 +369,7 @@ class PostgreSQLAdapter extends DatabaseService {
       const startTime = Date.now();
       
       // For LocalTenantProvider, ensure search_path includes tenant schema + public.
-      // IMPORTANT: always reset search_path before releasing to pool.
+      // See note in query(): use BEGIN + SET LOCAL to ensure schema sticks with poolers.
       const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
       let result;
       if (userId && isLocalProvider) {
@@ -364,16 +377,25 @@ class PostgreSQLAdapter extends DatabaseService {
         this.logger?.info('Setting search_path for tenant insert', { schemaName, userId });
         const client = await pool.connect();
         try {
+          await client.query('BEGIN');
           try {
-            // Prefer public first to avoid resolving to empty per-tenant schemas
-            // in installs where tables/data live in public.
-            await client.query(`SET search_path TO public, ${schemaName}`);
-          } catch (_e) {
-            await client.query('SET search_path TO public');
+            try {
+              await client.query(`SET LOCAL search_path TO ${schemaName}, public`);
+            } catch (_e) {
+              this.logger?.warn?.('Failed to SET LOCAL search_path for tenant insert; falling back to public', {
+                schemaName,
+                userId,
+                error: _e?.message || String(_e),
+              });
+              await client.query('SET LOCAL search_path TO public');
+            }
+            result = await client.query(sql, params);
+            await client.query('COMMIT');
+          } catch (inner) {
+            try { await client.query('ROLLBACK'); } catch {}
+            throw inner;
           }
-          result = await client.query(sql, params);
         } finally {
-          try { await client.query('RESET search_path'); } catch {}
           client.release();
         }
       } else {
@@ -456,7 +478,7 @@ class PostgreSQLAdapter extends DatabaseService {
 
     try {
       // For LocalTenantProvider, ensure search_path includes tenant schema + public.
-      // IMPORTANT: always reset search_path before releasing to pool.
+      // See note in query(): use BEGIN + SET LOCAL to ensure schema sticks with poolers.
       const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
       let result;
       if (userId && isLocalProvider) {
@@ -464,16 +486,25 @@ class PostgreSQLAdapter extends DatabaseService {
         this.logger?.info('Setting search_path for tenant update', { schemaName, userId });
         const client = await pool.connect();
         try {
+          await client.query('BEGIN');
           try {
-            // Prefer public first to avoid resolving to empty per-tenant schemas
-            // in installs where tables/data live in public.
-            await client.query(`SET search_path TO public, ${schemaName}`);
-          } catch (_e) {
-            await client.query('SET search_path TO public');
+            try {
+              await client.query(`SET LOCAL search_path TO ${schemaName}, public`);
+            } catch (_e) {
+              this.logger?.warn?.('Failed to SET LOCAL search_path for tenant update; falling back to public', {
+                schemaName,
+                userId,
+                error: _e?.message || String(_e),
+              });
+              await client.query('SET LOCAL search_path TO public');
+            }
+            result = await client.query(sql, params);
+            await client.query('COMMIT');
+          } catch (inner) {
+            try { await client.query('ROLLBACK'); } catch {}
+            throw inner;
           }
-          result = await client.query(sql, params);
         } finally {
-          try { await client.query('RESET search_path'); } catch {}
           client.release();
         }
       } else {
@@ -514,7 +545,7 @@ class PostgreSQLAdapter extends DatabaseService {
 
     try {
       // For LocalTenantProvider, ensure search_path includes tenant schema + public.
-      // IMPORTANT: always reset search_path before releasing to pool.
+      // See note in query(): use BEGIN + SET LOCAL to ensure schema sticks with poolers.
       const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
       let result;
       if (userId && isLocalProvider) {
@@ -522,16 +553,25 @@ class PostgreSQLAdapter extends DatabaseService {
         this.logger?.info('Setting search_path for tenant delete', { schemaName, userId });
         const client = await pool.connect();
         try {
+          await client.query('BEGIN');
           try {
-            // Prefer public first to avoid resolving to empty per-tenant schemas
-            // in installs where tables/data live in public.
-            await client.query(`SET search_path TO public, ${schemaName}`);
-          } catch (_e) {
-            await client.query('SET search_path TO public');
+            try {
+              await client.query(`SET LOCAL search_path TO ${schemaName}, public`);
+            } catch (_e) {
+              this.logger?.warn?.('Failed to SET LOCAL search_path for tenant delete; falling back to public', {
+                schemaName,
+                userId,
+                error: _e?.message || String(_e),
+              });
+              await client.query('SET LOCAL search_path TO public');
+            }
+            result = await client.query(sql, [id, userId]);
+            await client.query('COMMIT');
+          } catch (inner) {
+            try { await client.query('ROLLBACK'); } catch {}
+            throw inner;
           }
-          result = await client.query(sql, [id, userId]);
         } finally {
-          try { await client.query('RESET search_path'); } catch {}
           client.release();
         }
       } else {

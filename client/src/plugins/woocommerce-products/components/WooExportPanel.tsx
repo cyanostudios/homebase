@@ -33,9 +33,7 @@ interface WooInstance {
 }
 
 export const WooExportPanel: React.FC = () => {
-  const { settings, openWooSettingsPanel, openWooSettingsForEdit } = useWooCommerce();
-
-  const [instances, setInstances] = useState<WooInstance[]>([]);
+  const { instances, openWooSettingsPanel, openWooSettingsForEdit, loadWooSettings } = useWooCommerce();
   const [loadingInstances, setLoadingInstances] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
@@ -47,21 +45,15 @@ export const WooExportPanel: React.FC = () => {
     instanceName: '',
   });
 
-  const isConfigured = useMemo(
-    () => !!(settings?.storeUrl && settings?.consumerKey && settings?.consumerSecret),
-    [settings],
-  );
+  const isConfigured = useMemo(() => instances.length > 0, [instances.length]);
 
   useEffect(() => {
-    if (!isConfigured) return;
     let cancelled = false;
     const load = async () => {
       setLoadingInstances(true);
       try {
-        const resp = await woocommerceApi.getInstances();
-        if (!cancelled) setInstances(resp.items || []);
+        await loadWooSettings();
       } catch (err) {
-        if (!cancelled) setInstances([]);
         console.error('Failed to load WooCommerce instances:', err);
       } finally {
         if (!cancelled) setLoadingInstances(false);
@@ -71,7 +63,7 @@ export const WooExportPanel: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [isConfigured]);
+  }, [loadWooSettings]);
 
   const handleDelete = (inst: WooInstance) => {
     setDeleteConfirm({
@@ -85,8 +77,7 @@ export const WooExportPanel: React.FC = () => {
     try {
       await woocommerceApi.deleteInstance(deleteConfirm.instanceId);
       // Reload instances list
-      const resp = await woocommerceApi.getInstances();
-      setInstances(resp.items || []);
+      await loadWooSettings();
       setDeleteConfirm({
         isOpen: false,
         instanceId: '',

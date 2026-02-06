@@ -59,7 +59,8 @@ class Database {
        * @returns {Promise<Object>} Inserted record
        */
       insert: async (table, data) => {
-        const database = ServiceManager.get('database');
+        // IMPORTANT: always use request-scoped database so tenant pool/search_path is correct
+        const database = ServiceManager.get('database', req);
         return await database.insert(table, data, context);
       },
 
@@ -71,7 +72,8 @@ class Database {
        * @returns {Promise<Object>} Updated record
        */
       update: async (table, id, data) => {
-        const database = ServiceManager.get('database');
+        // IMPORTANT: always use request-scoped database so tenant pool/search_path is correct
+        const database = ServiceManager.get('database', req);
         return await database.update(table, id, data, context);
       },
 
@@ -82,7 +84,8 @@ class Database {
        * @returns {Promise<boolean>} Success
        */
       deleteRecord: async (table, id) => {
-        const database = ServiceManager.get('database');
+        // IMPORTANT: always use request-scoped database so tenant pool/search_path is correct
+        const database = ServiceManager.get('database', req);
         return await database.delete(table, id, context);
       },
 

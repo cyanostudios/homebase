@@ -3,6 +3,9 @@
 // Per-user Woo settings stored in DB
 export interface WooSettings {
   id?: string;
+  // Instance metadata (multi-store). Present when editing a specific store.
+  instanceKey?: string;
+  label?: string;
   storeUrl: string;
   consumerKey: string;
   consumerSecret: string;

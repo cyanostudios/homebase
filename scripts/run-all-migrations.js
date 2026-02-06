@@ -104,25 +104,10 @@ async function main() {
     console.log('🔍 Fetching all tenants from main database...');
 
     let tenants = [];
+    const tenantProvider = process.env.TENANT_PROVIDER || 'neon';
 
-    // First, check for Neon tenants (they take priority)
-    const neonResult = await mainPool.query(`
-      SELECT 
-        t.user_id,
-        t.neon_connection_string as connection_string,
-        u.email
-      FROM tenants t
-      INNER JOIN users u ON t.user_id = u.id
-      WHERE t.neon_connection_string IS NOT NULL
-      ORDER BY t.user_id
-    `);
-
-    if (neonResult.rows.length > 0) {
-      console.log(`   Found ${neonResult.rows.length} Neon tenant(s)`);
-      tenants = neonResult.rows;
-    } else {
-      // Fallback to local tenants (schema-per-tenant)
-      console.log(`   No Neon tenants found, using local schema-per-tenant`);
+    if (tenantProvider === 'local') {
+      console.log(`   TENANT_PROVIDER=local → using schema-per-tenant`);
       const usersResult = await mainPool.query(`
         SELECT id as user_id, email
         FROM users
@@ -133,9 +118,25 @@ async function main() {
       tenants = usersResult.rows.map((user) => ({
         user_id: user.user_id,
         email: user.email,
-        connection_string: `${mainConnectionString}?options=-csearch_path%3Dtenant_${user.user_id}`,
+        // IMPORTANT: Neon pooler does NOT support setting search_path via startup "options".
+        // We connect with the base DATABASE_URL and explicitly SET search_path per tenant schema in runMigrationOnTenant().
+        connection_string: `${mainConnectionString}`,
         schema_name: `tenant_${user.user_id}`,
       }));
+    } else {
+      // Neon (database-per-tenant)
+      const neonResult = await mainPool.query(`
+        SELECT 
+          t.user_id,
+          t.neon_connection_string as connection_string,
+          u.email
+        FROM tenants t
+        INNER JOIN users u ON t.user_id = u.id
+        WHERE t.neon_connection_string IS NOT NULL
+        ORDER BY t.user_id
+      `);
+      console.log(`   Found ${neonResult.rows.length} Neon tenant(s)`);
+      tenants = neonResult.rows;
     }
 
     if (tenants.length === 0) {

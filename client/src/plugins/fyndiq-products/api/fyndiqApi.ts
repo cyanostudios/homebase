@@ -58,6 +58,7 @@ class FyndiqApi {
       const err: any = new Error(payload?.error || payload?.message || response.statusText || 'Request failed');
       err.status = response.status;
       if (payload?.errors) err.errors = payload.errors as ApiFieldError[];
+      if (payload?.detail) err.detail = payload.detail;
       throw err;
     }
 

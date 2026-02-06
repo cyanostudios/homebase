@@ -71,6 +71,19 @@ export function FilesProvider({
     }
   }, [isAuthenticated]);
 
+  // Reload when user returns to tab (helps recover from transient tenant/session glitches)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void loadItems();
+        void loadCloudStorageSettings();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [isAuthenticated]);
+
   useEffect(() => {
     registerPanelCloseFunction('files', closeFilePanel);
     return () => unregisterPanelCloseFunction('files');
@@ -96,7 +109,7 @@ export function FilesProvider({
     updatedAt: it?.updatedAt ? new Date(it.updatedAt) : null,
   });
 
-  const loadItems = async () => {
+  async function loadItems() {
     try {
       const items: any[] = await api.getItems();
       setFiles(items.map(normalize));
@@ -106,7 +119,7 @@ export function FilesProvider({
       const errorMessage = e?.message || e?.error || 'Failed to load files';
       setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
-  };
+  }
 
   const validate = (data: any): ValidationError[] => {
     const errs: ValidationError[] = [];
@@ -300,7 +313,7 @@ export function FilesProvider({
   };
 
   // Cloud storage functions
-  const loadCloudStorageSettings = async () => {
+  async function loadCloudStorageSettings() {
     try {
       const [onedrive, dropbox, googledrive] = await Promise.all([
         cloudStorageApi.getSettings('onedrive').catch(() => null),
@@ -311,7 +324,7 @@ export function FilesProvider({
     } catch (err) {
       console.error('Failed to load cloud storage settings:', err);
     }
-  };
+  }
 
   const connectCloudStorage = async (service: CloudStorageService) => {
     try {

@@ -254,33 +254,31 @@ export const OrdersList: React.FC = () => {
     setImporting({ channel: 'all' });
     setImportResult(null);
 
-    const channels = [
-      { key: 'woocommerce' as const, pull: () => woocommerceApi.pullOrders({ perPage: 20 }) },
-      { key: 'cdon' as const, pull: () => cdonApi.pullOrders({ daysBack: 30 }) },
-      { key: 'fyndiq' as const, pull: () => fyndiqApi.pullOrders({ perPage: 30 }) },
+    const channels: Array<{ key: 'woocommerce' | 'cdon' | 'fyndiq'; pull: () => Promise<any> }> = [
+      { key: 'cdon', pull: () => cdonApi.pullOrders({ daysBack: 30 }) },
+      { key: 'fyndiq', pull: () => fyndiqApi.pullOrders({ perPage: 30 }) },
+      { key: 'woocommerce', pull: () => woocommerceApi.pullOrders({ perPage: 20 }) },
     ];
 
-    const settled = await Promise.allSettled(channels.map((c) => c.pull()));
-
     const results: Array<{ channel: string; fetched: number; created: number; skippedExisting: number; error?: string }> = [];
-    for (let i = 0; i < channels.length; i++) {
-      const ch = channels[i].key;
-      const s = settled[i];
-      if (s.status === 'fulfilled') {
-        const r = s.value as any;
+    for (const ch of channels) {
+      try {
+        const r = await ch.pull();
         results.push({
-          channel: ch,
+          channel: ch.key,
           fetched: r.fetched ?? 0,
           created: r.created ?? 0,
           skippedExisting: r.skippedExisting ?? 0,
         });
-      } else {
+      } catch (err: any) {
+        const msg = err?.message ?? (err?.error ?? String(err));
+        const detail = err?.detail;
         results.push({
-          channel: ch,
+          channel: ch.key,
           fetched: 0,
           created: 0,
           skippedExisting: 0,
-          error: (s.reason?.message ?? String(s.reason)) || 'Failed',
+          error: detail ? `${msg}${msg !== detail ? ` — ${detail}` : ''}` : (msg || 'Failed'),
         });
       }
     }
@@ -304,16 +302,16 @@ export const OrdersList: React.FC = () => {
   );
 
   const handleDeleteAll = async () => {
-    if (!confirm('Are you sure you want to delete ALL orders? This cannot be undone.')) {
+    if (!confirm('Är du säker på att du vill radera ALLA order? Detta går inte att ångra.')) {
       return;
     }
     try {
       setDeletingAll(true);
       const result = await ordersApi.deleteAll();
-      alert(`Deleted ${result.deletedCount} orders. You can now import fresh orders from channels.`);
+      alert(`${result.deletedCount} order raderade. Du kan nu importera order på nytt från kanalerna.`);
       void reloadOrders();
     } catch (err: any) {
-      alert(`Failed to delete orders: ${err.message || err}`);
+      alert(`Kunde inte radera order: ${err.message || err}`);
       console.error('Delete all error:', err);
     } finally {
       setDeletingAll(false);
@@ -385,7 +383,7 @@ export const OrdersList: React.FC = () => {
         size="sm"
         icon={Trash2}
       >
-        {deletingAll ? 'Deleting…' : 'Delete All'}
+        {deletingAll ? 'Rensar…' : 'Rensa alla order'}
       </Button>
       <Button
         onClick={handleImportAll}

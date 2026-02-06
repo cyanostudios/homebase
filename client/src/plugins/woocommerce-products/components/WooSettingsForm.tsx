@@ -13,7 +13,6 @@ import { useWooCommerce } from '../context/WooCommerceContext';
 
 export const WooSettingsForm: React.FC = () => {
   const {
-    settings,
     currentWooSettings,
     saveWooSettings,
     testWooConnection,
@@ -64,8 +63,8 @@ export const WooSettingsForm: React.FC = () => {
       return;
     }
     
-    // Otherwise, use currentWooSettings if available, or fall back to settings
-    const sourceSettings = currentWooSettings !== null ? currentWooSettings : settings;
+    // Otherwise, use currentWooSettings if available
+    const sourceSettings = currentWooSettings;
     if (sourceSettings) {
       setFormData({
         storeUrl: sourceSettings.storeUrl || '',
@@ -80,7 +79,7 @@ export const WooSettingsForm: React.FC = () => {
       resetForm();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWooSettings, settings, panelMode]);
+  }, [currentWooSettings, panelMode]);
 
   // Reset isDirty when switching to view mode
   useEffect(() => {
@@ -117,7 +116,7 @@ export const WooSettingsForm: React.FC = () => {
       if (panelMode === 'create' && currentWooSettings === null) {
         resetForm();
       } else {
-      const sourceSettings = currentWooSettings !== null ? currentWooSettings : settings;
+      const sourceSettings = currentWooSettings;
       if (sourceSettings) {
         setFormData({
           storeUrl: sourceSettings.storeUrl || '',
@@ -135,7 +134,7 @@ export const WooSettingsForm: React.FC = () => {
       // WooCommerce has no View component; always close panel so user returns to list page.
       closeWooSettingsPanel();
     });
-  }, [attemptAction, currentWooSettings, settings, resetForm, markClean, closeWooSettingsPanel, panelMode]);
+  }, [attemptAction, currentWooSettings, resetForm, markClean, closeWooSettingsPanel, panelMode]);
 
   const handleTest = useCallback(async () => {
     await testWooConnection(formData);

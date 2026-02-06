@@ -93,9 +93,7 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
             { instanceKey: 'dk', market: 'dk', label: 'Denmark' },
             { instanceKey: 'fi', market: 'fi', label: 'Finland' },
           ]
-        : ch === 'woocommerce'
-          ? [{ instanceKey: 'default', market: null, label: 'Default store' }]
-          : [];
+        : [];
 
     if (!defaults.length) {
       console.warn('No defaults for channel:', ch);
@@ -203,9 +201,11 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
       <Card padding="sm" className="shadow-none px-0">
         <div className="flex items-center justify-between gap-3 mb-3">
           <Heading level={3}>Instances</Heading>
-          <Button variant="secondary" onClick={ensureDefaults} disabled={creatingDefaults}>
-            {creatingDefaults ? 'Creating…' : 'Create defaults'}
-          </Button>
+          {(String(item.channel).toLowerCase() === 'cdon' || String(item.channel).toLowerCase() === 'fyndiq') && (
+            <Button variant="secondary" onClick={ensureDefaults} disabled={creatingDefaults}>
+              {creatingDefaults ? 'Creating…' : 'Create defaults'}
+            </Button>
+          )}
         </div>
         <Text variant="caption" className="text-gray-600 mb-3">
           Instances represent markets/stores (e.g. <strong>cdon.se</strong>, <strong>fyndiq.fi</strong>, <strong>woocommerce.shopA</strong>).
