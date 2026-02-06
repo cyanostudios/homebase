@@ -373,6 +373,38 @@ class ProductController {
     }
   }
 
+  // ---- Batch update ----
+  // PATCH /api/products/batch
+  // body: { ids: string[], updates: { priceAmount?: number, quantity?: number, status?: string, vatRate?: number, currency?: string } }
+  async batchUpdate(req, res) {
+    try {
+      const idsRaw = req.body?.ids;
+      const updates = req.body?.updates || {};
+      if (!Array.isArray(idsRaw)) {
+        return res.status(400).json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
+      }
+
+      const ids = Array.from(new Set(idsRaw.map((x) => String(x).trim()).filter(Boolean)));
+      if (!ids.length) {
+        return res.json({ ok: true, updatedCount: 0, updatedIds: [] });
+      }
+      if (ids.length > 500) {
+        return res.status(400).json({ error: 'Too many ids (max 500 per request)', code: 'VALIDATION_ERROR' });
+      }
+
+      const result = await this.model.batchUpdate(req, ids, updates);
+      return res.json({
+        ok: true,
+        updatedCount: result.updatedCount ?? 0,
+        updatedIds: result.updatedIds ?? [],
+      });
+    } catch (error) {
+      Logger.error('Batch update products error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to batch update products' });
+    }
+  }
+
   // ---- Bulk delete ----
   // DELETE /api/products/batch
   // body: { ids: string[] }

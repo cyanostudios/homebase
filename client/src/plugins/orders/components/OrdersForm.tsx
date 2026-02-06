@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { getCarriersForChannel } from '../constants/carriers';
 import { useOrders } from '../hooks/useOrders';
 import type { OrderStatus } from '../types/orders';
 
@@ -111,13 +112,34 @@ export const OrdersForm: React.FC<OrdersFormProps> = ({ onSave, onCancel }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Carrier</label>
-            <input
-              value={formData.carrier}
-              onChange={(e) => setFormData((p) => ({ ...p, carrier: e.target.value }))}
-              className={`w-full px-3 py-2 border rounded-md ${getFieldError('carrier') ? 'border-red-500' : 'border-gray-300'
-                }`}
-              disabled={isSaving}
-            />
+            {(() => {
+              const carriers = getCarriersForChannel(currentOrder?.channel ?? '');
+              if (carriers.length > 0) {
+                return (
+                  <select
+                    value={formData.carrier}
+                    onChange={(e) => setFormData((p) => ({ ...p, carrier: e.target.value }))}
+                    className={`w-full px-3 py-2 border rounded-md bg-white ${getFieldError('carrier') ? 'border-red-500' : 'border-gray-300'}`}
+                    disabled={isSaving}
+                  >
+                    <option value="">—</option>
+                    {carriers.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                );
+              }
+              return (
+                <input
+                  value={formData.carrier}
+                  onChange={(e) => setFormData((p) => ({ ...p, carrier: e.target.value }))}
+                  className={`w-full px-3 py-2 border rounded-md ${getFieldError('carrier') ? 'border-red-500' : 'border-gray-300'}`}
+                  disabled={isSaving}
+                />
+              );
+            })()}
             {getFieldError('carrier') ? (
               <p className="mt-1 text-sm text-red-600">{getFieldError('carrier')?.message}</p>
             ) : null}

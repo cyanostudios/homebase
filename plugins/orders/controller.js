@@ -496,11 +496,11 @@ class OrdersController {
 
     const rows = await db.query(
       `
-      SELECT channel, enabled, external_id
+      SELECT channel, enabled, external_id, channel_instance_id
       FROM channel_product_map
       WHERE user_id = $1
         AND product_id = $2
-        AND enabled = TRUE
+        AND (enabled = TRUE OR external_id IS NOT NULL)
       `,
       [userId, String(productId)],
     );
@@ -510,11 +510,13 @@ class OrdersController {
       if (!channel || channel === sourceChannel) continue;
 
       if (channel === 'woocommerce') {
+        const channelInstanceId = r.channel_instance_id != null ? String(r.channel_instance_id) : null;
         await this.syncWooStock(req, {
           productId: String(productId),
           sku,
           quantity,
           externalId: r.external_id != null ? String(r.external_id) : null,
+          channelInstanceId,
         });
         continue;
       }
@@ -558,12 +560,20 @@ class OrdersController {
     }
   }
 
-  async syncWooStock(req, { productId, sku, quantity, externalId }) {
-    const settings = await this.wooModel.getSettings(req);
+  async syncWooStock(req, { productId, sku, quantity, externalId, channelInstanceId }) {
+    let settings = null;
+    if (channelInstanceId) {
+      const instance = await this.wooModel.getInstanceById(req, channelInstanceId);
+      settings = instance?.credentials || null;
+    }
+    if (!settings) {
+      settings = await this.wooModel.getSettings(req);
+    }
     if (!settings?.storeUrl || !settings?.consumerKey || !settings?.consumerSecret) {
       await this.wooModel.upsertChannelMap(req, {
         productId,
         channel: 'woocommerce',
+        channelInstanceId: channelInstanceId || null,
         externalId: externalId || null,
         status: 'error',
         error: 'Woo settings missing; cannot sync stock',
@@ -573,7 +583,6 @@ class OrdersController {
 
     const base = this.wooController.normalizeBaseUrl(settings.storeUrl);
 
-    // Resolve Woo product ID
     let wooId = null;
     if (externalId && Number.isFinite(Number(externalId))) wooId = Number(externalId);
     if (!wooId) {
@@ -585,6 +594,7 @@ class OrdersController {
       await this.wooModel.upsertChannelMap(req, {
         productId,
         channel: 'woocommerce',
+        channelInstanceId: channelInstanceId || null,
         externalId: null,
         status: 'error',
         error: `Woo product not found for SKU "${sku}"`,
@@ -615,6 +625,7 @@ class OrdersController {
       await this.wooModel.upsertChannelMap(req, {
         productId,
         channel: 'woocommerce',
+        channelInstanceId: channelInstanceId || null,
         externalId: wooId,
         status: 'error',
         error: text || 'Stock sync failed',
@@ -632,6 +643,7 @@ class OrdersController {
     await this.wooModel.upsertChannelMap(req, {
       productId,
       channel: 'woocommerce',
+      channelInstanceId: channelInstanceId || null,
       externalId: wooId,
       status: 'success',
       error: null,

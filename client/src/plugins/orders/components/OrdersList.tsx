@@ -21,6 +21,7 @@ import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceAp
 import { channelsApi } from '@/plugins/channels/api/channelsApi';
 
 import { ordersApi } from '../api/ordersApi';
+import { CDON_CARRIERS, FYNDIQ_CARRIERS, WOOCOMMERCE_CARRIERS_SE } from '../constants/carriers';
 import { useOrders } from '../hooks/useOrders';
 import type { OrderDetails, OrderListItem, OrderStatus } from '../types/orders';
 import { statusDisplayLabel } from '../utils/statusDisplay';
@@ -466,12 +467,34 @@ export const OrdersList: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Carrier (optional)</label>
-                <Input
-                  type="text"
+                <select
                   value={batchCarrier}
                   onChange={(e) => setBatchCarrier(e.target.value)}
-                  placeholder="e.g. PostNord"
-                />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
+                >
+                  <option value="">—</option>
+                  <optgroup label="CDON">
+                    {CDON_CARRIERS.map((c) => (
+                      <option key={`cdon-${c}`} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Fyndiq">
+                    {FYNDIQ_CARRIERS.map((c) => (
+                      <option key={`fyndiq-${c}`} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="WooCommerce (Sverige)">
+                    {WOOCOMMERCE_CARRIERS_SE.map((c) => (
+                      <option key={`woo-${c}`} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Tracking Number (optional)</label>

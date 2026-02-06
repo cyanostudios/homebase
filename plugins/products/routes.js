@@ -1,6 +1,7 @@
 // plugins/products/routes.js
 const express = require('express');
 const router = express.Router();
+const { body } = require('express-validator');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
 const { uploadLimiter } = require('../../server/core/middleware/rateLimit');
@@ -69,6 +70,23 @@ function createProductRoutes(controller, context) {
     ],
     validateRequest,
     (req, res) => controller.create(req, res)
+  );
+
+  // PATCH /api/products/batch - Batch update (MUST be before '/:id' route)
+  router.patch('/batch',
+    gate,
+    csrfProtection,
+    [
+      commonRules.array('ids', 500),
+      body('updates').optional().isObject().withMessage('updates must be an object'),
+      body('updates.priceAmount').optional().isNumeric(),
+      body('updates.quantity').optional().isInt({ min: 0 }),
+      body('updates.status').optional().isIn(['for sale', 'draft', 'archived']),
+      body('updates.vatRate').optional().isNumeric(),
+      body('updates.currency').optional().isLength({ min: 3, max: 3 }).isAlpha(),
+    ],
+    validateRequest,
+    (req, res) => controller.batchUpdate(req, res)
   );
 
   // DELETE /api/products/batch - Bulk delete (MUST be before '/:id' route)

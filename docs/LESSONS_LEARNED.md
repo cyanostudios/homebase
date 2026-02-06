@@ -1099,6 +1099,21 @@ Middleware körs asynkront och kan misslyckas tyst. Utan debug logging är det o
 
 ---
 
+## CDON and Fyndiq: Inga fallbacks eller gissningar
+
+❌ **What we did (that didn't work):**
+
+- Lade till fallback-logik (t.ex. "om customer_order_id misslyckas, prova primary.id", eller flera alternativa fält för order-ID/carrier).
+- Gissade på fältnamn, ID-format eller API-format när något var oklart.
+
+✅ **What we do instead (that works):**
+
+- Använd **endast** de exakta identifierare, carrier-strängar och payloads som kanalens dokumentation/support anger.
+- **Fråga användaren** vad som ska göras när du stöter på ett hinder (saknat fält, oklart format, API-fel). Implementera inte en fallback eller gissning.
+
+💡 **Why (lesson learned):**
+CDON och Fyndiq är väldigt strikta. Fallbacks och gissningar fungerar inte och ger tysta fel eller felmeddelanden. Vid osäkerhet: fråga istället för att gissa. Se även `.cursor/rules/cdon-fyndiq-no-fallbacks.mdc`.
+
 ---
 
 ## Panel Subtitle & Cross-Plugin Data

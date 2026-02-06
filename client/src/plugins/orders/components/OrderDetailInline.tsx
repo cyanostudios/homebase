@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 import { ordersApi } from '../api/ordersApi';
+import { getCarriersForChannel } from '../constants/carriers';
 import type { OrderDetails, OrderItem, OrderStatus } from '../types/orders';
 import { statusDisplayLabel } from '../utils/statusDisplay';
 
@@ -205,13 +206,34 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
                   </option>
                 ))}
               </select>
-              <input
-                type="text"
-                value={carrier}
-                onChange={(e) => setCarrier(e.target.value)}
-                placeholder="Carrier"
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
-              />
+              {(() => {
+                const carriers = getCarriersForChannel(order.channel);
+                if (carriers.length > 0) {
+                  return (
+                    <select
+                      value={carrier}
+                      onChange={(e) => setCarrier(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded-md bg-white text-sm"
+                    >
+                      <option value="">—</option>
+                      {carriers.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  );
+                }
+                return (
+                  <input
+                    type="text"
+                    value={carrier}
+                    onChange={(e) => setCarrier(e.target.value)}
+                    placeholder="Carrier"
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                  />
+                );
+              })()}
               <input
                 type="text"
                 value={tracking}

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Trash2, ChevronUp, ChevronDown, Upload, Plus } from 'lucide-react';
+import { Trash2, ChevronUp, ChevronDown, Upload, Plus, Pencil } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -54,6 +54,8 @@ export const ProductList: React.FC = () => {
     clearProductSelection,
     // Bulk delete
     deleteProducts,
+    // Batch update
+    batchUpdateProducts,
     // Import
     importProducts,
   } = useProducts();
@@ -68,28 +70,47 @@ export const ProductList: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [isMobileView, setIsMobileView] = useState(false);
 
-  // Publish-modal state
+  const [wooInstances, setWooInstances] = useState<Array<{ id: string; instanceKey?: string; label?: string | null }>>([]);
+  useEffect(() => {
+    woocommerceApi.getInstances().then((r) => {
+      if (r?.items?.length) setWooInstances(r.items);
+    }).catch(() => setWooInstances([]));
+  }, []);
+
+  // Publish-modal state (when no Woo instances, use default store: don't send instanceIds)
   const [showPublishModal, setShowPublishModal] = useState(false);
-  const [publishWooChecked, setPublishWooChecked] = useState(true);
+  const [publishWooInstanceIds, setPublishWooInstanceIds] = useState<string[]>([]);
+  const [publishWooDefaultStore, setPublishWooDefaultStore] = useState(false);
   const [publishCdonMarkets, setPublishCdonMarkets] = useState<string[]>([]);
   const [publishFyndiqMarkets, setPublishFyndiqMarkets] = useState<string[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [lastPublishResult, setLastPublishResult] = useState<{
-    woo?: { ok: boolean; result?: { create?: unknown[]; update?: unknown[] }; endpoint?: string };
+    woo?: { ok: boolean; result?: { create?: unknown[]; update?: unknown[] }; endpoint?: string; instances?: Array<{ instanceId: string | null; label: string | null; ok: boolean; counts?: { success?: number; error?: number } }> };
     cdon?: { ok: boolean; counts?: { requested?: number; success?: number; error?: number }; endpoint?: string };
     fyndiq?: { ok: boolean; counts?: { requested?: number; success?: number; error?: number }; endpoint?: string };
   } | null>(null);
 
-  // Delete-modal state
+  // Delete-modal state (when no Woo instances, use default store)
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteFromWooChecked, setDeleteFromWooChecked] = useState(false);
+  const [deleteFromWooInstanceIds, setDeleteFromWooInstanceIds] = useState<string[]>([]);
+  const [deleteFromWooDefaultStore, setDeleteFromWooDefaultStore] = useState(false);
+  const [deleteFromCdonMarkets, setDeleteFromCdonMarkets] = useState<string[]>([]);
+  const [deleteFromFyndiqMarkets, setDeleteFromFyndiqMarkets] = useState<string[]>([]);
   const [alsoDeleteFromPlatform, setAlsoDeleteFromPlatform] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const [lastDeleteResult, setLastDeleteResult] = useState<{
     woo?: { ok: boolean; deleted: number; endpoint?: string; errors?: string[] };
+    cdon?: { ok: boolean; deleted: number; endpoint?: string };
+    fyndiq?: { ok: boolean; deleted: number; endpoint?: string };
     platform?: { ok: boolean; deleted: number };
   } | null>(null);
+
+  // Batch-edit modal state
+  const [showBatchEditModal, setShowBatchEditModal] = useState(false);
+  const [batchEditUpdates, setBatchEditUpdates] = useState<{ priceAmount?: string; quantity?: string; status?: string; vatRate?: string; currency?: string }>({});
+  const [batchEditApplying, setBatchEditApplying] = useState(false);
+  const [lastBatchEditResult, setLastBatchEditResult] = useState<{ updatedCount: number } | null>(null);
 
   // Import-modal state
   const [showImportModal, setShowImportModal] = useState(false);
@@ -258,7 +279,7 @@ export const ProductList: React.FC = () => {
 
   const total = products.length;
   const filtered = filteredAndSorted.length;
-  const isWooConfigured = !!(
+  const isWooConfigured = wooInstances.length > 0 || !!(
     wooSettings?.storeUrl &&
     wooSettings?.consumerKey &&
     wooSettings?.consumerSecret
@@ -281,36 +302,11 @@ export const ProductList: React.FC = () => {
         platform?: { ok: boolean; deleted: number };
       } = {};
 
-      // 1) WooCommerce
-      if (deleteFromWooChecked && isWooConfigured) {
-        const externalIds: number[] = [];
-        const skus: string[] = [];
-
-        await Promise.all(
-          selectedProducts.map(async (p: any) => {
-            const productId = String(p?.id);
-            const sku = String(p?.sku || '').trim();
-            try {
-              const resp = await channelsApi.getProductMap({
-                productId,
-                channel: 'woocommerce',
-              });
-              const ext = resp?.row?.external_id;
-              const asNum = ext != null ? Number(ext) : NaN;
-              if (Number.isFinite(asNum)) {
-                externalIds.push(asNum);
-                return;
-              }
-            } catch (_err) {
-              void _err;
-            }
-            if (sku) skus.push(sku);
-          }),
-        );
-
+      // 1) WooCommerce (per-instance: send productIds + instanceIds so backend resolves external_id per store; or default store with no instanceIds)
+      if ((deleteFromWooInstanceIds.length > 0 || deleteFromWooDefaultStore) && isWooConfigured) {
         const wooResp = await woocommerceApi.deleteProducts({
-          externalIds: externalIds.length ? externalIds : undefined,
-          skus: skus.length ? skus : undefined,
+          productIds: attemptedPlatformIds,
+          ...(deleteFromWooInstanceIds.length > 0 ? { instanceIds: deleteFromWooInstanceIds } : {}),
         });
 
         const errors = Array.isArray(wooResp?.items)
@@ -376,7 +372,7 @@ export const ProductList: React.FC = () => {
     } catch (err: any) {
       console.error('Bulk delete failed', err);
       setLastDeleteResult({
-        woo: deleteFromWooChecked ? { ok: false, deleted: 0, errors: [String(err?.message || err)] } : undefined,
+        woo: (deleteFromWooInstanceIds.length > 0 || deleteFromWooDefaultStore) ? { ok: false, deleted: 0, errors: [String(err?.message || err)] } : undefined,
         cdon: deleteFromCdonMarkets.length ? { ok: false, deleted: 0 } : undefined,
         fyndiq: deleteFromFyndiqMarkets.length ? { ok: false, deleted: 0 } : undefined,
         platform: alsoDeleteFromPlatform ? { ok: false, deleted: 0 } : undefined,
@@ -427,7 +423,13 @@ export const ProductList: React.FC = () => {
               <button
                 className="ml-1 inline-flex items-center px-3 py-1.5 rounded-md border border-blue-600 text-blue-700 hover:bg-blue-50 text-sm"
                 onClick={() => {
-                  setPublishWooChecked(!!isWooConfigured);
+                  if (isWooConfigured && wooInstances.length > 0) {
+                    setPublishWooInstanceIds(wooInstances.map((i) => i.id));
+                    setPublishWooDefaultStore(false);
+                  } else {
+                    setPublishWooInstanceIds([]);
+                    setPublishWooDefaultStore(!!isWooConfigured);
+                  }
                   setPublishCdonMarkets(isCdonConfigured ? ['se'] : []);
                   setPublishFyndiqMarkets(isFyndiqConfigured ? ['se'] : []);
                   setLastPublishResult(null);
@@ -437,11 +439,25 @@ export const ProductList: React.FC = () => {
                 Publish…
               </button>
 
+              {/* Batch Edit… */}
+              <button
+                className="inline-flex items-center px-3 py-1.5 rounded-md border border-amber-600 text-amber-700 hover:bg-amber-50 text-sm"
+                onClick={() => {
+                  setBatchEditUpdates({});
+                  setLastBatchEditResult(null);
+                  setShowBatchEditModal(true);
+                }}
+              >
+                <Pencil className="w-4 h-4 mr-1" />
+                Batch Edit…
+              </button>
+
               {/* Delete… */}
               <button
                 className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-600 text-red-700 hover:bg-red-50 text-sm"
                 onClick={() => {
-                  setDeleteFromWooChecked(!!isWooConfigured);
+                  setDeleteFromWooInstanceIds([]);
+                  setDeleteFromWooDefaultStore(false);
                   setDeleteFromCdonMarkets(isCdonConfigured ? ['se'] : []);
                   setDeleteFromFyndiqMarkets(isFyndiqConfigured ? ['se'] : []);
                   setAlsoDeleteFromPlatform(false);
@@ -501,10 +517,14 @@ export const ProductList: React.FC = () => {
                 <div>
                   WooCommerce:{' '}
                   {lastPublishResult.woo.ok ? (
-                    <>
-                      Created {Array.isArray(lastPublishResult.woo.result?.create) ? lastPublishResult.woo.result.create.length : 0},{' '}
-                      Updated {Array.isArray(lastPublishResult.woo.result?.update) ? lastPublishResult.woo.result.update.length : 0}
-                    </>
+                    Array.isArray(lastPublishResult.woo.instances) && lastPublishResult.woo.instances.length > 0 ? (
+                      <>{(lastPublishResult.woo.instances as any[]).filter((i) => i.ok).length} store(s) updated</>
+                    ) : (
+                      <>
+                        Created {Array.isArray(lastPublishResult.woo.result?.create) ? lastPublishResult.woo.result.create.length : 0},{' '}
+                        Updated {Array.isArray(lastPublishResult.woo.result?.update) ? lastPublishResult.woo.result.update.length : 0}
+                      </>
+                    )
                   ) : (
                     'failed'
                   )}
@@ -820,9 +840,9 @@ export const ProductList: React.FC = () => {
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-xl">
             <div className="bg-white rounded-xl shadow-xl border">
               <div className="p-4 border-b">
-                <Heading level={3} className="mb-0">
+              <h3 className="mb-0 text-lg font-semibold">
                   Publish selected products
-                </Heading>
+                </h3>
                 <div className="text-xs text-gray-500">
                   {selectedProducts.length} products selected
                 </div>
@@ -831,15 +851,40 @@ export const ProductList: React.FC = () => {
                 <div>
                   <div className="text-sm font-medium mb-2">Choose channels / stores</div>
                   <div className="space-y-3">
-                    <label className={`flex items-center gap-2 ${!isWooConfigured ? 'opacity-50' : ''}`}>
-                      <input
-                        type="checkbox"
-                        disabled={!isWooConfigured}
-                        checked={publishWooChecked && isWooConfigured}
-                        onChange={(e) => setPublishWooChecked(e.target.checked)}
-                      />
-                      <span>WooCommerce {isWooConfigured ? '' : '(not connected)'}</span>
-                    </label>
+                    <div className={!isWooConfigured ? 'opacity-50' : ''}>
+                      <div className="text-sm font-medium mb-1">WooCommerce {isWooConfigured ? '' : '(not connected)'}</div>
+                      {wooInstances.length > 0 ? (
+                        <div className="flex flex-wrap gap-4 pl-5">
+                          {wooInstances.map((inst) => (
+                            <label key={inst.id} className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                disabled={!isWooConfigured}
+                                checked={isWooConfigured && publishWooInstanceIds.includes(inst.id)}
+                                onChange={(e) => {
+                                  if (!isWooConfigured) return;
+                                  setPublishWooInstanceIds((prev) =>
+                                    e.target.checked ? [...prev, inst.id] : prev.filter((id) => id !== inst.id)
+                                  );
+                                }}
+                              />
+                              <span>{inst.label || inst.instanceKey || inst.id}</span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : isWooConfigured ? (
+                        <label className="flex items-center gap-2 pl-5">
+                          <input
+                            type="checkbox"
+                            checked={publishWooDefaultStore}
+                            onChange={(e) => setPublishWooDefaultStore(e.target.checked)}
+                          />
+                          <span>Default store (legacy)</span>
+                        </label>
+                      ) : (
+                        <p className="text-xs text-gray-500 pl-5">No WooCommerce stores added. Add a store in Settings.</p>
+                      )}
+                    </div>
                     <div className={!isCdonConfigured ? 'opacity-50' : ''}>
                       <div className="text-sm font-medium mb-1">CDON {isCdonConfigured ? '' : '(not connected)'}</div>
                       <div className="flex flex-wrap gap-4 pl-5">
@@ -898,7 +943,7 @@ export const ProductList: React.FC = () => {
                   disabled={
                     publishing ||
                     selectedProducts.length === 0 ||
-                    (!publishWooChecked && !publishCdonMarkets.length && !publishFyndiqMarkets.length)
+                    (publishWooInstanceIds.length === 0 && !publishWooDefaultStore && !publishCdonMarkets.length && !publishFyndiqMarkets.length)
                   }
                   onClick={async () => {
                     const payload = selectedProducts.map((p: any) => ({
@@ -924,10 +969,18 @@ export const ProductList: React.FC = () => {
                     setPublishing(true);
                     const result: NonNullable<typeof lastPublishResult> = {};
                     try {
-                      if (publishWooChecked && isWooConfigured) {
+                      if ((publishWooInstanceIds.length > 0 || publishWooDefaultStore) && isWooConfigured) {
                         try {
-                          const r = await woocommerceApi.exportProducts(payload);
-                          result.woo = { ok: !!r?.ok, result: r?.result, endpoint: r?.endpoint };
+                          const r = await woocommerceApi.exportProducts(
+                            payload,
+                            publishWooInstanceIds.length > 0 ? { instanceIds: publishWooInstanceIds } : undefined
+                          );
+                          result.woo = {
+                            ok: !!r?.ok,
+                            result: r?.result,
+                            endpoint: r?.endpoint,
+                            instances: (r as any)?.instances,
+                          };
                         } catch (e) {
                           console.error('WooCommerce export failed', e);
                           result.woo = { ok: false };
@@ -982,9 +1035,9 @@ export const ProductList: React.FC = () => {
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-xl">
             <div className="bg-white rounded-xl shadow-xl border">
               <div className="p-4 border-b">
-                <Heading level={3} className="mb-0">
+                <h3 className="mb-0 text-lg font-semibold">
                   Import products
-                </Heading>
+                </h3>
                 <div className="text-xs text-gray-500">
                   Upload a .csv or .xlsx file and choose how to apply it.
                 </div>
@@ -1072,6 +1125,142 @@ export const ProductList: React.FC = () => {
         </div>
       )}
 
+      {/* Batch Edit modal */}
+      {showBatchEditModal && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowBatchEditModal(false)} />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-xl">
+            <div className="bg-white rounded-xl shadow-xl border">
+              <div className="p-4 border-b">
+                <h3 className="mb-0 text-lg font-semibold">Batch Edit</h3>
+                <div className="text-xs text-gray-500">{selectedProductIds.length} products selected. Set only the fields you want to change.</div>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium">Price</label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Leave empty to skip"
+                      value={batchEditUpdates.priceAmount ?? ''}
+                      onChange={(e) => setBatchEditUpdates((u) => ({ ...u, priceAmount: e.target.value }))}
+                      className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Quantity</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Leave empty to skip"
+                      value={batchEditUpdates.quantity ?? ''}
+                      onChange={(e) => setBatchEditUpdates((u) => ({ ...u, quantity: e.target.value }))}
+                      className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Status</label>
+                    <select
+                      value={batchEditUpdates.status ?? ''}
+                      onChange={(e) => setBatchEditUpdates((u) => ({ ...u, status: e.target.value || undefined }))}
+                      className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
+                    >
+                      <option value="">— No change —</option>
+                      <option value="for sale">For sale</option>
+                      <option value="draft">Draft</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">VAT rate (%)</label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Leave empty to skip"
+                      value={batchEditUpdates.vatRate ?? ''}
+                      onChange={(e) => setBatchEditUpdates((u) => ({ ...u, vatRate: e.target.value }))}
+                      className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Currency</label>
+                    <select
+                      value={batchEditUpdates.currency ?? ''}
+                      onChange={(e) => setBatchEditUpdates((u) => ({ ...u, currency: e.target.value || undefined }))}
+                      className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
+                    >
+                      <option value="">— No change —</option>
+                      <option value="SEK">SEK</option>
+                      <option value="EUR">EUR</option>
+                      <option value="USD">USD</option>
+                      <option value="NOK">NOK</option>
+                      <option value="DKK">DKK</option>
+                    </select>
+                  </div>
+                </div>
+                {lastBatchEditResult != null && (
+                  <div className="rounded-md border border-green-200 bg-green-50 text-green-800 p-2 text-sm">
+                    Updated {lastBatchEditResult.updatedCount} product(s).
+                  </div>
+                )}
+              </div>
+              <div className="p-4 border-t flex items-center justify-end gap-2">
+                <button
+                  className="px-3 py-1.5 rounded-md border text-sm"
+                  onClick={() => setShowBatchEditModal(false)}
+                  disabled={batchEditApplying}
+                >
+                  Close
+                </button>
+                <button
+                  className="px-3 py-1.5 rounded-md bg-amber-600 text-white text-sm disabled:opacity-50"
+                  disabled={
+                    batchEditApplying ||
+                    selectedProductIds.length === 0 ||
+                    (!batchEditUpdates.priceAmount &&
+                      !batchEditUpdates.quantity &&
+                      !batchEditUpdates.status &&
+                      !batchEditUpdates.vatRate &&
+                      !batchEditUpdates.currency)
+                  }
+                  onClick={async () => {
+                    const updates: { priceAmount?: number; quantity?: number; status?: string; vatRate?: number; currency?: string } = {};
+                    if (batchEditUpdates.priceAmount != null && batchEditUpdates.priceAmount !== '') {
+                      const n = Number(batchEditUpdates.priceAmount.replace(',', '.'));
+                      if (Number.isFinite(n)) updates.priceAmount = n;
+                    }
+                    if (batchEditUpdates.quantity != null && batchEditUpdates.quantity !== '') {
+                      const n = Number(batchEditUpdates.quantity);
+                      if (Number.isFinite(n) && n >= 0) updates.quantity = Math.trunc(n);
+                    }
+                    if (batchEditUpdates.status) updates.status = batchEditUpdates.status;
+                    if (batchEditUpdates.vatRate != null && batchEditUpdates.vatRate !== '') {
+                      const n = Number(batchEditUpdates.vatRate.replace(',', '.'));
+                      if (Number.isFinite(n)) updates.vatRate = n;
+                    }
+                    if (batchEditUpdates.currency) updates.currency = batchEditUpdates.currency;
+                    if (Object.keys(updates).length === 0) return;
+                    setBatchEditApplying(true);
+                    try {
+                      const result = await batchUpdateProducts(selectedProductIds, updates);
+                      setLastBatchEditResult({ updatedCount: result.updatedCount });
+                    } catch (err: any) {
+                      console.error('Batch edit failed', err);
+                      setLastBatchEditResult({ updatedCount: 0 });
+                    } finally {
+                      setBatchEditApplying(false);
+                    }
+                  }}
+                >
+                  {batchEditApplying ? 'Applying…' : `Apply to ${selectedProductIds.length} products`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete-modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50">
@@ -1079,9 +1268,9 @@ export const ProductList: React.FC = () => {
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-xl">
             <div className="bg-white rounded-xl shadow-xl border">
               <div className="p-4 border-b">
-                <Heading level={3} className="mb-0">
+                <h3 className="mb-0 text-lg font-semibold">
                   Delete selected products
-                </Heading>
+                </h3>
                 <div className="text-xs text-gray-500">
                   {selectedProducts.length} products selected
                 </div>
@@ -1090,15 +1279,40 @@ export const ProductList: React.FC = () => {
                 <div>
                   <div className="text-sm font-medium mb-2">Choose channels / stores to delete from</div>
                   <div className="space-y-3">
-                    <label className={`flex items-center gap-2 ${!isWooConfigured ? 'opacity-50' : ''}`}>
-                      <input
-                        type="checkbox"
-                        disabled={!isWooConfigured}
-                        checked={deleteFromWooChecked && isWooConfigured}
-                        onChange={(e) => setDeleteFromWooChecked(e.target.checked)}
-                      />
-                      <span>WooCommerce {isWooConfigured ? '' : '(not connected)'}</span>
-                    </label>
+                    <div className={!isWooConfigured ? 'opacity-50' : ''}>
+                      <div className="text-sm font-medium mb-1">WooCommerce {isWooConfigured ? '' : '(not connected)'}</div>
+                      {wooInstances.length > 0 ? (
+                        <div className="flex flex-wrap gap-4 pl-5">
+                          {wooInstances.map((inst) => (
+                            <label key={inst.id} className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                disabled={!isWooConfigured}
+                                checked={isWooConfigured && deleteFromWooInstanceIds.includes(inst.id)}
+                                onChange={(e) => {
+                                  if (!isWooConfigured) return;
+                                  setDeleteFromWooInstanceIds((prev) =>
+                                    e.target.checked ? [...prev, inst.id] : prev.filter((id) => id !== inst.id)
+                                  );
+                                }}
+                              />
+                              <span>{inst.label || inst.instanceKey || inst.id}</span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : isWooConfigured ? (
+                        <label className="flex items-center gap-2 pl-5">
+                          <input
+                            type="checkbox"
+                            checked={deleteFromWooDefaultStore}
+                            onChange={(e) => setDeleteFromWooDefaultStore(e.target.checked)}
+                          />
+                          <span>Default store (legacy)</span>
+                        </label>
+                      ) : (
+                        <p className="text-xs text-gray-500 pl-5">No WooCommerce stores added.</p>
+                      )}
+                    </div>
                     <div className={!isCdonConfigured ? 'opacity-50' : ''}>
                       <div className="text-sm font-medium mb-1">CDON {isCdonConfigured ? '' : '(not connected)'}</div>
                       <div className="flex flex-wrap gap-4 pl-5">
@@ -1110,8 +1324,10 @@ export const ProductList: React.FC = () => {
                               checked={isCdonConfigured && deleteFromCdonMarkets.includes(key)}
                               onChange={(e) => {
                                 if (!isCdonConfigured) return;
-                                setDeleteFromCdonMarkets((prev) =>
-                                  e.target.checked ? [...prev.filter((m) => m !== key), key] : prev.filter((m) => m !== key)
+                                setDeleteFromCdonMarkets((prev: string[]) =>
+                                  e.target.checked
+                                    ? [...prev.filter((m: string) => m !== key), key as string]
+                                    : prev.filter((m: string) => m !== key)
                                 );
                               }}
                             />
@@ -1131,8 +1347,10 @@ export const ProductList: React.FC = () => {
                               checked={isFyndiqConfigured && deleteFromFyndiqMarkets.includes(key)}
                               onChange={(e) => {
                                 if (!isFyndiqConfigured) return;
-                                setDeleteFromFyndiqMarkets((prev) =>
-                                  e.target.checked ? [...prev.filter((m) => m !== key), key] : prev.filter((m) => m !== key)
+                                setDeleteFromFyndiqMarkets((prev: string[]) =>
+                                  e.target.checked
+                                    ? [...prev.filter((m: string) => m !== key), key as string]
+                                    : prev.filter((m: string) => m !== key)
                                 );
                               }}
                             />
@@ -1172,7 +1390,8 @@ export const ProductList: React.FC = () => {
                   disabled={
                     deleting ||
                     selectedProducts.length === 0 ||
-                    (!deleteFromWooChecked &&
+                    (deleteFromWooInstanceIds.length === 0 &&
+                      !deleteFromWooDefaultStore &&
                       !deleteFromCdonMarkets.length &&
                       !deleteFromFyndiqMarkets.length &&
                       !alsoDeleteFromPlatform)

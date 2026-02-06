@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useMemo,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react';
 
@@ -15,6 +16,10 @@ import { Badge } from '@/components/ui/badge';
 
 import { productsApi, type ProductImportMode, type ProductImportResult } from '../api/productsApi';
 import type { Product, ValidationError } from '../types/products';
+import { channelsApi } from '@/plugins/channels/api/channelsApi';
+import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceApi';
+import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
+import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
 
 interface ProductContextType {
   // Panel state
@@ -39,9 +44,10 @@ interface ProductContextType {
   closeProductPanel: () => void;
 
   // CRUD actions
-  saveProduct: (data: any) => Promise<boolean>;
+  saveProduct: (data: any, options?: { hadChanges?: boolean }) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<void>;
   deleteProducts: (ids: string[]) => Promise<void>; // bulk
+  batchUpdateProducts: (ids: string[], updates: { priceAmount?: number; quantity?: number; status?: string; vatRate?: number; currency?: string }) => Promise<{ updatedCount: number }>;
   importProducts: (file: File, mode: ProductImportMode) => Promise<ProductImportResult>;
 
   clearValidationErrors: () => void;
@@ -82,7 +88,8 @@ export function ProductProvider({
   const loadProducts = useCallback(async () => {
     try {
       const data = await productsApi.getProducts();
-      const transformed = data.map((item: any) => ({
+      const arr = Array.isArray(data) ? data : [];
+      const transformed = arr.map((item: any) => ({
         ...item,
         createdAt: item.createdAt ? new Date(item.createdAt) : null,
         updatedAt: item.updatedAt ? new Date(item.updatedAt) : null,
@@ -93,14 +100,32 @@ export function ProductProvider({
     }
   }, []);
 
-  // Load products when authenticated
+  const wasAuthenticatedRef = useRef(false);
+
+  // Load products when authenticated; only clear on explicit logout (was true -> false)
   useEffect(() => {
     if (isAuthenticated) {
       loadProducts();
+      wasAuthenticatedRef.current = true;
     } else {
-      setProducts([]);
-      setSelectedProductIds([]);
+      if (wasAuthenticatedRef.current) {
+        setProducts([]);
+        setSelectedProductIds([]);
+        wasAuthenticatedRef.current = false;
+      }
     }
+  }, [isAuthenticated, loadProducts]);
+
+  // Reload when user returns to tab (handles "after a while" / tab switch)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadProducts();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
   }, [isAuthenticated, loadProducts]);
 
   // Keep selection valid when products change
@@ -241,7 +266,7 @@ export function ProductProvider({
 
   const clearValidationErrors = () => setValidationErrors([]);
 
-  const saveProduct = async (raw: any): Promise<boolean> => {
+  const saveProduct = async (raw: any, options?: { hadChanges?: boolean }): Promise<boolean> => {
     const data = {
       productNumber: (raw.productNumber ?? '').trim(),
       title: (raw.title ?? '').trim(),
@@ -285,6 +310,51 @@ export function ProductProvider({
         setCurrentProduct(normalized);
         setPanelMode('view');
         setValidationErrors([]);
+
+        if (options?.hadChanges) {
+          try {
+            const { targets } = await channelsApi.getProductTargets(String(saved.id));
+            if (targets?.length) {
+              const payload = {
+                id: saved.id,
+                productNumber: saved.productNumber,
+                sku: saved.sku,
+                mpn: saved.mpn,
+                title: saved.title,
+                status: saved.status,
+                quantity: saved.quantity,
+                priceAmount: saved.priceAmount,
+                currency: saved.currency,
+                vatRate: saved.vatRate,
+                description: saved.description,
+                mainImage: saved.mainImage,
+                images: saved.images,
+                categories: saved.categories,
+                brand: saved.brand,
+                gtin: saved.gtin,
+                createdAt: saved.createdAt,
+                updatedAt: saved.updatedAt,
+              };
+              const wooTargets = targets.filter((t) => t.channel === 'woocommerce');
+              const wooInstanceIds = wooTargets.map((t) => t.channelInstanceId).filter((id): id is string => id != null);
+              const wooLegacy = wooTargets.some((t) => t.channelInstanceId == null);
+              if (wooInstanceIds.length > 0 || wooLegacy) {
+                await woocommerceApi.exportProducts(
+                  [payload],
+                  wooInstanceIds.length > 0 ? { instanceIds: wooInstanceIds } : undefined,
+                );
+              }
+              if (targets.some((t) => t.channel === 'cdon')) {
+                await cdonApi.exportProducts([payload], { markets: ['se', 'dk', 'fi'] });
+              }
+              if (targets.some((t) => t.channel === 'fyndiq')) {
+                await fyndiqApi.exportProducts([payload], { markets: ['se', 'dk', 'fi'] });
+              }
+            }
+          } catch (syncErr) {
+            console.warn('Sync to channels after save failed', syncErr);
+          }
+        }
       } else {
         const saved = await productsApi.createProduct(data);
         const normalized = {
@@ -357,6 +427,26 @@ export function ProductProvider({
       console.error('Bulk delete failed:', error);
       const errorMessage = error?.message || error?.error || 'Failed to delete products';
       alert(errorMessage);
+    }
+  };
+
+  const batchUpdateProducts = async (
+    ids: string[],
+    updates: { priceAmount?: number; quantity?: number; status?: string; vatRate?: number; currency?: string },
+  ) => {
+    const uniqueIds = Array.from(new Set((ids || []).map(String))).filter(Boolean);
+    if (!uniqueIds.length) return { updatedCount: 0 };
+    const filtered = Object.fromEntries(
+      Object.entries(updates).filter(([, v]) => v !== undefined && v !== null && v !== ''),
+    ) as { priceAmount?: number; quantity?: number; status?: string; vatRate?: number; currency?: string };
+    if (Object.keys(filtered).length === 0) return { updatedCount: 0 };
+    try {
+      const result = await productsApi.batchUpdate(uniqueIds, filtered);
+      await loadProducts();
+      return { updatedCount: result?.updatedCount ?? 0 };
+    } catch (error: any) {
+      console.error('Batch update failed:', error);
+      throw error;
     }
   };
 
@@ -466,6 +556,7 @@ export function ProductProvider({
       saveProduct,
       deleteProduct,
       deleteProducts,
+      batchUpdateProducts,
       importProducts,
       clearValidationErrors,
 

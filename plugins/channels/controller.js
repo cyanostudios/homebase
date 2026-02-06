@@ -27,6 +27,25 @@ class ChannelsController {
   }
 
   /**
+   * GET /api/channels/product-targets?productId=...
+   * Returns list of { channel, channelInstanceId } where this product is published (for sync-on-save).
+   */
+  async getProductTargets(req, res) {
+    try {
+      const productId = String(req.query?.productId || '').trim();
+      if (!productId) {
+        return res.status(400).json({ error: 'productId is required', code: 'VALIDATION_ERROR' });
+      }
+      const targets = await this.model.getProductChannelTargets(req, productId);
+      return res.json({ ok: true, targets });
+    } catch (error) {
+      Logger.error('Channels getProductTargets error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch product channel targets' });
+    }
+  }
+
+  /**
    * GET /api/channels/map?productId=...&channel=...
    * Returns the single channel mapping row (or null) for the given product/channel.
    */

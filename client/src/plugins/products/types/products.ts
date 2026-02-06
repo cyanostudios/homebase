@@ -25,6 +25,9 @@ export interface Product {
   brand: string | null;
   gtin: string | null;
 
+  /** Channel-specific attributes (cdon, fyndiq, woocommerce keys). Populated when migration 031 applied. */
+  channelSpecific?: Record<string, unknown> | null;
+
   createdAt: Date | null;
   updatedAt: Date | null;
 }

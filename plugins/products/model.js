@@ -39,6 +39,7 @@ class ProductModel {
           categories,
           brand,
           gtin,
+          channel_specific,
           created_at,
           updated_at
         FROM ${ProductModel.TABLE}
@@ -87,6 +88,7 @@ class ProductModel {
           categories,
           brand,
           gtin,
+          channel_specific,
           created_at,
           updated_at
         FROM ${ProductModel.TABLE}
@@ -186,13 +188,12 @@ class ProductModel {
       return this.transformRow(result[0]);
     } catch (error) {
       Logger.error('Failed to create product', error);
-      if (error instanceof AppError) {
-        throw error;
+      // Unique violation: pg code 23505 (also when wrapped by PostgreSQLAdapter in AppError.details)
+      const pgCode = error?.details?.code ?? error?.code;
+      if (pgCode === '23505') {
+        throw new AppError('En produkt med detta artikelnummer eller streckkod finns redan', 409, AppError.CODES.CONFLICT);
       }
-      // Check for unique constraint violations
-      if (error.code === '23505') {
-        throw new AppError('Product with this SKU or product number already exists', 409, AppError.CODES.CONFLICT);
-      }
+      if (error instanceof AppError) throw error;
       throw new AppError('Failed to create product', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
@@ -279,12 +280,11 @@ class ProductModel {
       return this.transformRow(result[0]);
     } catch (error) {
       Logger.error('Failed to update product', error);
-      if (error instanceof AppError) {
-        throw error;
+      const pgCode = error?.details?.code ?? error?.code;
+      if (pgCode === '23505') {
+        throw new AppError('En produkt med detta artikelnummer eller streckkod finns redan', 409, AppError.CODES.CONFLICT);
       }
-      if (error.code === '23505') {
-        throw new AppError('Product with this SKU or product number already exists', 409, AppError.CODES.CONFLICT);
-      }
+      if (error instanceof AppError) throw error;
       throw new AppError('Failed to update product', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
@@ -385,6 +385,61 @@ class ProductModel {
     }
   }
 
+  /** Batch update: apply same updates to multiple products. Allowed keys: priceAmount, quantity, status, vatRate, currency. */
+  async batchUpdate(req, idsTextArray, updates = {}) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.user?.id || req.session?.user?.uuid;
+
+      if (!userId) {
+        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      }
+
+      const ids = Array.isArray(idsTextArray)
+        ? idsTextArray.map((x) => String(x).trim()).filter(Boolean)
+        : [];
+      if (!ids.length) return { updatedCount: 0, updatedIds: [] };
+
+      const allowed = {
+        price_amount: ['priceAmount', (v) => (Number.isFinite(Number(v)) ? Number(v) : undefined)],
+        quantity: ['quantity', (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.trunc(Number(v))) : undefined)],
+        status: ['status', (v) => (['for sale', 'draft', 'archived'].includes(String(v)) ? String(v) : undefined)],
+        vat_rate: ['vatRate', (v) => (Number.isFinite(Number(v)) ? Number(v) : undefined)],
+        currency: ['currency', (v) => (/^[A-Z]{3}$/.test(String(v).trim()) ? String(v).trim().toUpperCase() : undefined)],
+      };
+
+      const setParts = [];
+      const params = [];
+      let idx = 1;
+      for (const [col, [key, fn]] of Object.entries(allowed)) {
+        if (updates[key] === undefined) continue;
+        const val = fn(updates[key]);
+        if (val === undefined) continue;
+        setParts.push(`${col} = $${idx}`);
+        params.push(val);
+        idx += 1;
+      }
+      if (setParts.length === 0) {
+        return { updatedCount: 0, updatedIds: [] };
+      }
+      setParts.push('updated_at = CURRENT_TIMESTAMP');
+      params.push(userId, ids);
+      const sql = `
+        UPDATE ${ProductModel.TABLE}
+        SET ${setParts.join(', ')}
+        WHERE user_id = $${idx} AND id::text = ANY($${idx + 1}::text[])
+        RETURNING id::text AS id
+      `;
+      const rows = await db.query(sql, params);
+      Logger.info('Products batch updated', { count: rows.length });
+      return { updatedCount: rows.length, updatedIds: rows.map((r) => r.id) };
+    } catch (error) {
+      Logger.error('Failed to batch update products', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to batch update products', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   // ---------- Input / Output helpers ----------
 
   normalizeInput(data = {}) {
@@ -455,6 +510,20 @@ class ProductModel {
       return Number.isFinite(n) ? n : fallback;
     };
 
+    const channelSpecific = row.channel_specific;
+    const channelSpecificObj =
+      channelSpecific != null && typeof channelSpecific === 'object'
+        ? channelSpecific
+        : typeof channelSpecific === 'string'
+          ? (() => {
+            try {
+              return JSON.parse(channelSpecific);
+            } catch {
+              return null;
+            }
+          })()
+          : null;
+
     return {
       id: String(row.id),
       productNumber: row.product_number ?? null,
@@ -472,6 +541,7 @@ class ProductModel {
       categories: parseJsonArray(row.categories),
       brand: row.brand ?? null,
       gtin: row.gtin ?? null,
+      channelSpecific: channelSpecificObj,
       createdAt: row.created_at ?? null,
       updatedAt: row.updated_at ?? null,
     };

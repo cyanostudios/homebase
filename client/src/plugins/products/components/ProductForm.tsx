@@ -16,7 +16,7 @@ import { useProducts } from '../hooks/useProducts';
 
 interface ProductFormProps {
   currentItem?: any;
-  onSave: (data: any) => Promise<boolean> | boolean;
+  onSave: (data: any, options?: { hadChanges?: boolean }) => Promise<boolean> | boolean;
   onCancel: () => void;
   isSubmitting?: boolean;
 }
@@ -174,7 +174,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
     setIsSubmitting(true);
     try {
-      const success = await onSave(formData);
+      const hadChanges = !!currentProduct && isDirty;
+      const success = await onSave(formData, { hadChanges });
       if (success) {
         markClean();
         if (!currentProduct) {
@@ -184,7 +185,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, onSave, markClean, currentProduct, clearValidationErrors]);
+  }, [formData, onSave, markClean, currentProduct, clearValidationErrors, isDirty]);
 
   const handleCancel = useCallback(() => {
     attemptAction(() => {

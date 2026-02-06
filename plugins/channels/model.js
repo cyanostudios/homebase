@@ -126,6 +126,41 @@ class ChannelsModel {
   }
 
   /**
+   * Get all channel/instance targets for a product (where it is published or enabled).
+   * Used for sync-on-save: push updates to these channels.
+   * Returns [{ channel, channelInstanceId }] (channelInstanceId null for non-Woo or legacy Woo).
+   */
+  async getProductChannelTargets(req, productId) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.user?.id || req.session?.user?.uuid;
+
+      if (!userId) {
+        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      }
+
+      const pid = String(productId || '').trim();
+      if (!pid) return [];
+
+      const sql = `
+        SELECT channel, channel_instance_id
+        FROM ${ChannelsModel.CHANNEL_MAP_TABLE}
+        WHERE user_id = $1 AND product_id = $2
+          AND (enabled = TRUE OR external_id IS NOT NULL)
+      `;
+      const rows = await db.query(sql, [userId, pid]);
+      return rows.map((r) => ({
+        channel: r.channel,
+        channelInstanceId: r.channel_instance_id != null ? String(r.channel_instance_id) : null,
+      }));
+    } catch (error) {
+      Logger.error('Failed to get product channel targets', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to get product channel targets', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  /**
    * Get a single mapping row for (user, product, channel).
    * Returns the row object or null.
    */

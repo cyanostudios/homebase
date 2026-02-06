@@ -114,6 +114,8 @@ function createWooCommerceRoutes(controller, context) {
     csrfProtection,
     [
       commonRules.array('products', 500),
+      body('instanceIds').optional().isArray(),
+      body('instanceIds.*').optional().isString().trim(),
     ],
     validateRequest,
     (req, res) => controller.exportProducts(req, res)
@@ -139,8 +141,12 @@ function createWooCommerceRoutes(controller, context) {
     gate,
     csrfProtection,
     [
+      body('productIds').optional().isArray(),
+      body('productIds.*').optional().isString().trim(),
       body('externalIds').optional().isArray(),
       body('skus').optional().isArray(),
+      body('instanceIds').optional().isArray(),
+      body('instanceIds.*').optional().isString().trim(),
     ],
     validateRequest,
     (req, res) => controller.batchDelete(req, res)

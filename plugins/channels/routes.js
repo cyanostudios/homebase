@@ -13,6 +13,15 @@ function createChannelsRoutes(controller, context) {
   // Read-only summaries
   router.get('/', gate, (req, res) => controller.getAll(req, res));
 
+  // List channel/instance targets for a product (for sync-on-save)
+  router.get(
+    '/product-targets',
+    gate,
+    [query('productId').trim().notEmpty().withMessage('productId is required')],
+    validateRequest,
+    (req, res) => controller.getProductTargets(req, res),
+  );
+
   // Read single product↔channel mapping
   router.get('/map',
     gate,

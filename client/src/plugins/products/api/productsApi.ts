@@ -127,6 +127,22 @@ class ProductsApi {
     });
   }
 
+  // ---- Batch update ----
+  // PATCH /api/products/batch
+  // body: { ids: string[], updates: { priceAmount?, quantity?, status?, vatRate?, currency? } }
+  async batchUpdate(ids: string[], updates: {
+    priceAmount?: number;
+    quantity?: number;
+    status?: string;
+    vatRate?: number;
+    currency?: string;
+  }): Promise<{ ok: true; updatedCount: number; updatedIds: string[] }> {
+    return this.request('/products/batch', {
+      method: 'PATCH',
+      body: JSON.stringify({ ids, updates }),
+    });
+  }
+
   // ---- Bulk delete (Platform) ----
   // DELETE /api/products/batch
   // body: { ids: string[] }

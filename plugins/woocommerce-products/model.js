@@ -383,10 +383,10 @@ class WooCommerceModel {
   // --- Channel mapping helpers (MVP) ---
 
   /**
-   * Upsert per produkt/per kanal koppling + senaste sync-status.
-   * Kräver tabell channel_product_map med unik (user_id, product_id, channel).
+   * Upsert per produkt/per kanal (och per instans för Woo) koppling + senaste sync-status.
+   * channelInstanceId: optional; for Woo multi-store, pass instance id; for CDON/Fyndiq leave null.
    */
-  async upsertChannelMap(req, { productId, channel, externalId, status, error }) {
+  async upsertChannelMap(req, { productId, channel, channelInstanceId, externalId, status, error }) {
     try {
       const db = Database.get(req);
       const userId = req.session?.user?.id || req.session?.user?.uuid;
@@ -395,13 +395,15 @@ class WooCommerceModel {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
       }
 
+      const instanceId = channelInstanceId != null && Number.isFinite(Number(channelInstanceId)) ? Number(channelInstanceId) : null;
+
       const sql = `
         INSERT INTO ${WooCommerceModel.CHANNEL_MAP_TABLE} (
-          user_id, product_id, channel, enabled, external_id, last_synced_at, last_sync_status, last_error, created_at, updated_at
+          user_id, product_id, channel, channel_instance_id, enabled, external_id, last_synced_at, last_sync_status, last_error, created_at, updated_at
         ) VALUES (
-          $1,       $2,         $3,      TRUE,    $4,          CURRENT_TIMESTAMP, $5,              $6,         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          $1,       $2,         $3,      $4,                   TRUE,    $5,          CURRENT_TIMESTAMP, $6,              $7,         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         )
-        ON CONFLICT (user_id, product_id, channel) DO UPDATE SET
+        ON CONFLICT (user_id, product_id, channel, channel_instance_id) DO UPDATE SET
           enabled = TRUE,
           external_id = EXCLUDED.external_id,
           last_synced_at = CURRENT_TIMESTAMP,
@@ -413,12 +415,13 @@ class WooCommerceModel {
         userId,
         String(productId),
         String(channel),
+        instanceId,
         externalId || null,
         status || 'success',
         error || null,
       ];
       await db.query(sql, params);
-      Logger.info('Channel map upserted', { userId, productId, channel, externalId });
+      Logger.info('Channel map upserted', { userId, productId, channel, channelInstanceId: instanceId, externalId });
     } catch (error) {
       Logger.error('Failed to upsert channel map', error);
       if (error instanceof AppError) {
@@ -430,9 +433,10 @@ class WooCommerceModel {
 
   /**
    * Läs in befintlig kanal-mappning för en uppsättning produkter.
+   * instanceId: optional; for Woo pass one instance id to get map for that store only; null = legacy one row per channel.
    * Returnerar Map<productId(string) -> external_id(string)> för rader där external_id finns.
    */
-  async getChannelMapForProducts(req, channel, productIds) {
+  async getChannelMapForProducts(req, channel, productIds, instanceId = null) {
     try {
       const db = Database.get(req);
       const userId = req.session?.user?.id || req.session?.user?.uuid;
@@ -443,14 +447,22 @@ class WooCommerceModel {
 
       if (!Array.isArray(productIds) || productIds.length === 0) return new Map();
 
-      const sql = `
+      const instId = instanceId != null && Number.isFinite(Number(instanceId)) ? Number(instanceId) : null;
+      let sql = `
         SELECT product_id, external_id
         FROM ${WooCommerceModel.CHANNEL_MAP_TABLE}
         WHERE user_id = $1
           AND channel = $2
           AND product_id = ANY($3::text[])
       `;
-      const res = await db.query(sql, [userId, String(channel), productIds.map(String)]);
+      const params = [userId, String(channel), productIds.map(String)];
+      if (instId !== null) {
+        sql += ` AND channel_instance_id = $4`;
+        params.push(instId);
+      } else {
+        sql += ` AND (channel_instance_id IS NULL OR channel_instance_id = 0)`;
+      }
+      const res = await db.query(sql, params);
       const m = new Map();
       for (const r of res) {
         if (r.external_id) m.set(String(r.product_id), String(r.external_id));
@@ -564,8 +576,9 @@ class WooCommerceModel {
    * - external_id=null
    * - last_synced_at uppdateras
    * - last_sync_status sätts till en befintlig status (vi använder 'idle' här)
+   * channelInstanceId: optional; for Woo clear only that instance's row.
    */
-  async clearChannelMapByExternalId(req, { channel, externalId, status, error }) {
+  async clearChannelMapByExternalId(req, { channel, channelInstanceId, externalId, status, error }) {
     try {
       const db = Database.get(req);
       const userId = req.session?.user?.id || req.session?.user?.uuid;
@@ -574,7 +587,8 @@ class WooCommerceModel {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
       }
 
-      const sql = `
+      const instId = channelInstanceId != null && Number.isFinite(Number(channelInstanceId)) ? Number(channelInstanceId) : null;
+      let sql = `
         UPDATE ${WooCommerceModel.CHANNEL_MAP_TABLE}
         SET
           enabled = FALSE,
@@ -587,14 +601,15 @@ class WooCommerceModel {
           AND channel = $2
           AND external_id = $3
       `;
-      await db.query(sql, [
-        userId,
-        String(channel),
-        String(externalId),
-        status || 'idle',
-        error || null,
-      ]);
-      Logger.info('Channel map cleared by external ID', { userId, channel, externalId });
+      const params = [userId, String(channel), String(externalId), status || 'idle', error || null];
+      if (instId !== null) {
+        sql += ` AND channel_instance_id = $6`;
+        params.push(instId);
+      } else {
+        sql += ` AND (channel_instance_id IS NULL OR channel_instance_id = 0)`;
+      }
+      await db.query(sql, params);
+      Logger.info('Channel map cleared by external ID', { userId, channel, channelInstanceId: instId, externalId });
     } catch (error) {
       Logger.error('Failed to clear channel map by external ID', error);
       if (error instanceof AppError) {

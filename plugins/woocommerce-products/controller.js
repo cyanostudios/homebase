@@ -256,152 +256,170 @@ class WooCommerceController {
   }
 
   // ---- Batch export (create OR update: prefer channel map external_id, fallback to SKU) ----
+  // body: { products: MVPProduct[], instanceIds?: string[] } — if instanceIds omitted/empty, use default instance (backwards compat)
   async exportProducts(req, res) {
     try {
-      const settings = await this.model.getSettings(req);
-      if (!settings) {
-        return res.status(400).json({ error: 'WooCommerce settings not found. Save settings first.' });
-      }
-
       const products = Array.isArray(req.body?.products) ? req.body.products : null;
       if (!products || products.length === 0) {
         return res.status(400).json({ error: 'Request must include products: [] with MVP product fields.' });
       }
 
-      const base = this.normalizeBaseUrl(settings.storeUrl);
+      const rawInstanceIds = req.body?.instanceIds;
+      let instances = [];
+      if (Array.isArray(rawInstanceIds) && rawInstanceIds.length > 0) {
+        for (const id of rawInstanceIds) {
+          const inst = await this.model.getInstanceById(req, id);
+          if (inst?.credentials) instances.push(inst);
+        }
+      }
+      if (instances.length === 0) {
+        const settings = await this.model.getSettings(req);
+        if (!settings) {
+          return res.status(400).json({ error: 'WooCommerce settings not found. Save settings first or pass instanceIds.' });
+        }
+        instances = [{ id: null, label: null, credentials: settings }];
+      }
+
       const channel = 'woocommerce';
-
-      // 1a) Use existing channel map first (productId -> external_id)
       const productIds = products.map(p => String(p.id));
-      const mapByProductId = await this.model.getChannelMapForProducts(req, channel, productIds);
+      const aggregated = { ok: true, instances: [], result: { create: [], update: [] }, counts: { requested: products.length, success: 0, error: 0 }, items: [] };
 
-      // 1b) Discover Woo product IDs by SKU only for those missing external_id in map
-      const existingBySku = new Map(); // sku -> wooId
-      for (const p of products) {
-        const pid = String(p?.id || '');
-        if (mapByProductId.has(pid)) continue; // we already know the Woo ID
-        const sku = String(p?.sku || '').trim();
-        if (!sku) continue;
-        const found = await this.findWooProductBySku(base, sku, settings).catch(() => null);
-        if (found?.id) existingBySku.set(sku, found.id);
-      }
+      for (const instance of instances) {
+        const settings = instance.credentials;
+        const instanceId = instance.id;
+        const base = this.normalizeBaseUrl(settings.storeUrl);
 
-      // 2) Build batch payloads
-      const createPayload = [];
-      const updatePayload = [];
-      for (const p of products) {
-        const payload = this.mapProductToWoo(p);
-        const pid = String(p?.id || '');
-        const sku = String(p?.sku || payload?.sku || '').trim();
-        const mappedId = mapByProductId.get(pid) || (sku ? existingBySku.get(sku) : null);
+        const mapByProductId = await this.model.getChannelMapForProducts(req, channel, productIds, instanceId);
 
-        if (mappedId) {
-          updatePayload.push({ id: mappedId, ...payload });
-        } else {
-          createPayload.push(payload);
+        const existingBySku = new Map();
+        for (const p of products) {
+          const pid = String(p?.id || '');
+          if (mapByProductId.has(pid)) continue;
+          const sku = String(p?.sku || '').trim();
+          if (!sku) continue;
+          const found = await this.findWooProductBySku(base, sku, settings).catch(() => null);
+          if (found?.id) existingBySku.set(sku, found.id);
         }
-      }
 
-      // If nothing to send, short-circuit
-      if (createPayload.length === 0 && updatePayload.length === 0) {
-        return res.json({
-          ok: true,
-          endpoint: `${base}/wp-json/wc/v3/products/batch`,
-          result: { create: [], update: [], delete: [] },
-          counts: { requested: products.length, success: 0, error: 0 },
-          items: products.map(p => ({ productId: p.id, sku: p.sku || null, status: 'noop' })),
-        });
-      }
-
-      // 3) Send batch
-      const endpoint = `${base}/wp-json/wc/v3/products/batch`;
-      const response = await this.fetchWithWooAuth(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          create: createPayload.length ? createPayload : undefined,
-          update: updatePayload.length ? updatePayload : undefined,
-        }),
-      }, settings);
-
-      const rawText = await response.text().catch(() => '');
-      let json;
-      try { json = JSON.parse(rawText); } catch (_) { json = { raw: rawText }; }
-
-      // 4) Collect successes by SKU from Woo response
-      const successes = new Map(); // sku -> { wooId }
-      const markSuccess = (wooItem) => {
-        const sku = (wooItem?.sku || '').trim();
-        if (!sku) return;
-        successes.set(sku, { wooId: wooItem.id });
-      };
-      if (Array.isArray(json?.create)) json.create.forEach(markSuccess);
-      if (Array.isArray(json?.update)) json.update.forEach(markSuccess);
-
-      // 5) Upsert channel map and build item summaries
-      const items = [];
-      for (const p of products) {
-        const pid = String(p?.id || '');
-        const sku = (p?.sku || '').trim();
-
-        // prefer sku success; otherwise use mapped external_id as success if present
-        const viaSku = sku ? successes.get(sku) : null;
-        const viaMapId = mapByProductId.get(pid);
-        const found = viaSku || (viaMapId ? { wooId: viaMapId } : null);
-
-        if (found) {
-          await this.model.upsertChannelMap(req, {
-            productId: pid,
-            channel,
-            externalId: found.wooId,
-            status: 'success',
-            error: null,
-          });
-          items.push({ productId: pid, sku: sku || null, status: 'success', externalId: found.wooId });
-        } else {
-          let message = null;
-          if (Array.isArray(json?.errors)) {
-            message = json.errors.map(e => e?.message).filter(Boolean).join('; ') || null;
+        const createPayload = [];
+        const updatePayload = [];
+        for (const p of products) {
+          const payload = this.mapProductToWoo(p);
+          const pid = String(p?.id || '');
+          const sku = String(p?.sku || payload?.sku || '').trim();
+          const mappedId = mapByProductId.get(pid) || (sku ? existingBySku.get(sku) : null);
+          if (mappedId) {
+            updatePayload.push({ id: mappedId, ...payload });
+          } else {
+            createPayload.push(payload);
           }
-          await this.model.upsertChannelMap(req, {
-            productId: pid,
-            channel,
-            externalId: null,
-            status: 'error',
-            error: message || 'Export failed',
-          });
-          await this.model.logChannelError(req, {
-            channel,
-            productId: pid,
-            payload: p,
-            response: json,
-            message: message || 'Export failed',
-          });
-          items.push({ productId: pid, sku: sku || null, status: 'error', error: message || 'Export failed' });
         }
+
+        if (createPayload.length === 0 && updatePayload.length === 0) {
+          aggregated.instances.push({
+            instanceId: instanceId,
+            label: instance.label,
+            ok: true,
+            endpoint: `${base}/wp-json/wc/v3/products/batch`,
+            result: { create: [], update: [] },
+            counts: { requested: products.length, success: 0, error: 0 },
+            items: products.map(p => ({ productId: p.id, sku: p.sku || null, status: 'noop' })),
+          });
+          continue;
+        }
+
+        const endpoint = `${base}/wp-json/wc/v3/products/batch`;
+        const response = await this.fetchWithWooAuth(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            create: createPayload.length ? createPayload : undefined,
+            update: updatePayload.length ? updatePayload : undefined,
+          }),
+        }, settings);
+
+        const rawText = await response.text().catch(() => '');
+        let json;
+        try { json = JSON.parse(rawText); } catch (_) { json = { raw: rawText }; }
+
+        const successes = new Map();
+        const markSuccess = (wooItem) => {
+          const sku = (wooItem?.sku || '').trim();
+          if (!sku) return;
+          successes.set(sku, { wooId: wooItem.id });
+        };
+        if (Array.isArray(json?.create)) json.create.forEach(markSuccess);
+        if (Array.isArray(json?.update)) json.update.forEach(markSuccess);
+
+        const items = [];
+        for (const p of products) {
+          const pid = String(p?.id || '');
+          const sku = (p?.sku || '').trim();
+          const viaSku = sku ? successes.get(sku) : null;
+          const viaMapId = mapByProductId.get(pid);
+          const found = viaSku || (viaMapId ? { wooId: viaMapId } : null);
+
+          if (found) {
+            await this.model.upsertChannelMap(req, {
+              productId: pid,
+              channel,
+              channelInstanceId: instanceId,
+              externalId: found.wooId,
+              status: 'success',
+              error: null,
+            });
+            items.push({ productId: pid, sku: sku || null, status: 'success', externalId: found.wooId });
+          } else {
+            let message = null;
+            if (Array.isArray(json?.errors)) {
+              message = json.errors.map(e => e?.message).filter(Boolean).join('; ') || null;
+            }
+            await this.model.upsertChannelMap(req, {
+              productId: pid,
+              channel,
+              channelInstanceId: instanceId,
+              externalId: null,
+              status: 'error',
+              error: message || 'Export failed',
+            });
+            await this.model.logChannelError(req, { channel, productId: pid, payload: p, response: json, message: message || 'Export failed' });
+            items.push({ productId: pid, sku: sku || null, status: 'error', error: message || 'Export failed' });
+          }
+        }
+
+        const successCount = items.filter(i => i.status === 'success').length;
+        const errorCount = items.filter(i => i.status === 'error').length;
+        aggregated.counts.success += successCount;
+        aggregated.counts.error += errorCount;
+        if (Array.isArray(json?.create)) aggregated.result.create.push(...json.create);
+        if (Array.isArray(json?.update)) aggregated.result.update.push(...json.update);
+        aggregated.instances.push({
+          instanceId: instanceId,
+          label: instance.label,
+          ok: response.ok,
+          endpoint,
+          result: { create: json?.create || [], update: json?.update || [], delete: json?.delete || [] },
+          counts: { requested: products.length, success: successCount, error: errorCount },
+          items,
+        });
+        aggregated.items = items;
       }
 
-      const summary = {
-        ok: response.ok,
-        endpoint,
-        result: {
-          create: Array.isArray(json?.create) ? json.create : [],
-          update: Array.isArray(json?.update) ? json.update : [],
-          delete: Array.isArray(json?.delete) ? json.delete : [],
-        },
-        counts: {
-          requested: products.length,
-          success: items.filter(i => i.status === 'success').length,
-          error: items.filter(i => i.status === 'error').length,
-        },
-        items,
-      };
-
-      if (!response.ok) {
-        return res.status(response.status).json({ error: 'WooCommerce batch export failed', ...summary, raw: json });
+      if (aggregated.instances.length === 1) {
+        const single = aggregated.instances[0];
+        const summary = {
+          ok: single.ok,
+          endpoint: single.endpoint,
+          result: single.result,
+          counts: aggregated.counts,
+          items: single.items,
+        };
+        if (!single.ok) {
+          return res.status(500).json({ error: 'WooCommerce batch export failed', ...summary });
+        }
+        return res.json(summary);
       }
-      return res.json(summary);
-
+      return res.json(aggregated);
     } catch (error) {
       Logger.error('Woo export error', error, { userId: Context.getUserId(req) });
       res.status(502).json({ error: 'Export to WooCommerce failed', detail: String(error?.message || error) });
@@ -409,85 +427,94 @@ class WooCommerceController {
   }
 
   // ---- Batch delete (Woo) ----
-  // DELETE /api/woocommerce-products/batch?op=delete
-  // body: { externalIds?: number[], skus?: string[] }
+  // DELETE /api/woocommerce-products/batch
+  // body: { productIds?: string[], externalIds?: number[], skus?: string[], instanceIds?: string[] }
+  // When instanceIds present: resolve external_id per instance from channel map using productIds; ignore externalIds/skus.
   async batchDelete(req, res) {
     try {
-      const settings = await this.model.getSettings(req);
-      if (!settings) {
-        return res.status(400).json({ error: 'WooCommerce settings not found. Save settings first.' });
-      }
-
       const body = req.body || {};
+      const rawInstanceIds = body.instanceIds;
+      const inProductIds = Array.isArray(body.productIds) ? body.productIds.map(String) : [];
       const inExternalIds = Array.isArray(body.externalIds) ? body.externalIds : [];
       const inSkus = Array.isArray(body.skus) ? body.skus : [];
 
-      const base = this.normalizeBaseUrl(settings.storeUrl);
-
-      // 1) Resolve Woo IDs
-      const ids = [];
-
-      for (const x of inExternalIds) {
-        const n = Number(x);
-        if (Number.isFinite(n)) ids.push(n);
-      }
-
-      for (const skuRaw of inSkus) {
-        const sku = String(skuRaw || '').trim();
-        if (!sku) continue;
-        const found = await this.findWooProductBySku(base, sku, settings).catch(() => null);
-        if (found?.id) ids.push(Number(found.id));
-      }
-
-      // unique
-      const uniqueIds = Array.from(new Set(ids));
-
-      if (uniqueIds.length === 0) {
-        return res.json({
-          ok: true,
-          endpoint: `${base}/wp-json/wc/v3/products/{id}?force=true`,
-          deleted: 0,
-          items: [],
-        });
-      }
-
-      const items = [];
-      for (const id of uniqueIds) {
-        const url = `${base}/wp-json/wc/v3/products/${id}?force=true`;
-        const resp = await this.fetchWithWooAuth(url, { method: 'DELETE' }, settings);
-
-        // Woo kan svara 404 om den redan är borta
-        const isNotFound = resp.status === 404;
-
-        let message = null;
-        if (!resp.ok && !isNotFound) {
-          message = await resp.text().catch(() => null);
+      let instances = [];
+      if (Array.isArray(rawInstanceIds) && rawInstanceIds.length > 0) {
+        for (const id of rawInstanceIds) {
+          const inst = await this.model.getInstanceById(req, id);
+          if (inst?.credentials) instances.push(inst);
         }
-
-        const status = resp.ok ? 'deleted' : isNotFound ? 'not_found' : 'error';
-
-        // Städa channel map så toggles blir off och Remote ID försvinner i UI
-        await this.model.clearChannelMapByExternalId(req, {
-          channel: 'woocommerce',
-          externalId: id,
-          status: 'idle',
-          error: status === 'error' ? (message || 'Delete failed') : null,
-        });
-
-        items.push({
-          externalId: id,
-          status,
-          message: message || undefined,
-        });
+      }
+      if (instances.length === 0) {
+        const settings = await this.model.getSettings(req);
+        if (!settings) {
+          return res.status(400).json({ error: 'WooCommerce settings not found. Save settings first or pass instanceIds.' });
+        }
+        instances = [{ id: null, label: null, credentials: settings }];
       }
 
-      const deleted = items.filter((x) => x.status === 'deleted' || x.status === 'not_found').length;
+      const channel = 'woocommerce';
+      let totalDeleted = 0;
+      const allItems = [];
+
+      for (const instance of instances) {
+        const settings = instance.credentials;
+        const instanceId = instance.id;
+        const base = this.normalizeBaseUrl(settings.storeUrl);
+
+        let ids = [];
+        if (inProductIds.length > 0 && instances.length > 0) {
+          const mapByProductId = await this.model.getChannelMapForProducts(req, channel, inProductIds, instanceId);
+          for (const pid of inProductIds) {
+            const ext = mapByProductId.get(pid);
+            if (ext != null) {
+              const n = Number(ext);
+              if (Number.isFinite(n)) ids.push(n);
+            }
+          }
+        }
+        if (ids.length === 0) {
+          for (const x of inExternalIds) {
+            const n = Number(x);
+            if (Number.isFinite(n)) ids.push(n);
+          }
+          for (const skuRaw of inSkus) {
+            const sku = String(skuRaw || '').trim();
+            if (!sku) continue;
+            const found = await this.findWooProductBySku(base, sku, settings).catch(() => null);
+            if (found?.id) ids.push(Number(found.id));
+          }
+        }
+        const uniqueIds = Array.from(new Set(ids));
+
+        for (const id of uniqueIds) {
+          const url = `${base}/wp-json/wc/v3/products/${id}?force=true`;
+          const resp = await this.fetchWithWooAuth(url, { method: 'DELETE' }, settings);
+          const isNotFound = resp.status === 404;
+          let message = null;
+          if (!resp.ok && !isNotFound) {
+            message = await resp.text().catch(() => null);
+          }
+          const status = resp.ok ? 'deleted' : isNotFound ? 'not_found' : 'error';
+
+          await this.model.clearChannelMapByExternalId(req, {
+            channel: 'woocommerce',
+            channelInstanceId: instanceId,
+            externalId: id,
+            status: 'idle',
+            error: status === 'error' ? (message || 'Delete failed') : null,
+          });
+
+          allItems.push({ externalId: id, status, message: message || undefined });
+          if (status === 'deleted' || status === 'not_found') totalDeleted += 1;
+        }
+      }
 
       return res.json({
         ok: true,
-        endpoint: `${base}/wp-json/wc/v3/products/{id}?force=true`,
-        deleted,
-        items,
+        endpoint: 'per-instance',
+        deleted: totalDeleted,
+        items: allItems,
       });
     } catch (error) {
       Logger.error('Woo batch delete error', error, { userId: Context.getUserId(req) });

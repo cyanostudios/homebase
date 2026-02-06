@@ -107,8 +107,10 @@ class WooCommerceApi {
   }
 
   // ---- Batch export ----
-  async exportProducts(products: any[]): Promise<WooExportResult> {
-    return this.request('/products/export', { method: 'POST', body: JSON.stringify({ products }) });
+  async exportProducts(products: any[], opts?: { instanceIds?: string[] }): Promise<WooExportResult> {
+    const body: { products: any[]; instanceIds?: string[] } = { products };
+    if (opts?.instanceIds?.length) body.instanceIds = opts.instanceIds;
+    return this.request('/products/export', { method: 'POST', body: JSON.stringify(body) });
   }
 
   // ---- IMPORT (read-only) by SKU ----
@@ -135,8 +137,13 @@ class WooCommerceApi {
 
   // ---- Batch delete (Woo) ----
   // DELETE /api/woocommerce-products/batch
-  // body: { skus?: string[]; externalIds?: number[] }
-  async deleteProducts(payload: { skus?: string[]; externalIds?: number[] }): Promise<{
+  // When instanceIds provided, send productIds so backend resolves external_id per instance.
+  async deleteProducts(payload: {
+    productIds?: string[];
+    skus?: string[];
+    externalIds?: number[];
+    instanceIds?: string[];
+  }): Promise<{
     ok: boolean;
     endpoint: string;
     deleted: number;
