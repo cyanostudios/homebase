@@ -62,7 +62,7 @@ export function DetailPanel({
     return (
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent side="right" className="w-full sm:w-[90%] sm:max-w-lg p-0 flex flex-col">
-          <SheetHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
+          <SheetHeader className="px-6 pt-6 pb-4 flex-shrink-0">
             <SheetTitle className="text-left">{title}</SheetTitle>
             {subtitle && (
               <div className="text-sm text-muted-foreground text-left mt-2">
@@ -98,9 +98,11 @@ export function DetailPanel({
   return (
     <div className="w-full h-full flex-shrink-0 flex flex-col border-2 border-primary/30 rounded-md animate-border-pulse">
       {/* Fixed Header */}
-      <div className="flex items-center justify-between py-4 px-6 border-b border-border flex-shrink-0">
+      <div className="flex items-center justify-between py-4 px-6 flex-shrink-0">
         <div className="flex flex-1 items-center gap-4 min-w-0 mr-4">
-          <h2 className="text-lg font-semibold tracking-tight truncate shrink-0">{title}</h2>
+          <h2 className="text-lg font-semibold tracking-tight truncate shrink-0">
+            {title.length > 35 ? `${title.substring(0, 35)}...` : title}
+          </h2>
           {subtitle && (
             <div className="text-sm text-muted-foreground flex-1 min-w-0">
               {typeof subtitle === 'string' ? <p className="truncate">{subtitle}</p> : subtitle}

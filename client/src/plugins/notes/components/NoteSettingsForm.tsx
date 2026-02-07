@@ -83,7 +83,7 @@ export const NoteSettingsForm: React.FC<NoteSettingsFormProps> = () => {
                         <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
                                 <Label className="text-sm font-semibold">Enable Auto-save</Label>
-                                <Badge className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-none text-[9px] h-4 uppercase font-bold tracking-tight">Recommended</Badge>
+                                <Badge variant="outline" className="bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium text-[9px] h-4">Recommended</Badge>
                             </div>
                             <p className="text-[11px] text-gray-500">Notes are saved as you type</p>
                         </div>
@@ -96,7 +96,7 @@ export const NoteSettingsForm: React.FC<NoteSettingsFormProps> = () => {
                         <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
                                 <Label className="text-sm font-semibold">AI Title Generator</Label>
-                                <Badge variant="outline" className="text-[9px] h-4 uppercase font-bold text-gray-400 border-gray-200 dark:border-gray-800">Pro</Badge>
+                                <Badge variant="outline" className="text-[9px] h-4 font-medium text-muted-foreground border-border/50 bg-secondary/30">Pro</Badge>
                             </div>
                             <p className="text-[11px] text-gray-500">Automatically suggest titles for your content</p>
                         </div>
@@ -129,7 +129,7 @@ export const NoteSettingsForm: React.FC<NoteSettingsFormProps> = () => {
                                 <div className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Recover notes from activity log</div>
                             </div>
                         </div>
-                        <Badge variant="outline" className="text-[10px] bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 font-bold">5 items</Badge>
+                        <Badge variant="outline" className="text-[10px] bg-secondary/50 text-secondary-foreground border-transparent font-medium">5 Items</Badge>
                     </Button>
                 </DetailCard>
             </DetailSection>

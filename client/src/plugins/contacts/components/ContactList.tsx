@@ -413,10 +413,11 @@ export const ContactList: React.FC = () => {
                       </span>
                     </div>
                     <Badge
+                      variant="outline"
                       className={
                         contact.contactType === 'company'
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                          : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                          ? 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium'
+                          : 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium'
                       }
                     >
                       {contact.contactType === 'company' ? 'Company' : 'Private'}
@@ -489,10 +490,11 @@ export const ContactList: React.FC = () => {
                             {formatDisplayNumber('contacts', contact.contactNumber || contact.id)}
                           </span>
                           <Badge
+                            variant="outline"
                             className={
                               contact.contactType === 'company'
-                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                                : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                                ? 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium'
+                                : 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium'
                             }
                           >
                             {contact.contactType === 'company' ? 'Company' : 'Private'}
@@ -657,10 +659,11 @@ export const ContactList: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Badge
+                          variant="outline"
                           className={
                             contact.contactType === 'company'
-                              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                              : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                              ? 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium'
+                              : 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium'
                           }
                         >
                           {contact.contactType === 'company' ? 'Company' : 'Private'}

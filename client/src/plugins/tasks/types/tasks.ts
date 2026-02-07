@@ -28,21 +28,21 @@ export interface ValidationError {
 // Status color mapping
 export const TASK_STATUS_COLORS = {
   'not started':
-    'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700',
+    'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
   'in progress':
-    'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800',
+    'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
   completed:
-    'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800',
+    'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
   cancelled:
-    'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800',
+    'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
 } as const;
 
 // Priority color mapping
 export const TASK_PRIORITY_COLORS = {
-  Low: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700',
+  Low: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
   Medium:
-    'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800',
-  High: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800',
+    'bg-amber-50/50 text-amber-700 dark:text-amber-300 border-amber-100/50 font-medium',
+  High: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
 } as const;
 
 export const TASK_STATUS_OPTIONS = [
@@ -66,6 +66,6 @@ export const formatStatusForDisplay = (status: string): string => {
     case 'cancelled':
       return 'Cancelled';
     default:
-      return status;
+      return status.charAt(0).toUpperCase() + status.slice(1);
   }
 };

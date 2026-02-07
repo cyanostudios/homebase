@@ -143,11 +143,11 @@ export function InvoicesList() {
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
-      draft: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
-      sent: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
-      paid: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
-      overdue: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
-      canceled: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
+      draft: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
+      sent: 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
+      paid: 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
+      overdue: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
+      canceled: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
     };
 
     const colorClass = statusColors[status as keyof typeof statusColors] || statusColors.draft;
@@ -157,16 +157,16 @@ export function InvoicesList() {
 
   const getTypeBadge = (invoiceType: string) => {
     const typeColors = {
-      invoice: 'bg-blue-50 text-blue-700',
-      credit_note: 'bg-orange-50 text-orange-700',
-      cash_invoice: 'bg-green-50 text-green-700',
-      receipt: 'bg-purple-50 text-purple-700',
+      invoice: 'bg-blue-50/30 text-blue-600 border-blue-100/30',
+      credit_note: 'bg-amber-50/30 text-amber-600 border-amber-100/30',
+      cash_invoice: 'bg-green-50/30 text-green-600 border-green-100/30',
+      receipt: 'bg-purple-50/30 text-purple-600 border-purple-100/30',
     };
 
     const typeLabels = {
       invoice: 'Faktura',
-      credit_note: 'Kredit',
-      cash_invoice: 'Kontant',
+      credit_note: 'Kreditfaktura',
+      cash_invoice: 'Kontantfaktura',
       receipt: 'Kvitto',
     };
 
@@ -174,7 +174,7 @@ export function InvoicesList() {
     const colorClass = typeColors[type as keyof typeof typeColors] || typeColors.invoice;
     const label = typeLabels[type as keyof typeof typeLabels] || 'Faktura';
 
-    return <Badge className={colorClass}>{label}</Badge>;
+    return <Badge variant="outline" className={colorClass}>{label}</Badge>;
   };
 
   const handleBulkDelete = async () => {
@@ -444,8 +444,7 @@ export function InvoicesList() {
         onClose={() => setShowBulkDeleteModal(false)}
         onConfirm={handleBulkDelete}
         itemCount={selectedCount}
-        singularLabel="invoice"
-        pluralLabel="invoices"
+        itemLabel="invoices"
         isLoading={deleting}
       />
 

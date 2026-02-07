@@ -17,7 +17,7 @@ import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { cn } from '@/lib/utils';
 
 import { tasksApi } from '../api/tasksApi';
-import { Task, ValidationError } from '../types/tasks';
+import { Task, ValidationError, formatStatusForDisplay } from '../types/tasks';
 
 interface TaskContextType {
   isTaskPanelOpen: boolean;
@@ -461,15 +461,15 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       // View mode with item
       if (mode === 'view' && item) {
         const statusColors: Record<string, string> = {
-          'not started': 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
-          'in progress': 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200',
-          completed: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200',
-          cancelled: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
+          'not started': 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
+          'in progress': 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
+          completed: 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
+          cancelled: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
         };
         const priorityColors: Record<string, string> = {
-          Low: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300',
-          Medium: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200',
-          High: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
+          Low: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
+          Medium: 'bg-amber-50/50 text-amber-700 dark:text-amber-300 border-amber-100/50 font-medium',
+          High: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
         };
 
         const badges = [
@@ -495,19 +495,14 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
         return (
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-[10px] text-muted-foreground whitespace-nowrap hidden sm:flex">
-              <span>Created {new Date(item.createdAt).toLocaleDateString()}</span>
-              <span>•</span>
-              <span>Updated {new Date(item.updatedAt).toLocaleDateString()}</span>
-            </div>
-
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
               {badges.map((badge) => (
                 <Badge
                   key={`${badge.text}-${badge.color}`}
-                  className={cn('text-[10px] px-1.5 h-5 shrink-0', badge.color)}
+                  variant="outline"
+                  className={cn('text-[10px] px-1.5 h-5 shrink-0 font-medium', badge.color)}
                 >
-                  {badge.text}
+                  {badge.text === item.status ? formatStatusForDisplay(badge.text) : badge.text}
                 </Badge>
               ))}
 

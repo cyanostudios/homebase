@@ -35,29 +35,52 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   if (currentMode === 'view') {
     return (
       <div className="flex items-center justify-between w-full">
-        <Button type="button" onClick={onDeleteItem} variant="danger" icon={Trash2}>
-          Delete
-        </Button>
-        <div className="flex items-center gap-3">
-          <Button type="button" onClick={onClosePanel} variant="secondary" icon={X}>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            onClick={onClosePanel}
+            variant="secondary"
+            size="sm"
+            icon={X}
+            className="h-7 text-[10px] px-2"
+          >
             Close
           </Button>
-          <Button type="button" onClick={onEditItem} variant="primary" icon={Edit}>
+          <Button
+            type="button"
+            onClick={onEditItem}
+            variant="primary"
+            size="sm"
+            icon={Edit}
+            className="h-7 text-[10px] px-2"
+          >
             Edit
           </Button>
         </div>
+        <Button
+          type="button"
+          onClick={onDeleteItem}
+          variant="danger"
+          size="sm"
+          icon={Trash2}
+          className="h-7 text-[10px] px-2"
+        >
+          Delete
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="flex justify-end space-x-3">
+    <div className="flex justify-end space-x-2">
       <Button
         type="button"
         onClick={onCancelClick}
-        variant="danger"
+        variant="secondary"
+        size="sm"
         icon={X}
         disabled={isSubmitting}
+        className="h-7 text-[10px] px-2"
       >
         Cancel
       </Button>
@@ -65,8 +88,10 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
         type="button"
         onClick={onSaveClick}
         variant="primary"
+        size="sm"
         icon={Check}
         disabled={hasBlockingErrors || isSubmitting}
+        className="h-7 text-[10px] px-2"
       >
         {isSubmitting ? 'Saving...' : currentMode === 'edit' ? 'Update' : 'Save'}
       </Button>

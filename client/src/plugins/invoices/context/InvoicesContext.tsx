@@ -6,6 +6,7 @@ import { useApp } from '@/core/api/AppContext';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { cn } from '@/lib/utils';
 
 import { InvoicesApi, invoicesApi } from '../api/invoicesApi';
 
@@ -350,18 +351,18 @@ export function InvoicesProvider({
   const getPanelSubtitle = (mode: string, item: Invoice | null) => {
     if (mode === 'view' && item) {
       const statusColors: Record<string, string> = {
-        draft: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
-        sent: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
-        paid: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
-        overdue: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
-        canceled: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
+        draft: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
+        sent: 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
+        paid: 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
+        overdue: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
+        canceled: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
       };
 
       const typeColors: Record<string, string> = {
-        invoice: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
-        credit_note: 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
-        cash_invoice: 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300',
-        receipt: 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
+        invoice: 'bg-blue-50/30 text-blue-600 border-blue-100/30 font-medium',
+        credit_note: 'bg-amber-50/30 text-amber-600 border-amber-100/30 font-medium',
+        cash_invoice: 'bg-green-50/30 text-green-600 border-green-100/30 font-medium',
+        receipt: 'bg-purple-50/30 text-purple-600 border-purple-100/30 font-medium',
       };
 
       const typeLabels: Record<string, string> = {
@@ -382,8 +383,8 @@ export function InvoicesProvider({
       return (
         <div className="flex items-center gap-2">
           <Receipt className="w-4 h-4 text-primary" />
-          <Badge className={typeBadgeColor}>{typeText}</Badge>
-          <Badge className={badgeColor}>{badgeText}</Badge>
+          <Badge variant="outline" className={typeBadgeColor}>{typeText}</Badge>
+          <Badge variant="outline" className={badgeColor}>{badgeText}</Badge>
           {dueDateText && <span className="text-xs text-muted-foreground">• {dueDateText}</span>}
         </div>
       );

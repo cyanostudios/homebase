@@ -142,10 +142,10 @@ export function EstimateList() {
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
-      draft: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
-      sent: 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200',
-      accepted: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200',
-      rejected: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200',
+      draft: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
+      sent: 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
+      accepted: 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
+      rejected: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
     };
 
     const colorClass = statusColors[status as keyof typeof statusColors] || statusColors.draft;

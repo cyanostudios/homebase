@@ -6,6 +6,7 @@ import { useApp } from '@/core/api/AppContext';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { cn } from '@/lib/utils';
 
 import { contactsApi } from '../api/contactsApi';
 import { Contact, ValidationError } from '../types/contacts';
@@ -402,12 +403,14 @@ export function ContactProvider({
       const Icon = isCompany ? Building : User;
       const iconColor = isCompany ? '#2563eb' : '#16a34a';
       const badgeText = isCompany ? 'Company' : 'Private Person';
-      const badgeColor = isCompany ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800';
+      const badgeColor = isCompany
+        ? 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50'
+        : 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50';
 
       return (
         <div className="flex items-center gap-2">
           <Icon className="w-4 h-4" style={{ color: iconColor }} />
-          <Badge className={badgeColor}>{badgeText}</Badge>
+          <Badge variant="outline" className={cn('font-medium', badgeColor)}>{badgeText}</Badge>
         </div>
       );
     }

@@ -5,15 +5,20 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DetailCard } from '@/core/ui/DetailCard';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 
 import { useTasks } from '../hooks/useTasks';
 
 import { MentionContent } from './MentionContent';
-import { TaskPriorityButtons } from './TaskPriorityButtons';
-import { TaskStatusButtons } from './TaskStatusButtons';
+import { TaskPrioritySelect } from './TaskPrioritySelect';
+import { TaskStatusSelect } from './TaskStatusSelect';
+import { TaskAssigneeSelect } from './TaskAssigneeSelect';
+import { TaskDueDatePicker } from './TaskDueDatePicker';
 
 interface TaskViewProps {
   task: any;
@@ -101,12 +106,10 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
           openContactForView(transformedContact);
         } else {
           console.error('Contact not found:', contactId);
-          alert('Contact not found. It may have been deleted.');
         }
       }
     } catch (error) {
       console.error('Failed to load contact data:', error);
-      alert('Failed to load contact data. Please try again.');
     }
   };
 
@@ -116,16 +119,6 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     }
     closeTaskPanel();
     openNoteForView(sourceNote);
-  };
-
-  const handleDuplicateTask = async () => {
-    try {
-      await duplicateTask(task);
-      closeTaskPanel();
-    } catch (error) {
-      console.error('Failed to duplicate task:', error);
-      alert('Failed to duplicate task. Please try again.');
-    }
   };
 
   const formatDueDate = (dueDate: any) => {
@@ -142,7 +135,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
 
     if (diffDays < 0) {
       return {
-        text: `${dateString} (${Math.abs(diffDays)} days overdue)`,
+        text: `${dateString} (${Math.abs(diffDays)}d overdue)`,
         className: 'text-red-600 dark:text-red-400 font-medium',
         icon: AlertCircle,
         iconClass: 'text-red-500 dark:text-red-400',
@@ -156,7 +149,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
       };
     } else if (diffDays <= 3) {
       return {
-        text: `${dateString} (Due in ${diffDays} day${diffDays === 1 ? '' : 's'})`,
+        text: `${dateString} (${diffDays}d left)`,
         className: 'text-yellow-600 dark:text-yellow-400 font-medium',
         icon: Calendar,
         iconClass: 'text-yellow-500 dark:text-yellow-400',
@@ -164,14 +157,13 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     } else {
       return {
         text: dateString,
-        className: 'text-gray-900 dark:text-gray-100',
+        className: 'text-foreground',
         icon: Calendar,
-        iconClass: 'text-gray-500 dark:text-gray-400',
+        iconClass: 'text-muted-foreground',
       };
     }
   };
 
-  // Use correct property name from Contact type: personalNumber (not orgPersonNumber)
   const getAssignedContact = () => {
     if (!task?.assignedTo) {
       return null;
@@ -205,13 +197,9 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         assignedTo: task.assignedTo,
       };
 
-      const success = await saveTask(updatedData, task.id);
-      if (!success) {
-        alert('Failed to update status. Please try again.');
-      }
+      await saveTask(updatedData, task.id);
     } catch (error) {
       console.error('Failed to update status:', error);
-      alert('Failed to update status. Please try again.');
     }
   };
 
@@ -231,13 +219,43 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         assignedTo: task.assignedTo,
       };
 
-      const success = await saveTask(updatedData, task.id);
-      if (!success) {
-        alert('Failed to update priority. Please try again.');
-      }
+      await saveTask(updatedData, task.id);
     } catch (error) {
       console.error('Failed to update priority:', error);
-      alert('Failed to update priority. Please try igen.');
+    }
+  };
+
+  const handleDueDateChange = async (newDate: Date | null) => {
+    try {
+      const updatedData = {
+        title: task.title,
+        content: task.content,
+        mentions: task.mentions,
+        status: task.status,
+        priority: task.priority,
+        dueDate: newDate,
+        assignedTo: task.assignedTo,
+      };
+      await saveTask(updatedData, task.id);
+    } catch (error) {
+      console.error('Failed to update due date:', error);
+    }
+  };
+
+  const handleAssigneeChange = async (newAssigneeId: string | null) => {
+    try {
+      const updatedData = {
+        title: task.title,
+        content: task.content,
+        mentions: task.mentions,
+        status: task.status,
+        priority: task.priority,
+        dueDate: task.dueDate,
+        assignedTo: newAssigneeId,
+      };
+      await saveTask(updatedData, task.id);
+    } catch (error) {
+      console.error('Failed to update assignment:', error);
     }
   };
 
@@ -249,167 +267,107 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
   }
 
   return (
-    <div className="space-y-4">
-      {(task.dueDate || assignedContact) && (
-        <Card padding="sm" className="shadow-none px-0">
-          <DetailSection title="Scheduling">
-            <div className="space-y-3">
-              {task.dueDate && dueDateInfo && (
-                <div className="flex items-center gap-2">
-                  <dueDateInfo.icon className={`w-4 h-4 ${dueDateInfo.iconClass}`} />
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Due:</span>
-                  <span className={`text-sm ${dueDateInfo.className}`}>{dueDateInfo.text}</span>
-                </div>
-              )}
-
-              {assignedContact && (
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Assigned to:</span>
-                  <Button
-                    variant="link"
-                    size="sm"
-                    onClick={() => handleContactClick(assignedContact.id)}
-                    className="h-auto p-0 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline decoration-blue-600/30 font-normal"
-                  >
-                    {assignedContact.companyName}
-                    {assignedContact.personalNumber ? ` • ${assignedContact.personalNumber}` : ''}
-                  </Button>
-                </div>
-              )}
-            </div>
-          </DetailSection>
-        </Card>
-      )}
-
-      <Card padding="sm" className="shadow-none px-0">
-        <DetailSection title="Content">
-          <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-            <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-              <MentionContent content={task.content} mentions={task.mentions} />
-            </div>
-          </div>
-        </DetailSection>
-      </Card>
-
-      {task.mentions && task.mentions.length > 0 && (
-        <>
-          <hr className="border-gray-100 dark:border-gray-800" />
-          <Card padding="sm" className="shadow-none px-0">
-            <DetailSection title="Referenced Contacts">
-              <div className="space-y-3">
-                {task.mentions.map((mention: any) => {
-                  const contactData = mentionContactsData[mention.contactId];
-
-                  const getDisplayText = () => {
-                    if (!contactData) {
-                      const contactNumber = formatDisplayNumber('contacts', mention.contactId);
-                      const name = mention.contactName;
-                      return `${contactNumber} • ${name} (deleted contact)`;
-                    }
-
-                    const contactNumber = formatDisplayNumber(
-                      'contacts',
-                      contactData.contactNumber || contactData.id,
-                    );
-                    const name = mention.contactName;
-                    const orgPersonNumber =
-                      contactData.organizationNumber || contactData.personalNumber || '';
-
-                    return `${contactNumber} • ${name}${orgPersonNumber ? ` • ${orgPersonNumber}` : ''}`;
-                  };
-
-                  return (
-                    <div
-                      key={`mention-${mention.contactId}-${mention.contactName || 'unknown'}`}
-                      className={`flex items-center justify-between p-3 rounded-lg border ${contactData
-                        ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
-                        : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800'
-                        }`}
-                    >
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-900 dark:text-gray-100">
-                          {getDisplayText()}
-                        </span>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => (contactData ? handleContactClick(mention.contactId) : null)}
-                        disabled={!contactData}
-                        className={`ml-3 flex-shrink-0 ${contactData
-                          ? 'text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300'
-                          : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                          }`}
-                      >
-                        {contactData ? 'View Contact' : 'Deleted'}
-                      </Button>
-                    </div>
-                  );
-                })}
+    <DetailLayout
+      sidebar={
+        <div className="space-y-6">
+          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <DetailSection title="Task Properties" className="p-4">
+              <div className="space-y-2">
+                <TaskStatusSelect task={task} onStatusChange={handleStatusChange} />
+                <TaskPrioritySelect task={task} onPriorityChange={handlePriorityChange} />
+                <TaskAssigneeSelect task={task} onAssigneeChange={handleAssigneeChange} />
+                <TaskDueDatePicker task={task} onDueDateChange={handleDueDateChange} />
               </div>
             </DetailSection>
           </Card>
 
-          <hr className="border-gray-100 dark:border-gray-800" />
-        </>
-      )}
+          {task.mentions && task.mentions.length > 0 && (
+            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+              <DetailSection title="Mentions" className="p-4">
+                <div className="space-y-2">
+                  {(() => {
+                    const uniqueMentions = Array.from(
+                      new Map((task.mentions || []).map((m: any) => [m.contactId, m])).values()
+                    );
+                    return uniqueMentions.map((mention: any) => {
+                      const contactData = mentionContactsData[mention.contactId];
+                      const getDisplayText = () => {
+                        if (!contactData) {
+                          const contactNumber = formatDisplayNumber('contacts', mention.contactId);
+                          return `${contactNumber} • ${mention.contactName} (deleted)`;
+                        }
+                        const contactNumber = formatDisplayNumber('contacts', contactData.contactNumber || contactData.id);
+                        return `${contactNumber} • ${mention.contactName}`;
+                      };
 
-      <Card padding="sm" className="shadow-none px-0">
-        <DetailSection title="Quick Actions">
-          <TaskStatusButtons task={task} onStatusChange={handleStatusChange} />
+                      return (
+                        <div key={`mention-${mention.contactId}`} className="flex justify-between items-center text-xs">
+                          <span className="text-muted-foreground truncate mr-2">{getDisplayText()}</span>
+                          <Button
+                            size="sm"
+                            variant="link"
+                            onClick={() => (contactData ? handleContactClick(mention.contactId) : null)}
+                            disabled={!contactData}
+                            className={cn('h-auto p-0 text-[10px] font-medium', contactData ? 'text-primary' : 'text-muted-foreground')}
+                          >
+                            {contactData ? 'View' : 'Deleted'}
+                          </Button>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </DetailSection>
+            </Card>
+          )}
 
-          <TaskPriorityButtons task={task} onPriorityChange={handlePriorityChange} />
-
-
-        </DetailSection>
-      </Card>
-
-      <hr className="border-gray-100 dark:border-gray-800" />
-
-      <Card padding="sm" className="shadow-none px-0">
-        <DetailSection title="Task Information">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">System ID</div>
-              <div className="text-sm font-mono text-gray-900 dark:text-gray-100">
-                {formatDisplayNumber('tasks', task.id)}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
-              <div className="text-sm text-gray-900 dark:text-gray-100">
-                {new Date(task.createdAt).toLocaleDateString()}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Last Updated</div>
-              <div className="text-sm text-gray-900 dark:text-gray-100">
-                {new Date(task.updatedAt).toLocaleDateString()}
-              </div>
-            </div>
-            {task.createdFromNote && noteLoaded && (
-              <div className="sm:col-span-3">
-                <div className="text-xs text-gray-500 dark:text-gray-400">Created from Note</div>
-                {sourceNote ? (
-                  <Button
-                    variant="link"
-                    size="sm"
-                    onClick={handleNoteClick}
-                    className="h-auto p-0 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline decoration-blue-600/30 font-normal"
-                  >
-                    {sourceNote.title}
-                  </Button>
-                ) : (
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    Note ID: {task.createdFromNote} (Deleted Note)
+          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <DetailSection title="Information" className="p-4">
+              <div className="space-y-4 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">ID</span>
+                  <span className="font-mono font-medium">{formatDisplayNumber('tasks', task.id)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Created</span>
+                  <span className="font-medium">{new Date(task.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Updated</span>
+                  <span className="font-medium">{new Date(task.updatedAt).toLocaleDateString()}</span>
+                </div>
+                {task.createdFromNote && noteLoaded && (
+                  <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                    <span className="text-muted-foreground">Source Note</span>
+                    {sourceNote ? (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        onClick={handleNoteClick}
+                        className="h-auto p-0 text-[10px] text-primary truncate max-w-[150px]"
+                      >
+                        {sourceNote.title}
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground italic">Deleted Note</span>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        </DetailSection>
-      </Card>
-    </div>
+            </DetailSection>
+          </Card>
+        </div>
+      }
+    >
+      <div className="space-y-6">
+        <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+          <DetailSection title="Task Content" className="p-6">
+            <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
+              <MentionContent content={task.content} mentions={task.mentions} />
+            </div>
+          </DetailSection>
+        </Card>
+      </div>
+    </DetailLayout>
   );
 };

@@ -1,8 +1,9 @@
-// client/src/plugins/files/components/FileView.tsx
 import React, { useMemo } from 'react';
+import { ExternalLink, File, FileText, Image as ImageIcon } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { Text } from '@/core/ui/Typography';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
@@ -41,84 +42,91 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
   }, [f?.mimeType, f?.url]);
 
   if (!f) {
-    return <div className="p-6 text-sm text-gray-600">No file selected.</div>;
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-muted-foreground opacity-50">
+        <File className="w-12 h-12 mb-4" />
+        <p className="text-sm font-medium">No file selected.</p>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      <Card padding="sm" className="shadow-none px-0">
-        <DetailSection title="File Details">
-          <div className="space-y-3">
-            <div>
-              <div className="text-xs text-muted-foreground">Name</div>
-              <div className="text-sm font-medium text-foreground">{f.name || 'Untitled file'}</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Type</div>
-              <div className="text-sm text-foreground">
-                {f.mimeType || 'application/octet-stream'}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Size</div>
-              <div className="text-sm text-foreground">{humanSize(f.size)}</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">ID</div>
-              <div className="text-sm font-mono text-foreground">
-                {formatDisplayNumber('files', f.id)}
-              </div>
-            </div>
-            {f.url && (
-              <div>
-                <div className="text-xs text-muted-foreground">URL</div>
-                <a
-                  href={f.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-blue-600 dark:text-blue-400 underline break-all"
-                >
-                  {f.url}
-                </a>
-              </div>
-            )}
-          </div>
-        </DetailSection>
-      </Card>
-
-      {/* Preview */}
-      {f.url ? (
-        isImage ? (
-          <Card padding="sm" className="shadow-none px-0">
-            <DetailSection title="Image Preview">
-              <div className="rounded-lg overflow-hidden border border-border bg-muted/50">
-                <img src={f.url} alt={f.name || 'image'} className="w-full h-auto" />
+    <DetailLayout
+      sidebar={
+        <div className="space-y-6">
+          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <DetailSection title="File Details" className="p-4">
+              <div className="space-y-4 text-xs">
+                <div className="flex justify-between items-center group">
+                  <span className="text-muted-foreground">Type</span>
+                  <span className="font-medium truncate max-w-[150px]">{f.mimeType || 'application/octet-stream'}</span>
+                </div>
+                <div className="flex justify-between items-center group">
+                  <span className="text-muted-foreground">Size</span>
+                  <span className="font-medium">{humanSize(f.size)}</span>
+                </div>
+                <div className="flex justify-between items-center group">
+                  <span className="text-muted-foreground">System ID</span>
+                  <span className="font-mono font-medium">{formatDisplayNumber('files', f.id)}</span>
+                </div>
+                {f.url && (
+                  <div className="flex flex-col gap-1 pt-2">
+                    <span className="text-muted-foreground">Source URL</span>
+                    <a
+                      href={f.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary hover:underline font-medium break-all flex items-center gap-1"
+                    >
+                      <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                      Visit Path
+                    </a>
+                  </div>
+                )}
               </div>
             </DetailSection>
           </Card>
-        ) : isPdf ? (
-          <Card padding="sm" className="shadow-none px-0">
-            <DetailSection title="PDF Preview">
-              <div className="rounded-lg overflow-hidden border border-border bg-muted/50">
-                <iframe
-                  src={f.url}
-                  title={f.name || 'pdf'}
-                  className="w-full"
-                  style={{ minHeight: 520 }}
-                />
-              </div>
+        </div>
+      }
+    >
+      <div className="space-y-6">
+        {/* Preview Area */}
+        {f.url ? (
+          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <DetailSection title={isImage ? "Image Preview" : isPdf ? "PDF Preview" : "File Content"} className="p-6">
+              {isImage ? (
+                <div className="rounded-lg overflow-hidden border border-border/50 shadow-inner bg-muted/20 flex items-center justify-center min-h-[200px]">
+                  <img src={f.url} alt={f.name || 'image'} className="max-w-full h-auto" />
+                </div>
+              ) : isPdf ? (
+                <div className="rounded-lg overflow-hidden border border-border/50 shadow-inner bg-muted/20">
+                  <iframe
+                    src={f.url}
+                    title={f.name || 'pdf'}
+                    className="w-full"
+                    style={{ minHeight: 600 }}
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center p-12 text-muted-foreground opacity-60">
+                  <FileText className="w-12 h-12 mb-4" />
+                  <p className="text-sm">No inline preview available for this file type.</p>
+                  <p className="text-xs mt-1">Please use the external link to view or download.</p>
+                </div>
+              )}
             </DetailSection>
           </Card>
         ) : (
-          <Text variant="caption" className="text-muted-foreground">
-            No inline preview available for this file type. Use Download to open it.
-          </Text>
-        )
-      ) : (
-        <Text variant="caption" className="text-muted-foreground">
-          No URL set for this file.
-        </Text>
-      )}
-    </div>
+          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <DetailSection title="Preview Unavailable" className="p-6">
+              <div className="flex flex-col items-center justify-center p-12 text-muted-foreground opacity-60">
+                <ImageIcon className="w-12 h-12 mb-4" />
+                <p className="text-sm">No URL associated with this file record.</p>
+              </div>
+            </DetailSection>
+          </Card>
+        )}
+      </div>
+    </DetailLayout>
   );
 };

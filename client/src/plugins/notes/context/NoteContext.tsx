@@ -435,12 +435,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     if (mode === 'view' && item) {
       return (
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground whitespace-nowrap hidden sm:flex">
-            <span>Created {new Date(item.createdAt).toLocaleDateString()}</span>
-            <span>•</span>
-            <span>Updated {new Date(item.updatedAt).toLocaleDateString()}</span>
-          </div>
-
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
             <Button
               variant="secondary"

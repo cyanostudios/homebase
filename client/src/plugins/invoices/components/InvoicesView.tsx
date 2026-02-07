@@ -2,7 +2,9 @@ import React from 'react';
 
 import { Card } from '@/components/ui/card';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DetailLayout } from '@/core/ui/DetailLayout';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { cn } from '@/lib/utils';
 
 import { Invoice } from '../types/invoices';
 
@@ -36,225 +38,160 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
   const currency: string = actualItem.currency ?? 'SEK';
 
   return (
-    <div className="space-y-4">
-      {/* Summary */}
-      <Card padding="sm" className="shadow-none px-0">
-        <DetailSection title="Invoice">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-            <div>
-              <div className="text-xs text-muted-foreground">Number</div>
-              <div className="text-foreground font-medium">{invoiceNumberDisplay || '—'}</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Status</div>
-              <div className="text-foreground">{status}</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Customer</div>
-              <div className="text-foreground">{contactName || '—'}</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Issue Date</div>
-              <div className="text-foreground">
-                {issueDate ? issueDate.toLocaleDateString() : '—'}
+    <DetailLayout
+      sidebar={
+        <div className="space-y-6">
+          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <DetailSection title="General Details" className="p-4">
+              <div className="space-y-4 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Number</span>
+                  <span className="font-mono font-medium">{invoiceNumberDisplay || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="capitalize font-medium">{status}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Customer</span>
+                  <span className="font-medium truncate max-w-[150px]">{contactName || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Issue Date</span>
+                  <span className="font-medium">{issueDate ? issueDate.toLocaleDateString() : '—'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Due Date</span>
+                  <span className="font-medium">{dueDate ? dueDate.toLocaleDateString() : '—'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Currency</span>
+                  <span className="font-medium">{currency}</span>
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Due Date</div>
-              <div className="text-foreground">{dueDate ? dueDate.toLocaleDateString() : '—'}</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Currency</div>
-              <div className="text-foreground">{currency}</div>
-            </div>
-          </div>
-        </DetailSection>
-      </Card>
+            </DetailSection>
+          </Card>
 
-      {/* Line Items */}
-      {actualItem.lineItems && actualItem.lineItems.length > 0 && (
-        <Card padding="sm" className="shadow-none px-0">
-          <DetailSection title={`Line Items (${actualItem.lineItems.length})`}>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Description
-                    </th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Qty
-                    </th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Unit Price
-                    </th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Total
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {actualItem.lineItems.map((lineItem: any) => (
-                    <tr
-                      key={lineItem.id || `${lineItem.name}-${lineItem.description}`}
-                      className="hover:bg-accent transition-colors"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-foreground">
-                          {lineItem.name || lineItem.description || 'Item'}
-                        </div>
-                        {lineItem.description && lineItem.name && (
-                          <div className="text-xs text-muted-foreground">
-                            {lineItem.description}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm text-foreground">
-                        {lineItem.quantity || 0}
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm text-foreground">
-                        {(lineItem.unitPrice || 0).toFixed(2)} {currency}
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm font-medium text-foreground">
-                        {((lineItem.quantity || 0) * (lineItem.unitPrice || 0)).toFixed(2)}{' '}
-                        {currency}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </DetailSection>
-        </Card>
-      )}
+          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <DetailSection title="Quick Actions" className="p-4">
+              <InvoiceActions invoice={actualItem} />
+            </DetailSection>
+          </Card>
 
-      {/* Totals */}
-      <Card padding="sm" className="shadow-none px-0">
-        <DetailSection title="Totals">
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span className="text-foreground font-medium">
-                {Number(actualItem.subtotal ?? 0).toFixed(2)} {currency}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Line Discounts</span>
-              <span className="text-foreground font-medium">
-                -{Number(actualItem.totalDiscount ?? 0).toFixed(2)} {currency}
-              </span>
-            </div>
-            <div className="flex justify-between border-t border-border pt-2">
-              <span className="text-muted-foreground">Subtotal after line discounts</span>
-              <span className="text-foreground font-medium">
-                {Number(actualItem.subtotalAfterDiscount ?? 0).toFixed(2)} {currency}
-              </span>
-            </div>
-            {Number(actualItem.invoiceDiscount ?? 0) > 0 && (
-              <>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Invoice Discount ({actualItem.invoiceDiscount}%)
-                  </span>
-                  <span className="text-foreground font-medium">
-                    -{Number(actualItem.invoiceDiscountAmount ?? 0).toFixed(2)} {currency}
-                  </span>
+          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <DetailSection title="Information" className="p-4">
+              <div className="space-y-4 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">System ID</span>
+                  <span className="font-mono font-medium">{String(actualItem.id ?? '—')}</span>
                 </div>
-                <div className="flex justify-between border-t border-border pt-2">
-                  <span className="text-muted-foreground">Subtotal after invoice discount</span>
-                  <span className="text-foreground font-medium">
-                    {Number(actualItem.subtotalAfterInvoiceDiscount ?? 0).toFixed(2)} {currency}
-                  </span>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Created</span>
+                  <span className="font-medium">{created ? created.toLocaleDateString() : '—'}</span>
                 </div>
-              </>
-            )}
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Total VAT</span>
-              <span className="text-foreground font-medium">
-                {Number(actualItem.totalVat ?? 0).toFixed(2)} {currency}
-              </span>
-            </div>
-            <div className="flex justify-between text-lg font-semibold border-t border-border pt-2">
-              <span className="text-foreground">Total</span>
-              <span className="text-foreground">
-                {Number(actualItem.total ?? 0).toFixed(2)} {currency}
-              </span>
-            </div>
-          </div>
-        </DetailSection>
-      </Card>
-
-      {/* Payment & Notes */}
-      {(actualItem.paymentTerms || actualItem.notes) && (
-        <>
-          <hr className="border-border" />
-          <Card padding="sm" className="shadow-none px-0">
-            <DetailSection title="Payment & Notes">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {actualItem.paymentTerms && (
-                  <div>
-                    <div className="text-xs text-muted-foreground">Payment Terms</div>
-                    <div className="text-sm text-foreground">{actualItem.paymentTerms}</div>
-                  </div>
-                )}
-                {actualItem.notes && (
-                  <div className="sm:col-span-2">
-                    <div className="text-xs text-muted-foreground">Notes</div>
-                    <div className="bg-muted border border-border rounded-lg p-4">
-                      <div className="text-sm text-foreground whitespace-pre-wrap">
-                        {actualItem.notes}
-                      </div>
-                    </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Updated</span>
+                  <span className="font-medium">{updated ? updated.toLocaleDateString() : '—'}</span>
+                </div>
+                {paidAt && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Paid At</span>
+                    <span className="font-medium">{paidAt.toLocaleDateString()}</span>
                   </div>
                 )}
               </div>
             </DetailSection>
           </Card>
-        </>
-      )}
+        </div>
+      }
+    >
+      <div className="space-y-6">
+        {/* Line Items */}
+        {actualItem.lineItems && actualItem.lineItems.length > 0 && (
+          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <DetailSection title={`Line Items (${actualItem.lineItems.length})`} className="p-6">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="pb-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Description</th>
+                      <th className="pb-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Qty</th>
+                      <th className="pb-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Price</th>
+                      <th className="pb-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {actualItem.lineItems.map((lineItem: any) => (
+                      <tr key={lineItem.id || `${lineItem.name}-${lineItem.description}`} className="group hover:bg-muted/30">
+                        <td className="py-4">
+                          <div className="text-sm font-medium text-foreground">{lineItem.name || lineItem.description || 'Item'}</div>
+                          {lineItem.description && lineItem.name && (
+                            <div className="text-[10px] text-muted-foreground">{lineItem.description}</div>
+                          )}
+                        </td>
+                        <td className="py-4 text-right text-sm text-foreground">{lineItem.quantity || 0}</td>
+                        <td className="py-4 text-right text-sm text-foreground">{(lineItem.unitPrice || 0).toFixed(2)}</td>
+                        <td className="py-4 text-right text-sm font-medium text-foreground">
+                          {((lineItem.quantity || 0) * (lineItem.unitPrice || 0)).toFixed(2)} {currency}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </DetailSection>
+          </Card>
+        )}
 
-      <hr className="border-border" />
-
-      {/* Quick Actions */}
-      <Card padding="sm" className="shadow-none px-0">
-        <DetailSection title="Quick Actions">
-          <InvoiceActions invoice={actualItem} />
-        </DetailSection>
-      </Card>
-
-      <hr className="border-border" />
-
-      {/* Metadata */}
-      <Card padding="sm" className="shadow-none px-0">
-        <DetailSection title="Invoice Information">
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div>
-              <div className="text-xs text-muted-foreground">System ID</div>
-              <div className="text-sm font-mono text-foreground">
-                {String(actualItem.id ?? '—')}
+        {/* Totals */}
+        <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+          <DetailSection title="Pricing Summary" className="p-6">
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="font-medium">{Number(actualItem.subtotal ?? 0).toFixed(2)} {currency}</span>
+              </div>
+              {Number(actualItem.totalDiscount ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Line Discounts</span>
+                  <span className="font-medium text-red-600">-{Number(actualItem.totalDiscount ?? 0).toFixed(2)} {currency}</span>
+                </div>
+              )}
+              {Number(actualItem.invoiceDiscount ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Invoice Discount ({actualItem.invoiceDiscount}%)</span>
+                  <span className="font-medium text-red-600">-{Number(actualItem.invoiceDiscountAmount ?? 0).toFixed(2)} {currency}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total VAT</span>
+                <span className="font-medium">{Number(actualItem.totalVat ?? 0).toFixed(2)} {currency}</span>
+              </div>
+              <div className="flex justify-between text-lg font-semibold pt-4 border-t border-border">
+                <span>Total Amount</span>
+                <span>{Number(actualItem.total ?? 0).toFixed(2)} {currency}</span>
               </div>
             </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Created</div>
-              <div className="text-sm text-foreground">
-                {created ? created.toLocaleDateString() : '—'}
+          </DetailSection>
+        </Card>
+
+        {/* Notes */}
+        {actualItem.notes && (
+          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <DetailSection title="Notes" className="p-6">
+              <div className="text-sm text-foreground whitespace-pre-wrap italic opacity-80">
+                "{actualItem.notes}"
               </div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Last Updated</div>
-              <div className="text-sm text-foreground">
-                {updated ? updated.toLocaleDateString() : '—'}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Paid At</div>
-              <div className="text-sm text-foreground">
-                {paidAt ? paidAt.toLocaleDateString() : '—'}
-              </div>
-            </div>
-          </div>
-        </DetailSection>
-      </Card>
-    </div>
+              {actualItem.paymentTerms && (
+                <div className="mt-4 pt-4 border-t border-border/50">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold mb-1">Payment Terms</div>
+                  <div className="text-xs text-muted-foreground">{actualItem.paymentTerms}</div>
+                </div>
+              )}
+            </DetailSection>
+          </Card>
+        )}
+      </div>
+    </DetailLayout>
   );
 };

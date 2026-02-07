@@ -62,11 +62,13 @@ export const MailList: React.FC = () => {
             )}
             <div className="flex items-center gap-1 mr-2 px-2 border-r pr-4">
               {settings?.configured?.smtp || settings?.configured?.resend ? (
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                <Badge variant="outline" className="bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium">
                   Konfigurerad
                 </Badge>
               ) : (
-                <Badge variant="secondary">Ej konfigurerad</Badge>
+                <Badge variant="secondary" className="bg-secondary/50 text-secondary-foreground border-transparent font-medium">
+                  Ej konfigurerad
+                </Badge>
               )}
               <Button variant="ghost" size="sm" onClick={() => openMailPanel()} title="Inställningar">
                 <Settings className="h-4 w-4" />
@@ -99,8 +101,10 @@ export const MailList: React.FC = () => {
 
         <div className="p-4 border-b border-border flex items-center gap-2">
           <Mail className="h-5 w-5 text-muted-foreground" />
-          <span className="font-medium">Sent mail history</span>
-          <Badge variant="secondary">{totalCount} total</Badge>
+          <span className="font-medium text-sm">Sent mail history</span>
+          <Badge variant="secondary" className="bg-secondary/50 text-secondary-foreground border-transparent font-medium">
+            {totalCount} Total
+          </Badge>
         </div>
         {loading && mailHistory.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">Loading...</div>
