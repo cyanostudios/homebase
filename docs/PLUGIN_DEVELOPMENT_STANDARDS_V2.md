@@ -433,7 +433,7 @@ Required Table Attributes for Keyboard Navigation
 All list components must support keyboard navigation:
 
 <tr 
-  className="hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer"
+  className="plugin-my-plugins hover:bg-plugin-subtle focus:bg-plugin-subtle focus:outline-none focus:ring-2 focus:ring-plugin-subtle focus:ring-inset cursor-pointer"
   tabIndex={0}
   data-list-item={JSON.stringify(item)}
   data-plugin-name="my-plugins"    // Must match registry name exactly
@@ -640,7 +640,9 @@ Plugin is ready when:
 - ✅ Zero console errors or warnings
 - ✅ All CRUD operations functional
 - ✅ Bulk operations use core helpers (if implemented)
+- ✅ Panel coordination works with other plugins
 - ✅ Keyboard navigation works
+- ✅ Semantic colors implemented (use `.plugin-[name]`, `.bg-plugin-subtle`, etc.)
 - ✅ Mobile/desktop responsive
 - ✅ Panel coordination works with other plugins
 - ✅ Security middleware on all routes

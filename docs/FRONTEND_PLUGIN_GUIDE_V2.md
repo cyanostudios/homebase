@@ -167,7 +167,7 @@ export const MyPluginList: React.FC = () => {
 
         <button
           onClick={() => openMyPluginPanel(null)}
-          className="w-full mb-4 px-4 py-2 bg-blue-600 text-white rounded-md"
+          className="w-full mb-4 px-4 py-2 plugin-my-plugins bg-plugin-subtle text-plugin border-plugin-subtle rounded-md font-medium"
         >
           Add Item
         </button>
@@ -177,7 +177,7 @@ export const MyPluginList: React.FC = () => {
             <div
               key={item.id}
               onClick={() => openMyPluginForView(item)}
-              className="bg-white p-4 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50"
+              className="p-4 rounded-lg border cursor-pointer transition-all plugin-my-plugins bg-plugin-subtle border-plugin-subtle hover:shadow-md"
             >
               <h3 className="font-semibold text-gray-900">{item.title}</h3>
               <p className="text-sm text-gray-500 mt-1">
@@ -196,7 +196,7 @@ export const MyPluginList: React.FC = () => {
         <h1 className="text-2xl font-semibold text-gray-900">My Plugin</h1>
         <button
           onClick={() => openMyPluginPanel(null)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          className="px-4 py-2 plugin-my-plugins bg-plugin-subtle text-plugin border-plugin-subtle rounded-md hover:shadow-sm font-medium"
         >
           Add Item
         </button>
@@ -240,7 +240,7 @@ export const MyPluginList: React.FC = () => {
                 role="button"
                 aria-label={`Open ${item.title}`}
                 onClick={() => openMyPluginForView(item)}
-                className="hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                className="plugin-my-plugins hover:bg-plugin-subtle focus:bg-plugin-subtle focus:outline-none focus:ring-2 focus:ring-plugin-subtle cursor-pointer transition-colors"
               >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">{item.title}</div>
@@ -481,7 +481,7 @@ export const MyPluginForm: React.FC<MyPluginFormProps> = ({ onSave, onCancel }) 
             type="text"
             value={formData.title}
             onChange={(e) => updateField('title', e.target.value)}
-            className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-plugin-subtle focus:border-plugin-subtle plugin-my-plugins ${
               getFieldError('title') ? 'border-red-500' : 'border-gray-300'
             }`}
             required
@@ -500,7 +500,7 @@ export const MyPluginForm: React.FC<MyPluginFormProps> = ({ onSave, onCancel }) 
             value={formData.content}
             onChange={(e) => updateField('content', e.target.value)}
             rows={5}
-            className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-plugin-subtle focus:border-plugin-subtle plugin-my-plugins ${
               getFieldError('content') ? 'border-red-500' : 'border-gray-300'
             }`}
             disabled={isSaving}

@@ -153,10 +153,31 @@ För att använda detta schema med shadcn/ui, kan vi mappa till HSL:
 --warning: hsl(47, 100%, 50%); /* #FFC700 */
 --warning-light: hsl(47, 100%, 93%); /* #FFF8DD */
 
+```css
 /* Error/Danger */
 --destructive: hsl(348, 86%, 56%); /* #F1416C */
 --destructive-light: hsl(348, 100%, 97%); /* #FFF5F8 */
 ```
+
+### Plugin Semantic Colors (V3 Standard)
+
+Homebase V3 introduces a dedicated color for each major plugin to provide clear visual separation.
+
+| Plugin | HSL Representation | CSS Variable | Identity |
+| :--- | :--- | :--- | :--- |
+| **Notes** | `45 93% 47%` | `--plugin-notes` | Amber / Yellow |
+| **Contacts** | `217 91% 60%` | `--plugin-contacts` | Blue / Azure |
+| **Tasks** | `271 91% 65%` | `--plugin-tasks` | Purple / Violet |
+| **Estimates** | `199 89% 48%` | `--plugin-estimates` | Sky / Cyan |
+| **Invoices** | `142 71% 45%` | `--plugin-invoices` | Emerald / Green |
+| **Files** | `215 16% 47%` | `--plugin-files` | Slate / Gray |
+| **Mail** | `346 84% 61%` | `--plugin-mail` | Rose / Pink |
+
+#### Utility Usage
+These colors are applied via utility classes:
+- `.bg-plugin-subtle`: 8% opacity in light mode, 15% in dark.
+- `.border-plugin-subtle`: 20% opacity.
+- `.text-plugin`: 100% opacity.
 
 ---
 

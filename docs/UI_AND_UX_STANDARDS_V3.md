@@ -35,8 +35,9 @@ To prevent layout shifts when switching tabs, all list views must follow these e
 ### Card Layout
 All grid cards must use `DetailCard` or `Card` with standardized padding.
 -   **Padding:** `p-5` (standard) or `padding="sm"` on `DetailCard`.
--   **Hover State:** `hover:border-blue-300 dark:hover:border-blue-700`
--   **Selection Ring:** `ring-2 ring-blue-500`
+-   **Active Plugin Context:** Apply the plugin's semantic class to the container (e.g., `plugin-notes`).
+-   **Hover State:** `hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md`
+-   **Selection Ring:** `bg-plugin-subtle ring-1 ring-plugin-subtle/50 border-plugin-subtle`
 
 ### Typography & Content
 -   **Title:** `font-semibold text-gray-900 dark:text-gray-100`
@@ -84,3 +85,36 @@ In the `View` component, the "Information" section (System ID, Dates) should use
 -   **Body:** `text-sm text-gray-600`
 -   **Labels:** `text-xs text-muted-foreground`
 -   **Micro-copy:** `text-[10px] text-muted-foreground` (Footers, IDs)
+
+## 5. Semantic Plugin Colors
+
+To ensure a consistent visual identity, each plugin has a dedicated color theme defined in `index.css`.
+
+### Global Utility Classes
+-   `.plugin-[name]`: Sets the current plugin context (e.g., `plugin-tasks`).
+-   `.bg-plugin-subtle`: A translucent background using the plugin color.
+-   `.border-plugin-subtle`: A translucent border using the plugin color.
+-   `.text-plugin`: Solid text in the plugin color.
+
+### Plugin Color Palette
+| Plugin    | Variable            | Color   | Example Class      |
+| --------- | ------------------- | ------- | ------------------ |
+| Notes     | `--plugin-notes`    | Amber   | `.plugin-notes`    |
+| Contacts  | `--plugin-contacts` | Blue    | `.plugin-contacts` |
+| Tasks     | `--plugin-tasks`    | Purple  | `.plugin-tasks`    |
+| Estimates | `--plugin-estimates`| Cyan    | `.plugin-estimates`|
+| Invoices  | `--plugin-invoices` | Green   | `.plugin-invoices` |
+| Files     | `--plugin-files`    | Slate   | `.plugin-files`    |
+| Mail      | `--plugin-mail`     | Rose    | `.plugin-mail`     |
+
+### Implementation Pattern
+```tsx
+<Card className={cn(
+  "relative p-5 transition-all",
+  isSelected 
+    ? "plugin-tasks bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50" 
+    : "hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md"
+)}>
+  <h3 className="text-plugin font-semibold">Task Title</h3>
+</Card>
+```
