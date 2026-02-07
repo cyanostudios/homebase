@@ -580,7 +580,7 @@ class WooCommerceController {
         channelOrderId,
         channelInstanceId: instance.id != null ? String(instance.id) : null,
         platformOrderNumber: o?.number != null ? String(o.number) : null,
-        placedAt: o?.date_created || o?.date_created_gmt || null,
+        placedAt: o?.date_created_gmt || o?.date_created || null,
         totalAmount: o?.total != null ? Number(o.total) : null,
         currency: o?.currency || null,
         status: this.mapWooOrderStatusToHomebase(o?.status),
@@ -659,7 +659,7 @@ class WooCommerceController {
         await this.applyInventoryFromOrderId(req, ingestRes.orderId).catch(() => {});
       }
 
-      const placed = o?.date_created || o?.date_created_gmt;
+      const placed = o?.date_created_gmt || o?.date_created;
       if (placed && (!lastCursor || placed > lastCursor)) lastCursor = placed;
     }
 
@@ -762,7 +762,7 @@ class WooCommerceController {
               channelOrderId,
               channelInstanceId: instance.id != null ? String(instance.id) : null,
               platformOrderNumber: o?.number != null ? String(o.number) : null,
-              placedAt: o?.date_created || o?.date_created_gmt || null,
+              placedAt: o?.date_created_gmt || o?.date_created || null,
               totalAmount: o?.total != null ? Number(o.total) : null,
               currency: o?.currency || null,
               status: this.mapWooOrderStatusToHomebase(o?.status),

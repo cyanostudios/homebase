@@ -57,83 +57,6 @@ class FyndiqProductsController {
     return { url, resp, text, json };
   }
 
-  /**
-   * Best-effort: query Fyndiq processing statuses by SKU.
-   * The public OpenAPI spec does not describe the schema, so we attempt two common payload formats.
-   */
-  async getStatusesBySku({ username, password, skus }) {
-    const uniqueSkus = Array.from(new Set((Array.isArray(skus) ? skus : []).map((s) => String(s || '').trim()).filter(Boolean)));
-    if (!uniqueSkus.length) return { ok: false, detail: 'No SKUs provided' };
-
-    // Attempt 1: { skus: [...] }
-    let r1 = await this.fyndiqRequest('/api/v1/statuses/sku', {
-      username,
-      password,
-      method: 'POST',
-      body: JSON.stringify({ skus: uniqueSkus }),
-    });
-
-    if (r1.resp.ok) return { ok: true, url: r1.url, json: r1.json, rawText: r1.text };
-
-    // If validation error, attempt 2: [...] (array)
-    if (r1.resp.status === 422) {
-      const r2 = await this.fyndiqRequest('/api/v1/statuses/sku', {
-        username,
-        password,
-        method: 'POST',
-        body: JSON.stringify(uniqueSkus),
-      });
-      if (r2.resp.ok) return { ok: true, url: r2.url, json: r2.json, rawText: r2.text };
-      return { ok: false, url: r2.url, status: r2.resp.status, detail: r2.json || r2.text || r2.resp.statusText };
-    }
-
-    return { ok: false, url: r1.url, status: r1.resp.status, detail: r1.json || r1.text || r1.resp.statusText };
-  }
-
-  parseStatusItems(statusPayload) {
-    // We don't have a guaranteed schema; normalize into [{ sku, status, errorMessage? }]
-    const out = [];
-    if (Array.isArray(statusPayload)) {
-      for (const it of statusPayload) {
-        const sku = it?.sku ?? it?.SKU ?? it?.article_sku ?? it?.articleSku;
-        const status = it?.status ?? it?.state ?? it?.result ?? it?.processingStatus;
-        const errorMessage = it?.error ?? it?.errorMessage ?? it?.message ?? it?.detail ?? null;
-        if (sku) out.push({ sku: String(sku), status: status != null ? String(status) : null, errorMessage: errorMessage ? String(errorMessage) : null, raw: it });
-      }
-      return out;
-    }
-
-    if (statusPayload && typeof statusPayload === 'object') {
-      // common shapes: { items: [...] } or { statuses: [...] } or { <sku>: {status,...}}
-      const items = statusPayload.items || statusPayload.statuses || statusPayload.results;
-      if (Array.isArray(items)) return this.parseStatusItems(items);
-
-      const keys = Object.keys(statusPayload);
-      // heuristic: if keys look like SKUs
-      for (const k of keys) {
-        const v = statusPayload[k];
-        if (v && typeof v === 'object') {
-          const status = v.status ?? v.state ?? v.result ?? null;
-          const errorMessage = v.error ?? v.errorMessage ?? v.message ?? v.detail ?? null;
-          out.push({ sku: String(k), status: status != null ? String(status) : null, errorMessage: errorMessage ? String(errorMessage) : null, raw: v });
-        }
-      }
-      return out;
-    }
-
-    return out;
-  }
-
-  statusToMapState(statusStr) {
-    const s = String(statusStr || '').toLowerCase();
-    // Heuristic mapping.
-    if (!s) return 'queued';
-    if (s.includes('error') || s.includes('fail') || s.includes('invalid') || s.includes('rejected')) return 'error';
-    if (s.includes('success') || s.includes('ok') || s.includes('done') || s.includes('completed')) return 'success';
-    if (s.includes('pending') || s.includes('queued') || s.includes('processing')) return 'queued';
-    return 'queued';
-  }
-
   async getSettings(req, res) {
     try {
       const settings = await this.model.getSettings(req);
@@ -181,7 +104,7 @@ class FyndiqProductsController {
         return res.status(resp.status).json({ ok: false, error: 'Failed to fetch Fyndiq categories', endpoint: url, detail: json || text });
       }
 
-      return res.json({ ok: true, endpoint: url, items: json ?? [] });
+      return res.json({ ok: true, endpoint: url, items: json });
     } catch (error) {
       Logger.error('Fyndiq getCategories error', error, { userId: Context.getUserId(req) });
       return res.status(502).json({ ok: false, error: 'Failed to fetch Fyndiq categories' });
@@ -449,74 +372,48 @@ class FyndiqProductsController {
         }
       }
 
-      // Mark as queued first (processing may be async) and then try to fetch statuses by SKU.
-      for (const it of items.filter((x) => x.status === 'queued')) {
-        await this.model.upsertChannelMap(req, {
-          productId: it.productId,
-          channel: 'fyndiq',
-          enabled: true,
-          externalId: it.sku || null,
-          status: 'queued',
-          error: null,
-        });
-      }
-
-      let statusLookup = null;
-      try {
-        statusLookup = await this.getStatusesBySku({
-          username: settings.apiKey,
-          password: settings.apiSecret,
-          skus: Array.from(new Set(items.filter((x) => x.sku && x.status !== 'error').map((x) => x.sku))),
-        });
-      } catch (_e) {
-        statusLookup = null;
-      }
-
-      if (statusLookup?.ok) {
-        const parsed = this.parseStatusItems(statusLookup.json);
-        const bySku = new Map(parsed.map((x) => [String(x.sku).trim(), x]));
-
-        for (const it of items.filter((x) => x.status === 'queued')) {
-          const st = bySku.get(String(it.sku).trim());
-          if (!st) continue;
-
-          const mappedStatus = this.statusToMapState(st.status);
-          const errMsg = mappedStatus === 'error' ? (st.errorMessage || st.status || 'Export failed') : null;
+      // Doc: 202 Accepted response has "responses": [ { id?, description, status_code, errors? }, ... ] in same order as request.
+      for (const [market, payload] of marketsToSend) {
+        const result = resultsByMarket[market]?.result;
+        if (resultsByMarket[market]?.status !== 202) continue;
+        const responses = result && Array.isArray(result.responses) ? result.responses : [];
+        const queuedForMarket = items.filter((x) => x.status === 'queued' && x.market === market);
+        for (let i = 0; i < responses.length && i < queuedForMarket.length; i++) {
+          const r = responses[i];
+          const it = queuedForMarket[i];
+          const statusCode = r.status_code != null ? Number(r.status_code) : null;
+          const success = statusCode === 202;
+          const errMsg = success ? null : (r.description != null ? String(r.description) : r.errors ? JSON.stringify(r.errors) : 'Export failed');
 
           await this.model.upsertChannelMap(req, {
             productId: it.productId,
             channel: 'fyndiq',
             enabled: true,
             externalId: it.sku || null,
-            status: mappedStatus,
+            status: success ? 'success' : 'error',
             error: errMsg,
           });
-
-          if (mappedStatus === 'error') {
+          if (!success) {
             await this.model.logChannelError(req, {
               channel: 'fyndiq',
               productId: it.productId,
-              payload: payload.find((x) => String(x.sku).trim() === String(it.sku).trim()) || null,
-              response: st.raw || null,
+              payload: payload[i] || null,
+              response: r,
               message: errMsg,
             });
             it.status = 'error';
-            it.error = errMsg || 'Export failed';
-          } else if (mappedStatus === 'success') {
+            it.error = errMsg;
+          } else {
             it.status = 'success';
           }
         }
+        // If we had queued items but no responses (e.g. empty payload), leave as queued.
       }
 
       return res.json({
         ok: true,
         endpoint: '/api/v1/articles/bulk',
         result: resultsByMarket,
-        statusLookup: statusLookup?.ok
-          ? { ok: true, endpoint: statusLookup.url, raw: statusLookup.json ?? null }
-          : statusLookup
-            ? { ok: false, endpoint: statusLookup.url, status: statusLookup.status, detail: statusLookup.detail }
-            : null,
         counts: {
           requested: products.length,
           success: items.filter((x) => x.status === 'success').length,
@@ -625,8 +522,8 @@ class FyndiqProductsController {
           continue;
         }
 
-        // Heuristic: article id is often `id` in response
-        const articleId = lookup.json?.id ?? lookup.json?.article_id ?? lookup.json?.articleId ?? null;
+        // Doc: GET /api/v1/articles/sku/{{SKU}} returns 200 with content.article.id
+        const articleId = lookup.json?.content?.article?.id ?? null;
         if (!articleId) {
           const msg = 'Could not resolve articleId from lookup response';
           await this.model.upsertChannelMap(req, {

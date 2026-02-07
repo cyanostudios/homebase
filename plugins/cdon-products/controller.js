@@ -88,23 +88,6 @@ class CdonProductsController {
     }
   }
 
-  // Best-effort: receipt may be returned as JSON or plain text
-  extractReceipt({ json, text }) {
-    if (json && typeof json === 'object') {
-      const candidates = [
-        json.receiptId,
-        json.receipt,
-        json.id,
-        json.ReceiptId,
-        json.Receipt,
-      ].filter(Boolean);
-      if (candidates.length) return String(candidates[0]);
-    }
-    const t = String(text || '').trim();
-    if (/^[a-f0-9]{32}$/i.test(t)) return t;
-    return null;
-  }
-
   // Minimal XML escaping for text nodes
   escapeXml(value) {
     return String(value ?? '')
@@ -125,9 +108,9 @@ class CdonProductsController {
         const mpn = p.mpn ? `<mpn>${this.escapeXml(p.mpn)}</mpn>` : '';
         const sku = p.sku ? `<sku>${this.escapeXml(p.sku)}</sku>` : '';
         const title = this.escapeXml(p.title);
-        const desc = this.escapeXml(p.description || p.title);
-        const brand = this.escapeXml(p.brand || 'Generic');
-        const googleCategory = this.escapeXml(p.googleCategory || '1480'); // default fallback
+        const desc = p.description != null ? this.escapeXml(p.description) : '';
+        const brand = p.brand != null ? this.escapeXml(p.brand) : '';
+        const googleCategory = p.googleCategory != null ? this.escapeXml(p.googleCategory) : '';
 
         return [
           '<product>',
@@ -165,21 +148,23 @@ class CdonProductsController {
         const markets = marketOverridesByProductId.get(pid) || {};
         const basePrice = Number.isFinite(Number(p.priceAmount)) ? Number(p.priceAmount) : null;
 
-        const baseVat = Number.isFinite(Number(p.vatRate)) ? Number(p.vatRate) : 25;
-        const shippingCost = Number.isFinite(Number(p.shippingCost)) ? Number(p.shippingCost) : 29;
-        const carrier = p.carrier ? this.escapeXml(p.carrier) : 'PostNord';
-        const shippingMethod = p.shippingMethod ? this.escapeXml(p.shippingMethod) : 'PickupPoint';
+        const baseVat = Number.isFinite(Number(p.vatRate)) ? Number(p.vatRate) : null;
+        const shippingCost = Number.isFinite(Number(p.shippingCost)) ? Number(p.shippingCost) : null;
+        const carrier = p.carrier ? this.escapeXml(p.carrier) : null;
+        const shippingMethod = p.shippingMethod ? this.escapeXml(p.shippingMethod) : null;
 
         const buildMarket = (marketKey, fallbackPrice) => {
           const ov = markets[marketKey] || null;
           const price = ov?.priceAmount != null ? Number(ov.priceAmount) : (fallbackPrice != null ? Number(fallbackPrice) : NaN);
           if (!Number.isFinite(price)) return null;
 
+          const vat = Number.isFinite(Number(ov?.vatRate)) ? Number(ov.vatRate) : baseVat;
+          if (vat == null || !Number.isFinite(vat) || shippingCost == null || !Number.isFinite(shippingCost) || !carrier || !shippingMethod) return null;
+
           const sale = price;
           const original = Number.isFinite(Number(ov?.originalPriceAmount)) ? Number(ov.originalPriceAmount) : sale;
           const saleStr = sale.toFixed(2);
           const originalStr = Math.max(original, sale).toFixed(2);
-          const vat = Number.isFinite(Number(ov?.vatRate)) ? Number(ov.vatRate) : baseVat;
 
           return [
             `  <${marketKey}>`,
@@ -227,11 +212,11 @@ class CdonProductsController {
         const pid = String(p?.id || p?.productId || p?.cdonId || '').trim();
         const markets = marketOverridesByProductId.get(pid) || {};
 
-        const stock = Number.isFinite(Number(p.quantity)) ? Math.max(0, Math.trunc(Number(p.quantity))) : 0;
-        const minDays = Number.isFinite(Number(p.deliveryMinDays)) ? Math.max(0, Math.trunc(Number(p.deliveryMinDays))) : 1;
-        const maxDays = Number.isFinite(Number(p.deliveryMaxDays))
-          ? Math.max(minDays, Math.trunc(Number(p.deliveryMaxDays)))
-          : Math.max(minDays, 3);
+        const stock = Number.isFinite(Number(p.quantity)) ? Math.max(0, Math.trunc(Number(p.quantity))) : null;
+        const minDays = Number.isFinite(Number(p.deliveryMinDays)) ? Math.max(0, Math.trunc(Number(p.deliveryMinDays))) : null;
+        const maxDays = Number.isFinite(Number(p.deliveryMaxDays)) ? Math.max(minDays ?? 0, Math.trunc(Number(p.deliveryMaxDays))) : null;
+
+        if (stock == null || minDays == null || maxDays == null) return '';
 
         const marketStatus = (marketKey) => {
           const ov = markets[marketKey];
@@ -260,6 +245,7 @@ class CdonProductsController {
           '</product>',
         ].join('\n');
       })
+      .filter(Boolean)
       .join('\n');
 
     return `<?xml version="1.0" encoding="utf-8"?>\n<marketplace xmlns="${ns}">\n${items}\n</marketplace>\n`;
@@ -375,7 +361,7 @@ class CdonProductsController {
       if (!resp.ok) {
         return res.status(resp.status).json({ ok: false, error: 'Failed to fetch CDON categories', detail: json || text });
       }
-      return res.json({ ok: true, endpoint: url, items: json ?? [] });
+      return res.json({ ok: true, endpoint: url, items: json });
     } catch (error) {
       Logger.error('CDON getCategories error', error, { userId: Context.getUserId(req) });
       return res.status(502).json({ ok: false, error: 'Failed to fetch CDON categories' });
@@ -393,7 +379,7 @@ class CdonProductsController {
       if (!resp.ok) {
         return res.status(resp.status).json({ ok: false, error: 'Failed to fetch Google categories', detail: json || text });
       }
-      return res.json({ ok: true, endpoint: url, items: json ?? [] });
+      return res.json({ ok: true, endpoint: url, items: json != null ? json : [] });
     } catch (error) {
       Logger.error('CDON getGoogleCategories error', error, { userId: Context.getUserId(req) });
       return res.status(502).json({ ok: false, error: 'Failed to fetch Google categories' });
@@ -413,7 +399,7 @@ class CdonProductsController {
       if (!resp.ok) {
         return res.status(resp.status).json({ ok: false, error: 'Failed to fetch category attributes', detail: json || text });
       }
-      return res.json({ ok: true, endpoint: url, items: json ?? [] });
+      return res.json({ ok: true, endpoint: url, items: json });
     } catch (error) {
       Logger.error('CDON getCategoryAttributes error', error, { userId: Context.getUserId(req) });
       return res.status(502).json({ ok: false, error: 'Failed to fetch category attributes' });
@@ -435,7 +421,7 @@ class CdonProductsController {
       if (!resp.ok) {
         return res.status(resp.status).json({ ok: false, error: 'Failed to fetch deliveries', detail: json || text });
       }
-      return res.json({ ok: true, endpoint: url, items: json ?? null });
+      return res.json({ ok: true, endpoint: url, items: json });
     } catch (error) {
       Logger.error('CDON getDeliveries error', error, { userId: Context.getUserId(req) });
       return res.status(502).json({ ok: false, error: 'Failed to fetch CDON deliveries' });
@@ -475,7 +461,7 @@ class CdonProductsController {
       if (!resp.ok) {
         return res.status(resp.status).json({ ok: false, error: 'Failed to fetch delivery failures', detail: json || text });
       }
-      return res.json({ ok: true, endpoint: url, failures: json ?? null });
+      return res.json({ ok: true, endpoint: url, failures: json });
     } catch (error) {
       Logger.error('CDON getDeliveryFailures error', error, { userId: Context.getUserId(req) });
       return res.status(502).json({ ok: false, error: 'Failed to fetch CDON delivery failures' });
@@ -507,10 +493,10 @@ class CdonProductsController {
         return res.status(resp.status).json({
           ok: false,
           error: `CDON fulfill failed (HTTP ${resp.status})`,
-          detail: (json && (json.message ?? json.error ?? json.description)) || text,
+          detail: (json && json.message) != null ? json.message : text,
         });
       }
-      return res.json({ ok: true, endpoint: url, result: json ?? null });
+      return res.json({ ok: true, endpoint: url, result: json });
     } catch (error) {
       Logger.error('CDON fulfillOrder error', error, { userId: Context.getUserId(req) });
       return res.status(502).json({ error: 'CDON fulfill failed', detail: String(error?.message || error) });
@@ -540,10 +526,10 @@ class CdonProductsController {
         return res.status(resp.status).json({
           ok: false,
           error: `CDON cancel failed (HTTP ${resp.status})`,
-          detail: (json && (json.message ?? json.error ?? json.description)) || text,
+          detail: (json && json.message) != null ? json.message : text,
         });
       }
-      return res.json({ ok: true, endpoint: url, result: json ?? null });
+      return res.json({ ok: true, endpoint: url, result: json });
     } catch (error) {
       Logger.error('CDON cancelOrder error', error, { userId: Context.getUserId(req) });
       return res.status(502).json({ error: 'CDON cancel failed', detail: String(error?.message || error) });
@@ -644,8 +630,8 @@ class CdonProductsController {
           brand: p?.brand != null ? String(p.brand).trim() : null,
           googleCategory,
           priceAmount: Number(p.priceAmount),
-          vatRate: p?.vatRate != null ? Number(p.vatRate) : 25,
-          quantity: p?.quantity != null ? Number(p.quantity) : 0,
+          vatRate: p?.vatRate != null ? Number(p.vatRate) : null,
+          quantity: p?.quantity != null ? Number(p.quantity) : null,
           mainImage: p?.mainImage != null ? String(p.mainImage).trim() : null,
           images: Array.isArray(p?.images) ? p.images : [],
         });
@@ -709,37 +695,43 @@ class CdonProductsController {
         const price = marketsUpper.map((market) => {
           const ov = overrides[market.toLowerCase()];
           const amount = ov?.priceAmount != null ? Number(ov.priceAmount) : p.priceAmount;
-          const currency = ov?.currency || (market === 'SE' ? 'SEK' : market === 'DK' ? 'DKK' : 'SEK');
+          const currency = ov?.currency ?? (p.currency ?? null);
           const vatRate = ov?.vatRate != null ? Number(ov.vatRate) : p.vatRate;
           return {
             market,
             value: {
               amount_including_vat: amount,
               currency,
-              vat_rate: vatRate >= 1 ? vatRate / 100 : vatRate,
+              vat_rate: vatRate != null && Number.isFinite(Number(vatRate)) ? (vatRate >= 1 ? vatRate / 100 : vatRate) : null,
             },
           };
         });
-        const shipping_time = marketsUpper.map((market) => ({ market, min: 1, max: 5 }));
+        const shipping_time = marketsUpper.map((market) => {
+          const ov = overrides[market.toLowerCase()];
+          const min = ov?.deliveryMinDays != null ? Number(ov.deliveryMinDays) : (p.deliveryMinDays != null ? Number(p.deliveryMinDays) : null);
+          const max = ov?.deliveryMaxDays != null ? Number(ov.deliveryMaxDays) : (p.deliveryMaxDays != null ? Number(p.deliveryMaxDays) : null);
+          return min != null && max != null ? { market, min, max } : null;
+        }).filter(Boolean);
         const title = [
-          { language: 'sv-SE', value: p.title || '' },
-          { language: 'en-US', value: p.title || '' },
+          { language: 'sv-SE', value: p.title != null ? String(p.title) : '' },
+          { language: 'en-US', value: p.title != null ? String(p.title) : '' },
         ];
         const description = [
-          { language: 'sv-SE', value: (p.description || p.title || '').slice(0, 5000) },
-          { language: 'en-US', value: (p.description || p.title || '').slice(0, 5000) },
+          { language: 'sv-SE', value: p.description != null ? String(p.description).slice(0, 5000) : '' },
+          { language: 'en-US', value: p.description != null ? String(p.description).slice(0, 5000) : '' },
         ];
+        const category = p.googleCategory != null ? String(p.googleCategory) : null;
         return {
           sku: p.sku || p.productId,
           status: 'for sale',
-          quantity: Math.max(0, Math.floor(p.quantity)),
+          quantity: p.quantity != null && Number.isFinite(Number(p.quantity)) ? Math.max(0, Math.floor(p.quantity)) : null,
           main_image: p.mainImage || null,
           markets: marketsUpper,
           price,
-          shipping_time,
+          shipping_time: shipping_time.length ? shipping_time : null,
           title,
           description,
-          category: String(p.googleCategory || overrides['se']?.category || overrides['dk']?.category || '1124'),
+          category,
         };
       });
 
@@ -756,7 +748,7 @@ class CdonProductsController {
       });
 
       if (!resp.ok) {
-        const message = (resJson && (resJson.message ?? resJson.error ?? resJson.description)) || text || resp.statusText;
+        const message = (resJson && resJson.message) != null ? resJson.message : (text || resp.statusText);
         Logger.error('CDON articles/bulk failed', { status: resp.status, message, userId: Context.getUserId(req) });
         return res.status(resp.status).json({
           ok: false,
@@ -828,16 +820,12 @@ class CdonProductsController {
   }
 
   // --------- Order import (Merchants API) ---------
-  // GET /v1/orders?state=... Valid states per CDON: CREATED (ny), ACCEPTED (accepterad), FULFILLED (hanterad/skickad), NOT_FULFILLED (avbokad/återbetald). CANCELLED is not valid.
+  // Doc: GET /v1/orders?state=CREATED|ACCEPTED|FULFILLED|NOT_FULFILLED&limit=100&page=1. Response: array of order objects.
 
-  static CDON_ORDER_STATES = ['CREATED', 'ACCEPTED', 'NOT_FULFILLED', 'FULFILLED'];
-  /** Only these are synced incrementally (open orders). NOT_FULFILLED/FULFILLED skipped. */
   static CDON_ORDER_OPEN_STATES = ['CREATED', 'ACCEPTED'];
-  static CDON_ORDER_MARKETS = ['SE', 'DK', 'FI'];
 
   /**
-   * Internal: sync open CDON orders only (CREATED, ACCEPTED), with full pagination.
-   * Used by OrderSyncService. Returns { fetched, created, error? }.
+   * Internal: sync open CDON orders (CREATED, ACCEPTED). Doc: state, limit, page. One API object = one order.
    */
   async syncOpenOrders(req) {
     const settings = await this.model.getSettings(req);
@@ -848,86 +836,29 @@ class CdonProductsController {
     }
 
     const limit = 100;
-    const base = `${CDON_MERCHANTS_API}/v1/orders`;
-    const allOrderPayloads = [];
-
+    const allOrders = [];
     for (const state of CdonProductsController.CDON_ORDER_OPEN_STATES) {
       let page = 1;
       let hasMore = true;
       while (hasMore) {
         const params = new URLSearchParams({ state, limit: String(limit), page: String(page) });
-        const url = `${base}?${params.toString()}`;
-        const { resp, text, json } = await this.cdonRequest(url, {
-          merchantId,
-          apiToken,
-          method: 'GET',
-        });
+        const url = `${CDON_MERCHANTS_API}/v1/orders?${params.toString()}`;
+        const { resp, json } = await this.cdonRequest(url, { merchantId, apiToken, method: 'GET' });
         if (!resp.ok) {
-          const detail = (json && (json.message ?? json.error ?? json.description)) ?? text ?? resp.statusText;
-          return { fetched: allOrderPayloads.length, created: -1, error: String(detail).slice(0, 500) };
+          const detail = (json && json.message) != null ? json.message : resp.statusText;
+          return { fetched: allOrders.length, created: -1, error: String(detail).slice(0, 500) };
         }
-
-        let payloads = [];
-        if (Array.isArray(json)) payloads = json;
-        else if (json?.orders) payloads = Array.isArray(json.orders) ? json.orders : [json.orders];
-        else if (json?.data) payloads = Array.isArray(json.data) ? json.data : [json.data];
-        else if (json?.OrderDetails !== undefined) payloads = [json];
-
-        allOrderPayloads.push(...payloads);
-        hasMore = payloads.length >= limit;
+        const items = Array.isArray(json) ? json : [];
+        allOrders.push(...items);
+        hasMore = items.length >= limit;
         page += 1;
       }
     }
 
-    const groupKey = (o) => (o?.id != null ? `id:${o.id}` : null);
-    const byGroup = new Map();
-    for (const row of allOrderPayloads) {
-      const raw = row?.OrderDetails ?? row;
-      if (!raw) continue;
-      const key = groupKey(raw);
-      if (key == null) continue;
-      if (!byGroup.has(key)) {
-        byGroup.set(key, {
-          id: String(raw.id),
-          market: raw.market,
-          state: raw.state,
-          created_at: raw.created_at,
-          shipping_address: raw.shipping_address,
-          tracking_information: raw.tracking_information,
-          total_price: null,
-          order_rows: [],
-        });
-      }
-      const order = byGroup.get(key);
-      order.order_rows.push(raw);
-      const lineAmount = raw.total_price?.amount ?? raw.price?.amount ?? raw.total_price ?? raw.price ?? 0;
-      const amt = Number(lineAmount);
-      if (Number.isFinite(amt)) {
-        order.total_price = order.total_price ?? { amount: 0, currency: raw.total_price?.currency ?? raw.price?.currency ?? 'SEK' };
-        order.total_price.amount += amt;
-      }
-    }
-    const orderList = Array.from(byGroup.values());
-    const seen = new Set();
-    let orders = orderList.filter((o) => {
-      const key = o?.id ?? o?.OrderKey ?? o?.OrderId ?? o?.orderId;
-      if (key == null) return false;
-      const k = String(key);
-      if (seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
-    orders = orders.filter((o) => {
-      const market = String(o?.market ?? o?.Market ?? '').toUpperCase();
-      if (!market) return true;
-      return CdonProductsController.CDON_ORDER_MARKETS.includes(market);
-    });
-
-    const userId = req.session?.user?.id || req.session?.user?.uuid;
-    const db = Database.get(req);
     let created = 0;
-    for (const o of orders) {
-      const normalized = await this.normalizeCdonOrderToHomebase(o, userId, db);
+    for (const o of allOrders) {
+      if (o == null || o.id == null) continue;
+      const normalized = await this.normalizeCdonOrderToHomebase(o, req);
       if (!normalized) continue;
       const ingestRes = await this.ordersModel.ingest(req, normalized);
       if (ingestRes.created) created += 1;
@@ -935,9 +866,12 @@ class CdonProductsController {
         await this.applyInventoryFromOrderId(req, ingestRes.orderId).catch(() => {});
       }
     }
-    return { fetched: orders.length, created };
+    return { fetched: allOrders.length, created };
   }
 
+  /**
+   * GET /v1/orders. Doc: query state (CREATED|ACCEPTED|FULFILLED|NOT_FULFILLED), limit, page. Response: array of order objects.
+   */
   async pullOrders(req, res) {
     try {
       const settings = await this.model.getSettings(req);
@@ -947,127 +881,47 @@ class CdonProductsController {
         return res.status(400).json({ error: 'CDON settings not found. Save merchantID and API token first.' });
       }
 
-      const limit = Math.min(Math.max(Number(req.body?.limit) || 100, 1), 1000);
-      const base = `${CDON_MERCHANTS_API}/v1/orders`;
-      const allOrderPayloads = [];
+      const limit = req.body?.limit != null ? Math.min(Math.max(Number(req.body.limit), 1), 1000) : 100;
+      const states = req.body?.state != null
+        ? (Array.isArray(req.body.state) ? req.body.state : [req.body.state])
+        : ['CREATED'];
 
-      for (const state of CdonProductsController.CDON_ORDER_STATES) {
-        const params = new URLSearchParams({ state, limit: String(limit), page: '1' });
-        const url = `${base}?${params.toString()}`;
-        const { resp, text, json } = await this.cdonRequest(url, {
-          merchantId,
-          apiToken,
-          method: 'GET',
-        });
-
-        if (!resp.ok) {
-          const detail =
-            (json && (json.message ?? json.error ?? json.description ?? json.Message ?? json.ErrorDescription)) ??
-            (typeof text === 'string' && text ? text : null) ??
-            resp.statusText ??
-            `HTTP ${resp.status}`;
-          const detailStr = String(detail).slice(0, 400);
-          Logger.warn('CDON orders fetch failed', {
-            userId: req.session?.user?.id ?? req.session?.user?.uuid,
-            state,
-            status: resp.status,
-            textLen: (text && text.length) || 0,
-            textSample: typeof text === 'string' ? text.slice(0, 300) : '',
-            jsonKeys: json && typeof json === 'object' ? Object.keys(json) : null,
-          });
-          const hint =
-            resp.status === 401 || resp.status === 403
-              ? ' Use Basic Auth: merchantID and API token from CDON Admin (API / Integration).'
-              : '';
-          const msg = `Failed to fetch CDON orders (state=${state}) (HTTP ${resp.status}): ${detailStr}${hint}`;
-          return res.status(resp.status).json({ error: msg, detail: detailStr });
-        }
-
-        let payloads = [];
-        if (Array.isArray(json)) {
-          payloads = json;
-        } else if (json && (Array.isArray(json.orders) || json.orders)) {
-          payloads = Array.isArray(json.orders) ? json.orders : [json.orders];
-        } else if (json && (Array.isArray(json.data) || json.data)) {
-          payloads = Array.isArray(json.data) ? json.data : [json.data];
-        } else if (json && (json.OrderDetails || json.OrderDetails === undefined)) {
-          payloads = [json];
-        }
-        allOrderPayloads.push(...payloads);
-      }
-
-      // Group CDON orders by CDON order id only. No fallbacks.
-      const groupKey = (o) => (o?.id != null ? `id:${o.id}` : null);
-
-      const byGroup = new Map();
-      for (const row of allOrderPayloads) {
-        const raw = row?.OrderDetails ?? row;
-        if (!raw) continue;
-        const key = groupKey(raw);
-        if (key == null) continue;
-        if (!byGroup.has(key)) {
-          byGroup.set(key, {
-            id: String(raw.id),
-            market: raw.market,
-            state: raw.state,
-            created_at: raw.created_at,
-            shipping_address: raw.shipping_address,
-            tracking_information: raw.tracking_information,
-            total_price: null,
-            order_rows: [],
-          });
-        }
-        const order = byGroup.get(key);
-        order.order_rows.push(raw);
-
-        // Accumulate total price if it's a flat line item format
-        const lineAmount = raw.total_price?.amount ?? raw.price?.amount ?? raw.total_price ?? raw.price ?? 0;
-        const amt = Number(lineAmount);
-        if (Number.isFinite(amt)) {
-          order.total_price = order.total_price ?? { amount: 0, currency: raw.total_price?.currency ?? raw.price?.currency ?? 'SEK' };
-          order.total_price.amount += amt;
-          if (raw.total_price?.currency || raw.price?.currency) order.total_price.currency = raw.total_price?.currency ?? raw.price?.currency;
+      const allOrders = [];
+      for (const state of states) {
+        let page = 1;
+        let hasMore = true;
+        while (hasMore) {
+          const params = new URLSearchParams({ state, limit: String(limit), page: String(page) });
+          const url = `${CDON_MERCHANTS_API}/v1/orders?${params.toString()}`;
+          const { resp, json } = await this.cdonRequest(url, { merchantId, apiToken, method: 'GET' });
+          if (!resp.ok) {
+            const detail = (json && json.message) != null ? json.message : resp.statusText;
+            return res.status(resp.status).json({ error: 'Failed to fetch CDON orders', detail: String(detail).slice(0, 500) });
+          }
+          const items = Array.isArray(json) ? json : [];
+          allOrders.push(...items);
+          hasMore = items.length >= limit;
+          page += 1;
         }
       }
-      const orderList = Array.from(byGroup.values());
 
-      const seen = new Set();
-      let orders = orderList.filter((o) => {
-        const key = o?.OrderKey ?? o?.OrderId ?? o?.orderId ?? o?.id ?? o?.OrderNumber ?? o?.orderNumber;
-        if (key == null) return false;
-        const k = String(key);
-        if (seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      });
-      // Client-side market filter: keep only SE, DK, FI; keep orders with no market info
-      orders = orders.filter((o) => {
-        const market = String(
-          o?.market ?? o?.Market ?? o?.country_code ?? o?.CountryCode ?? o?.countryCode ?? ''
-        ).toUpperCase();
-        if (!market) return true;
-        return CdonProductsController.CDON_ORDER_MARKETS.includes(market);
-      });
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
-      const db = Database.get(req);
       const results = [];
-
-      for (const o of orders) {
-        const normalized = await this.normalizeCdonOrderToHomebase(o, userId, db);
+      for (const o of allOrders) {
+        if (o == null || o.id == null) continue;
+        const normalized = await this.normalizeCdonOrderToHomebase(o, req);
         if (!normalized) continue;
-
         const ingestRes = await this.ordersModel.ingest(req, normalized);
         if (ingestRes.created && ingestRes.orderId) {
           await this.applyInventoryFromOrderId(req, ingestRes.orderId).catch((err) => {
             Logger.warn('Inventory sync failed (non-fatal)', err, { orderId: ingestRes.orderId });
           });
         }
-        results.push({ channelOrderId: normalized.channelOrderId, ...ingestRes });
+        results.push({ channelOrderId: String(o.id), ...ingestRes });
       }
 
       return res.json({
         ok: true,
-        fetched: orders.length,
+        fetched: allOrders.length,
         ingested: results.length,
         created: results.filter((r) => r.created).length,
         skippedExisting: results.filter((r) => !r.created).length,
@@ -1080,221 +934,92 @@ class CdonProductsController {
   }
 
   /**
-   * Normalize CDON order (Merchants API or legacy) to homebase shape.
-   * Merchants API: id, market, state, created_at, shipping_address (first_name, last_name, street_address, city, postal_code, country, phone_number), total_price { amount, currency }, order_rows or flat article_* per line.
+   * Build one normalized order from a single CDON API order object.
+   * Doc: id, article_sku, title/article_title, price { amount, vat_amount, vat_rate, currency }, total_price, quantity,
+   * shipping_address { first_name, last_name, full_name, street_address, city, postal_code, country, phone_number }, market, state, created_at.
    */
-  async normalizeCdonOrderToHomebase(o, userId, db) {
-    // CDON Merchants API: use only id as order identifier. No fallbacks.
-    const channelOrderId = o?.id != null ? String(o.id) : null;
-    if (channelOrderId == null) return null;
+  async normalizeCdonOrderToHomebase(o, req) {
+    if (o == null || o.id == null) return null;
+    const channelOrderId = String(o.id);
+    const db = Database.get(req);
+    const userId = req.session?.user?.id || req.session?.user?.uuid;
 
-    const ci = o?.CustomerInfo ?? o?.customer_info ?? o?.customerInfo ?? {};
-    const ship = ci?.ShippingAddress ?? ci?.shipping_address ?? ci?.shippingAddress ?? o?.shipping_address ?? {};
-    const bill = ci?.BillingAddress ?? ci?.billing_address ?? ci?.billingAddress ?? o?.billing_address ?? {};
-    const phones = ci?.Phones ?? ci?.phones ?? {};
-    const email =
-      ci?.EmailAddress ?? ci?.email_address ?? ci?.emailAddress ?? ci?.email ?? null;
-    const shipName = ship?.Name ?? ship?.name ?? ship?.first_name ?? ship?.firstName ?? null;
-    const shipLastName = ship?.last_name ?? ship?.lastName ?? null;
-    const phone =
-      ship?.phone_number ?? ship?.phoneNumber ??
-      phones?.PhoneMobile ?? phones?.phone_mobile ?? phones?.phoneMobile ??
-      phones?.PhoneWork ?? phones?.phone_work ?? phones?.phoneWork ??
-      phones?.mobile ?? phones?.work ??
-      null;
-
-    const totalPriceObj = o?.total_price ?? o?.totalPrice;
-    const orderLevelTotal =
-      totalPriceObj != null && typeof totalPriceObj === 'object' && totalPriceObj.amount != null
-        ? Number(totalPriceObj.amount)
-        : Number(o?.TotalAmount ?? o?.total_amount ?? o?.totalAmount ?? NaN);
-    const currency =
-      (totalPriceObj?.currency ?? o?.CurrencyCode ?? o?.currency_code ?? o?.currencyCode ?? o?.currency ?? 'SEK').toString().toUpperCase();
-    let placedAt = o?.CreatedDateUtc ?? o?.created_date_utc ?? o?.createdDateUtc ?? null;
-    if (placedAt) {
-      placedAt = String(placedAt).trim();
-      if (placedAt && !placedAt.endsWith('Z') && !placedAt.includes('+') && !placedAt.includes('GMT')) {
-        placedAt += 'Z';
-      }
-    } else {
-      placedAt = o?.OrderDate ?? o?.order_date ?? o?.orderDate ?? o?.created_at ?? null;
+    let placedAt = o.created_at != null ? String(o.created_at).trim() : null;
+    if (placedAt && !placedAt.endsWith('Z') && !placedAt.includes('+') && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(placedAt)) {
+      placedAt = placedAt.replace(' ', 'T') + 'Z';
     }
 
-    const normalized = {
+    const price = o.price;
+    const totalPrice = o.total_price;
+    const currency = (price && price.currency) ? String(price.currency).toUpperCase() : (totalPrice && totalPrice.currency ? String(totalPrice.currency).toUpperCase() : null);
+    const status = this.mapCdonOrderStatusToHomebase(o.state);
+
+    const ship = o.shipping_address;
+    const customer = {
+      email: null,
+      firstName: ship && ship.first_name != null ? String(ship.first_name).trim() : null,
+      lastName: ship && ship.last_name != null ? String(ship.last_name).trim() : null,
+      phone: ship && ship.phone_number != null ? String(ship.phone_number).trim() : null,
+      shippingAddress: ship || null,
+      billingAddress: null,
+    };
+
+    const qty = Number(o.quantity);
+    if (!Number.isFinite(qty) || qty <= 0) return null;
+
+    const amount = price && price.amount != null ? Number(price.amount) : null;
+    const vatAmount = price && price.vat_amount != null ? Number(price.vat_amount) : null;
+    const vatRateDoc = price && price.vat_rate != null ? Number(price.vat_rate) : null;
+    const unitPriceInclVat = (Number.isFinite(amount) && Number.isFinite(vatAmount)) ? (amount + vatAmount) / (qty || 1) : null;
+    const vatRatePct = Number.isFinite(vatRateDoc) ? (vatRateDoc <= 1 ? vatRateDoc * 100 : vatRateDoc) : null;
+
+    const totalAmount = (totalPrice && totalPrice.amount != null && totalPrice.vat_amount != null)
+      ? Number(totalPrice.amount) + Number(totalPrice.vat_amount)
+      : (Number.isFinite(unitPriceInclVat) && qty > 0 ? unitPriceInclVat * qty : null);
+
+    const sku = o.article_sku != null ? String(o.article_sku).trim() : null;
+    let platformProductId = null;
+    if (userId && sku) {
+      const mapRes = await db.query(
+        `SELECT id::text AS product_id FROM products WHERE user_id = $1 AND sku = $2 LIMIT 1`,
+        [userId, sku],
+      );
+      if (mapRes.length) platformProductId = String(mapRes[0].product_id);
+    }
+
+    const title = (o.title != null || o.article_title != null) ? String(o.title || o.article_title).trim() : null;
+    const items = [{
+      sku: sku || null,
+      productId: platformProductId,
+      title: title || null,
+      quantity: Math.trunc(qty),
+      unitPrice: Number.isFinite(unitPriceInclVat) ? unitPriceInclVat : null,
+      vatRate: Number.isFinite(vatRatePct) ? vatRatePct : null,
+      raw: o,
+    }];
+
+    return {
       channel: 'cdon',
       channelOrderId,
       platformOrderNumber: channelOrderId,
       placedAt,
-      totalAmount: Number.isFinite(orderLevelTotal) ? orderLevelTotal : null,
-      currency: currency || 'SEK',
-      status: this.mapCdonOrderStatusToHomebase(o?.State ?? o?.state),
-      shippingAddress:
-        ship && typeof ship === 'object' && Object.keys(ship).length
-          ? {
-            ...ship,
-            name: shipName ?? ship?.name ?? ship?.Name ?? ([ship?.first_name, ship?.last_name].filter(Boolean).join(' ').trim() || undefined),
-            street_address: ship?.street_address ?? ship?.streetAddress ?? ship?.StreetAddress ?? ship?.Street,
-            postal_code: ship?.postal_code ?? ship?.postalCode ?? ship?.PostalCode ?? ship?.ZipCode,
-            city: ship?.city ?? ship?.City,
-            country: ship?.country ?? ship?.Country,
-          }
-          : null,
-      billingAddress:
-        bill && typeof bill === 'object' && Object.keys(bill).length
-          ? { ...bill, name: bill?.Name ?? bill?.name ?? bill?.first_name ?? bill?.firstName }
-          : null,
-      customer: {
-        email: email ? String(email).trim() : null,
-        firstName: shipName ? String(shipName).trim() : null,
-        lastName: shipLastName ? String(shipLastName).trim() : null,
-        phone: phone ? String(phone).trim() : null,
-      },
-      items: [],
+      totalAmount: Number.isFinite(totalAmount) ? totalAmount : null,
+      currency,
+      status,
+      shippingAddress: ship || null,
+      billingAddress: null,
+      customer,
+      items,
       raw: o,
     };
-
-    let lineItems = [];
-    const rows = o?.order_rows ?? o?.OrderRows ?? o?.orderRows ?? o?.lines ?? o?.Lines ??
-      o?.items ?? o?.Items ?? o?.line_items ?? o?.lineItems ?? o?.LineItems ??
-      o?.rows ?? o?.Rows ?? o?.order_lines ?? o?.orderLines ?? o?.OrderLines;
-    if (Array.isArray(rows) && rows.length > 0) lineItems = rows;
-    else if (o?.article_id != null || o?.article_sku != null) lineItems = [o];
-    for (const li of lineItems) {
-      const qty = Number(li?.Quantity ?? li?.quantity ?? li?.qty ?? li?.Qty ?? 0);
-      if (!Number.isFinite(qty) || qty <= 0) continue;
-      const productId = li?.ProductId ?? li?.product_id ?? li?.productId ?? li?.article_sku ?? li?.sku ?? li?.article_id ?? null;
-      const sku = productId != null ? String(productId).trim() : null;
-
-      let platformProductId = null;
-      if (userId && (sku || (li?.mpn ?? li?.Mpn))) {
-        const mapRes = await db.query(
-          `SELECT id FROM products WHERE user_id = $1 AND (sku = $2 OR mpn = $3) LIMIT 1`,
-          [userId, sku || null, li?.mpn ?? li?.Mpn ?? null],
-        );
-        if (mapRes.length) platformProductId = String(mapRes[0].id);
-      }
-
-      // CDON: price.amount + price.vat_amount = line total incl VAT (support says amount is incl; some responses send amount ex VAT). When both present, use amount+vat_amount so ex-VAT amount (319.20) + vat (79.80) = 399.
-      const priceObj = li?.price ?? li?.Price;
-      const totalPriceLine = li?.total_price ?? li?.totalPrice ?? li?.TotalPrice;
-      const amountFromPrice = priceObj != null && typeof priceObj === 'object'
-        ? (priceObj.amount ?? priceObj.Amount ?? priceObj.value ?? priceObj.Value)
-        : typeof priceObj === 'number' && Number.isFinite(priceObj)
-          ? priceObj
-          : typeof priceObj === 'string' && priceObj.trim() !== ''
-            ? Number(priceObj)
-            : null;
-      const vatAmountFromPrice = priceObj != null && typeof priceObj === 'object'
-        ? (priceObj.vat_amount ?? priceObj.vatAmount ?? priceObj.VatAmount)
-        : null;
-      const amt = amountFromPrice != null ? Number(amountFromPrice) : null;
-      const vatAmt = vatAmountFromPrice != null && Number.isFinite(Number(vatAmountFromPrice)) ? Number(vatAmountFromPrice) : null;
-      const lineTotalFromPrice =
-        amt != null && vatAmt != null ? amt + vatAmt : amountFromPrice;
-      const amountFromTotalPrice = totalPriceLine != null && typeof totalPriceLine === 'object'
-        ? (totalPriceLine.amount ?? totalPriceLine.Amount ?? totalPriceLine.value ?? totalPriceLine.Value)
-        : typeof totalPriceLine === 'number'
-          ? totalPriceLine
-          : typeof totalPriceLine === 'string' && totalPriceLine.trim() !== ''
-            ? Number(totalPriceLine)
-            : null;
-      const vatAmountFromTotalPrice = totalPriceLine != null && typeof totalPriceLine === 'object'
-        ? (totalPriceLine.vat_amount ?? totalPriceLine.vatAmount ?? totalPriceLine.VatAmount)
-        : null;
-      const amtT = amountFromTotalPrice != null ? Number(amountFromTotalPrice) : null;
-      const vatAmtT = vatAmountFromTotalPrice != null && Number.isFinite(Number(vatAmountFromTotalPrice)) ? Number(vatAmountFromTotalPrice) : null;
-      const lineTotalFromTotalPrice =
-        amtT != null && vatAmtT != null ? amtT + vatAmtT : amountFromTotalPrice;
-      const lineTotalFromDoc = lineTotalFromPrice ?? lineTotalFromTotalPrice;
-      const debitedAmount = li?.debited_amount ?? li?.DebitedAmount;
-      const lineTotalFromOther =
-        lineTotalFromDoc == null
-          ? (li?.line_total ?? li?.lineTotal ?? li?.LineTotal ??
-            li?.total ?? li?.Total ?? li?.row_total ?? li?.RowTotal ??
-            debitedAmount ??
-            li?.article_price ?? li?.ArticlePrice ??
-            li?.amount ?? li?.Amount)
-          : null;
-      const lineAmountRaw = lineTotalFromDoc ?? lineTotalFromOther;
-      const lineAmount = lineAmountRaw != null && Number.isFinite(Number(lineAmountRaw)) ? Number(lineAmountRaw) : null;
-      const lineAmountSourceIsDebitedAmount = lineTotalFromDoc == null && lineAmount != null && debitedAmount != null && Number(lineAmountRaw) === Number(debitedAmount);
-      const unitPriceFromTotal = lineAmount != null && qty > 0 ? lineAmount / qty : null;
-      const unitPriceRaw =
-        li?.PricePerUnit ?? li?.price_per_unit ?? li?.pricePerUnit ??
-        li?.unit_price ?? li?.unitPrice ?? li?.UnitPrice ??
-        (typeof li?.price === 'number' ? li.price / qty : null) ??
-        (typeof li?.total_price === 'number' ? li.total_price / qty : null) ??
-        (li?.Price != null ? Number(li.Price) / (qty || 1) : null);
-      const unitPrice =
-        lineTotalFromDoc != null
-          ? unitPriceFromTotal
-          : (unitPriceRaw != null ? Number(unitPriceRaw) : unitPriceFromTotal);
-      const hasAmountInclVat =
-        (lineTotalFromPrice != null && priceObj != null) ||
-        (lineTotalFromTotalPrice != null && totalPriceLine != null) ||
-        li?.amount_including_vat != null ||
-        li?.price_including_vat != null ||
-        lineAmountSourceIsDebitedAmount;
-      // Doc: price.vat_rate (decimal 0.25), price.vat_amount; store vat_rate as percentage (25).
-      const vatRaw =
-        (priceObj && typeof priceObj === 'object' ? (priceObj.vat_rate ?? priceObj.vatRate ?? priceObj.VatRate) : null) ??
-        (totalPriceLine && typeof totalPriceLine === 'object' ? (totalPriceLine.vat_rate ?? totalPriceLine.vatRate ?? totalPriceLine.VatRate) : null) ??
-        li?.article_vat_rate ??
-        li?.vat_percentage ?? li?.vatPercentage ?? li?.VatPercentage ?? li?.vat_rate ?? li?.vat ??
-        li?.tax_rate ?? li?.taxRate ?? o?.vat_percentage ?? o?.vat_rate ?? o?.vat ?? o?.VatPercentage ?? o?.VatRate;
-      let vatRate = vatRaw != null ? Number(vatRaw) : null;
-      if (Number.isFinite(vatRate) && vatRate > 0 && vatRate <= 1) {
-        vatRate = vatRate * 100;
-      }
-      const title =
-        li?.ProductName ?? li?.product_name ?? li?.productName ?? li?.article_title ?? li?.article_title ?? li?.Name ?? li?.name ?? li?.title ?? null;
-
-      // CDON: price.amount is always INCLUDING VAT — use as-is. Only convert to incl when we got the value from other fields (no price.amount) and we have vat_rate from CDON.
-      let unitPriceToStore = unitPrice != null && Number.isFinite(unitPrice) ? unitPrice : null;
-      if (
-        unitPriceToStore != null &&
-        !hasAmountInclVat &&
-        Number.isFinite(vatRate) &&
-        vatRate > 0
-      ) {
-        unitPriceToStore = unitPriceToStore * (1 + vatRate / 100);
-      }
-
-      normalized.items.push({
-        sku,
-        productId: platformProductId,
-        title: title ? String(title).trim() : null,
-        quantity: Math.trunc(qty),
-        unitPrice: unitPriceToStore,
-        vatRate: Number.isFinite(vatRate) ? vatRate : null,
-        raw: li,
-      });
-    }
-
-    // CDON: order total = sum of line totals (price.amount is incl VAT). Always overwrite with line sum when we have items so we never show order-level total that might be ex-VAT.
-    const lineTotalSum = normalized.items.reduce((sum, it) => {
-      const p = it.unitPrice != null && Number.isFinite(it.unitPrice) ? it.unitPrice : 0;
-      const q = Number(it.quantity) || 0;
-      return sum + p * q;
-    }, 0);
-    if (normalized.items.length > 0 && Number.isFinite(lineTotalSum)) {
-      normalized.totalAmount = lineTotalSum > 0 ? Math.round(lineTotalSum * 100) / 100 : (normalized.totalAmount ?? 0);
-    }
-
-    return normalized;
   }
 
-  // CDON GET /v1/orders valid states: CREATED (ny), ACCEPTED (accepterad), FULFILLED (hanterad/skickad), NOT_FULFILLED (avbokad/återbetald). CANCELLED is not valid.
-  mapCdonOrderStatusToHomebase(status) {
-    const s = String(status || '').toUpperCase();
-    if (s === 'NOT_FULFILLED' || s === 'CANCELLED' || s.includes('CANCEL') || s.includes('RETURNED')) return 'cancelled';
-    // UI only exposes Delivered; treat shipped and delivered as the same internal status.
-    if (s === 'FULFILLED' || s.includes('DELIVERED') || s.includes('SHIPPED')) return 'delivered';
+  /** Doc: state is CREATED | ACCEPTED | FULFILLED | NOT_FULFILLED only. */
+  mapCdonOrderStatusToHomebase(state) {
+    const s = String(state || '').toUpperCase();
     if (s === 'CREATED' || s === 'ACCEPTED') return 'processing';
-    const lower = s.toLowerCase();
-    if (lower.includes('cancelled') || lower.includes('annulerad') || lower.includes('returned')) return 'cancelled';
-    if (lower.includes('delivered') || lower.includes('levererad')) return 'delivered';
-    if (lower.includes('shipped') || lower.includes('skickad') || lower.includes('sent')) return 'delivered';
+    if (s === 'FULFILLED') return 'delivered';
+    if (s === 'NOT_FULFILLED') return 'cancelled';
     return 'processing';
   }
 
