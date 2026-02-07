@@ -250,16 +250,23 @@ class OrdersModel {
         throw new AppError('channel and channelOrderId are required', 400, AppError.CODES.VALIDATION_ERROR);
       }
 
+      const channelInstanceId =
+        order?.channelInstanceId != null && Number.isFinite(Number(order.channelInstanceId))
+          ? Number(order.channelInstanceId)
+          : null;
+
       const placedAtStr = this.toISOUTC(order?.placedAt);
       const placedAt = placedAtStr ? new Date(placedAtStr) : null;
       const totalAmount = order?.totalAmount != null ? Number(order.totalAmount) : null;
       const currency = order?.currency ? String(order.currency).trim().toUpperCase() : null;
       const status = order?.status ? String(order.status).trim().toLowerCase() : null;
 
-      // If order already exists (same channel + channel_order_id), update it and return.
+      // If order already exists (same channel + instance + channel_order_id), update it and return.
       const existing = await db.query(
-        `SELECT id FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1 AND channel = $2 AND channel_order_id = $3 LIMIT 1`,
-        [userId, channel, channelOrderId],
+        `SELECT id FROM ${OrdersModel.ORDERS_TABLE}
+         WHERE user_id = $1 AND channel = $2 AND (channel_instance_id IS NOT DISTINCT FROM $4) AND channel_order_id = $3
+         LIMIT 1`,
+        [userId, channel, channelOrderId, channelInstanceId],
       );
       if (existing.length) {
         const orderId = Number(existing[0].id);
@@ -309,15 +316,15 @@ class OrdersModel {
         const createRes = await db.query(
           `
           INSERT INTO ${OrdersModel.ORDERS_TABLE} (
-            user_id, channel, channel_order_id, platform_order_number, order_number,
+            user_id, channel, channel_order_id, channel_instance_id, platform_order_number, order_number,
             placed_at, total_amount, currency, status,
             shipping_address, billing_address, customer, raw,
             created_at, updated_at
           )
           VALUES (
-            $1, $2, $3, $4, $5,
-            $6, $7, COALESCE($8, 'SEK'), COALESCE($9, 'processing'),
-            $10, $11, $12, $13,
+            $1, $2, $3, $4, $5, $6,
+            $7, $8, COALESCE($9, 'SEK'), COALESCE($10, 'processing'),
+            $11, $12, $13, $14,
             NOW(), NOW()
           )
           RETURNING id
@@ -326,6 +333,7 @@ class OrdersModel {
             userId,
             channel,
             channelOrderId,
+            channelInstanceId,
             order?.platformOrderNumber != null ? String(order.platformOrderNumber) : null,
             orderNumber,
             placedAt,
@@ -344,11 +352,15 @@ class OrdersModel {
         const rawMsg = String(err?.details?.originalError ?? err?.message ?? '');
         const isDuplicate =
           pgCode === '23505' &&
-          (rawMsg.includes('ux_orders_user_order_number') || rawMsg.includes('channel_order_id'));
+          (rawMsg.includes('ux_orders_user_order_number') ||
+            rawMsg.includes('channel_order_id') ||
+            rawMsg.includes('ux_orders_user_channel_instance_order'));
         if (isDuplicate) {
           const recheck = await db.query(
-            `SELECT id FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1 AND channel = $2 AND channel_order_id = $3 LIMIT 1`,
-            [userId, channel, channelOrderId],
+            `SELECT id FROM ${OrdersModel.ORDERS_TABLE}
+             WHERE user_id = $1 AND channel = $2 AND (channel_instance_id IS NOT DISTINCT FROM $4) AND channel_order_id = $3
+             LIMIT 1`,
+            [userId, channel, channelOrderId, channelInstanceId],
           );
           if (recheck.length) return { created: false, orderId: Number(recheck[0].id) };
         }

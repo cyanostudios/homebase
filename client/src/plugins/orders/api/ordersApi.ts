@@ -96,6 +96,16 @@ class OrdersApi {
     return (await this.request('/', { method: 'DELETE' })) as any;
   }
 
+  /** Trigger quick-sync (background). Returns { started: boolean, reason?: 'fresh'|'locked' }. */
+  async sync(): Promise<{ started: boolean; reason?: string }> {
+    return (await this.request('/sync', { method: 'POST' })) as any;
+  }
+
+  /** Poll to know if sync is still running (for UI spinner). */
+  async syncStatus(): Promise<{ busy: boolean }> {
+    return (await this.request('/sync/status')) as any;
+  }
+
   // Renumber order_number by placed_at (oldest = 1, newest = highest) across all channels
   async renumber(): Promise<{ ok: true; renumbered: number }> {
     return (await this.request('/renumber', { method: 'POST' })) as any;

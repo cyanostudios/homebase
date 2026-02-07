@@ -703,6 +703,231 @@ class FyndiqProductsController {
 
   // --------- Order import ---------
 
+  /**
+   * Internal: sync open Fyndiq orders (pending + processing; API uses these, not "created"), with offset pagination.
+   * Used by OrderSyncService. Returns { fetched, created, error? }.
+   */
+  async syncOpenOrders(req) {
+    const settings = await this.model.getSettings(req);
+    if (!settings || !settings.apiKey || !settings.apiSecret) {
+      return { fetched: 0, created: 0 };
+    }
+
+    const limit = 100;
+    const allOrders = [];
+    const statuses = ['pending', 'processing'];
+
+    for (const status of statuses) {
+      let offset = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const path = `/api/v1/orders?status=${encodeURIComponent(status)}&limit=${limit}&offset=${offset}`;
+        const { resp, json } = await this.fyndiqRequest(path, {
+          username: settings.apiKey,
+          password: settings.apiSecret,
+          method: 'GET',
+        });
+        if (!resp.ok) {
+          const detail = (json && (json.message ?? json.error ?? json.detail)) ?? resp.statusText;
+          return { fetched: allOrders.length, created: -1, error: String(detail).slice(0, 500) };
+        }
+        let items = Array.isArray(json) ? json : (json?.orders ?? json?.data ?? []);
+        if (!Array.isArray(items)) items = [items];
+        allOrders.push(...items);
+        hasMore = items.length >= limit;
+        offset += limit;
+      }
+    }
+
+    const groupKey = (o) => (o?.id != null ? `id:${o.id}` : null);
+    const byGroup = new Map();
+    for (const o of allOrders) {
+      const key = groupKey(o);
+      if (key == null) continue;
+      if (!byGroup.has(key)) byGroup.set(key, []);
+      byGroup.get(key).push(o);
+    }
+
+    let created = 0;
+    for (const [, group] of byGroup) {
+      const primary = group[0];
+      const channelOrderId = primary?.id != null ? String(primary.id) : null;
+      if (!channelOrderId) continue;
+
+      const normalized = await this.normalizeFyndiqGroupToHomebaseOrder(group, req);
+      if (!normalized) continue;
+
+      const ingestRes = await this.ordersModel.ingest(req, normalized);
+      if (ingestRes.created) created += 1;
+      if (ingestRes.created && ingestRes.orderId) {
+        await this.applyInventoryFromOrderId(req, ingestRes.orderId).catch(() => {});
+      }
+    }
+    return { fetched: allOrders.length, created };
+  }
+
+  /** Build one normalized order from a group of Fyndiq API rows (same order id). Uses req for db/userId. */
+  async normalizeFyndiqGroupToHomebaseOrder(group, req) {
+    const primary = group[0];
+    const channelOrderId = primary?.id != null ? String(primary.id) : null;
+    if (!channelOrderId) return null;
+
+    let placedAt = primary?.createdAt ?? primary?.created_at ?? primary?.orderDate ?? primary?.order_date ?? primary?.date ?? null;
+    if (placedAt) {
+      placedAt = String(placedAt).trim();
+      if (placedAt && !placedAt.endsWith('Z') && !placedAt.includes('+') && !placedAt.includes('GMT')) placedAt += 'Z';
+    }
+    let currency = primary?.currency ?? primary?.Currency ?? null;
+    if (!currency) {
+      for (const o of group) {
+        const lineItems = Array.isArray(o?.items) ? o.items : Array.isArray(o?.orderItems) ? o.orderItems : Array.isArray(o?.order_items) ? o.order_items : [];
+        for (const li of lineItems) {
+          const cur = li?.price?.currency ?? li?.total_price?.currency ?? li?.currency;
+          if (cur) { currency = String(cur).trim().toUpperCase(); break; }
+        }
+        if (currency) break;
+      }
+    }
+    currency = currency ? String(currency).trim().toUpperCase() : 'SEK';
+    const statusRaw = primary?.status ?? primary?.Status ?? primary?.state ?? primary?.State;
+    const status = this.mapFyndiqOrderStatusToHomebase(statusRaw);
+
+    const pickCustomer = (o) => ({
+      email: o?.customer_email ?? o?.customer_email_address ?? o?.customerEmail ?? o?.email ?? o?.Email ?? (o?.customer && (o.customer.email ?? o.customer.email_address ?? o.customer.Email)) ?? null,
+      firstName: o?.customer_first_name ?? o?.customerFirstName ?? o?.first_name ?? o?.firstName ?? (o?.customer && (o.customer.first_name ?? o.customer.firstName ?? o.customer.name)) ?? null,
+      lastName: o?.customer_last_name ?? o?.customerLastName ?? o?.last_name ?? o?.lastName ?? (o?.customer && o.customer.last_name) ?? null,
+      phone: o?.customer_phone ?? o?.customerPhone ?? o?.phone ?? o?.Phone ?? (o?.customer && (o.customer.phone ?? o.customer.phone_mobile ?? o.customer.phoneMobile)) ?? null,
+    });
+    const customer = pickCustomer(primary);
+    for (const o of group) {
+      const c = pickCustomer(o);
+      if (c.email && !customer.email) customer.email = c.email;
+      if (c.firstName && !customer.firstName) customer.firstName = c.firstName;
+      if (c.lastName && !customer.lastName) customer.lastName = c.lastName;
+      if (c.phone && !customer.phone) customer.phone = c.phone;
+    }
+    const shippingAddress = primary?.shipping_address ?? primary?.shippingAddress ?? primary?.shipping ?? null;
+    const billingAddress = primary?.billing_address ?? primary?.billingAddress ?? primary?.billing ?? null;
+    if (!customer.phone && shippingAddress) {
+      customer.phone = shippingAddress?.phone_number ?? shippingAddress?.phoneNumber ?? shippingAddress?.phone ?? null;
+    }
+    if (!customer.email && shippingAddress) {
+      customer.email = shippingAddress?.email ?? shippingAddress?.email_address ?? null;
+    }
+    if (shippingAddress || billingAddress) {
+      customer.shippingAddress = shippingAddress;
+      customer.billingAddress = billingAddress;
+    }
+
+    const items = [];
+    const seenItemKey = new Set();
+    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    const db = Database.get(req);
+    let totalAmount = null;
+    for (const o of group) {
+      let lineItems = Array.isArray(o?.items) ? o.items :
+        Array.isArray(o?.orderItems) ? o.orderItems :
+          Array.isArray(o?.order_items) ? o.order_items :
+            Array.isArray(o?.Items) ? o.Items :
+              Array.isArray(o?.line_items) ? o.line_items :
+                Array.isArray(o?.lineItems) ? o.lineItems :
+                  Array.isArray(o?.products) ? o.products :
+                    Array.isArray(o?.Products) ? o.Products : [];
+      if (lineItems.length === 0 && o) {
+        const qty = Number(o?.quantity ?? o?.Quantity ?? o?.qty ?? o?.Qty ?? 1);
+        if (Number.isFinite(qty) && qty > 0) lineItems = [o];
+      }
+      for (const li of lineItems) {
+        const qty = Number(li?.quantity ?? li?.Quantity ?? li?.qty ?? li?.Qty ?? 1);
+        if (!Number.isFinite(qty) || qty <= 0) continue;
+        const sku = li?.sku ?? li?.SKU ?? li?.article_sku ?? li?.articleSku ?? li?.product_sku ?? li?.productSku ?? o?.sku ?? o?.SKU ?? null;
+        const mpn = li?.mpn ?? li?.MPN ?? li?.article_mpn ?? li?.articleMpn ?? o?.mpn ?? o?.MPN ?? null;
+        const itemKey = `${sku ?? ''}|${li?.id ?? li?.order_row_id ?? li?.orderRowId ?? o?.id ?? ''}|${li?.title ?? li?.Title ?? li?.name ?? li?.Name ?? ''}`;
+        if (seenItemKey.has(itemKey)) continue;
+        seenItemKey.add(itemKey);
+        const title = li?.title ?? li?.Title ?? li?.name ?? li?.Name ?? li?.product_name ?? li?.productName ?? li?.article_name ?? li?.articleName ?? li?.product_title ?? li?.productTitle ?? o?.title ?? o?.Title ?? o?.name ?? o?.Name ?? (li?.raw && (li.raw.title ?? li.raw.name ?? li.raw.product_name)) ?? null;
+        let unitPrice = null;
+        let vatRate = null;
+        if (li?.price?.amount != null) {
+          const amount = Number(li.price.amount);
+          const vatAmount = li?.price?.vat_amount != null ? Number(li.price.vat_amount) : null;
+          if (Number.isFinite(amount)) {
+            if (Number.isFinite(vatAmount)) {
+              unitPrice = amount + vatAmount;
+              if (amount > 0) vatRate = (vatAmount / amount) * 100;
+            } else {
+              unitPrice = amount;
+            }
+          }
+        }
+        if (unitPrice == null && li?.total_price?.amount != null) {
+          const totalPrice = Number(li.total_price.amount);
+          const vatAmount = li?.total_price?.vat_amount != null ? Number(li.total_price.vat_amount) : null;
+          if (Number.isFinite(totalPrice)) {
+            unitPrice = totalPrice;
+            if (Number.isFinite(vatAmount) && totalPrice > vatAmount) {
+              const exVat = totalPrice - vatAmount;
+              if (exVat > 0) vatRate = (vatAmount / exVat) * 100;
+            }
+          }
+        }
+        if (unitPrice == null) {
+          unitPrice = li?.unit_price != null ? Number(li.unit_price) : li?.unitPrice != null ? Number(li.unitPrice) : li?.price != null ? Number(li.price) : li?.price_per_unit != null ? Number(li.price_per_unit) : li?.pricePerUnit != null ? Number(li.pricePerUnit) : li?.Price != null ? Number(li.Price) : li?.selling_price != null ? Number(li.selling_price) : li?.sellingPrice != null ? Number(li.sellingPrice) : o?.price != null ? Number(o.price) : o?.Price != null ? Number(o.Price) : null;
+        }
+        let finalUnitPrice = unitPrice;
+        if (!Number.isFinite(finalUnitPrice)) {
+          const lineTotal = li?.total != null ? Number(li.total) : li?.Total != null ? Number(li.Total) : li?.line_total != null ? Number(li.line_total) : li?.lineTotal != null ? Number(li.lineTotal) : o?.total != null ? Number(o.total) : null;
+          if (Number.isFinite(lineTotal) && qty > 0) finalUnitPrice = lineTotal / qty;
+        }
+        if (!Number.isFinite(vatRate)) {
+          if (li?.price?.vat_rate != null) vatRate = Number(li.price.vat_rate) * 100;
+          else if (li?.total_price?.vat_rate != null) vatRate = Number(li.total_price.vat_rate) * 100;
+          else {
+            vatRate = li?.vat_rate != null ? Number(li.vat_rate) : li?.vatRate != null ? Number(li.vatRate) : o?.vat_rate != null ? Number(o.vat_rate) : o?.vatRate != null ? Number(o.vatRate) : null;
+            if (Number.isFinite(vatRate) && vatRate <= 1) vatRate = vatRate * 100;
+          }
+        }
+        let platformProductId = null;
+        if (userId && (sku || mpn)) {
+          const mapRes = await db.query(
+            `SELECT id::text AS product_id FROM products WHERE user_id = $1 AND (sku = $2 OR mpn = $3) LIMIT 1`,
+            [userId, sku || null, mpn || null],
+          );
+          if (mapRes.length) platformProductId = String(mapRes[0].product_id);
+        }
+        items.push({
+          sku: sku || null,
+          productId: platformProductId,
+          title: title ? String(title).trim() : null,
+          quantity: Math.trunc(qty),
+          unitPrice: Number.isFinite(finalUnitPrice) ? finalUnitPrice : null,
+          vatRate: Number.isFinite(vatRate) ? vatRate : null,
+          raw: li,
+        });
+      }
+      const t = o?.total_amount != null ? Number(o.total_amount) : o?.totalAmount != null ? Number(o.totalAmount) : o?.total != null ? Number(o.total) : o?.Total != null ? Number(o.Total) : o?.order_total != null ? Number(o.order_total) : o?.orderTotal != null ? Number(o.orderTotal) : null;
+      if (Number.isFinite(t)) totalAmount = (totalAmount ?? 0) + t;
+    }
+    if (totalAmount == null && items.length) {
+      totalAmount = items.reduce((sum, it) => sum + (Number(it.unitPrice) || 0) * (it.quantity || 0), 0);
+    }
+
+    return {
+      channel: 'fyndiq',
+      channelOrderId,
+      platformOrderNumber: channelOrderId,
+      placedAt,
+      totalAmount: Number.isFinite(totalAmount) ? totalAmount : null,
+      currency,
+      status,
+      shippingAddress: shippingAddress || null,
+      billingAddress: billingAddress || null,
+      customer,
+      items,
+      raw: primary,
+    };
+  }
+
   async pullOrders(req, res) {
     try {
       const settings = await this.model.getSettings(req);

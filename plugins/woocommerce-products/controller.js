@@ -523,6 +523,149 @@ class WooCommerceController {
     }
   }
 
+  /**
+   * Internal: sync open WooCommerce orders for one instance (processing/pending), with after cursor.
+   * Used by OrderSyncService. Returns { fetched, created, lastCursor?, error? }.
+   * lastCursor: ISO date of newest order's date_created for next run (with 1–2 min overlap).
+   */
+  async syncOpenOrdersForInstance(req, instance, after = null) {
+    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    const db = Database.get(req);
+    const credentials = instance.credentials || {};
+    const storeUrl = credentials.storeUrl || credentials.store_url;
+    if (!storeUrl) return { fetched: 0, created: 0 };
+
+    const base = this.normalizeBaseUrl(storeUrl);
+    const url = new URL(`${base}/wp-json/wc/v3/orders`);
+    url.searchParams.set('per_page', '100');
+    url.searchParams.set('orderby', 'date');
+    url.searchParams.set('order', 'desc');
+    url.searchParams.set('status', 'processing,pending,on-hold');
+    if (after) url.searchParams.set('after', after);
+
+    const settings = {
+      storeUrl,
+      consumerKey: credentials.consumerKey || credentials.consumer_key || '',
+      consumerSecret: credentials.consumerSecret || credentials.consumer_secret || '',
+      useQueryAuth: credentials.useQueryAuth || false,
+    };
+
+    const resp = await this.fetchWithWooAuth(url.toString(), { method: 'GET' }, settings);
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      return { fetched: 0, created: -1, error: (text || resp.statusText).slice(0, 500) };
+    }
+
+    const orders = await resp.json().catch(() => null);
+    if (!Array.isArray(orders)) return { fetched: 0, created: 0 };
+
+    let created = 0;
+    let lastCursor = null;
+
+    for (const o of orders) {
+      const channelOrderId = o?.id != null ? String(o.id) : '';
+      if (!channelOrderId) continue;
+
+      const rawClean = { ...o };
+      delete rawClean._links;
+      delete rawClean.meta_data;
+      delete rawClean.cart_hash;
+      delete rawClean.user_agent;
+      delete rawClean.customer_ip_address;
+      delete rawClean.version;
+      rawClean._homebase_store_url = settings.storeUrl;
+
+      const normalized = {
+        channel: 'woocommerce',
+        channelOrderId,
+        channelInstanceId: instance.id != null ? String(instance.id) : null,
+        platformOrderNumber: o?.number != null ? String(o.number) : null,
+        placedAt: o?.date_created || o?.date_created_gmt || null,
+        totalAmount: o?.total != null ? Number(o.total) : null,
+        currency: o?.currency || null,
+        status: this.mapWooOrderStatusToHomebase(o?.status),
+        shippingAddress: o?.shipping || null,
+        billingAddress: o?.billing || null,
+        customer: {
+          email: o?.billing?.email || null,
+          firstName: o?.billing?.first_name || null,
+          lastName: o?.billing?.last_name || null,
+          phone: o?.billing?.phone || null,
+          shippingAddress: o?.shipping || null,
+          billingAddress: o?.billing || null,
+        },
+        items: [],
+        raw: rawClean,
+      };
+
+      const lineItems = Array.isArray(o?.line_items) ? o.line_items : [];
+      for (const li of lineItems) {
+        const qty = Number(li?.quantity);
+        if (!Number.isFinite(qty) || qty <= 0) continue;
+        const wooProductId = li?.product_id != null ? String(li.product_id) : null;
+        let platformProductId = null;
+        if (wooProductId && userId) {
+          const mapRes = await db.query(
+            `SELECT product_id FROM channel_product_map WHERE user_id = $1 AND channel = 'woocommerce' AND external_id = $2 LIMIT 1`,
+            [userId, wooProductId],
+          );
+          if (mapRes.length) platformProductId = String(mapRes[0].product_id);
+        }
+        const subtotal = li?.subtotal != null ? Number(li.subtotal) : null;
+        const subtotalTax = li?.subtotal_tax != null ? Number(li.subtotal_tax) : null;
+        let unitPriceInclVat = null;
+        let vatRate = null;
+        if (Number.isFinite(subtotal) && Number.isFinite(subtotalTax) && qty > 0) {
+          unitPriceInclVat = (subtotal + subtotalTax) / qty;
+          if (subtotal > 0) vatRate = (subtotalTax / subtotal) * 100;
+        } else if (Number.isFinite(Number(li?.price))) {
+          unitPriceInclVat = Number(li.price) * 1.25;
+          vatRate = 25;
+        }
+        normalized.items.push({
+          sku: li?.sku || null,
+          productId: platformProductId,
+          title: li?.name != null ? String(li.name) : null,
+          quantity: Math.trunc(qty),
+          unitPrice: Number.isFinite(unitPriceInclVat) ? unitPriceInclVat : null,
+          vatRate: Number.isFinite(vatRate) ? vatRate : null,
+          raw: li,
+        });
+      }
+
+      const shippingLines = Array.isArray(o?.shipping_lines) ? o.shipping_lines : [];
+      for (const sl of shippingLines) {
+        const shippingTotalExVat = sl?.total != null ? Number(sl.total) : null;
+        const shippingTax = sl?.total_tax != null ? Number(sl.total_tax) : null;
+        let shippingTotalInclVat = null;
+        if (Number.isFinite(shippingTotalExVat) && Number.isFinite(shippingTax)) shippingTotalInclVat = shippingTotalExVat + shippingTax;
+        else if (Number.isFinite(shippingTotalExVat)) shippingTotalInclVat = shippingTotalExVat;
+        if (Number.isFinite(shippingTotalInclVat) && shippingTotalInclVat > 0) {
+          normalized.items.push({
+            sku: null,
+            productId: null,
+            title: sl?.method_title || 'Shipping',
+            quantity: 1,
+            unitPrice: shippingTotalInclVat,
+            vatRate: 25,
+            raw: sl,
+          });
+        }
+      }
+
+      const ingestRes = await this.ordersModel.ingest(req, normalized);
+      if (ingestRes.created) created += 1;
+      if (ingestRes.created && ingestRes.orderId) {
+        await this.applyInventoryFromOrderId(req, ingestRes.orderId).catch(() => {});
+      }
+
+      const placed = o?.date_created || o?.date_created_gmt;
+      if (placed && (!lastCursor || placed > lastCursor)) lastCursor = placed;
+    }
+
+    return { fetched: orders.length, created, lastCursor };
+  }
+
   // ---- Orders pull (session-auth) -> normalized ingest + inventory sync (MVP) ----
   // POST /api/woocommerce-products/orders/pull
   async pullOrders(req, res) {
@@ -617,6 +760,7 @@ class WooCommerceController {
             const normalized = {
               channel: 'woocommerce',
               channelOrderId,
+              channelInstanceId: instance.id != null ? String(instance.id) : null,
               platformOrderNumber: o?.number != null ? String(o.number) : null,
               placedAt: o?.date_created || o?.date_created_gmt || null,
               totalAmount: o?.total != null ? Number(o.total) : null,

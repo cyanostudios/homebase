@@ -11,6 +11,9 @@ const CdonProductsModel = require('../cdon-products/model');
 const FyndiqProductsController = require('../fyndiq-products/controller');
 const FyndiqProductsModel = require('../fyndiq-products/model');
 
+const orderSyncState = require('./orderSyncState');
+const orderSyncService = require('./orderSyncService');
+
 class OrdersController {
   constructor(model) {
     this.model = model;
@@ -329,6 +332,42 @@ class OrdersController {
       Logger.error('Orders get error', error, { userId: Context.getUserId(req), id: req.params.id });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       return res.status(500).json({ error: 'Failed to fetch order' });
+    }
+  }
+
+  /** POST /api/orders/sync - Start quick-sync in background. Returns { started: true|false, reason?: 'fresh'|'locked' }. */
+  async quickSync(req, res) {
+    try {
+      const busy = await orderSyncState.isBusyForUser(req);
+      if (busy) {
+        return res.json({ started: false, reason: 'locked' });
+      }
+      const shouldRun = await orderSyncState.shouldRunQuickSync(req);
+      if (!shouldRun) {
+        return res.json({ started: false, reason: 'fresh' });
+      }
+      setImmediate(() => {
+        orderSyncService.runSync(req).catch((err) => {
+          Logger.error('Quick-sync background run failed', err, { userId: Context.getUserId(req) });
+        });
+      });
+      return res.json({ started: true });
+    } catch (error) {
+      Logger.error('Orders quickSync error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to start sync' });
+    }
+  }
+
+  /** GET /api/orders/sync/status - { busy: boolean } for UI spinner. */
+  async syncStatus(req, res) {
+    try {
+      const busy = await orderSyncState.isBusyForUser(req);
+      return res.json({ busy: !!busy });
+    } catch (error) {
+      Logger.error('Orders syncStatus error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ busy: false });
     }
   }
 

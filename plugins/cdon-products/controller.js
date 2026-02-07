@@ -831,7 +831,112 @@ class CdonProductsController {
   // GET /v1/orders?state=... Valid states per CDON: CREATED (ny), ACCEPTED (accepterad), FULFILLED (hanterad/skickad), NOT_FULFILLED (avbokad/återbetald). CANCELLED is not valid.
 
   static CDON_ORDER_STATES = ['CREATED', 'ACCEPTED', 'NOT_FULFILLED', 'FULFILLED'];
+  /** Only these are synced incrementally (open orders). NOT_FULFILLED/FULFILLED skipped. */
+  static CDON_ORDER_OPEN_STATES = ['CREATED', 'ACCEPTED'];
   static CDON_ORDER_MARKETS = ['SE', 'DK', 'FI'];
+
+  /**
+   * Internal: sync open CDON orders only (CREATED, ACCEPTED), with full pagination.
+   * Used by OrderSyncService. Returns { fetched, created, error? }.
+   */
+  async syncOpenOrders(req) {
+    const settings = await this.model.getSettings(req);
+    const merchantId = String(settings?.apiKey ?? '').trim();
+    const apiToken = String(settings?.apiSecret ?? '').trim();
+    if (!settings || !merchantId || !apiToken) {
+      return { fetched: 0, created: 0 };
+    }
+
+    const limit = 100;
+    const base = `${CDON_MERCHANTS_API}/v1/orders`;
+    const allOrderPayloads = [];
+
+    for (const state of CdonProductsController.CDON_ORDER_OPEN_STATES) {
+      let page = 1;
+      let hasMore = true;
+      while (hasMore) {
+        const params = new URLSearchParams({ state, limit: String(limit), page: String(page) });
+        const url = `${base}?${params.toString()}`;
+        const { resp, text, json } = await this.cdonRequest(url, {
+          merchantId,
+          apiToken,
+          method: 'GET',
+        });
+        if (!resp.ok) {
+          const detail = (json && (json.message ?? json.error ?? json.description)) ?? text ?? resp.statusText;
+          return { fetched: allOrderPayloads.length, created: -1, error: String(detail).slice(0, 500) };
+        }
+
+        let payloads = [];
+        if (Array.isArray(json)) payloads = json;
+        else if (json?.orders) payloads = Array.isArray(json.orders) ? json.orders : [json.orders];
+        else if (json?.data) payloads = Array.isArray(json.data) ? json.data : [json.data];
+        else if (json?.OrderDetails !== undefined) payloads = [json];
+
+        allOrderPayloads.push(...payloads);
+        hasMore = payloads.length >= limit;
+        page += 1;
+      }
+    }
+
+    const groupKey = (o) => (o?.id != null ? `id:${o.id}` : null);
+    const byGroup = new Map();
+    for (const row of allOrderPayloads) {
+      const raw = row?.OrderDetails ?? row;
+      if (!raw) continue;
+      const key = groupKey(raw);
+      if (key == null) continue;
+      if (!byGroup.has(key)) {
+        byGroup.set(key, {
+          id: String(raw.id),
+          market: raw.market,
+          state: raw.state,
+          created_at: raw.created_at,
+          shipping_address: raw.shipping_address,
+          tracking_information: raw.tracking_information,
+          total_price: null,
+          order_rows: [],
+        });
+      }
+      const order = byGroup.get(key);
+      order.order_rows.push(raw);
+      const lineAmount = raw.total_price?.amount ?? raw.price?.amount ?? raw.total_price ?? raw.price ?? 0;
+      const amt = Number(lineAmount);
+      if (Number.isFinite(amt)) {
+        order.total_price = order.total_price ?? { amount: 0, currency: raw.total_price?.currency ?? raw.price?.currency ?? 'SEK' };
+        order.total_price.amount += amt;
+      }
+    }
+    const orderList = Array.from(byGroup.values());
+    const seen = new Set();
+    let orders = orderList.filter((o) => {
+      const key = o?.id ?? o?.OrderKey ?? o?.OrderId ?? o?.orderId;
+      if (key == null) return false;
+      const k = String(key);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    orders = orders.filter((o) => {
+      const market = String(o?.market ?? o?.Market ?? '').toUpperCase();
+      if (!market) return true;
+      return CdonProductsController.CDON_ORDER_MARKETS.includes(market);
+    });
+
+    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    const db = Database.get(req);
+    let created = 0;
+    for (const o of orders) {
+      const normalized = await this.normalizeCdonOrderToHomebase(o, userId, db);
+      if (!normalized) continue;
+      const ingestRes = await this.ordersModel.ingest(req, normalized);
+      if (ingestRes.created) created += 1;
+      if (ingestRes.created && ingestRes.orderId) {
+        await this.applyInventoryFromOrderId(req, ingestRes.orderId).catch(() => {});
+      }
+    }
+    return { fetched: orders.length, created };
+  }
 
   async pullOrders(req, res) {
     try {

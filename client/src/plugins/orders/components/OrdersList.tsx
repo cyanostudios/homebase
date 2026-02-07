@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, RefreshCw, Trash2, Download } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, RefreshCw, Trash2, Download } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -75,6 +75,44 @@ export const OrdersList: React.FC = () => {
   const [batchStatus, setBatchStatus] = useState<OrderStatus>('processing');
   const [batchCarrier, setBatchCarrier] = useState('');
   const [batchTracking, setBatchTracking] = useState('');
+  const [syncing, setSyncing] = useState(false);
+
+  // Quick-sync on open: trigger sync in background; if started, show spinner and poll until done, then refetch list
+  React.useEffect(() => {
+    let cancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const run = async () => {
+      try {
+        const res = await ordersApi.sync();
+        if (cancelled || !res?.started) return;
+        setSyncing(true);
+        intervalId = setInterval(async () => {
+          if (cancelled) return;
+          try {
+            const status = await ordersApi.syncStatus();
+            if (!status?.busy) {
+              if (intervalId) clearInterval(intervalId);
+              intervalId = null;
+              if (!cancelled) {
+                await reloadOrders();
+                setSyncing(false);
+              }
+            }
+          } catch {
+            // ignore poll errors
+          }
+        }, 2000);
+      } catch {
+        if (!cancelled) setSyncing(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [reloadOrders]);
 
   // Load WooCommerce instances for store names
   React.useEffect(() => {
@@ -399,6 +437,13 @@ export const OrdersList: React.FC = () => {
 
   return (
     <div className="space-y-4">
+
+      {syncing && (
+        <div className="flex items-center gap-2 py-2 px-3 rounded-md bg-blue-50 border border-blue-200 text-sm text-blue-900">
+          <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+          <span>Syncing orders…</span>
+        </div>
+      )}
 
       {importResult && importResult.length > 0 && (
         <div className="p-3 rounded-md bg-green-50 border border-green-200">

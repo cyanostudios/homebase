@@ -37,6 +37,23 @@ function createOrdersRoutes(controller, context) {
     (req, res) => controller.deleteAll(req, res),
   );
 
+  // POST /api/orders/sync - Trigger quick-sync (background). Returns { started, reason? }.
+  router.post(
+    '/sync',
+    gate,
+    csrfProtection,
+    validateRequest,
+    (req, res) => controller.quickSync(req, res),
+  );
+
+  // GET /api/orders/sync/status - Whether any sync is running for current user (for UI spinner).
+  router.get(
+    '/sync/status',
+    gate,
+    validateRequest,
+    (req, res) => controller.syncStatus(req, res),
+  );
+
   // POST /api/orders/renumber - Renumber order_number by placed_at (oldest = 1) across all channels
   router.post(
     '/renumber',
