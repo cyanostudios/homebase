@@ -96,6 +96,11 @@ class OrdersApi {
     return (await this.request('/', { method: 'DELETE' })) as any;
   }
 
+  // Delete selected orders (batch). Body: { ids: string[] }.
+  async deleteByIds(ids: string[]): Promise<{ ok: true; deletedCount: number }> {
+    return (await this.request('/batch', { method: 'DELETE', body: JSON.stringify({ ids }) })) as any;
+  }
+
   /** Trigger quick-sync (background). Returns { started: boolean, reason?: 'fresh'|'locked' }. */
   async sync(): Promise<{ started: boolean; reason?: string }> {
     return (await this.request('/sync', { method: 'POST' })) as any;

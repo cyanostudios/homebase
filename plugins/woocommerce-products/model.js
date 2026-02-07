@@ -110,16 +110,26 @@ class WooCommerceModel {
       `;
       const rows = await db.query(sql, [userId, WooCommerceModel.CHANNEL]);
 
-      return rows.map((r) => ({
-        id: String(r.id),
-        channel: r.channel,
-        instanceKey: r.instance_key,
-        market: r.market,
-        label: r.label,
-        credentials: r.credentials ?? null,
-        createdAt: r.created_at || null,
-        updatedAt: r.updated_at || null,
-      }));
+      return rows.map((r) => {
+        let credentials = r.credentials ?? null;
+        if (typeof credentials === 'string') {
+          try {
+            credentials = JSON.parse(credentials);
+          } catch {
+            credentials = null;
+          }
+        }
+        return {
+          id: String(r.id),
+          channel: r.channel,
+          instanceKey: r.instance_key,
+          market: r.market,
+          label: r.label,
+          credentials,
+          createdAt: r.created_at || null,
+          updatedAt: r.updated_at || null,
+        };
+      });
     } catch (error) {
       Logger.error('Failed to list WooCommerce instances', error);
       if (error instanceof AppError) throw error;

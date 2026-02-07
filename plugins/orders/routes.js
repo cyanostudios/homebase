@@ -63,6 +63,16 @@ function createOrdersRoutes(controller, context) {
     (req, res) => controller.renumber(req, res),
   );
 
+  // DELETE /api/orders/batch - Delete selected orders (body: { ids: string[] })
+  router.delete(
+    '/batch',
+    gate,
+    csrfProtection,
+    [commonRules.array('ids', 500)],
+    validateRequest,
+    (req, res) => controller.deleteByIds(req, res),
+  );
+
   // PUT /api/orders/batch/status - Batch update status (must be before /:id route)
   router.put(
     '/batch/status',

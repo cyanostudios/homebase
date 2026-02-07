@@ -60,9 +60,22 @@ async function runSyncForSlot(req, channel, channelInstanceId) {
         return;
       }
       const state = await orderSyncState.getState(req, 'woocommerce', instId);
-      const after = state?.last_cursor_placed_at
-        ? new Date(new Date(state.last_cursor_placed_at).getTime() - 2 * 60 * 1000).toISOString()
-        : null;
+      let after = null;
+      if (state?.last_cursor_placed_at) {
+        const last = new Date(state.last_cursor_placed_at);
+        if (!Number.isNaN(last.getTime())) {
+          const now = Date.now();
+          // If cursor is in the future (clock drift or bad data), ignore it and re-sync.
+          if (last.getTime() <= now + 5 * 60 * 1000) {
+            after = new Date(last.getTime() - 2 * 60 * 1000).toISOString();
+          } else {
+            Logger.warn('Woo last_cursor_placed_at is in the future; ignoring cursor', {
+              channelInstanceId: instId,
+              lastCursorPlacedAt: state.last_cursor_placed_at,
+            });
+          }
+        }
+      }
       const result = await wooController.syncOpenOrdersForInstance(req, instance, after);
       if (result.error) {
         await orderSyncState.setError(req, 'woocommerce', instId, result.error);
@@ -103,9 +116,18 @@ async function getSlotsToSync(req) {
   try {
     const wooInstances = await wooModel.listInstances(req);
     for (const inst of wooInstances || []) {
-      const creds = inst?.credentials || {};
+      let creds = inst?.credentials;
+      if (typeof creds === 'string') {
+        try {
+          creds = JSON.parse(creds);
+        } catch {
+          creds = {};
+        }
+      }
+      creds = creds || {};
       if (creds.storeUrl || creds.store_url) {
-        slots.push({ channel: 'woocommerce', channelInstanceId: inst.id != null ? Number(inst.id) : null });
+        const instId = inst.id != null ? Number(inst.id) : null;
+        if (instId != null) slots.push({ channel: 'woocommerce', channelInstanceId: instId });
       }
     }
   } catch (_) {}

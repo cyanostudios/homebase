@@ -64,6 +64,7 @@ export const OrdersList: React.FC = () => {
     error?: string;
   }> | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
+  const [deletingSelected, setDeletingSelected] = useState(false);
   const [wooInstances, setWooInstances] = useState<Array<{ id: string; instanceKey?: string; label?: string | null; credentials?: any }>>([]);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -95,6 +96,11 @@ export const OrdersList: React.FC = () => {
               if (intervalId) clearInterval(intervalId);
               intervalId = null;
               if (!cancelled) {
+                try {
+                  await ordersApi.renumber();
+                } catch {
+                  // Non-fatal: list may show wrong order numbers until next renumber
+                }
                 await reloadOrders();
                 setSyncing(false);
               }
@@ -377,6 +383,23 @@ export const OrdersList: React.FC = () => {
     }
   };
 
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Radera ${selectedIds.size} valda order? Detta går inte att ångra.`)) return;
+    try {
+      setDeletingSelected(true);
+      const result = await ordersApi.deleteByIds(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      alert(`${result.deletedCount} order raderade.`);
+      void reloadOrders();
+    } catch (err: any) {
+      alert(`Kunde inte radera order: ${err.message || err}`);
+      console.error('Delete selected orders error:', err);
+    } finally {
+      setDeletingSelected(false);
+    }
+  };
+
   const handleBatchUpdate = async () => {
     if (selectedIds.size === 0) {
       alert('Please select at least one order');
@@ -407,9 +430,20 @@ export const OrdersList: React.FC = () => {
   const toolbarActions = (
     <div className="flex items-center gap-2 flex-wrap">
       {selectedIds.size > 0 && (
-        <Button onClick={() => setShowBatchDialog(true)} size="sm">
-          Update {selectedIds.size} selected
-        </Button>
+        <>
+          <Button onClick={() => setShowBatchDialog(true)} size="sm">
+            Update {selectedIds.size} selected
+          </Button>
+          <Button
+            onClick={handleDeleteSelected}
+            disabled={deletingSelected}
+            variant="destructive"
+            size="sm"
+            icon={Trash2}
+          >
+            {deletingSelected ? 'Raderar…' : `Radera ${selectedIds.size} valda`}
+          </Button>
+        </>
       )}
       <Button onClick={() => reloadOrders()} variant="outline" size="sm" icon={RefreshCw}>
         Reload
@@ -493,8 +527,21 @@ export const OrdersList: React.FC = () => {
       </div>
 
       {showBatchDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="max-w-md w-full mx-4 p-6">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          role="presentation"
+          onClick={() => {
+            if (!batchUpdating) {
+              setShowBatchDialog(false);
+              setBatchCarrier('');
+              setBatchTracking('');
+            }
+          }}
+        >
+          <Card
+            className="max-w-md w-full mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h2 className="text-xl font-semibold mb-4">Update {selectedIds.size} orders</h2>
             <div className="space-y-4">
               <div>

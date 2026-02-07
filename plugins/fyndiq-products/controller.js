@@ -704,7 +704,7 @@ class FyndiqProductsController {
   // --------- Order import ---------
 
   /**
-   * Internal: sync open Fyndiq orders (pending + processing; API uses these, not "created"), with offset pagination.
+   * Internal: sync open Fyndiq orders. API: GET /api/v1/orders?state=CREATED&limit=100&page=1 (doc: state, page, limit).
    * Used by OrderSyncService. Returns { fetched, created, error? }.
    */
   async syncOpenOrders(req) {
@@ -715,46 +715,30 @@ class FyndiqProductsController {
 
     const limit = 100;
     const allOrders = [];
-    const statuses = ['pending', 'processing'];
+    let page = 1;
+    let hasMore = true;
 
-    for (const status of statuses) {
-      let offset = 0;
-      let hasMore = true;
-      while (hasMore) {
-        const path = `/api/v1/orders?status=${encodeURIComponent(status)}&limit=${limit}&offset=${offset}`;
-        const { resp, json } = await this.fyndiqRequest(path, {
-          username: settings.apiKey,
-          password: settings.apiSecret,
-          method: 'GET',
-        });
-        if (!resp.ok) {
-          const detail = (json && (json.message ?? json.error ?? json.detail)) ?? resp.statusText;
-          return { fetched: allOrders.length, created: -1, error: String(detail).slice(0, 500) };
-        }
-        let items = Array.isArray(json) ? json : (json?.orders ?? json?.data ?? []);
-        if (!Array.isArray(items)) items = [items];
-        allOrders.push(...items);
-        hasMore = items.length >= limit;
-        offset += limit;
+    while (hasMore) {
+      const path = `/api/v1/orders?state=CREATED&limit=${limit}&page=${page}`;
+      const { resp, json } = await this.fyndiqRequest(path, {
+        username: settings.apiKey,
+        password: settings.apiSecret,
+        method: 'GET',
+      });
+      if (!resp.ok) {
+        const detail = (json && json.message) ? String(json.message) : resp.statusText;
+        return { fetched: allOrders.length, created: -1, error: String(detail).slice(0, 500) };
       }
-    }
-
-    const groupKey = (o) => (o?.id != null ? `id:${o.id}` : null);
-    const byGroup = new Map();
-    for (const o of allOrders) {
-      const key = groupKey(o);
-      if (key == null) continue;
-      if (!byGroup.has(key)) byGroup.set(key, []);
-      byGroup.get(key).push(o);
+      const items = Array.isArray(json) ? json : [];
+      allOrders.push(...items);
+      hasMore = items.length >= limit;
+      page += 1;
     }
 
     let created = 0;
-    for (const [, group] of byGroup) {
-      const primary = group[0];
-      const channelOrderId = primary?.id != null ? String(primary.id) : null;
-      if (!channelOrderId) continue;
-
-      const normalized = await this.normalizeFyndiqGroupToHomebaseOrder(group, req);
+    for (const o of allOrders) {
+      if (o == null || o.id == null) continue;
+      const normalized = await this.normalizeFyndiqOrderToHomebase(o, req);
       if (!normalized) continue;
 
       const ingestRes = await this.ordersModel.ingest(req, normalized);
@@ -766,151 +750,71 @@ class FyndiqProductsController {
     return { fetched: allOrders.length, created };
   }
 
-  /** Build one normalized order from a group of Fyndiq API rows (same order id). Uses req for db/userId. */
-  async normalizeFyndiqGroupToHomebaseOrder(group, req) {
-    const primary = group[0];
-    const channelOrderId = primary?.id != null ? String(primary.id) : null;
-    if (!channelOrderId) return null;
+  /**
+   * Build one normalized order from a single Fyndiq API order object.
+   * API doc: id, article_id, title, article_sku, price { amount, vat_amount, vat_rate, currency }, total_price, quantity,
+   * shipping_address { first_name, last_name, street_address, city, postal_code, country, phone_number }, market, state, created_at.
+   */
+  async normalizeFyndiqOrderToHomebase(o, req) {
+    if (o == null || o.id == null) return null;
+    const channelOrderId = String(o.id);
 
-    let placedAt = primary?.createdAt ?? primary?.created_at ?? primary?.orderDate ?? primary?.order_date ?? primary?.date ?? null;
-    if (placedAt) {
-      placedAt = String(placedAt).trim();
-      if (placedAt && !placedAt.endsWith('Z') && !placedAt.includes('+') && !placedAt.includes('GMT')) placedAt += 'Z';
-    }
-    let currency = primary?.currency ?? primary?.Currency ?? null;
-    if (!currency) {
-      for (const o of group) {
-        const lineItems = Array.isArray(o?.items) ? o.items : Array.isArray(o?.orderItems) ? o.orderItems : Array.isArray(o?.order_items) ? o.order_items : [];
-        for (const li of lineItems) {
-          const cur = li?.price?.currency ?? li?.total_price?.currency ?? li?.currency;
-          if (cur) { currency = String(cur).trim().toUpperCase(); break; }
-        }
-        if (currency) break;
-      }
-    }
-    currency = currency ? String(currency).trim().toUpperCase() : 'SEK';
-    const statusRaw = primary?.status ?? primary?.Status ?? primary?.state ?? primary?.State;
-    const status = this.mapFyndiqOrderStatusToHomebase(statusRaw);
-
-    const pickCustomer = (o) => ({
-      email: o?.customer_email ?? o?.customer_email_address ?? o?.customerEmail ?? o?.email ?? o?.Email ?? (o?.customer && (o.customer.email ?? o.customer.email_address ?? o.customer.Email)) ?? null,
-      firstName: o?.customer_first_name ?? o?.customerFirstName ?? o?.first_name ?? o?.firstName ?? (o?.customer && (o.customer.first_name ?? o.customer.firstName ?? o.customer.name)) ?? null,
-      lastName: o?.customer_last_name ?? o?.customerLastName ?? o?.last_name ?? o?.lastName ?? (o?.customer && o.customer.last_name) ?? null,
-      phone: o?.customer_phone ?? o?.customerPhone ?? o?.phone ?? o?.Phone ?? (o?.customer && (o.customer.phone ?? o.customer.phone_mobile ?? o.customer.phoneMobile)) ?? null,
-    });
-    const customer = pickCustomer(primary);
-    for (const o of group) {
-      const c = pickCustomer(o);
-      if (c.email && !customer.email) customer.email = c.email;
-      if (c.firstName && !customer.firstName) customer.firstName = c.firstName;
-      if (c.lastName && !customer.lastName) customer.lastName = c.lastName;
-      if (c.phone && !customer.phone) customer.phone = c.phone;
-    }
-    const shippingAddress = primary?.shipping_address ?? primary?.shippingAddress ?? primary?.shipping ?? null;
-    const billingAddress = primary?.billing_address ?? primary?.billingAddress ?? primary?.billing ?? null;
-    if (!customer.phone && shippingAddress) {
-      customer.phone = shippingAddress?.phone_number ?? shippingAddress?.phoneNumber ?? shippingAddress?.phone ?? null;
-    }
-    if (!customer.email && shippingAddress) {
-      customer.email = shippingAddress?.email ?? shippingAddress?.email_address ?? null;
-    }
-    if (shippingAddress || billingAddress) {
-      customer.shippingAddress = shippingAddress;
-      customer.billingAddress = billingAddress;
+    const placedAtRaw = o.created_at;
+    let placedAt = placedAtRaw ? String(placedAtRaw).trim() : null;
+    if (placedAt && !placedAt.endsWith('Z') && !placedAt.includes('+') && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(placedAt)) {
+      placedAt = placedAt.replace(' ', 'T') + 'Z';
     }
 
-    const items = [];
-    const seenItemKey = new Set();
+    const price = o.price || o.total_price;
+    const currency = (price && price.currency) ? String(price.currency).toUpperCase() : 'SEK';
+    const status = this.mapFyndiqOrderStatusToHomebase(o.state);
+
+    const ship = o.shipping_address;
+    const customer = {
+      email: null,
+      firstName: ship && ship.first_name != null ? String(ship.first_name).trim() : null,
+      lastName: ship && ship.last_name != null ? String(ship.last_name).trim() : null,
+      phone: ship && ship.phone_number != null ? String(ship.phone_number).trim() : null,
+      shippingAddress: ship || null,
+      billingAddress: null,
+    };
+
+    const qty = Number(o.quantity);
+    if (!Number.isFinite(qty) || qty <= 0) return null;
+
+    const amount = price && price.amount != null ? Number(price.amount) : null;
+    const vatAmount = price && price.vat_amount != null ? Number(price.vat_amount) : null;
+    const vatRateDoc = price && price.vat_rate != null ? Number(price.vat_rate) : null;
+    const unitPriceInclVat = (Number.isFinite(amount) && Number.isFinite(vatAmount)) ? (amount + vatAmount) / (qty || 1) : null;
+    const vatRatePct = Number.isFinite(vatRateDoc) ? (vatRateDoc <= 1 ? vatRateDoc * 100 : vatRateDoc) : null;
+
+    const totalPrice = o.total_price;
+    const totalAmount = (totalPrice && totalPrice.amount != null && totalPrice.vat_amount != null)
+      ? Number(totalPrice.amount) + Number(totalPrice.vat_amount)
+      : (Number.isFinite(unitPriceInclVat) && qty > 0 ? unitPriceInclVat * qty : null);
+
     const userId = req.session?.user?.id || req.session?.user?.uuid;
     const db = Database.get(req);
-    let totalAmount = null;
-    for (const o of group) {
-      let lineItems = Array.isArray(o?.items) ? o.items :
-        Array.isArray(o?.orderItems) ? o.orderItems :
-          Array.isArray(o?.order_items) ? o.order_items :
-            Array.isArray(o?.Items) ? o.Items :
-              Array.isArray(o?.line_items) ? o.line_items :
-                Array.isArray(o?.lineItems) ? o.lineItems :
-                  Array.isArray(o?.products) ? o.products :
-                    Array.isArray(o?.Products) ? o.Products : [];
-      if (lineItems.length === 0 && o) {
-        const qty = Number(o?.quantity ?? o?.Quantity ?? o?.qty ?? o?.Qty ?? 1);
-        if (Number.isFinite(qty) && qty > 0) lineItems = [o];
-      }
-      for (const li of lineItems) {
-        const qty = Number(li?.quantity ?? li?.Quantity ?? li?.qty ?? li?.Qty ?? 1);
-        if (!Number.isFinite(qty) || qty <= 0) continue;
-        const sku = li?.sku ?? li?.SKU ?? li?.article_sku ?? li?.articleSku ?? li?.product_sku ?? li?.productSku ?? o?.sku ?? o?.SKU ?? null;
-        const mpn = li?.mpn ?? li?.MPN ?? li?.article_mpn ?? li?.articleMpn ?? o?.mpn ?? o?.MPN ?? null;
-        const itemKey = `${sku ?? ''}|${li?.id ?? li?.order_row_id ?? li?.orderRowId ?? o?.id ?? ''}|${li?.title ?? li?.Title ?? li?.name ?? li?.Name ?? ''}`;
-        if (seenItemKey.has(itemKey)) continue;
-        seenItemKey.add(itemKey);
-        const title = li?.title ?? li?.Title ?? li?.name ?? li?.Name ?? li?.product_name ?? li?.productName ?? li?.article_name ?? li?.articleName ?? li?.product_title ?? li?.productTitle ?? o?.title ?? o?.Title ?? o?.name ?? o?.Name ?? (li?.raw && (li.raw.title ?? li.raw.name ?? li.raw.product_name)) ?? null;
-        let unitPrice = null;
-        let vatRate = null;
-        if (li?.price?.amount != null) {
-          const amount = Number(li.price.amount);
-          const vatAmount = li?.price?.vat_amount != null ? Number(li.price.vat_amount) : null;
-          if (Number.isFinite(amount)) {
-            if (Number.isFinite(vatAmount)) {
-              unitPrice = amount + vatAmount;
-              if (amount > 0) vatRate = (vatAmount / amount) * 100;
-            } else {
-              unitPrice = amount;
-            }
-          }
-        }
-        if (unitPrice == null && li?.total_price?.amount != null) {
-          const totalPrice = Number(li.total_price.amount);
-          const vatAmount = li?.total_price?.vat_amount != null ? Number(li.total_price.vat_amount) : null;
-          if (Number.isFinite(totalPrice)) {
-            unitPrice = totalPrice;
-            if (Number.isFinite(vatAmount) && totalPrice > vatAmount) {
-              const exVat = totalPrice - vatAmount;
-              if (exVat > 0) vatRate = (vatAmount / exVat) * 100;
-            }
-          }
-        }
-        if (unitPrice == null) {
-          unitPrice = li?.unit_price != null ? Number(li.unit_price) : li?.unitPrice != null ? Number(li.unitPrice) : li?.price != null ? Number(li.price) : li?.price_per_unit != null ? Number(li.price_per_unit) : li?.pricePerUnit != null ? Number(li.pricePerUnit) : li?.Price != null ? Number(li.Price) : li?.selling_price != null ? Number(li.selling_price) : li?.sellingPrice != null ? Number(li.sellingPrice) : o?.price != null ? Number(o.price) : o?.Price != null ? Number(o.Price) : null;
-        }
-        let finalUnitPrice = unitPrice;
-        if (!Number.isFinite(finalUnitPrice)) {
-          const lineTotal = li?.total != null ? Number(li.total) : li?.Total != null ? Number(li.Total) : li?.line_total != null ? Number(li.line_total) : li?.lineTotal != null ? Number(li.lineTotal) : o?.total != null ? Number(o.total) : null;
-          if (Number.isFinite(lineTotal) && qty > 0) finalUnitPrice = lineTotal / qty;
-        }
-        if (!Number.isFinite(vatRate)) {
-          if (li?.price?.vat_rate != null) vatRate = Number(li.price.vat_rate) * 100;
-          else if (li?.total_price?.vat_rate != null) vatRate = Number(li.total_price.vat_rate) * 100;
-          else {
-            vatRate = li?.vat_rate != null ? Number(li.vat_rate) : li?.vatRate != null ? Number(li.vatRate) : o?.vat_rate != null ? Number(o.vat_rate) : o?.vatRate != null ? Number(o.vatRate) : null;
-            if (Number.isFinite(vatRate) && vatRate <= 1) vatRate = vatRate * 100;
-          }
-        }
-        let platformProductId = null;
-        if (userId && (sku || mpn)) {
-          const mapRes = await db.query(
-            `SELECT id::text AS product_id FROM products WHERE user_id = $1 AND (sku = $2 OR mpn = $3) LIMIT 1`,
-            [userId, sku || null, mpn || null],
-          );
-          if (mapRes.length) platformProductId = String(mapRes[0].product_id);
-        }
-        items.push({
-          sku: sku || null,
-          productId: platformProductId,
-          title: title ? String(title).trim() : null,
-          quantity: Math.trunc(qty),
-          unitPrice: Number.isFinite(finalUnitPrice) ? finalUnitPrice : null,
-          vatRate: Number.isFinite(vatRate) ? vatRate : null,
-          raw: li,
-        });
-      }
-      const t = o?.total_amount != null ? Number(o.total_amount) : o?.totalAmount != null ? Number(o.totalAmount) : o?.total != null ? Number(o.total) : o?.Total != null ? Number(o.Total) : o?.order_total != null ? Number(o.order_total) : o?.orderTotal != null ? Number(o.orderTotal) : null;
-      if (Number.isFinite(t)) totalAmount = (totalAmount ?? 0) + t;
+    const sku = o.article_sku != null ? String(o.article_sku).trim() : null;
+    let platformProductId = null;
+    if (userId && sku) {
+      const mapRes = await db.query(
+        `SELECT id::text AS product_id FROM products WHERE user_id = $1 AND sku = $2 LIMIT 1`,
+        [userId, sku],
+      );
+      if (mapRes.length) platformProductId = String(mapRes[0].product_id);
     }
-    if (totalAmount == null && items.length) {
-      totalAmount = items.reduce((sum, it) => sum + (Number(it.unitPrice) || 0) * (it.quantity || 0), 0);
-    }
+
+    const title = (o.title != null || o.article_title != null) ? String(o.title || o.article_title).trim() : null;
+    const items = [{
+      sku: sku || null,
+      productId: platformProductId,
+      title: title || null,
+      quantity: Math.trunc(qty),
+      unitPrice: Number.isFinite(unitPriceInclVat) ? unitPriceInclVat : null,
+      vatRate: Number.isFinite(vatRatePct) ? vatRatePct : null,
+      raw: o,
+    }];
 
     return {
       channel: 'fyndiq',
@@ -920,14 +824,17 @@ class FyndiqProductsController {
       totalAmount: Number.isFinite(totalAmount) ? totalAmount : null,
       currency,
       status,
-      shippingAddress: shippingAddress || null,
-      billingAddress: billingAddress || null,
+      shippingAddress: ship || null,
+      billingAddress: null,
       customer,
       items,
-      raw: primary,
+      raw: o,
     };
   }
 
+  /**
+   * GET /api/v1/orders. Doc: query params state (CREATED|FULFILLED|NOT_FULFILLED), limit, page.
+   */
   async pullOrders(req, res) {
     try {
       const settings = await this.model.getSettings(req);
@@ -935,299 +842,52 @@ class FyndiqProductsController {
         return res.status(400).json({ error: 'Fyndiq settings not found. Save settings first.' });
       }
 
-      // Fyndiq Merchant API: GET /api/v1/orders
-      // Query params: status (pending, processing, shipped, delivered, cancelled), limit, offset
-      const limit = req.body?.perPage != null ? Math.min(Math.max(Number(req.body.perPage) || 20, 1), 100) : 20;
-
-      // If status is provided as a string, wrap it in an array; if it's an array, use it; otherwise default to a broad list.
-      let statuses = req.body?.status;
-      if (!statuses) {
-        statuses = ['pending', 'processing', 'shipped', 'delivered'];
-      } else if (typeof statuses === 'string') {
-        statuses = [statuses];
-      }
+      const limit = req.body?.perPage != null ? Math.min(Math.max(Number(req.body.perPage), 1), 1000) : 100;
+      // Default: only active (open) orders. Send body.state = ['CREATED','FULFILLED'] to include shipped.
+      const states = req.body?.state != null
+        ? (Array.isArray(req.body.state) ? req.body.state : [req.body.state])
+        : ['CREATED'];
 
       const allOrders = [];
-      if (statuses && statuses.length > 0) {
-        // Specific statuses requested (e.g. from UI filter)
-        for (const status of statuses) {
-          const path = `/api/v1/orders?status=${encodeURIComponent(status)}&limit=${limit}`;
+      for (const state of states) {
+        let page = 1;
+        let hasMore = true;
+        while (hasMore) {
+          const path = `/api/v1/orders?state=${encodeURIComponent(state)}&limit=${limit}&page=${page}`;
           const { resp, json } = await this.fyndiqRequest(path, {
             username: settings.apiKey,
             password: settings.apiSecret,
             method: 'GET',
           });
-          if (!resp.ok) continue;
-          let items = Array.isArray(json) ? json : (json?.orders || json?.data || json?.Order || []);
-          if (!Array.isArray(items) && typeof json === 'object') items = [json];
+          if (!resp.ok) {
+            const detail = (json && json.message) ? String(json.message) : resp.statusText;
+            return res.status(resp.status).json({ error: 'Failed to fetch Fyndiq orders', detail: String(detail).slice(0, 500) });
+          }
+          const items = Array.isArray(json) ? json : [];
           allOrders.push(...items);
+          hasMore = items.length >= limit;
+          page += 1;
         }
-      } else {
-        // Broad fetch (no filter): fetch many recent ones at once.
-        // We fetch 100 which should cover recent current + some historical.
-        const path = `/api/v1/orders?limit=100`;
-        const { resp, json } = await this.fyndiqRequest(path, {
-          username: settings.apiKey,
-          password: settings.apiSecret,
-          method: 'GET',
-        });
-        if (resp.ok) {
-          let items = Array.isArray(json) ? json : (json?.orders || json?.data || json?.Order || []);
-          if (!Array.isArray(items) && typeof json === 'object') items = [json];
-          allOrders.push(...items);
-        }
-      }
-
-      const orders = allOrders;
-
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
-      const db = Database.get(req);
-
-      // Group Fyndiq orders by Fyndiq order id (UUID) only. No fallbacks.
-      const groupKey = (o) => (o?.id != null ? `id:${o.id}` : null);
-      const byGroup = new Map();
-      for (const o of orders) {
-        const key = groupKey(o);
-        if (key == null) continue;
-        if (!byGroup.has(key)) byGroup.set(key, []);
-        byGroup.get(key).push(o);
       }
 
       const results = [];
-      for (const [, group] of byGroup) {
-        const primary = group[0];
-        // Fyndiq API: use only id (UUID) as order identifier. No fallbacks.
-        const channelOrderId = primary?.id != null ? String(primary.id) : null;
-        if (!channelOrderId) continue;
-
-        const platformOrderNumber = channelOrderId;
-        let placedAt = primary?.createdAt ?? primary?.created_at ?? primary?.orderDate ?? primary?.order_date ?? primary?.date ?? null;
-        if (placedAt) {
-          placedAt = String(placedAt).trim();
-          if (placedAt && !placedAt.endsWith('Z') && !placedAt.includes('+') && !placedAt.includes('GMT')) {
-            placedAt += 'Z';
-          }
-        }
-        let totalAmount = null;
-        let currency = primary?.currency ?? primary?.Currency ?? null;
-        if (!currency) {
-          for (const o of group) {
-            const lineItems = Array.isArray(o?.items) ? o.items : Array.isArray(o?.orderItems) ? o.orderItems : Array.isArray(o?.order_items) ? o.order_items : Array.isArray(o?.Items) ? o.Items : Array.isArray(o?.line_items) ? o.line_items : Array.isArray(o?.lineItems) ? o.lineItems : Array.isArray(o?.products) ? o.products : Array.isArray(o?.Products) ? o.Products : [];
-            for (const li of lineItems) {
-              const cur = li?.price?.currency ?? li?.price?.Currency ?? li?.total_price?.currency ?? li?.total_price?.Currency ?? li?.currency ?? li?.Currency;
-              if (cur) { currency = String(cur).trim().toUpperCase(); break; }
-            }
-            if (currency) break;
-          }
-        }
-        currency = currency ? String(currency).trim().toUpperCase() : 'SEK';
-        const statusRaw = primary?.status ?? primary?.Status ?? primary?.state ?? primary?.State;
-        const status = this.mapFyndiqOrderStatusToHomebase(statusRaw);
-
-        const pickCustomer = (o) => ({
-          email: o?.customer_email ?? o?.customer_email_address ?? o?.customerEmail ?? o?.email ?? o?.Email ?? o?.order_email ?? o?.orderEmail ?? (o?.customer && (o.customer.email ?? o.customer.email_address ?? o.customer.Email)) ?? null,
-          firstName: o?.customer_first_name ?? o?.customerFirstName ?? o?.first_name ?? o?.firstName ?? (o?.customer && (o.customer.first_name ?? o.customer.firstName ?? o.customer.name)) ?? null,
-          lastName: o?.customer_last_name ?? o?.customerLastName ?? o?.last_name ?? o?.lastName ?? (o?.customer && o.customer.last_name) ?? null,
-          phone: o?.customer_phone ?? o?.customerPhone ?? o?.phone ?? o?.Phone ?? (o?.customer && (o.customer.phone ?? o.customer.phone_mobile ?? o.customer.phoneMobile)) ?? null,
-        });
-        const customer = pickCustomer(primary);
-        for (const o of group) {
-          const c = pickCustomer(o);
-          if (c.email && !customer.email) customer.email = c.email;
-          if (c.firstName && !customer.firstName) customer.firstName = c.firstName;
-          if (c.lastName && !customer.lastName) customer.lastName = c.lastName;
-          if (c.phone && !customer.phone) customer.phone = c.phone;
-        }
-
-        const shippingAddress = primary?.shipping_address ?? primary?.shippingAddress ?? primary?.shipping ?? null;
-        const billingAddress = primary?.billing_address ?? primary?.billingAddress ?? primary?.billing ?? null;
-
-        // Extract phone number from shipping address if not already set
-        if (!customer.phone && shippingAddress) {
-          customer.phone = shippingAddress?.phone_number ?? shippingAddress?.phoneNumber ?? shippingAddress?.phone ?? null;
-        }
-
-        // Extract email from shipping address if not already set
-        if (!customer.email && shippingAddress) {
-          customer.email = shippingAddress?.email ?? shippingAddress?.email_address ?? null;
-        }
-
-        // Add addresses to customer object
-        if (shippingAddress || billingAddress) {
-          customer.shippingAddress = shippingAddress;
-          customer.billingAddress = billingAddress;
-        }
-        const items = [];
-        const seenItemKey = new Set();
-
-        for (const o of group) {
-          // Try multiple possible locations for line items
-          let lineItems = Array.isArray(o?.items) ? o.items :
-            Array.isArray(o?.orderItems) ? o.orderItems :
-              Array.isArray(o?.order_items) ? o.order_items :
-                Array.isArray(o?.Items) ? o.Items :
-                  Array.isArray(o?.line_items) ? o.line_items :
-                    Array.isArray(o?.lineItems) ? o.lineItems :
-                      Array.isArray(o?.products) ? o.products :
-                        Array.isArray(o?.Products) ? o.Products : [];
-
-          // If no items array found, try to extract from order object itself (single item order)
-          if (lineItems.length === 0 && o) {
-            const qty = Number(o?.quantity ?? o?.Quantity ?? o?.qty ?? o?.Qty ?? 1);
-            if (Number.isFinite(qty) && qty > 0) {
-              lineItems = [o]; // Treat the order itself as a line item
-            }
-          }
-
-          for (const li of lineItems) {
-            const qty = Number(li?.quantity ?? li?.Quantity ?? li?.qty ?? li?.Qty ?? 1);
-            if (!Number.isFinite(qty) || qty <= 0) continue;
-
-            const sku = li?.sku ?? li?.SKU ?? li?.article_sku ?? li?.articleSku ?? li?.product_sku ?? li?.productSku ?? o?.sku ?? o?.SKU ?? null;
-            const mpn = li?.mpn ?? li?.MPN ?? li?.article_mpn ?? li?.articleMpn ?? o?.mpn ?? o?.MPN ?? null;
-            const itemKey = `${sku ?? ''}|${li?.id ?? li?.order_row_id ?? li?.orderRowId ?? o?.id ?? ''}|${li?.title ?? li?.Title ?? li?.name ?? li?.Name ?? ''}`;
-            if (seenItemKey.has(itemKey)) continue;
-            seenItemKey.add(itemKey);
-
-            const title =
-              li?.title ?? li?.Title ?? li?.name ?? li?.Name ?? li?.product_name ?? li?.productName ?? li?.article_name ?? li?.articleName ?? li?.product_title ?? li?.productTitle ?? o?.title ?? o?.Title ?? o?.name ?? o?.Name ?? (li?.raw && (li.raw.title ?? li.raw.name ?? li.raw.product_name)) ?? null;
-
-            // Price and VAT: only use values derived from Fyndiq API data — no guessing of VAT rates or ex/incl.
-            let unitPrice = null;
-            let vatRate = null;
-
-            if (li?.price?.amount != null) {
-              const amount = Number(li.price.amount);
-              const vatAmount = li?.price?.vat_amount != null ? Number(li.price.vat_amount) : null;
-              if (Number.isFinite(amount)) {
-                if (Number.isFinite(vatAmount)) {
-                  unitPrice = amount + vatAmount;
-                  if (amount > 0) vatRate = (vatAmount / amount) * 100;
-                } else {
-                  unitPrice = amount;
-                }
-              }
-            }
-            if (unitPrice == null && li?.total_price?.amount != null) {
-              const totalPrice = Number(li.total_price.amount);
-              const vatAmount = li?.total_price?.vat_amount != null ? Number(li.total_price.vat_amount) : null;
-              if (Number.isFinite(totalPrice)) {
-                unitPrice = totalPrice;
-                if (Number.isFinite(vatAmount) && totalPrice > vatAmount) {
-                  const exVat = totalPrice - vatAmount;
-                  if (exVat > 0) vatRate = (vatAmount / exVat) * 100;
-                }
-              }
-            }
-            if (unitPrice == null) {
-              unitPrice =
-                li?.unit_price != null ? Number(li.unit_price) :
-                  li?.unitPrice != null ? Number(li.unitPrice) :
-                    li?.price != null ? Number(li.price) :
-                      li?.price_per_unit != null ? Number(li.price_per_unit) :
-                        li?.pricePerUnit != null ? Number(li.pricePerUnit) :
-                          li?.Price != null ? Number(li.Price) :
-                            li?.selling_price != null ? Number(li.selling_price) :
-                              li?.sellingPrice != null ? Number(li.sellingPrice) :
-                                o?.price != null ? Number(o.price) :
-                                  o?.Price != null ? Number(o.Price) : null;
-            }
-
-            // If unit price not found, try to calculate from total
-            let finalUnitPrice = unitPrice;
-            if (!Number.isFinite(finalUnitPrice)) {
-              const lineTotal = li?.total != null ? Number(li.total) :
-                li?.Total != null ? Number(li.Total) :
-                  li?.line_total != null ? Number(li.line_total) :
-                    li?.lineTotal != null ? Number(li.lineTotal) :
-                      o?.total != null ? Number(o.total) : null;
-              if (Number.isFinite(lineTotal) && qty > 0) {
-                finalUnitPrice = lineTotal / qty;
-              }
-            }
-
-            // If VAT rate not set yet, try to get from price.vat_rate (Fyndiq API structure)
-            if (!Number.isFinite(vatRate)) {
-              if (li?.price?.vat_rate != null) {
-                // Fyndiq returns vat_rate as decimal (0.25 = 25%)
-                vatRate = Number(li.price.vat_rate) * 100;
-              } else if (li?.total_price?.vat_rate != null) {
-                vatRate = Number(li.total_price.vat_rate) * 100;
-              } else {
-                // Fallback to other possible locations
-                vatRate = li?.vat_rate != null ? Number(li.vat_rate) :
-                  li?.vatRate != null ? Number(li.vatRate) :
-                    o?.vat_rate != null ? Number(o.vat_rate) :
-                      o?.vatRate != null ? Number(o.vatRate) : null;
-                // If vat_rate is a decimal (0.25), convert to percentage
-                if (Number.isFinite(vatRate) && vatRate <= 1) {
-                  vatRate = vatRate * 100;
-                }
-              }
-            }
-
-            let platformProductId = null;
-            if (userId && (sku || mpn)) {
-              const mapRes = await db.query(
-                `SELECT id::text AS product_id FROM products WHERE user_id = $1 AND (sku = $2 OR mpn = $3) LIMIT 1`,
-                [userId, sku || null, mpn || null],
-              );
-              if (mapRes.length) platformProductId = String(mapRes[0].product_id);
-            }
-
-            items.push({
-              sku: sku || null,
-              productId: platformProductId,
-              title: title ? String(title).trim() : null,
-              quantity: Math.trunc(qty),
-              unitPrice: Number.isFinite(finalUnitPrice) ? finalUnitPrice : null,
-              vatRate: Number.isFinite(vatRate) ? vatRate : null,
-              raw: li,
-            });
-          }
-
-          const t = o?.total_amount != null ? Number(o.total_amount) :
-            o?.totalAmount != null ? Number(o.totalAmount) :
-              o?.total != null ? Number(o.total) :
-                o?.Total != null ? Number(o.Total) :
-                  o?.order_total != null ? Number(o.order_total) :
-                    o?.orderTotal != null ? Number(o.orderTotal) : null;
-          if (Number.isFinite(t)) totalAmount = (totalAmount ?? 0) + t;
-        }
-
-        if (totalAmount == null && items.length) {
-          totalAmount = items.reduce((sum, it) => sum + (Number(it.unitPrice) || 0) * (it.quantity || 0), 0);
-        }
-
-        const normalized = {
-          channel: 'fyndiq',
-          channelOrderId: String(channelOrderId),
-          platformOrderNumber,
-          placedAt,
-          totalAmount: Number.isFinite(totalAmount) ? totalAmount : null,
-          currency,
-          status,
-          shippingAddress,
-          billingAddress,
-          customer,
-          items,
-          raw: { primary, group },
-        };
+      for (const o of allOrders) {
+        if (o == null || o.id == null) continue;
+        const normalized = await this.normalizeFyndiqOrderToHomebase(o, req);
+        if (!normalized) continue;
 
         const ingestRes = await this.ordersModel.ingest(req, normalized);
-
         if (ingestRes.created && ingestRes.orderId) {
           await this.applyInventoryFromOrderId(req, ingestRes.orderId).catch((err) => {
             Logger.warn('Inventory sync failed (non-fatal)', err, { orderId: ingestRes.orderId });
           });
         }
-
-        results.push({ channelOrderId: String(channelOrderId), ...ingestRes });
+        results.push({ channelOrderId: String(o.id), ...ingestRes });
       }
 
       return res.json({
         ok: true,
-        fetched: orders.length,
+        fetched: allOrders.length,
         ingested: results.length,
         created: results.filter((r) => r.created).length,
         skippedExisting: results.filter((r) => !r.created).length,
@@ -1239,20 +899,12 @@ class FyndiqProductsController {
     }
   }
 
-  mapFyndiqOrderStatusToHomebase(status) {
-    const s = String(status || '').toLowerCase();
-    if (s.includes('pending') || s.includes('processing') || s.includes('behandlas') || s === 'created') {
-      return 'processing';
-    }
-    if (s.includes('shipped') || s.includes('skickad') || s.includes('sent') || s === 'fulfilled') {
-      return 'shipped';
-    }
-    if (s.includes('delivered') || s.includes('levererad') || s.includes('completed')) {
-      return 'delivered';
-    }
-    if (s.includes('cancelled') || s.includes('annulerad') || s.includes('canceled')) {
-      return 'cancelled';
-    }
+  /** Doc: state is CREATED | FULFILLED | NOT_FULFILLED only. */
+  mapFyndiqOrderStatusToHomebase(state) {
+    const s = String(state || '').toUpperCase();
+    if (s === 'CREATED') return 'processing';
+    if (s === 'FULFILLED') return 'shipped';
+    if (s === 'NOT_FULFILLED') return 'cancelled';
     return 'processing';
   }
 

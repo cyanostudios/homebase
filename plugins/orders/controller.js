@@ -793,6 +793,22 @@ class OrdersController {
     }
   }
 
+  // DELETE /api/orders/batch - Delete selected orders (body: { ids: string[] })
+  async deleteByIds(req, res) {
+    try {
+      const idsRaw = req.body?.ids;
+      if (!Array.isArray(idsRaw)) {
+        return res.status(400).json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
+      }
+      const result = await this.model.deleteByIds(req, idsRaw);
+      return res.json({ ok: true, ...result });
+    } catch (error) {
+      Logger.error('Delete orders by ids error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to delete selected orders' });
+    }
+  }
+
   // PUT /api/orders/batch/status - Batch update status for multiple orders
   async batchUpdateStatus(req, res) {
     try {

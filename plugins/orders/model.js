@@ -463,6 +463,43 @@ class OrdersModel {
     }
   }
 
+  /**
+   * Delete selected orders for the current user (and their items). Does not reset order_number_counter.
+   * @param {string[]} ids - order ids (must belong to user)
+   * @returns {{ deletedCount: number }}
+   */
+  async deleteByIds(req, ids) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+
+      const idList = ids
+        .map((id) => (id != null && Number.isFinite(Number(id)) ? Number(id) : null))
+        .filter((id) => id != null);
+      if (idList.length === 0) return { deletedCount: 0 };
+
+      await db.query(
+        `DELETE FROM ${OrdersModel.ITEMS_TABLE}
+         WHERE order_id IN (SELECT id FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1 AND id = ANY($2))`,
+        [userId, idList],
+      );
+      const del = await db.query(
+        `DELETE FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1 AND id = ANY($2) RETURNING id`,
+        [userId, idList],
+      );
+      const deletedCount = del.length;
+      if (deletedCount > 0) {
+        Logger.info('Orders deleted by ids', { userId, deletedCount, ids: idList });
+      }
+      return { deletedCount };
+    } catch (error) {
+      Logger.error('Failed to delete orders by ids', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to delete orders', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   /** Normalize date to ISO 8601 with Z so client displays correct local time (avoids 1h off with TIMESTAMP WITHOUT TZ). */
   toISOUTC(val) {
     if (val == null) return null;
