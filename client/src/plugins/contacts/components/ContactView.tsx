@@ -182,13 +182,13 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                     <div className="space-y-2">
 
                       {assignedTasks.map((task: any) => (
-                        <div key={task.id} className="flex justify-between items-center text-[11px] bg-green-50 dark:bg-green-950/20 px-2 py-1.5 rounded-md border border-green-100/50 dark:border-green-900/20">
+                        <div key={task.id} className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle px-2 py-1.5 rounded-md border border-plugin-subtle">
                           <span className="text-muted-foreground truncate mr-4">{task.title}</span>
                           <Button
                             size="sm"
                             variant="link"
                             onClick={() => { closeContactPanel(); openTaskForView(task); }}
-                            className="h-auto p-0 text-[10px] shrink-0 font-medium text-green-700 dark:text-green-400"
+                            className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
                           >
                             View
                           </Button>
@@ -200,13 +200,13 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                     <div className="space-y-2">
 
                       {mentionedInTasks.map((task: any) => (
-                        <div key={task.id} className="flex justify-between items-center text-[11px] bg-green-50/50 dark:bg-green-950/10 px-2 py-1.5 rounded-md border border-green-100/30 dark:border-green-900/10">
+                        <div key={task.id} className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle/50 px-2 py-1.5 rounded-md border border-plugin-subtle/50">
                           <span className="text-muted-foreground truncate mr-4">{task.title}</span>
                           <Button
                             size="sm"
                             variant="link"
                             onClick={() => { closeContactPanel(); openTaskForView(task); }}
-                            className="h-auto p-0 text-[10px] shrink-0 font-medium text-green-700 dark:text-green-400"
+                            className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
                           >
                             View
                           </Button>
@@ -224,7 +224,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
               <DetailSection title="Estimates" className="p-4">
                 <div className="space-y-2">
                   {relatedEstimates.map((estimate: any) => (
-                    <div key={estimate.id} className="flex justify-between items-center text-[11px] bg-blue-50 dark:bg-blue-950/20 px-2 py-1.5 rounded-md border border-blue-100/50 dark:border-blue-900/20">
+                    <div key={estimate.id} className="flex justify-between items-center text-[11px] plugin-estimates bg-plugin-subtle px-2 py-1.5 rounded-md border border-plugin-subtle">
                       <span className="text-muted-foreground truncate mr-4">
                         {formatDisplayNumber('estimates', estimate.estimateNumber)}
                       </span>
@@ -232,7 +232,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                         size="sm"
                         variant="link"
                         onClick={() => { closeContactPanel(); openEstimateForView(estimate); }}
-                        className="h-auto p-0 text-[10px] shrink-0 font-medium text-blue-700 dark:text-blue-400"
+                        className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
                       >
                         View
                       </Button>
@@ -248,7 +248,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
               <DetailSection title="Note Mentions" className="p-4">
                 <div className="space-y-2">
                   {mentionedInNotes.map((note: any) => (
-                    <div key={note.id} className="flex justify-between items-center text-[11px] bg-amber-50 dark:bg-amber-950/20 px-2 py-1.5 rounded-md border border-amber-100/50 dark:border-amber-900/20">
+                    <div key={note.id} className="flex justify-between items-center text-[11px] plugin-notes bg-plugin-subtle px-2 py-1.5 rounded-md border border-plugin-subtle">
                       <span className="text-muted-foreground truncate mr-4">
                         {note.title}
                       </span>
@@ -256,7 +256,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                         size="sm"
                         variant="link"
                         onClick={() => { closeContactPanel(); openNoteForView(note); }}
-                        className="h-auto p-0 text-[10px] shrink-0 font-medium text-amber-700 dark:text-amber-400"
+                        className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
                       >
                         View
                       </Button>

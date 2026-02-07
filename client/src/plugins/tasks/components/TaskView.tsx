@@ -301,14 +301,14 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
                       };
 
                       return (
-                        <div key={`mention-${mention.contactId}`} className="flex justify-between items-center text-xs">
+                        <div key={`mention-${mention.contactId}`} className="flex justify-between items-center text-[11px] plugin-contacts bg-plugin-subtle px-2 py-1.5 rounded-md border border-plugin-subtle">
                           <span className="text-muted-foreground truncate mr-2">{getDisplayText()}</span>
                           <Button
                             size="sm"
                             variant="link"
                             onClick={() => (contactData ? handleContactClick(mention.contactId) : null)}
                             disabled={!contactData}
-                            className={cn('h-auto p-0 text-[10px] font-medium', contactData ? 'text-primary' : 'text-muted-foreground')}
+                            className={cn('h-auto p-0 text-[10px] font-medium', contactData ? 'text-plugin' : 'text-muted-foreground')}
                           >
                             {contactData ? 'View' : 'Deleted'}
                           </Button>
@@ -344,7 +344,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
                         variant="link"
                         size="sm"
                         onClick={handleNoteClick}
-                        className="h-auto p-0 text-[10px] text-primary truncate max-w-[150px]"
+                        className="h-auto p-0 text-[10px] plugin-notes text-plugin truncate max-w-[150px]"
                       >
                         {sourceNote.title}
                       </Button>

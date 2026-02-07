@@ -1,6 +1,8 @@
 import { ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText, Grid3x3, List, Settings, Upload } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
+import { cn } from '@/lib/utils';
+
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -368,10 +370,12 @@ export const NoteList: React.FC = () => {
               return (
                 <Card
                   key={note.id}
-                  className={`relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] ${noteIsSelected
-                    ? 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500'
-                    : 'hover:border-blue-300 hover:shadow-md'
-                    }`}
+                  className={cn(
+                    'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent',
+                    noteIsSelected
+                      ? 'plugin-notes bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
+                      : 'hover:border-plugin-subtle hover:plugin-notes hover:shadow-md'
+                  )}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                       return;
@@ -404,7 +408,7 @@ export const NoteList: React.FC = () => {
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                       <div className="flex items-center gap-1">
                         {note.mentions && note.mentions.length > 0 ? (
-                          <span className="font-medium text-blue-600 dark:text-blue-400">
+                          <span className="font-medium plugin-contacts text-plugin">
                             @{note.mentions[0].contactName}
                             {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
                           </span>

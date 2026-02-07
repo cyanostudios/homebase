@@ -54,8 +54,8 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
     <DetailLayout
       sidebar={
         <div className="space-y-6">
-          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title="File Details" className="p-4">
+          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50 plugin-files">
+            <DetailSection title="Information" className="p-4">
               <div className="space-y-4 text-xs">
                 <div className="flex justify-between items-center group">
                   <span className="text-muted-foreground">Type</span>
@@ -65,12 +65,8 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
                   <span className="text-muted-foreground">Size</span>
                   <span className="font-medium">{humanSize(f.size)}</span>
                 </div>
-                <div className="flex justify-between items-center group">
-                  <span className="text-muted-foreground">System ID</span>
-                  <span className="font-mono font-medium">{formatDisplayNumber('files', f.id)}</span>
-                </div>
                 {f.url && (
-                  <div className="flex flex-col gap-1 pt-2">
+                  <div className="flex flex-col gap-1 pt-1">
                     <span className="text-muted-foreground">Source URL</span>
                     <a
                       href={f.url}
@@ -79,10 +75,24 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
                       className="text-primary hover:underline font-medium break-all flex items-center gap-1"
                     >
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                      Visit Path
+                      View Original
                     </a>
                   </div>
                 )}
+                <div className="pt-2 mt-2 border-t border-border/50">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">ID</span>
+                    <span className="font-mono font-medium opacity-70">{formatDisplayNumber('files', f.id)}</span>
+                  </div>
+                  <div className="flex justify-between items-center mt-1">
+                    <span className="text-muted-foreground">Created</span>
+                    <span className="font-medium font-mono text-[10px] opacity-70">{f.createdAt ? new Date(f.createdAt).toLocaleDateString() : '—'}</span>
+                  </div>
+                  <div className="flex justify-between items-center mt-1">
+                    <span className="text-muted-foreground">Updated</span>
+                    <span className="font-medium font-mono text-[10px] opacity-70">{f.updatedAt ? new Date(f.updatedAt).toLocaleDateString() : '—'}</span>
+                  </div>
+                </div>
               </div>
             </DetailSection>
           </Card>

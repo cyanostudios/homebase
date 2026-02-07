@@ -1,6 +1,8 @@
 import { Mail, Send } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
+import { cn } from '@/lib/utils';
+
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -137,7 +139,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
         payload.authPass = authPass.trim() || undefined;
         payload.fromAddress = fromAddress.trim() || smtpDefaults.fromAddress;
       }
-      await testSettings(payload);
+      await testSettings(payload as any);
       setTestSuccess('Testmail skickat! Kontrollera din inkorg.');
     } catch (err: any) {
       setError(err?.message || 'Kunde inte skicka testmail');
@@ -148,9 +150,9 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
 
   return (
     <div className="p-4 space-y-4">
-      <Card className="p-4">
+      <Card className="p-4 plugin-mail">
         <div className="flex items-center gap-2 mb-4">
-          <Mail className="h-5 w-5" />
+          <Mail className="h-5 w-5 text-plugin" />
           <h3 className="font-medium">E-postinställningar</h3>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
@@ -188,22 +190,24 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
               <div className="flex flex-wrap items-center gap-2 ml-2 text-sm border-l border-border pl-3">
                 {settings.configured?.resend && (
                   <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                    className={cn(
+                      'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
                       settings.provider === 'resend'
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                        ? 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle'
                         : 'bg-muted text-muted-foreground'
-                    }`}
+                    )}
                   >
                     Resend{settings.provider === 'resend' ? ' • Aktiv' : ''}
                   </span>
                 )}
                 {settings.configured?.smtp && (
                   <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                    className={cn(
+                      'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
                       settings.provider === 'smtp'
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                        ? 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle'
                         : 'bg-muted text-muted-foreground'
-                    }`}
+                    )}
                   >
                     SMTP{settings.provider === 'smtp' ? ' • Aktiv' : ''}
                   </span>

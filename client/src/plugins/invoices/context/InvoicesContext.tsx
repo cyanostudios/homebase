@@ -335,7 +335,17 @@ export function InvoicesProvider({
           </div>
         );
       }
-      return `${invoiceNumber} • @${contactName} • ${total} ${currency}`;
+      return (
+        <div className="flex items-center gap-2">
+          <span>{invoiceNumber}</span>
+          <span className="text-muted-foreground/30 font-light mx-1">|</span>
+          <span className="text-blue-600 dark:text-blue-400 font-medium whitespace-nowrap">@{contactName}</span>
+          <span className="text-muted-foreground/30 font-light mx-1">|</span>
+          <span className="text-muted-foreground whitespace-nowrap">
+            {total} {currency}
+          </span>
+        </div>
+      );
     }
 
     switch (mode) {
@@ -376,7 +386,7 @@ export function InvoicesProvider({
       const invoiceType = item.invoiceType || 'invoice';
       const badgeColor = statusColors[status] || statusColors.draft;
       const typeBadgeColor = typeColors[invoiceType] || typeColors.invoice;
-      const badgeText = status.charAt(0).toUpperCase() + status.slice(1);
+      const badgeText = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
       const typeText = typeLabels[invoiceType] || 'Faktura';
       const dueDateText = item.dueDate ? `Due ${new Date(item.dueDate).toLocaleDateString()}` : '';
 

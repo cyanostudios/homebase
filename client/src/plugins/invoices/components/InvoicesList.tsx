@@ -144,8 +144,8 @@ export function InvoicesList() {
   const getStatusBadge = (status: string) => {
     const statusColors = {
       draft: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
-      sent: 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
-      paid: 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
+      sent: 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle font-medium',
+      paid: 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle font-medium',
       overdue: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
       canceled: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
     };
@@ -157,10 +157,10 @@ export function InvoicesList() {
 
   const getTypeBadge = (invoiceType: string) => {
     const typeColors = {
-      invoice: 'bg-blue-50/30 text-blue-600 border-blue-100/30',
-      credit_note: 'bg-amber-50/30 text-amber-600 border-amber-100/30',
-      cash_invoice: 'bg-green-50/30 text-green-600 border-green-100/30',
-      receipt: 'bg-purple-50/30 text-purple-600 border-purple-100/30',
+      invoice: 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle/30',
+      credit_note: 'plugin-notes bg-plugin-subtle text-plugin border-plugin-subtle/30',
+      cash_invoice: 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle/30',
+      receipt: 'plugin-tasks bg-plugin-subtle text-plugin border-plugin-subtle/30',
     };
 
     const typeLabels = {

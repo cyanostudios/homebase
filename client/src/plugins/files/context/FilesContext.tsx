@@ -436,7 +436,21 @@ export function FilesProvider({
     if (item) {
       const type = item.mimeType || 'application/octet-stream';
       const size = humanSize(item.size);
-      return `${type} • ${size}`;
+      const created = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '';
+
+      return (
+        <div className="flex items-center gap-2 text-xs">
+          <span>{type}</span>
+          <span className="text-muted-foreground/30 font-light">•</span>
+          <span>{size}</span>
+          {created && (
+            <>
+              <span className="text-muted-foreground/30 font-light">•</span>
+              <span className="text-muted-foreground">Uploaded {created}</span>
+            </>
+          )}
+        </div>
+      );
     }
     return '';
   };

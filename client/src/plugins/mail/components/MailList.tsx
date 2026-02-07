@@ -1,5 +1,7 @@
 import { Mail, Settings, RefreshCw } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
+
+import { cn } from '@/lib/utils';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 
 import { Badge } from '@/components/ui/badge';
@@ -62,7 +64,7 @@ export const MailList: React.FC = () => {
             )}
             <div className="flex items-center gap-1 mr-2 px-2 border-r pr-4">
               {settings?.configured?.smtp || settings?.configured?.resend ? (
-                <Badge variant="outline" className="bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium">
+                <Badge variant="outline" className="plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle font-medium">
                   Konfigurerad
                 </Badge>
               ) : (
@@ -97,10 +99,9 @@ export const MailList: React.FC = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* History table */}
-      <Card>
-
+      <Card className="plugin-mail">
         <div className="p-4 border-b border-border flex items-center gap-2">
-          <Mail className="h-5 w-5 text-muted-foreground" />
+          <Mail className="h-5 w-5 text-plugin" />
           <span className="font-medium text-sm">Sent mail history</span>
           <Badge variant="secondary" className="bg-secondary/50 text-secondary-foreground border-transparent font-medium">
             {totalCount} Total
@@ -136,7 +137,20 @@ export const MailList: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     {entry.pluginSource ? (
-                      <Badge variant="outline">{entry.pluginSource}</Badge>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'capitalize font-medium',
+                          entry.pluginSource === 'notes' && 'plugin-notes bg-plugin-subtle text-plugin border-plugin-subtle',
+                          entry.pluginSource === 'contacts' && 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle',
+                          entry.pluginSource === 'tasks' && 'plugin-tasks bg-plugin-subtle text-plugin border-plugin-subtle',
+                          entry.pluginSource === 'estimates' && 'plugin-estimates bg-plugin-subtle text-plugin border-plugin-subtle',
+                          entry.pluginSource === 'invoices' && 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle',
+                          entry.pluginSource === 'files' && 'plugin-files bg-plugin-subtle text-plugin border-plugin-subtle'
+                        )}
+                      >
+                        {entry.pluginSource}
+                      </Badge>
                     ) : (
                       '—'
                     )}

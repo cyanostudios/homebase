@@ -1,6 +1,8 @@
 import { Mail, Phone, ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText, Grid3x3, List as ListIcon } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
+import { cn } from '@/lib/utils';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -382,10 +384,12 @@ export const ContactList: React.FC = () => {
               return (
                 <Card
                   key={contact.id}
-                  className={`relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] ${contactIsSelected
-                    ? 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500'
-                    : 'hover:border-blue-300 hover:shadow-md'
-                    }`}
+                  className={cn(
+                    'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent',
+                    contactIsSelected
+                      ? 'plugin-contacts bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
+                      : 'hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md'
+                  )}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                       return;
@@ -414,11 +418,12 @@ export const ContactList: React.FC = () => {
                     </div>
                     <Badge
                       variant="outline"
-                      className={
+                      className={cn(
+                        'font-medium',
                         contact.contactType === 'company'
-                          ? 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium'
-                          : 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium'
-                      }
+                          ? 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle'
+                          : 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle'
+                      )}
                     >
                       {contact.contactType === 'company' ? 'Company' : 'Private'}
                     </Badge>
@@ -491,11 +496,12 @@ export const ContactList: React.FC = () => {
                           </span>
                           <Badge
                             variant="outline"
-                            className={
+                            className={cn(
+                              'font-medium',
                               contact.contactType === 'company'
-                                ? 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium'
-                                : 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium'
-                            }
+                                ? 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle'
+                                : 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle'
+                            )}
                           >
                             {contact.contactType === 'company' ? 'Company' : 'Private'}
                           </Badge>
@@ -660,11 +666,12 @@ export const ContactList: React.FC = () => {
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={
+                          className={cn(
+                            'font-medium',
                             contact.contactType === 'company'
-                              ? 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium'
-                              : 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium'
-                          }
+                              ? 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle'
+                              : 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle'
+                          )}
                         >
                           {contact.contactType === 'company' ? 'Company' : 'Private'}
                         </Badge>
@@ -688,12 +695,12 @@ export const ContactList: React.FC = () => {
                 })}
               </TableBody>
             </Table>
-          </Card>
+          </Card >
         )}
-      </Card>
+      </Card >
 
       {/* Bulk Delete Modal */}
-      <BulkDeleteModal
+      < BulkDeleteModal
         isOpen={showBulkDeleteModal}
         onClose={() => setShowBulkDeleteModal(false)}
         onConfirm={handleBulkDelete}
@@ -714,4 +721,4 @@ export const ContactList: React.FC = () => {
       />
     </div>
   );
-};;
+};

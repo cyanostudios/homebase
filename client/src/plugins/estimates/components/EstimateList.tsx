@@ -1,6 +1,8 @@
 import { ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText, Grid3x3, List as ListIcon } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
+import { cn } from '@/lib/utils';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -143,8 +145,8 @@ export function EstimateList() {
   const getStatusBadge = (status: string) => {
     const statusColors = {
       draft: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
-      sent: 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
-      accepted: 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
+      sent: 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle font-medium',
+      accepted: 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle font-medium',
       rejected: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
     };
 
@@ -359,10 +361,12 @@ export function EstimateList() {
               return (
                 <Card
                   key={estimate.id}
-                  className={`relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[180px] ${estimateIsSelected
-                    ? 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500'
-                    : 'hover:border-blue-300 hover:shadow-md'
-                    }`}
+                  className={cn(
+                    'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[180px] border-transparent',
+                    estimateIsSelected
+                      ? 'plugin-estimates bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
+                      : 'hover:border-plugin-subtle hover:plugin-estimates hover:shadow-md'
+                  )}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                       return;

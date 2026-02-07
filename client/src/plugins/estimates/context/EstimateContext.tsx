@@ -429,11 +429,12 @@ export function EstimateProvider({
 
       return (
         <div className="flex items-center gap-2">
-          <span>{estimateNumber} • </span>
+          <span>{estimateNumber}</span>
+          <span className="text-muted-foreground/30 font-light mx-1">|</span>
           {ContactChunk}
-          <span>
-            {' '}
-            • {total} {currency}
+          <span className="text-muted-foreground/30 font-light mx-1">|</span>
+          <span className="text-muted-foreground whitespace-nowrap">
+            {total} {currency}
           </span>
         </div>
       );
@@ -459,7 +460,7 @@ export function EstimateProvider({
       };
 
       const badgeColor = statusColors[item.status] || statusColors.draft;
-      const badgeText = item.status?.charAt(0).toUpperCase() + item.status?.slice(1);
+      const badgeText = item.status?.charAt(0).toUpperCase() + item.status?.slice(1).toLowerCase();
       const validToText = `valid to ${new Date(item.validTo).toLocaleDateString()}`;
 
       return (

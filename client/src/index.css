@@ -64,6 +64,22 @@
     /* Sidebar border: gray-300 (#E4E6EF) */
     --sidebar-border: 220 15% 90%;
     --sidebar-ring: 200 100% 48%;
+
+    /* Plugin Semantic Colors (Light) */
+    --plugin-notes: 45 93% 47%;
+    /* Amber */
+    --plugin-contacts: 217 91% 60%;
+    /* Blue */
+    --plugin-tasks: 271 91% 65%;
+    /* Purple */
+    --plugin-estimates: 199 89% 48%;
+    /* Cyan/Sky */
+    --plugin-invoices: 142 71% 45%;
+    /* Green/Emerald */
+    --plugin-files: 215 16% 47%;
+    /* Slate */
+    --plugin-mail: 346 84% 61%;
+    /* Rose */
   }
 
   .dark {
@@ -103,6 +119,15 @@
     --sidebar-accent-foreground: 213 12% 84%;
     --sidebar-border: 215 14% 21%;
     --sidebar-ring: 212 92% 68%;
+
+    /* Plugin Semantic Colors (Dark) */
+    --plugin-notes: 45 93% 47%;
+    --plugin-contacts: 217 91% 60%;
+    --plugin-tasks: 271 91% 65%;
+    --plugin-estimates: 199 89% 48%;
+    --plugin-invoices: 142 71% 45%;
+    --plugin-files: 215 16% 47%;
+    --plugin-mail: 346 84% 61%;
   }
 
   * {
@@ -124,5 +149,55 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* Plugin-specific assignments */
+  .plugin-notes {
+    --plugin-color: var(--plugin-notes);
+  }
+
+  .plugin-contacts {
+    --plugin-color: var(--plugin-contacts);
+  }
+
+  .plugin-tasks {
+    --plugin-color: var(--plugin-tasks);
+  }
+
+  .plugin-estimates {
+    --plugin-color: var(--plugin-estimates);
+  }
+
+  .plugin-invoices {
+    --plugin-color: var(--plugin-invoices);
+  }
+
+  .plugin-files {
+    --plugin-color: var(--plugin-files);
+  }
+
+  .plugin-mail {
+    --plugin-color: var(--plugin-mail);
+  }
+
+  /* Utility classes using the assigned variable */
+  .bg-plugin-subtle {
+    background-color: hsla(var(--plugin-color), 0.08);
+  }
+
+  .dark .bg-plugin-subtle {
+    background-color: hsla(var(--plugin-color), 0.15);
+  }
+
+  .border-plugin-subtle {
+    border-color: hsla(var(--plugin-color), 0.2);
+  }
+
+  .text-plugin {
+    color: hsl(var(--plugin-color));
+  }
+
+  .text-plugin-muted {
+    color: hsla(var(--plugin-color), 0.7);
   }
 }

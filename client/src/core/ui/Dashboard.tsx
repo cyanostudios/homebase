@@ -35,8 +35,9 @@ export function Dashboard({ onPageChange }: DashboardProps) {
           <Card
             key={plugin.name}
             className={cn(
-              'cursor-pointer transition-colors hover:bg-accent/50',
+              'cursor-pointer transition-all duration-200 hover:shadow-md border-transparent',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              `plugin-${plugin.name} bg-plugin-subtle border-plugin-subtle hover:border-plugin-subtle/50`
             )}
             tabIndex={0}
             role="button"
@@ -49,7 +50,7 @@ export function Dashboard({ onPageChange }: DashboardProps) {
             }}
           >
             <CardHeader className="flex flex-row items-center gap-2 pb-2">
-              {Icon && <Icon className="h-5 w-5 text-muted-foreground" aria-hidden />}
+              {Icon && <Icon className="h-5 w-5 text-plugin" aria-hidden />}
               <span className="font-medium">{plugin.navigation?.label ?? plugin.name}</span>
             </CardHeader>
             <CardContent

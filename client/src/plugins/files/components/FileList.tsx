@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 
+import { cn } from '@/lib/utils';
+
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
@@ -311,7 +313,7 @@ export const FileList: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={() => setShowCloudSettings(true)}
-            className="h-7 px-2 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+            className="h-7 px-2 text-xs plugin-files border-plugin-subtle text-plugin hover:bg-plugin-subtle"
           >
             <Cloud className="w-3 h-3" />
             <span>Connect cloud storage</span>
@@ -351,10 +353,12 @@ export const FileList: React.FC = () => {
                   return (
                     <div
                       key={row.id}
-                      className={`relative border rounded-lg p-3 cursor-pointer transition-all ${isSelected
-                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500'
-                          : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
-                        }`}
+                      className={cn(
+                        'relative border rounded-lg p-3 cursor-pointer transition-all',
+                        isSelected
+                          ? 'plugin-files bg-plugin-subtle ring-2 ring-plugin-subtle border-plugin-subtle'
+                          : 'border-border hover:border-plugin-subtle hover:plugin-files hover:shadow-md'
+                      )}
                       onClick={(e) => {
                         e.preventDefault();
                         handleOpenForView(row.raw);
@@ -454,8 +458,10 @@ export const FileList: React.FC = () => {
                   return (
                     <tr
                       key={row.id}
-                      className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                        } hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer`}
+                      className={cn(
+                        idx % 2 === 0 ? 'bg-white' : 'bg-gray-50',
+                        'plugin-files hover:bg-plugin-subtle transition-colors focus:bg-plugin-subtle focus:outline-none focus:ring-2 focus:ring-plugin-subtle focus:ring-inset cursor-pointer'
+                      )}
                       tabIndex={0}
                       data-list-item={JSON.stringify(row.raw)}
                       data-plugin-name="files"

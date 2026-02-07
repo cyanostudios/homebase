@@ -20,6 +20,7 @@ import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { cn } from '@/lib/utils';
 
 import { useTasks } from '../hooks/useTasks';
 import { TASK_STATUS_COLORS, TASK_PRIORITY_COLORS, formatStatusForDisplay } from '../types/tasks';
@@ -434,10 +435,12 @@ export const TaskList: React.FC = () => {
               return (
                 <Card
                   key={task.id}
-                  className={`relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] ${taskIsSelected
-                    ? 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500'
-                    : 'hover:border-blue-300 hover:shadow-md'
-                    }`}
+                  className={cn(
+                    'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent',
+                    taskIsSelected
+                      ? 'plugin-tasks bg-plugin-subtle ring-1 border-plugin-subtle ring-plugin-subtle/50'
+                      : 'hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md'
+                  )}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                       return;
@@ -479,7 +482,7 @@ export const TaskList: React.FC = () => {
                         </div>
                       )}
                       {assignedContact && (
-                        <div className="text-blue-600 dark:text-blue-400 font-medium truncate">
+                        <div className="plugin-contacts text-plugin font-medium truncate">
                           Assigned: {assignedContact.companyName}
                         </div>
                       )}
@@ -543,7 +546,7 @@ export const TaskList: React.FC = () => {
                             </div>
                           )}
                           {assignedContact && (
-                            <div className="text-blue-600 dark:text-blue-400">
+                            <div className="plugin-contacts text-plugin">
                               Assigned: {assignedContact.companyName}
                             </div>
                           )}
@@ -704,7 +707,7 @@ export const TaskList: React.FC = () => {
                               return contactId === assignedId;
                             });
                             return assignedContact ? (
-                              <div className="text-sm text-blue-600 dark:text-blue-400">
+                              <div className="text-sm plugin-contacts text-plugin">
                                 {assignedContact.companyName}
                               </div>
                             ) : (

@@ -116,7 +116,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                       return (
                         <div
                           key={`mention-${mention.contactId}`}
-                          className="flex justify-between items-center text-xs"
+                          className="flex justify-between items-center text-[11px] plugin-contacts bg-plugin-subtle px-2 py-1.5 rounded-md border border-plugin-subtle"
                         >
                           <span className="text-muted-foreground truncate mr-4">
                             {getDisplayText()}
@@ -128,7 +128,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                             disabled={!contactData}
                             className={cn(
                               'h-auto p-0 text-[10px] shrink-0 font-medium',
-                              contactData ? 'text-primary' : 'text-muted-foreground'
+                              contactData ? 'text-plugin' : 'text-muted-foreground'
                             )}
                           >
                             {contactData ? 'View' : 'Deleted'}

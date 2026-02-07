@@ -42,8 +42,8 @@ export function EstimateView({ estimate }: EstimateViewProps) {
       <DetailLayout
         sidebar={
           <div className="space-y-6">
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="General Details" className="p-4">
+            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50 plugin-estimates">
+              <DetailSection title="Information" className="p-4">
                 <div className="space-y-4 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Number</span>
@@ -51,7 +51,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Status</span>
-                    <span className="capitalize font-medium">{estimate.status}</span>
+                    <span className="capitalize font-medium text-plugin">{estimate.status?.toLowerCase().replace(/^./, (str) => str.toUpperCase())}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Contact</span>
@@ -66,6 +66,16 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Currency</span>
                     <span className="font-medium">{estimate.currency}</span>
+                  </div>
+                  <div className="pt-2 mt-2 border-t border-border/50">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Created</span>
+                      <span className="font-medium font-mono text-[10px] opacity-70">{new Date(estimate.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-muted-foreground">Updated</span>
+                      <span className="font-medium font-mono text-[10px] opacity-70">{new Date(estimate.updatedAt).toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </div>
               </DetailSection>
@@ -83,28 +93,22 @@ export function EstimateView({ estimate }: EstimateViewProps) {
               </DetailSection>
             </Card>
 
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Information" className="p-4">
-                <div className="space-y-4 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">ID</span>
-                    <span className="font-mono font-medium">{formatDisplayNumber('estimates', estimate.id)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Created</span>
-                    <span className="font-medium">{new Date(estimate.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Updated</span>
-                    <span className="font-medium">{new Date(estimate.updatedAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              </DetailSection>
-            </Card>
+
           </div>
         }
       >
         <div className="space-y-6">
+          {/* Internal Notes */}
+          {estimate.notes && (
+            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+              <DetailSection title="Notes" className="p-6">
+                <div className="text-sm text-muted-foreground italic leading-relaxed">
+                  "{estimate.notes}"
+                </div>
+              </DetailSection>
+            </Card>
+          )}
+
           {/* Line Items */}
           <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
             <DetailSection title={`Line Items (${estimate.lineItems.length})`} className="p-6">
@@ -169,17 +173,6 @@ export function EstimateView({ estimate }: EstimateViewProps) {
               </div>
             </DetailSection>
           </Card>
-
-          {/* Notes */}
-          {estimate.notes && (
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Notes" className="p-6">
-                <div className="text-sm text-foreground whitespace-pre-wrap italic opacity-80">
-                  "{estimate.notes}"
-                </div>
-              </DetailSection>
-            </Card>
-          )}
         </div>
       </DetailLayout>
 
