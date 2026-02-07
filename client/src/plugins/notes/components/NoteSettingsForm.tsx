@@ -38,14 +38,22 @@ export const NoteSettingsForm: React.FC<NoteSettingsFormProps> = () => {
                             <p className="text-[11px] text-gray-500 italic">How your notes are displayed by default</p>
                         </div>
                         <div className="flex bg-white dark:bg-gray-800 p-1 rounded-lg border border-gray-100 dark:border-gray-700">
-                            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 transition-all">
+                            <Button
+                                variant="default"
+                                size="sm"
+                                className="h-8 px-3 text-[10px] uppercase font-bold tracking-tight"
+                            >
                                 <LayoutGrid className="w-3.5 h-3.5" />
                                 Grid
-                            </button>
-                            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-all">
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-3 text-[10px] uppercase font-bold tracking-tight text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                            >
                                 <List className="w-3.5 h-3.5" />
                                 List
-                            </button>
+                            </Button>
                         </div>
                     </div>
 

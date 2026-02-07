@@ -2,7 +2,10 @@
 import { Upload, File as FileIcon, Trash2, AlertTriangle } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Heading, Text } from '@/core/ui/Typography';
 
 import { useFiles } from '../hooks/useFiles';
@@ -266,9 +269,8 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
         onDragOver={onDragOver}
         onDragEnter={onDragEnter}
         onDragLeave={onDragLeave}
-        className={`border-2 border-dashed rounded-xl p-8 transition-colors ${
-          dragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
-        } ${filesErrors.length ? 'border-red-400 bg-red-50/50' : ''}`}
+        className={`border-2 border-dashed rounded-xl p-8 transition-colors ${dragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
+          } ${filesErrors.length ? 'border-red-400 bg-red-50/50' : ''}`}
         onClick={pick}
       >
         <div className="flex flex-col items-center gap-3 text-center">
@@ -300,15 +302,16 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
                     </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="inline-flex items-center text-sm px-2 py-1 rounded hover:bg-gray-50"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => remove(id)}
                   title="Remove"
+                  className="h-8 text-gray-500 hover:text-red-600"
                 >
                   <Trash2 className="w-4 h-4 mr-1" />
                   Remove
-                </button>
+                </Button>
               </div>
             ))}
           </div>

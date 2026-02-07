@@ -2,6 +2,7 @@ import { ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText, Grid3x3, List, S
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -279,40 +280,42 @@ export const NoteList: React.FC = () => {
         searchPlaceholder="Search notes..."
         rightActions={
           <div className="flex gap-2">
-            <button
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => openNoteSettings()}
-              className="px-3 py-2 rounded-md border text-sm bg-white text-gray-700 border-gray-300 hover:bg-gray-50 mr-2"
+              className="h-9 w-9"
               title="Note Settings"
             >
               <Settings className="w-4 h-4" />
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => setIsImportWizardOpen(true)}
-              className="px-3 py-2 rounded-md border text-sm bg-white text-gray-700 border-gray-300 hover:bg-gray-50 mr-2"
+              className="h-9 w-9"
               title="Import Notes"
             >
               <Upload className="w-4 h-4" />
-            </button>
-            <button
+            </Button>
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'outline'}
+              size="icon"
               onClick={() => setViewMode('grid')}
-              className={`px-3 py-2 rounded-md border text-sm ${viewMode === 'grid'
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                }`}
+              className="h-9 w-9"
               title="Grid view"
             >
               <Grid3x3 className="w-4 h-4" />
-            </button>
-            <button
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'outline'}
+              size="icon"
               onClick={() => setViewMode('list')}
-              className={`px-3 py-2 rounded-md border text-sm ${viewMode === 'list'
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                }`}
+              className="h-9 w-9"
               title="List view"
             >
               <List className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
         }
       />,

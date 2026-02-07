@@ -181,15 +181,16 @@ export function LoginComponent() {
 
           <div className="mt-6">
             <div className="text-center">
-              <button
+              <Button
                 type="button"
+                variant="link"
                 onClick={toggleMode}
-                className="text-sm text-primary hover:text-primary/80 font-medium"
+                className="text-sm font-medium"
               >
                 {mode === 'login'
                   ? "Don't have an account? Sign up"
                   : 'Already have an account? Sign in'}
-              </button>
+              </Button>
             </div>
           </div>
 

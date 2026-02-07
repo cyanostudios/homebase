@@ -40,9 +40,11 @@ export function ClockDisplay({
   if (compact) {
     return (
       <div className="flex items-center gap-2 relative">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={handleToggle}
-          className="text-right hover:bg-accent rounded-lg px-2 py-1 transition-colors"
+          className="h-auto px-2 py-1 flex flex-col items-end gap-0 transition-colors"
         >
           {settings.showClock ? (
             <>
@@ -56,7 +58,7 @@ export function ClockDisplay({
               <Clock className="w-5 h-5 text-muted-foreground" />
             </div>
           )}
-        </button>
+        </Button>
 
         {/* Expanded/Settings panels */}
         {expanded && !showSettings && (
@@ -141,26 +143,22 @@ export function ClockDisplay({
                   Time Format
                 </label>
                 <div className="flex gap-2">
-                  <button
+                  <Button
+                    variant={settings.timeFormat === '24h' ? 'default' : 'secondary'}
+                    size="sm"
                     onClick={() => handleSettingsChange('timeFormat', '24h')}
-                    className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
-                      settings.timeFormat === '24h'
-                        ? 'bg-primary/10 border-primary text-primary'
-                        : 'bg-muted border-border text-foreground hover:bg-accent'
-                    }`}
+                    className="flex-1"
                   >
                     24 Hour
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant={settings.timeFormat === '12h' ? 'default' : 'secondary'}
+                    size="sm"
                     onClick={() => handleSettingsChange('timeFormat', '12h')}
-                    className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
-                      settings.timeFormat === '12h'
-                        ? 'bg-primary/10 border-primary text-primary'
-                        : 'bg-muted border-border text-foreground hover:bg-accent'
-                    }`}
+                    className="flex-1"
                   >
                     12 Hour
-                  </button>
+                  </Button>
                 </div>
               </div>
 

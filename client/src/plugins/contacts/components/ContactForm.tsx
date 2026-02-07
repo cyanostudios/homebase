@@ -376,28 +376,24 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                 <div>
                   <Label className="mb-1 text-[10px] uppercase font-bold text-gray-400">Contact Type</Label>
                   <div className="flex gap-2">
-                    <button
+                    <Button
                       type="button"
+                      variant={formData.contactType === 'company' ? 'default' : 'outline'}
                       onClick={() => updateField('contactType', 'company')}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-md border-2 transition-colors text-sm flex-1 justify-center ${formData.contactType === 'company'
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'
-                        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                        }`}
+                      className="flex-1 justify-center"
                     >
                       <Building className="w-4 h-4" />
                       <span>Company</span>
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant={formData.contactType === 'private' ? 'default' : 'outline'}
                       onClick={() => updateField('contactType', 'private')}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-md border-2 transition-colors text-sm flex-1 justify-center ${formData.contactType === 'private'
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'
-                        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                        }`}
+                      className="flex-1 justify-center"
                     >
                       <User className="w-4 h-4" />
                       <span>Private</span>
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>

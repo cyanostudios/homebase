@@ -266,13 +266,15 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                   <span className="text-xs text-gray-500 dark:text-gray-400">Assigned to:</span>
-                  <button
+                  <Button
+                    variant="link"
+                    size="sm"
                     onClick={() => handleContactClick(assignedContact.id)}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
+                    className="h-auto p-0 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline decoration-blue-600/30 font-normal"
                   >
                     {assignedContact.companyName}
                     {assignedContact.personalNumber ? ` • ${assignedContact.personalNumber}` : ''}
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -320,11 +322,10 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
                   return (
                     <div
                       key={`mention-${mention.contactId}-${mention.contactName || 'unknown'}`}
-                      className={`flex items-center justify-between p-3 rounded-lg border ${
-                        contactData
-                          ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
-                          : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800'
-                      }`}
+                      className={`flex items-center justify-between p-3 rounded-lg border ${contactData
+                        ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+                        : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800'
+                        }`}
                     >
                       <div className="text-sm">
                         <span className="font-medium text-gray-900 dark:text-gray-100">
@@ -336,11 +337,10 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
                         variant="secondary"
                         onClick={() => (contactData ? handleContactClick(mention.contactId) : null)}
                         disabled={!contactData}
-                        className={`ml-3 flex-shrink-0 ${
-                          contactData
-                            ? 'text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300'
-                            : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                        }`}
+                        className={`ml-3 flex-shrink-0 ${contactData
+                          ? 'text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300'
+                          : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                          }`}
                       >
                         {contactData ? 'View Contact' : 'Deleted'}
                       </Button>
@@ -361,16 +361,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
 
           <TaskPriorityButtons task={task} onPriorityChange={handlePriorityChange} />
 
-          <div className="mb-4">
-            <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Task Actions
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" size="sm" icon={Copy} onClick={handleDuplicateTask}>
-                Duplicate Task
-              </Button>
-            </div>
-          </div>
+
         </DetailSection>
       </Card>
 
@@ -401,12 +392,14 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
               <div className="sm:col-span-3">
                 <div className="text-xs text-gray-500 dark:text-gray-400">Created from Note</div>
                 {sourceNote ? (
-                  <button
+                  <Button
+                    variant="link"
+                    size="sm"
                     onClick={handleNoteClick}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
+                    className="h-auto p-0 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline decoration-blue-600/30 font-normal"
                   >
                     {sourceNote.title}
-                  </button>
+                  </Button>
                 ) : (
                   <div className="text-sm text-gray-500 dark:text-gray-400">
                     Note ID: {task.createdFromNote} (Deleted Note)

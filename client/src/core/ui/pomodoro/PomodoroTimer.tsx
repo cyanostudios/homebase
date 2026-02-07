@@ -119,9 +119,11 @@ export function PomodoroTimer({
   if (compact) {
     return (
       <div className="flex items-center gap-2 relative">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={handleToggle}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors hover:bg-opacity-75 relative overflow-hidden ${timerButtonColors.bg} ${timerButtonColors.border} ${timerButtonColors.text}`}
+          className={`flex items-center gap-2 h-9 border transition-colors hover:bg-opacity-75 relative overflow-hidden ${timerButtonColors.bg} ${timerButtonColors.border} ${timerButtonColors.text}`}
           aria-label="Toggle Pomodoro panel"
           title="Toggle Pomodoro panel"
         >
@@ -131,13 +133,12 @@ export function PomodoroTimer({
               <div className="absolute inset-0 bg-muted" />
               {/* Progress fyllning */}
               <div
-                className={`absolute inset-0 transition-all duration-1000 ${
-                  sessionType === 'work'
+                className={`absolute inset-0 transition-all duration-1000 ${sessionType === 'work'
                     ? 'bg-red-200 dark:bg-red-800'
                     : sessionType === 'shortBreak'
                       ? 'bg-green-200 dark:bg-green-800'
                       : 'bg-blue-200 dark:bg-blue-800'
-                }`}
+                  }`}
                 style={{ width: `${progress}%` }}
               />
               {/* Endast ikon */}
@@ -151,7 +152,7 @@ export function PomodoroTimer({
               <span className="text-sm font-medium">{timeDisplay}</span>
             </>
           )}
-        </button>
+        </Button>
 
         {/* Snabbknappar */}
         {state === 'idle' || state === 'paused' ? (

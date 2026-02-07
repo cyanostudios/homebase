@@ -198,16 +198,14 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
       {/* Share URL Display */}
       {existingShare && (
         <div
-          className={`mt-4 p-4 rounded-lg border ${
-            isShareExpired
+          className={`mt-4 p-4 rounded-lg border ${isShareExpired
               ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
               : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
-          }`}
+            }`}
         >
           <div
-            className={`text-sm font-medium mb-2 ${
-              isShareExpired ? 'text-red-900 dark:text-red-400' : 'text-blue-900 dark:text-blue-400'
-            }`}
+            className={`text-sm font-medium mb-2 ${isShareExpired ? 'text-red-900 dark:text-red-400' : 'text-blue-900 dark:text-blue-400'
+              }`}
           >
             {isShareExpired ? 'Share Link Expired' : 'Active Share Link'}
           </div>
@@ -234,9 +232,8 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
           </div>
 
           <div
-            className={`text-xs ${
-              isShareExpired ? 'text-red-700 dark:text-red-400' : 'text-blue-700 dark:text-blue-400'
-            }`}
+            className={`text-xs ${isShareExpired ? 'text-red-700 dark:text-red-400' : 'text-blue-700 dark:text-blue-400'
+              }`}
           >
             <div className="flex items-center justify-between">
               <div>
@@ -246,12 +243,14 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
                   <span className="ml-2">• Accessed {existingShare.accessedCount} times</span>
                 )}
               </div>
-              <button
+              <Button
+                variant="link"
+                size="sm"
                 onClick={handleRevokeShare}
-                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-xs underline"
+                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 h-auto p-0 underline decoration-red-600/30 font-normal"
               >
                 Revoke
-              </button>
+              </Button>
             </div>
           </div>
         </div>

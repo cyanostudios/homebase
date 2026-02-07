@@ -2,10 +2,12 @@ import { Calculator } from 'lucide-react';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useApp } from '@/core/api/AppContext';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { cn } from '@/lib/utils';
 
 import { estimatesApi } from '../api/estimatesApi';
 import { PublicRouteHandler } from '../components/PublicRouteHandler';
@@ -238,11 +240,11 @@ export function EstimateProvider({
           prev.map((e) =>
             e.id === idToUpdate
               ? {
-                  ...saved,
-                  validTo: new Date(saved.validTo),
-                  createdAt: new Date(saved.createdAt),
-                  updatedAt: new Date(saved.updatedAt),
-                }
+                ...saved,
+                validTo: new Date(saved.validTo),
+                createdAt: new Date(saved.createdAt),
+                updatedAt: new Date(saved.updatedAt),
+              }
               : e,
           ),
         );
@@ -399,12 +401,14 @@ export function EstimateProvider({
 
       const ContactChunk =
         typeof contactId === 'string' && contactId ? (
-          <button
+          <Button
+            variant="link"
+            size="sm"
             onClick={() => handleEstimateContactClick(contactId)}
-            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium px-1 rounded"
+            className="h-auto p-0 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
           >
             @{contactName}
-          </button>
+          </Button>
         ) : (
           <span className="text-gray-600 dark:text-gray-400">@{contactName || 'Contact'}</span>
         );
@@ -460,9 +464,8 @@ export function EstimateProvider({
 
       return (
         <div className="flex items-center gap-2">
-          <Calculator className="w-4 h-4" style={{ color: '#2563eb' }} />
-          <Badge className={badgeColor}>{badgeText}</Badge>
-          <span className="text-xs text-gray-600 dark:text-gray-400">• {validToText}</span>
+          <Badge className={cn('text-[10px] px-1.5 h-5', badgeColor)}>{badgeText}</Badge>
+          <span className="text-xs text-muted-foreground">• {validToText}</span>
         </div>
       );
     }

@@ -220,12 +220,14 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
                   <span className="ml-2">• Accessed {existingShare.accessedCount} times</span>
                 )}
               </div>
-              <button
+              <Button
+                variant="link"
+                size="sm"
                 onClick={handleRevokeShare}
-                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-xs underline ml-4"
+                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 h-auto p-0 underline decoration-red-600/30 font-normal ml-4"
               >
                 Revoke
-              </button>
+              </Button>
             </div>
           </div>
         </div>

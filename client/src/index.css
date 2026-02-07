@@ -116,4 +116,13 @@
       'calt' 1;
     font-variant-ligatures: contextual;
   }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }

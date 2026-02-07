@@ -2,6 +2,7 @@ import { Mail, Phone, ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText, Gri
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
   Table,
@@ -309,26 +310,24 @@ export const ContactList: React.FC = () => {
         searchPlaceholder="Search contacts..."
         rightActions={
           <div className="flex gap-2">
-            <button
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'outline'}
+              size="icon"
               onClick={() => setViewMode('grid')}
-              className={`px-3 py-2 rounded-md border text-sm ${viewMode === 'grid'
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                }`}
+              className="h-9 w-9"
               title="Grid view"
             >
               <Grid3x3 className="w-4 h-4" />
-            </button>
-            <button
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'outline'}
+              size="icon"
               onClick={() => setViewMode('list')}
-              className={`px-3 py-2 rounded-md border text-sm ${viewMode === 'list'
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                }`}
+              className="h-9 w-9"
               title="List view"
             >
               <ListIcon className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
         }
       />,

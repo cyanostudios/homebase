@@ -98,12 +98,12 @@ export function DetailPanel({
   return (
     <div className="w-full h-full flex-shrink-0 flex flex-col border-2 border-primary/30 rounded-md animate-border-pulse">
       {/* Fixed Header */}
-      <div className="flex items-start justify-between py-6 px-6 border-b border-border flex-shrink-0">
-        <div className="flex-1 mr-4 space-y-3 min-w-0">
-          <h2 className="text-xl font-semibold leading-none tracking-tight text-left">{title}</h2>
+      <div className="flex items-center justify-between py-4 px-6 border-b border-border flex-shrink-0">
+        <div className="flex flex-1 items-center gap-4 min-w-0 mr-4">
+          <h2 className="text-lg font-semibold tracking-tight truncate shrink-0">{title}</h2>
           {subtitle && (
-            <div className="text-sm text-muted-foreground text-left">
-              {typeof subtitle === 'string' ? <p>{subtitle}</p> : subtitle}
+            <div className="text-sm text-muted-foreground flex-1 min-w-0">
+              {typeof subtitle === 'string' ? <p className="truncate">{subtitle}</p> : subtitle}
             </div>
           )}
         </div>

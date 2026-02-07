@@ -1,4 +1,4 @@
-import { CheckSquare, User } from 'lucide-react';
+import { CheckSquare, User, Copy } from 'lucide-react';
 import React, {
   createContext,
   useContext,
@@ -9,10 +9,12 @@ import React, {
 } from 'react';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useActionRegistry } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { cn } from '@/lib/utils';
 
 import { tasksApi } from '../api/tasksApi';
 import { Task, ValidationError } from '../types/tasks';
@@ -492,24 +494,47 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           : null;
 
         return (
-          <div className="flex items-center gap-2 flex-wrap">
-            <CheckSquare className="w-4 h-4" style={{ color: '#2563eb' }} />
-            {badges.map((badge) => (
-              <Badge key={`${badge.text}-${badge.color}`} className={badge.color}>
-                {badge.text}
-              </Badge>
-            ))}
-            {assignedContact && (
-              <div className="flex items-center gap-1">
-                <User className="w-3 h-3 text-blue-500 dark:text-blue-400" />
-                <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                  {assignedContact.companyName}
-                </span>
-              </div>
-            )}
-            <span className="text-xs text-gray-600 dark:text-gray-400">
-              • Created {new Date(item.createdAt).toLocaleDateString()}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground whitespace-nowrap hidden sm:flex">
+              <span>Created {new Date(item.createdAt).toLocaleDateString()}</span>
+              <span>•</span>
+              <span>Updated {new Date(item.updatedAt).toLocaleDateString()}</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
+              {badges.map((badge) => (
+                <Badge
+                  key={`${badge.text}-${badge.color}`}
+                  className={cn('text-[10px] px-1.5 h-5 shrink-0', badge.color)}
+                >
+                  {badge.text}
+                </Badge>
+              ))}
+
+              {assignedContact && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <User className="w-3 h-3 text-blue-500 dark:text-blue-400" />
+                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium whitespace-nowrap">
+                    {assignedContact.companyName}
+                  </span>
+                </div>
+              )}
+
+              <div className="w-px h-3 bg-border mx-1 shrink-0 hidden sm:block" />
+
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={Copy}
+                onClick={() => {
+                  duplicateTask(item);
+                  closeTaskPanel();
+                }}
+                className="h-7 text-[10px] px-2 shrink-0"
+              >
+                Duplicate
+              </Button>
+            </div>
           </div>
         );
       }

@@ -1,5 +1,5 @@
 import React from 'react';
-
+import { Button } from '@/components/ui/button';
 import { Invoice } from '../types/invoices';
 
 interface InvoiceStatusButtonsProps {
@@ -29,18 +29,17 @@ export function InvoiceStatusButtons({ invoice, onStatusChange }: InvoiceStatusB
           const isActive = invoice.status === status;
 
           return (
-            <button
+            <Button
               key={status}
+              variant={isActive ? 'default' : 'outline'}
+              size="sm"
               onClick={() => !isActive && onStatusChange(status)}
               disabled={isActive}
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
-                isActive
-                  ? `${INVOICE_STATUS_COLORS[status]} cursor-default`
-                  : 'bg-background dark:bg-background text-foreground border-border hover:bg-accent cursor-pointer'
-              }`}
+              className={`h-7 px-3 text-[10px] uppercase font-bold tracking-tight ${isActive ? 'opacity-100' : ''
+                }`}
             >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </button>
+              {status}
+            </Button>
           );
         })}
       </div>

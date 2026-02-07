@@ -12,6 +12,7 @@ import {
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
@@ -202,28 +203,24 @@ export const FileList: React.FC = () => {
         searchPlaceholder="Search by name, id, or type..."
         rightActions={
           <div className="flex gap-2">
-            <button
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'outline'}
+              size="icon"
               onClick={() => setViewMode('grid')}
-              className={`px-3 py-2 rounded-md border text-sm ${
-                viewMode === 'grid'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
+              className="h-9 w-9"
               title="Grid view"
             >
               <Grid3x3 className="w-4 h-4" />
-            </button>
-            <button
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'outline'}
+              size="icon"
               onClick={() => setViewMode('list')}
-              className={`px-3 py-2 rounded-md border text-sm ${
-                viewMode === 'list'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
+              className="h-9 w-9"
               title="List view"
             >
               <List className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
         }
       />,
@@ -282,37 +279,43 @@ export const FileList: React.FC = () => {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-gray-600">Cloud storage:</span>
           {connectedServices.map((service) => (
-            <button
+            <Button
               key={service.name}
+              variant="outline"
+              size="sm"
               onClick={() => handleOpenCloudStorage(service.name as any)}
               disabled={openingCloudService === service.name}
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+              className="h-7 px-2 text-xs"
               title={`Open ${service.label}`}
             >
               <span>{service.icon}</span>
               <span>{service.label}</span>
               {openingCloudService === service.name && <span className="animate-pulse">...</span>}
-            </button>
+            </Button>
           ))}
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setShowCloudSettings(true)}
-            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-gray-300 hover:bg-gray-50"
+            className="h-7 px-2 text-xs"
             title="Manage cloud storage"
           >
             <Settings className="w-3 h-3" />
             <span>Settings</span>
-          </button>
+          </Button>
         </div>
       )}
       {connectedServices.length === 0 && (
         <div>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setShowCloudSettings(true)}
-            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-blue-300 text-blue-700 hover:bg-blue-50"
+            className="h-7 px-2 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
           >
             <Cloud className="w-3 h-3" />
             <span>Connect cloud storage</span>
-          </button>
+          </Button>
         </div>
       )}
 
@@ -348,11 +351,10 @@ export const FileList: React.FC = () => {
                   return (
                     <div
                       key={row.id}
-                      className={`relative border rounded-lg p-3 cursor-pointer transition-all ${
-                        isSelected
+                      className={`relative border rounded-lg p-3 cursor-pointer transition-all ${isSelected
                           ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500'
                           : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
-                      }`}
+                        }`}
                       onClick={(e) => {
                         e.preventDefault();
                         handleOpenForView(row.raw);
@@ -452,9 +454,8 @@ export const FileList: React.FC = () => {
                   return (
                     <tr
                       key={row.id}
-                      className={`${
-                        idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                      } hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer`}
+                      className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                        } hover:bg-blue-50 focus:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset cursor-pointer`}
                       tabIndex={0}
                       data-list-item={JSON.stringify(row.raw)}
                       data-plugin-name="files"
@@ -525,12 +526,14 @@ export const FileList: React.FC = () => {
                 <Heading level={3} className="mb-0">
                   Cloud Storage Settings
                 </Heading>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setShowCloudSettings(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="h-8 w-8 text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-5 h-5" />
-                </button>
+                </Button>
               </div>
               <CloudStorageSettings />
             </div>

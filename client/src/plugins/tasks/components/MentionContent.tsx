@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '@/components/ui/button';
 
 import { useApp } from '@/core/api/AppContext';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
@@ -132,13 +133,15 @@ export const MentionContent: React.FC<MentionContentProps> = ({ content, mention
         if (contactExists) {
           // Active contact - clickable blue styling
           return (
-            <button
+            <Button
+              variant="link"
+              size="sm"
               key={`mention-${segment.mention.contactId}-${index}`}
               onClick={() => handleMentionClick(segment.mention.contactId)}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-medium cursor-pointer bg-blue-50 dark:bg-blue-950/30 px-1 rounded"
+              className="h-auto p-0 px-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium bg-blue-50 dark:bg-blue-950/30 rounded"
             >
               @{segment.mention.contactName}
-            </button>
+            </Button>
           );
         } else {
           // Deleted contact - gray styling, not clickable

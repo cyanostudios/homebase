@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 
 import { estimateShareApi } from '../api/estimatesApi';
 import { PublicEstimate } from '../types/estimate';
@@ -76,22 +77,20 @@ export function PublicEstimateView({ token }: PublicEstimateViewProps) {
             <p className="text-gray-600 mb-4">
               {error || 'This estimate could not be found or the share link has expired.'}
             </p>
-            <button
+            <Button
+              variant="default"
               onClick={() => {
                 setHasLoaded(false);
                 setError(null);
                 loadEstimate();
               }}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors mr-2"
+              className="mr-2"
             >
               Try Again
-            </button>
-            <a
-              href="/"
-              className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-            >
-              Go to Homepage
-            </a>
+            </Button>
+            <Button variant="secondary" asChild>
+              <a href="/">Go to Homepage</a>
+            </Button>
           </div>
         </div>
       </div>

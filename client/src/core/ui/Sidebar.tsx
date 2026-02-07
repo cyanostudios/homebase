@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight, Home } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   NavigationMenu,
@@ -184,9 +185,9 @@ export function Sidebar({
         <NavigationMenuItem key={item.label}>
           <Collapsible open={isSubmenuOpen} onOpenChange={() => toggleSubmenu(item.label)}>
             <CollapsibleTrigger asChild>
-              <button type="button" className="w-full">
+              <Button variant="ghost" type="button" className="w-full justify-start h-auto p-0 hover:bg-transparent">
                 {content}
-              </button>
+              </Button>
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="pl-6 pt-1 pb-1 space-y-1">
@@ -196,12 +197,13 @@ export function Sidebar({
                     const SubIcon = subItem.icon;
                     const isSubActive = subItem.page === currentPage;
                     return (
-                      <button
+                      <Button
                         key={subItem.label}
+                        variant="ghost"
                         type="button"
                         onClick={() => handleMenuItemClick(subItem.page)}
                         className={cn(
-                          'w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors',
+                          'w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors justify-start h-auto',
                           'text-muted-foreground hover:text-foreground hover:bg-accent',
                         )}
                       >
@@ -216,7 +218,7 @@ export function Sidebar({
                         >
                           {subItem.label}
                         </span>
-                      </button>
+                      </Button>
                     );
                   })}
               </div>
@@ -228,9 +230,14 @@ export function Sidebar({
 
     const link = (
       <NavigationMenuLink asChild>
-        <button type="button" onClick={() => handleMenuItemClick(item.page)}>
+        <Button
+          variant="ghost"
+          type="button"
+          onClick={() => handleMenuItemClick(item.page)}
+          className="w-full justify-start h-auto p-0 hover:bg-transparent"
+        >
           {content}
-        </button>
+        </Button>
       </NavigationMenuLink>
     );
 

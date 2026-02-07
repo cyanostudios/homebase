@@ -434,20 +434,20 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     // View mode with item
     if (mode === 'view' && item) {
       return (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-600 dark:text-gray-400">
-              Created {new Date(item.createdAt).toLocaleDateString()}
-            </span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground whitespace-nowrap hidden sm:flex">
+            <span>Created {new Date(item.createdAt).toLocaleDateString()}</span>
+            <span>•</span>
+            <span>Updated {new Date(item.updatedAt).toLocaleDateString()}</span>
           </div>
 
-          <div className="flex flex-wrap gap-2 sm:justify-end">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
             <Button
               variant="secondary"
               size="sm"
               icon={Download}
               onClick={() => exportNote(item)}
-              className="h-7 text-[10px] px-2"
+              className="h-7 text-[10px] px-2 shrink-0"
             >
               Export
             </Button>
@@ -460,7 +460,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
                 duplicateNote(item);
                 closeNotePanel();
               }}
-              className="h-7 text-[10px] px-2"
+              className="h-7 text-[10px] px-2 shrink-0"
             >
               Duplicate
             </Button>
@@ -473,7 +473,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
                 size="sm"
                 icon={action.icon}
                 onClick={() => action.onClick(item)}
-                className={cn('h-7 text-[10px] px-2', action.className)}
+                className={cn('h-7 text-[10px] px-2 shrink-0', action.className)}
               >
                 {action.label}
               </Button>

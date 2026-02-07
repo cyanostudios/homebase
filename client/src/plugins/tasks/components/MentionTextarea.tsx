@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 
 interface MentionTextareaProps {
   value: string;
@@ -313,28 +314,30 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
           }}
         >
           {suggestions.map((contact, index) => (
-            <button
+            <Button
               key={contact.id}
-              type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => insertMention(contact)}
-              className={`w-full px-3 py-2 text-left hover:bg-blue-50 dark:hover:bg-blue-950/30 border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${
-                index === selectedIndex ? 'bg-blue-50 dark:bg-blue-950/30' : ''
-              }`}
+              className={`w-full justify-start h-auto px-3 py-2 text-left hover:bg-blue-50 dark:hover:bg-blue-950/30 border-b border-gray-100 dark:border-gray-800 last:border-b-0 rounded-none ${index === selectedIndex ? 'bg-blue-50 dark:bg-blue-950/30' : ''
+                }`}
             >
-              <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
-                {contact.companyName}
+              <div className="flex flex-col items-start">
+                <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                  {contact.companyName}
+                </div>
+                {contact.contactType === 'company' && contact.organizationNumber && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {contact.organizationNumber}
+                  </div>
+                )}
+                {contact.contactType === 'private' && contact.personalNumber && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {contact.personalNumber.substring(0, 9)}XXXX
+                  </div>
+                )}
               </div>
-              {contact.contactType === 'company' && contact.organizationNumber && (
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {contact.organizationNumber}
-                </div>
-              )}
-              {contact.contactType === 'private' && contact.personalNumber && (
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {contact.personalNumber.substring(0, 9)}XXXX
-                </div>
-              )}
-            </button>
+            </Button>
           ))}
         </div>
       )}

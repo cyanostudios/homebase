@@ -42,13 +42,15 @@ export function BulkActionBar({
         <span className="px-2 py-1.5 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
           {selectedCount} selected
         </span>
-        <button
-          className="underline text-blue-700 hover:text-blue-900 py-1.5 min-h-[44px] sm:min-h-0"
+        <Button
+          variant="link"
+          size="sm"
+          className="h-auto p-0 text-blue-700 hover:text-blue-900 font-normal underline decoration-blue-700/30"
           onClick={onClearSelection}
           type="button"
         >
           Clear selection
-        </button>
+        </Button>
       </div>
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 w-full sm:w-auto">
         {actions.map((action) => {
@@ -59,9 +61,8 @@ export function BulkActionBar({
               variant={action.variant === 'destructive' ? 'destructive' : 'outline'}
               size="sm"
               onClick={action.onClick}
-              className={`min-h-[44px] sm:min-h-0 w-full sm:w-auto ${
-                action.variant === 'destructive' ? 'text-white hover:text-white' : ''
-              }`}
+              className={`min-h-[44px] sm:min-h-0 w-full sm:w-auto ${action.variant === 'destructive' ? 'text-white hover:text-white' : ''
+                }`}
             >
               {Icon && <Icon className="w-4 h-4" />}
               {action.label}

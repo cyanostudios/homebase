@@ -59,12 +59,14 @@ export function StatusReasonModal({
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400">Estimate {estimateNumber}</p>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleCancel}
-            className="p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-full transition-colors"
+            className="h-8 w-8 text-gray-400 hover:text-gray-600"
           >
-            <X className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-          </button>
+            <X className="w-4 h-4" />
+          </Button>
         </div>
 
         {/* Content */}

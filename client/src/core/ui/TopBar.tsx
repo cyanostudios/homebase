@@ -286,16 +286,22 @@ export function TopBar({
             <BreadcrumbList className="flex-wrap">
               <BreadcrumbItem className="hidden sm:inline-flex">
                 <BreadcrumbLink asChild>
-                  <button type="button" onClick={() => onPageChange('dashboard')}>
+                  <Button
+                    variant="link"
+                    type="button"
+                    onClick={() => onPageChange('dashboard')}
+                    className="h-auto p-0 text-muted-foreground hover:text-foreground hover:no-underline font-normal"
+                  >
                     Homebase
-                  </button>
+                  </Button>
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden sm:inline-flex" />
               <BreadcrumbItem className="min-w-0">
                 <BreadcrumbPage className="flex items-center gap-1 sm:gap-2 min-w-0">
                   <BreadcrumbLink asChild>
-                    <button
+                    <Button
+                      variant="link"
                       type="button"
                       onClick={() => {
                         if (detailPanelTitle && onDetailPanelClose) {
@@ -304,10 +310,10 @@ export function TopBar({
                           onPageChange(currentPage);
                         }
                       }}
-                      className="hover:underline truncate text-sm sm:text-base"
+                      className="h-auto p-0 hover:no-underline truncate text-sm sm:text-base font-normal"
                     >
                       {pageLabel}
-                    </button>
+                    </Button>
                   </BreadcrumbLink>
                   {detailPanelTitle && onDetailPanelClose && (
                     <span className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-md border border-primary/20 flex-shrink-0">
@@ -315,17 +321,18 @@ export function TopBar({
                       <span className="hidden xs:inline truncate max-w-[100px] sm:max-w-none">
                         {detailPanelTitle}
                       </span>
-                      <button
+                      <Button
+                        variant="ghost"
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onDetailPanelClose();
                         }}
-                        className="ml-0.5 hover:bg-primary/20 rounded p-0.5 transition-colors flex-shrink-0"
+                        className="ml-0.5 h-5 w-5 p-0 hover:bg-primary/20 rounded transition-colors flex-shrink-0"
                         aria-label="Close detail panel"
                       >
                         <X className="h-3 w-3" />
-                      </button>
+                      </Button>
                     </span>
                   )}
                 </BreadcrumbPage>
