@@ -1,0 +1,46 @@
+export type OrderStatus = 'processing' | 'shipped' | 'delivered' | 'cancelled';
+
+export interface ValidationError {
+  field: string;
+  message: string;
+}
+
+export interface OrderListItem {
+  id: string;
+  channel: string;
+  channelOrderId: string;
+  platformOrderNumber?: string | null;
+  orderNumber?: number | null;
+  placedAt?: Date | string | null;
+  totalAmount?: number | null;
+  currency?: string | null;
+  status: OrderStatus | string;
+  shippingCarrier?: string | null;
+  shippingTrackingNumber?: string | null;
+  shippingAddress?: any;
+  customer?: any;
+  raw?: any;
+  createdAt?: Date | string | null;
+  updatedAt?: Date | string | null;
+}
+
+export interface OrderItem {
+  id: string;
+  orderId: string;
+  sku?: string | null;
+  productId?: string | null;
+  title?: string | null;
+  quantity: number;
+  unitPrice?: number | null;
+  vatRate?: number | null;
+  raw?: any;
+  createdAt?: Date | string | null;
+}
+
+export interface OrderDetails extends OrderListItem {
+  shippingAddress?: any;
+  billingAddress?: any;
+  customer?: any;
+  items: OrderItem[];
+}
+

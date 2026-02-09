@@ -1,0 +1,217 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<xs:schema id="product"
+           targetNamespace="https://schemas.cdon.com/product/4.0/4.12.2/product"
+           xmlns="https://schemas.cdon.com/product/4.0/4.12.2/product"
+           attributeFormDefault="unqualified"
+           elementFormDefault="qualified"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:include schemaLocation="identities.xsd" />
+	<xs:include schemaLocation="types.xsd" />
+	<xs:include schemaLocation="dimensions.xsd" />
+	<xs:include schemaLocation="energy.xsd" />
+	<xs:include schemaLocation="variants.xsd" />
+	<xs:include schemaLocation="formattedDescription.xsd" />
+	<xs:include schemaLocation="disc.xsd" />
+	<xs:include schemaLocation="specification.xsd" />
+
+	<xs:simpleType name="titleString">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1" />
+			<xs:maxLength value="150" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:complexType name="title">
+		<xs:sequence>
+			<xs:element name="default" minOccurs="1" maxOccurs="1" type="titleString" />
+			<xs:element name="se" minOccurs="0" maxOccurs="1" type="titleString" />
+			<xs:element name="dk" minOccurs="0" maxOccurs="1" type="titleString" />
+			<xs:element name="no" minOccurs="0" maxOccurs="1" type="titleString" />
+			<xs:element name="fi" minOccurs="0" maxOccurs="1" type="titleString" />
+			<xs:element name="en" minOccurs="0" maxOccurs="1" type="titleString" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="description">
+		<xs:sequence>
+			<xs:element name="default" minOccurs="1" maxOccurs="1" type="descriptionString" />
+			<xs:element name="se" minOccurs="0" maxOccurs="1" type="descriptionString" />
+			<xs:element name="dk" minOccurs="0" maxOccurs="1" type="descriptionString" />
+			<xs:element name="no" minOccurs="0" maxOccurs="1" type="descriptionString" />
+			<xs:element name="fi" minOccurs="0" maxOccurs="1" type="descriptionString" />
+			<xs:element name="en" minOccurs="0" maxOccurs="1" type="descriptionString" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:simpleType name="brand">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1" />
+			<xs:maxLength value="70" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="uspString">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1" />
+			<xs:maxLength value="50" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:complexType name="uspValue">
+		<xs:sequence>
+			<xs:element name="default" minOccurs="1" maxOccurs="1" type="uspString" />
+			<xs:element name="se" minOccurs="0" maxOccurs="1" type="uspString" />
+			<xs:element name="dk" minOccurs="0" maxOccurs="1" type="uspString" />
+			<xs:element name="no" minOccurs="0" maxOccurs="1" type="uspString" />
+			<xs:element name="fi" minOccurs="0" maxOccurs="1" type="uspString" />
+			<xs:element name="en" minOccurs="0" maxOccurs="1" type="uspString" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="usp">
+		<xs:sequence>
+			<xs:element name="value" minOccurs="1" maxOccurs="15" type="uspValue" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:simpleType name="releaseDate">
+		<xs:restriction base="xs:date">
+			<xs:minExclusive value="1900-01-01" />
+			<xs:maxInclusive value="2079-06-06" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:complexType name="attributes">
+		<xs:annotation>
+			<xs:documentation>
+				Every category has a set of valid attributes.
+				Documentation on how to use attributes can be found here: https://connect.marketplace.cdon.com/help/product_data_specification
+				APIs to fetch the attributes can be found here: https://cdonexternalapi-prod-apim.developer.azure-api.net/apis
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence minOccurs="0" maxOccurs="unbounded">
+			<xs:any processContents="skip" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="category">
+		<xs:annotation>
+			<xs:documentation>
+				The category can be either a cdon category or a google category.
+				Documentation on how to use categories can be found here: https://connect.marketplace.cdon.com/help/product_data_specification
+				APIs to fetch the categories can be found here: https://cdonexternalapi-prod-apim.developer.azure-api.net/apis
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:choice>
+				<xs:element name="google" type="xs:string" minOccurs="1" maxOccurs="1" />
+				<xs:element name="cdon" type="xs:string" minOccurs="1" maxOccurs="1" />
+			</xs:choice>
+			<xs:element name="attributes" minOccurs="0" maxOccurs="1" type="attributes" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="link">
+		<xs:annotation>
+			<xs:documentation>
+				The URL to the product on your website in the specified language.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="se" minOccurs="0" maxOccurs="1" type="url" />
+			<xs:element name="dk" minOccurs="0" maxOccurs="1" type="url" />
+			<xs:element name="no" minOccurs="0" maxOccurs="1" type="url" />
+			<xs:element name="fi" minOccurs="0" maxOccurs="1" type="url" />
+			<xs:element name="en" minOccurs="0" maxOccurs="1" type="url" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:simpleType name="productTypeString">
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1" />
+			<xs:maxLength value="750" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:complexType name="productType">
+		<xs:annotation>
+			<xs:documentation>
+				The full category path as described by your own product categorization system in the specified language.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="se" minOccurs="0" maxOccurs="1" type="productTypeString" />
+			<xs:element name="dk" minOccurs="0" maxOccurs="1" type="productTypeString" />
+			<xs:element name="no" minOccurs="0" maxOccurs="1" type="productTypeString" />
+			<xs:element name="fi" minOccurs="0" maxOccurs="1" type="productTypeString" />
+			<xs:element name="en" minOccurs="0" maxOccurs="1" type="productTypeString" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="conditionGrade">
+		<xs:annotation>
+			<xs:documentation>
+				The condition grade of the pre-owned product.
+
+				Used (like new)
+				Excellent condition, but has previously been worn or used. No signs of wear or defect. In original box.
+
+				Used (very good)
+				Very good with minimal or no wear. Or new without original box.
+
+				Used (good)
+				Minor signs of wear. Item is operational and works as intended.
+
+				Used (fair)
+				Some signs of wear and tear or minor defects. Item is still usable as intended.
+
+				Defective
+				The product has been determined defective. See description for more details.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:element minOccurs="1" maxOccurs="1" name="usedLikeNew" />
+			<xs:element minOccurs="1" maxOccurs="1" name="usedVeryGood" />
+			<xs:element minOccurs="1" maxOccurs="1" name="usedGood" />
+			<xs:element minOccurs="1" maxOccurs="1" name="usedFair" />
+			<xs:element minOccurs="1" maxOccurs="1" name="defective" />
+		</xs:choice>
+	</xs:complexType>
+
+	<xs:complexType name="product">
+		<xs:sequence>
+			<xs:element minOccurs="1" maxOccurs="1" name="identity" type="identity" />
+			<xs:element minOccurs="1" maxOccurs="1" name="title" type="title" />
+			<xs:choice>
+				<xs:element minOccurs="1" maxOccurs="1" name="description" type="description" />
+				<xs:element minOccurs="1" maxOccurs="1" name="formattedDescription" type="formattedDescription" />
+			</xs:choice>
+			<xs:element minOccurs="1" maxOccurs="1" name="category" type="category" />
+			<xs:element minOccurs="1" maxOccurs="1" name="brand" type="brand" />
+			<xs:element minOccurs="0" maxOccurs="1" name="usp" type="usp" />
+			<xs:element minOccurs="0" maxOccurs="1" name="energy" type="energyClassification" />
+			<xs:element minOccurs="0" maxOccurs="1" name="dimensions" type="dimensions" />
+			<xs:element minOccurs="0" maxOccurs="1" name="releaseDate" type="releaseDate" />
+			<xs:element minOccurs="0" maxOccurs="1" name="isAdult" type="xs:boolean" />
+			<xs:element minOccurs="0" maxOccurs="1" name="isDrug" type="xs:boolean" />
+			<xs:element minOccurs="0" maxOccurs="1" name="isPreOwned" type="xs:boolean" />
+			<xs:element minOccurs="0" maxOccurs="1" name="conditionGrade" type="conditionGrade" />
+			<xs:element minOccurs="0" maxOccurs="1" name="link" type="link" />
+			<xs:element minOccurs="0" maxOccurs="1" name="productType" type="productType" />
+			<xs:element minOccurs="0" maxOccurs="1" name="discs" type="discs" />
+			<xs:element minOccurs="0" maxOccurs="1" name="specifications" type="specifications" />
+			<xs:element minOccurs="0" maxOccurs="1" name="variants" type="variants" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:element name="marketplace">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="product" type="product" minOccurs="1" maxOccurs="unbounded" />
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+</xs:schema>

@@ -1,0 +1,325 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<xs:schema id="price"
+           targetNamespace="https://schemas.cdon.com/product/4.0/4.12.2/price"
+           xmlns="https://schemas.cdon.com/product/4.0/4.12.2/price"
+           attributeFormDefault="unqualified"
+           elementFormDefault="qualified"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<xs:include schemaLocation="identities.xsd" />
+	<xs:include schemaLocation="types.xsd" />
+
+	<xs:simpleType name="money">
+		<xs:annotation>
+			<xs:documentation>Amount includes VAT</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:decimal">
+			<xs:fractionDigits value="2" />
+			<xs:minInclusive value="0" />
+			<xs:maxInclusive value="1000000" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="vat">
+		<xs:restriction base="xs:decimal">
+			<xs:fractionDigits value="2" />
+			<xs:minInclusive value="0" />
+			<xs:maxInclusive value="100" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:complexType name="marketSE">
+		<xs:complexContent>
+			<xs:extension base="market">
+				<xs:sequence>
+					<xs:element name="shippingCost" minOccurs="1" maxOccurs="1">
+						<xs:simpleType>
+							<xs:restriction base="xs:decimal">
+								<xs:enumeration value="0" />
+								<xs:enumeration value="19" />
+								<xs:enumeration value="29" />
+								<xs:enumeration value="39" />
+								<xs:enumeration value="49" />
+								<xs:enumeration value="59" />
+								<xs:enumeration value="79" />
+								<xs:enumeration value="99" />
+								<xs:enumeration value="119" />
+								<xs:enumeration value="139" />
+								<xs:enumeration value="169" />
+								<xs:enumeration value="199" />
+								<xs:enumeration value="249" />
+								<xs:enumeration value="295" />
+								<xs:enumeration value="299" />
+								<xs:enumeration value="395" />
+								<xs:enumeration value="495" />
+								<xs:enumeration value="499" />
+								<xs:enumeration value="599" />
+								<xs:enumeration value="699" />
+								<xs:enumeration value="799" />
+								<xs:enumeration value="995" />
+								<xs:enumeration value="1195" />
+								<xs:enumeration value="1499" />
+								<xs:enumeration value="1999" />
+								<xs:enumeration value="2499" />
+								<xs:enumeration value="2999" />
+								<xs:enumeration value="3499" />
+							</xs:restriction>
+						</xs:simpleType>
+					</xs:element>
+					<xs:element name="vat" type="vat" minOccurs="1" maxOccurs="1" />
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType name="marketDK">
+		<xs:complexContent>
+			<xs:extension base="market">
+				<xs:sequence>
+					<xs:element name="shippingCost" minOccurs="1" maxOccurs="1">
+						<xs:simpleType>
+							<xs:restriction base="xs:decimal">
+								<xs:enumeration value="0" />
+								<xs:enumeration value="19" />
+								<xs:enumeration value="29" />
+								<xs:enumeration value="39" />
+								<xs:enumeration value="49" />
+								<xs:enumeration value="59" />
+								<xs:enumeration value="79" />
+								<xs:enumeration value="99" />
+								<xs:enumeration value="119" />
+								<xs:enumeration value="139" />
+								<xs:enumeration value="169" />
+								<xs:enumeration value="199" />
+								<xs:enumeration value="200" />
+								<xs:enumeration value="299" />
+								<xs:enumeration value="300" />
+								<xs:enumeration value="495" />
+								<xs:enumeration value="699" />
+								<xs:enumeration value="995" />
+								<xs:enumeration value="1195" />
+								<xs:enumeration value="1499" />
+								<xs:enumeration value="1999" />
+								<xs:enumeration value="2499" />
+								<xs:enumeration value="2999" />
+								<xs:enumeration value="3499" />
+							</xs:restriction>
+						</xs:simpleType>
+					</xs:element>
+					<xs:element name="vat" type="vat" minOccurs="1" maxOccurs="1" />
+        </xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType name="marketNO">
+		<xs:complexContent>
+			<xs:extension base="market">
+				<xs:sequence>
+					<xs:element name="shippingCost" minOccurs="1" maxOccurs="1">
+						<xs:simpleType>
+							<xs:restriction base="xs:decimal">
+								<xs:enumeration value="0" />
+								<xs:enumeration value="19" />
+								<xs:enumeration value="29" />
+								<xs:enumeration value="39" />
+								<xs:enumeration value="49" />
+								<xs:enumeration value="59" />
+								<xs:enumeration value="79" />
+								<xs:enumeration value="99" />
+								<xs:enumeration value="119" />
+								<xs:enumeration value="139" />
+								<xs:enumeration value="169" />
+								<xs:enumeration value="199" />
+								<xs:enumeration value="239" />
+								<xs:enumeration value="285" />
+								<xs:enumeration value="385" />
+								<xs:enumeration value="399" />
+								<xs:enumeration value="599" />
+								<xs:enumeration value="799" />
+								<xs:enumeration value="995" />
+								<xs:enumeration value="1195" />
+								<xs:enumeration value="1499" />
+								<xs:enumeration value="1999" />
+								<xs:enumeration value="2499" />
+								<xs:enumeration value="2999" />
+								<xs:enumeration value="3499" />
+							</xs:restriction>
+						</xs:simpleType>
+					</xs:element>
+					<xs:element name="vat" type="vat" minOccurs="1" maxOccurs="1" />
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType name="marketFI">
+		<xs:complexContent>
+			<xs:extension base="market">
+				<xs:sequence>
+					<xs:element name="shippingCost" minOccurs="1" maxOccurs="1">
+						<xs:simpleType>
+							<xs:restriction base="xs:decimal">
+								<xs:enumeration value="0" />
+								<xs:enumeration value="1.95" />
+								<xs:enumeration value="2.95" />
+								<xs:enumeration value="3.95" />
+								<xs:enumeration value="4.90" />
+								<xs:enumeration value="4.95" />
+								<xs:enumeration value="5.95" />
+								<xs:enumeration value="7.95" />
+								<xs:enumeration value="9.95" />
+								<xs:enumeration value="11.95" />
+								<xs:enumeration value="12.95" />
+								<xs:enumeration value="13.95" />
+								<xs:enumeration value="16.95" />
+								<xs:enumeration value="19.5" />
+								<xs:enumeration value="29" />
+								<xs:enumeration value="39" />
+								<xs:enumeration value="39.5" />
+								<xs:enumeration value="59" />
+								<xs:enumeration value="79" />
+								<xs:enumeration value="99.5" />
+								<xs:enumeration value="119.95" />
+								<xs:enumeration value="149.95" />
+								<xs:enumeration value="199.95" />
+								<xs:enumeration value="249.95" />
+								<xs:enumeration value="299.95" />
+								<xs:enumeration value="349.95" />
+							</xs:restriction>
+						</xs:simpleType>
+					</xs:element>
+					<xs:element name="vat" type="vat" minOccurs="1" maxOccurs="1" />
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType name="marketB2BSE">
+		<xs:complexContent>
+			<xs:extension base="market">
+				<xs:sequence>
+					<xs:element name="vat" type="vat" minOccurs="1" maxOccurs="1">
+					</xs:element>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType name="market" abstract="true">
+		<xs:annotation>
+			<xs:documentation>
+				Please see the documentation regarding valid values for the "shippingCost"- and "vat"-elements.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="salePrice" type="money" minOccurs="1" maxOccurs="1" />
+			<xs:element name="originalPrice" type="money" minOccurs="1" maxOccurs="1" />
+			<xs:element name="isShippedFromEU" type="xs:boolean" minOccurs="0" maxOccurs="1" />
+			<xs:element name="shippingMethod" type="shippingMethods" minOccurs="0" maxOccurs="1" />
+			<xs:element name="carrier" type="carriers" minOccurs="0" maxOccurs="1" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="product">
+		<xs:sequence>
+			<xs:element name="id" type="id" minOccurs="1" maxOccurs="1" />
+			<xs:element name="se" type="marketSE" minOccurs="0" maxOccurs="1" />
+			<xs:element name="dk" type="marketDK" minOccurs="0" maxOccurs="1" />
+			<xs:element name="no" type="marketNO" minOccurs="0" maxOccurs="1" />
+			<xs:element name="fi" type="marketFI" minOccurs="0" maxOccurs="1" />
+			<xs:element name="b2b_se" type="marketB2BSE" minOccurs="0" maxOccurs="1" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:element name="marketplace">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="product" type="product" minOccurs="1" maxOccurs="unbounded" />
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+	<xs:simpleType name="shippingMethods">
+		<xs:annotation>
+			<xs:documentation>
+				[HomeDelivery - Home delivery],
+				[PickupPoint - Delivery to pickup point],
+				[Mailbox - Delivery to mailbox],
+				[Digital - Digital product (E-mail or SMS), no carrier]
+			</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="HomeDelivery" />
+			<xs:enumeration value="PickupPoint" />
+			<xs:enumeration value="Mailbox" />
+			<xs:enumeration value="Digital" />
+		</xs:restriction>
+	</xs:simpleType>
+
+
+	<xs:simpleType name="carriers">
+		<xs:annotation>
+			<xs:documentation>
+				[Airmee - Airmee],
+				[Asendia - Asendia],
+				[Best - Best],
+				[Bring - Bring],
+				[Budbee - Budbee],
+				[Chronopost - Chronopost],
+				[CityMail - CityMail],
+				[Dao - dao],
+				[DbSchenker - DB Schenker],
+				[Dhl -DHL Unified],
+				[Dpd - DPD],
+				[Dsv - DSV],
+				[EarlyBird - EarlyBird],
+				[FedEx - FedEx],
+				[Gls - GLS],
+				[Helthjem - Helthjem],
+				[Instabee - Instabee],
+				[Instabox - Instabox],
+				[Itella - itella],
+				[Matkahuolto - Matkahuolto],
+				[Posti - Posti],
+				[PostNl - PostNL],
+				[PostNord - PostNord],
+				[Tnt - TNT],
+				[Ups - UPS],
+				[YunExpress - YunExpress],
+				[AlandPost - Åland Post],
+			</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="Airmee" />
+			<xs:enumeration value="Asendia" />
+			<xs:enumeration value="Best" />
+			<xs:enumeration value="Bring" />
+			<xs:enumeration value="Budbee" />
+			<xs:enumeration value="Chronopost" />
+			<xs:enumeration value="CityMail" />
+			<xs:enumeration value="Dao" />
+			<xs:enumeration value="DbSchenker" />
+			<xs:enumeration value="Dhl" />
+			<xs:enumeration value="Dpd" />
+			<xs:enumeration value="Dsv" />
+			<xs:enumeration value="EarlyBird" />
+			<xs:enumeration value="FedEx" />
+			<xs:enumeration value="Gls" />
+			<xs:enumeration value="Helthjem" />
+			<xs:enumeration value="Instabee" />
+			<xs:enumeration value="Instabox" />
+			<xs:enumeration value="Itella" />
+			<xs:enumeration value="Matkahuolto" />
+			<xs:enumeration value="Posti" />
+			<xs:enumeration value="PostNl" />
+			<xs:enumeration value="PostNord" />
+			<xs:enumeration value="Tnt" />
+			<xs:enumeration value="Ups" />
+			<xs:enumeration value="YunExpress" />
+			<xs:enumeration value="AlandPost" />
+			</xs:restriction>
+	</xs:simpleType>
+
+</xs:schema>

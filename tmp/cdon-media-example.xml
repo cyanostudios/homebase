@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<marketplace xmlns="https://schemas.cdon.com/product/4.0/4.12.1/media">
+
+	<product>
+		<id>100</id>
+		<images>
+			<main>http://picture_100.jpg</main>
+			<extra>http://picture_100_1.jpg</extra>
+			<extra>http://picture_100_2.jpg</extra>
+			<extra>http://picture_100_3.jpg</extra>
+			<extra>http://picture_100_4.jpg</extra>
+		</images>
+		<videos>
+			<youtube>someid</youtube>
+		</videos>
+	</product>
+
+	<!-- This is the media for the model product with ID 200. -->
+	<product>
+		<id>200</id>
+		<images>
+			<main>http://picture_200.jpg</main>
+		</images>
+	</product>
+
+	<!-- This is the media for the variation (with ID 201) of model product with ID 200. -->
+	<product>
+		<id>201</id>
+		<images>
+			<main>http://picture_201.jpg</main>
+			<extra>http://picture_201_1.jpg</extra>
+			<extra>http://picture_201_2.jpg</extra>
+			<extra>http://picture_201_3.jpg</extra>
+			<extra>http://picture_201_4.jpg</extra>
+			<extra>http://picture_201_5.jpg</extra>
+			<extra>http://picture_201_6.jpg</extra>
+			<extra>http://picture_201_7.jpg</extra>
+			<extra>http://picture_201_8.jpg</extra>
+			<extra>http://picture_201_9.jpg</extra>
+			<extra>http://picture_201_10.jpg</extra>
+		</images>
+	</product>
+
+</marketplace>

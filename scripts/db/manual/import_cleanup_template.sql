@@ -1,0 +1,4 @@
+-- WARNING: Review before running. Replace <schema>.<table> with actual matches from the check query.
+-- Example:
+-- DROP TABLE IF EXISTS public.import_jobs CASCADE;
+-- DROP TABLE IF EXISTS public.import_logs CASCADE;

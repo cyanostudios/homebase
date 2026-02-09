@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<marketplace xmlns="https://schemas.cdon.com/product/4.0/4.12.1/availability">
+	<product>
+		<id>100</id>
+		<stock>5</stock>
+		<se>
+			<status>Online</status>
+			<deliveryTime>
+				<min>1</min>
+				<max>3</max>
+			</deliveryTime>
+		</se>
+		<dk>
+			<status>Offline</status>
+			<deliveryTime>
+				<min>1</min>
+				<max>10</max>
+			</deliveryTime>
+		</dk>
+		<b2b_se>
+			<status>Online</status>
+		</b2b_se>
+	</product>
+</marketplace>

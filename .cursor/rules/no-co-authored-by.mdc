@@ -1,0 +1,16 @@
+# Commits: No Co-authored-by
+
+## Rule
+
+When creating or amending git commits in this project:
+
+1. **Do NOT** add any `Co-authored-by:` line (or similar trailer) to commit messages.
+2. **Do** use only the commit message text the user provides, with no extra trailers or signatures.
+
+## Exception
+
+Add a Co-authored-by line only if the user explicitly asks for it (e.g. "lägg till Co-authored-by" or "add co-author X").
+
+## Why
+
+The project owner does not want Co-authored-by or other attribution trailers in commits unless they specifically request it.
