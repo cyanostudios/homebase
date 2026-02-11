@@ -116,44 +116,52 @@ function buildWooCategoryTree(
 /** CDON/Fyndiq category tree node. Hierarchy from id dot notation: "1.423.18326" → under "1.423" under "1". */
 type ChannelCategoryNode = { id: string; name: string; children: ChannelCategoryNode[] };
 
-/** Build tree from flat list. Parent = id without last segment (e.g. "1.423.18326" → parent "1.423"). */
+/** Build tree from flat list. One node per id; missing parents get same id as parentId (no synthetic __parent: id). Better name wins. Sorted by id (numeric). */
 function buildChannelCategoryTree(
   list: Array<{ id: string; name: string; path?: string }>,
 ): ChannelCategoryNode[] {
   if (!list.length) return [];
   const byId = new Map<string, ChannelCategoryNode>();
-  const roots: ChannelCategoryNode[] = [];
 
-  function getParentNode(pid: string): ChannelCategoryNode | undefined {
-    return byId.get(pid) ?? byId.get(`__parent:${pid}`);
+  function parentId(id: string): string {
+    return id.includes('.') ? id.slice(0, id.lastIndexOf('.')) : '';
+  }
+  function lastSegment(id: string): string {
+    return id.includes('.') ? id.slice(id.lastIndexOf('.') + 1) : id;
+  }
+  function isWeakName(name: string, forId: string): boolean {
+    if (!name || /^\d+$/.test(name)) return true;
+    return name.trim() === lastSegment(forId);
+  }
+  function ensureParent(pid: string): void {
+    if (!pid) return;
+    if (byId.has(pid)) return;
+    ensureParent(parentId(pid));
+    const node: ChannelCategoryNode = { id: pid, name: lastSegment(pid), children: [] };
+    byId.set(pid, node);
   }
 
-  function ensureParent(parentId: string): void {
-    if (!parentId) return;
-    if (getParentNode(parentId)) return;
-    const grandParentId = parentId.includes('.') ? parentId.slice(0, parentId.lastIndexOf('.')) : '';
-    ensureParent(grandParentId);
-    const lastSegment = parentId.slice(parentId.lastIndexOf('.') + 1) || parentId;
-    const node: ChannelCategoryNode = { id: `__parent:${parentId}`, name: lastSegment, children: [] };
-    byId.set(`__parent:${parentId}`, node);
-    if (grandParentId) getParentNode(grandParentId)!.children.push(node);
-    else roots.push(node);
-  }
-
+  // Step 1: create all nodes (placeholders for missing parents, real from list); better name wins
   for (const item of list) {
-    const parentId = item.id.includes('.') ? item.id.slice(0, item.id.lastIndexOf('.')) : '';
-    ensureParent(parentId);
-    const node: ChannelCategoryNode = { id: item.id, name: item.name, children: [] };
-    byId.set(item.id, node);
-    if (parentId) getParentNode(parentId)!.children.push(node);
+    ensureParent(parentId(item.id));
+    const existing = byId.get(item.id);
+    if (existing) {
+      if (isWeakName(existing.name, item.id) && !isWeakName(item.name, item.id)) existing.name = item.name;
+    } else {
+      byId.set(item.id, { id: item.id, name: item.name, children: [] });
+    }
+  }
+
+  // Step 2: attach children to parents, build roots
+  const roots: ChannelCategoryNode[] = [];
+  for (const node of byId.values()) {
+    const pid = parentId(node.id);
+    if (pid) byId.get(pid)!.children.push(node);
     else roots.push(node);
   }
 
-  function sortKey(id: string): string {
-    return id.startsWith('__parent:') ? id.slice('__parent:'.length) : id;
-  }
   function sortTree(nodes: ChannelCategoryNode[]): void {
-    nodes.sort((a, b) => sortKey(a.id).localeCompare(sortKey(b.id), undefined, { numeric: true }));
+    nodes.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
     nodes.forEach((n) => sortTree(n.children));
   }
   sortTree(roots);
@@ -185,7 +193,7 @@ function WooCategoryTreeRow({
   const isExpanded = expandedIds.has(node.id);
   const isSelected = selectedIds ? selectedIds.has(node.id) : selectedId === node.id;
   const useCheckbox = selectedIds != null && onToggle != null;
-  const displayId = showId && node.id ? (node.id.startsWith('__parent:') ? node.id.slice(9) : node.id) : '';
+  const displayId = showId && node.id ? node.id : '';
   const label = showId && displayId ? `${displayId} – ${node.name}` : node.name;
   return (
     <li className="list-none">
@@ -1883,6 +1891,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       });
                     };
                     const channelTree = !isWoo ? buildChannelCategoryTree(list) : [];
+                    const channelRealIds = !isWoo ? new Set(list.map((x) => x.id)) : new Set<string>();
                     const channelExpandedSet = channelCategoryExpandedIds[String(inst.id)] ?? new Set<string>();
                     const setChannelExpanded = (id: string, open: boolean) => {
                       setChannelCategoryExpandedIds((prev) => {
@@ -2030,7 +2039,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                         expandedIds={channelExpandedSet}
                                         onToggleExpand={setChannelExpanded}
                                         onSelect={(id) => {
-                                          if (id && !String(id).startsWith('__parent:')) setChannelCategory(id);
+                                          if (id && channelRealIds.has(id)) setChannelCategory(id);
                                         }}
                                         depth={0}
                                         showId
