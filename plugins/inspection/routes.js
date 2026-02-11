@@ -97,6 +97,13 @@ function createInspectionRoutes(context) {
     validateRequest,
     (req, res) => controller.send(req, res)
   );
+  router.get(
+    '/projects/:id/send-history',
+    gate,
+    commonRules.id('id'),
+    validateRequest,
+    (req, res) => controller.getSendHistory(req, res)
+  );
 
   return router;
 }

@@ -7,6 +7,7 @@ const model = require('./model');
 const ContactsModel = require('../contacts/model');
 const FilesModel = require('../files/model');
 const { sendWithUserSettings } = require('../mail/sendService');
+const mailModel = require('../mail/model');
 
 const contactsModel = new ContactsModel();
 const filesModel = new FilesModel();
@@ -225,7 +226,11 @@ class InspectionController {
           text: bodyText,
           attachments: attachments.length > 0 ? attachments : undefined,
         },
-        { pluginSource: 'inspection', referenceId: projectId },
+        {
+          pluginSource: 'inspection',
+          referenceId: projectId,
+          metadata: { fileCount: idsToAttach.length },
+        },
       );
 
       res.json({ ok: true, message: 'Email sent successfully', logEntry });
@@ -241,6 +246,24 @@ class InspectionController {
         msg = error.message;
       }
       res.status(500).json({ error: msg });
+    }
+  }
+
+  async getSendHistory(req, res) {
+    try {
+      const projectId = req.params.id;
+      const project = await model.getById(req, projectId);
+      if (!project) return res.status(404).json({ error: 'Project not found' });
+      const history = await mailModel.getHistory(req, {
+        pluginSource: 'inspection',
+        referenceId: projectId,
+        limit: 50,
+      });
+      res.json(history);
+    } catch (error) {
+      Logger.error('Get inspection send history failed', error, { projectId: req.params.id });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch send history' });
     }
   }
 }

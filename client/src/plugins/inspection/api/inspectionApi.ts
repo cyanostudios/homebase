@@ -94,6 +94,20 @@ class InspectionApi {
       body: JSON.stringify(data),
     });
   }
+
+  async getSendHistory(projectId: string): Promise<SendHistoryEntry[]> {
+    return this.request(`/projects/${projectId}/send-history`);
+  }
+}
+
+export interface SendHistoryEntry {
+  id: string;
+  to: string;
+  subject: string;
+  sentAt: string;
+  referenceId: string | null;
+  createdAt: string;
+  metadata?: { fileCount?: number } | null;
 }
 
 export const inspectionApi = new InspectionApi();

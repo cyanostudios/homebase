@@ -35,6 +35,7 @@ export const InspectionList: React.FC = () => {
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder="Sök projekt..."
+        rightActions={<></>}
       />
 
       {projectsLoading ? (

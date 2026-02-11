@@ -9,14 +9,21 @@ class MailModel {
   async logSent(req, data) {
     try {
       const db = Database.get(req);
-      const recipients = Array.isArray(data.to) ? data.to.join(', ') : String(data.to || '');
-      const result = await db.insert(TABLE, {
+      const recipients =
+        data.recipients != null
+          ? String(data.recipients)
+          : Array.isArray(data.to)
+            ? data.to.join(', ')
+            : String(data.to || '');
+      const row = {
         recipients,
         subject: String(data.subject || '').substring(0, 500),
         sent_at: new Date(),
         plugin_source: data.pluginSource || null,
         reference_id: data.referenceId ? String(data.referenceId) : null,
-      });
+      };
+      if (data.metadata != null) row.metadata = data.metadata;
+      const result = await db.insert(TABLE, row);
       Logger.info('Mail logged', { id: result.id });
       return {
         id: String(result.id),
@@ -43,24 +50,27 @@ class MailModel {
       const limit = Math.min(Math.max(1, options.limit || 50), 100);
       const offset = Math.max(0, options.offset || 0);
       const pluginSource = options.pluginSource;
+      const referenceId = options.referenceId != null ? String(options.referenceId) : null;
 
-      let sql;
-      let params;
+      const conditions = ['user_id = $1'];
+      const params = [userId];
+      let idx = 2;
       if (pluginSource) {
-        sql = `SELECT id, recipients, subject, sent_at, plugin_source, reference_id, created_at
-               FROM ${TABLE}
-               WHERE user_id = $1 AND plugin_source = $2
-               ORDER BY sent_at DESC
-               LIMIT $3 OFFSET $4`;
-        params = [userId, pluginSource, limit, offset];
-      } else {
-        sql = `SELECT id, recipients, subject, sent_at, plugin_source, reference_id, created_at
-               FROM ${TABLE}
-               WHERE user_id = $1
-               ORDER BY sent_at DESC
-               LIMIT $2 OFFSET $3`;
-        params = [userId, limit, offset];
+        conditions.push(`plugin_source = $${idx}`);
+        params.push(pluginSource);
+        idx += 1;
       }
+      if (referenceId) {
+        conditions.push(`reference_id = $${idx}`);
+        params.push(referenceId);
+        idx += 1;
+      }
+      params.push(limit, offset);
+      const sql = `SELECT id, recipients, subject, sent_at, plugin_source, reference_id, created_at, metadata
+                   FROM ${TABLE}
+                   WHERE ${conditions.join(' AND ')}
+                   ORDER BY sent_at DESC
+                   LIMIT $${idx} OFFSET $${idx + 1}`;
 
       const rows = await db.query(sql, params);
       return rows.map((r) => ({
@@ -71,6 +81,7 @@ class MailModel {
         pluginSource: r.plugin_source || null,
         referenceId: r.reference_id || null,
         createdAt: r.created_at,
+        metadata: r.metadata || null,
       }));
     } catch (error) {
       Logger.error('Failed to fetch mail history', error);

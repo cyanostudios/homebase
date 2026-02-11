@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { filesApi } from '@/plugins/files/api/filesApi';
 import { useInspections } from '../hooks/useInspections';
-import { inspectionApi } from '../api/inspectionApi';
+import { inspectionApi, type SendHistoryEntry } from '../api/inspectionApi';
 import { FilePicker } from './FilePicker';
 import { ListPicker } from './ListPicker';
 import { SendModal } from './SendModal';
@@ -61,6 +61,9 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
   const [fileIdToName, setFileIdToName] = useState<Record<string, string>>({});
   const [isDirty, setIsDirty] = useState(false);
   const [filesLoading, setFilesLoading] = useState(false);
+  const [sendHistory, setSendHistory] = useState<SendHistoryEntry[]>([]);
+  const [sendHistoryLoading, setSendHistoryLoading] = useState(false);
+  const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<string>>(new Set());
 
   const lastLoadedProjectIdRef = useRef<string | null>(null);
   const loadSeqRef = useRef(0);
@@ -153,6 +156,30 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
       return next;
     });
   }, []);
+
+  const loadSendHistory = useCallback(() => {
+    if (!projectId || isCreate) return;
+    setSendHistoryLoading(true);
+    inspectionApi
+      .getSendHistory(projectId)
+      .then((list) => setSendHistory(list || []))
+      .catch(() => setSendHistory([]))
+      .finally(() => setSendHistoryLoading(false));
+  }, [projectId, isCreate]);
+
+  const toggleHistoryExpanded = useCallback((id: string) => {
+    setExpandedHistoryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (isCreate || !projectId) return;
+    loadSendHistory();
+  }, [projectId, isCreate, loadSendHistory]);
 
   const loadPendingListFiles = useCallback((listId: string) => {
     setPendingListFilesCache((prev) => {
@@ -406,6 +433,73 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
             {isCreate ? 'Spara och skicka' : 'Skicka'}
           </Button>
 
+          {!isCreate && projectId && (
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-sm">Utskickshistorik</Label>
+              {sendHistoryLoading ? (
+                <p className="text-sm text-muted-foreground">Laddar…</p>
+              ) : sendHistory.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Inga utskick ännu.</p>
+              ) : (
+                <ul className="space-y-1 border rounded-md divide-y">
+                  {sendHistory.map((entry) => {
+                    const isExpanded = expandedHistoryIds.has(entry.id);
+                    const dateStr = entry.sentAt
+                      ? new Date(entry.sentAt).toLocaleDateString('sv-SE', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : '—';
+                    const fileCount = entry.metadata?.fileCount ?? '—';
+                    const recipients = (entry.to || '')
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                    return (
+                      <li key={entry.id} className="bg-card">
+                        <div className="flex items-center gap-2 py-2 px-3">
+                          <button
+                            type="button"
+                            aria-label={isExpanded ? 'Kollapsa' : 'Expandera'}
+                            className="p-0.5 rounded hover:bg-muted"
+                            onClick={() => toggleHistoryExpanded(entry.id)}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </button>
+                          <span className="text-sm flex-1 min-w-0">{dateStr}</span>
+                          <span className="text-sm text-muted-foreground shrink-0">
+                            {fileCount} filer
+                          </span>
+                        </div>
+                        {isExpanded && recipients.length > 0 && (
+                          <div className="pl-8 pr-3 pb-2 pt-0 border-t">
+                            <p className="text-xs font-medium text-muted-foreground mt-2 mb-1">
+                              Mottagare
+                            </p>
+                            <ul className="space-y-0.5">
+                              {recipients.map((email, i) => (
+                                <li key={i} className="text-xs truncate" title={email}>
+                                  {email}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
+
           {validationErrors.map((e) => (
             <div key={e.field} className="text-sm text-destructive">
               {e.message}
@@ -651,6 +745,7 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
           onSent={async () => {
             setPanelMode('edit');
             await loadProjects();
+            loadSendHistory();
           }}
         />
       )}

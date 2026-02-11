@@ -77,12 +77,13 @@ async function sendWithUserSettings(req, payload, logOpts = {}) {
     attachments: attachmentBuffers.length > 0 ? attachmentBuffers : undefined,
   });
 
+  const allRecipients = [...normalizedTo, ...normalizedBcc].filter(Boolean).join(', ');
   const logEntry = await model.logSent(req, {
-    to: normalizedTo,
-    bcc: normalizedBcc,
+    recipients: allRecipients,
     subject: String(payload.subject || '').trim(),
     pluginSource: logOpts.pluginSource || null,
     referenceId: logOpts.referenceId || null,
+    metadata: logOpts.metadata || null,
   });
 
   return logEntry;
