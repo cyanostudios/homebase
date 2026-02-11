@@ -8,6 +8,7 @@ interface InspectionContextType {
   currentInspectionProject: InspectionProject | null;
   currentInspection?: InspectionProject | null;
   panelMode: 'create' | 'edit' | 'view';
+  setPanelMode: (mode: 'create' | 'edit' | 'view') => void;
   inspectionProjects: InspectionProject[];
   projectsLoading: boolean;
   validationErrors: { field: string; message: string }[];
@@ -17,6 +18,7 @@ interface InspectionContextType {
   closeInspectionPanel: () => void;
   saveInspection: (data: any) => Promise<boolean>;
   saveInspectionAndClose: (data?: any) => Promise<boolean>;
+  saveInspectionAndStay: (data: any) => Promise<InspectionProject | null>;
   deleteInspection: (id: string) => Promise<void>;
   clearValidationErrors: () => void;
   loadProjects: () => Promise<void>;
@@ -145,6 +147,48 @@ export function InspectionProvider({
     [currentInspectionProject, loadProjects, closeInspectionPanel]
   );
 
+  // Sparar, lägger till listor, laddar fullt projekt och växlar till edit (stänger inte panelen). Returnerar projektet vid lyckat sparande.
+  const saveInspectionAndStay = useCallback(
+    async (data: any): Promise<InspectionProject | null> => {
+      setValidationErrors([]);
+      try {
+        let projectId: string;
+        if (currentInspectionProject?.id) {
+          await inspectionApi.updateProject(currentInspectionProject.id, {
+            name: data.name,
+            description: data.description,
+            adminNotes: data.adminNotes,
+          });
+          projectId = currentInspectionProject.id;
+        } else {
+          const created = await inspectionApi.createProject({
+            name: data.name,
+            description: data.description,
+            adminNotes: data.adminNotes,
+          });
+          if (!created?.id) throw new Error('Create project failed');
+          projectId = created.id;
+          if (Array.isArray(data.pendingFileIds) && data.pendingFileIds.length > 0) {
+            await inspectionApi.setFiles(projectId, data.pendingFileIds);
+          }
+        }
+        const pendingListIds = Array.isArray(data.pendingListIds) ? data.pendingListIds : [];
+        for (const listId of pendingListIds) {
+          await inspectionApi.addFileList(projectId, listId);
+        }
+        const full = await inspectionApi.getProject(projectId);
+        setCurrentInspectionProject(full || null);
+        setPanelMode('edit');
+        await loadProjects();
+        return full || null;
+      } catch (err: any) {
+        setValidationErrors([{ field: 'general', message: err?.message || 'Failed to save' }]);
+        return null;
+      }
+    },
+    [currentInspectionProject, loadProjects]
+  );
+
   // Sparar OCH stänger panelen (används av footer-knappen)
   const saveInspectionAndClose = useCallback(
     async (data?: any): Promise<boolean> => {
@@ -192,6 +236,7 @@ export function InspectionProvider({
     currentInspectionProject,
     currentInspection: currentInspectionProject,
     panelMode,
+    setPanelMode,
     inspectionProjects,
     projectsLoading,
     validationErrors,
@@ -201,6 +246,7 @@ export function InspectionProvider({
     closeInspectionPanel,
     saveInspection,
     saveInspectionAndClose,
+    saveInspectionAndStay,
     deleteInspection,
     clearValidationErrors,
     loadProjects,

@@ -139,6 +139,19 @@ class ProductsApi {
     });
   }
 
+  // ---- Lists ----
+
+  async getLists(): Promise<Array<{ id: string; name: string; namespace: string; createdAt: string; updatedAt: string }>> {
+    return this.request('/products/lists');
+  }
+
+  async setProductList(productId: string, listId: string | null): Promise<Product> {
+    return this.request(`/products/${encodeURIComponent(productId)}/list`, {
+      method: 'PUT',
+      body: JSON.stringify({ listId }),
+    });
+  }
+
   // ---- CRUD ----
 
   async getProducts(): Promise<Product[]> {

@@ -43,6 +43,12 @@ function createProductRoutes(controller, context) {
   router.get('/manufacturers', gate, (req, res) => controller.getManufacturers(req, res));
   router.post('/manufacturers', gate, csrfProtection, [commonRules.string('name', 1, 255)], validateRequest, (req, res) => controller.createManufacturer(req, res));
 
+  // List CRUD (MUST be before '/:id')
+  router.get('/lists', gate, (req, res) => controller.getLists(req, res));
+  router.post('/lists', gate, csrfProtection, [commonRules.string('name', 1, 255)], validateRequest, (req, res) => controller.createList(req, res));
+  router.put('/lists/:id', gate, csrfProtection, [commonRules.id('id'), commonRules.string('name', 1, 255)], validateRequest, (req, res) => controller.renameList(req, res));
+  router.delete('/lists/:id', gate, csrfProtection, [commonRules.id('id')], validateRequest, (req, res) => controller.deleteList(req, res));
+
   // GET /api/products - List all products
   router.get('/', gate, (req, res) => controller.getAll(req, res));
 
@@ -127,6 +133,15 @@ function createProductRoutes(controller, context) {
   router.get('/:id/stats',
     gate,
     (req, res) => controller.getStats(req, res)
+  );
+
+  // PUT /api/products/:id/list - Set product list (body: listId or null for "Huvudlista")
+  router.put('/:id/list',
+    gate,
+    csrfProtection,
+    [commonRules.id('id')],
+    validateRequest,
+    (req, res) => controller.setProductList(req, res)
   );
 
   // PUT /api/products/:id - Update product

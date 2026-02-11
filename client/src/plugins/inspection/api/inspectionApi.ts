@@ -71,11 +71,23 @@ class InspectionApi {
     return this.request(`/projects/${projectId}/files/${fileId}`, { method: 'DELETE' });
   }
 
+  async addFileList(projectId: string, listId: string) {
+    return this.request(`/projects/${projectId}/file-lists`, {
+      method: 'POST',
+      body: JSON.stringify({ listId }),
+    });
+  }
+
+  async removeFileList(projectId: string, fileListId: string) {
+    return this.request(`/projects/${projectId}/file-lists/${fileListId}`, { method: 'DELETE' });
+  }
+
   async send(projectId: string, data: {
     recipients: string[];
     includeDescription?: boolean;
     includeAdminNotes?: boolean;
     fileIds?: string[];
+    listIds?: string[];
   }) {
     return this.request(`/projects/${projectId}/send`, {
       method: 'POST',

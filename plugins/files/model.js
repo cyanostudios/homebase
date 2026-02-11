@@ -171,6 +171,59 @@ class FilesModel {
     }
   }
 
+  async getListFiles(req, listId) {
+    const listsModel = require('../../server/core/lists/listsModel');
+    const list = await listsModel.getListById(req, 'files', listId);
+    if (!list) return [];
+    const fileIds = await listsModel.getFileListItems(req, listId);
+    const result = [];
+    for (const fileId of fileIds) {
+      const file = await this.getById(req, fileId);
+      if (file) result.push(file);
+    }
+    return result;
+  }
+
+  async addFilesToList(req, listId, fileIds) {
+    const db = Database.get(req);
+    const listsModel = require('../../server/core/lists/listsModel');
+    const list = await listsModel.getListById(req, 'files', listId);
+    if (!list) throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
+    const TABLE = 'file_list_items';
+    const ids = Array.isArray(fileIds) ? fileIds : [fileIds];
+    let added = 0;
+    for (const fileId of ids) {
+      if (!fileId) continue;
+      try {
+        await db.insert(TABLE, {
+          list_id: parseInt(listId, 10),
+          file_id: parseInt(String(fileId), 10),
+        });
+        added += 1;
+      } catch (e) {
+        if (e?.details?.code === '23505') continue;
+        throw e;
+      }
+    }
+    Logger.info('Files added to list', { listId, added });
+    return { added };
+  }
+
+  async removeFileFromList(req, listId, fileId) {
+    const db = Database.get(req);
+    const listsModel = require('../../server/core/lists/listsModel');
+    const list = await listsModel.getListById(req, 'files', listId);
+    if (!list) throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
+    const userId = listsModel.getUserId(req);
+    const result = await db.query(
+      `DELETE FROM file_list_items
+       WHERE list_id = $1 AND file_id = $2 AND user_id = $3
+       RETURNING file_id`,
+      [listId, fileId, userId]
+    );
+    return { removed: result && result.length > 0 };
+  }
+
   async bulkDelete(req, idsTextArray) {
     try {
       const db = Database.get(req);

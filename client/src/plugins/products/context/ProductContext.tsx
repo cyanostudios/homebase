@@ -546,8 +546,18 @@ export function ProductProvider({
         clearChannelDataCache();
       } else {
         const saved = await productsApi.createProduct(data);
+        const listId = data.listId != null && String(data.listId).trim() !== '' ? String(data.listId).trim() : null;
+        if (listId !== null) {
+          try {
+            await productsApi.setProductList(String(saved.id), listId);
+          } catch (listErr) {
+            console.warn('Set product list after create failed', listErr);
+          }
+        }
         const normalized = {
           ...saved,
+          listId: listId ?? saved.listId ?? null,
+          listName: saved.listName ?? null,
           createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
           updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
         };

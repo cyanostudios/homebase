@@ -358,6 +358,66 @@ class ProductController {
     return data;
   }
 
+  // ---- Lists (products namespace) ----
+
+  async getLists(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      const data = await listsModel.getLists(req, 'products');
+      return res.json(data);
+    } catch (error) {
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to fetch lists' });
+    }
+  }
+
+  async createList(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      const name = req.body?.name ?? '';
+      const data = await listsModel.createList(req, 'products', name);
+      return res.status(201).json(data);
+    } catch (error) {
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to create list' });
+    }
+  }
+
+  async renameList(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      const name = req.body?.name ?? '';
+      const data = await listsModel.renameList(req, 'products', req.params.id, name);
+      return res.json(data);
+    } catch (error) {
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to rename list' });
+    }
+  }
+
+  async deleteList(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      await listsModel.deleteList(req, 'products', req.params.id);
+      return res.status(204).send();
+    } catch (error) {
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to delete list' });
+    }
+  }
+
+  async setProductList(req, res) {
+    try {
+      const productId = req.params.id;
+      const listId = req.body?.listId ?? null;
+      const product = await this.model.setProductList(req, productId, listId);
+      return res.json(product);
+    } catch (error) {
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to set product list' });
+    }
+  }
+
   // ---- CRUD ----
 
   async getAll(req, res) {

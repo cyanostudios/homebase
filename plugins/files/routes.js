@@ -99,6 +99,45 @@ function createFilesRoutes(controller, context) {
       next();
     });
 
+  // ---- Lists (files namespace) ----
+  const { body } = require('express-validator');
+  const listsRouter = express.Router();
+  listsRouter.get('/', gate, (req, res) => controller.getLists(req, res));
+  listsRouter.post('/',
+    gate,
+    commonRules.string('name', 1, 255),
+    validateRequest,
+    (req, res) => controller.createList(req, res)
+  );
+  listsRouter.get('/:id/files', gate, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.getListFiles(req, res)
+  );
+  listsRouter.post('/:id/files',
+    gate,
+    commonRules.id('id'),
+    [body('fileIds').isArray().withMessage('fileIds must be an array')],
+    validateRequest,
+    (req, res) => controller.addFilesToList(req, res)
+  );
+  listsRouter.delete('/:id/files/:fileId',
+    gate,
+    commonRules.id('id'),
+    [commonRules.id('fileId')],
+    validateRequest,
+    (req, res) => controller.removeFileFromList(req, res)
+  );
+  listsRouter.put('/:id',
+    gate,
+    commonRules.id('id'),
+    commonRules.string('name', 1, 255),
+    validateRequest,
+    (req, res) => controller.renameList(req, res)
+  );
+  listsRouter.delete('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.deleteList(req, res)
+  );
+  router.use('/lists', listsRouter);
+
   // ---- CRUD (metadata) ----
   router.get('/', gate, (req, res) => controller.getAll(req, res));
 

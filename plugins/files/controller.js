@@ -230,6 +230,84 @@ class FilesController {
     }
   }
 
+  async getLists(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      const data = await listsModel.getLists(req, 'files');
+      res.json(data);
+    } catch (error) {
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch lists' });
+    }
+  }
+
+  async createList(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      const name = req.body?.name ?? '';
+      const data = await listsModel.createList(req, 'files', name);
+      res.status(201).json(data);
+    } catch (error) {
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to create list' });
+    }
+  }
+
+  async getListFiles(req, res) {
+    try {
+      const data = await this.model.getListFiles(req, req.params.id);
+      res.json(data);
+    } catch (error) {
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch list files' });
+    }
+  }
+
+  async renameList(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      const name = req.body?.name ?? '';
+      const data = await listsModel.renameList(req, 'files', req.params.id, name);
+      res.json(data);
+    } catch (error) {
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to rename list' });
+    }
+  }
+
+  async deleteList(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      await listsModel.deleteList(req, 'files', req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to delete list' });
+    }
+  }
+
+  async addFilesToList(req, res) {
+    try {
+      const fileIds = req.body?.fileIds;
+      if (!Array.isArray(fileIds)) return res.status(400).json({ error: 'fileIds array required' });
+      const result = await this.model.addFilesToList(req, req.params.id, fileIds);
+      res.json(result);
+    } catch (error) {
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to add files to list' });
+    }
+  }
+
+  async removeFileFromList(req, res) {
+    try {
+      await this.model.removeFileFromList(req, req.params.id, req.params.fileId);
+      res.status(204).send();
+    } catch (error) {
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to remove file from list' });
+    }
+  }
+
   // Serve with correct Content-Disposition filename (original name)
   async raw(req, res, { uploadRoot }) {
     try {

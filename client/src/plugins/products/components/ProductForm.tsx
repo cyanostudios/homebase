@@ -334,8 +334,8 @@ type FormData = {
   widthCm: number | '';
   heightCm: number | '';
   depthCm: number | '';
-  /** Produkt-fliken: lista (default Huvudlista) */
-  lista: string;
+  /** Produkt-fliken: lista ('' = Huvudlista, annars list id) */
+  listId: string;
   /** Per-market: price, shipping, delivery_type, active */
   markets: Record<MarketKey, MarketData>;
   /** Per-market language: title, description (SE/DK/FI/NO) */
@@ -425,7 +425,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     widthCm: '',
     heightCm: '',
     depthCm: '',
-    lista: 'Huvudlista',
+    listId: '',
     markets: {
       se: createEmptyMarket('se', 'SEK'),
       dk: createEmptyMarket('dk', 'DKK'),
@@ -454,6 +454,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const [statsRange, setStatsRange] = useState<'7d' | '30d' | '3m' | 'all'>('30d');
   const [stats, setStats] = useState<{ soldCount: number; bestChannel: string | null; activeTargetsCount: number; timeline: any[] } | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [lists, setLists] = useState<Array<{ id: string; name: string }>>([]);
   // Kanaler tab: instances + targets + overrides
   const [channelInstances, setChannelInstances] = useState<ChannelInstance[]>([]);
   const [channelOverrides, setChannelOverrides] = useState<any[]>([]);
@@ -732,7 +733,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         widthCm: (currentProduct as any).widthCm != null && (currentProduct as any).widthCm !== '' ? (currentProduct as any).widthCm : '',
         heightCm: (currentProduct as any).heightCm != null && (currentProduct as any).heightCm !== '' ? (currentProduct as any).heightCm : '',
         depthCm: (currentProduct as any).depthCm != null && (currentProduct as any).depthCm !== '' ? (currentProduct as any).depthCm : '',
-        lista: (currentProduct as any).lista ?? 'Huvudlista',
+        listId: (currentProduct as any).listId ?? '',
         markets,
         texts,
         channelCategories: (cs.cdon as any)?.categories ?? (cs.fyndiq as any)?.categories ?? {},
@@ -751,6 +752,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       markClean();
     }
   }, [currentProduct, isBatchMode, batchProductIds, markClean, productSettings]);
+
+  // Load lists when Produkt tab is active (for List dropdown)
+  useEffect(() => {
+    if (activeTab !== 'produkt' || isBatchMode) return;
+    productsApi.getLists().then((data) => setLists(data || [])).catch(() => setLists([]));
+  }, [activeTab, isBatchMode]);
 
   // Load brands, suppliers, manufacturers when Detaljer tab is active
   useEffect(() => {
@@ -1074,6 +1081,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         .filter((o) => o.channelInstanceId);
       const success = await onSave(payload, { hadChanges, channelTargets, channelTargetsWithMarket, channelOverridesToSave });
       if (success) {
+        if (currentProduct?.id) {
+          const listId = formData.listId?.trim() || null;
+          try {
+            await productsApi.setProductList(currentProduct.id, listId);
+          } catch (e) {
+            console.error('Failed to set product list', e);
+          }
+        }
         markClean();
         if (!currentProduct) {
           setFormData(initialState);
@@ -1369,10 +1384,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 <Label htmlFor="lista" className="mb-1">Lista</Label>
                 <NativeSelect
                   id="lista"
-                  value={formData.lista}
-                  onChange={(e) => { setFormData((prev) => ({ ...prev, lista: e.target.value })); markDirty(); }}
+                  value={formData.listId}
+                  onChange={(e) => { setFormData((prev) => ({ ...prev, listId: e.target.value })); markDirty(); }}
                 >
-                  <option value="Huvudlista">Huvudlista</option>
+                  <option value="">Huvudlista</option>
+                  {lists.map((l) => (
+                    <option key={l.id} value={l.id}>{l.name}</option>
+                  ))}
                 </NativeSelect>
               </div>
             </div>

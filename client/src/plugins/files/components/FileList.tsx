@@ -1,10 +1,11 @@
-import { File, Trash2, Grid3x3, List, ChevronUp, ChevronDown, Cloud, Settings, X, FolderOpen, Image } from 'lucide-react';
+import { File, Trash2, Grid3x3, List, ChevronUp, ChevronDown, Cloud, Settings, X, FolderOpen, Image, FolderPlus, Plus, Pencil, ChevronRight } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -17,7 +18,9 @@ import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
 import { useFiles } from '../hooks/useFiles';
+import { filesApi } from '../api/filesApi';
 import { CloudStorageSettings } from './CloudStorageSettings';
+import { FilePicker } from './FilePicker';
 
 type SortField = 'name' | 'updatedAt' | 'id';
 type SortOrder = 'asc' | 'desc';
@@ -70,8 +73,18 @@ export const FileList: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [showCloudSettings, setShowCloudSettings] = useState(false);
   const [openingCloudService, setOpeningCloudService] = useState<string | null>(null);
-  type StorageView = 'all' | 'local';
+  type StorageView = 'all' | 'local' | 'lists';
   const [activeStorageView, setActiveStorageView] = useState<StorageView>('all');
+  // Lists tab state
+  const [lists, setLists] = useState<Array<{ id: string; name: string }>>([]);
+  const [listsLoading, setListsLoading] = useState(false);
+  const [selectedListId, setSelectedListId] = useState<string | null>(null);
+  const [listFiles, setListFiles] = useState<any[]>([]);
+  const [listFilesLoading, setListFilesLoading] = useState(false);
+  const [showFilePicker, setShowFilePicker] = useState(false);
+  const [newListName, setNewListName] = useState('');
+  const [editingListId, setEditingListId] = useState<string | null>(null);
+  const [editingListName, setEditingListName] = useState('');
 
   // Clean up OAuth callback query params
   useEffect(() => {
@@ -82,6 +95,87 @@ export const FileList: React.FC = () => {
       window.history.replaceState({}, '', url.pathname + url.search);
     }
   }, []);
+
+  // Load lists when "Mina listor" tab is active
+  useEffect(() => {
+    if (activeStorageView !== 'lists') return;
+    setListsLoading(true);
+    filesApi
+      .getLists()
+      .then((data) => setLists(data || []))
+      .catch((err) => console.error('Failed to load lists:', err))
+      .finally(() => setListsLoading(false));
+  }, [activeStorageView]);
+
+  // Load list files when a list is selected
+  useEffect(() => {
+    if (!selectedListId) {
+      setListFiles([]);
+      return;
+    }
+    setListFilesLoading(true);
+    filesApi
+      .getListFiles(selectedListId)
+      .then((data) => setListFiles(Array.isArray(data) ? data : []))
+      .catch((err) => console.error('Failed to load list files:', err))
+      .finally(() => setListFilesLoading(false));
+  }, [selectedListId]);
+
+  const handleCreateList = async () => {
+    const name = newListName.trim();
+    if (!name) return;
+    try {
+      const created = await filesApi.createList(name);
+      setLists((prev) => [...prev, { id: created.id, name: created.name }].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewListName('');
+    } catch (err) {
+      console.error('Create list failed:', err);
+    }
+  };
+
+  const handleRenameList = async (listId: string) => {
+    const name = editingListName.trim();
+    if (!name) return;
+    try {
+      await filesApi.renameList(listId, name);
+      setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, name } : l)));
+      setEditingListId(null);
+      setEditingListName('');
+    } catch (err) {
+      console.error('Rename list failed:', err);
+    }
+  };
+
+  const handleDeleteList = async (listId: string) => {
+    if (!confirm('Ta bort listan? Filerna tas inte bort, bara kopplingen.')) return;
+    try {
+      await filesApi.deleteList(listId);
+      setLists((prev) => prev.filter((l) => l.id !== listId));
+      if (selectedListId === listId) setSelectedListId(null);
+    } catch (err) {
+      console.error('Delete list failed:', err);
+    }
+  };
+
+  const handleAddFilesToList = (fileIds: string[]) => {
+    if (!selectedListId || fileIds.length === 0) return;
+    filesApi
+      .addFilesToList(selectedListId, fileIds)
+      .then(() => {
+        return filesApi.getListFiles(selectedListId);
+      })
+      .then((data) => setListFiles(Array.isArray(data) ? data : []))
+      .catch((err) => console.error('Add files to list failed:', err));
+    setShowFilePicker(false);
+  };
+
+  const handleRemoveFileFromList = (fileId: string) => {
+    if (!selectedListId) return;
+    filesApi
+      .removeFileFromList(selectedListId, fileId)
+      .then(() => setListFiles((prev) => prev.filter((f: any) => String(f.id) !== String(fileId))))
+      .catch((err) => console.error('Remove file from list failed:', err));
+  };
 
   const normalized = (it: any) => ({
     id: String(it.id ?? ''),
@@ -293,6 +387,15 @@ export const FileList: React.FC = () => {
                 <FolderOpen className="w-4 h-4" />
                 <span>My files</span>
               </Button>
+              <Button
+                variant={activeStorageView === 'lists' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveStorageView('lists')}
+                title="Mina listor"
+              >
+                <FolderPlus className="w-4 h-4" />
+                <span>Mina listor</span>
+              </Button>
               {connectedServices.map((service) => (
                 <Button
                   key={service.name}
@@ -355,7 +458,145 @@ export const FileList: React.FC = () => {
       )}
 
       <Card className="shadow-none">
-        {activeStorageView === 'all' ? (
+        {activeStorageView === 'lists' ? (
+          <div className="p-4 space-y-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Input
+                placeholder="Ny listas namn"
+                value={newListName}
+                onChange={(e) => setNewListName(e.target.value)}
+                className="max-w-xs"
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateList()}
+              />
+              <Button size="sm" icon={Plus} onClick={handleCreateList} disabled={!newListName.trim()}>
+                Skapa lista
+              </Button>
+            </div>
+            {listsLoading ? (
+              <div className="text-sm text-muted-foreground">Laddar listor...</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold">Listor</h3>
+                  <div className="border rounded-md divide-y max-h-[400px] overflow-y-auto">
+                    {lists.length === 0 ? (
+                      <div className="p-4 text-sm text-muted-foreground">Inga listor. Skapa en ovan.</div>
+                    ) : (
+                      lists.map((list) => (
+                        <div
+                          key={list.id}
+                          className={`flex items-center gap-2 px-3 py-2 group ${
+                            selectedListId === list.id ? 'bg-muted' : 'hover:bg-muted/50'
+                          }`}
+                        >
+                          {editingListId === list.id ? (
+                            <>
+                              <Input
+                                value={editingListName}
+                                onChange={(e) => setEditingListName(e.target.value)}
+                                className="h-8 flex-1"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleRenameList(list.id);
+                                  if (e.key === 'Escape') setEditingListId(null);
+                                }}
+                                autoFocus
+                              />
+                              <Button size="sm" variant="ghost" onClick={() => handleRenameList(list.id)}>
+                                Spara
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => setEditingListId(null)}>
+                                Avbryt
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                className="flex-1 flex items-center gap-2 text-left min-w-0"
+                                onClick={() => setSelectedListId(list.id)}
+                              >
+                                <ChevronRight className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                                <span className="truncate">{list.name}</span>
+                              </button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                icon={Pencil}
+                                className="opacity-0 group-hover:opacity-100"
+                                onClick={() => {
+                                  setEditingListId(list.id);
+                                  setEditingListName(list.name);
+                                }}
+                                aria-label="Byt namn"
+                              />
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                icon={Trash2}
+                                className="opacity-0 group-hover:opacity-100 text-destructive"
+                                onClick={() => handleDeleteList(list.id)}
+                                aria-label="Ta bort lista"
+                              />
+                            </>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold flex items-center justify-between">
+                    <span>{selectedListId ? lists.find((l) => l.id === selectedListId)?.name ?? 'Filer' : 'Välj en lista'}</span>
+                    {selectedListId && (
+                      <Button size="sm" icon={Plus} variant="outline" onClick={() => setShowFilePicker(true)}>
+                        Lägg till filer
+                      </Button>
+                    )}
+                  </h3>
+                  {selectedListId && (
+                    <div className="border rounded-md max-h-[400px] overflow-y-auto">
+                      {listFilesLoading ? (
+                        <div className="p-4 text-sm text-muted-foreground">Laddar filer...</div>
+                      ) : listFiles.length === 0 ? (
+                        <div className="p-4 text-sm text-muted-foreground">Inga filer i listan. Klicka &quot;Lägg till filer&quot;.</div>
+                      ) : (
+                        <div className="divide-y">
+                          {listFiles.map((f: any) => (
+                            <div key={f.id} className="flex items-center gap-2 px-3 py-2 group">
+                              <File className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                              <span className="flex-1 truncate text-sm">{f.name || 'Namnlös'}</span>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                icon={Trash2}
+                                className="opacity-0 group-hover:opacity-100 text-destructive"
+                                onClick={() => handleRemoveFileFromList(String(f.id))}
+                                aria-label="Ta bort från listan"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {showFilePicker && selectedListId && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-black/40" onClick={() => setShowFilePicker(false)} />
+                <Card className="relative z-10 w-full max-w-md p-4">
+                  <h3 className="text-sm font-semibold mb-3">Lägg till filer i listan</h3>
+                  <FilePicker
+                    selectedIds={listFiles.map((f: any) => String(f.id))}
+                    onSelect={handleAddFilesToList}
+                    onClose={() => setShowFilePicker(false)}
+                  />
+                </Card>
+              </div>
+            )}
+          </div>
+        ) : activeStorageView === 'all' ? (
           <div className="space-y-6">
             {/* Local Files Section */}
             <div>

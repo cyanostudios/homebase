@@ -15,6 +15,7 @@ import {
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 
+import { productsApi } from '../api/productsApi';
 import { useProducts } from '../hooks/useProducts';
 import { ProductSettingsForm } from './ProductSettingsForm';
 import { useWooCommerce } from '@/plugins/woocommerce-products/context/WooCommerceContext';
@@ -58,9 +59,15 @@ export const ProductList: React.FC = () => {
 
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
+  const [listFilter, setListFilter] = useState<string>('all');
+  const [lists, setLists] = useState<Array<{ id: string; name: string }>>([]);
   const [sortField, setSortField] = useState<SortField>('productNumber');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [isMobileView, setIsMobileView] = useState(false);
+
+  useEffect(() => {
+    productsApi.getLists().then((data) => setLists(data || [])).catch(() => setLists([]));
+  }, []);
 
   const [wooInstances, setWooInstances] = useState<Array<{ id: string; instanceKey?: string; label?: string | null }>>([]);
   useEffect(() => {
@@ -153,6 +160,8 @@ export const ProductList: React.FC = () => {
       categories: Array.isArray(p.categories) ? p.categories : [],
       brand: p.brand || null,
       gtin: p.gtin || null,
+      listId: p.listId ?? null,
+      listName: p.listName ?? null,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
       raw: p,
@@ -162,7 +171,7 @@ export const ProductList: React.FC = () => {
   const filteredAndSorted = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
 
-    const filtered = products.map(normalize).filter((p: any) => {
+    let filtered = products.map(normalize).filter((p: any) => {
       if (!needle) return true;
       return (
         p.title.toLowerCase().includes(needle) ||
@@ -171,6 +180,15 @@ export const ProductList: React.FC = () => {
         String(p.mpn || '').toLowerCase().includes(needle)
       );
     });
+
+    if (listFilter !== 'all') {
+      filtered = filtered.filter((p: any) => {
+        const lid = p.raw?.listId ?? p.listId ?? null;
+        const empty = lid == null || String(lid).trim() === '';
+        if (listFilter === 'main') return empty;
+        return String(lid) === String(listFilter);
+      });
+    }
 
     const cmp = (a: any, b: any) => {
       let av: string | number = '';
@@ -211,7 +229,7 @@ export const ProductList: React.FC = () => {
     };
 
     return filtered.sort(cmp);
-  }, [products, searchTerm, sortField, sortOrder]);
+  }, [products, searchTerm, listFilter, sortField, sortOrder]);
 
   // Selected products (actual objects)
   const selectedProducts = useMemo(() => {
@@ -450,6 +468,18 @@ export const ProductList: React.FC = () => {
               className="w-full sm:w-80 pl-4 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
+          <select
+            value={listFilter}
+            onChange={(e) => setListFilter(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            aria-label="Filter by list"
+          >
+            <option value="all">Alla produkter</option>
+            <option value="main">Huvudlista</option>
+            {lists.map((l) => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
           <div className="flex items-center justify-end gap-2">
             <Button
               variant="outline"

@@ -60,11 +60,15 @@ class ProductModel {
           p.updated_at,
           b.name AS brand_name,
           s.name AS supplier_name,
-          m.name AS manufacturer_name
+          m.name AS manufacturer_name,
+          pli.list_id AS list_id,
+          l.name AS list_name
         FROM ${ProductModel.TABLE} p
         LEFT JOIN brands b ON b.id = p.brand_id
         LEFT JOIN suppliers s ON s.id = p.supplier_id
         LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
+        LEFT JOIN product_list_items pli ON pli.product_id = p.id AND pli.user_id = p.user_id
+        LEFT JOIN lists l ON l.id = pli.list_id
         WHERE p.user_id = $1
         ORDER BY p.product_number NULLS LAST, p.id
       `;
@@ -76,6 +80,75 @@ class ProductModel {
         throw error;
       }
       throw new AppError('Failed to fetch products', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async getById(req, productId) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const id = parseInt(String(productId), 10);
+      if (!Number.isFinite(id)) return null;
+      const sql = `
+        SELECT
+          p.id,
+          p.user_id,
+          p.product_number,
+          p.sku,
+          p.mpn,
+          p.title,
+          p.description,
+          p.status,
+          p.quantity,
+          p.price_amount,
+          p.currency,
+          p.vat_rate,
+          p.main_image,
+          p.images,
+          p.categories,
+          p.brand,
+          p.brand_id,
+          p.ean,
+          p.gtin,
+          p.supplier_id,
+          p.manufacturer_id,
+          p.channel_specific,
+          p.purchase_price,
+          p.sale_price,
+          p.lagerplats,
+          p.color,
+          p.color_text,
+          p.size,
+          p.size_text,
+          p.pattern,
+          p.weight,
+          p.length_cm,
+          p.width_cm,
+          p.height_cm,
+          p.depth_cm,
+          p.created_at,
+          p.updated_at,
+          b.name AS brand_name,
+          s.name AS supplier_name,
+          m.name AS manufacturer_name,
+          pli.list_id AS list_id,
+          l.name AS list_name
+        FROM ${ProductModel.TABLE} p
+        LEFT JOIN brands b ON b.id = p.brand_id
+        LEFT JOIN suppliers s ON s.id = p.supplier_id
+        LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
+        LEFT JOIN product_list_items pli ON pli.product_id = p.id AND pli.user_id = p.user_id
+        LEFT JOIN lists l ON l.id = pli.list_id
+        WHERE p.user_id = $1 AND p.id = $2
+        LIMIT 1
+      `;
+      const result = await db.query(sql, [userId, id]);
+      return result[0] ? this.transformRow(result[0]) : null;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to fetch product by id', error);
+      throw new AppError('Failed to fetch product', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
@@ -132,11 +205,15 @@ class ProductModel {
           p.updated_at,
           b.name AS brand_name,
           s.name AS supplier_name,
-          m.name AS manufacturer_name
+          m.name AS manufacturer_name,
+          pli.list_id AS list_id,
+          l.name AS list_name
         FROM ${ProductModel.TABLE} p
         LEFT JOIN brands b ON b.id = p.brand_id
         LEFT JOIN suppliers s ON s.id = p.supplier_id
         LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
+        LEFT JOIN product_list_items pli ON pli.product_id = p.id AND pli.user_id = p.user_id
+        LEFT JOIN lists l ON l.id = pli.list_id
         WHERE p.user_id = $1
           AND p.sku = $2
         LIMIT 1
@@ -839,7 +916,30 @@ class ProductModel {
       depthCm: row.depth_cm != null ? toNumberOr(row.depth_cm, null) : null,
       createdAt: row.created_at ?? null,
       updatedAt: row.updated_at ?? null,
+      listId: row.list_id != null ? String(row.list_id) : null,
+      listName: row.list_name ?? null,
     };
+  }
+
+  async setProductList(req, productId, listId) {
+    const db = Database.get(req);
+    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+
+    const product = await this.getById(req, productId);
+    if (!product) throw new AppError('Product not found', 404, AppError.CODES.NOT_FOUND);
+
+    await db.query(
+      `DELETE FROM product_list_items WHERE user_id = $1 AND product_id = $2`,
+      [userId, productId]
+    );
+    if (listId != null && String(listId).trim() !== '') {
+      await db.insert('product_list_items', {
+        list_id: parseInt(String(listId), 10),
+        product_id: parseInt(productId, 10),
+      });
+    }
+    return this.getById(req, productId);
   }
 }
 

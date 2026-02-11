@@ -1,7 +1,7 @@
 // plugins/inspection/controller.js
 const path = require('path');
 const fs = require('fs');
-const { Logger, Context } = require('@homebase/core');
+const { Logger } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const model = require('./model');
 const ContactsModel = require('../contacts/model');
@@ -56,7 +56,7 @@ class InspectionController {
       const items = await model.getAll(req);
       res.json(items);
     } catch (error) {
-      Logger.error('Get inspection projects failed', error, { userId: Context.getUserId(req) });
+      Logger.error('Get inspection projects failed', error);
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       res.status(500).json({ error: 'Failed to fetch inspection projects' });
     }
@@ -148,9 +148,33 @@ class InspectionController {
     }
   }
 
+  async addFileList(req, res) {
+    try {
+      const { listId } = req.body;
+      if (!listId) return res.status(400).json({ error: 'listId is required' });
+      const item = await model.addFileList(req, req.params.id, String(listId).trim());
+      res.status(201).json(item);
+    } catch (error) {
+      Logger.error('Add file list to project failed', error, { projectId: req.params.id });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to add list' });
+    }
+  }
+
+  async removeFileList(req, res) {
+    try {
+      const item = await model.removeFileList(req, req.params.id, req.params.fileListId);
+      res.json(item);
+    } catch (error) {
+      Logger.error('Remove file list from project failed', error);
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to remove list' });
+    }
+  }
+
   async send(req, res) {
     try {
-      const { recipients, includeDescription, includeAdminNotes, fileIds } = req.body;
+      const { recipients, includeDescription, includeAdminNotes, fileIds, listIds } = req.body;
       const projectId = req.params.id;
 
       if (!recipients || (Array.isArray(recipients) && recipients.length === 0)) {
@@ -174,9 +198,22 @@ class InspectionController {
       }
       const bodyText = parts.join('\n\n') || 'No content.';
 
-      const idsToAttach = Array.isArray(fileIds) && fileIds.length > 0
-        ? fileIds
-        : (project.files || []).map((f) => f.id);
+      let idsToAttach = [];
+      if (Array.isArray(fileIds) && fileIds.length > 0) {
+        idsToAttach = fileIds.map((id) => String(id));
+      }
+      if (Array.isArray(listIds) && listIds.length > 0 && project.fileLists) {
+        for (const fl of project.fileLists) {
+          if (listIds.includes(fl.id) && Array.isArray(fl.fileIds)) {
+            idsToAttach.push(...fl.fileIds.map((id) => String(id)));
+          }
+        }
+      }
+      if (idsToAttach.length === 0) {
+        idsToAttach = (project.files || []).map((f) => f.id);
+      } else {
+        idsToAttach = [...new Set(idsToAttach)];
+      }
       const attachments = await loadFileBuffers(req, idsToAttach);
 
       const logEntry = await sendWithUserSettings(

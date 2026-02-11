@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { File, Mail, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, File, Mail, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -11,8 +11,9 @@ import { filesApi } from '@/plugins/files/api/filesApi';
 import { useInspections } from '../hooks/useInspections';
 import { inspectionApi } from '../api/inspectionApi';
 import { FilePicker } from './FilePicker';
+import { ListPicker } from './ListPicker';
 import { SendModal } from './SendModal';
-import type { InspectionProject, InspectionFile } from '../types/inspection';
+import type { InspectionProject, InspectionFile, InspectionFileList } from '../types/inspection';
 
 interface InspectionViewProps {
   inspectionProject?: InspectionProject | null;
@@ -31,6 +32,8 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
     closeInspectionPanel,
     loadProjects,
     saveInspectionAndClose,
+    saveInspectionAndStay,
+    setPanelMode,
     validationErrors,
     clearValidationErrors,
   } = useInspections();
@@ -44,11 +47,18 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
   const [description, setDescription] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
   const [projectFiles, setProjectFiles] = useState<InspectionFile[]>([]);
+  const [projectFileLists, setProjectFileLists] = useState<InspectionFileList[]>([]);
   const [pendingFileIds, setPendingFileIds] = useState<string[]>([]);
+  const [pendingListIds, setPendingListIds] = useState<string[]>([]);
+  const [pendingLists, setPendingLists] = useState<{ id: string; name: string }[]>([]);
   const [filesList, setFilesList] = useState<{ id: string; name?: string }[]>([]);
   const [showFilePicker, setShowFilePicker] = useState(false);
+  const [showListPicker, setShowListPicker] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [expandedListIds, setExpandedListIds] = useState<Set<string>>(new Set());
+  const [pendingListFilesCache, setPendingListFilesCache] = useState<Record<string, { id: string; name?: string }[]>>({});
+  const [fileIdToName, setFileIdToName] = useState<Record<string, string>>({});
   const [isDirty, setIsDirty] = useState(false);
   const [filesLoading, setFilesLoading] = useState(false);
 
@@ -67,19 +77,27 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
       setDescription(projectFromProps.description || '');
       setAdminNotes(projectFromProps.adminNotes || '');
       setProjectFiles(projectFromProps.files || []);
+      setProjectFileLists(projectFromProps.fileLists || []);
       setPendingFileIds([]);
+      setPendingListIds([]);
+      setPendingLists([]);
       setIsDirty(false);
     } else {
       setName(new Date().toISOString().slice(0, 10));
       setDescription('');
       setAdminNotes('');
       setProjectFiles([]);
+      setProjectFileLists([]);
       setPendingFileIds([]);
+      setPendingListIds([]);
+      setPendingLists([]);
       setIsDirty(false);
     }
 
     lastLoadedProjectIdRef.current = null;
     setFilesLoading(false);
+    setExpandedListIds(new Set());
+    setPendingListFilesCache({});
   }, [projectFromProps?.id]);
 
   useEffect(() => {
@@ -98,6 +116,7 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
         if (seq !== loadSeqRef.current) return;
 
         setProjectFiles(p.files || []);
+        setProjectFileLists(p.fileLists || []);
         setName(p.name || '');
         setDescription(p.description || '');
         setAdminNotes(p.adminNotes || '');
@@ -107,6 +126,47 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
         if (seq === loadSeqRef.current) setFilesLoading(false);
       });
   }, [isCreate, projectId]);
+
+  // When in edit mode with file lists that have fileIds, load all files once to resolve names
+  useEffect(() => {
+    if (isCreate || !projectFileLists.length) return;
+    const allIds = new Set<string>();
+    projectFileLists.forEach((fl) => (fl.fileIds || []).forEach((id) => allIds.add(String(id))));
+    if (allIds.size === 0) return;
+    filesApi
+      .getItems()
+      .then((items: any[]) => {
+        const map: Record<string, string> = {};
+        (items || []).forEach((f) => {
+          if (f?.id) map[String(f.id)] = f.name || 'Namnlös';
+        });
+        setFileIdToName(map);
+      })
+      .catch(() => setFileIdToName({}));
+  }, [isCreate, projectFileLists]);
+
+  const toggleListExpanded = useCallback((key: string) => {
+    setExpandedListIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const loadPendingListFiles = useCallback((listId: string) => {
+    setPendingListFilesCache((prev) => {
+      if (prev[listId] !== undefined) return prev;
+      filesApi
+        .getListFiles(listId)
+        .then((data) => {
+          const files = Array.isArray(data) ? data : [];
+          setPendingListFilesCache((p) => ({ ...p, [listId]: files }));
+        })
+        .catch(() => setPendingListFilesCache((p) => ({ ...p, [listId]: [] })));
+      return prev;
+    });
+  }, []);
 
   useEffect(() => {
     if (!isCreate) return;
@@ -200,7 +260,92 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
     [projectId]
   );
 
+  const handleAddLists = useCallback(
+    (listIds: string[], lists?: { id: string; name: string }[]) => {
+      if (isCreate) {
+        setPendingListIds((prev) => {
+          const next = new Set(prev);
+          listIds.forEach((id) => next.add(id));
+          return Array.from(next);
+        });
+        if (lists?.length) {
+          setPendingLists((prev) => {
+            const byId = new Map(prev.map((l) => [l.id, l]));
+            lists.forEach((l) => byId.set(l.id, l));
+            return Array.from(byId.values());
+          });
+        }
+        setShowListPicker(false);
+        markDirty();
+      } else if (projectId) {
+        (async () => {
+          try {
+            const selectedSet = new Set(listIds.map(String));
+            // Remove lists that are no longer selected (same behaviour as FilePicker: selection replaces)
+            const toRemove = projectFileLists.filter((fl) => !selectedSet.has(String(fl.sourceListId)));
+            for (const fl of toRemove) {
+              await inspectionApi.removeFileList(projectId, fl.id);
+            }
+            // Add lists that are selected but not yet attached
+            const attachedSourceIds = new Set(projectFileLists.map((fl) => String(fl.sourceListId)));
+            const toAdd = listIds.filter((id) => !attachedSourceIds.has(String(id)));
+            for (const listId of toAdd) {
+              await inspectionApi.addFileList(projectId, listId);
+            }
+            const p = await inspectionApi.getProject(projectId);
+            setProjectFileLists(p?.fileLists || []);
+          } catch (e) {
+            console.error('Failed to update lists:', e);
+          } finally {
+            setShowListPicker(false);
+          }
+        })();
+      }
+    },
+    [isCreate, projectId, markDirty, projectFileLists]
+  );
+
+  const handleRemoveFileList = useCallback(
+    async (fileListId: string) => {
+      if (isCreate) {
+        setPendingListIds((prev) => prev.filter((id) => id !== fileListId));
+        setPendingLists((prev) => prev.filter((l) => l.id !== fileListId));
+        markDirty();
+        return;
+      }
+      if (!projectId) return;
+      try {
+        await inspectionApi.removeFileList(projectId, fileListId);
+        setProjectFileLists((prev) => prev.filter((fl) => fl.id !== fileListId));
+      } catch (e) {
+        console.error('Failed to remove list:', e);
+      }
+    },
+    [isCreate, projectId, markDirty]
+  );
+
+  const [projectForSendModal, setProjectForSendModal] = useState<InspectionProject | null>(null);
+
+  const handleSaveAndSend = useCallback(async () => {
+    clearValidationErrors();
+    setSaving(true);
+    try {
+      const payload: any = { name, description, adminNotes, pendingFileIds, pendingListIds };
+      const project = await saveInspectionAndStay(payload);
+      if (project) {
+        setProjectForSendModal(project);
+        setShowSendModal(true);
+        setIsDirty(false);
+      }
+    } catch {
+      // validation errors set in context
+    } finally {
+      setSaving(false);
+    }
+  }, [name, description, adminNotes, pendingFileIds, pendingListIds, saveInspectionAndStay, clearValidationErrors]);
+
   const currentProject = projectFromProps ?? currentInspectionProject;
+  const projectToSend = projectForSendModal ?? (currentProject ? { ...currentProject, files: projectFiles, fileLists: projectFileLists } : null);
 
   return (
     <div className="p-4">
@@ -250,12 +395,16 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
             />
           </div>
 
-          {!isCreate && currentProject && (
-            <Button type="button" variant="default" className="w-full" onClick={() => setShowSendModal(true)}>
-              <Mail className="h-4 w-4 mr-2" />
-              Skicka till hantverkare
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="default"
+            className="w-full"
+            onClick={isCreate ? handleSaveAndSend : () => setShowSendModal(true)}
+            disabled={isCreate && saving}
+          >
+            <Mail className="h-4 w-4 mr-2" />
+            {isCreate ? 'Spara och skicka' : 'Skicka'}
+          </Button>
 
           {validationErrors.map((e) => (
             <div key={e.field} className="text-sm text-destructive">
@@ -265,38 +414,149 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
         </div>
 
         <div className="min-w-0 flex flex-col gap-3">
-          {showFilePicker && (
+          <div className="flex items-center justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setShowFilePicker(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Lägg till fil
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setShowListPicker(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Lägg till lista
+            </Button>
+          </div>
+          <div>
+            <Label>Bifogade listor</Label>
+            <Card className="p-3 mt-2">
+              {isCreate ? (
+                pendingLists.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Inga listor bifogade</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {pendingLists.map((list) => {
+                      const isExpanded = expandedListIds.has(list.id);
+                      const files = pendingListFilesCache[list.id];
+                      return (
+                        <li key={list.id} className="border-b last:border-0">
+                          <div className="flex items-center gap-1 py-2">
+                            <button
+                              type="button"
+                              aria-label={isExpanded ? 'Kollapsa' : 'Expandera'}
+                              className="p-0.5 rounded hover:bg-muted"
+                              onClick={() => {
+                                toggleListExpanded(list.id);
+                                if (!isExpanded) loadPendingListFiles(list.id);
+                              }}
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </button>
+                            <span className="truncate flex-1 min-w-0">{list.name || 'Lista'}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="flex-shrink-0"
+                              onClick={() => handleRemoveFileList(list.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                          {isExpanded && (
+                            <div className="ml-6 pl-2 border-l border-muted pb-2">
+                              {files === undefined ? (
+                                <p className="text-xs text-muted-foreground py-1">Laddar filer...</p>
+                              ) : files.length === 0 ? (
+                                <p className="text-xs text-muted-foreground py-1">Inga filer i listan</p>
+                              ) : (
+                                <ul className="space-y-0.5 pt-1">
+                                  {files.map((f: any) => (
+                                    <li key={f.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                                      <File className="h-3 w-3 flex-shrink-0" />
+                                      <span className="truncate">{f.name || 'Namnlös'}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )
+              ) : projectFileLists.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Inga listor bifogade</p>
+              ) : (
+                <ul className="space-y-1">
+                  {projectFileLists.map((fl) => {
+                    const isExpanded = expandedListIds.has(fl.id);
+                    const fileIds = fl.fileIds || [];
+                    return (
+                      <li key={fl.id} className="border-b last:border-0">
+                        <div className="flex items-center gap-1 py-2">
+                          <button
+                            type="button"
+                            aria-label={isExpanded ? 'Kollapsa' : 'Expandera'}
+                            className="p-0.5 rounded hover:bg-muted"
+                            onClick={() => toggleListExpanded(fl.id)}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </button>
+                          <span className="truncate flex-1 min-w-0">{fl.sourceListName || 'Lista'}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="flex-shrink-0"
+                            onClick={() => handleRemoveFileList(fl.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                        {isExpanded && (
+                          <div className="ml-6 pl-2 border-l border-muted pb-2">
+                            {fileIds.length === 0 ? (
+                              <p className="text-xs text-muted-foreground py-1">Inga filer i listan</p>
+                            ) : (
+                              <ul className="space-y-0.5 pt-1">
+                                {fileIds.map((fileId) => (
+                                  <li key={fileId} className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <File className="h-3 w-3 flex-shrink-0" />
+                                    <span className="truncate">{fileIdToName[fileId] || `Fil ${fileId}`}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Card>
+          </div>
+
+          {showListPicker && (
             <div className="border rounded-lg p-3 bg-muted/30">
-              <FilePicker
-                selectedIds={isCreate ? pendingFileIds : projectFiles.map((f) => f.id)}
-                onSelect={
-                  isCreate
-                    ? (ids) => {
-                        setPendingFileIds(ids);
-                        setShowFilePicker(false);
-                        markDirty();
-                      }
-                    : (ids) => {
-                        setShowFilePicker(false);
-                        setFilesLoading(true);
-                        handleSetFiles(ids).finally(() => setFilesLoading(false));
-                      }
-                }
-                onClose={() => setShowFilePicker(false)}
+              <ListPicker
+                selectedIds={isCreate ? pendingListIds : projectFileLists.map((fl) => fl.sourceListId)}
+                onSelect={handleAddLists}
+                onClose={() => setShowListPicker(false)}
               />
             </div>
           )}
 
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label>Bifogade filer</Label>
-              <Button type="button" variant="outline" size="sm" onClick={() => setShowFilePicker(true)}>
-                <Plus className="h-4 w-4 mr-1" />
-                Lägg till fil
-              </Button>
-            </div>
-
-            <Card className="p-3">
+            <Label>Bifogade filer</Label>
+            <Card className="p-3 mt-2">
               {isCreate ? (
                 !pendingFileIds.length ? (
                   <p className="text-sm text-muted-foreground">Inga filer valda</p>
@@ -356,14 +616,40 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
               )}
             </Card>
           </div>
+
+          {showFilePicker && (
+            <div className="border rounded-lg p-3 bg-muted/30">
+              <FilePicker
+                selectedIds={isCreate ? pendingFileIds : projectFiles.map((f) => f.id)}
+                onSelect={
+                  isCreate
+                    ? (ids) => {
+                        setPendingFileIds(ids);
+                        setShowFilePicker(false);
+                        markDirty();
+                      }
+                    : (ids) => {
+                        setShowFilePicker(false);
+                        setFilesLoading(true);
+                        handleSetFiles(ids).finally(() => setFilesLoading(false));
+                      }
+                }
+                onClose={() => setShowFilePicker(false)}
+              />
+            </div>
+          )}
         </div>
       </div>
 
-      {showSendModal && currentProject && (
+      {showSendModal && projectToSend && (
         <SendModal
-          project={{ ...currentProject, files: projectFiles }}
-          onClose={() => setShowSendModal(false)}
+          project={projectToSend}
+          onClose={() => {
+            setShowSendModal(false);
+            setProjectForSendModal(null);
+          }}
           onSent={async () => {
+            setPanelMode('edit');
             await loadProjects();
           }}
         />

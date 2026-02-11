@@ -47,6 +47,10 @@ export interface Product {
   /** Channel-specific attributes (cdon, fyndiq, woocommerce keys). Populated when migration 031 applied. */
   channelSpecific?: Record<string, unknown> | null;
 
+  /** List (folder): one product can be in one list. null = Huvudlista. */
+  listId?: string | null;
+  listName?: string | null;
+
   createdAt: Date | null;
   updatedAt: Date | null;
 }

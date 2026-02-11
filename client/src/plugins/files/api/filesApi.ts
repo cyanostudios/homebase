@@ -153,6 +153,46 @@ export class FilesApi {
       // NOTE: let browser set the correct multipart boundary → no manual Content-Type
     });
   }
+
+  // ---- Lists ----
+  getLists(): Promise<Array<{ id: string; name: string; namespace: string; createdAt: string; updatedAt: string }>> {
+    return this.request('/lists');
+  }
+
+  getListFiles(listId: string): Promise<any[]> {
+    return this.request(`/lists/${encodeURIComponent(listId)}/files`);
+  }
+
+  createList(name: string): Promise<{ id: string; name: string; namespace: string; createdAt: string; updatedAt: string }> {
+    return this.request('/lists', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  renameList(listId: string, name: string): Promise<{ id: string; name: string; namespace: string; createdAt: string; updatedAt: string }> {
+    return this.request(`/lists/${encodeURIComponent(listId)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  deleteList(listId: string): Promise<void> {
+    return this.request(`/lists/${encodeURIComponent(listId)}`, { method: 'DELETE' });
+  }
+
+  addFilesToList(listId: string, fileIds: string[]): Promise<any> {
+    return this.request(`/lists/${encodeURIComponent(listId)}/files`, {
+      method: 'POST',
+      body: JSON.stringify({ fileIds }),
+    });
+  }
+
+  removeFileFromList(listId: string, fileId: string): Promise<void> {
+    return this.request(`/lists/${encodeURIComponent(listId)}/files/${encodeURIComponent(fileId)}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const filesApi = new FilesApi('/api/files');

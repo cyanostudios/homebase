@@ -67,6 +67,23 @@ function createInspectionRoutes(context) {
   );
 
   router.post(
+    '/projects/:id/file-lists',
+    gate,
+    commonRules.id('id'),
+    [body('listId').notEmpty().withMessage('listId is required')],
+    validateRequest,
+    (req, res) => controller.addFileList(req, res)
+  );
+  router.delete(
+    '/projects/:id/file-lists/:fileListId',
+    gate,
+    commonRules.id('id'),
+    [commonRules.id('fileListId')],
+    validateRequest,
+    (req, res) => controller.removeFileList(req, res)
+  );
+
+  router.post(
     '/projects/:id/send',
     gate,
     commonRules.id('id'),
@@ -75,6 +92,7 @@ function createInspectionRoutes(context) {
       body('includeDescription').optional().isBoolean(),
       body('includeAdminNotes').optional().isBoolean(),
       body('fileIds').optional().isArray(),
+      body('listIds').optional().isArray(),
     ],
     validateRequest,
     (req, res) => controller.send(req, res)

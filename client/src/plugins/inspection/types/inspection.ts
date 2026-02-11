@@ -7,6 +7,14 @@ export interface InspectionFile {
   linkId?: string;
 }
 
+export interface InspectionFileList {
+  id: string;
+  sourceListId: string;
+  sourceListName: string;
+  createdAt: string;
+  fileIds: string[];
+}
+
 export interface InspectionProject {
   id: string;
   name: string;
@@ -15,4 +23,5 @@ export interface InspectionProject {
   createdAt: string;
   updatedAt: string;
   files: InspectionFile[];
+  fileLists?: InspectionFileList[];
 }
