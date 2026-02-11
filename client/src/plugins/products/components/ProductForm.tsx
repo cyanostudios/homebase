@@ -70,29 +70,6 @@ const PATTERN_OPTIONS = [
   { value: 'retro', label: 'Retro' },
 ];
 
-/** WooCommerce categories: build tree (for flat list with depth). */
-function buildWooCategoryTreeOrder(
-  flat: Array<{ id: string; name: string; parent?: number }>,
-): Array<{ id: string; name: string; depth: number }> {
-  if (!flat.length) return [];
-  const byParent = new Map<number, Array<{ id: string; name: string; parent?: number }>>();
-  for (const x of flat) {
-    const p = x.parent ?? 0;
-    if (!byParent.has(p)) byParent.set(p, []);
-    byParent.get(p)!.push(x);
-  }
-  const result: Array<{ id: string; name: string; depth: number }> = [];
-  function walk(parentId: number, depth: number) {
-    const children = byParent.get(parentId) ?? [];
-    for (const c of children) {
-      result.push({ id: c.id, name: c.name, depth });
-      walk(Number(c.id), depth + 1);
-    }
-  }
-  walk(0, 0);
-  return result;
-}
-
 type WooCategoryNode = { id: string; name: string; children: WooCategoryNode[] };
 
 /** WooCommerce categories: build tree structure for collapsible UI. */
@@ -165,6 +142,87 @@ function buildChannelCategoryTree(
     nodes.forEach((n) => sortTree(n.children));
   }
   sortTree(roots);
+  return roots;
+}
+
+/** Fyndiq category tree: hierarchy from path. parentId = segment immediately before leaf (not full prefix). One node per item.id; no synthetic parents. */
+function buildFyndiqCategoryTree(
+  list: Array<{ id: string; name: string; path?: string }>,
+): ChannelCategoryNode[] {
+  if (!list.length) return [];
+  const byId = new Map<string, ChannelCategoryNode>();
+  const parentById = new Map<string, string>();
+  const skippedMissingPath: Array<{ id: string; name: string }> = [];
+  const skippedLeafMismatch: Array<{ path: string; leafId: string; itemId: string }> = [];
+
+  for (const item of list) {
+    const pathStr = item.path != null && item.path !== '' ? String(item.path) : null;
+    if (pathStr == null) {
+      skippedMissingPath.push({ id: item.id, name: item.name });
+      continue;
+    }
+    const pathSegments = pathStr.split('.').filter(Boolean);
+    const leafId = pathSegments.length > 0 ? pathSegments[pathSegments.length - 1] : '';
+    if (leafId !== item.id) {
+      skippedLeafMismatch.push({ path: pathStr, leafId, itemId: item.id });
+      continue;
+    }
+    const parentId = pathSegments.length > 1 ? pathSegments[pathSegments.length - 2] : '';
+    byId.set(item.id, { id: item.id, name: item.name, children: [] });
+    parentById.set(item.id, parentId);
+  }
+
+  if (process.env.NODE_ENV === 'development' && (skippedMissingPath.length > 0 || skippedLeafMismatch.length > 0)) {
+    const totalSkipped = skippedMissingPath.length + skippedLeafMismatch.length;
+    console.warn('[buildFyndiqCategoryTree] Skipped items:', totalSkipped, 'missing path:', skippedMissingPath.length, 'leafId mismatch:', skippedLeafMismatch.length);
+    const pathExamples = skippedLeafMismatch.slice(0, 5);
+    if (pathExamples.length) console.warn('[buildFyndiqCategoryTree] Example paths skipped (leafId !== item.id):', pathExamples);
+    const missingPathExamples = skippedMissingPath.slice(0, 5);
+    if (missingPathExamples.length) console.warn('[buildFyndiqCategoryTree] Example items skipped (missing path):', missingPathExamples);
+  }
+
+  const roots: ChannelCategoryNode[] = [];
+  const missingParentIds = new Set<string>();
+  for (const node of byId.values()) {
+    const pid = parentById.get(node.id) ?? '';
+    if (pid === '') {
+      roots.push(node);
+      continue;
+    }
+    const parent = byId.get(pid);
+    if (parent) {
+      parent.children.push(node);
+    } else {
+      missingParentIds.add(pid);
+      roots.push(node);
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[buildFyndiqCategoryTree] Parent not in list, node at root', { nodeId: node.id, parentId: pid });
+      }
+    }
+  }
+
+  if (process.env.NODE_ENV === 'development' && missingParentIds.size > 0) {
+    const examples = Array.from(missingParentIds).slice(0, 5);
+    console.warn('[buildFyndiqCategoryTree] Missing parent ids (count):', missingParentIds.size, 'examples:', examples);
+  }
+
+  function maxDepth(nodes: ChannelCategoryNode[], d: number): number {
+    if (nodes.length === 0) return d;
+    return Math.max(d, ...nodes.map((n) => maxDepth(n.children, d + 1)));
+  }
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('[buildFyndiqCategoryTree] roots:', roots.length, 'maxDepth:', maxDepth(roots, 0));
+  }
+
+  function sortByNameThenId(nodes: ChannelCategoryNode[]): void {
+    nodes.sort((a, b) => {
+      const byName = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      if (byName !== 0) return byName;
+      return a.id.localeCompare(b.id, undefined, { numeric: true });
+    });
+    nodes.forEach((n) => sortByNameThenId(n.children));
+  }
+  sortByNameThenId(roots);
   return roots;
 }
 
@@ -747,7 +805,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         listId: (currentProduct as any).listId ?? '',
         markets,
         texts,
-        channelCategories: (cs.cdon as any)?.categories ?? (cs.fyndiq as any)?.categories ?? {},
+        channelCategories: {
+          cdon: (cs.cdon as any)?.categories ?? {},
+          fyndiq: (cs.fyndiq as any)?.categories ?? {},
+          woocommerce: (cs.woocommerce as any)?.categories ?? {},
+        },
         channelSpecific: cs,
       });
       setIsMpnAuto(!(mpn && mpn !== sku));
@@ -1890,7 +1952,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         return { ...prev, [String(inst.id)]: next };
                       });
                     };
-                    const channelTree = !isWoo ? buildChannelCategoryTree(list) : [];
+                    const channelTree = isWoo ? [] : (String(inst.channel).toLowerCase() === 'fyndiq' ? buildFyndiqCategoryTree(list) : buildChannelCategoryTree(list));
                     const channelRealIds = !isWoo ? new Set(list.map((x) => x.id)) : new Set<string>();
                     const channelExpandedSet = channelCategoryExpandedIds[String(inst.id)] ?? new Set<string>();
                     const setChannelExpanded = (id: string, open: boolean) => {
