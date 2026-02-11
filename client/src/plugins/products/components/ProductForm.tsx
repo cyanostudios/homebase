@@ -70,12 +70,12 @@ const PATTERN_OPTIONS = [
   { value: 'retro', label: 'Retro' },
 ];
 
-type WooCategoryNode = { id: string; name: string; children: WooCategoryNode[] };
+type CategoryTreeNode = { id: string; name: string; children: CategoryTreeNode[] };
 
 /** WooCommerce categories: build tree structure for collapsible UI. */
 function buildWooCategoryTree(
   flat: Array<{ id: string; name: string; parent?: number }>,
-): WooCategoryNode[] {
+): CategoryTreeNode[] {
   if (!flat.length) return [];
   const byParent = new Map<number, Array<{ id: string; name: string; parent?: number }>>();
   for (const x of flat) {
@@ -83,7 +83,7 @@ function buildWooCategoryTree(
     if (!byParent.has(p)) byParent.set(p, []);
     byParent.get(p)!.push(x);
   }
-  function toNode(c: { id: string; name: string; parent?: number }): WooCategoryNode {
+  function toNode(c: { id: string; name: string; parent?: number }): CategoryTreeNode {
     const children = (byParent.get(Number(c.id)) ?? []).map(toNode);
     return { id: c.id, name: c.name, children };
   }
@@ -138,7 +138,7 @@ function buildChannelCategoryTree(
   }
 
   function sortTree(nodes: ChannelCategoryNode[]): void {
-    nodes.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+    nodes.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
     nodes.forEach((n) => sortTree(n.children));
   }
   sortTree(roots);
@@ -226,7 +226,7 @@ function buildFyndiqCategoryTree(
   return roots;
 }
 
-function WooCategoryTreeRow({
+function CategoryTreeRow({
   node,
   selectedId,
   selectedIds,
@@ -236,8 +236,9 @@ function WooCategoryTreeRow({
   onToggle,
   depth,
   showId,
+  channelListStyle,
 }: {
-  node: WooCategoryNode;
+  node: CategoryTreeNode;
   selectedId: string;
   selectedIds?: Set<string>;
   expandedIds: Set<string>;
@@ -246,13 +247,20 @@ function WooCategoryTreeRow({
   onToggle?: (id: string, checked: boolean) => void;
   depth: number;
   showId?: boolean;
+  /** CDON/Fyndiq: show as "Namn (egna numret)" in list */
+  channelListStyle?: boolean;
 }) {
   const hasChildren = node.children.length > 0;
   const isExpanded = expandedIds.has(node.id);
   const isSelected = selectedIds ? selectedIds.has(node.id) : selectedId === node.id;
   const useCheckbox = selectedIds != null && onToggle != null;
   const displayId = showId && node.id ? node.id : '';
-  const label = showId && displayId ? `${displayId} – ${node.name}` : node.name;
+  const ownNumber = node.id.includes('.') ? node.id.slice(node.id.lastIndexOf('.') + 1) : node.id;
+  const label = channelListStyle
+    ? `${node.name} (${ownNumber})`
+    : showId && displayId
+      ? `${displayId} – ${node.name}`
+      : node.name;
   return (
     <li className="list-none">
       <div
@@ -311,7 +319,7 @@ function WooCategoryTreeRow({
       {hasChildren && isExpanded && (
         <ul className="py-0">
           {node.children.map((child) => (
-            <WooCategoryTreeRow
+            <CategoryTreeRow
               key={child.id}
               node={child}
               selectedId={selectedId}
@@ -322,6 +330,7 @@ function WooCategoryTreeRow({
               onToggle={onToggle}
               depth={depth + 1}
               showId={showId}
+              channelListStyle={channelListStyle}
             />
           ))}
         </ul>
@@ -2055,7 +2064,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                   ) : (
                                     <ul className="py-1">
                                       {wooTree.map((node) => (
-                                        <WooCategoryTreeRow
+                                        <CategoryTreeRow
                                           key={node.id}
                                           node={node}
                                           selectedId=""
@@ -2086,7 +2095,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                 )}
                                 <span className="flex-1 min-w-0 truncate">
                                   {cat
-                                    ? `${cat} – ${list.find((x) => x.id === cat)?.name ?? cat}`
+                                    ? (() => {
+                                        const item = list.find((x) => x.id === cat);
+                                        const name = item?.name ?? cat;
+                                        const isFyndiq = String(inst.channel).toLowerCase() === 'fyndiq';
+                                        const fullOrder = isFyndiq ? (item?.path ?? '') : cat;
+                                        return `${name} (${fullOrder})`;
+                                      })()
                                     : 'Välj kategori'}
                                 </span>
                               </CollapsibleTrigger>
@@ -2094,9 +2109,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                 <div className="mt-2 border border-gray-200 rounded-md max-h-64 overflow-y-auto bg-gray-50/50">
                                     <ul className="py-1">
                                     {channelTree.map((node) => (
-                                      <WooCategoryTreeRow
+                                      <CategoryTreeRow
                                         key={node.id}
-                                        node={node as WooCategoryNode}
+                                        node={node as CategoryTreeNode}
                                         selectedId={cat}
                                         expandedIds={channelExpandedSet}
                                         onToggleExpand={setChannelExpanded}
@@ -2104,7 +2119,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                           if (id && channelRealIds.has(id)) setChannelCategory(id);
                                         }}
                                         depth={0}
-                                        showId
+                                        channelListStyle
                                       />
                                     ))}
                                   </ul>
