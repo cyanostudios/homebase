@@ -378,7 +378,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const currentProduct = currentItem;
   const isBatchMode = batchProductIds.length > 0;
 
-  const getDefaultDelivery = (market: MarketKey) => productSettings?.defaultDelivery?.[market];
+  const getDefaultDelivery = (market: MarketKey) =>
+    productSettings?.defaultDeliveryCdon?.[market.toUpperCase() as 'SE' | 'DK' | 'NO' | 'FI'] ??
+    productSettings?.defaultDeliveryFyndiq?.[market as 'se' | 'dk' | 'fi'] ??
+    productSettings?.defaultDelivery?.[market];
   const createEmptyMarket = (market: MarketKey, currency: string): MarketData => {
     const dd = getDefaultDelivery(market);
     return {
@@ -635,7 +638,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       const texts: FormData['texts'] = { ...initialState.texts };
       for (const m of MARKETS) {
         const mData = (cs.cdon as any)?.markets?.[m.key] ?? (cs.fyndiq as any)?.markets?.[m.key];
-        const defShip = productSettings?.defaultDelivery?.[m.key];
+        const defShip = getDefaultDelivery(m.key);
         const deliveryTypeFromApi = (arr: Array<{ market?: string; value?: string }> | undefined, marketKey: string) => {
           const upper = marketKey.toUpperCase();
           const entry = arr?.find((e) => String(e.market).toUpperCase() === upper);

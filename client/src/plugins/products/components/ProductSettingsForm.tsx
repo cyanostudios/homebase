@@ -6,16 +6,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Heading } from '@/core/ui/Typography';
 import { useApp } from '@/core/api/AppContext';
-import type { ProductSettings, ProductSettingsMarketKey } from '../types/products';
+import type {
+  ProductSettings,
+  ProductSettingsCdonMarketKey,
+  ProductSettingsFyndiqMarketKey,
+  MarketDelivery,
+} from '../types/products';
 
-const MARKETS: { key: ProductSettingsMarketKey; label: string }[] = [
+const CDON_MARKETS: { key: ProductSettingsCdonMarketKey; label: string }[] = [
+  { key: 'SE', label: 'Sverige' },
+  { key: 'DK', label: 'Danmark' },
+  { key: 'NO', label: 'Norge' },
+  { key: 'FI', label: 'Finland' },
+];
+
+const FYNDIQ_MARKETS: { key: ProductSettingsFyndiqMarketKey; label: string }[] = [
   { key: 'se', label: 'Sverige' },
   { key: 'dk', label: 'Danmark' },
   { key: 'fi', label: 'Finland' },
-  { key: 'no', label: 'Norge' },
 ];
-
-type MarketDelivery = { shippingMin?: number; shippingMax?: number };
 
 const emptyMarketDelivery = (): MarketDelivery => ({
   shippingMin: 1,
@@ -30,8 +39,11 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
   const { getSettings, updateSettings } = useApp();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState<Record<ProductSettingsMarketKey, MarketDelivery>>(
-    () => Object.fromEntries(MARKETS.map((m) => [m.key, emptyMarketDelivery()])) as Record<ProductSettingsMarketKey, MarketDelivery>,
+  const [cdonData, setCdonData] = useState<Record<ProductSettingsCdonMarketKey, MarketDelivery>>(
+    () => Object.fromEntries(CDON_MARKETS.map((m) => [m.key, emptyMarketDelivery()])) as Record<ProductSettingsCdonMarketKey, MarketDelivery>,
+  );
+  const [fyndiqData, setFyndiqData] = useState<Record<ProductSettingsFyndiqMarketKey, MarketDelivery>>(
+    () => Object.fromEntries(FYNDIQ_MARKETS.map((m) => [m.key, emptyMarketDelivery()])) as Record<ProductSettingsFyndiqMarketKey, MarketDelivery>,
   );
 
   useEffect(() => {
@@ -40,18 +52,29 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
       try {
         const raw = await getSettings('products');
         const s = (raw && typeof raw === 'object' ? raw : {}) as ProductSettings;
-        const dd = s?.defaultDelivery;
-        const next: Record<ProductSettingsMarketKey, MarketDelivery> = {} as Record<ProductSettingsMarketKey, MarketDelivery>;
-        for (const m of MARKETS) {
-          const data = dd?.[m.key];
-          next[m.key] = {
-            shippingMin: Number.isFinite(data?.shippingMin) ? (data!.shippingMin as number) : 1,
-            shippingMax: Number.isFinite(data?.shippingMax) ? (data!.shippingMax as number) : 3,
+
+        const nextCdon: Record<ProductSettingsCdonMarketKey, MarketDelivery> = {} as Record<ProductSettingsCdonMarketKey, MarketDelivery>;
+        for (const m of CDON_MARKETS) {
+          const fromCdon = s?.defaultDeliveryCdon?.[m.key];
+          nextCdon[m.key] = {
+            shippingMin: Number.isFinite(fromCdon?.shippingMin) ? fromCdon.shippingMin : 1,
+            shippingMax: Number.isFinite(fromCdon?.shippingMax) ? fromCdon.shippingMax : 3,
           };
         }
-        setFormData(next);
+        setCdonData(nextCdon);
+
+        const nextFyndiq: Record<ProductSettingsFyndiqMarketKey, MarketDelivery> = {} as Record<ProductSettingsFyndiqMarketKey, MarketDelivery>;
+        for (const m of FYNDIQ_MARKETS) {
+          const fromFyndiq = s?.defaultDeliveryFyndiq?.[m.key];
+          nextFyndiq[m.key] = {
+            shippingMin: Number.isFinite(fromFyndiq?.shippingMin) ? fromFyndiq.shippingMin : 1,
+            shippingMax: Number.isFinite(fromFyndiq?.shippingMax) ? fromFyndiq.shippingMax : 3,
+          };
+        }
+        setFyndiqData(nextFyndiq);
       } catch {
-        setFormData(Object.fromEntries(MARKETS.map((m) => [m.key, emptyMarketDelivery()])) as Record<ProductSettingsMarketKey, MarketDelivery>);
+        setCdonData(Object.fromEntries(CDON_MARKETS.map((m) => [m.key, emptyMarketDelivery()])) as Record<ProductSettingsCdonMarketKey, MarketDelivery>);
+        setFyndiqData(Object.fromEntries(FYNDIQ_MARKETS.map((m) => [m.key, emptyMarketDelivery()])) as Record<ProductSettingsFyndiqMarketKey, MarketDelivery>);
       } finally {
         setLoading(false);
       }
@@ -59,18 +82,19 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
     load();
   }, [getSettings]);
 
-  const updateMarket = (market: ProductSettingsMarketKey, field: keyof MarketDelivery, value: number | string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [market]: { ...prev[market], [field]: value },
-    }));
+  const updateCdon = (market: ProductSettingsCdonMarketKey, field: keyof MarketDelivery, value: number) => {
+    setCdonData((prev) => ({ ...prev, [market]: { ...prev[market], [field]: value } }));
+  };
+  const updateFyndiq = (market: ProductSettingsFyndiqMarketKey, field: keyof MarketDelivery, value: number) => {
+    setFyndiqData((prev) => ({ ...prev, [market]: { ...prev[market], [field]: value } }));
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
       await updateSettings('products', {
-        defaultDelivery: formData,
+        defaultDeliveryCdon: cdonData,
+        defaultDeliveryFyndiq: fyndiqData,
       });
       onClose?.();
     } catch (err) {
@@ -87,39 +111,74 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
   return (
     <div className="space-y-4">
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3">Standardleverans per marknad</Heading>
+        <Heading level={3} className="mb-3">CDON – standardleverans</Heading>
         <p className="text-sm text-gray-600 mb-4">
-          Dessa värden används i produktens inställningar om du inte angivit något manuellt per marknad.
+          Standard frakt min/max (dagar) per CDON-marknad när produkten inte har manuellt ifyllda värden.
         </p>
         <div className="space-y-6">
-          {MARKETS.map((m) => {
-            const data = formData[m.key];
+          {CDON_MARKETS.map((m) => {
+            const data = cdonData[m.key];
             return (
               <div key={m.key} className="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
                 <h4 className="text-sm font-medium mb-3">{m.label}</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor={`${m.key}-shipping-min`}>Frakt min (dagar)</Label>
+                    <Label htmlFor={`cdon-${m.key}-shipping-min`}>Frakt min (dagar)</Label>
                     <Input
-                      id={`${m.key}-shipping-min`}
+                      id={`cdon-${m.key}-shipping-min`}
                       type="number"
                       min={0}
                       value={data?.shippingMin ?? 1}
-                      onChange={(e) =>
-                        updateMarket(m.key, 'shippingMin', parseInt(e.target.value, 10) || 1)
-                      }
+                      onChange={(e) => updateCdon(m.key, 'shippingMin', parseInt(e.target.value, 10) || 1)}
                     />
                   </div>
                   <div>
-                    <Label htmlFor={`${m.key}-shipping-max`}>Frakt max (dagar)</Label>
+                    <Label htmlFor={`cdon-${m.key}-shipping-max`}>Frakt max (dagar)</Label>
                     <Input
-                      id={`${m.key}-shipping-max`}
+                      id={`cdon-${m.key}-shipping-max`}
                       type="number"
                       min={0}
                       value={data?.shippingMax ?? 3}
-                      onChange={(e) =>
-                        updateMarket(m.key, 'shippingMax', parseInt(e.target.value, 10) || 3)
-                      }
+                      onChange={(e) => updateCdon(m.key, 'shippingMax', parseInt(e.target.value, 10) || 3)}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card padding="sm" className="shadow-none px-0">
+        <Heading level={3} className="mb-3">Fyndiq – standardleverans</Heading>
+        <p className="text-sm text-gray-600 mb-4">
+          Standard frakt min/max (dagar) per Fyndiq-marknad när produkten inte har manuellt ifyllda värden.
+        </p>
+        <div className="space-y-6">
+          {FYNDIQ_MARKETS.map((m) => {
+            const data = fyndiqData[m.key];
+            return (
+              <div key={m.key} className="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
+                <h4 className="text-sm font-medium mb-3">{m.label}</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor={`fyndiq-${m.key}-shipping-min`}>Frakt min (dagar)</Label>
+                    <Input
+                      id={`fyndiq-${m.key}-shipping-min`}
+                      type="number"
+                      min={0}
+                      value={data?.shippingMin ?? 1}
+                      onChange={(e) => updateFyndiq(m.key, 'shippingMin', parseInt(e.target.value, 10) || 1)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`fyndiq-${m.key}-shipping-max`}>Frakt max (dagar)</Label>
+                    <Input
+                      id={`fyndiq-${m.key}-shipping-max`}
+                      type="number"
+                      min={0}
+                      value={data?.shippingMax ?? 3}
+                      onChange={(e) => updateFyndiq(m.key, 'shippingMax', parseInt(e.target.value, 10) || 3)}
                     />
                   </div>
                 </div>

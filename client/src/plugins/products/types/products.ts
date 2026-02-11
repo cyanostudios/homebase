@@ -57,12 +57,17 @@ export interface Product {
 
 export type ProductSettingsMarketKey = 'se' | 'dk' | 'fi' | 'no';
 
+export type ProductSettingsCdonMarketKey = 'SE' | 'DK' | 'NO' | 'FI';
+export type ProductSettingsFyndiqMarketKey = 'se' | 'dk' | 'fi';
+
+export type MarketDelivery = { shippingMin?: number; shippingMax?: number };
+
 /** Product plugin settings (stored in user_settings, category: products) */
 export interface ProductSettings {
-  /** Default delivery per market (se, dk, fi, no) when product has no manual override */
-  defaultDelivery?: Record<ProductSettingsMarketKey, {
-    shippingMin?: number;
-    shippingMax?: number;
-  }>;
-  // Future: more settings can be added here
+  /** @deprecated Use defaultDeliveryCdon / defaultDeliveryFyndiq. Kept for migration. */
+  defaultDelivery?: Record<ProductSettingsMarketKey, MarketDelivery>;
+  /** Default shipping times per CDON market (SE, DK, NO, FI). Used when product has no manual CDON shipping_time. */
+  defaultDeliveryCdon?: Record<ProductSettingsCdonMarketKey, MarketDelivery>;
+  /** Default shipping times per Fyndiq market (se, dk, fi). Used when product has no manual Fyndiq shipping_time. */
+  defaultDeliveryFyndiq?: Record<ProductSettingsFyndiqMarketKey, MarketDelivery>;
 }

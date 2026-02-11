@@ -97,9 +97,18 @@ class FyndiqProductsController {
     }
   }
 
-  // ---- Categories (read-only) ----
+  // ---- Categories (read-only). API requires market and language; no guessing. ----
   async getCategories(req, res) {
     try {
+      const market = String(req.query?.market || '').trim().toLowerCase();
+      const language = String(req.query?.language || '').trim();
+      if (!market || !language) {
+        return res.status(400).json({
+          ok: false,
+          error: 'market and language are required. Use query params: ?market=se&language=sv-SE (per Fyndiq API).',
+        });
+      }
+
       const settings = await this.model.getSettings(req);
       const username = String(settings?.apiKey ?? '').trim();
       const password = String(settings?.apiSecret ?? '').trim();
@@ -107,15 +116,7 @@ class FyndiqProductsController {
         return res.status(400).json({ ok: false, error: 'Fyndiq settings not found. Save settings first.' });
       }
 
-      const market = String(req.query?.market || '').trim().toLowerCase();
-      const language = String(req.query?.language || '').trim();
-      const languageForPath = language || (market === 'se' ? 'sv-SE' : market === 'dk' ? 'da-DK' : market === 'fi' ? 'fi-FI' : 'sv-SE');
-
-      if (!market || !languageForPath) {
-        return res.status(400).json({ ok: false, error: 'Missing query params: market, language' });
-      }
-
-      const { url, resp, text, json } = await this.fyndiqRequest(`/api/v1/categories/${encodeURIComponent(market)}/${encodeURIComponent(languageForPath)}/`, {
+      const { url, resp, text, json } = await this.fyndiqRequest(`/api/v1/categories/${encodeURIComponent(market)}/${encodeURIComponent(language)}/`, {
         username,
         password,
         method: 'GET',

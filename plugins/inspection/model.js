@@ -264,6 +264,41 @@ class InspectionModel {
     }
   }
 
+  /**
+   * Bulk delete inspection projects only. Touches ONLY inspection_projects and inspection_project_files.
+   * Same pattern as orders/products: include user_id in WHERE so the DB adapter does not append and break RETURNING.
+   */
+  async bulkDelete(req, idsRaw) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id ?? req.session?.user?.uuid;
+      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+
+      const idList = (Array.isArray(idsRaw) ? idsRaw : [])
+        .map((id) => (id != null && Number.isFinite(Number(id)) ? Number(id) : null))
+        .filter((id) => id != null);
+      if (idList.length === 0) return { deletedCount: 0, deletedIds: [] };
+
+      await db.query(
+        `DELETE FROM ${FILES_TABLE} WHERE project_id IN (SELECT id FROM ${PROJECTS_TABLE} WHERE user_id = $1 AND id = ANY($2))`,
+        [userId, idList]
+      );
+      const deleted = await db.query(
+        `DELETE FROM ${PROJECTS_TABLE} WHERE user_id = $1 AND id = ANY($2) RETURNING id`,
+        [userId, idList]
+      );
+      const deletedIds = (deleted || []).map((r) => String(r.id));
+      if (deletedIds.length > 0) {
+        Logger.info('Inspection projects bulk deleted', { count: deletedIds.length, ids: deletedIds });
+      }
+      return { deletedCount: deletedIds.length, deletedIds };
+    } catch (error) {
+      Logger.error('Failed to bulk delete inspection projects', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to bulk delete inspection projects', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async addFiles(req, projectId, fileIds) {
     try {
       const db = Database.get(req);

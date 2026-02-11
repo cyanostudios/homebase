@@ -108,6 +108,22 @@ class InspectionController {
     }
   }
 
+  /** POST /api/inspection/projects/batch-delete – bulk delete inspection projects only. Isolated from orders and other plugins. */
+  async bulkDeleteInspectionProjects(req, res) {
+    try {
+      const idsRaw = req.body?.ids;
+      if (!Array.isArray(idsRaw)) {
+        return res.status(400).json({ error: 'ids must be an array', code: 'VALIDATION_ERROR' });
+      }
+      const result = await model.bulkDelete(req, idsRaw);
+      return res.json({ ok: true, ...result });
+    } catch (error) {
+      Logger.error('Bulk delete inspection projects failed', error);
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to delete selected inspection projects' });
+    }
+  }
+
   async addFiles(req, res) {
     try {
       const { fileIds } = req.body;

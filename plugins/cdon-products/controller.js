@@ -377,58 +377,46 @@ class CdonProductsController {
     });
   }
 
-  // ---- Categories: Merchants API (market+language) or Categorization API (no params) ----
+  // ---- Categories: Merchants API only. API requires market and language (see CDON API docs: v1/categories/{market}/{language}/). ----
   async getCategories(req, res) {
     const market = String(req.query?.market || '').trim();
     const language = String(req.query?.language || '').trim();
-    if (market && language) {
-      try {
-        const settings = await this.model.getSettings(req);
-        const merchantId = String(settings?.apiKey ?? '').trim();
-        const apiToken = String(settings?.apiSecret ?? '').trim();
-        if (!merchantId || !apiToken) {
-          return res.status(400).json({ ok: false, error: 'CDON settings not found. Save merchantID and API token first.' });
-        }
-        const url = `${CDON_MERCHANTS_API}/v1/categories/${encodeURIComponent(market)}/${encodeURIComponent(language)}/`;
-        const { resp, text, json } = await this.cdonRequest(url, {
-          merchantId,
-          apiToken,
-          method: 'GET',
-        });
-        if (!resp.ok) {
-          const detail = json?.message || json?.error_description || json?.error || (typeof json === 'object' ? JSON.stringify(json) : null) || text || resp.statusText;
-          if (resp.status === 401) {
-            return res.status(502).json({
-              ok: false,
-              error: 'CDON API rejected credentials. Check Merchant ID and API token in CDON Products plugin settings.',
-              detail: detail || 'Missing Authorization header',
-            });
-          }
-          return res.status(resp.status).json({ ok: false, error: 'Failed to fetch CDON categories', detail });
-        }
-        const items = this._normalizeCategoryItems(json);
-        return res.json({ ok: true, endpoint: url, items });
-      } catch (error) {
-        Logger.error('CDON getCategories (Merchants API) error', error, { userId: Context.getUserId(req) });
-        const detail = error?.message || String(error);
-        return res.status(502).json({ ok: false, error: 'Failed to fetch CDON categories', detail });
-      }
+    if (!market || !language) {
+      return res.status(400).json({
+        ok: false,
+        error: 'market and language are required. Use query params: ?market=SE&language=sv-SE (per CDON Merchants API).',
+      });
     }
     try {
-      const fetchFn = this.getFetch();
-      const url = `${CDON_CATEGORIZATION_API}/categories`;
-      const resp = await fetchFn(url, { method: 'GET', headers: { Accept: 'application/json' } });
-      const text = await resp.text().catch(() => '');
-      let json = null;
-      try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+      const settings = await this.model.getSettings(req);
+      const merchantId = String(settings?.apiKey ?? '').trim();
+      const apiToken = String(settings?.apiSecret ?? '').trim();
+      if (!merchantId || !apiToken) {
+        return res.status(400).json({ ok: false, error: 'CDON settings not found. Save merchantID and API token first.' });
+      }
+      const url = `${CDON_MERCHANTS_API}/v1/categories/${encodeURIComponent(market)}/${encodeURIComponent(language)}/`;
+      const { resp, text, json } = await this.cdonRequest(url, {
+        merchantId,
+        apiToken,
+        method: 'GET',
+      });
       if (!resp.ok) {
-        return res.status(resp.status).json({ ok: false, error: 'Failed to fetch CDON categories', detail: json || text });
+        const detail = json?.message || json?.error_description || json?.error || (typeof json === 'object' ? JSON.stringify(json) : null) || text || resp.statusText;
+        if (resp.status === 401) {
+          return res.status(502).json({
+            ok: false,
+            error: 'CDON API rejected credentials. Check Merchant ID and API token in CDON Products plugin settings.',
+            detail: detail || 'Missing Authorization header',
+          });
+        }
+        return res.status(resp.status).json({ ok: false, error: 'Failed to fetch CDON categories', detail });
       }
       const items = this._normalizeCategoryItems(json);
       return res.json({ ok: true, endpoint: url, items });
     } catch (error) {
       Logger.error('CDON getCategories error', error, { userId: Context.getUserId(req) });
-      return res.status(502).json({ ok: false, error: 'Failed to fetch CDON categories' });
+      const detail = error?.message || String(error);
+      return res.status(502).json({ ok: false, error: 'Failed to fetch CDON categories', detail });
     }
   }
 

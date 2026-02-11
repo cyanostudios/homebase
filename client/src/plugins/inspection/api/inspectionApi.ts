@@ -98,6 +98,14 @@ class InspectionApi {
   async getSendHistory(projectId: string): Promise<SendHistoryEntry[]> {
     return this.request(`/projects/${projectId}/send-history`);
   }
+
+  /** Bulk delete inspection projects only. Uses POST /api/inspection/projects/batch-delete – no other plugins (e.g. orders) are involved. */
+  async deleteInspectionProjectsBulk(ids: string[]): Promise<{ ok: true; deletedCount: number; deletedIds: string[] }> {
+    return this.request('/projects/batch-delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    });
+  }
 }
 
 export interface SendHistoryEntry {

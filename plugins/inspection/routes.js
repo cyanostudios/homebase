@@ -22,6 +22,13 @@ function createInspectionRoutes(context) {
     validateRequest,
     (req, res) => controller.create(req, res)
   );
+  router.post(
+    '/projects/batch-delete',
+    gate,
+    [body('ids').isArray().withMessage('ids must be an array')],
+    validateRequest,
+    (req, res) => controller.bulkDeleteInspectionProjects(req, res)
+  );
   router.get('/projects/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
     controller.getById(req, res)
   );
