@@ -391,7 +391,7 @@ export function ProductProvider({
       }
     }
 
-    // Warn if product is active on a channel but has no effective price (channel override or marknadspris)
+    // Warn if product is active on a channel but has no effective price (per-butikspris överstyring eller baspris/marknadspris)
     const pricing = (data.channelSpecific as any)?.pricing;
     const markets = pricing?.markets && typeof pricing.markets === 'object' ? pricing.markets : null;
     if (channelTargets.length > 0) {
@@ -400,9 +400,9 @@ export function ProductProvider({
       for (const t of channelTargets) {
         if (t.channelInstanceId == null) continue;
         const ov = channelOverridesToSave.find((o) => o.channelInstanceId === t.channelInstanceId);
-        const channelPrice = ov?.priceAmount;
-        const hasChannelPrice = channelPrice != null && Number.isFinite(Number(channelPrice)) && Number(channelPrice) > 0;
-        let hasEffectivePrice = hasGlobalPrice || hasChannelPrice;
+        const instancePriceOverride = ov?.priceAmount;
+        const hasInstancePriceOverride = instancePriceOverride != null && Number.isFinite(Number(instancePriceOverride)) && Number(instancePriceOverride) > 0;
+        let hasEffectivePrice = hasGlobalPrice || hasInstancePriceOverride;
         if (!hasEffectivePrice && markets && channelTargetsWithMarket.length > 0) {
           const withMarket = channelTargetsWithMarket.find((m) => m.channelInstanceId === t.channelInstanceId);
           if (withMarket?.market) {
@@ -413,7 +413,7 @@ export function ProductProvider({
         if (!hasEffectivePrice) {
           errors.push({
             field: 'priceAmount',
-            message: 'Varning: Minst en aktiv kanal saknar effektivt pris. Ange baspris, marknadspris eller kanalpris under Priser.',
+            message: 'Varning: Minst en aktiv kanal saknar effektivt pris. Ange baspris eller fyll i pris per butik under Priser.',
           });
           break;
         }
@@ -485,7 +485,7 @@ export function ProductProvider({
             console.warn('Channel diff failed', diffErr);
           }
         }
-        // Save per-channel overrides (category + price)
+        // Save per-instance overrides (category + price)
         const overridesToSave = options?.channelOverridesToSave;
         if (overridesToSave?.length && saved.id) {
           try {
@@ -596,7 +596,7 @@ export function ProductProvider({
           } catch (channelErr) {
             console.warn('Channel enable after create failed', channelErr);
           }
-          // Per-channel overrides for new product (category + price)
+          // Per-instance overrides for new product (category + price)
           const overridesToSaveNew = options?.channelOverridesToSave;
           if (overridesToSaveNew?.length) {
             try {

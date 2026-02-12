@@ -368,7 +368,15 @@ type ChannelCategory = {
 
 interface ProductFormProps {
   currentItem?: any;
-  onSave: (data: any, options?: { hadChanges?: boolean }) => Promise<boolean> | boolean;
+  onSave: (
+    data: any,
+    options?: {
+      hadChanges?: boolean;
+      channelTargets?: Array<{ channel: string; channelInstanceId: number | null }>;
+      channelTargetsWithMarket?: Array<{ channel: string; channelInstanceId: number | null; market: string }>;
+      channelOverridesToSave?: Array<{ channelInstanceId: number | string; category?: string | null; priceAmount?: number | null }>;
+    },
+  ) => Promise<boolean> | boolean;
   onCancel: () => void;
   isSubmitting?: boolean;
 }
@@ -377,12 +385,12 @@ type FormData = {
   productNumber: string;
   title: string;
   status: 'for sale' | 'draft' | 'archived';
-  quantity: number;
-  priceAmount: number;
+  quantity: number | '';
+  priceAmount: number | '';
   purchasePrice: number | '';
   salePrice: number | '';
   currency: string;
-  vatRate: number;
+  vatRate: number | '';
   sku: string;
   mpn: string;
   description: string;
@@ -469,6 +477,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     status: 'for sale',
     quantity: 0,
     priceAmount: 0,
+    purchasePrice: '',
+    salePrice: '',
     currency: 'SEK',
     vatRate: 25,
     sku: '',
@@ -527,7 +537,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   // Kanaler tab: instances + targets + overrides
   const [channelInstances, setChannelInstances] = useState<ChannelInstance[]>([]);
   const [channelOverrides, setChannelOverrides] = useState<any[]>([]);
-  /** Per-channel-instance price overrides (standardpris, reapris) for Priser tab. Key = instance id. */
+  /** Per-butik (per instance) price overrides for Priser tab. Key = instance id. */
   const [channelPriceOverrides, setChannelPriceOverrides] = useState<Record<string, { priceAmount: string; salePrice: string }>>({});
   /** Marknadspriser SE/DK/FI/NO: amount + source (auto = beräknat från baspris, manual = användarinskrivet). */
   const [marketPrices, setMarketPrices] = useState<Record<MarketKey, { amount: number | ''; source: 'auto' | 'manual' }>>({
@@ -1783,7 +1793,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           </Card>
         )}
 
-        {/* Tab: Priser — Baspris + en rad per butik/marknad med Pris, Auto/Manuell, kanalöverstyr, Reapris/Originalpris */}
+        {/* Tab: Priser — Baspris + en rad per butik/marknad med Pris per butik, Reapris/Originalpris */}
         {!isBatchMode && activeTab === 'priser' && (
           <Card padding="sm" className="shadow-none px-0">
             <Heading level={3} className="mb-3">Priser</Heading>
@@ -1861,11 +1871,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 </Button>
               </div>
             </div>
-            {/* En rad per butik/marknad: label, Pris (marknad), valuta, Auto/Manuell, Återställ, Kanalöverstyr, Reapris/Originalpris — ingen accordion */}
+            {/* En rad per butik/marknad: label, Pris per butik, valuta, Reapris/Originalpris */}
             {channelInstances.length > 0 && (
               <div className="space-y-1">
                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Pris per butik / marknad</div>
-                <p className="text-xs text-gray-500 mb-1.5">Tomt pris = ärver marknadspris (standardpris) för den butikens marknad. Fyll i för att överstyra.</p>
+                <p className="text-xs text-gray-500 mb-1.5">Tomt pris = använder Baspris. Fyll i för att sätta ett eget pris för denna butik.</p>
                 {channelInstances
                   .filter((i) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()) && hasValidMarket(i))
                   .sort((a, b) => {
