@@ -2,6 +2,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Upload, File as FileIcon, Trash2, AlertTriangle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Heading, Text } from '@/core/ui/Typography';
 import { useFiles } from '../hooks/useFiles';
 import type { ValidationError } from '../types/files';

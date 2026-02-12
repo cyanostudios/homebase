@@ -24,6 +24,7 @@ const FYNDIQ_MARKETS: { key: ProductSettingsFyndiqMarketKey; label: string }[] =
   { key: 'se', label: 'Sverige' },
   { key: 'dk', label: 'Danmark' },
   { key: 'fi', label: 'Finland' },
+  { key: 'no', label: 'Norge' },
 ];
 
 const emptyMarketDelivery = (): MarketDelivery => ({
@@ -56,9 +57,11 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
         const nextCdon: Record<ProductSettingsCdonMarketKey, MarketDelivery> = {} as Record<ProductSettingsCdonMarketKey, MarketDelivery>;
         for (const m of CDON_MARKETS) {
           const fromCdon = s?.defaultDeliveryCdon?.[m.key];
+          const min = fromCdon?.shippingMin;
+          const max = fromCdon?.shippingMax;
           nextCdon[m.key] = {
-            shippingMin: Number.isFinite(fromCdon?.shippingMin) ? fromCdon.shippingMin : 1,
-            shippingMax: Number.isFinite(fromCdon?.shippingMax) ? fromCdon.shippingMax : 3,
+            shippingMin: Number.isFinite(min) ? min : 1,
+            shippingMax: Number.isFinite(max) ? max : 3,
           };
         }
         setCdonData(nextCdon);
@@ -66,9 +69,11 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
         const nextFyndiq: Record<ProductSettingsFyndiqMarketKey, MarketDelivery> = {} as Record<ProductSettingsFyndiqMarketKey, MarketDelivery>;
         for (const m of FYNDIQ_MARKETS) {
           const fromFyndiq = s?.defaultDeliveryFyndiq?.[m.key];
+          const min = fromFyndiq?.shippingMin;
+          const max = fromFyndiq?.shippingMax;
           nextFyndiq[m.key] = {
-            shippingMin: Number.isFinite(fromFyndiq?.shippingMin) ? fromFyndiq.shippingMin : 1,
-            shippingMax: Number.isFinite(fromFyndiq?.shippingMax) ? fromFyndiq.shippingMax : 3,
+            shippingMin: Number.isFinite(min) ? min : 1,
+            shippingMax: Number.isFinite(max) ? max : 3,
           };
         }
         setFyndiqData(nextFyndiq);

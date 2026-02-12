@@ -1,7 +1,6 @@
-import { Filter, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import React from 'react';
 
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 interface ContentToolbarProps {
@@ -18,8 +17,8 @@ export function ContentToolbar({
   rightActions,
 }: ContentToolbarProps) {
   return (
-    <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-      <div className="relative w-full sm:w-80">
+    <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+      <div className="relative w-full sm:w-80 shrink-0">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input
           type="text"
@@ -29,14 +28,7 @@ export function ContentToolbar({
           className="w-full pl-10"
         />
       </div>
-      <div className="flex items-center gap-2">
-        {rightActions ?? (
-          <Button variant="outline" size="sm">
-            <Filter className="mr-2 h-4 w-4" />
-            Filter
-          </Button>
-        )}
-      </div>
+      {rightActions != null ? <div className="flex items-center gap-2 shrink-0">{rightActions}</div> : null}
     </div>
   );
 }

@@ -454,7 +454,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   const getDefaultDelivery = (market: MarketKey) =>
     productSettings?.defaultDeliveryCdon?.[market.toUpperCase() as 'SE' | 'DK' | 'NO' | 'FI'] ??
-    productSettings?.defaultDeliveryFyndiq?.[market as 'se' | 'dk' | 'fi'] ??
+    productSettings?.defaultDeliveryFyndiq?.[market as 'se' | 'dk' | 'fi' | 'no'] ??
     productSettings?.defaultDelivery?.[market];
   const createEmptyMarket = (market: MarketKey, currency: string): MarketData => {
     const dd = getDefaultDelivery(market);
@@ -1842,10 +1842,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       if (!rates.EUR || !rates.DKK || !rates.NOK) {
                         return;
                       }
+                      const dkk = rates.DKK;
+                      const eur = rates.EUR;
+                      const nok = rates.NOK;
                       let baseSEK = baseAmount;
-                      if (baseCur === 'EUR') baseSEK = baseAmount * rates.EUR;
-                      else if (baseCur === 'DKK') baseSEK = baseAmount * rates.DKK;
-                      else if (baseCur === 'NOK') baseSEK = baseAmount * rates.NOK;
+                      if (baseCur === 'EUR') baseSEK = baseAmount * eur;
+                      else if (baseCur === 'DKK') baseSEK = baseAmount * dkk;
+                      else if (baseCur === 'NOK') baseSEK = baseAmount * nok;
                       else if (baseCur !== 'SEK') return;
                       const round = (n: number, decimals: number) => {
                         if (decimals === 0) return Math.round(n);
@@ -1855,9 +1858,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       setMarketPrices((prev) => {
                         const next = { ...prev };
                         if (prev.se.source === 'auto') next.se = { amount: round(baseSEK, 0), source: 'auto' };
-                        if (prev.dk.source === 'auto') next.dk = { amount: round(baseSEK / rates.DKK, 0), source: 'auto' };
-                        if (prev.fi.source === 'auto') next.fi = { amount: round(baseSEK / rates.EUR, 2), source: 'auto' };
-                        if (prev.no.source === 'auto') next.no = { amount: round(baseSEK / rates.NOK, 0), source: 'auto' };
+                        if (prev.dk.source === 'auto') next.dk = { amount: round(baseSEK / dkk, 0), source: 'auto' };
+                        if (prev.fi.source === 'auto') next.fi = { amount: round(baseSEK / eur, 2), source: 'auto' };
+                        if (prev.no.source === 'auto') next.no = { amount: round(baseSEK / nok, 0), source: 'auto' };
                         return next;
                       });
                       if (rates.observedAt) setLastFxObservedAt(rates.observedAt);

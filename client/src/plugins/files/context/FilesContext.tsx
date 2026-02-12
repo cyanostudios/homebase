@@ -23,6 +23,20 @@ interface FilesContextType {
   deleteFile: (id: string) => Promise<void>;
   clearValidationErrors: () => void;
 
+  // Selection & bulk actions
+  selectedFileIds: string[];
+  toggleFileSelected: (id: string) => void;
+  selectAllFiles: (ids: string[]) => void;
+  clearFileSelection: () => void;
+  deleteFiles: (ids: string[]) => Promise<void>;
+
+  // Cloud storage
+  cloudStorageSettings: { googledrive: CloudStorageSettings | null };
+  loadCloudStorageSettings: () => Promise<void>;
+  connectCloudStorage: (service: CloudStorageService) => Promise<void>;
+  disconnectCloudStorage: (service: CloudStorageService) => Promise<void>;
+  getCloudStorageEmbedUrl: (service: CloudStorageService) => Promise<string | null>;
+
   // PanelTitles integration
   getPanelTitle: (mode: 'create' | 'edit' | 'view', item: FileItem | null, isMobile?: boolean) => string;
   getPanelSubtitle: (mode: 'create' | 'edit' | 'view', item: FileItem | null) => React.ReactNode;

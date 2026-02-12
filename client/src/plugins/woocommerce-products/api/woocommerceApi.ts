@@ -15,7 +15,8 @@ class WooCommerceApi {
       credentials: 'include'
     });
     const data = await response.json();
-    this.csrfToken = data.csrfToken;
+    this.csrfToken = data.csrfToken ?? null;
+    if (this.csrfToken == null) throw new Error('CSRF token not returned by server');
     return this.csrfToken;
   }
 

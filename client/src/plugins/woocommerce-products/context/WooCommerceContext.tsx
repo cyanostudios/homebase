@@ -93,7 +93,15 @@ export function WooCommerceProvider({
   const [isSaving, setIsSaving] = useState(false);
 
   // Use refs to track panel state without causing dependency loops
-  const panelStateRef = useRef({ isOpen: false, mode: 'create' as const, currentSettings: null as WooSettings | null });
+  const panelStateRef = useRef<{
+    isOpen: boolean;
+    mode: 'create' | 'edit' | 'view';
+    currentSettings: WooSettings | null;
+  }>({
+    isOpen: false,
+    mode: 'create',
+    currentSettings: null,
+  });
   
   // Keep refs in sync with state
   useEffect(() => {

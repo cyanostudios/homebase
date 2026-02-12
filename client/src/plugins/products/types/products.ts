@@ -58,7 +58,7 @@ export interface Product {
 export type ProductSettingsMarketKey = 'se' | 'dk' | 'fi' | 'no';
 
 export type ProductSettingsCdonMarketKey = 'SE' | 'DK' | 'NO' | 'FI';
-export type ProductSettingsFyndiqMarketKey = 'se' | 'dk' | 'fi';
+export type ProductSettingsFyndiqMarketKey = 'se' | 'dk' | 'fi' | 'no';
 
 export type MarketDelivery = { shippingMin?: number; shippingMax?: number };
 
@@ -68,6 +68,6 @@ export interface ProductSettings {
   defaultDelivery?: Record<ProductSettingsMarketKey, MarketDelivery>;
   /** Default shipping times per CDON market (SE, DK, NO, FI). Used when product has no manual CDON shipping_time. */
   defaultDeliveryCdon?: Record<ProductSettingsCdonMarketKey, MarketDelivery>;
-  /** Default shipping times per Fyndiq market (se, dk, fi). Used when product has no manual Fyndiq shipping_time. */
+  /** Default shipping times per Fyndiq market (se, dk, fi, no). Used when product has no manual Fyndiq shipping_time. */
   defaultDeliveryFyndiq?: Record<ProductSettingsFyndiqMarketKey, MarketDelivery>;
 }

@@ -19,7 +19,8 @@ class OrdersApi {
     if (this.csrfToken) return this.csrfToken;
     const response = await fetch('/api/csrf-token', { credentials: 'include' });
     const data = await response.json();
-    this.csrfToken = data.csrfToken;
+    this.csrfToken = data.csrfToken ?? null;
+    if (this.csrfToken == null) throw new Error('CSRF token not returned by server');
     return this.csrfToken;
   }
 

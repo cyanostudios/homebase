@@ -148,7 +148,6 @@ export const OrdersList: React.FC = () => {
         raw = null;
       }
     }
-    const currency = order.currency?.toUpperCase();
 
     if (channel === 'cdon') {
       // Try to extract market from raw data
@@ -161,14 +160,8 @@ export const OrdersList: React.FC = () => {
           if (country.includes('sweden') || country === 'se') market = 'SE';
           else if (country.includes('denmark') || country === 'dk') market = 'DK';
           else if (country.includes('finland') || country === 'fi') market = 'FI';
+          else if (country.includes('norway') || country === 'no') market = 'NO';
         }
-      }
-
-      // Fallback to currency-based detection
-      if (!market) {
-        if (currency === 'SEK') market = 'SE';
-        else if (currency === 'DKK') market = 'DK';
-        else if (currency === 'EUR') market = 'FI';
       }
 
       return market ? `CDON ${market}` : 'CDON';
@@ -184,14 +177,8 @@ export const OrdersList: React.FC = () => {
           if (m === 'se' || m === 'sweden') market = 'SE';
           else if (m === 'dk' || m === 'denmark') market = 'DK';
           else if (m === 'fi' || m === 'finland') market = 'FI';
+          else if (m === 'no' || m === 'norway') market = 'NO';
         }
-      }
-
-      // Fallback to currency-based detection
-      if (!market) {
-        if (currency === 'SEK') market = 'SE';
-        else if (currency === 'DKK') market = 'DK';
-        else if (currency === 'EUR') market = 'FI';
       }
 
       return market ? `Fyndiq ${market}` : 'Fyndiq';

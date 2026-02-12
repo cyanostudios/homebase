@@ -1,10 +1,24 @@
-import { File, Trash2, Grid3x3, List, ChevronUp, ChevronDown, Cloud, Settings, X, FolderOpen, Image, FolderPlus, Plus, Pencil, ChevronRight } from 'lucide-react';
+import { File, Trash2, Grid3x3, List, ChevronUp, ChevronDown, Cloud, Settings, X, FolderOpen, Image, FolderPlus, ListPlus, Plus, Pencil, ChevronRight } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -85,6 +99,13 @@ export const FileList: React.FC = () => {
   const [newListName, setNewListName] = useState('');
   const [editingListId, setEditingListId] = useState<string | null>(null);
   const [editingListName, setEditingListName] = useState('');
+  // Add to list dropdown: lists fetched when dropdown opens
+  const [addToListLists, setAddToListLists] = useState<Array<{ id: string; name: string }>>([]);
+  const [addToListLoading, setAddToListLoading] = useState(false);
+  // Create-new-list dialog (from Add to list)
+  const [showCreateListDialog, setShowCreateListDialog] = useState(false);
+  const [createListDialogName, setCreateListDialogName] = useState('');
+  const [createListDialogSaving, setCreateListDialogSaving] = useState(false);
 
   // Clean up OAuth callback query params
   useEffect(() => {
@@ -167,6 +188,49 @@ export const FileList: React.FC = () => {
       .then((data) => setListFiles(Array.isArray(data) ? data : []))
       .catch((err) => console.error('Add files to list failed:', err));
     setShowFilePicker(false);
+  };
+
+  const fetchListsForAddToList = () => {
+    setAddToListLoading(true);
+    filesApi
+      .getLists()
+      .then((data) => setAddToListLists(data || []))
+      .catch((err) => console.error('Failed to load lists:', err))
+      .finally(() => setAddToListLoading(false));
+  };
+
+  const handleAddSelectedToList = (listId: string) => {
+    if (selectedFileIds.length === 0) return;
+    filesApi
+      .addFilesToList(listId, selectedFileIds)
+      .then(() => {
+        clearFileSelection();
+      })
+      .catch((err) => console.error('Add files to list failed:', err));
+  };
+
+  const openCreateListDialog = () => {
+    setCreateListDialogName('');
+    // Defer so dropdown can close and remove its overlay first; avoids invisible overlay left on top
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setShowCreateListDialog(true));
+    });
+  };
+
+  const handleCreateListDialogSubmit = () => {
+    const name = createListDialogName.trim();
+    if (!name || selectedFileIds.length === 0) return;
+    setCreateListDialogSaving(true);
+    filesApi
+      .createList(name)
+      .then((list) => filesApi.addFilesToList(list.id, selectedFileIds))
+      .then(() => {
+        clearFileSelection();
+        setShowCreateListDialog(false);
+        setCreateListDialogName('');
+      })
+      .catch((err) => console.error('Create list / add files failed:', err))
+      .finally(() => setCreateListDialogSaving(false));
   };
 
   const handleRemoveFileFromList = (fileId: string) => {
@@ -259,7 +323,7 @@ export const FileList: React.FC = () => {
   const onToggleAllVisible = () => {
     if (allVisibleSelected) {
       const set = new Set(visibleIds);
-      const remaining = selectedFileIds.filter((id) => !set.has(id));
+      const remaining = selectedFileIds.filter((id: string) => !set.has(id));
       selectAllFiles(remaining);
     } else {
       const union = Array.from(new Set([...selectedFileIds, ...visibleIds]));
@@ -348,14 +412,49 @@ export const FileList: React.FC = () => {
     <div className="flex items-center gap-2">
       {viewToggleActions}
       {selectedFileIds.length > 0 && (
-        <Button
-          variant="destructive"
-          size="sm"
-          icon={Trash2}
-          onClick={() => setShowDeleteModal(true)}
-        >
-          Delete {selectedFileIds.length}
-        </Button>
+        <>
+          <DropdownMenu onOpenChange={(open) => open && fetchListsForAddToList()}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" icon={ListPlus} title="Lägg till i lista">
+                Add to list ({selectedFileIds.length})
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[12rem]">
+              {addToListLoading ? (
+                <div className="px-2 py-3 text-sm text-muted-foreground">Laddar listor...</div>
+              ) : (
+                <>
+                  {addToListLists.length === 0 ? (
+                    <div className="px-2 py-3 text-sm text-muted-foreground">Inga listor</div>
+                  ) : (
+                    addToListLists.map((list) => (
+                      <DropdownMenuItem
+                        key={list.id}
+                        onSelect={() => handleAddSelectedToList(list.id)}
+                      >
+                        <FolderPlus className="w-4 h-4 mr-2" />
+                        {list.name}
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => openCreateListDialog()}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Skapa ny
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="destructive"
+            size="sm"
+            icon={Trash2}
+            onClick={() => setShowDeleteModal(true)}
+          >
+            Delete {selectedFileIds.length}
+          </Button>
+        </>
       )}
     </div>
   );
@@ -367,62 +466,62 @@ export const FileList: React.FC = () => {
           <p className="text-sm text-muted-foreground">
             {filtered !== total ? `${filtered} of ${total}` : `${total}`} files
           </p>
-          {connectedServices.length > 0 && (
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-muted-foreground">View:</span>
-              <Button
-                variant={activeStorageView === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setActiveStorageView('all')}
-                title="All files and cloud storage"
-              >
-                <span>📂 All Files</span>
-              </Button>
-              <Button
-                variant={activeStorageView === 'local' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setActiveStorageView('local')}
-                title="My files"
-              >
-                <FolderOpen className="w-4 h-4" />
-                <span>My files</span>
-              </Button>
-              <Button
-                variant={activeStorageView === 'lists' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setActiveStorageView('lists')}
-                title="Mina listor"
-              >
-                <FolderPlus className="w-4 h-4" />
-                <span>Mina listor</span>
-              </Button>
-              {connectedServices.map((service) => (
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground">View:</span>
+            <Button
+              variant={activeStorageView === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActiveStorageView('all')}
+              title="All files and cloud storage"
+            >
+              <span>📂 All Files</span>
+            </Button>
+            <Button
+              variant={activeStorageView === 'local' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActiveStorageView('local')}
+              title="My files"
+            >
+              <FolderOpen className="w-4 h-4" />
+              <span>My files</span>
+            </Button>
+            <Button
+              variant={activeStorageView === 'lists' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActiveStorageView('lists')}
+              title="Mina listor"
+            >
+              <FolderPlus className="w-4 h-4" />
+              <span>Mina listor</span>
+            </Button>
+            {connectedServices.length > 0 && (
+              <>
+                {connectedServices.map((service) => (
+                  <Button
+                    key={service.name}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenCloud(service.name as 'googledrive')}
+                    disabled={openingCloudService === service.name}
+                    title={`Open ${service.label} in new tab`}
+                  >
+                    <span>{service.icon}</span>
+                    <span>{service.label}</span>
+                    {openingCloudService === service.name && <span className="animate-pulse">...</span>}
+                  </Button>
+                ))}
                 <Button
-                  key={service.name}
                   variant="outline"
                   size="sm"
-                  onClick={() => handleOpenCloud(service.name as 'googledrive')}
-                  disabled={openingCloudService === service.name}
-                  title={`Open ${service.label} in new tab`}
+                  icon={Settings}
+                  onClick={() => setShowCloudSettings(true)}
+                  title="Manage cloud storage"
                 >
-                  <span>{service.icon}</span>
-                  <span>{service.label}</span>
-                  {openingCloudService === service.name && <span className="animate-pulse">...</span>}
+                  Settings
                 </Button>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                icon={Settings}
-                onClick={() => setShowCloudSettings(true)}
-                title="Manage cloud storage"
-              >
-                Settings
-              </Button>
-            </div>
-          )}
-          {connectedServices.length === 0 && (
-            <div className="mt-2">
+              </>
+            )}
+            {connectedServices.length === 0 && (
               <Button
                 variant="outline"
                 size="sm"
@@ -431,8 +530,8 @@ export const FileList: React.FC = () => {
               >
                 Connect cloud storage
               </Button>
-            </div>
-          )}
+            )}
+          </div>
           {selectedFileIds.length > 0 && (
             <div className="mt-2 text-sm flex items-center flex-wrap gap-2">
               <Badge variant="secondary">{selectedFileIds.length} selected</Badge>
@@ -989,6 +1088,37 @@ export const FileList: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Create new list (from Add to list) */}
+      <Dialog open={showCreateListDialog} onOpenChange={setShowCreateListDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Skapa ny lista</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {selectedFileIds.length} fil{selectedFileIds.length !== 1 ? 'er' : ''} läggs i den nya listan.
+          </p>
+          <Input
+            placeholder="Listans namn"
+            value={createListDialogName}
+            onChange={(e) => setCreateListDialogName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreateListDialogSubmit()}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateListDialog(false)} disabled={createListDialogSaving}>
+              Avbryt
+            </Button>
+            <Button
+              onClick={handleCreateListDialogSubmit}
+              disabled={!createListDialogName.trim() || createListDialogSaving}
+              icon={Plus}
+            >
+              {createListDialogSaving ? 'Skapar…' : 'Skapa'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Cloud Storage Settings Modal */}
       {showCloudSettings && (

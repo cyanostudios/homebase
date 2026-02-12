@@ -860,6 +860,7 @@ export function ProductProvider({
 
       getChannelDataCache,
       setChannelDataCache,
+      clearChannelDataCache,
     }),
     [
       isProductPanelOpen,
