@@ -16,7 +16,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -437,15 +436,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     getChannelDataCache,
     setChannelDataCache,
   } = useProducts();
-  const {
-    isDirty,
-    showWarning,
-    markDirty,
-    markClean,
-    attemptAction,
-    confirmDiscard,
-    cancelDiscard,
-  } = useUnsavedChanges();
+  const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
     useGlobalNavigationGuard();
 
@@ -567,6 +558,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   // Target key: "channel" or "channel:instanceId" for matching
   const targetKey = (channel: string, channelInstanceId: string | null) =>
     channelInstanceId ? `${channel}:${channelInstanceId}` : channel;
+
+  /** CDON/Fyndiq kräver marknad (SE, DK, FI, NO). WooCommerce behöver inte. Används för att visa aktiva/inaktiva i Kanaler och filtrera Priser/Kategorier. */
+  const hasValidMarket = (inst: ChannelInstance) => {
+    const ch = String(inst.channel).toLowerCase();
+    if (ch === 'woocommerce') return true;
+    const m = inst.market?.trim()?.toLowerCase().slice(0, 2);
+    return !!m && ['se', 'dk', 'fi', 'no'].includes(m);
+  };
 
   // Load channel instances (for both new and existing products) and, when product exists, current targets + overrides.
   // Use context cache so we don’t refetch when switching tabs (cache survives form remount).
@@ -867,7 +866,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   useEffect(() => {
     if (activeTab !== 'kategori' || isBatchMode || !channelInstances.length) return;
     const channelInstancesToFetch = channelInstances.filter((i) =>
-      ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()),
+      ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()) && hasValidMarket(i),
     );
     for (const inst of channelInstancesToFetch) {
       const key = String(inst.id);
@@ -876,7 +875,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       setChannelCategoriesLoading((prev) => ({ ...prev, [key]: true }));
       setChannelCategoriesError((prev) => ({ ...prev, [key]: '' }));
       const ch = String(inst.channel).toLowerCase();
-      const market = (inst.market || (ch === 'cdon' || ch === 'fyndiq' ? 'se' : null))?.toLowerCase();
+      const market = inst.market?.trim()?.toLowerCase().slice(0, 2) ?? null;
       const language = market ? (marketToLanguage[market] || 'sv-SE') : 'sv-SE';
       (async () => {
         try {
@@ -1144,6 +1143,26 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           channelInstanceId: instId && Number.isFinite(Number(instId)) ? Number(instId) : null,
         };
       });
+      // Endast kanaler med angiven marknad (ingen fallback – CDON/Fyndiq kräver rätt marknad)
+      const channelTargetsWithMarket = Array.from(selectedTargetKeys)
+        .map((k) => {
+          const colonIdx = k.indexOf(':');
+          const ch = colonIdx >= 0 ? k.slice(0, colonIdx) : k;
+          const instIdStr = colonIdx >= 0 ? k.slice(colonIdx + 1) : '';
+          const inst = channelInstances.find(
+            (i) => String(i.channel) === ch && String(i.id) === instIdStr,
+          );
+          const marketRaw = inst?.market?.trim();
+          if (!marketRaw) return null;
+          const market = marketRaw.toLowerCase().slice(0, 2);
+          if (!['se', 'dk', 'fi', 'no'].includes(market)) return null;
+          return {
+            channel: ch,
+            channelInstanceId: instIdStr && Number.isFinite(Number(instIdStr)) ? Number(instIdStr) : null,
+            market,
+          };
+        })
+        .filter((x): x is NonNullable<typeof x> => x != null);
       const channelOverridesToSave = channelInstances
         .filter((i) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()))
         .map((inst) => {
@@ -1197,23 +1216,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     lastFxObservedAt,
   ]);
 
-  const handleCancel = useCallback(() => {
-    attemptAction(() => {
-      onCancel();
-    });
-  }, [attemptAction, onCancel]);
-
-  // Listen for submit/cancel events from panel footer (ProductContext dispatches when window.submitProductsForm/cancelProductsForm is called)
+  // Listen for submit/cancel events from panel footer (cancelProductForm fires after user already confirmed in global nav guard, so close directly)
   useEffect(() => {
     const onSubmit = () => handleSubmit();
-    const onCancel = () => handleCancel();
+    const onCancelEvent = () => onCancel();
     window.addEventListener('submitProductForm', onSubmit);
-    window.addEventListener('cancelProductForm', onCancel);
+    window.addEventListener('cancelProductForm', onCancelEvent);
     return () => {
       window.removeEventListener('submitProductForm', onSubmit);
-      window.removeEventListener('cancelProductForm', onCancel);
+      window.removeEventListener('cancelProductForm', onCancelEvent);
     };
-  }, [handleSubmit, handleCancel]);
+  }, [handleSubmit, onCancel]);
 
   const getFieldError = (fieldName: string) => validationErrors.find((e) => e.field === fieldName);
   const hasBlockingErrors = validationErrors.some((e) => !e.message.includes('Warning'));
@@ -1728,19 +1741,22 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         {insts.map((inst) => {
                           const key = targetKey(inst.channel, inst.id);
                           const checked = selectedTargetKeys.has(key);
+                          const selectable = hasValidMarket(inst);
                           const label = inst.label || `${inst.channel}.${inst.instanceKey}`;
-                          const sub = inst.market
-                            ? `${inst.instanceKey} · ${inst.market}`
-                            : inst.instanceKey;
+                          const sub = selectable
+                            ? (inst.market ? `${inst.instanceKey} · ${inst.market}` : inst.instanceKey)
+                            : 'Saknar marknad – konfigurera i Channels';
                           return (
                             <label
                               key={inst.id}
-                              className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                              className={`flex items-center gap-3 py-1.5 px-2 rounded-lg ${selectable ? 'hover:bg-gray-50 cursor-pointer' : 'opacity-60 cursor-not-allowed'}`}
                             >
                               <input
                                 type="checkbox"
                                 checked={checked}
+                                disabled={!selectable}
                                 onChange={() => {
+                                  if (!selectable) return;
                                   setSelectedTargetKeys((prev) => {
                                     const next = new Set(prev);
                                     if (next.has(key)) next.delete(key);
@@ -1753,7 +1769,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                               />
                               <div>
                                 <span className="text-sm font-medium">{label}</span>
-                                <span className="text-xs text-gray-500 ml-2">{sub}</span>
+                                <span className={`text-xs ml-2 ${selectable ? 'text-gray-500' : 'text-amber-600'}`}>{sub}</span>
                               </div>
                             </label>
                           );
@@ -1851,7 +1867,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Pris per butik / marknad</div>
                 <p className="text-xs text-gray-500 mb-1.5">Tomt pris = ärver marknadspris (standardpris) för den butikens marknad. Fyll i för att överstyra.</p>
                 {channelInstances
-                  .filter((i) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()))
+                  .filter((i) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()) && hasValidMarket(i))
                   .sort((a, b) => {
                     const chA = String(a.channel).toLowerCase();
                     const chB = String(b.channel).toLowerCase();
@@ -1868,7 +1884,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     const channelName = ch === 'woocommerce' ? 'Webbshop' : ch === 'cdon' ? 'CDON' : ch === 'fyndiq' ? 'Fyndiq' : inst.channel;
                     const part = inst.label || inst.instanceKey || inst.market || '';
                     const label = part ? `${channelName} · ${part}` : channelName;
-                    const rawMk = (inst.market || 'SE').toLowerCase().slice(0, 2);
+                    const rawMk = (inst.market ?? '').toLowerCase().slice(0, 2);
                     const mk: MarketKey = rawMk === 'sv' ? 'se' : (['se', 'dk', 'fi', 'no'].includes(rawMk) ? rawMk : 'se') as MarketKey;
                     const m = MARKETS.find((x) => x.key === mk) ?? MARKETS[0];
                     const mp = marketPrices[mk];
@@ -1938,7 +1954,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             {currentProduct?.id && channelInstances.length > 0 && (
               <div className="space-y-3">
                 {channelInstances
-                  .filter((i) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()))
+                  .filter((i) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()) && hasValidMarket(i))
                   .map((inst) => {
                     const ov = channelOverrides.find((o: any) => o.instanceId === inst.id);
                     const rawCatVal = ov?.category ?? formData.channelCategories?.[inst.channel as 'cdon'|'fyndiq'|'woocommerce']?.[inst.instanceKey];
@@ -2205,6 +2221,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         const item = await productsApi.createBrand(name.trim());
                         setBrands((prev) => [...prev.filter((p) => p.id !== item.id), item].sort((a, b) => a.name.localeCompare(b.name)));
                         setFormData((prev) => ({ ...prev, brandId: item.id, brand: item.name }));
+                        clearValidationErrors();
                         markDirty();
                       } catch (_) {
                         window.alert('Kunde inte skapa märke.');
@@ -2422,16 +2439,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           </Card>
         )}
       </form>
-
-      <ConfirmDialog
-        isOpen={showWarning}
-        title="Unsaved Changes"
-        message="You have unsaved changes. Are you sure you want to discard them?"
-        confirmText="Discard"
-        cancelText="Cancel"
-        onConfirm={confirmDiscard}
-        onCancel={cancelDiscard}
-      />
     </div>
   );
 };

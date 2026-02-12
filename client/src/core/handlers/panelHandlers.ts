@@ -167,7 +167,10 @@ export const createPanelHandlers = (
         }
       };
     } else {
-      // Use handleCancelClick for form modes (includes unsaved changes check)
+      // Form mode: use navigation guard so one dialog (global) is shown; on confirm, handleCancelClick runs and form listener calls onCancel directly
+      if (attemptNavigation) {
+        return () => attemptNavigation(handleCancelClick);
+      }
       return handleCancelClick;
     }
   };
@@ -198,6 +201,18 @@ export const createPanelHandlers = (
     }
   };
 
+  /** Close the current plugin panel without going through form cancel (used when user already confirmed in global nav guard). */
+  const closePanelDirectly = () => {
+    if (currentPluginContext && currentPlugin) {
+      const closeFunction = findPanelFunction(
+        currentPluginContext,
+        'close',
+        currentPlugin.name,
+      );
+      if (closeFunction) closeFunction();
+    }
+  };
+
   return {
     handleDeleteItem,
     confirmDelete,
@@ -206,6 +221,7 @@ export const createPanelHandlers = (
     handleSaveClick,
     handleCancelClick,
     getCloseHandler,
+    closePanelDirectly,
     handleEstimateContactClick,
   };
 };

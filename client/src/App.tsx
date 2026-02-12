@@ -166,15 +166,6 @@ function AppContent() {
 
   const validationErrors = currentPluginContext?.validationErrors || [];
 
-  // Protected page change
-  const handlePageChange = useCallback(
-    (page: NavPage) => {
-      // <-- också typad som NavPage
-      attemptNavigation(() => setCurrentPage(page));
-    },
-    [attemptNavigation],
-  );
-
   // Screen size detection
   useEffect(() => {
     const checkScreenSize = () => setIsMobileView(window.innerWidth < 768);
@@ -341,6 +332,18 @@ function AppContent() {
   const detailPanelFooter = currentPage === 'settings' ? null : panelFooter;
   const onDetailPanelClose =
     currentPage === 'settings' ? () => setSettingsCategory(null) : handlers.getCloseHandler();
+
+  // Protected page change: one pending action closes panel (direct) + navigates, so only the global guard dialog is shown
+  const handlePageChange = (page: NavPage) => {
+    attemptNavigation(() => {
+      if (currentPage === 'settings') {
+        setSettingsCategory(null);
+      } else {
+        handlers.closePanelDirectly();
+      }
+      setCurrentPage(page);
+    });
+  };
 
   return (
     <>

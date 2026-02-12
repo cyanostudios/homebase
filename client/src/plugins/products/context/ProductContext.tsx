@@ -371,10 +371,27 @@ export function ProductProvider({
     }
 
     const errors = validateProduct(data);
-    // Warn if product is active on a channel but has no effective price (channel override or marknadspris)
     const channelTargets = options?.channelTargets ?? [];
     const channelTargetsWithMarket = options?.channelTargetsWithMarket ?? [];
     const channelOverridesToSave = options?.channelOverridesToSave ?? [];
+
+    // CDON/Fyndiq: varje vald butik måste ha marknad – annars kan vi inte veta vilket pris som gäller
+    const cdonFyndiqTargets = channelTargets.filter(
+      (t) => t.channelInstanceId != null && ['cdon', 'fyndiq'].includes(String(t.channel).toLowerCase()),
+    );
+    for (const t of cdonFyndiqTargets) {
+      const withMarket = channelTargetsWithMarket.find((m) => m.channelInstanceId === t.channelInstanceId);
+      if (!withMarket?.market) {
+        errors.push({
+          field: 'kanaler',
+          message:
+            'En eller flera valda butiker saknar marknad. Gå till fliken Kanaler och ange vilken marknad (SE, DK, NO eller FI) varje CDON- och Fyndiq-butik gäller.',
+        });
+        break;
+      }
+    }
+
+    // Warn if product is active on a channel but has no effective price (channel override or marknadspris)
     const pricing = (data.channelSpecific as any)?.pricing;
     const markets = pricing?.markets && typeof pricing.markets === 'object' ? pricing.markets : null;
     if (channelTargets.length > 0) {
@@ -388,9 +405,10 @@ export function ProductProvider({
         let hasEffectivePrice = hasGlobalPrice || hasChannelPrice;
         if (!hasEffectivePrice && markets && channelTargetsWithMarket.length > 0) {
           const withMarket = channelTargetsWithMarket.find((m) => m.channelInstanceId === t.channelInstanceId);
-          const marketKey = withMarket?.market ?? 'se';
-          const marketAmount = markets[marketKey]?.amount;
-          hasEffectivePrice = marketAmount != null && Number.isFinite(Number(marketAmount)) && Number(marketAmount) > 0;
+          if (withMarket?.market) {
+            const marketAmount = markets[withMarket.market]?.amount;
+            hasEffectivePrice = marketAmount != null && Number.isFinite(Number(marketAmount)) && Number(marketAmount) > 0;
+          }
         }
         if (!hasEffectivePrice) {
           errors.push({

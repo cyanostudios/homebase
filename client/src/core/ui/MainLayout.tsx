@@ -39,11 +39,8 @@ export function MainLayout({
 }: MainLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  // Wrapper to close detail panel when navigating
+  // Navigation goes through onPageChange only; closing the panel (with unsaved guard) is handled inside App's attemptNavigation
   const handlePageChange = (page: NavPage) => {
-    if (detailPanelOpen) {
-      onDetailPanelClose();
-    }
     onPageChange(page);
   };
 
