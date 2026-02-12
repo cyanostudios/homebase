@@ -39,7 +39,7 @@ export function MainLayout({
 }: MainLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  // Navigation goes through onPageChange only; closing the panel (with unsaved guard) is handled inside App's attemptNavigation
+  // Navigation: only trigger App's handlePageChange (guard + close panel handled there)
   const handlePageChange = (page: NavPage) => {
     onPageChange(page);
   };

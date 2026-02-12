@@ -333,15 +333,11 @@ function AppContent() {
   const onDetailPanelClose =
     currentPage === 'settings' ? () => setSettingsCategory(null) : handlers.getCloseHandler();
 
-  // Protected page change: one pending action closes panel (direct) + navigates, so only the global guard dialog is shown
+  // Protected page change: one guard, one callback — set page first then close panel (best practice, no workarounds)
   const handlePageChange = (page: NavPage) => {
     attemptNavigation(() => {
-      if (currentPage === 'settings') {
-        setSettingsCategory(null);
-      } else {
-        handlers.closePanelDirectly();
-      }
       setCurrentPage(page);
+      handlers.closePanelDirectly();
     });
   };
 
