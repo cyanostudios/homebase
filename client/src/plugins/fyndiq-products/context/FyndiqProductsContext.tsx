@@ -108,7 +108,7 @@ export function FyndiqProductsProvider({ children, isAuthenticated, onCloseOther
 
   const openFyndiqSettingsPanel = useCallback((s: FyndiqSettings | null) => {
     setCurrentFyndiqSettings(s);
-    setPanelMode(s ? 'view' : 'create');
+    setPanelMode(s ? 'edit' : 'create');
     setIsFyndiqProductsPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -124,7 +124,7 @@ export function FyndiqProductsProvider({ children, isAuthenticated, onCloseOther
 
   const openFyndiqSettingsForView = useCallback((s: FyndiqSettings) => {
     setCurrentFyndiqSettings(s);
-    setPanelMode('view');
+    setPanelMode('edit');
     setIsFyndiqProductsPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();

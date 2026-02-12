@@ -135,7 +135,9 @@ class ChannelsController {
   async listInstances(req, res) {
     try {
       const channel = req.query?.channel != null ? String(req.query.channel) : undefined;
-      const items = await this.model.listInstances(req, { channel });
+      const raw = req.query?.includeDisabled;
+      const includeDisabled = raw === 'true' || raw === '1';
+      const items = await this.model.listInstances(req, { channel, includeDisabled });
       return res.json({ ok: true, items });
     } catch (error) {
       Logger.error('Channels listInstances error', error, { userId: Context.getUserId(req) });
@@ -170,6 +172,7 @@ class ChannelsController {
         market: data.market,
         label: data.label,
         credentials: data.credentials,
+        enabled: data.enabled,
       });
       return res.json({ ok: true, row });
     } catch (error) {

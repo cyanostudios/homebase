@@ -48,6 +48,7 @@ export interface ChannelInstance {
   market: string | null;
   label: string | null;
   credentials: any | null;
+  enabled?: boolean;
   createdAt: Date | string | null;
   updatedAt: Date | string | null;
 }

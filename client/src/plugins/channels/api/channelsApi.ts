@@ -112,9 +112,10 @@ class ChannelsApi {
   }
 
   // ---- Instances (Selloklon) ----
-  async getInstances(params?: { channel?: string }): Promise<{ ok: true; items: ChannelInstance[] }> {
+  async getInstances(params?: { channel?: string; includeDisabled?: boolean }): Promise<{ ok: true; items: ChannelInstance[] }> {
     const q = new URLSearchParams();
     if (params?.channel) q.set('channel', params.channel);
+    if (params?.includeDisabled === true) q.set('includeDisabled', 'true');
     const suffix = q.toString() ? `?${q.toString()}` : '';
     return this.request(`/instances${suffix}`);
   }
@@ -136,6 +137,7 @@ class ChannelsApi {
     market?: string | null;
     label?: string | null;
     credentials?: any | null;
+    enabled?: boolean;
   }): Promise<{ ok: true; row: ChannelInstance }> {
     return this.request(`/instances/${encodeURIComponent(id)}`, {
       method: 'PUT',

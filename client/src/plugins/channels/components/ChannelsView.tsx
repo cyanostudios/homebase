@@ -24,7 +24,6 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
   const [loadingInstances, setLoadingInstances] = useState(false);
   const [creatingDefaults, setCreatingDefaults] = useState(false);
   const [savingInstanceId, setSavingInstanceId] = useState<string | null>(null);
-  const [draftById, setDraftById] = useState<Record<string, { market: string; label: string }>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -52,25 +51,20 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
     };
   }, [item.channel]);
 
+  const isCdonOrFyndiq = String(item.channel).toLowerCase() === 'cdon' || String(item.channel).toLowerCase() === 'fyndiq';
+
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
       setLoadingInstances(true);
       try {
-        const resp = await channelsApi.getInstances({ channel: String(item.channel) });
+        const resp = await channelsApi.getInstances({
+          channel: String(item.channel),
+          includeDisabled: isCdonOrFyndiq,
+        });
         if (cancelled) return;
         const items = Array.isArray(resp.items) ? resp.items : [];
         setInstances(items);
-        setDraftById((prev) => {
-          const next = { ...prev };
-          for (const it of items) {
-            next[it.id] = {
-              market: String(it.market || ''),
-              label: String(it.label || ''),
-            };
-          }
-          return next;
-        });
       } catch (err) {
         if (!cancelled) setInstances([]);
         console.error('Failed to load channel instances:', err);
@@ -82,7 +76,7 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
     return () => {
       cancelled = true;
     };
-  }, [item.channel]);
+  }, [item.channel, isCdonOrFyndiq]);
 
   const ensureDefaults = async () => {
     const ch = String(item.channel).toLowerCase();
@@ -92,6 +86,7 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
             { instanceKey: 'se', market: 'se', label: 'Sweden' },
             { instanceKey: 'dk', market: 'dk', label: 'Denmark' },
             { instanceKey: 'fi', market: 'fi', label: 'Finland' },
+            { instanceKey: 'no', market: 'no', label: 'Norway' },
           ]
         : [];
 
@@ -101,46 +96,39 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
     }
 
     try {
+      setCreatingDefaults(true);
       setLoadingInstances(true);
+      const resp = await channelsApi.getInstances({ channel: ch, includeDisabled: true });
+      const existing = new Set((resp.items || []).map((i) => i.instanceKey.toLowerCase()));
       for (const d of defaults) {
-        await channelsApi.createInstance({
-          channel: ch,
-          instanceKey: d.instanceKey,
-          market: d.market,
-          label: d.label,
-        });
-      }
-      const resp = await channelsApi.getInstances({ channel: ch });
-      setInstances(resp.items || []);
-      setDraftById((prev) => {
-        const next = { ...prev };
-        for (const inst of resp.items || []) {
-          next[inst.id] = {
-            market: String(inst.market || ''),
-            label: String(inst.label || ''),
-          };
+        if (!existing.has(d.instanceKey.toLowerCase())) {
+          await channelsApi.createInstance({
+            channel: ch,
+            instanceKey: d.instanceKey,
+            market: d.market,
+            label: d.label,
+          });
         }
-        return next;
-      });
+      }
+      const afterResp = await channelsApi.getInstances({ channel: ch, includeDisabled: true });
+      setInstances(afterResp.items || []);
     } catch (err) {
       console.error('Failed to create default instances:', err);
       alert('Failed to create default instances. Check console for details.');
     } finally {
+      setCreatingDefaults(false);
       setLoadingInstances(false);
     }
   };
 
-  const saveInstance = async (inst: ChannelInstance) => {
-    const draft = draftById[inst.id] || { market: '', label: '' };
+  const toggleEnabled = async (inst: ChannelInstance) => {
+    const nextEnabled = !(inst.enabled !== false);
     setSavingInstanceId(inst.id);
     try {
-      const resp = await channelsApi.updateInstance(inst.id, {
-        market: (draft.market || '').trim() || null,
-        label: (draft.label || '').trim() || null,
-      });
+      const resp = await channelsApi.updateInstance(inst.id, { enabled: nextEnabled });
       setInstances((prev) => prev.map((x) => (x.id === inst.id ? resp.row : x)));
     } catch (err) {
-      console.error('Failed to update instance:', err);
+      console.error('Failed to update instance enabled:', err);
     } finally {
       setSavingInstanceId(null);
     }
@@ -210,6 +198,11 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
         <Text variant="caption" className="text-gray-600 mb-3">
           Instances represent markets/stores (e.g. <strong>cdon.se</strong>, <strong>fyndiq.fi</strong>, <strong>woocommerce.shopA</strong>).
         </Text>
+        {isCdonOrFyndiq && instances.length > 0 && (
+          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-3">
+            Aktivera eller avaktivera marknader nedan. Endast aktiva marknader syns i Produkter och Orders.
+          </p>
+        )}
 
         {loadingInstances ? (
           <div className="text-sm text-gray-500">Loading…</div>
@@ -219,40 +212,43 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
           </div>
         ) : (
           <div className="divide-y divide-gray-200 rounded-lg border border-gray-200 overflow-hidden">
+            {isCdonOrFyndiq && (
+              <div className="px-3 py-2 bg-gray-50 text-xs font-medium text-gray-600 border-b border-gray-200 flex flex-wrap items-center gap-2">
+                <span className="w-28 shrink-0">Aktiverad</span>
+                <span className="flex-1 min-w-0">Instance</span>
+                <span>Market</span>
+                <span>Label</span>
+              </div>
+            )}
             {instances.map((inst) => {
-              const draft = draftById[inst.id] || { market: '', label: '' };
+              const enabled = inst.enabled !== false;
+              const showEnabledToggle = isCdonOrFyndiq;
               return (
-                <div key={inst.id} className="p-3 flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex-1">
+                <div
+                  key={inst.id}
+                  className={`p-3 flex flex-col sm:flex-row sm:items-center gap-3 ${!enabled ? 'opacity-70' : ''}`}
+                >
+                  {showEnabledToggle && (
+                    <label className="flex items-center gap-2 cursor-pointer shrink-0 order-first w-28">
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        disabled={savingInstanceId === inst.id}
+                        onChange={() => toggleEnabled(inst)}
+                        className="rounded border-gray-300"
+                      />
+                      <span className="text-sm whitespace-nowrap">Aktiverad</span>
+                    </label>
+                  )}
+                  <div className={showEnabledToggle ? 'min-w-0 flex-1' : 'flex-1'}>
                     <div className="text-sm font-medium text-gray-900">
                       {String(inst.channel).toLowerCase()}.{inst.instanceKey}
                     </div>
                     <div className="text-xs text-gray-500">Instance key: {inst.instanceKey}</div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      className="h-9 rounded-md border px-2 text-sm w-24"
-                      placeholder="market"
-                      value={draft.market}
-                      onChange={(e) =>
-                        setDraftById((prev) => ({ ...prev, [inst.id]: { ...draft, market: e.target.value } }))
-                      }
-                    />
-                    <input
-                      className="h-9 rounded-md border px-2 text-sm w-44"
-                      placeholder="label"
-                      value={draft.label}
-                      onChange={(e) =>
-                        setDraftById((prev) => ({ ...prev, [inst.id]: { ...draft, label: e.target.value } }))
-                      }
-                    />
-                    <Button
-                      variant="secondary"
-                      disabled={savingInstanceId === inst.id}
-                      onClick={() => saveInstance(inst)}
-                    >
-                      {savingInstanceId === inst.id ? 'Saving…' : 'Save'}
-                    </Button>
+                  <div className="flex items-center gap-4 flex-wrap text-sm text-gray-700">
+                    <span>{inst.market || '—'}</span>
+                    <span>{inst.label || '—'}</span>
                   </div>
                 </div>
               );

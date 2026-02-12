@@ -325,7 +325,7 @@ export function WooCommerceProvider({
   // Panel actions
   const openWooSettingsPanel = (s: WooSettings | null) => {
     setCurrentWooSettings(s);
-    setPanelMode(s ? 'view' : 'create');
+    setPanelMode(s ? 'edit' : 'create');
     setIsWoocommerceProductsPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -339,7 +339,7 @@ export function WooCommerceProvider({
   };
   const openWooSettingsForView = (s: WooSettings) => {
     setCurrentWooSettings(s);
-    setPanelMode('view');
+    setPanelMode('edit');
     setIsWoocommerceProductsPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();

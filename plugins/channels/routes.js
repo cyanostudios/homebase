@@ -64,7 +64,10 @@ function createChannelsRoutes(controller, context) {
   router.get(
     '/instances',
     gate,
-    [query('channel').optional().trim().isLength({ min: 1, max: 255 }).withMessage('channel is too long')],
+    [
+      query('channel').optional().trim().isLength({ min: 1, max: 255 }).withMessage('channel is too long'),
+      query('includeDisabled').optional().isIn(['true', 'false', '1', '0']).withMessage('includeDisabled must be true/false/1/0'),
+    ],
     validateRequest,
     (req, res) => controller.listInstances(req, res),
   );
@@ -93,6 +96,7 @@ function createChannelsRoutes(controller, context) {
       commonRules.optionalString('market', 10),
       commonRules.optionalString('label', 500),
       body('credentials').optional().isObject().withMessage('credentials must be an object'),
+      body('enabled').optional().isBoolean().withMessage('enabled must be a boolean'),
     ],
     validateRequest,
     (req, res) => controller.updateInstance(req, res),

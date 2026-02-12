@@ -98,39 +98,21 @@ export const createPanelHandlers = (
 
   const handleSaveClick = () => {
     if (currentPlugin) {
-      // Generic pattern: submit + PluginName + Form
       const pluginNameCapitalized = toCamel(currentPlugin.name);
       const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
       const functionName = `submit${cap}Form`;
-
       const submitFunction = (window as any)[functionName];
-
-      if (submitFunction) {
-        submitFunction();
-      } else {
-        console.warn(
-          `Global function ${functionName} not found. Make sure the plugin registers it correctly.`,
-        );
-      }
+      if (submitFunction) submitFunction();
     }
   };
 
   const handleCancelClick = () => {
     if (currentPlugin) {
-      // Generic pattern: cancel + PluginName + Form
       const pluginNameCapitalized = toCamel(currentPlugin.name);
       const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
       const functionName = `cancel${cap}Form`;
-
       const cancelFunction = (window as any)[functionName];
-
-      if (cancelFunction) {
-        cancelFunction();
-      } else {
-        console.warn(
-          `Global function ${functionName} not found. Make sure the plugin registers it correctly.`,
-        );
-      }
+      if (cancelFunction) cancelFunction();
     }
   };
 

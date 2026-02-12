@@ -34,7 +34,8 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
     (e: any) => !String(e?.message || '').includes('Warning'),
   );
 
-  if (currentMode === 'view') {
+  // Channels (CDON/Fyndiq detail): show Cancel/Update instead of Close/Edit
+  if (currentMode === 'view' && pluginName !== 'channels') {
     return (
       <div className="flex items-center justify-between w-full">
         <Button type="button" onClick={onDeleteItem} variant="danger" icon={Trash2}>
@@ -126,13 +127,10 @@ export const createPanelFooter = (
     }
   };
 
-  const handleSave = () => {
-    handlers.handleSaveClick();
-  };
-
-  const handleCancel = () => {
-    handlers.handleCancelClick();
-  };
+  // Channels: no form; Cancel and Update both close the panel directly
+  const closePanel = handlers.getCloseHandler();
+  const handleSave = pluginName === 'channels' ? closePanel : () => handlers.handleSaveClick();
+  const handleCancel = pluginName === 'channels' ? closePanel : () => handlers.handleCancelClick();
 
   return (
     <PanelFooter
@@ -142,7 +140,7 @@ export const createPanelFooter = (
       validationErrors={validationErrors}
       pluginName={pluginName}
       onDeleteItem={handlers.handleDeleteItem}
-      onClosePanel={handlers.getCloseHandler()}
+      onClosePanel={closePanel}
       onEditItem={handleEditItem}
       onSaveClick={handleSave}
       onCancelClick={handleCancel}

@@ -196,14 +196,14 @@ class ProductController {
 
     // Ensure instance exists (future-proof: multiple stores / markets)
     const inferredMarket =
-      (channelKey === 'cdon' || channelKey === 'fyndiq') && ['se', 'dk', 'fi'].includes(instanceKey.toLowerCase())
+      (channelKey === 'cdon' || channelKey === 'fyndiq') && ['se', 'dk', 'fi', 'no'].includes(instanceKey.toLowerCase())
         ? instanceKey.toLowerCase()
         : null;
 
     const instRows = await db.query(
       `
-      INSERT INTO channel_instances (user_id, channel, instance_key, market, label, credentials, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO channel_instances (user_id, channel, instance_key, market, label, credentials, enabled, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, NULL, NULL, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       ON CONFLICT (user_id, channel, instance_key) DO UPDATE SET
         market = COALESCE(channel_instances.market, EXCLUDED.market),
         updated_at = CURRENT_TIMESTAMP

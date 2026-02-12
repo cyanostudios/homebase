@@ -105,7 +105,7 @@ export function CdonProductsProvider({ children, isAuthenticated, onCloseOtherPa
   // Panel actions
   const openCdonSettingsPanel = useCallback((s: CdonSettings | null) => {
     setCurrentCdonSettings(s);
-    setPanelMode(s ? 'view' : 'create');
+    setPanelMode(s ? 'edit' : 'create');
     setIsCdonProductsPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -121,7 +121,7 @@ export function CdonProductsProvider({ children, isAuthenticated, onCloseOtherPa
 
   const openCdonSettingsForView = useCallback((s: CdonSettings) => {
     setCurrentCdonSettings(s);
-    setPanelMode('view');
+    setPanelMode('edit');
     setIsCdonProductsPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();

@@ -307,7 +307,7 @@ class ChannelsModel {
   }
 
   // ---------- Channel instances ----------
-  async listInstances(req, { channel } = {}) {
+  async listInstances(req, { channel, includeDisabled } = {}) {
     try {
       const db = Database.get(req);
       const userId = req.session?.user?.id || req.session?.user?.uuid;
@@ -315,7 +315,7 @@ class ChannelsModel {
 
       const ch = channel ? this.sanitizeChannelKey(channel) : null;
       let sql = `
-        SELECT id, channel, instance_key, market, label, credentials, created_at, updated_at
+        SELECT id, channel, instance_key, market, label, credentials, enabled, created_at, updated_at
         FROM ${ChannelsModel.CHANNEL_INSTANCES_TABLE}
         WHERE user_id = $1
       `;
@@ -324,6 +324,9 @@ class ChannelsModel {
       if (ch) {
         sql += ` AND channel = $2`;
         params.push(ch);
+      }
+      if (!includeDisabled) {
+        sql += ` AND enabled = true`;
       }
       
       sql += ` ORDER BY channel ASC, COALESCE(market,'') ASC, instance_key ASC, id ASC`;
@@ -337,6 +340,7 @@ class ChannelsModel {
         market: r.market,
         label: r.label,
         credentials: r.credentials ?? null,
+        enabled: r.enabled !== false,
         createdAt: r.created_at || null,
         updatedAt: r.updated_at || null,
       }));
@@ -366,15 +370,15 @@ class ChannelsModel {
       const rows = await db.query(
         `
         INSERT INTO ${ChannelsModel.CHANNEL_INSTANCES_TABLE}
-          (user_id, channel, instance_key, market, label, credentials, created_at, updated_at)
+          (user_id, channel, instance_key, market, label, credentials, enabled, created_at, updated_at)
         VALUES
-          ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          ($1, $2, $3, $4, $5, $6, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT (user_id, channel, instance_key) DO UPDATE SET
           market = EXCLUDED.market,
           label = EXCLUDED.label,
           credentials = EXCLUDED.credentials,
           updated_at = CURRENT_TIMESTAMP
-        RETURNING id, channel, instance_key, market, label, credentials, created_at, updated_at
+        RETURNING id, channel, instance_key, market, label, credentials, enabled, created_at, updated_at
         `,
         [userId, ch, key, mkt, lbl, creds],
       );
@@ -387,6 +391,7 @@ class ChannelsModel {
         market: r.market,
         label: r.label,
         credentials: r.credentials ?? null,
+        enabled: r.enabled !== false,
         createdAt: r.created_at || null,
         updatedAt: r.updated_at || null,
       };
@@ -397,7 +402,7 @@ class ChannelsModel {
     }
   }
 
-  async updateInstance(req, id, { market, label, credentials } = {}) {
+  async updateInstance(req, id, { market, label, credentials, enabled } = {}) {
     try {
       const db = Database.get(req);
       const userId = req.session?.user?.id || req.session?.user?.uuid;
@@ -408,22 +413,46 @@ class ChannelsModel {
         throw new AppError('Invalid instance id', 400, AppError.CODES.VALIDATION_ERROR);
       }
 
-      const mkt = market != null && String(market).trim() ? String(market).trim().toLowerCase() : null;
-      const lbl = label != null && String(label).trim() ? String(label).trim() : null;
-      const creds = credentials != null ? credentials : null;
+      const setClauses = [];
+      const params = [userId, instanceId];
+      let paramIdx = 3;
+
+      if (market !== undefined) {
+        const mkt = market != null && String(market).trim() ? String(market).trim().toLowerCase() : null;
+        setClauses.push(`market = $${paramIdx}`);
+        params.push(mkt);
+        paramIdx += 1;
+      }
+      if (label !== undefined) {
+        const lbl = label != null && String(label).trim() ? String(label).trim() : null;
+        setClauses.push(`label = $${paramIdx}`);
+        params.push(lbl);
+        paramIdx += 1;
+      }
+      if (credentials !== undefined) {
+        setClauses.push(`credentials = $${paramIdx}`);
+        params.push(credentials);
+        paramIdx += 1;
+      }
+      if (enabled !== undefined) {
+        setClauses.push(`enabled = $${paramIdx}`);
+        params.push(!!enabled);
+        paramIdx += 1;
+      }
+
+      if (setClauses.length === 0) {
+        throw new AppError('No fields to update', 400, AppError.CODES.VALIDATION_ERROR);
+      }
+      setClauses.push('updated_at = CURRENT_TIMESTAMP');
 
       const rows = await db.query(
         `
         UPDATE ${ChannelsModel.CHANNEL_INSTANCES_TABLE}
-        SET
-          market = $3,
-          label = $4,
-          credentials = $5,
-          updated_at = CURRENT_TIMESTAMP
+        SET ${setClauses.join(', ')}
         WHERE user_id = $1 AND id = $2
-        RETURNING id, channel, instance_key, market, label, credentials, created_at, updated_at
+        RETURNING id, channel, instance_key, market, label, credentials, enabled, created_at, updated_at
         `,
-        [userId, instanceId, mkt, lbl, creds],
+        params,
       );
       if (!rows.length) throw new AppError('Instance not found', 404, AppError.CODES.NOT_FOUND);
 
@@ -435,6 +464,7 @@ class ChannelsModel {
         market: r.market,
         label: r.label,
         credentials: r.credentials ?? null,
+        enabled: r.enabled !== false,
         createdAt: r.created_at || null,
         updatedAt: r.updated_at || null,
       };
