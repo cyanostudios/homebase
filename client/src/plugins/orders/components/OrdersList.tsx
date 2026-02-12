@@ -77,6 +77,7 @@ export const OrdersList: React.FC = () => {
   const [batchCarrier, setBatchCarrier] = useState('');
   const [batchTracking, setBatchTracking] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [batchUpdateResult, setBatchUpdateResult] = useState<{ updated: number; requested: number } | { error: string } | null>(null);
 
   // Quick-sync on open: trigger sync in background; if started, show spinner and poll until done, then refetch list
   React.useEffect(() => {
@@ -340,6 +341,11 @@ export const OrdersList: React.FC = () => {
   const handleDetailUpdated = useCallback(
     (updated: OrderDetails) => {
       setDetailCache((c) => ({ ...c, [updated.id]: updated }));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(String(updated.id));
+        return next;
+      });
       void reloadOrders();
     },
     [reloadOrders],
@@ -402,25 +408,26 @@ export const OrdersList: React.FC = () => {
 
   const handleBatchUpdate = async () => {
     if (selectedIds.size === 0) {
-      alert('Please select at least one order');
+      setBatchUpdateResult({ error: 'Välj minst en order.' });
       return;
     }
 
     try {
       setBatchUpdating(true);
+      setBatchUpdateResult(null);
       const result = await ordersApi.batchUpdateStatus(Array.from(selectedIds), {
         status: batchStatus,
         carrier: batchCarrier.trim() || undefined,
         trackingNumber: batchTracking.trim() || undefined,
       });
-      alert(`Updated ${result.updated} of ${result.requested} selected orders`);
+      setBatchUpdateResult({ updated: result.updated, requested: result.requested });
       setSelectedIds(new Set());
       setShowBatchDialog(false);
       setBatchCarrier('');
       setBatchTracking('');
       void reloadOrders();
     } catch (err: any) {
-      alert(`Failed to update orders: ${err.message || err}`);
+      setBatchUpdateResult({ error: err?.message || err?.toString?.() || 'Kunde inte uppdatera order.' });
       console.error('Batch update error:', err);
     } finally {
       setBatchUpdating(false);
@@ -431,7 +438,13 @@ export const OrdersList: React.FC = () => {
     <div className="flex items-center gap-2 flex-wrap">
       {selectedIds.size > 0 && (
         <>
-          <Button onClick={() => setShowBatchDialog(true)} size="sm">
+          <Button
+            onClick={() => {
+              setBatchUpdateResult(null);
+              setShowBatchDialog(true);
+            }}
+            size="sm"
+          >
             Update {selectedIds.size} selected
           </Button>
           <Button
@@ -476,6 +489,29 @@ export const OrdersList: React.FC = () => {
         <div className="flex items-center gap-2 py-2 px-3 rounded-md bg-blue-50 border border-blue-200 text-sm text-blue-900">
           <Loader2 className="h-4 w-4 animate-spin shrink-0" />
           <span>Syncing orders…</span>
+        </div>
+      )}
+
+      {batchUpdateResult && (
+        <div
+          className={`flex items-center justify-between gap-3 py-2 px-3 rounded-md border text-sm ${
+            'error' in batchUpdateResult
+              ? 'bg-red-50 border-red-200 text-red-900'
+              : 'bg-green-50 border-green-200 text-green-900'
+          }`}
+        >
+          <span>
+            {'error' in batchUpdateResult
+              ? batchUpdateResult.error
+              : `${batchUpdateResult.updated} av ${batchUpdateResult.requested} order uppdaterade.`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setBatchUpdateResult(null)}
+            className="shrink-0 underline hover:no-underline"
+          >
+            Stäng
+          </button>
         </div>
       )}
 
