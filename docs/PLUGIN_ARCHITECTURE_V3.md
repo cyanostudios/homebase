@@ -69,6 +69,24 @@ const pluginActions = usePluginActions('note'); // Get actions relevant to 'note
 2.  **Resilience:** If the Tasks plugin is disabled or fails to load, the "Create Task" button simply doesn't appear in Notes. No crashes.
 3.  **Extensibility:** A new "Project" plugin can add "Create Project from Note" without touching the Notes plugin code.
 
+## Plugin independence (optional plugins per user)
+
+Different users can have different plugin sets (e.g. only contacts, or contacts + notes). Core and cross-plugin views must not crash when a plugin is missing.
+
+### Capability gating
+
+- **AppContext** exposes data and navigation only for active plugins: `loadData()` fetches from the API only for plugins in `user.plugins`; otherwise it uses empty arrays. The getters `getNotesForContact`, `getTasksForContact`, `getTasksWithMentionsForContact`, and `getEstimatesForContact` return empty arrays when the corresponding plugin is not enabled (no direct API calls for disabled plugins).
+- **Cross-plugin views** (e.g. ContactView) must not import other plugins directly (no `useNotes`, `useTasks`, `useEstimates`). They use only `useApp()` and check for both data and the relevant capability (`openNoteForView`, `openTaskForView`, `openEstimateForView`) before rendering sections like "Note mentions" or "Task mentions".
+
+### Navigation registration
+
+Plugins (notes, tasks, estimates) register their "open for view" function with AppContext when they mount, via `registerNotesNavigation`, `registerTasksNavigation`, and `registerEstimatesNavigation`. Use a **stable callback** (e.g. a ref bridge: store the real handler in a ref, register a wrapper that calls `ref.current`) so that registration does not trigger setState in AppContext during render. That avoids React warnings ("Cannot update a component while rendering another") and unnecessary re-renders.
+
+### Other behaviour
+
+- **ActivityLogForm:** Restore for notes is only offered when `user?.plugins?.includes('notes')`; otherwise the user sees a message that the notes plugin is required.
+- **Server:** All plugin routes that should be gated (including OAuth callbacks such as the files plugin cloud callback) use `requirePlugin` so that users without access to that plugin receive 403.
+
 ## Best Practices
 
 - **Unregister:** Always return a cleanup function to unregister actions.

@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
+
 import { Button } from '@/components/ui/button';
+import type { Mention } from '@/core/types/mention';
 
 interface MentionTextareaProps {
   value: string;
-  onChange: (value: string, mentions: any[]) => void;
+  onChange: (value: string, mentions: Mention[]) => void;
   placeholder?: string;
   rows?: number;
   className?: string;
@@ -25,7 +27,6 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
-  // Load contacts when component mounts
   useEffect(() => {
     const loadContacts = async () => {
       try {
@@ -44,8 +45,8 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     loadContacts();
   }, []);
 
-  const extractMentions = (text: string) => {
-    const mentions: any[] = [];
+  const extractMentions = (text: string): Mention[] => {
+    const mentions: Mention[] = [];
     const mentionRegex = /@([^@\s]+(?:\s+[^@\s]+)*)/g;
     let match;
 
@@ -74,11 +75,9 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     mentionStartPos: number,
     textValue: string,
   ) => {
-    // Get text before the @ symbol
     const textBeforeMention = textValue.substring(0, mentionStartPos);
     const textareaStyle = window.getComputedStyle(textarea);
 
-    // Create a temporary div to measure text dimensions accurately
     const measureDiv = document.createElement('div');
     measureDiv.style.position = 'absolute';
     measureDiv.style.visibility = 'hidden';
@@ -90,17 +89,14 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     measureDiv.textContent = textBeforeMention;
     document.body.appendChild(measureDiv);
 
-    // Calculate line height
     const lineHeight =
       parseFloat(textareaStyle.lineHeight) || parseFloat(textareaStyle.fontSize) * 1.2;
     const paddingTop = parseFloat(textareaStyle.paddingTop) || 0;
     const paddingLeft = parseFloat(textareaStyle.paddingLeft) || 0;
 
-    // Count newlines before mention
     const linesBeforeMention = textBeforeMention.split('\n').length - 1;
     const textInCurrentLine = textBeforeMention.split('\n').pop() || '';
 
-    // Measure width of text in current line
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     if (!context) {
@@ -110,28 +106,23 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     context.font = textareaStyle.font;
     const textWidth = context.measureText(textInCurrentLine).width;
 
-    // Calculate position relative to viewport
     const rect = textarea.getBoundingClientRect();
     const scrollTop = textarea.scrollTop;
     let top = rect.top + paddingTop + linesBeforeMention * lineHeight - scrollTop + lineHeight;
     let left = rect.left + paddingLeft + textWidth;
 
-    // Ensure dropdown doesn't go off screen
-    const dropdownHeight = 160; // max-h-40 = 10rem = 160px
-    const dropdownWidth = 300; // max-w-[300px]
+    const dropdownHeight = 160;
+    const dropdownWidth = 300;
 
     if (top + dropdownHeight > window.innerHeight) {
-      // Position above cursor if not enough space below
       top = rect.top + paddingTop + linesBeforeMention * lineHeight - scrollTop - dropdownHeight;
     }
 
     if (left + dropdownWidth > window.innerWidth) {
-      // Adjust left if dropdown would go off right edge
       left = window.innerWidth - dropdownWidth - 10;
     }
 
     if (left < 10) {
-      // Ensure minimum margin from left edge
       left = 10;
     }
 
@@ -144,14 +135,12 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     const newValue = e.target.value;
     const cursorPos = e.target.selectionStart;
 
-    // Check if user typed @
     const textBeforeCursor = newValue.substring(0, cursorPos);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
 
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
 
-      // Check if we're in a mention (no spaces except within a valid mention)
       if (!textAfterAt.includes('\n') && textAfterAt.length <= 50) {
         const query = textAfterAt.toLowerCase();
         const filteredContacts = contacts
@@ -216,7 +205,6 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
 
     setShowSuggestions(false);
 
-    // Set cursor position after the mention
     setTimeout(() => {
       const newCursorPos = mentionStart + mentionText.length + 1;
       textarea.setSelectionRange(newCursorPos, newCursorPos);
@@ -251,7 +239,6 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     }
   };
 
-  // Update suggestion position when scrolling or resizing
   useEffect(() => {
     if (!showSuggestions || !textareaRef.current) {
       return;
@@ -276,7 +263,6 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
     };
   }, [showSuggestions, mentionStart, value]);
 
-  // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (

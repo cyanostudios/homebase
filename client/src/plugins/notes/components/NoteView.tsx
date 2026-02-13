@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 
-import { MentionContent } from './MentionContent';
+import { MentionContent } from '@/core/ui/MentionContent';
 
 interface NoteViewProps {
   note: any;
@@ -175,7 +175,11 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
           <DetailSection title="Note Content" className="p-6">
             <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
-              <MentionContent content={note.content} mentions={note.mentions || []} />
+              <MentionContent
+                content={note.content}
+                mentions={note.mentions || []}
+                onMentionClick={handleContactClick}
+              />
             </div>
           </DetailSection>
         </Card>

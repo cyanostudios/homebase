@@ -1,5 +1,5 @@
 import { Building, User } from 'lucide-react';
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect, ReactNode } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
@@ -8,8 +8,10 @@ import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { cn } from '@/lib/utils';
 
+import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { contactsApi } from '../api/contactsApi';
 import { Contact, ValidationError } from '../types/contacts';
+import { contactExportConfig, getContactExportBaseFilename } from '../utils/contactExportConfig';
 
 interface ContactContextType {
   // Contact Panel State
@@ -42,6 +44,8 @@ interface ContactContextType {
   getPanelTitle: (mode: string, item: Contact | null, isMobileView: boolean) => any;
   getPanelSubtitle: (mode: string, item: Contact | null) => any;
   getDeleteMessage: (item: Contact | null) => string;
+  exportFormats: ExportFormat[];
+  onExportItem: (format: ExportFormat, item: Contact) => void;
 }
 
 const ContactContext = createContext<ContactContextType | undefined>(undefined);
@@ -440,6 +444,24 @@ export function ContactProvider({
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 
+  const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
+
+  const onExportItem = useCallback((format: ExportFormat, item: Contact) => {
+    const result = exportItems({
+      items: [item],
+      format,
+      config: contactExportConfig,
+      filename: getContactExportBaseFilename(item),
+      title: 'Contacts Export',
+    });
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      (result as Promise<void>).catch((err) => {
+        console.error('Export failed:', err);
+        alert('Export failed. Please try again.');
+      });
+    }
+  }, []);
+
   const value: ContactContextType = {
     // Contact Panel State
     isContactPanelOpen,
@@ -472,6 +494,9 @@ export function ContactProvider({
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
+
+    exportFormats,
+    onExportItem,
   };
 
   return <ContactContext.Provider value={value}>{children}</ContactContext.Provider>;

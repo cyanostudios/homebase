@@ -178,8 +178,7 @@ function createFilesRoutes(controller, context) {
   );
 
   // GET /api/files/cloud/:service/auth/callback - OAuth callback
-  // Note: We check session in controller, but don't use gate here since OAuth provider redirects here
-  router.get('/cloud/:service/auth/callback', (req, res) =>
+  router.get('/cloud/:service/auth/callback', gate, (req, res) =>
     cloudStorageController.handleCallback(req, res),
   );
 

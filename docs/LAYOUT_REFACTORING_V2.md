@@ -109,6 +109,12 @@ Alla list-komponenter uppdaterade från tabell-layout till kompakt layout:
 
 - InvoicesList, NoteList, EstimateList, FileList använder `groupConfig: null`
 
+**Relaterade komponenter (nuvarande layout):**
+
+- **BulkActionBar** – visar bulk-aktioner (t.ex. export, radera) när flera poster är valda i listan.
+- **Dashboard** – visar widgetar per plugin (t.ex. Notes, Tasks, Contacts) med snabböppning av listor.
+- **ImportWizard** – stegvis import för plugins som stöder det.
+
 **Användning:**
 Varje plugin kan välja om och hur den vill gruppera:
 

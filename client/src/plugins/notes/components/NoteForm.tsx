@@ -10,7 +10,7 @@ import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 import { useNotes } from '../hooks/useNotes';
 
-import { MentionTextarea } from './MentionTextarea';
+import { MentionTextarea } from '@/core/ui/MentionTextarea';
 import { NoteSettingsForm } from './NoteSettingsForm';
 
 interface NoteFormState {

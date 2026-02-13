@@ -1,5 +1,5 @@
 import { Calculator } from 'lucide-react';
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -68,7 +68,11 @@ export function EstimateProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: EstimateProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const {
+    registerPanelCloseFunction,
+    unregisterPanelCloseFunction,
+    registerEstimatesNavigation,
+  } = useApp();
 
   // Panel state
   const [isEstimatePanelOpen, setIsEstimatePanelOpen] = useState(false);
@@ -208,6 +212,20 @@ export function EstimateProvider({
     setValidationErrors([]);
     onCloseOtherPanels();
   };
+
+  const openEstimateForViewRef = useRef(openEstimateForView);
+  useEffect(() => {
+    openEstimateForViewRef.current = openEstimateForView;
+  }, [openEstimateForView]);
+
+  const openEstimateForViewBridge = useCallback((estimate: Estimate) => {
+    openEstimateForViewRef.current(estimate);
+  }, []);
+
+  useEffect(() => {
+    registerEstimatesNavigation(openEstimateForViewBridge);
+    return () => registerEstimatesNavigation(null);
+  }, [registerEstimatesNavigation, openEstimateForViewBridge]);
 
   const closeEstimatePanel = () => {
     setIsEstimatePanelOpen(false);

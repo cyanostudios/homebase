@@ -1,4 +1,4 @@
-import { Check, X, Edit, Trash2, Copy } from 'lucide-react';
+import { Check, X, Edit, Trash2, Copy, Download } from 'lucide-react';
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -18,10 +18,16 @@ interface PanelFooterProps {
   isSubmitting?: boolean;
 }
 
+const EXPORT_FORMAT_LABELS: Record<string, string> = {
+  txt: 'Export TXT',
+  csv: 'Export CSV',
+  pdf: 'Export PDF',
+};
+
 export const PanelFooter: React.FC<PanelFooterProps> = ({
   currentMode,
-  currentItem: _currentItem,
-  currentPluginContext: _currentPluginContext,
+  currentItem,
+  currentPluginContext,
   currentPlugin,
   validationErrors,
   onDeleteItem,
@@ -34,6 +40,17 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
 }) => {
   const hasBlockingErrors = validationErrors.some(
     (e: any) => !String(e?.message || '').includes('Warning'),
+  );
+
+  const exportFormats = currentPluginContext?.exportFormats as string[] | undefined;
+  const onExportItem = currentPluginContext?.onExportItem as
+    | ((format: string, item: any) => void)
+    | undefined;
+  const hasExport = Boolean(
+    currentItem &&
+      Array.isArray(exportFormats) &&
+      exportFormats.length > 0 &&
+      typeof onExportItem === 'function',
   );
 
   if (currentMode === 'view') {
@@ -62,6 +79,20 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
               Duplicate
             </Button>
           )}
+          {hasExport &&
+            exportFormats!.map((format: string) => (
+              <Button
+                key={format}
+                type="button"
+                onClick={() => onExportItem!(format, currentItem)}
+                variant="ghost"
+                size="sm"
+                icon={Download}
+                className="h-7 text-[10px] px-2"
+              >
+                {EXPORT_FORMAT_LABELS[format] ?? `Export ${format.toUpperCase()}`}
+              </Button>
+            ))}
         </div>
         <div className="flex items-center gap-2">
           <Button

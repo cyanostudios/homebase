@@ -14,7 +14,7 @@ import { useNotes } from '@/plugins/notes/hooks/useNotes';
 
 import { useTasks } from '../hooks/useTasks';
 
-import { MentionContent } from './MentionContent';
+import { MentionContent } from '@/core/ui/MentionContent';
 import { TaskPrioritySelect } from './TaskPrioritySelect';
 import { TaskStatusSelect } from './TaskStatusSelect';
 import { TaskAssigneeSelect } from './TaskAssigneeSelect';
@@ -28,7 +28,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
   const { openContactForView } = useContacts();
   const { closeTaskPanel, duplicateTask, saveTask } = useTasks();
   const { openNoteForView } = useNotes();
-  const { contacts } = useApp();
+  const { contacts, refreshData } = useApp();
 
   const [mentionContactsData, setMentionContactsData] = useState<{ [key: string]: any }>({});
   const [sourceNote, setSourceNote] = useState<any>(null);
@@ -89,6 +89,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
   }, [task?.createdFromNote]);
 
   const handleContactClick = async (contactId: string) => {
+    await refreshData();
     try {
       const response = await fetch('/api/contacts', { credentials: 'include' });
       if (response.ok) {
@@ -382,7 +383,11 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
           <DetailSection title="Task Content" className="p-6">
             <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
-              <MentionContent content={task.content} mentions={task.mentions} />
+              <MentionContent
+                content={task.content}
+                mentions={task.mentions}
+                onMentionClick={handleContactClick}
+              />
             </div>
           </DetailSection>
         </Card>

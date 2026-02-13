@@ -26,7 +26,8 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
-import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
+import { exportItems } from '@/core/utils/exportUtils';
+import { getTasksExportConfig } from '../utils/taskExportConfig';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -252,45 +253,14 @@ export const TaskList: React.FC = () => {
       return;
     }
     const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(String(task.id)));
-    const getAssignedName = (assignedTo: string | null) => {
-      if (!assignedTo || !contacts.length) {
-        return '';
-      }
-      const c = contacts.find((x: any) => String(x.id) === String(assignedTo));
-      return c ? c.companyName || '' : '';
-    };
-    const csvHeaders = [
-      'title',
-      'content',
-      'status',
-      'priority',
-      'dueDate',
-      'assignedTo',
-      'createdAt',
-      'updatedAt',
-    ];
-    const csvData = selectedTasks.map((task) => ({
-      title: task.title || '',
-      content: (task.content || '').slice(0, 500),
-      status: task.status || '',
-      priority: task.priority || '',
-      dueDate: task.dueDate
-        ? task.dueDate instanceof Date
-          ? task.dueDate.toISOString()
-          : String(task.dueDate)
-        : '',
-      assignedTo: getAssignedName(task.assignedTo),
-      createdAt:
-        task.createdAt instanceof Date
-          ? task.createdAt.toISOString()
-          : String(task.createdAt ?? ''),
-      updatedAt:
-        task.updatedAt instanceof Date
-          ? task.updatedAt.toISOString()
-          : String(task.updatedAt ?? ''),
-    }));
     const filename = `tasks-export-${new Date().toISOString().split('T')[0]}`;
-    exportToCSV(csvData, filename, csvHeaders);
+    exportItems({
+      items: selectedTasks,
+      format: 'csv',
+      config: getTasksExportConfig(contacts ?? []),
+      filename,
+      title: 'Tasks Export',
+    });
   };
 
   const handleExportPDF = async () => {
@@ -299,43 +269,20 @@ export const TaskList: React.FC = () => {
       return;
     }
     const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(String(task.id)));
-    const getAssignedName = (assignedTo: string | null) => {
-      if (!assignedTo || !contacts.length) {
-        return '';
-      }
-      const c = contacts.find((x: any) => String(x.id) === String(assignedTo));
-      return c ? c.companyName || '' : '';
-    };
-    const pdfHeaders = [
-      { key: 'title', label: 'Title' },
-      { key: 'status', label: 'Status' },
-      { key: 'priority', label: 'Priority' },
-      { key: 'dueDate', label: 'Due Date' },
-      { key: 'assignedTo', label: 'Assigned To' },
-      { key: 'createdAt', label: 'Created' },
-      { key: 'updatedAt', label: 'Updated' },
-    ];
-    const pdfData = selectedTasks.map((task) => ({
-      title: (task.title || '').slice(0, 30),
-      status: task.status || '',
-      priority: task.priority || '',
-      dueDate: task.dueDate
-        ? task.dueDate instanceof Date
-          ? task.dueDate.toLocaleDateString('sv-SE')
-          : String(task.dueDate)
-        : '',
-      assignedTo: getAssignedName(task.assignedTo),
-      createdAt:
-        task.createdAt instanceof Date
-          ? task.createdAt.toLocaleDateString('sv-SE')
-          : String(task.createdAt ?? ''),
-      updatedAt:
-        task.updatedAt instanceof Date
-          ? task.updatedAt.toLocaleDateString('sv-SE')
-          : String(task.updatedAt ?? ''),
-    }));
     const filename = `tasks-export-${new Date().toISOString().split('T')[0]}`;
-    await exportToPDF(pdfData, filename, pdfHeaders, 'Tasks Export');
+    const result = exportItems({
+      items: selectedTasks,
+      format: 'pdf',
+      config: getTasksExportConfig(contacts ?? []),
+      filename,
+      title: 'Tasks Export',
+    });
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      await (result as Promise<void>).catch((err) => {
+        console.error('PDF export failed:', err);
+        alert('Export failed. Please try again.');
+      });
+    }
   };
 
   const formatDueDate = (dueDate: Date | null) => {

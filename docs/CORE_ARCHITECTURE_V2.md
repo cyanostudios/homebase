@@ -76,10 +76,26 @@ unregisterPanelCloseFunction: (pluginName: string) => void;
 getNotesForContact: (contactId: string) => Promise<Note[]>;
 getContactsForNote: (noteId: string) => Contact[];
 getEstimatesForContact: (contactId: string) => Promise<Estimate[]>;
+getTasksForContact: (contactId: string) => Promise<Task[]>;
+getTasksWithMentionsForContact: (contactId: string) => Promise<Task[]>;
+
+// Optional plugin navigation (set by plugins when mounted; used by e.g. ContactView)
+openNoteForView: ((note: Note) => void) | undefined;
+openTaskForView: ((task: Task) => void) | undefined;
+openEstimateForView: ((estimate: Estimate) => void) | undefined;
+registerNotesNavigation: (fn: ((note: Note) => void) | null) => void;
+registerTasksNavigation: (fn: ((task: Task) => void) | null) => void;
+registerEstimatesNavigation: (fn: ((estimate: Estimate) => void) | null) => void;
 
 // Data refresh
 refreshData: () => Promise<void>;
 }
+```
+
+**Plugin-aware data loading:** `loadData()` only fetches API data for plugins present in `user.plugins` (contacts, notes, tasks); otherwise empty arrays are used. The getters `getNotesForContact`, `getTasksForContact`, `getTasksWithMentionsForContact`, and `getEstimatesForContact` return empty arrays when the corresponding plugin is not enabled for the user, so cross-plugin views never call APIs for disabled plugins.
+
+**Navigation registration:** Plugins (notes, tasks, estimates) register their "open for view" function with AppContext via `registerNotesNavigation`, `registerTasksNavigation`, and `registerEstimatesNavigation` in a `useEffect`. Use a stable callback (e.g. a ref bridge) so that registration does not trigger setState during render and avoids React warnings. See [PLUGIN_ARCHITECTURE_V3.md](PLUGIN_ARCHITECTURE_V3.md) (Plugin independence).
+
 What AppContext does NOT do:
 
 Plugin-specific business logic
@@ -288,22 +304,12 @@ return;
 
 Cross-Plugin Features
 @Mentions System
-Notes can reference contacts via @mentions:
-typescript// AppContext provides cross-plugin data
-getNotesForContact: async (contactId: string) => Promise<Note[]>
-getContactsForNote: (noteId: string) => Contact[]
+Notes and tasks can reference contacts via @mentions. All mention input and display logic lives in **core**; plugins use core components only. See [MENTIONS_AND_CROSS_PLUGIN_UI.md](MENTIONS_AND_CROSS_PLUGIN_UI.md) for the full reference.
 
-// Notes components use this for @mention functionality
-const { getNotesForContact } = useApp();
-const relatedNotes = await getNotesForContact(contact.id);
-Implementation:
-typescriptconst getNotesForContact = async (contactId: string): Promise<Note[]> => {
-return notes.filter(
-(note) =>
-note.mentions &&
-note.mentions.some((mention: any) => mention.contactId === contactId)
-);
-};
+- **Core components:** `MentionTextarea` (form input with @-trigger and dropdown) and `MentionContent` (view with clickable/grayed mentions). Both live under `client/src/core/ui/` and use the shared type from `client/src/core/types/mention.ts`.
+- **AppContext** provides `getNotesForContact(contactId)` and `getTasksWithMentionsForContact(contactId)` so ContactView can show "Note mentions" and "Task mentions". Comparisons use `String(mention.contactId) === String(contactId)` to avoid type mismatches between API and state.
+- **ContactView** does not import useNotes, useTasks, or useEstimates. It uses only `useApp()` and shows Note/Task/Estimate sections only when both data (e.g. `mentionedInNotes.length > 0`) and the corresponding capability (e.g. `openNoteForView`) exist.
+
 Contact References
 Estimates link to contacts:
 typescript// AppContext fetches fresh estimate data

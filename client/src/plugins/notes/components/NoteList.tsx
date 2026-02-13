@@ -28,7 +28,8 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
-import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
+import { exportItems } from '@/core/utils/exportUtils';
+import { notesExportConfig } from '../utils/noteExportConfig';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { ImportWizard } from '@/core/ui/ImportWizard';
 import { ImportSchema } from '@/core/utils/importUtils';
@@ -229,22 +230,14 @@ export const NoteList: React.FC = () => {
       return;
     }
     const selectedNotes = notes.filter((note) => selectedNoteIds.includes(String(note.id)));
-    const csvHeaders = ['title', 'content', 'createdAt', 'updatedAt', 'mentionsCount'];
-    const csvData = selectedNotes.map((note) => ({
-      title: note.title || '',
-      content: (note.content || '').slice(0, 500),
-      createdAt:
-        note.createdAt instanceof Date
-          ? note.createdAt.toISOString()
-          : String(note.createdAt ?? ''),
-      updatedAt:
-        note.updatedAt instanceof Date
-          ? note.updatedAt.toISOString()
-          : String(note.updatedAt ?? ''),
-      mentionsCount: Array.isArray(note.mentions) ? note.mentions.length : 0,
-    }));
     const filename = `notes-export-${new Date().toISOString().split('T')[0]}`;
-    exportToCSV(csvData, filename, csvHeaders);
+    exportItems({
+      items: selectedNotes,
+      format: 'csv',
+      config: notesExportConfig,
+      filename,
+      title: 'Notes Export',
+    });
   };
 
   const handleExportPDF = async () => {
@@ -253,28 +246,20 @@ export const NoteList: React.FC = () => {
       return;
     }
     const selectedNotes = notes.filter((note) => selectedNoteIds.includes(String(note.id)));
-    const pdfHeaders = [
-      { key: 'title', label: 'Title' },
-      { key: 'content', label: 'Content' },
-      { key: 'createdAt', label: 'Created' },
-      { key: 'updatedAt', label: 'Updated' },
-      { key: 'mentionsCount', label: 'Mentions' },
-    ];
-    const pdfData = selectedNotes.map((note) => ({
-      title: note.title || '',
-      content: (note.content || '').slice(0, 80) + ((note.content || '').length > 80 ? '…' : ''),
-      createdAt:
-        note.createdAt instanceof Date
-          ? note.createdAt.toLocaleDateString('sv-SE')
-          : String(note.createdAt ?? ''),
-      updatedAt:
-        note.updatedAt instanceof Date
-          ? note.updatedAt.toLocaleDateString('sv-SE')
-          : String(note.updatedAt ?? ''),
-      mentionsCount: Array.isArray(note.mentions) ? note.mentions.length : 0,
-    }));
     const filename = `notes-export-${new Date().toISOString().split('T')[0]}`;
-    await exportToPDF(pdfData, filename, pdfHeaders, 'Notes Export');
+    const result = exportItems({
+      items: selectedNotes,
+      format: 'pdf',
+      config: notesExportConfig,
+      filename,
+      title: 'Notes Export',
+    });
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      await (result as Promise<void>).catch((err) => {
+        console.error('PDF export failed:', err);
+        alert('Export failed. Please try again.');
+      });
+    }
   };
 
   const truncateContent = (content: string, maxLength: number = 100) => {

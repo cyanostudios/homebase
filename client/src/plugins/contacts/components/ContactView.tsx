@@ -9,33 +9,22 @@ import { DetailLayout } from '@/core/ui/DetailLayout';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
-import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';
-import { useNotes } from '@/plugins/notes/hooks/useNotes';
-import { useTasks } from '@/plugins/tasks/hooks/useTasks';
 
 interface ContactViewProps {
   contact: any;
 }
 
 export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
-  // Use AppContext only for cross-plugin data fetching
   const {
     getNotesForContact,
     getEstimatesForContact,
     getTasksForContact,
     getTasksWithMentionsForContact,
+    openNoteForView,
+    openTaskForView,
+    openEstimateForView,
   } = useApp();
 
-  // Use NoteContext for opening notes
-  const { openNoteForView } = useNotes();
-
-  // Use EstimateContext for opening estimates
-  const { openEstimateForView } = useEstimates();
-
-  // Use TaskContext for opening tasks
-  const { openTaskForView } = useTasks();
-
-  // Use ContactContext to close contact panel when navigating
   const { closeContactPanel } = useContacts();
 
   // State for cross-plugin data
@@ -156,62 +145,67 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     <DetailLayout
       sidebar={
         <div className="space-y-6">
-          {(assignedTasks.length > 0 || mentionedInTasks.length > 0) && (
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Tasks" className="p-4">
-                <div className="space-y-3">
-                  {assignedTasks.length > 0 && (
-                    <div className="space-y-2">
-                      {assignedTasks.map((task: any) => (
-                        <div
-                          key={task.id}
-                          className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
-                        >
-                          <span className="text-muted-foreground truncate mr-4">{task.title}</span>
-                          <Button
-                            size="sm"
-                            variant="link"
-                            onClick={() => {
-                              closeContactPanel();
-                              openTaskForView(task);
-                            }}
-                            className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
+          {openTaskForView &&
+            (assignedTasks.length > 0 || mentionedInTasks.length > 0) && (
+              <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+                <DetailSection title="Tasks" className="p-4">
+                  <div className="space-y-3">
+                    {assignedTasks.length > 0 && (
+                      <div className="space-y-2">
+                        {assignedTasks.map((task: any) => (
+                          <div
+                            key={task.id}
+                            className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
                           >
-                            View
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {mentionedInTasks.length > 0 && (
-                    <div className="space-y-2">
-                      {mentionedInTasks.map((task: any) => (
-                        <div
-                          key={task.id}
-                          className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle/50 px-2 py-1.5 rounded-md border border-border/50"
-                        >
-                          <span className="text-muted-foreground truncate mr-4">{task.title}</span>
-                          <Button
-                            size="sm"
-                            variant="link"
-                            onClick={() => {
-                              closeContactPanel();
-                              openTaskForView(task);
-                            }}
-                            className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
+                            <span className="text-muted-foreground truncate mr-4">
+                              {task.title}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="link"
+                              onClick={() => {
+                                closeContactPanel();
+                                openTaskForView(task);
+                              }}
+                              className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
+                            >
+                              View
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {mentionedInTasks.length > 0 && (
+                      <div className="space-y-2">
+                        {mentionedInTasks.map((task: any) => (
+                          <div
+                            key={task.id}
+                            className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle/50 px-2 py-1.5 rounded-md border border-border/50"
                           >
-                            View
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </DetailSection>
-            </Card>
-          )}
+                            <span className="text-muted-foreground truncate mr-4">
+                              {task.title}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="link"
+                              onClick={() => {
+                                closeContactPanel();
+                                openTaskForView(task);
+                              }}
+                              className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
+                            >
+                              View
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </DetailSection>
+              </Card>
+            )}
 
-          {relatedEstimates.length > 0 && (
+          {openEstimateForView && relatedEstimates.length > 0 && (
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
               <DetailSection title="Estimates" className="p-4">
                 <div className="space-y-2">
@@ -241,7 +235,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
             </Card>
           )}
 
-          {mentionedInNotes.length > 0 && (
+          {openNoteForView && mentionedInNotes.length > 0 && (
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
               <DetailSection title="Note Mentions" className="p-4">
                 <div className="space-y-2">

@@ -5,6 +5,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
   ReactNode,
 } from 'react';
 
@@ -16,8 +17,10 @@ import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { cn } from '@/lib/utils';
 
+import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { tasksApi } from '../api/tasksApi';
 import { Task, ValidationError, formatStatusForDisplay } from '../types/tasks';
+import { getTaskExportBaseFilename, getTasksExportConfig } from '../utils/taskExportConfig';
 
 interface TaskContextType {
   isTaskPanelOpen: boolean;
@@ -59,6 +62,8 @@ interface TaskContextType {
   getDeleteMessage: (item: Task | null) => string;
   recentlyDuplicatedTaskId: string | null;
   setRecentlyDuplicatedTaskId: (id: string | null) => void;
+  exportFormats: ExportFormat[];
+  onExportItem: (format: ExportFormat, item: Task) => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -70,8 +75,13 @@ interface TaskProviderProps {
 }
 
 export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: TaskProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction, contacts, refreshData } =
-    useApp();
+  const {
+    registerPanelCloseFunction,
+    unregisterPanelCloseFunction,
+    contacts,
+    refreshData,
+    registerTasksNavigation,
+  } = useApp();
   const { registerAction } = useActionRegistry();
 
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
@@ -224,6 +234,20 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     },
     [onCloseOtherPanels],
   );
+
+  const openTaskForViewRef = useRef(openTaskForView);
+  useEffect(() => {
+    openTaskForViewRef.current = openTaskForView;
+  }, [openTaskForView]);
+
+  const openTaskForViewBridge = useCallback((task: Task) => {
+    openTaskForViewRef.current(task);
+  }, []);
+
+  useEffect(() => {
+    registerTasksNavigation(openTaskForViewBridge);
+    return () => registerTasksNavigation(null);
+  }, [registerTasksNavigation, openTaskForViewBridge]);
 
   const clearValidationErrors = useCallback(() => {
     setValidationErrors([]);
@@ -586,6 +610,28 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 
+  const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
+  const tasksExportConfig = React.useMemo(() => getTasksExportConfig(contacts ?? []), [contacts]);
+
+  const onExportItem = useCallback(
+    (format: ExportFormat, item: Task) => {
+      const result = exportItems({
+        items: [item],
+        format,
+        config: tasksExportConfig,
+        filename: getTaskExportBaseFilename(item),
+        title: 'Tasks Export',
+      });
+      if (result && typeof (result as Promise<void>).then === 'function') {
+        (result as Promise<void>).catch((err) => {
+          console.error('Export failed:', err);
+          alert('Export failed. Please try again.');
+        });
+      }
+    },
+    [tasksExportConfig],
+  );
+
   const value: TaskContextType = {
     isTaskPanelOpen,
     currentTask,
@@ -620,6 +666,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
     recentlyDuplicatedTaskId,
     setRecentlyDuplicatedTaskId,
+
+    exportFormats,
+    onExportItem,
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;

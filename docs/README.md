@@ -17,7 +17,8 @@ Deployment Flexible - Same code, different infrastructure
 Core Features
 
 Universal Keyboard Navigation - Space + Arrow keys across all plugins
-Cross-Plugin References - Seamless navigation between plugins (@mentions, assignments)
+Cross-Plugin References - Seamless navigation between plugins (@mentions, assignments); see MENTIONS_AND_CROSS_PLUGIN_UI.md
+Plugin Independence - Optional plugin set per user; see PLUGIN_ARCHITECTURE_V3.md
 Mobile-First Design - Responsive components with conditional rendering
 Multi-Tenant Isolation - Automatic tenant filtering at core level
 CSRF Protection - Required on all state-changing operations
@@ -43,6 +44,17 @@ AppContext integration
 Panel coordination
 Cross-plugin features
 Performance optimizations
+
+MENTIONS_AND_CROSS_PLUGIN_UI.md
+
+Core @-mention type and components (MentionTextarea, MentionContent)
+Plugin usage and onMentionClick pattern
+Cross-plugin ID matching
+
+PLUGIN_ARCHITECTURE_V3.md
+
+Action Registry pattern (decoupling plugins)
+Plugin independence (optional plugins per user, capability gating, navigation registration)
 
 ARCHITECTURE_REFACTOR.md
 

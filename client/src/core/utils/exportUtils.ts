@@ -1,5 +1,131 @@
 // client/src/core/utils/exportUtils.ts
-// Export utilities for CSV and PDF generation
+// Export utilities for CSV, PDF and TXT generation
+
+export type ExportFormat = 'txt' | 'csv' | 'pdf';
+
+/** Config for the unified exportItems API. Plugin supplies format-specific builders. */
+export interface ExportFormatConfig {
+  txt?: {
+    getContent: (item: any) => string;
+    getFilename: (item: any) => string;
+    /** When exporting multiple items as one file (e.g. list export). */
+    baseFilename?: string;
+  };
+  csv?: {
+    headers: string[];
+    mapItemToRow: (item: any) => Record<string, any>;
+  };
+  pdf?: {
+    columns: { key: string; label: string }[];
+    mapItemToRow: (item: any) => Record<string, any>;
+    title?: string;
+  };
+}
+
+export interface ExportItemsOptions {
+  items: any[];
+  format: ExportFormat;
+  config: ExportFormatConfig;
+  /** Base filename (without extension) when format is csv/pdf or txt multi-file. */
+  filename?: string;
+  /** PDF title (used when format is pdf). */
+  title?: string;
+}
+
+/**
+ * Export items to a single TXT file (one file per item downloaded in sequence, or one concatenated file).
+ */
+function downloadTxtBlob(content: string, filename: string): void {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename.endsWith('.txt') ? filename : `${filename}.txt`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Export data to TXT: one file per item (single item) or one concatenated file (multiple items).
+ */
+export function exportToTxt(
+  items: any[],
+  getContent: (item: any) => string,
+  getFilename: (item: any) => string,
+  baseFilename?: string,
+): void {
+  if (!items || items.length === 0) {
+    alert('No data to export');
+    return;
+  }
+  const txtConfig = { getContent, getFilename, baseFilename };
+  if (items.length === 1) {
+    const content = getContent(items[0]);
+    const filename = getFilename(items[0]);
+    downloadTxtBlob(content, filename);
+    return;
+  }
+  if (baseFilename) {
+    const separator = '\n\n---\n\n';
+    const content = items.map((item) => getContent(item)).join(separator);
+    downloadTxtBlob(content, baseFilename);
+    return;
+  }
+  // Multiple items, no baseFilename: download first only (fallback)
+  const content = getContent(items[0]);
+  const filename = getFilename(items[0]);
+  downloadTxtBlob(content, filename);
+}
+
+/**
+ * Unified export entry point. Dispatches to exportToTxt, exportToCSV, or exportToPDF based on format.
+ * Returns a Promise when format is pdf (for await), void otherwise.
+ */
+export function exportItems(options: ExportItemsOptions): void | Promise<void> {
+  const { items, format, config, filename: optionsFilename, title: optionsTitle } = options;
+  if (!items || items.length === 0) {
+    alert('No data to export');
+    return;
+  }
+
+  const baseFilename = optionsFilename ?? `export-${new Date().toISOString().split('T')[0]}`;
+
+  switch (format) {
+    case 'txt': {
+      const c = config.txt;
+      if (!c?.getContent || !c?.getFilename) {
+        console.warn('Export format "txt" requires config.txt.getContent and config.txt.getFilename');
+        return;
+      }
+      exportToTxt(items, c.getContent, c.getFilename, items.length > 1 ? c.baseFilename ?? baseFilename : undefined);
+      return;
+    }
+    case 'csv': {
+      const c = config.csv;
+      if (!c?.headers || !c?.mapItemToRow) {
+        console.warn('Export format "csv" requires config.csv.headers and config.csv.mapItemToRow');
+        return;
+      }
+      const data = items.map((item) => c.mapItemToRow(item));
+      exportToCSV(data, baseFilename, c.headers);
+      return;
+    }
+    case 'pdf': {
+      const c = config.pdf;
+      if (!c?.columns || !c?.mapItemToRow) {
+        console.warn('Export format "pdf" requires config.pdf.columns and config.pdf.mapItemToRow');
+        return;
+      }
+      const data = items.map((item) => c.mapItemToRow(item));
+      const title = c.title ?? optionsTitle ?? 'Export';
+      return exportToPDF(data, baseFilename, c.columns, title);
+    }
+    default:
+      console.warn(`Unknown export format: ${format}`);
+  }
+}
 
 /**
  * Escape CSV value to handle special characters

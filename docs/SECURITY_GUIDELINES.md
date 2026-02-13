@@ -702,6 +702,7 @@ Mandatory Security Requirements
 Every plugin MUST:
 
 Use requireAuth() middleware on ALL routes
+Use requirePlugin (gate) on ALL plugin routes, including OAuth or callback endpoints (e.g. cloud storage OAuth callback), so only users with that plugin enabled can access them
 Validate ALL user input with express-validator
 Use parameterized queries (never string interpolation)
 Verify resource ownership before UPDATE/DELETE

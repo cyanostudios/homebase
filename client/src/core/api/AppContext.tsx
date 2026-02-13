@@ -77,6 +77,14 @@ interface AppContextType {
   getTasksForContact: (contactId: string) => Promise<Task[]>;
   getTasksWithMentionsForContact: (contactId: string) => Promise<Task[]>;
 
+  // Optional plugin navigation (set by plugins when mounted; used by e.g. ContactView)
+  openNoteForView: ((note: Note) => void) | undefined;
+  openTaskForView: ((task: Task) => void) | undefined;
+  openEstimateForView: ((estimate: Estimate) => void) | undefined;
+  registerNotesNavigation: (fn: ((note: Note) => void) | null) => void;
+  registerTasksNavigation: (fn: ((task: Task) => void) | null) => void;
+  registerEstimatesNavigation: (fn: ((estimate: Estimate) => void) | null) => void;
+
   // Close other panels function (typesafe across all registered plugins)
   closeOtherPanels: (except?: PluginNameUnion) => void;
 
@@ -202,19 +210,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     new Map(),
   );
 
-  useEffect(() => {
-    checkAuth();
+  const [openNoteForView, setOpenNoteForView] = useState<((note: Note) => void) | undefined>(
+    undefined,
+  );
+  const [openTaskForView, setOpenTaskForView] = useState<((task: Task) => void) | undefined>(
+    undefined,
+  );
+  const [openEstimateForView, setOpenEstimateForView] = useState<
+    ((estimate: Estimate) => void) | undefined
+  >(undefined);
+
+  const registerNotesNavigation = useCallback((fn: ((note: Note) => void) | null) => {
+    queueMicrotask(() => setOpenNoteForView(() => fn ?? undefined));
+  }, []);
+  const registerTasksNavigation = useCallback((fn: ((task: Task) => void) | null) => {
+    queueMicrotask(() => setOpenTaskForView(() => fn ?? undefined));
+  }, []);
+  const registerEstimatesNavigation = useCallback((fn: ((estimate: Estimate) => void) | null) => {
+    queueMicrotask(() => setOpenEstimateForView(() => fn ?? undefined));
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadData();
-    } else {
-      setContacts([]);
-      setNotes([]);
-      setTasks([]);
-    }
-  }, [isAuthenticated]);
+    checkAuth();
+  }, []);
 
   const checkAuth = async () => {
     try {
@@ -230,26 +248,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const loadData = useCallback(async () => {
+    const plugins = user?.plugins ?? [];
+    const hasContacts = plugins.includes('contacts');
+    const hasNotes = plugins.includes('notes');
+    const hasTasks = plugins.includes('tasks');
+
     try {
       const [contactsData, notesData, tasksData] = await Promise.all([
-        api.getContacts(),
-        api.getNotes(),
-        api.getTasks(),
+        hasContacts ? api.getContacts() : Promise.resolve([]),
+        hasNotes ? api.getNotes() : Promise.resolve([]),
+        hasTasks ? api.getTasks() : Promise.resolve([]),
       ]);
 
-      const transformedContacts = contactsData.map((contact: any) => ({
+      const transformedContacts = (contactsData || []).map((contact: any) => ({
         ...contact,
         createdAt: new Date(contact.createdAt),
         updatedAt: new Date(contact.updatedAt),
       }));
 
-      const transformedNotes = notesData.map((note: any) => ({
+      const transformedNotes = (notesData || []).map((note: any) => ({
         ...note,
         createdAt: new Date(note.createdAt),
         updatedAt: new Date(note.updatedAt),
       }));
 
-      const transformedTasks = tasksData.map((task: any) => ({
+      const transformedTasks = (tasksData || []).map((task: any) => ({
         ...task,
         assignedTo: task.assigned_to,
         createdFromNote: task.created_from_note,
@@ -264,7 +287,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Failed to load data:', error);
     }
-  }, []);
+  }, [user?.plugins]);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadData();
+    } else {
+      setContacts([]);
+      setNotes([]);
+      setTasks([]);
+    }
+  }, [isAuthenticated, user, loadData]);
 
   const refreshData = useCallback(async () => {
     if (isAuthenticated) {
@@ -348,60 +381,80 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const getNotesForContact = async (contactId: string): Promise<Note[]> => {
-    return notes.filter(
-      (note) =>
-        note.mentions && note.mentions.some((mention: any) => mention.contactId === contactId),
-    );
-  };
+  const getNotesForContact = useCallback(
+    async (contactId: string): Promise<Note[]> => {
+      if (!user?.plugins?.includes('notes')) return [];
+      const id = String(contactId);
+      return notes.filter(
+        (note) =>
+          note.mentions &&
+          note.mentions.some((mention: any) => String(mention.contactId) === id),
+      );
+    },
+    [user?.plugins, notes],
+  );
 
-  const getContactsForNote = (noteId: string): Contact[] => {
-    const note = notes.find((n) => n.id === noteId);
-    if (!note || !note.mentions) {
-      return [];
-    }
+  const getContactsForNote = useCallback(
+    (noteId: string): Contact[] => {
+      if (!user?.plugins?.includes('notes')) return [];
+      const note = notes.find((n) => String(n.id) === String(noteId));
+      if (!note || !note.mentions) {
+        return [];
+      }
+      return note.mentions
+        .map((mention: any) =>
+          contacts.find((c) => String(c.id) === String(mention.contactId)),
+        )
+        .filter(Boolean) as Contact[];
+    },
+    [user?.plugins, notes, contacts],
+  );
 
-    return note.mentions
-      .map((mention: any) => contacts.find((contact) => contact.id === mention.contactId))
-      .filter(Boolean) as Contact[];
-  };
+  const getEstimatesForContact = useCallback(
+    async (contactId: string): Promise<Estimate[]> => {
+      if (!user?.plugins?.includes('estimates')) return [];
+      try {
+        const estimatesData = await api.getEstimates();
+        const transformedEstimates = (estimatesData || []).map((estimate: any) => ({
+          ...estimate,
+          validTo: new Date(estimate.validTo),
+          createdAt: new Date(estimate.createdAt),
+          updatedAt: new Date(estimate.updatedAt),
+        }));
+        return transformedEstimates.filter(
+          (estimate: Estimate) => String(estimate.contactId) === String(contactId),
+        );
+      } catch (error) {
+        console.error('Failed to fetch estimates for contact:', error);
+        return [];
+      }
+    },
+    [user?.plugins],
+  );
 
-  const getEstimatesForContact = async (contactId: string): Promise<Estimate[]> => {
-    try {
-      const estimatesData = await api.getEstimates();
-      const transformedEstimates = estimatesData.map((estimate: any) => ({
-        ...estimate,
-        validTo: new Date(estimate.validTo),
-        createdAt: new Date(estimate.createdAt),
-        updatedAt: new Date(estimate.updatedAt),
-      }));
-      return transformedEstimates.filter((estimate: Estimate) => estimate.contactId === contactId);
-    } catch (error) {
-      console.error('Failed to fetch estimates for contact:', error);
-      return [];
-    }
-  };
+  const getTasksForContact = useCallback(
+    async (contactId: string): Promise<Task[]> => {
+      if (!user?.plugins?.includes('tasks')) return [];
+      const id = String(contactId);
+      return tasks.filter(
+        (task: Task) => String(task.assignedTo ?? '') === id,
+      );
+    },
+    [user?.plugins, tasks],
+  );
 
-  const getTasksForContact = async (contactId: string): Promise<Task[]> => {
-    try {
-      return tasks.filter((task: Task) => String(task.assignedTo ?? '') === String(contactId));
-    } catch (error) {
-      console.error('Failed to fetch tasks for contact:', error);
-      return [];
-    }
-  };
-
-  const getTasksWithMentionsForContact = async (contactId: string): Promise<Task[]> => {
-    try {
+  const getTasksWithMentionsForContact = useCallback(
+    async (contactId: string): Promise<Task[]> => {
+      if (!user?.plugins?.includes('tasks')) return [];
+      const id = String(contactId);
       return tasks.filter(
         (task: Task) =>
-          task.mentions && task.mentions.some((mention: any) => mention.contactId === contactId),
+          task.mentions &&
+          task.mentions.some((mention: any) => String(mention.contactId) === id),
       );
-    } catch (error) {
-      console.error('Failed to fetch task mentions for contact:', error);
-      return [];
-    }
-  };
+    },
+    [user?.plugins, tasks],
+  );
 
   const getSettings = async (category?: string) => {
     try {
@@ -445,6 +498,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getEstimatesForContact,
         getTasksForContact,
         getTasksWithMentionsForContact,
+
+        openNoteForView,
+        openTaskForView,
+        openEstimateForView,
+        registerNotesNavigation,
+        registerTasksNavigation,
+        registerEstimatesNavigation,
 
         closeOtherPanels,
         registerPanelCloseFunction,

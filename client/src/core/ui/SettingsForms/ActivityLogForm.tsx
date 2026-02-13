@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { activityLogApi, ActivityLogEntry, ActivityLogParams } from '@/core/api/activityLogApi';
+import { useApp } from '@/core/api/AppContext';
 import { notesApi } from '@/plugins/notes/api/notesApi';
 
 interface ActivityLogFormProps {
@@ -34,6 +35,7 @@ const ACTION_COLORS: Record<string, string> = {
 const formatValue = (val: string) => val.charAt(0).toUpperCase() + val.slice(1);
 
 export function ActivityLogForm({ onCancel }: ActivityLogFormProps) {
+  const { user } = useApp();
   const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [total, setTotal] = useState(0);
@@ -117,6 +119,10 @@ export function ActivityLogForm({ onCancel }: ActivityLogFormProps) {
 
     try {
       if (log.entityType === 'note' && (log.metadata.backup || log.metadata.backups)) {
+        if (!user?.plugins?.includes('notes')) {
+          alert('Restore for notes requires the notes plugin to be enabled for your account.');
+          return;
+        }
         const backups = log.metadata.backups || [log.metadata.backup];
         for (const backup of backups) {
           // Remove ID and timestamps from backup to create a new record

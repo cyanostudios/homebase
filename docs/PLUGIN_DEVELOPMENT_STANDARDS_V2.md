@@ -95,6 +95,10 @@ body('content').optional().trim().isLength({ max: 5000 }),
 validateRequest
 ], controller.create);
 
+5. Frontend: Mentions and export (best practice)
+   - **Mentions:** Use the core components `MentionTextarea` and `MentionContent` from `@/core/ui/` for any @-mention of contacts. Do not duplicate mention input or display logic in plugin components. See [MENTIONS_AND_CROSS_PLUGIN_UI.md](MENTIONS_AND_CROSS_PLUGIN_UI.md).
+   - **Export:** Implement export via `exportFormats` and `onExportItem` in the plugin context, plus an export config (e.g. `myPluginExportConfig`) used by the List and PanelFooter. Follow the unified pattern described in [FRONTEND_PLUGIN_GUIDE_V2.md](FRONTEND_PLUGIN_GUIDE_V2.md) (Detail export / download pattern).
+
 Context Implementation Pattern
 Frontend Context (Complete Template)
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';

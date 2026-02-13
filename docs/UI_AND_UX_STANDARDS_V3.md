@@ -132,3 +132,7 @@ To ensure a consistent visual identity, each plugin has a dedicated color theme 
   <h3 className="text-plugin font-semibold">Task Title</h3>
 </Card>
 ```
+
+## Verification note
+
+This document has been verified against the current implementation (DetailLayout, DetailCard, Sidebar, Dashboard, BulkActionBar, list/grid patterns). When making layout or design changes, update this document so it stays the single source of truth for UI/UX standards.

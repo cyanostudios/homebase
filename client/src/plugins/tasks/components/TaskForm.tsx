@@ -13,7 +13,7 @@ import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { useTasks } from '../hooks/useTasks';
 import { TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
 
-import { MentionTextarea } from './MentionTextarea';
+import { MentionTextarea } from '@/core/ui/MentionTextarea';
 
 type TaskStatus = (typeof TASK_STATUS_OPTIONS)[number];
 type TaskPriority = (typeof TASK_PRIORITY_OPTIONS)[number];

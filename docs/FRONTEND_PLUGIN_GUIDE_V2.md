@@ -737,6 +737,32 @@ After implementing your plugin, you must register it to make it visible in the s
 - New users get plugins from DEFAULT_USER_PLUGINS in constants.js
 - Superadmin must have plugins manually added (they don't get defaults automatically)
 
+---
+
+## Core mention components
+
+When your plugin needs @-mentions of contacts (e.g. in a note body or task description), use the **core** components; do not duplicate mention logic in the plugin.
+
+- **MentionTextarea** (`@/core/ui/MentionTextarea`): Use in forms. Props: `value`, `onChange(value, mentions)`, optional `placeholder`, `rows`, `className`. It fetches `/api/contacts`, shows a dropdown on `@`, and calls `onChange` with the updated text and extracted `Mention[]`. Store both on the entity (e.g. note/task).
+- **MentionContent** (`@/core/ui/MentionContent`): Use in view/detail panels. Props: `content`, `mentions`, optional `onMentionClick(contactId)`. It segments text and mentions, renders active mentions as clickable (and deleted contacts grayed). If you pass `onMentionClick`, the plugin is responsible for closing the current panel and opening the contact (e.g. via `closeNotePanel()` and `openContactForView(contact)`).
+
+Full details: [MENTIONS_AND_CROSS_PLUGIN_UI.md](MENTIONS_AND_CROSS_PLUGIN_UI.md).
+
+---
+
+## Detail export / download pattern
+
+A consistent pattern for exporting or downloading the current item (and for bulk export from the list) is:
+
+1. **Context** exposes `exportFormats` (e.g. `['txt', 'csv', 'pdf']`) and `onExportItem(format, item)`. Implement `onExportItem` by calling a shared export helper (e.g. `exportItems` from `@/core/utils/exportUtils`) with the plugin’s export config and the single item.
+2. **Export config** (e.g. `noteExportConfig`, `taskExportConfig`, `contactExportConfig`) defines format handlers and base filenames. See [client/src/plugins/notes/utils/noteExportConfig.ts](client/src/plugins/notes/utils/noteExportConfig.ts) and the tasks/contacts equivalents.
+3. **List** uses the same config for bulk export (e.g. `exportItems(exportConfig)` with selected items).
+4. **PanelFooter** reads `exportFormats` and `onExportItem` from context and renders format buttons that call `onExportItem(format, currentItem)`.
+
+Reference implementations: notes, tasks, and contacts (context, list, and PanelFooter wiring).
+
+---
+
 ## Common Pitfalls & Best Practices
 
 ### React Hooks måste ALLTID vara före early returns

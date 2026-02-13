@@ -1,10 +1,11 @@
-import { CheckSquare, Download, StickyNote } from 'lucide-react';
+import { CheckSquare, StickyNote } from 'lucide-react';
 import React, {
   createContext,
   useContext,
   useState,
   useEffect,
   useCallback,
+  useRef,
   ReactNode,
 } from 'react';
 
@@ -15,8 +16,10 @@ import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { cn } from '@/lib/utils';
 
+import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { notesApi } from '../api/notesApi';
 import { Note, ValidationError } from '../types/notes';
+import { getNoteExportBaseFilename, notesExportConfig } from '../utils/noteExportConfig';
 
 interface NoteContextType {
   // Note Panel State
@@ -56,6 +59,10 @@ interface NoteContextType {
   /** ID of note just duplicated; list highlights it until next action. */
   recentlyDuplicatedNoteId: string | null;
   setRecentlyDuplicatedNoteId: (id: string | null) => void;
+  /** Formats offered in detail footer (e.g. ['txt', 'csv', 'pdf']). */
+  exportFormats: ExportFormat[];
+  /** Called by PanelFooter to export current item in given format. */
+  onExportItem: (format: ExportFormat, item: Note) => void;
 }
 
 const NoteContext = createContext<NoteContextType | undefined>(undefined);
@@ -67,7 +74,12 @@ interface NoteProviderProps {
 }
 
 export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: NoteProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData } = useApp();
+  const {
+    registerPanelCloseFunction,
+    unregisterPanelCloseFunction,
+    refreshData,
+    registerNotesNavigation,
+  } = useApp();
   const pluginActions = usePluginActions('note');
 
   // Panel states
@@ -215,6 +227,20 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setValidationErrors([]);
     onCloseOtherPanels();
   }, [onCloseOtherPanels]);
+
+  const openNoteForViewRef = useRef(openNoteForView);
+  useEffect(() => {
+    openNoteForViewRef.current = openNoteForView;
+  }, [openNoteForView]);
+
+  const openNoteForViewBridge = useCallback((note: Note) => {
+    openNoteForViewRef.current(note);
+  }, []);
+
+  useEffect(() => {
+    registerNotesNavigation(openNoteForViewBridge);
+    return () => registerNotesNavigation(null);
+  }, [registerNotesNavigation, openNoteForViewBridge]);
 
   const clearValidationErrors = useCallback(() => {
     setValidationErrors([]);
@@ -412,15 +438,22 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     [],
   );
 
-  const exportNote = useCallback((note: Note) => {
-    const content = `${note.title}\n\n${note.content}\n\nCreated: ${new Date(note.createdAt).toLocaleDateString()}`;
-    const element = document.createElement('a');
-    const file = new Blob([content], { type: 'text/plain' });
-    element.href = URL.createObjectURL(file);
-    element.download = `${note.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+  const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
+
+  const onExportItem = useCallback((format: ExportFormat, item: Note) => {
+    const result = exportItems({
+      items: [item],
+      format,
+      config: notesExportConfig,
+      filename: getNoteExportBaseFilename(item),
+      title: 'Notes Export',
+    });
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      (result as Promise<void>).catch((err) => {
+        console.error('Export failed:', err);
+        alert('Export failed. Please try again.');
+      });
+    }
   }, []);
 
   const convertToTask = useCallback(
@@ -462,16 +495,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       return (
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={Download}
-              onClick={() => exportNote(item)}
-              className="h-7 text-[10px] px-2 shrink-0"
-            >
-              Export
-            </Button>
-
             {/* Render dynamic plugin actions (e.g. "To Task") */}
             {pluginActions.map((action) => (
               <Button
@@ -563,6 +586,9 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
     recentlyDuplicatedNoteId,
     setRecentlyDuplicatedNoteId,
+
+    exportFormats,
+    onExportItem,
   };
 
   return <NoteContext.Provider value={value}>{children}</NoteContext.Provider>;
