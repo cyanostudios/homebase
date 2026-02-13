@@ -27,6 +27,7 @@ export function DetailPanel({
 }: DetailPanelProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const previousTitleRef = useRef<string>('');
+  const previousOpenRef = useRef(false);
 
   // Handle ESC key to close panel
   useEffect(() => {
@@ -44,24 +45,37 @@ export function DetailPanel({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
-  // Scroll to top when title changes or panel opens (when switching items, e.g., contact to note via @mention)
+  // Scroll to top when panel opens or when title changes (e.g. switching items)
   useEffect(() => {
-    if (!isOpen || !scrollContainerRef.current || !title) {
+    if (!isOpen) {
+      previousOpenRef.current = false;
       return;
     }
 
-    // Scroll if title changed (including when switching between different items)
-    if (previousTitleRef.current !== title) {
-      scrollContainerRef.current.scrollTop = 0;
-      previousTitleRef.current = title;
+    const justOpened = !previousOpenRef.current;
+    const titleChanged = previousTitleRef.current !== title;
+    previousOpenRef.current = true;
+    previousTitleRef.current = title;
+
+    if (!justOpened && !titleChanged) {
+      return;
     }
-  }, [title, isOpen]);
+
+    // Run after layout so the scroll container and content exist
+    const raf = requestAnimationFrame(() => {
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [isOpen, title]);
 
   // Mobile: Render as Sheet overlay
   if (isMobile) {
     return (
       <Sheet open={isOpen} onOpenChange={onClose}>
-        <SheetContent side="right" className="w-full sm:w-[90%] sm:max-w-lg p-0 flex flex-col">
+        <SheetContent
+          side="right"
+          className="w-full sm:w-[90%] sm:max-w-lg p-0 flex flex-col min-h-0 h-full"
+        >
           <SheetHeader className="px-6 pt-6 pb-4 flex-shrink-0">
             <SheetTitle className="text-left">{title}</SheetTitle>
             {subtitle && (
@@ -74,7 +88,7 @@ export function DetailPanel({
           {/* Scrollable Content */}
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto py-4 px-6 [&_.shadow-none]:border-none [&_.shadow-sm]:shadow-none [&_.shadow-sm]:border-none"
+            className="flex-1 min-h-0 overflow-y-auto py-4 px-6 [&_.shadow-none]:border-none [&_.shadow-sm]:shadow-none [&_.shadow-sm]:border-none"
           >
             {children}
           </div>
@@ -96,7 +110,7 @@ export function DetailPanel({
   }
 
   return (
-    <div className="w-full h-full flex-shrink-0 flex flex-col border-2 border-primary/30 rounded-md animate-border-pulse">
+    <div className="w-full h-full min-h-0 flex-shrink-0 flex flex-col border-2 border-primary/30 rounded-md animate-border-pulse">
       {/* Fixed Header */}
       <div className="flex items-center justify-between py-4 px-6 flex-shrink-0">
         <div className="flex flex-1 items-center gap-4 min-w-0 mr-4">
@@ -123,7 +137,7 @@ export function DetailPanel({
       {/* Scrollable Content */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto py-4 px-6 [&_.shadow-none]:border-none [&_.shadow-sm]:shadow-none [&_.shadow-sm]:border-none"
+        className="flex-1 min-h-0 overflow-y-auto py-4 px-6 [&_.shadow-none]:border-none [&_.shadow-sm]:shadow-none [&_.shadow-sm]:border-none"
       >
         {children}
       </div>

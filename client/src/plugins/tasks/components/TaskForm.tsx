@@ -6,14 +6,13 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { MentionTextarea } from '@/core/ui/MentionTextarea';
 import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 import { useTasks } from '../hooks/useTasks';
 import { TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
-
-import { MentionTextarea } from '@/core/ui/MentionTextarea';
 
 type TaskStatus = (typeof TASK_STATUS_OPTIONS)[number];
 type TaskPriority = (typeof TASK_PRIORITY_OPTIONS)[number];
@@ -95,7 +94,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     } else {
       resetForm();
     }
-  }, [currentTask, markClean]);
+  }, [currentTask, markClean, resetForm]);
 
   const resetForm = useCallback(() => {
     setFormData({
@@ -168,7 +167,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         confirmDiscard();
       }, 0);
     } else {
+      // Edit mode: close dialog and go back to detail view
       confirmDiscard();
+      onCancel();
     }
   };
 
@@ -249,7 +250,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({
                       {validationErrors
                         .filter((error) => !error.message.includes('Warning'))
                         .map((error, index) => (
-                          <li key={index}>{error.message}</li>
+                          // eslint-disable-next-line react/no-array-index-key -- validation list order is stable
+                          <li key={`${error.field}-${index}`}>{error.message}</li>
                         ))}
                     </ul>
                   </div>
@@ -398,12 +400,17 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             {formData.mentions.length > 0 && (
               <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-950/30 rounded text-xs">
                 <span className="font-medium text-blue-800 dark:text-blue-400">Mentions:</span>{' '}
+                {/* eslint-disable react/no-array-index-key -- mention list order is stable */}
                 {formData.mentions.map((mention: any, index: number) => (
-                  <span key={index} className="text-blue-600 dark:text-blue-400">
+                  <span
+                    key={`${mention.contactId ?? 'm'}-${index}`}
+                    className="text-blue-600 dark:text-blue-400"
+                  >
                     @{mention.contactName}
                     {index < formData.mentions.length - 1 ? ', ' : ''}
                   </span>
                 ))}
+                {/* eslint-enable react/no-array-index-key */}
               </div>
             )}
           </div>

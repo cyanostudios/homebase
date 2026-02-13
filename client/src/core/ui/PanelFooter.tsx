@@ -148,6 +148,20 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
           >
             Edit
           </Button>
+          {currentPlugin?.name === 'tasks' &&
+            typeof (currentPluginContext as any)?.hasQuickEditChanges === 'boolean' &&
+            (currentPluginContext as any).hasQuickEditChanges && (
+              <Button
+                type="button"
+                onClick={() => (currentPluginContext as any)?.onApplyQuickEdit?.()}
+                variant="primary"
+                size="sm"
+                icon={Check}
+                className="h-7 text-[10px] px-2 bg-green-600 hover:bg-green-700 text-white border-none"
+              >
+                Update
+              </Button>
+            )}
         </div>
       </div>
     );
@@ -173,7 +187,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
         size="sm"
         icon={Check}
         disabled={hasBlockingErrors || isSubmitting}
-        className="h-7 text-[10px] px-2"
+        className="h-7 text-[10px] px-2 bg-green-600 hover:bg-green-700 text-white border-none"
       >
         {isSubmitting ? 'Saving...' : currentMode === 'edit' ? 'Update' : 'Save'}
       </Button>
@@ -240,6 +254,13 @@ export const createPanelFooter = (
     handlers.handleCancelClick();
   };
 
+  const baseClose = handlers.getCloseHandler();
+  const onClosePanel =
+    typeof currentPluginContext?.getCloseHandler === 'function' &&
+    handlers.currentPlugin?.name === 'tasks'
+      ? currentPluginContext.getCloseHandler(baseClose)
+      : baseClose;
+
   return (
     <PanelFooter
       currentMode={currentMode}
@@ -249,7 +270,7 @@ export const createPanelFooter = (
       validationErrors={validationErrors}
       onDeleteItem={handlers.handleDeleteItem}
       onDuplicateItem={handlers.handleDuplicateItem}
-      onClosePanel={handlers.getCloseHandler()}
+      onClosePanel={onClosePanel}
       onEditItem={handleEditItem}
       onSaveClick={handleSave}
       onCancelClick={handleCancel}

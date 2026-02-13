@@ -4,13 +4,13 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { MentionTextarea } from '@/core/ui/MentionTextarea';
 import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 import { useNotes } from '../hooks/useNotes';
 
-import { MentionTextarea } from '@/core/ui/MentionTextarea';
 import { NoteSettingsForm } from './NoteSettingsForm';
 
 interface NoteFormState {
@@ -79,7 +79,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
       // Create mode - reset to empty form
       resetForm();
     }
-  }, [currentNote, markClean]);
+  }, [currentNote, markClean, resetForm]);
 
   const resetForm = useCallback(() => {
     setFormData({
@@ -138,7 +138,9 @@ export const NoteForm: React.FC<NoteFormProps> = ({
         confirmDiscard();
       }, 0);
     } else {
+      // Edit mode: close dialog and go back to detail view
       confirmDiscard();
+      onCancel();
     }
   };
 
@@ -209,7 +211,8 @@ export const NoteForm: React.FC<NoteFormProps> = ({
                       {validationErrors
                         .filter((error) => !error.message.includes('Warning'))
                         .map((error, index) => (
-                          <li key={index}>{error.message}</li>
+                          // eslint-disable-next-line react/no-array-index-key -- validation list order is stable
+                          <li key={`${error.field}-${index}`}>{error.message}</li>
                         ))}
                     </ul>
                   </div>
@@ -274,12 +277,17 @@ export const NoteForm: React.FC<NoteFormProps> = ({
             {formData.mentions.length > 0 && (
               <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-950/30 rounded text-xs">
                 <span className="font-medium text-blue-800 dark:text-blue-400">Mentions:</span>{' '}
+                {/* eslint-disable react/no-array-index-key -- mention list order is stable */}
                 {formData.mentions.map((mention: any, index: number) => (
-                  <span key={index} className="text-blue-600 dark:text-blue-400">
+                  <span
+                    key={`${mention.contactId ?? 'm'}-${index}`}
+                    className="text-blue-600 dark:text-blue-400"
+                  >
                     @{mention.contactName}
                     {index < formData.mentions.length - 1 ? ', ' : ''}
                   </span>
                 ))}
+                {/* eslint-enable react/no-array-index-key */}
               </div>
             )}
           </div>

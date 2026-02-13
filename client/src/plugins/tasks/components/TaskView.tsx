@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { MentionContent } from '@/core/ui/MentionContent';
@@ -25,7 +26,14 @@ interface TaskViewProps {
 
 export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
   const { openContactForView } = useContacts();
-  const { closeTaskPanel, saveTask } = useTasks();
+  const {
+    closeTaskPanel,
+    quickEditDraft,
+    setQuickEditField,
+    showDiscardQuickEditDialog,
+    setShowDiscardQuickEditDialog,
+    onDiscardQuickEditAndClose,
+  } = useTasks();
   const { openNoteForView } = useNotes();
   const { contacts, refreshData } = useApp();
 
@@ -181,82 +189,26 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     };
   };
 
-  const handleStatusChange = async (newStatus: string) => {
-    if (newStatus === task.status) {
-      return;
-    }
-
-    try {
-      const updatedData = {
-        title: task.title,
-        content: task.content,
-        mentions: task.mentions,
-        status: newStatus,
-        priority: task.priority,
-        dueDate: task.dueDate,
-        assignedTo: task.assignedTo,
-      };
-
-      await saveTask(updatedData, task.id);
-    } catch (error) {
-      console.error('Failed to update status:', error);
-    }
+  const handleStatusChange = (newStatus: string) => {
+    setQuickEditField('status', newStatus);
   };
 
-  const handlePriorityChange = async (newPriority: string) => {
-    if (newPriority === task.priority) {
-      return;
-    }
+  // Display task merges saved task with quick-edit draft (status, priority, dueDate, assignee)
+  const displayTask = React.useMemo(
+    () => (task ? { ...task, ...(quickEditDraft || {}) } : null),
+    [task, quickEditDraft],
+  );
 
-    try {
-      const updatedData = {
-        title: task.title,
-        content: task.content,
-        mentions: task.mentions,
-        status: task.status,
-        priority: newPriority,
-        dueDate: task.dueDate,
-        assignedTo: task.assignedTo,
-      };
-
-      await saveTask(updatedData, task.id);
-    } catch (error) {
-      console.error('Failed to update priority:', error);
-    }
+  const handlePriorityChange = (newPriority: string) => {
+    setQuickEditField('priority', newPriority);
   };
 
-  const handleDueDateChange = async (newDate: Date | null) => {
-    try {
-      const updatedData = {
-        title: task.title,
-        content: task.content,
-        mentions: task.mentions,
-        status: task.status,
-        priority: task.priority,
-        dueDate: newDate,
-        assignedTo: task.assignedTo,
-      };
-      await saveTask(updatedData, task.id);
-    } catch (error) {
-      console.error('Failed to update due date:', error);
-    }
+  const handleDueDateChange = (newDate: Date | null) => {
+    setQuickEditField('dueDate', newDate);
   };
 
-  const handleAssigneeChange = async (newAssigneeId: string | null) => {
-    try {
-      const updatedData = {
-        title: task.title,
-        content: task.content,
-        mentions: task.mentions,
-        status: task.status,
-        priority: task.priority,
-        dueDate: task.dueDate,
-        assignedTo: newAssigneeId,
-      };
-      await saveTask(updatedData, task.id);
-    } catch (error) {
-      console.error('Failed to update assignment:', error);
-    }
+  const handleAssigneeChange = (newAssigneeId: string | null) => {
+    setQuickEditField('assignedTo', newAssigneeId);
   };
 
   const _assignedContact = getAssignedContact();
@@ -267,130 +219,160 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
   }
 
   return (
-    <DetailLayout
-      sidebar={
-        <div className="space-y-6">
-          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title="Task Properties" className="p-4">
-              <div className="space-y-2">
-                <TaskStatusSelect task={task} onStatusChange={handleStatusChange} />
-                <TaskPrioritySelect task={task} onPriorityChange={handlePriorityChange} />
-                <TaskAssigneeSelect task={task} onAssigneeChange={handleAssigneeChange} />
-                <TaskDueDatePicker task={task} onDueDateChange={handleDueDateChange} />
-              </div>
-            </DetailSection>
-          </Card>
-
-          {task.mentions && task.mentions.length > 0 && (
+    <>
+      <DetailLayout
+        sidebar={
+          <div className="space-y-6">
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Mentions" className="p-4">
+              <DetailSection title="Task Properties" className="p-4">
                 <div className="space-y-2">
-                  {(() => {
-                    const uniqueMentions = Array.from(
-                      new Map((task.mentions || []).map((m: any) => [m.contactId, m])).values(),
-                    );
-                    return uniqueMentions.map((mention: any) => {
-                      const contactData = mentionContactsData[mention.contactId];
-                      const getDisplayText = () => {
-                        if (!contactData) {
-                          const contactNumber = formatDisplayNumber('contacts', mention.contactId);
-                          return `${contactNumber} • ${mention.contactName} (deleted)`;
-                        }
-                        const contactNumber = formatDisplayNumber(
-                          'contacts',
-                          contactData.contactNumber || contactData.id,
-                        );
-                        return `${contactNumber} • ${mention.contactName}`;
-                      };
-
-                      return (
-                        <div
-                          key={`mention-${mention.contactId}`}
-                          className="flex justify-between items-center text-[11px] plugin-contacts bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
-                        >
-                          <span className="text-muted-foreground truncate mr-2">
-                            {getDisplayText()}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="link"
-                            onClick={() =>
-                              contactData ? handleContactClick(mention.contactId) : null
-                            }
-                            disabled={!contactData}
-                            className={cn(
-                              'h-auto p-0 text-[10px] font-medium',
-                              contactData ? 'text-plugin' : 'text-muted-foreground',
-                            )}
-                          >
-                            {contactData ? 'View' : 'Deleted'}
-                          </Button>
-                        </div>
-                      );
-                    });
-                  })()}
+                  <TaskStatusSelect
+                    task={displayTask ?? task}
+                    onStatusChange={handleStatusChange}
+                  />
+                  <TaskPrioritySelect
+                    task={displayTask ?? task}
+                    onPriorityChange={handlePriorityChange}
+                  />
+                  <TaskAssigneeSelect
+                    task={displayTask ?? task}
+                    onAssigneeChange={handleAssigneeChange}
+                  />
+                  <TaskDueDatePicker
+                    task={displayTask ?? task}
+                    onDueDateChange={handleDueDateChange}
+                  />
                 </div>
               </DetailSection>
             </Card>
-          )}
 
-          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title="Information" className="p-4">
-              <div className="space-y-4 text-xs">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">ID</span>
-                  <span className="font-mono font-medium">
-                    {formatDisplayNumber('tasks', task.id)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Created</span>
-                  <span className="font-medium">
-                    {new Date(task.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Updated</span>
-                  <span className="font-medium">
-                    {new Date(task.updatedAt).toLocaleDateString()}
-                  </span>
-                </div>
-                {task.createdFromNote && noteLoaded && (
-                  <div className="flex justify-between items-center pt-2 border-t border-border/50">
-                    <span className="text-muted-foreground">Source Note</span>
-                    {sourceNote ? (
-                      <Button
-                        variant="link"
-                        size="sm"
-                        onClick={handleNoteClick}
-                        className="h-auto p-0 text-[10px] plugin-notes text-plugin truncate max-w-[150px]"
-                      >
-                        {sourceNote.title}
-                      </Button>
-                    ) : (
-                      <span className="text-muted-foreground italic">Deleted Note</span>
-                    )}
+            {task.mentions && task.mentions.length > 0 && (
+              <Card
+                padding="none"
+                className="overflow-hidden border-none shadow-sm bg-background/50"
+              >
+                <DetailSection title="Mentions" className="p-4">
+                  <div className="space-y-2">
+                    {(() => {
+                      const uniqueMentions = Array.from(
+                        new Map((task.mentions || []).map((m: any) => [m.contactId, m])).values(),
+                      );
+                      return uniqueMentions.map((mention: any) => {
+                        const contactData = mentionContactsData[mention.contactId];
+                        const getDisplayText = () => {
+                          if (!contactData) {
+                            const contactNumber = formatDisplayNumber(
+                              'contacts',
+                              mention.contactId,
+                            );
+                            return `${contactNumber} • ${mention.contactName} (deleted)`;
+                          }
+                          const contactNumber = formatDisplayNumber(
+                            'contacts',
+                            contactData.contactNumber || contactData.id,
+                          );
+                          return `${contactNumber} • ${mention.contactName}`;
+                        };
+
+                        return (
+                          <div
+                            key={`mention-${mention.contactId}`}
+                            className="flex justify-between items-center text-[11px] plugin-contacts bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
+                          >
+                            <span className="text-muted-foreground truncate mr-2">
+                              {getDisplayText()}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="link"
+                              onClick={() =>
+                                contactData ? handleContactClick(mention.contactId) : null
+                              }
+                              disabled={!contactData}
+                              className={cn(
+                                'h-auto p-0 text-[10px] font-medium',
+                                contactData ? 'text-plugin' : 'text-muted-foreground',
+                              )}
+                            >
+                              {contactData ? 'View' : 'Deleted'}
+                            </Button>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
-                )}
+                </DetailSection>
+              </Card>
+            )}
+
+            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+              <DetailSection title="Information" className="p-4">
+                <div className="space-y-4 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">ID</span>
+                    <span className="font-mono font-medium">
+                      {formatDisplayNumber('tasks', task.id)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Created</span>
+                    <span className="font-medium">
+                      {new Date(task.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Updated</span>
+                    <span className="font-medium">
+                      {new Date(task.updatedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {task.createdFromNote && noteLoaded && (
+                    <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                      <span className="text-muted-foreground">Source Note</span>
+                      {sourceNote ? (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={handleNoteClick}
+                          className="h-auto p-0 text-[10px] plugin-notes text-plugin truncate max-w-[150px]"
+                        >
+                          {sourceNote.title}
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground italic">Deleted Note</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </DetailSection>
+            </Card>
+          </div>
+        }
+      >
+        <div className="space-y-6">
+          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <DetailSection title="Task Content" className="p-6">
+              <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
+                <MentionContent
+                  content={task.content}
+                  mentions={task.mentions}
+                  onMentionClick={handleContactClick}
+                />
               </div>
             </DetailSection>
           </Card>
         </div>
-      }
-    >
-      <div className="space-y-6">
-        <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-          <DetailSection title="Task Content" className="p-6">
-            <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
-              <MentionContent
-                content={task.content}
-                mentions={task.mentions}
-                onMentionClick={handleContactClick}
-              />
-            </div>
-          </DetailSection>
-        </Card>
-      </div>
-    </DetailLayout>
+      </DetailLayout>
+      <ConfirmDialog
+        isOpen={showDiscardQuickEditDialog}
+        title="Unsaved changes"
+        message="You have unsaved changes to status, priority, due date or assignee. Do you want to discard them?"
+        confirmText="Discard changes"
+        cancelText="Continue editing"
+        onConfirm={onDiscardQuickEditAndClose}
+        onCancel={() => setShowDiscardQuickEditDialog(false)}
+        variant="warning"
+      />
+    </>
   );
 };

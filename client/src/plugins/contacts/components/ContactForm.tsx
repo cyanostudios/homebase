@@ -1,8 +1,7 @@
-import { Building, User, Plus, Trash2, CheckSquare } from 'lucide-react';
+import { Building, User, Plus, Trash2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
@@ -10,7 +9,6 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
@@ -96,8 +94,8 @@ export const ContactForm: React.FC<ContactFormProps> = ({
     // Notes
     notes: '',
 
-    // Settings
-    isAssignable: true,
+    // Settings (default: not assignable for new contacts)
+    isAssignable: false,
   });
 
   // Register this form's unsaved changes state globally
@@ -134,14 +132,14 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         fTax: currentContact.fTax || 'yes',
         notes: currentContact.notes || '',
         isAssignable:
-          currentContact.isAssignable !== undefined ? currentContact.isAssignable : true,
+          currentContact.isAssignable !== undefined ? currentContact.isAssignable : false,
       });
       markClean(); // Mark as clean after loading existing data
     } else {
       // Create mode - reset to empty form (including when panel reopens)
       resetForm();
     }
-  }, [currentContact, markClean]);
+  }, [currentContact, markClean, resetForm]);
 
   const resetForm = useCallback(() => {
     setFormData({
@@ -163,7 +161,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
       currency: 'SEK',
       fTax: 'yes',
       notes: '',
-      isAssignable: true,
+      isAssignable: false,
     });
     markClean();
   }, [markClean]);
@@ -171,25 +169,21 @@ export const ContactForm: React.FC<ContactFormProps> = ({
   // Use internal state or external prop (external takes precedence)
   const isCurrentlySubmitting = externalIsSubmitting || isSubmitting;
 
-  // ⬇️ Fix: Sluta testa truthiness på en void-retur. Hantera istället via try/catch.
   const handleSubmit = useCallback(async () => {
     if (isCurrentlySubmitting) {
       return;
-    } // Prevent double submission
+    }
 
     setIsSubmitting(true);
     try {
-      console.log('Form submitting with data:', formData);
-      // Stödjer både sync och async onSave
-      await Promise.resolve(onSave(formData));
-
-      // ✅ Vid lyckad save
-      markClean();
-      if (!currentContact) {
-        resetForm();
+      const success = await onSave(formData);
+      if (success === true) {
+        markClean();
+        if (!currentContact) {
+          resetForm();
+        }
       }
     } catch (err) {
-      // ❌ Vid valideringsfel/fel – lämna formuläret öppet så att valideringsfel kan visas
       console.error('Save failed:', err);
     } finally {
       setIsSubmitting(false);
@@ -220,7 +214,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         confirmDiscard();
       }, 0);
     } else {
+      // Edit mode: close dialog and go back to detail view
       confirmDiscard();
+      onCancel();
     }
   };
 
@@ -346,7 +342,8 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                     {validationErrors
                       .filter((error) => !error.message.includes('Warning'))
                       .map((error, index) => (
-                        <li key={index}>{error.message}</li>
+                        // eslint-disable-next-line react/no-array-index-key -- validation list order is stable
+                        <li key={`${error.field}-${index}`}>{error.message}</li>
                       ))}
                   </ul>
                 </div>
@@ -363,19 +360,35 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                 <div>
                   <Label
                     htmlFor="contactNumber"
-                    className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                    className="mb-1 text-[10px] uppercase font-bold text-foreground"
                   >
-                    Contact Number
+                    {currentContact ? 'Contact Number *' : 'Contact Number'}
                   </Label>
-                  <Input
-                    id="contactNumber"
-                    type="text"
-                    value={formData.contactNumber}
-                    onChange={(e) => updateField('contactNumber', e.target.value)}
-                    placeholder="e.g. 01"
-                    className={getFieldError('contactNumber') ? 'border-red-500' : ''}
-                    required
-                  />
+                  {currentContact ? (
+                    <Input
+                      id="contactNumber"
+                      type="text"
+                      value={formData.contactNumber}
+                      onChange={(e) => updateField('contactNumber', e.target.value)}
+                      placeholder="e.g. 01"
+                      className={getFieldError('contactNumber') ? 'border-red-500' : ''}
+                      required
+                    />
+                  ) : (
+                    <Input
+                      id="contactNumber"
+                      type="text"
+                      value={formData.contactNumber}
+                      readOnly
+                      placeholder="Assigned automatically on save"
+                      className="bg-muted text-muted-foreground cursor-not-allowed"
+                    />
+                  )}
+                  {!currentContact && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Assigned automatically on save
+                    </p>
+                  )}
                   {getFieldError('contactNumber') && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                       {getFieldError('contactNumber')?.message}
@@ -384,7 +397,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                 </div>
 
                 <div>
-                  <Label className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                  <Label className="mb-1 text-[10px] uppercase font-bold text-foreground">
                     Contact Type
                   </Label>
                   <div className="flex gap-2">
@@ -424,9 +437,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   <div>
                     <Label
                       htmlFor="companyName"
-                      className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                      className="mb-1 text-[10px] uppercase font-bold text-foreground"
                     >
-                      Company Name
+                      Company Name *
                     </Label>
                     <Input
                       id="companyName"
@@ -446,7 +459,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   <div>
                     <Label
                       htmlFor="companyType"
-                      className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                      className="mb-1 text-[10px] uppercase font-bold text-foreground"
                     >
                       Company Type
                     </Label>
@@ -465,7 +478,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   <div>
                     <Label
                       htmlFor="organizationNumber"
-                      className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                      className="mb-1 text-[10px] uppercase font-bold text-foreground"
                     >
                       Organization Number
                     </Label>
@@ -487,7 +500,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   <div>
                     <Label
                       htmlFor="vatNumber"
-                      className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                      className="mb-1 text-[10px] uppercase font-bold text-foreground"
                     >
                       VAT Number
                     </Label>
@@ -505,9 +518,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   <div>
                     <Label
                       htmlFor="fullName"
-                      className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                      className="mb-1 text-[10px] uppercase font-bold text-foreground"
                     >
-                      Full Name
+                      Full Name *
                     </Label>
                     <Input
                       id="fullName"
@@ -527,7 +540,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   <div>
                     <Label
                       htmlFor="personalNumber"
-                      className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                      className="mb-1 text-[10px] uppercase font-bold text-foreground"
                     >
                       Personal Number
                     </Label>
@@ -556,7 +569,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               <div>
                 <Label
                   htmlFor="email"
-                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                  className="mb-1 text-[10px] uppercase font-bold text-foreground"
                 >
                   Email
                 </Label>
@@ -583,23 +596,23 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               <div>
                 <Label
                   htmlFor="website"
-                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                  className="mb-1 text-[10px] uppercase font-bold text-foreground"
                 >
                   Website
                 </Label>
                 <Input
                   id="website"
-                  type="url"
+                  type="text"
                   value={formData.website}
                   onChange={(e) => updateField('website', e.target.value)}
-                  placeholder="https://"
+                  placeholder="https://, http:// or example.com"
                 />
               </div>
 
               <div>
                 <Label
                   htmlFor="phone"
-                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                  className="mb-1 text-[10px] uppercase font-bold text-foreground"
                 >
                   Phone 1
                 </Label>
@@ -615,7 +628,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               <div>
                 <Label
                   htmlFor="phone2"
-                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                  className="mb-1 text-[10px] uppercase font-bold text-foreground"
                 >
                   Phone 2
                 </Label>
@@ -634,7 +647,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           <DetailSection title="Addresses">
             <div className="p-4 bg-gray-50/50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] uppercase font-bold text-gray-400">
+                <span className="text-[10px] uppercase font-bold text-foreground">
                   Postal Addresses
                 </span>
                 <Button
@@ -677,7 +690,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                         <div>
                           <Label
                             htmlFor={`address-type-${address.id}`}
-                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                            className="mb-1 text-[10px] uppercase font-bold text-foreground"
                           >
                             Type
                           </Label>
@@ -698,7 +711,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                         <div>
                           <Label
                             htmlFor={`address-email-${address.id}`}
-                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                            className="mb-1 text-[10px] uppercase font-bold text-foreground"
                           >
                             Email
                           </Label>
@@ -714,7 +727,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                         <div className="sm:col-span-2">
                           <Label
                             htmlFor={`address-line1-${address.id}`}
-                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                            className="mb-1 text-[10px] uppercase font-bold text-foreground"
                           >
                             Address Line 1
                           </Label>
@@ -731,7 +744,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                         <div className="sm:col-span-2">
                           <Label
                             htmlFor={`address-line2-${address.id}`}
-                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                            className="mb-1 text-[10px] uppercase font-bold text-foreground"
                           >
                             Address Line 2
                           </Label>
@@ -748,7 +761,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                         <div>
                           <Label
                             htmlFor={`address-postal-${address.id}`}
-                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                            className="mb-1 text-[10px] uppercase font-bold text-foreground"
                           >
                             Postal Code
                           </Label>
@@ -765,7 +778,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                         <div>
                           <Label
                             htmlFor={`address-city-${address.id}`}
-                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                            className="mb-1 text-[10px] uppercase font-bold text-foreground"
                           >
                             City
                           </Label>
@@ -780,7 +793,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                         <div>
                           <Label
                             htmlFor={`address-region-${address.id}`}
-                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                            className="mb-1 text-[10px] uppercase font-bold text-foreground"
                           >
                             Region
                           </Label>
@@ -796,7 +809,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                         <div>
                           <Label
                             htmlFor={`address-country-${address.id}`}
-                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                            className="mb-1 text-[10px] uppercase font-bold text-foreground"
                           >
                             Country
                           </Label>
@@ -824,7 +837,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             <DetailSection title="Contact Persons">
               <div className="p-4 bg-gray-50/50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">
+                  <span className="text-[10px] uppercase font-bold text-foreground">
                     Associated People
                   </span>
                   <Button
@@ -867,7 +880,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                           <div className="sm:col-span-2">
                             <Label
                               htmlFor={`person-name-${person.id}`}
-                              className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                              className="mb-1 text-[10px] uppercase font-bold text-foreground"
                             >
                               Name
                             </Label>
@@ -884,7 +897,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                           <div>
                             <Label
                               htmlFor={`person-title-${person.id}`}
-                              className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                              className="mb-1 text-[10px] uppercase font-bold text-foreground"
                             >
                               Title
                             </Label>
@@ -902,7 +915,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                           <div>
                             <Label
                               htmlFor={`person-email-${person.id}`}
-                              className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                              className="mb-1 text-[10px] uppercase font-bold text-foreground"
                             >
                               Email
                             </Label>
@@ -919,7 +932,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                           <div>
                             <Label
                               htmlFor={`person-phone-${person.id}`}
-                              className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                              className="mb-1 text-[10px] uppercase font-bold text-foreground"
                             >
                               Phone
                             </Label>
@@ -947,7 +960,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               <div>
                 <Label
                   htmlFor="taxRate"
-                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                  className="mb-1 text-[10px] uppercase font-bold text-foreground"
                 >
                   Tax Rate (%)
                 </Label>
@@ -966,7 +979,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               <div>
                 <Label
                   htmlFor="paymentTerms"
-                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                  className="mb-1 text-[10px] uppercase font-bold text-foreground"
                 >
                   Terms (days)
                 </Label>
@@ -985,7 +998,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               <div>
                 <Label
                   htmlFor="currency"
-                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                  className="mb-1 text-[10px] uppercase font-bold text-foreground"
                 >
                   Currency
                 </Label>
@@ -1005,7 +1018,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               <div>
                 <Label
                   htmlFor="fTax"
-                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                  className="mb-1 text-[10px] uppercase font-bold text-foreground"
                 >
                   F-Tax
                 </Label>
@@ -1022,7 +1035,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               <div>
                 <Label
                   htmlFor="isAssignable"
-                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                  className="mb-1 text-[10px] uppercase font-bold text-foreground"
                 >
                   Assignable
                 </Label>
@@ -1043,7 +1056,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           {/* Notes */}
           <DetailSection title="Notes">
             <div className="p-4 bg-yellow-50/20 dark:bg-yellow-950/20 border border-yellow-100 dark:border-yellow-900/50 rounded-xl">
-              <Label htmlFor="notes" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+              <Label
+                htmlFor="notes"
+                className="mb-1 text-[10px] uppercase font-bold text-foreground"
+              >
                 Additional Notes
               </Label>
               <Textarea

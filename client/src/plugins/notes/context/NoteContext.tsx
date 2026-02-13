@@ -90,8 +90,10 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     unregisterPanelCloseFunction,
     registerNotesNavigation,
     openToTaskDialog,
+    user,
   } = useApp();
   const pluginActions = usePluginActions('note');
+  const hasTasksPlugin = Boolean(user?.plugins?.includes('tasks'));
 
   // Panel states
   const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
@@ -120,15 +122,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setPanelMode('create');
     setValidationErrors([]);
   }, []);
-
-  // Load data when authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadNotes();
-    } else {
-      setNotes([]);
-    }
-  }, [isAuthenticated, loadNotes]);
 
   // Panel registration
   useEffect(() => {
@@ -174,6 +167,15 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
   }, []);
+
+  // Load data when authenticated (after loadNotes is defined)
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadNotes();
+    } else {
+      setNotes([]);
+    }
+  }, [isAuthenticated, loadNotes]);
 
   const validateNote = useCallback((noteData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
@@ -584,19 +586,21 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     exportFormats,
     onExportItem,
 
-    detailFooterActions: pluginActions.map((action) => ({
-      id: action.id,
-      label: action.label,
-      icon: action.icon,
-      onClick:
-        action.id === 'create-task-from-note' && openToTaskDialog
-          ? (note) => openToTaskDialog(note)
-          : action.onClick,
-      className:
-        action.id === 'create-task-from-note'
-          ? 'h-7 text-[10px] px-2 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30'
-          : 'h-7 text-[10px] px-2',
-    })),
+    detailFooterActions: pluginActions
+      .filter((action) => action.id !== 'create-task-from-note' || hasTasksPlugin)
+      .map((action) => ({
+        id: action.id,
+        label: action.label,
+        icon: action.icon,
+        onClick:
+          action.id === 'create-task-from-note' && openToTaskDialog
+            ? (note) => openToTaskDialog(note)
+            : action.onClick,
+        className:
+          action.id === 'create-task-from-note'
+            ? 'h-7 text-[10px] px-2 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30'
+            : 'h-7 text-[10px] px-2',
+      })),
   };
 
   return <NoteContext.Provider value={value}>{children}</NoteContext.Provider>;

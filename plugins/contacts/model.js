@@ -39,7 +39,7 @@ class ContactModel {
     try {
       const db = Database.get(req);
 
-      const contactNumber = contactData.contactNumber || (await this.getNextContactNumber(req));
+      const contactNumber = await this.getNextContactNumber(req);
 
       // Use db.insert for automatic tenant isolation
       const result = await db.insert('contacts', {
@@ -61,7 +61,7 @@ class ContactModel {
         currency: contactData.currency || '',
         f_tax: contactData.fTax || '',
         notes: contactData.notes || '',
-        is_assignable: contactData.isAssignable !== undefined ? contactData.isAssignable : true,
+        is_assignable: contactData.isAssignable === true,
       });
 
       Logger.info('Contact created', { contactId: result.id });

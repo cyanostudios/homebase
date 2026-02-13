@@ -24,11 +24,10 @@ function createContactRoutes(controller, context) {
     /* csrfProtection, */ // Temporarily disabled
     commonRules.string('companyName', 1, 255),
     commonRules.optionalString('email', 255),
-    commonRules.email('email').optional(),
+    commonRules.email('email'),
     commonRules.optionalString('phone', 50),
-    commonRules.phone('phone').optional(),
+    commonRules.phone('phone'),
     commonRules.optionalString('website', 255),
-    commonRules.url('website').optional(),
     commonRules.optionalString('notes', 5000),
     validateRequest,
     (req, res) => {
@@ -44,11 +43,10 @@ function createContactRoutes(controller, context) {
     commonRules.id('id'),
     commonRules.string('companyName', 1, 255),
     commonRules.optionalString('email', 255),
-    commonRules.email('email').optional(),
+    commonRules.email('email'),
     commonRules.optionalString('phone', 50),
-    commonRules.phone('phone').optional(),
+    commonRules.phone('phone'),
     commonRules.optionalString('website', 255),
-    commonRules.url('website').optional(),
     commonRules.optionalString('notes', 5000),
     validateRequest,
     (req, res) => {

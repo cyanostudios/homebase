@@ -29,7 +29,12 @@ function validateRequest(req, res, next) {
  * Common validation rules
  */
 const commonRules = {
-  email: () => body('email').isEmail().normalizeEmail().withMessage('Invalid email address'),
+  email: () =>
+    body('email')
+      .optional({ values: 'falsy' })
+      .isEmail()
+      .normalizeEmail()
+      .withMessage('Invalid email address'),
 
   string: (field, min = 1, max = 255) =>
     body(field)
@@ -53,7 +58,7 @@ const commonRules = {
 
   phone: (field) =>
     body(field)
-      .optional()
+      .optional({ values: 'falsy' })
       .matches(/^\+?[0-9\s\-()]+$/)
       .withMessage(`${field} must be a valid phone number`),
 

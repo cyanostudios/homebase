@@ -1,14 +1,21 @@
 import { Building, User } from 'lucide-react';
-import React, { createContext, useCallback, useContext, useState, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { cn } from '@/lib/utils';
 
-import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { contactsApi } from '../api/contactsApi';
 import { Contact, ValidationError } from '../types/contacts';
 import { contactExportConfig, getContactExportBaseFilename } from '../utils/contactExportConfig';
@@ -132,32 +139,27 @@ export function ContactProvider({
     }
   };
 
-  // Helper: next contact number
-  const generateNextContactNumber = (): string => {
-    const existingNumbers = contacts.map((contact) => parseInt(contact.contactNumber, 10) || 0);
-    const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
-    const nextNumber = maxNumber + 1;
-    return nextNumber.toString().padStart(2, '0');
-  };
-
   const validateContact = (contactData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
 
-    // Contact number
-    if (!contactData.contactNumber?.trim()) {
-      errors.push({
-        field: 'contactNumber',
-        message: 'Contact number is required',
-      });
-    } else {
-      const existingContact = contacts.find(
-        (c) => c.id !== currentContact?.id && c.contactNumber === contactData.contactNumber.trim(),
-      );
-      if (existingContact) {
+    // Contact number: required only when editing; on create backend assigns it
+    if (currentContact) {
+      if (!contactData.contactNumber?.trim()) {
         errors.push({
           field: 'contactNumber',
-          message: `Contact number "${contactData.contactNumber}" already exists for "${existingContact.companyName}"`,
+          message: 'Contact number is required',
         });
+      } else {
+        const existingContact = contacts.find(
+          (c) =>
+            c.id !== currentContact?.id && c.contactNumber === contactData.contactNumber.trim(),
+        );
+        if (existingContact) {
+          errors.push({
+            field: 'contactNumber',
+            message: `Contact number "${contactData.contactNumber}" already exists for "${existingContact.companyName}"`,
+          });
+        }
       }
     }
 
@@ -257,9 +259,9 @@ export function ContactProvider({
   };
 
   const saveContact = async (contactData: any): Promise<boolean> => {
-    // Auto-number for new contacts when missing
-    if (!currentContact && !contactData.contactNumber?.trim()) {
-      contactData.contactNumber = generateNextContactNumber();
+    // Contact number: backend assigns on create; only send for update
+    if (!currentContact) {
+      delete contactData.contactNumber;
     }
 
     // Validate

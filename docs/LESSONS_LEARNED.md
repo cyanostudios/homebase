@@ -419,6 +419,109 @@ Oanvända filer skapar förvirring och gör det svårt att förstå var kod fakt
 
 ---
 
+## Validation (express-validator) & Optional Fields
+
+### Optional fält: använd `optional({ values: 'falsy' })` för tom sträng
+
+❌ **What we did (that didn't work):**
+E-post och telefon var valfria men backend gav "Invalid email address" / "phone must be a valid phone number" när användaren sparade med tomma fält. Vi använde `.optional()` på reglerna.
+
+✅ **What we do instead (that works):**
+
+```javascript
+// validation.js – email och phone
+body('email').optional({ values: 'falsy' }).isEmail()...
+body(field).optional({ values: 'falsy' }).matches(/^\+?[0-9\s\-()]+$/)...
+```
+
+💡 **Why (lesson learned):**
+I express-validator anser `.optional()` bara att fältet är "frånvarande" när värdet är `undefined`. Skickas `email: ""` eller `phone: ""` körs formatvalideringen ändå. Med `.optional({ values: 'falsy' })` räknas `''`, `null` och `undefined` som frånvaro, så formatvalidering körs bara när användaren fyllt i något.
+
+---
+
+## Layout & Scroll (Flex)
+
+### Scroll i flex-panel: använd `min-h-0` på flex-barn
+
+❌ **What we did (that didn't work):**
+Detail-panelen i add-läge rullade "mer än den ska" – hela panelen eller sidan scrollade istället för bara innehållet.
+
+✅ **What we do instead (that works):**
+
+```tsx
+// Yttre panel-container
+<div className="h-full min-h-0 flex flex-col ...">
+  {/* Scrollbar-area */}
+  <div className="flex-1 min-h-0 overflow-y-auto ...">{children}</div>
+</div>
+```
+
+💡 **Why (lesson learned):**
+Flex-barn har implicit `min-height: auto`, vilket kan hindra dem från att krympa under innehållets höjd. Då växer containern och scroll sker på fel nivå. `min-h-0` låter flex-barnet krympa så att bara den inre `overflow-y-auto`-diven får scroll.
+
+---
+
+## Panel & Forms (Discard Changes)
+
+### Edit-läge: "Discard changes" ska växla tillbaka till view
+
+❌ **What we did (that didn't work):**
+I edit-läge (Contacts/Notes/Tasks): Cancel → dialog "Vill du verkligen lämna?" → användaren klickar "Discard changes" men panelen stannade kvar i edit-läge.
+
+✅ **What we do instead (that works):**
+
+```tsx
+const handleDiscardChanges = () => {
+  if (!currentItem) {
+    resetForm();
+    setTimeout(() => confirmDiscard(), 0);
+  } else {
+    confirmDiscard(); // stänger dialog, kör pending action
+    onCancel(); // explicit: växla tillbaka till detail view
+  }
+};
+```
+
+💡 **Why (lesson learned):**
+`confirmDiscard()` kör den sparade pending action (som är `onCancel`). För att panelen ska växla tillbaka till view-läge tillförlitligt, anropa dessutom `onCancel()` explicit i edit-fallet så att view-läget alltid sätts.
+
+---
+
+## Plugin-specifik Close-hantering (Tasks quick-edit)
+
+### Close med "osparade ändringar" – plugin tillhandahåller getCloseHandler
+
+❌ **What we did (that didn't work):**
+Tasks quick-edit behövde visa "Discard changes?" när användaren klickar Close med osparade ändringar. Footern har bara en generisk close-handler.
+
+✅ **What we do instead (that works):**
+
+- TaskContext exponerar `getCloseHandler(defaultClose)` som returnerar en funktion: om `hasQuickEditChanges` → visa dialog och spara `defaultClose` i ref; annars anropa `defaultClose()`.
+- I `createPanelFooter`: för plugin tasks används `currentPluginContext.getCloseHandler(baseClose)` som `onClosePanel` i stället för bara `baseClose`.
+
+💡 **Why (lesson learned):**
+För att en plugin ska kunna "fånga" Close (t.ex. visa dialog) behöver core använda en plugin-specifik wrapper. Genom att låta context exponera `getCloseHandler(defaultClose)` kan footern bygga rätt close-handler per plugin utan att känna till dialog-state.
+
+### "Discard changes" = stanna i detail view, bara kasta draft
+
+❌ **What we did (that didn't work):**
+I quick-edit-dialogen: användaren klickar "Discard changes" och förväntar sig att stanna kvar på task-detail view, men panelen stängdes (list view).
+
+✅ **What we do instead (that works):**
+
+```ts
+const onDiscardQuickEditAndClose = useCallback(() => {
+  setQuickEditDraft(null);
+  setShowDiscardQuickEditDialog(false);
+  // Anropa INTE pendingCloseRef.current() – stanna i detail view
+}, []);
+```
+
+💡 **Why (lesson learned):**
+"Discard changes" i quick-edit betyder "kasta mina lokala ändringar och stanna kvar på samma vy". Då ska vi bara rensa draft och stänga dialogen – inte anropa panel-close. Spara anrop till `defaultClose` till när användaren verkligen klickar Close utan att ha discadat (eller efter discarding om ni vill stänga då; här valde vi att stanna i detail view).
+
+---
+
 ## Bulk Operations & Hybrid Approach
 
 > **Note:** Detaljerad dokumentation om bulk operations finns nu i `BACKEND_PLUGIN_GUIDE_V2.md` under "Bulk Operations with Foreign Key Relationships" och i `CORE_ARCHITECTURE_V2.md` under "PostgreSQLAdapter.\_addTenantFilter()".
@@ -430,6 +533,6 @@ Oanvända filer skapar förvirring och gör det svårt att förstå var kod fakt
 
 ---
 
-**Senast uppdaterad:** 2026-01-27  
+**Senast uppdaterad:** 2026-02-13  
 **Syfte:** Undvika att upprepa samma misstag  
-**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles, använd PluginLoader för dynamiska plugin-listor, ta bort oanvända filer, PostgreSQLAdapter returnerar rows direkt (array) - använd inte .rows i core services, hybrid-lösning för bulk delete: plugin-specifik pre-deletion + generisk core-helper, PostgreSQLAdapter.\_addTenantFilter() måste hantera RETURNING-klausuler korrekt
+**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles, använd PluginLoader för dynamiska plugin-listor, ta bort oanvända filer, PostgreSQLAdapter returnerar rows direkt (array) - använd inte .rows i core services, hybrid-lösning för bulk delete: plugin-specifik pre-deletion + generisk core-helper, PostgreSQLAdapter.\_addTenantFilter() måste hantera RETURNING-klausuler korrekt. Valfria fält: använd optional({ values: 'falsy' }) i express-validator så att tom sträng inte triggar formatvalidering. Flex-scroll: min-h-0 på flex-barn så att bara scroll-området rullar. Discard changes i edit: anropa onCancel() explicit för att växla tillbaka till view. Plugin-specifik close: exponera getCloseHandler(defaultClose) från context och använd i createPanelFooter. Quick-edit "Discard": kasta bara draft, anropa inte panel-close om användaren ska stanna i detail view.

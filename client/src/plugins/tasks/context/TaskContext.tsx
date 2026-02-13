@@ -69,6 +69,24 @@ interface TaskContextType {
   setRecentlyDuplicatedTaskId: (id: string | null) => void;
   exportFormats: ExportFormat[];
   onExportItem: (format: ExportFormat, item: Task) => void;
+
+  // Quick-edit in view mode (status, priority, due date, assignee): draft until "Update" is clicked
+  quickEditDraft: Partial<{
+    status: string;
+    priority: string;
+    dueDate: Date | null;
+    assignedTo: string | null;
+  }> | null;
+  setQuickEditField: (
+    field: 'status' | 'priority' | 'dueDate' | 'assignedTo',
+    value: string | Date | null,
+  ) => void;
+  hasQuickEditChanges: boolean;
+  onApplyQuickEdit: () => Promise<void>;
+  showDiscardQuickEditDialog: boolean;
+  setShowDiscardQuickEditDialog: (show: boolean) => void;
+  getCloseHandler: (defaultClose: () => void) => () => void;
+  onDiscardQuickEditAndClose: () => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -96,6 +114,14 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [recentlyDuplicatedTaskId, setRecentlyDuplicatedTaskId] = useState<string | null>(null);
+  const [quickEditDraft, setQuickEditDraft] = useState<Partial<{
+    status: string;
+    priority: string;
+    dueDate: Date | null;
+    assignedTo: string | null;
+  }> | null>(null);
+  const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
+  const pendingCloseRef = useRef<(() => void) | null>(null);
 
   // Use core bulk selection hook
   const {
@@ -107,19 +133,12 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     selectedCount,
   } = useBulkSelection();
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadTasks();
-    } else {
-      setTasks([]);
-    }
-  }, [isAuthenticated, loadTasks]);
-
   const closeTaskPanel = useCallback(() => {
     setIsTaskPanelOpen(false);
     setCurrentTask(null);
     setPanelMode('create');
     setValidationErrors([]);
+    setQuickEditDraft(null);
   }, []);
 
   useEffect(() => {
@@ -163,6 +182,15 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
   }, []);
+
+  // Load data when authenticated (after loadTasks is defined)
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadTasks();
+    } else {
+      setTasks([]);
+    }
+  }, [isAuthenticated, loadTasks]);
 
   const validateTask = useCallback((taskData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
@@ -223,6 +251,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setPanelMode('edit');
       setIsTaskPanelOpen(true);
       setValidationErrors([]);
+      setQuickEditDraft(null);
       onCloseOtherPanels();
     },
     [onCloseOtherPanels],
@@ -235,6 +264,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setPanelMode('view');
       setIsTaskPanelOpen(true);
       setValidationErrors([]);
+      setQuickEditDraft(null);
       onCloseOtherPanels();
     },
     [onCloseOtherPanels],
@@ -356,6 +386,89 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     },
     [currentTask, closeTaskPanel, validateTask],
   );
+
+  const setQuickEditField = useCallback(
+    (field: 'status' | 'priority' | 'dueDate' | 'assignedTo', value: string | Date | null) => {
+      setQuickEditDraft((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+    },
+    [],
+  );
+
+  const hasQuickEditChanges = Boolean(
+    currentTask &&
+      quickEditDraft &&
+      Object.keys(quickEditDraft).length > 0 &&
+      (() => {
+        const merged = {
+          status: (quickEditDraft.status ?? currentTask.status) as string,
+          priority: (quickEditDraft.priority ?? currentTask.priority) as string,
+          dueDate:
+            quickEditDraft.dueDate !== undefined ? quickEditDraft.dueDate : currentTask.dueDate,
+          assignedTo:
+            quickEditDraft.assignedTo !== undefined
+              ? quickEditDraft.assignedTo
+              : currentTask.assignedTo,
+        };
+        const sameStatus = merged.status === currentTask.status;
+        const samePriority = merged.priority === currentTask.priority;
+        const sameDue =
+          ((merged.dueDate === null || merged.dueDate === undefined) &&
+            (currentTask.dueDate === null || currentTask.dueDate === undefined)) ||
+          (merged.dueDate !== null &&
+            merged.dueDate !== undefined &&
+            currentTask.dueDate !== null &&
+            currentTask.dueDate !== undefined &&
+            new Date(merged.dueDate).getTime() === new Date(currentTask.dueDate).getTime());
+        const sameAssignee =
+          String(merged.assignedTo ?? '') === String(currentTask.assignedTo ?? '');
+        return !sameStatus || !samePriority || !sameDue || !sameAssignee;
+      })(),
+  );
+
+  const onApplyQuickEdit = useCallback(async () => {
+    if (!currentTask || !quickEditDraft || Object.keys(quickEditDraft).length === 0) {
+      return;
+    }
+    const merged = {
+      title: currentTask.title,
+      content: currentTask.content,
+      mentions: currentTask.mentions ?? [],
+      status: quickEditDraft.status ?? currentTask.status,
+      priority: quickEditDraft.priority ?? currentTask.priority,
+      dueDate: quickEditDraft.dueDate !== undefined ? quickEditDraft.dueDate : currentTask.dueDate,
+      assignedTo:
+        quickEditDraft.assignedTo !== undefined
+          ? quickEditDraft.assignedTo
+          : currentTask.assignedTo,
+    };
+    const success = await saveTask(merged, currentTask.id);
+    if (success) {
+      setQuickEditDraft(null);
+    }
+  }, [currentTask, quickEditDraft, saveTask]);
+
+  const getCloseHandler = useCallback(
+    (defaultClose: () => void) => {
+      return () => {
+        if (hasQuickEditChanges) {
+          pendingCloseRef.current = defaultClose;
+          setShowDiscardQuickEditDialog(true);
+        } else {
+          defaultClose();
+        }
+      };
+    },
+    [hasQuickEditChanges],
+  );
+
+  const onDiscardQuickEditAndClose = useCallback(() => {
+    setQuickEditDraft(null);
+    setShowDiscardQuickEditDialog(false);
+    // Stay in detail view; do not close the panel (do not call pendingCloseRef)
+  }, []);
 
   // Register cross-plugin actions - Moved here to avoid saveTask TDZ
   useEffect(() => {
@@ -674,6 +787,15 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
     exportFormats,
     onExportItem,
+
+    quickEditDraft,
+    setQuickEditField,
+    hasQuickEditChanges,
+    onApplyQuickEdit,
+    showDiscardQuickEditDialog,
+    setShowDiscardQuickEditDialog,
+    getCloseHandler,
+    onDiscardQuickEditAndClose,
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;

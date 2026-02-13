@@ -129,7 +129,7 @@ Sidebar + list + detail patterns
 Grouped list patterns
 Scroll behavior and layout constraints
 
-💡 Lessons Learned & Troubleshooting
+💡 Lessons Learned & Changelog
 
 LESSONS_LEARNED.md
 
@@ -139,6 +139,10 @@ Layout & UI patterns
 API & Context issues
 Development workflow tips
 Plugin development anti-patterns
+
+CHANGELOG.md
+
+Recent changes since last documentation (validation, panel scroll, discard-flow, tasks quick-edit, green Update buttons)
 
 🚀 Development & Deployment
 
