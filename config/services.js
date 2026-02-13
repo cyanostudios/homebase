@@ -15,13 +15,13 @@ const configs = {
     EMAIL_PROVIDER: process.env.EMAIL_PROVIDER || 'smtp',
     QUEUE_PROVIDER: process.env.QUEUE_PROVIDER || 'memory',
     CACHE_PROVIDER: process.env.CACHE_PROVIDER || 'memory',
-    
+
     database: {
       provider: process.env.DATABASE_PROVIDER || 'postgres',
       // Uses DATABASE_URL from environment
       connectionString: process.env.DATABASE_URL,
     },
-    
+
     tenant: {
       provider: process.env.TENANT_PROVIDER || 'local',
       local: {
@@ -32,7 +32,7 @@ const configs = {
         region: process.env.NEON_REGION || 'aws-eu-central-1',
       },
     },
-    
+
     connectionPool: {
       provider: process.env.POOL_PROVIDER || 'postgres',
       postgres: {
@@ -43,7 +43,7 @@ const configs = {
         maxPoolAge: 24 * 60 * 60 * 1000, // 24 hours
       },
     },
-    
+
     logger: {
       provider: process.env.LOGGER_PROVIDER || 'console',
       console: {
@@ -56,7 +56,7 @@ const configs = {
         environment: 'development',
       },
     },
-    
+
     storage: {
       provider: process.env.STORAGE_PROVIDER || 'local',
       local: {
@@ -78,7 +78,7 @@ const configs = {
         bucket: process.env.AWS_S3_BUCKET,
       },
     },
-    
+
     email: {
       provider: process.env.EMAIL_PROVIDER || 'smtp',
       smtp: {
@@ -98,7 +98,7 @@ const configs = {
         apiKey: process.env.SENDGRID_API_KEY,
       },
     },
-    
+
     queue: {
       provider: process.env.QUEUE_PROVIDER || 'memory',
       redis: {
@@ -107,7 +107,7 @@ const configs = {
         password: process.env.REDIS_PASSWORD,
       },
     },
-    
+
     cache: {
       provider: process.env.CACHE_PROVIDER || 'memory',
       redis: {
@@ -117,7 +117,7 @@ const configs = {
       },
     },
   },
-  
+
   production: {
     // Service Providers
     DATABASE_PROVIDER: process.env.DATABASE_PROVIDER || 'postgres',
@@ -128,12 +128,12 @@ const configs = {
     EMAIL_PROVIDER: process.env.EMAIL_PROVIDER || 'resend',
     QUEUE_PROVIDER: process.env.QUEUE_PROVIDER || 'redis',
     CACHE_PROVIDER: process.env.CACHE_PROVIDER || 'redis',
-    
+
     database: {
       provider: process.env.DATABASE_PROVIDER || 'postgres',
       connectionString: process.env.DATABASE_URL,
     },
-    
+
     tenant: {
       provider: process.env.TENANT_PROVIDER || 'neon',
       neon: {
@@ -144,7 +144,7 @@ const configs = {
         connectionString: process.env.DATABASE_URL,
       },
     },
-    
+
     connectionPool: {
       provider: process.env.POOL_PROVIDER || 'postgres',
       postgres: {
@@ -155,7 +155,7 @@ const configs = {
         maxPoolAge: parseInt(process.env.POOL_MAX_AGE || '86400000'),
       },
     },
-    
+
     logger: {
       provider: process.env.LOGGER_PROVIDER || 'sentry',
       console: {
@@ -167,7 +167,7 @@ const configs = {
         environment: 'production',
       },
     },
-    
+
     storage: {
       provider: process.env.STORAGE_PROVIDER || 'r2',
       r2: {
@@ -184,7 +184,7 @@ const configs = {
         bucket: process.env.AWS_S3_BUCKET,
       },
     },
-    
+
     email: {
       provider: process.env.EMAIL_PROVIDER || 'resend',
       resend: {
@@ -194,7 +194,7 @@ const configs = {
         apiKey: process.env.SENDGRID_API_KEY,
       },
     },
-    
+
     queue: {
       provider: process.env.QUEUE_PROVIDER || 'redis',
       redis: {
@@ -203,7 +203,7 @@ const configs = {
         password: process.env.REDIS_PASSWORD,
       },
     },
-    
+
     cache: {
       provider: process.env.CACHE_PROVIDER || 'redis',
       redis: {
@@ -213,7 +213,7 @@ const configs = {
       },
     },
   },
-  
+
   test: {
     // Service Providers (use mocks in tests)
     DATABASE_PROVIDER: 'postgres',
@@ -224,19 +224,19 @@ const configs = {
     EMAIL_PROVIDER: 'smtp',
     QUEUE_PROVIDER: 'memory',
     CACHE_PROVIDER: 'memory',
-    
+
     database: {
       provider: 'postgres',
       connectionString: process.env.TEST_DATABASE_URL || process.env.DATABASE_URL,
     },
-    
+
     tenant: {
       provider: 'local',
       local: {
         connectionString: process.env.TEST_DATABASE_URL || process.env.DATABASE_URL,
       },
     },
-    
+
     connectionPool: {
       provider: 'postgres',
       postgres: {
@@ -245,7 +245,7 @@ const configs = {
         connectionTimeoutMillis: 1000,
       },
     },
-    
+
     logger: {
       provider: 'console',
       console: {
@@ -253,14 +253,14 @@ const configs = {
         enableColors: false,
       },
     },
-    
+
     storage: {
       provider: 'local',
       local: {
         uploadDir: './test-uploads',
       },
     },
-    
+
     email: {
       provider: 'smtp',
       smtp: {
@@ -268,11 +268,11 @@ const configs = {
         port: 1025, // Test mail server
       },
     },
-    
+
     queue: {
       provider: 'memory',
     },
-    
+
     cache: {
       provider: 'memory',
     },

@@ -1,4 +1,12 @@
-import { ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText, Grid3x3, List as ListIcon } from 'lucide-react';
+import {
+  ArrowUp,
+  ArrowDown,
+  Trash2,
+  FileSpreadsheet,
+  FileText,
+  Grid3x3,
+  List as ListIcon,
+} from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -365,7 +373,7 @@ export function EstimateList() {
                     'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[180px] border-transparent',
                     estimateIsSelected
                       ? 'plugin-estimates bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
-                      : 'hover:border-plugin-subtle hover:plugin-estimates hover:shadow-md'
+                      : 'hover:border-plugin-subtle hover:plugin-estimates hover:shadow-md',
                   )}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -399,13 +407,13 @@ export function EstimateList() {
                     {estimate.contactName}
                   </h3>
                   <div className="text-xs text-muted-foreground mb-4">
-                    {estimate.organizationNumber && (
-                      <span>Org: {estimate.organizationNumber}</span>
-                    )}
+                    {estimate.organizationNumber && <span>Org: {estimate.organizationNumber}</span>}
                   </div>
                   <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
                     <div className="flex items-center justify-between text-sm font-medium">
-                      <span>{totals.total.toFixed(2)} {estimate.currency}</span>
+                      <span>
+                        {totals.total.toFixed(2)} {estimate.currency}
+                      </span>
                       <span className="text-[10px] text-muted-foreground">
                         {estimate.lineItems.length} item{estimate.lineItems.length !== 1 ? 's' : ''}
                       </span>
@@ -454,7 +462,9 @@ export function EstimateList() {
                             onChange={() => toggleEstimateSelected(estimate.id)}
                             onClick={(e) => e.stopPropagation()}
                             className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
-                            aria-label={estimateIsSelected ? 'Unselect estimate' : 'Select estimate'}
+                            aria-label={
+                              estimateIsSelected ? 'Unselect estimate' : 'Select estimate'
+                            }
                           />
                           <span className="font-mono text-xs text-muted-foreground">
                             {formatDisplayNumber('estimates', estimate.estimateNumber)}

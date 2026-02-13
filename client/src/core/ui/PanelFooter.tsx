@@ -1,4 +1,4 @@
-import { Check, X, Edit, Trash2 } from 'lucide-react';
+import { Check, X, Edit, Trash2, Copy } from 'lucide-react';
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -7,8 +7,10 @@ interface PanelFooterProps {
   currentMode: string;
   currentItem: any;
   currentPluginContext: any;
+  currentPlugin?: { name: string } | null;
   validationErrors: any[];
   onDeleteItem: () => void;
+  onDuplicateItem: () => void;
   onClosePanel: () => void;
   onEditItem: () => void;
   onSaveClick: () => void;
@@ -20,8 +22,10 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   currentMode,
   currentItem: _currentItem,
   currentPluginContext: _currentPluginContext,
+  currentPlugin,
   validationErrors,
   onDeleteItem,
+  onDuplicateItem,
   onClosePanel,
   onEditItem,
   onSaveClick,
@@ -35,6 +39,30 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   if (currentMode === 'view') {
     return (
       <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            onClick={onDeleteItem}
+            variant="ghost"
+            size="sm"
+            icon={Trash2}
+            className="h-7 text-[10px] px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/30"
+          >
+            Delete
+          </Button>
+          {currentPlugin?.name !== 'contacts' && (
+            <Button
+              type="button"
+              onClick={onDuplicateItem}
+              variant="ghost"
+              size="sm"
+              icon={Copy}
+              className="h-7 text-[10px] px-2"
+            >
+              Duplicate
+            </Button>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -57,16 +85,6 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             Edit
           </Button>
         </div>
-        <Button
-          type="button"
-          onClick={onDeleteItem}
-          variant="danger"
-          size="sm"
-          icon={Trash2}
-          className="h-7 text-[10px] px-2"
-        >
-          Delete
-        </Button>
       </div>
     );
   }
@@ -129,6 +147,7 @@ export const createPanelFooter = (
   handlers: {
     currentPlugin: { name: string } | null;
     handleDeleteItem: () => void;
+    handleDuplicateItem: () => void;
     getCloseHandler: () => () => void;
     handleSaveClick: () => void; // generic (non-Woo) submit
     handleCancelClick: () => void; // generic (non-Woo) cancel
@@ -162,8 +181,10 @@ export const createPanelFooter = (
       currentMode={currentMode}
       currentItem={currentItem}
       currentPluginContext={currentPluginContext}
+      currentPlugin={handlers.currentPlugin}
       validationErrors={validationErrors}
       onDeleteItem={handlers.handleDeleteItem}
+      onDuplicateItem={handlers.handleDuplicateItem}
       onClosePanel={handlers.getCloseHandler()}
       onEditItem={handleEditItem}
       onSaveClick={handleSave}

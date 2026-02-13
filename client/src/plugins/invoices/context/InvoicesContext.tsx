@@ -339,7 +339,9 @@ export function InvoicesProvider({
         <div className="flex items-center gap-2">
           <span>{invoiceNumber}</span>
           <span className="text-muted-foreground/30 font-light mx-1">|</span>
-          <span className="text-blue-600 dark:text-blue-400 font-medium whitespace-nowrap">@{contactName}</span>
+          <span className="text-blue-600 dark:text-blue-400 font-medium whitespace-nowrap">
+            @{contactName}
+          </span>
           <span className="text-muted-foreground/30 font-light mx-1">|</span>
           <span className="text-muted-foreground whitespace-nowrap">
             {total} {currency}
@@ -393,8 +395,12 @@ export function InvoicesProvider({
       return (
         <div className="flex items-center gap-2">
           <Receipt className="w-4 h-4 text-primary" />
-          <Badge variant="outline" className={typeBadgeColor}>{typeText}</Badge>
-          <Badge variant="outline" className={badgeColor}>{badgeText}</Badge>
+          <Badge variant="outline" className={typeBadgeColor}>
+            {typeText}
+          </Badge>
+          <Badge variant="outline" className={badgeColor}>
+            {badgeText}
+          </Badge>
           {dueDateText && <span className="text-xs text-muted-foreground">• {dueDateText}</span>}
         </div>
       );

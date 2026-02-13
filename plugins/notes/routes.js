@@ -18,7 +18,8 @@ function createNoteRoutes(controller, context) {
   });
 
   // POST /api/notes - Create new note
-  router.post('/', 
+  router.post(
+    '/',
     gate,
     // /* csrfProtection, */ // Temporarily disabled // Temporarily disabled
     commonRules.string('title', 1, 255),
@@ -27,11 +28,12 @@ function createNoteRoutes(controller, context) {
     validateRequest,
     (req, res) => {
       controller.create(req, res);
-    }
+    },
   );
 
   // PUT /api/notes/:id - Update note
-  router.put('/:id',
+  router.put(
+    '/:id',
     gate,
     // /* csrfProtection, */ // Temporarily disabled // Temporarily disabled
     commonRules.id('id'),
@@ -41,7 +43,7 @@ function createNoteRoutes(controller, context) {
     validateRequest,
     (req, res) => {
       controller.update(req, res);
-    }
+    },
   );
 
   // DELETE /api/notes/batch - Bulk delete (MUST be before '/:id' route)
@@ -55,14 +57,15 @@ function createNoteRoutes(controller, context) {
   );
 
   // DELETE /api/notes/:id - Delete note
-  router.delete('/:id',
+  router.delete(
+    '/:id',
     gate,
     // /* csrfProtection, */ // Temporarily disabled // Temporarily disabled
     commonRules.id('id'),
     validateRequest,
     (req, res) => {
       controller.delete(req, res);
-    }
+    },
   );
 
   return router;

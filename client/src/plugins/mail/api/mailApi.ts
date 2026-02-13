@@ -3,7 +3,7 @@ class MailApi {
   private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
+      ...((options.headers as Record<string, string>) || {}),
     };
 
     const response = await fetch(`/api/mail${endpoint}`, {

@@ -46,6 +46,7 @@ interface TopBarProps {
   onOpenMobileNav: () => void;
   detailPanelTitle?: string;
   onDetailPanelClose?: () => void;
+  detailPanelPluginName?: string;
 }
 
 interface Tenant {
@@ -126,6 +127,7 @@ export function TopBar({
   onOpenMobileNav,
   detailPanelTitle,
   onDetailPanelClose,
+  detailPanelPluginName,
 }: TopBarProps) {
   const { user, logout, getSettings } = useApp();
   const { theme, toggleTheme } = useTheme();
@@ -235,6 +237,18 @@ export function TopBar({
     return currentPage;
   }, [currentPage]);
 
+  // When a detail panel is open from a different plugin, show that plugin's label
+  const activeBreadcrumbLabel = useMemo(() => {
+    if (detailPanelPluginName && detailPanelPluginName !== currentPage) {
+      for (const plugin of PLUGIN_REGISTRY) {
+        if (plugin.name === detailPanelPluginName && plugin.navigation?.label) {
+          return plugin.navigation.label;
+        }
+      }
+    }
+    return pageLabel;
+  }, [detailPanelPluginName, currentPage, pageLabel]);
+
   const commandItems = useMemo(() => {
     const items: { label: string; page: NavPage }[] = [{ label: 'Dashboard', page: 'dashboard' }];
     PLUGIN_REGISTRY.forEach((plugin) => {
@@ -312,7 +326,7 @@ export function TopBar({
                       }}
                       className="h-auto p-0 hover:no-underline truncate text-sm sm:text-base font-normal"
                     >
-                      {pageLabel}
+                      {activeBreadcrumbLabel}
                     </Button>
                   </BreadcrumbLink>
                   {detailPanelTitle && onDetailPanelClose && (

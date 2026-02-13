@@ -33,7 +33,7 @@ class MockAdapter extends LoggerService {
    */
   getLogs(level = null) {
     if (level) {
-      return this.logs.filter(log => log.level === level);
+      return this.logs.filter((log) => log.level === level);
     }
     return this.logs;
   }

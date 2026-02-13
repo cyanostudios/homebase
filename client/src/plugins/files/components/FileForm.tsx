@@ -269,8 +269,9 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
         onDragOver={onDragOver}
         onDragEnter={onDragEnter}
         onDragLeave={onDragLeave}
-        className={`border-2 border-dashed rounded-xl p-8 transition-colors ${dragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
-          } ${filesErrors.length ? 'border-red-400 bg-red-50/50' : ''}`}
+        className={`border-2 border-dashed rounded-xl p-8 transition-colors ${
+          dragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
+        } ${filesErrors.length ? 'border-red-400 bg-red-50/50' : ''}`}
         onClick={pick}
       >
         <div className="flex flex-col items-center gap-3 text-center">

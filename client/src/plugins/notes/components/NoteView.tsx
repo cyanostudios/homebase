@@ -89,7 +89,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                   {(() => {
                     // De-duplicate mentions by contactId
                     const uniqueMentions = Array.from(
-                      new Map((note.mentions || []).map((m: any) => [m.contactId, m])).values()
+                      new Map((note.mentions || []).map((m: any) => [m.contactId, m])).values(),
                     );
 
                     return uniqueMentions.map((mention: any) => {
@@ -116,7 +116,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                       return (
                         <div
                           key={`mention-${mention.contactId}`}
-                          className="flex justify-between items-center text-[11px] plugin-contacts bg-plugin-subtle px-2 py-1.5 rounded-md border border-plugin-subtle"
+                          className="flex justify-between items-center text-[11px] plugin-contacts bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
                         >
                           <span className="text-muted-foreground truncate mr-4">
                             {getDisplayText()}
@@ -124,11 +124,13 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                           <Button
                             size="sm"
                             variant="link"
-                            onClick={() => (contactData ? handleContactClick(mention.contactId) : null)}
+                            onClick={() =>
+                              contactData ? handleContactClick(mention.contactId) : null
+                            }
                             disabled={!contactData}
                             className={cn(
                               'h-auto p-0 text-[10px] shrink-0 font-medium',
-                              contactData ? 'text-plugin' : 'text-muted-foreground'
+                              contactData ? 'text-plugin' : 'text-muted-foreground',
                             )}
                           >
                             {contactData ? 'View' : 'Deleted'}
@@ -147,15 +149,21 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
               <div className="space-y-4 text-xs">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">ID</span>
-                  <span className="font-mono font-medium">{formatDisplayNumber('notes', note.id)}</span>
+                  <span className="font-mono font-medium">
+                    {formatDisplayNumber('notes', note.id)}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Created</span>
-                  <span className="font-medium">{new Date(note.createdAt).toLocaleDateString()}</span>
+                  <span className="font-medium">
+                    {new Date(note.createdAt).toLocaleDateString()}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Updated</span>
-                  <span className="font-medium">{new Date(note.updatedAt).toLocaleDateString()}</span>
+                  <span className="font-medium">
+                    {new Date(note.updatedAt).toLocaleDateString()}
+                  </span>
                 </div>
               </div>
             </DetailSection>
@@ -175,4 +183,3 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     </DetailLayout>
   );
 };
-

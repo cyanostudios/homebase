@@ -1,4 +1,4 @@
-import { CheckSquare, User, Copy } from 'lucide-react';
+import { CheckSquare, User } from 'lucide-react';
 import React, {
   createContext,
   useContext,
@@ -32,6 +32,15 @@ interface TaskContextType {
   openTaskForView: (task: Task) => void;
   closeTaskPanel: () => void;
   saveTask: (taskData: any, taskId?: string) => Promise<boolean>;
+  createTask: (taskData: {
+    title: string;
+    content?: string;
+    status?: string;
+    priority?: string;
+    dueDate?: Date | null;
+    assignedTo?: string | null;
+    mentions?: any[];
+  }) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
   deleteTasks: (ids: string[]) => Promise<void>;
   duplicateTask: (task: Task) => Promise<void>;
@@ -48,6 +57,8 @@ interface TaskContextType {
   getPanelTitle: (mode: string, item: Task | null, isMobileView: boolean) => any;
   getPanelSubtitle: (mode: string, item: Task | null) => any;
   getDeleteMessage: (item: Task | null) => string;
+  recentlyDuplicatedTaskId: string | null;
+  setRecentlyDuplicatedTaskId: (id: string | null) => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -69,6 +80,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
 
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [recentlyDuplicatedTaskId, setRecentlyDuplicatedTaskId] = useState<string | null>(null);
 
   // Use core bulk selection hook
   const {
@@ -179,6 +191,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const openTaskPanel = useCallback(
     (task: Task | null) => {
+      setRecentlyDuplicatedTaskId(null);
       setCurrentTask(task);
       setPanelMode(task ? 'edit' : 'create');
       setIsTaskPanelOpen(true);
@@ -190,6 +203,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const openTaskForEdit = useCallback(
     (task: Task) => {
+      setRecentlyDuplicatedTaskId(null);
       setCurrentTask(task);
       setPanelMode('edit');
       setIsTaskPanelOpen(true);
@@ -201,6 +215,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const openTaskForView = useCallback(
     (task: Task) => {
+      setRecentlyDuplicatedTaskId(null);
       setCurrentTask(task);
       setPanelMode('view');
       setIsTaskPanelOpen(true);
@@ -243,11 +258,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
             prev.map((task) =>
               task.id === idToUpdate
                 ? {
-                  ...savedTask,
-                  createdAt: new Date(savedTask.createdAt),
-                  updatedAt: new Date(savedTask.updatedAt),
-                  dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
-                }
+                    ...savedTask,
+                    createdAt: new Date(savedTask.createdAt),
+                    updatedAt: new Date(savedTask.updatedAt),
+                    dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
+                  }
                 : task,
             ),
           );
@@ -309,7 +324,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         setValidationErrors(validationErrors);
         return false;
       }
-    }, [currentTask, closeTaskPanel, validateTask]);
+    },
+    [currentTask, closeTaskPanel, validateTask],
+  );
 
   // Register cross-plugin actions - Moved here to avoid saveTask TDZ
   useEffect(() => {
@@ -425,6 +442,29 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   }, []);
 
+  const createTask = useCallback(
+    async (taskData: {
+      title: string;
+      content?: string;
+      status?: string;
+      priority?: string;
+      dueDate?: Date | null;
+      assignedTo?: string | null;
+      mentions?: any[];
+    }): Promise<Task> => {
+      const newTask = await tasksApi.createTask(taskData);
+      const taskWithDates = {
+        ...newTask,
+        createdAt: new Date(newTask.createdAt),
+        updatedAt: new Date(newTask.updatedAt),
+        dueDate: newTask.dueDate ? new Date(newTask.dueDate) : null,
+      };
+      setTasks((prev) => [taskWithDates, ...prev]);
+      return taskWithDates;
+    },
+    [],
+  );
+
   // NEW: Panel Title Functions (moved from PanelTitles.tsx)
   const getPanelTitle = (mode: string, item: Task | null, isMobileView: boolean) => {
     // View mode with item
@@ -462,13 +502,17 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       if (mode === 'view' && item) {
         const statusColors: Record<string, string> = {
           'not started': 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
-          'in progress': 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
-          completed: 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
-          cancelled: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
+          'in progress':
+            'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
+          completed:
+            'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
+          cancelled:
+            'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
         };
         const priorityColors: Record<string, string> = {
           Low: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
-          Medium: 'bg-amber-50/50 text-amber-700 dark:text-amber-300 border-amber-100/50 font-medium',
+          Medium:
+            'bg-amber-50/50 text-amber-700 dark:text-amber-300 border-amber-100/50 font-medium',
           High: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
         };
 
@@ -486,11 +530,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         // Get assigned contact if exists
         const assignedContact = item.assignedTo
           ? contacts.find((c: any) => {
-            // Handle both string and number ID comparison
-            const contactId = String(c.id);
-            const assignedId = String(item.assignedTo);
-            return contactId === assignedId;
-          })
+              // Handle both string and number ID comparison
+              const contactId = String(c.id);
+              const assignedId = String(item.assignedTo);
+              return contactId === assignedId;
+            })
           : null;
 
         return (
@@ -515,20 +559,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
                 </div>
               )}
 
-              <div className="w-px h-3 bg-border mx-1 shrink-0 hidden sm:block" />
-
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={Copy}
-                onClick={() => {
-                  duplicateTask(item);
-                  closeTaskPanel();
-                }}
-                className="h-7 text-[10px] px-2 shrink-0"
-              >
-                Duplicate
-              </Button>
             </div>
           </div>
         );
@@ -569,6 +599,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     openTaskForView,
     closeTaskPanel,
     saveTask,
+    createTask,
     deleteTask,
     deleteTasks,
     duplicateTask,
@@ -586,6 +617,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
+
+    recentlyDuplicatedTaskId,
+    setRecentlyDuplicatedTaskId,
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;
@@ -598,4 +632,3 @@ export function useTaskContext() {
   }
   return context;
 }
-

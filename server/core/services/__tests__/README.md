@@ -7,6 +7,7 @@ This directory contains mock adapters and example tests for the V2 core services
 ### MockDatabaseAdapter
 
 A simple in-memory database adapter for testing. It supports:
+
 - Basic CRUD operations (insert, update, delete, query)
 - Transactions
 - Query logging for testing
@@ -16,6 +17,7 @@ A simple in-memory database adapter for testing. It supports:
 ### MockLoggerAdapter
 
 A logger adapter that stores all log messages in memory for testing. It supports:
+
 - All log levels (info, warn, error, debug)
 - Log retrieval and filtering
 - Log clearing

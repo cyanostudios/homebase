@@ -1,4 +1,12 @@
-import { ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText, Grid3x3, List as ListIcon } from 'lucide-react';
+import {
+  ArrowUp,
+  ArrowDown,
+  Trash2,
+  FileSpreadsheet,
+  FileText,
+  Grid3x3,
+  List as ListIcon,
+} from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +49,7 @@ export const TaskList: React.FC = () => {
     clearTaskSelection,
     selectedCount,
     isSelected,
+    recentlyDuplicatedTaskId,
   } = useTasks();
   const { contacts } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -439,7 +448,9 @@ export const TaskList: React.FC = () => {
                     'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent',
                     taskIsSelected
                       ? 'plugin-tasks bg-plugin-subtle ring-1 border-plugin-subtle ring-plugin-subtle/50'
-                      : 'hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md'
+                      : 'hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md',
+                    recentlyDuplicatedTaskId === String(task.id) &&
+                      'bg-green-50 dark:bg-green-950/30',
                   )}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -470,9 +481,7 @@ export const TaskList: React.FC = () => {
                     <Badge className={TASK_STATUS_COLORS[task.status]}>
                       {formatStatusForDisplay(task.status)}
                     </Badge>
-                    <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
-                      {task.priority}
-                    </Badge>
+                    <Badge className={TASK_PRIORITY_COLORS[task.priority]}>{task.priority}</Badge>
                   </div>
                   <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
                     <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
@@ -505,7 +514,11 @@ export const TaskList: React.FC = () => {
                 return (
                   <Card
                     key={task.id}
-                    className="p-4 cursor-pointer hover:bg-accent transition-colors"
+                    className={cn(
+                      'p-4 cursor-pointer hover:bg-accent transition-colors',
+                      recentlyDuplicatedTaskId === String(task.id) &&
+                        'bg-green-50 dark:bg-green-950/30',
+                    )}
                     onClick={(e) => {
                       if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                         return;
@@ -656,7 +669,11 @@ export const TaskList: React.FC = () => {
                   return (
                     <TableRow
                       key={task.id}
-                      className="cursor-pointer hover:bg-accent"
+                      className={cn(
+                        'cursor-pointer hover:bg-accent',
+                        recentlyDuplicatedTaskId === String(task.id) &&
+                          'bg-green-50 dark:bg-green-950/30',
+                      )}
                       tabIndex={0}
                       data-list-item={JSON.stringify(task)}
                       data-plugin-name="tasks"
@@ -687,7 +704,9 @@ export const TaskList: React.FC = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge className={TASK_PRIORITY_COLORS[task.priority]}>{task.priority}</Badge>
+                        <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
+                          {task.priority}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         {task.dueDate ? (
@@ -752,4 +771,4 @@ export const TaskList: React.FC = () => {
       />
     </div>
   );
-};;
+};

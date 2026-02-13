@@ -72,7 +72,7 @@ describe('Mock Adapters', () => {
 
     it('should throw error when updating non-existent record', async () => {
       await expect(mockDb.update('contacts', '999', { companyName: 'Test' })).rejects.toThrow(
-        AppError
+        AppError,
       );
     });
 

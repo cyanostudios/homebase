@@ -28,7 +28,10 @@ interface EstimateContextType {
   openEstimateForEdit: (estimate: Estimate) => void;
   openEstimateForView: (estimate: Estimate) => void;
   closeEstimatePanel: () => void;
-  saveEstimate: (estimateData: any, estimateId?: string) => Promise<{ success: boolean; message?: string }>;
+  saveEstimate: (
+    estimateData: any,
+    estimateId?: string,
+  ) => Promise<{ success: boolean; message?: string }>;
   deleteEstimate: (id: string) => Promise<void>;
   deleteEstimates: (ids: string[]) => Promise<void>;
   duplicateEstimate: (estimate: Estimate) => Promise<void>;
@@ -240,11 +243,11 @@ export function EstimateProvider({
           prev.map((e) =>
             e.id === idToUpdate
               ? {
-                ...saved,
-                validTo: new Date(saved.validTo),
-                createdAt: new Date(saved.createdAt),
-                updatedAt: new Date(saved.updatedAt),
-              }
+                  ...saved,
+                  validTo: new Date(saved.validTo),
+                  createdAt: new Date(saved.createdAt),
+                  updatedAt: new Date(saved.updatedAt),
+                }
               : e,
           ),
         );
@@ -390,10 +393,7 @@ export function EstimateProvider({
   ) => {
     if (mode === 'view' && item) {
       const totals = calculateEstimateTotals(item.lineItems || [], item.estimateDiscount || 0);
-      const estimateNumber = formatDisplayNumber(
-        'estimates',
-        item.estimateNumber || item.id,
-      );
+      const estimateNumber = formatDisplayNumber('estimates', item.estimateNumber || item.id);
       const total = totals.total.toFixed(2);
       const currency = item.currency || 'SEK';
       const contactId = item.contactId;
@@ -455,7 +455,8 @@ export function EstimateProvider({
       const statusColors: Record<string, string> = {
         draft: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
         sent: 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
-        accepted: 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
+        accepted:
+          'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
         rejected: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
       };
 
@@ -465,7 +466,9 @@ export function EstimateProvider({
 
       return (
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className={cn('text-[10px] px-1.5 h-5', badgeColor)}>{badgeText}</Badge>
+          <Badge variant="outline" className={cn('text-[10px] px-1.5 h-5', badgeColor)}>
+            {badgeText}
+          </Badge>
           <span className="text-xs text-muted-foreground">• {validToText}</span>
         </div>
       );

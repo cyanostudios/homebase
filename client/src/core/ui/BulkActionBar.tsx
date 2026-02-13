@@ -61,8 +61,9 @@ export function BulkActionBar({
               variant={action.variant === 'destructive' ? 'destructive' : 'outline'}
               size="sm"
               onClick={action.onClick}
-              className={`min-h-[44px] sm:min-h-0 w-full sm:w-auto ${action.variant === 'destructive' ? 'text-white hover:text-white' : ''
-                }`}
+              className={`min-h-[44px] sm:min-h-0 w-full sm:w-auto ${
+                action.variant === 'destructive' ? 'text-white hover:text-white' : ''
+              }`}
             >
               {Icon && <Icon className="w-4 h-4" />}
               {action.label}

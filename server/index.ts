@@ -55,13 +55,19 @@ app.use(
 app.use(compression());
 app.use(
   cors({
-    origin: process.env.NODE_ENV === 'production' ? false : (process.env.FRONTEND_URL || 'http://localhost:3001'),
+    origin:
+      process.env.NODE_ENV === 'production'
+        ? false
+        : process.env.FRONTEND_URL || 'http://localhost:3001',
     credentials: true,
   }),
 );
 
 const sessionSecret = process.env.SESSION_SECRET;
-if (process.env.NODE_ENV === 'production' && (!sessionSecret || sessionSecret === 'homebase-dev-secret-change-in-production')) {
+if (
+  process.env.NODE_ENV === 'production' &&
+  (!sessionSecret || sessionSecret === 'homebase-dev-secret-change-in-production')
+) {
   console.error('❌ CRITICAL: SESSION_SECRET must be set to a strong random string in production!');
   process.exit(1);
 }

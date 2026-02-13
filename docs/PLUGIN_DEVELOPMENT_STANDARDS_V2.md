@@ -566,7 +566,7 @@ const database = ServiceManager.get('database');
 const results = await database.query('SELECT \* FROM items', []);
 // Tenant filtering automatic
 
-```
+````
 
 ---
 
@@ -582,22 +582,17 @@ async bulkDelete(req, idsTextArray) {
   // Use core helper for generic bulk delete logic
   return await BulkOperationsHelper.bulkDelete(req, MyPluginModel.TABLE, idsTextArray);
 }
-```
+````
 
 Frontend:
+
 ```typescript
 // In context
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { bulkApi } from '@/core/api/bulkApi';
 
-const {
-  selectedIds,
-  toggleSelection,
-  selectAll,
-  clearSelection,
-  selectedCount,
-  isSelected,
-} = useBulkSelection();
+const { selectedIds, toggleSelection, selectAll, clearSelection, selectedCount, isSelected } =
+  useBulkSelection();
 
 const deleteItems = async (ids: string[]) => {
   await bulkApi.bulkDelete('my-plugin', ids);
@@ -636,6 +631,7 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 ## Success Criteria
 
 Plugin is ready when:
+
 - ✅ All naming conventions followed exactly
 - ✅ Zero console errors or warnings
 - ✅ All CRUD operations functional
@@ -655,6 +651,7 @@ Plugin is ready when:
 ## Conclusion
 
 Following these standards enables:
+
 - **Automated integration** - Zero manual core updates
 - **Security enforcement** - Built-in through middleware and adapters
 - **Consistent architecture** - Same patterns across all plugins
@@ -666,9 +663,12 @@ Following these standards enables:
 ---
 
 **See Also:**
+
 - `CORE_SERVICES_ARCHITECTURE.md` - Service details
 - `SECURITY_GUIDELINES.md` - Security requirements
 - `BACKEND_PLUGIN_GUIDE_V2.md` - Backend implementation
 - `FRONTEND_PLUGIN_GUIDE_V2.md` - Frontend implementation
+
+```
 
 ```

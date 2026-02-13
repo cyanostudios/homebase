@@ -12,21 +12,19 @@ class ConsoleAdapter extends LoggerService {
 
   _formatMessage(level, message, context = {}) {
     const timestamp = new Date().toISOString();
-    const contextStr = Object.keys(context).length > 0 
-      ? ` ${JSON.stringify(context)}` 
-      : '';
-    
+    const contextStr = Object.keys(context).length > 0 ? ` ${JSON.stringify(context)}` : '';
+
     if (this.enableColors) {
       const colors = {
-        info: '\x1b[36m',    // Cyan
-        warn: '\x1b[33m',    // Yellow
-        error: '\x1b[31m',   // Red
-        debug: '\x1b[90m',   // Gray
+        info: '\x1b[36m', // Cyan
+        warn: '\x1b[33m', // Yellow
+        error: '\x1b[31m', // Red
+        debug: '\x1b[90m', // Gray
         reset: '\x1b[0m',
       };
       return `${colors[level]}[${timestamp}] ${level.toUpperCase()}: ${message}${contextStr}${colors.reset}`;
     }
-    
+
     return `[${timestamp}] ${level.toUpperCase()}: ${message}${contextStr}`;
   }
 

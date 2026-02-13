@@ -133,12 +133,13 @@ export function PomodoroTimer({
               <div className="absolute inset-0 bg-muted" />
               {/* Progress fyllning */}
               <div
-                className={`absolute inset-0 transition-all duration-1000 ${sessionType === 'work'
+                className={`absolute inset-0 transition-all duration-1000 ${
+                  sessionType === 'work'
                     ? 'bg-red-200 dark:bg-red-800'
                     : sessionType === 'shortBreak'
                       ? 'bg-green-200 dark:bg-green-800'
                       : 'bg-blue-200 dark:bg-blue-800'
-                  }`}
+                }`}
                 style={{ width: `${progress}%` }}
               />
               {/* Endast ikon */}

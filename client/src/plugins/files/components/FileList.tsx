@@ -357,7 +357,7 @@ export const FileList: React.FC = () => {
                         'relative border rounded-lg p-3 cursor-pointer transition-all',
                         isSelected
                           ? 'plugin-files bg-plugin-subtle ring-2 ring-plugin-subtle border-plugin-subtle'
-                          : 'border-border hover:border-plugin-subtle hover:plugin-files hover:shadow-md'
+                          : 'border-border hover:border-plugin-subtle hover:plugin-files hover:shadow-md',
                       )}
                       onClick={(e) => {
                         e.preventDefault();
@@ -460,7 +460,7 @@ export const FileList: React.FC = () => {
                       key={row.id}
                       className={cn(
                         idx % 2 === 0 ? 'bg-white' : 'bg-gray-50',
-                        'plugin-files hover:bg-plugin-subtle transition-colors focus:bg-plugin-subtle focus:outline-none focus:ring-2 focus:ring-plugin-subtle focus:ring-inset cursor-pointer'
+                        'plugin-files hover:bg-plugin-subtle transition-colors focus:bg-plugin-subtle focus:outline-none focus:ring-2 focus:ring-plugin-subtle focus:ring-inset cursor-pointer',
                       )}
                       tabIndex={0}
                       data-list-item={JSON.stringify(row.raw)}

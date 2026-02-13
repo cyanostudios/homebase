@@ -240,8 +240,8 @@ function generatePDFHTML(estimate) {
           </thead>
           <tbody>
             ${(estimate.lineItems || [])
-      .map(
-        (item) => `
+              .map(
+                (item) => `
               <tr>
                 <td><strong>${item.description || 'Service Item'}</strong></td>
                 <td class="text-right">${item.quantity || 1}</td>
@@ -249,8 +249,8 @@ function generatePDFHTML(estimate) {
                 <td class="text-right"><strong>${formatCurrency(item.lineTotal || 0, estimate.currency)}</strong></td>
               </tr>
             `,
-      )
-      .join('')}
+              )
+              .join('')}
           </tbody>
         </table>
 
@@ -260,24 +260,26 @@ function generatePDFHTML(estimate) {
               <td style="color: #777;">Subtotal</td>
               <td class="text-right">${formatCurrency(totals.subtotal, estimate.currency)}</td>
             </tr>
-            ${totals.totalDiscount > 0
-      ? `
+            ${
+              totals.totalDiscount > 0
+                ? `
             <tr>
               <td style="color: #c00;">Discounts</td>
               <td class="text-right" style="color: #c00;">-${formatCurrency(totals.totalDiscount, estimate.currency)}</td>
             </tr>
             `
-      : ''
-    }
-            ${totals.estimateDiscountAmount > 0
-      ? `
+                : ''
+            }
+            ${
+              totals.estimateDiscountAmount > 0
+                ? `
             <tr>
               <td style="color: #c00;">Adjustment</td>
               <td class="text-right" style="color: #c00;">-${formatCurrency(totals.estimateDiscountAmount, estimate.currency)}</td>
             </tr>
             `
-      : ''
-    }
+                : ''
+            }
             <tr>
               <td style="color: #777;">Tax (VAT)</td>
               <td class="text-right">${formatCurrency(totals.totalVat, estimate.currency)}</td>
@@ -289,20 +291,21 @@ function generatePDFHTML(estimate) {
           </table>
         </div>
 
-        ${estimate.notes
-      ? `
+        ${
+          estimate.notes
+            ? `
         <div class="notes-section">
           <div class="address-label">Notes</div>
           <div class="notes-content">${estimate.notes}</div>
         </div>
         `
-      : ''
-    }
+            : ''
+        }
 
         <div class="footer">
           Generated on ${formatDate(new Date())} • This estimate is valid until ${formatDate(
-      estimate.validTo,
-    )}<br>
+            estimate.validTo,
+          )}<br>
           PROCESSED BY HOMEBASE
         </div>
       </body>

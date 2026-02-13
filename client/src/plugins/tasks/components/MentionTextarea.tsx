@@ -319,8 +319,9 @@ export const MentionTextarea: React.FC<MentionTextareaProps> = ({
               variant="ghost"
               size="sm"
               onClick={() => insertMention(contact)}
-              className={`w-full justify-start h-auto px-3 py-2 text-left hover:bg-blue-50 dark:hover:bg-blue-950/30 border-b border-gray-100 dark:border-gray-800 last:border-b-0 rounded-none ${index === selectedIndex ? 'bg-blue-50 dark:bg-blue-950/30' : ''
-                }`}
+              className={`w-full justify-start h-auto px-3 py-2 text-left hover:bg-blue-50 dark:hover:bg-blue-950/30 border-b border-gray-100 dark:border-gray-800 last:border-b-0 rounded-none ${
+                index === selectedIndex ? 'bg-blue-50 dark:bg-blue-950/30' : ''
+              }`}
             >
               <div className="flex flex-col items-start">
                 <div className="font-medium text-sm text-gray-900 dark:text-gray-100">

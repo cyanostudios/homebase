@@ -49,11 +49,7 @@ const commonRules = {
       .withMessage(`${field} must not exceed ${max} characters`)
       .escape(),
 
-  url: (field) =>
-    body(field)
-      .optional()
-      .isURL()
-      .withMessage(`${field} must be a valid URL`),
+  url: (field) => body(field).optional().isURL().withMessage(`${field} must be a valid URL`),
 
   phone: (field) =>
     body(field)
@@ -89,7 +85,7 @@ const commonRules = {
       })
       .customSanitizer((value) => {
         // Convert to Date object if not null/undefined/empty
-        return (value === null || value === undefined || value === '') ? null : new Date(value);
+        return value === null || value === undefined || value === '' ? null : new Date(value);
       }),
 
   enum: (field, values) =>
@@ -116,41 +112,43 @@ const commonRules = {
 
   requiredArray: (field, max = 100) => {
     return [
-      body(field)
-        .custom((value, { req }) => {
-          // Additional debug logging for DELETE requests
-          if (req.method === 'DELETE') {
-            console.log(`[requiredArray] Validating ${field} for DELETE request`);
-            console.log(`[requiredArray] Value:`, value);
-            console.log(`[requiredArray] Type:`, typeof value);
-            console.log(`[requiredArray] IsArray:`, Array.isArray(value));
-            console.log(`[requiredArray] req.body:`, req.body);
-            console.log(`[requiredArray] req.body type:`, typeof req.body);
-            console.log(`[requiredArray] req.body keys:`, req.body ? Object.keys(req.body) : 'null/undefined');
-          }
+      body(field).custom((value, { req }) => {
+        // Additional debug logging for DELETE requests
+        if (req.method === 'DELETE') {
+          console.log(`[requiredArray] Validating ${field} for DELETE request`);
+          console.log(`[requiredArray] Value:`, value);
+          console.log(`[requiredArray] Type:`, typeof value);
+          console.log(`[requiredArray] IsArray:`, Array.isArray(value));
+          console.log(`[requiredArray] req.body:`, req.body);
+          console.log(`[requiredArray] req.body type:`, typeof req.body);
+          console.log(
+            `[requiredArray] req.body keys:`,
+            req.body ? Object.keys(req.body) : 'null/undefined',
+          );
+        }
 
-          // Check if field exists
-          if (value === undefined || value === null) {
-            throw new Error(`${field} is required`);
-          }
+        // Check if field exists
+        if (value === undefined || value === null) {
+          throw new Error(`${field} is required`);
+        }
 
-          // Check if it's an array
-          if (!Array.isArray(value)) {
-            throw new Error(`${field} must be an array`);
-          }
+        // Check if it's an array
+        if (!Array.isArray(value)) {
+          throw new Error(`${field} must be an array`);
+        }
 
-          // Check if array is not empty
-          if (value.length === 0) {
-            throw new Error(`${field} cannot be empty`);
-          }
+        // Check if array is not empty
+        if (value.length === 0) {
+          throw new Error(`${field} cannot be empty`);
+        }
 
-          // Check max length
-          if (value.length > max) {
-            throw new Error(`${field} must have at most ${max} items`);
-          }
+        // Check max length
+        if (value.length > max) {
+          throw new Error(`${field} must have at most ${max} items`);
+        }
 
-          return true;
-        }),
+        return true;
+      }),
     ];
   },
 

@@ -274,9 +274,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      console.log('Attempting login with:', { email, hasPassword: !!password });
       const response = await api.login(email, password);
-      console.log('Login successful:', response);
       setUser(response.user);
       setIsAuthenticated(true);
       return true;

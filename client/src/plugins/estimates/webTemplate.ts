@@ -61,11 +61,15 @@ export function generateWebHTML(estimate: any): string {
         <div class="bg-white rounded-lg print-shadow overflow-hidden">
           
           <!-- Top Bar (Alerts) -->
-          ${isExpired ? `
+          ${
+            isExpired
+              ? `
           <div class="bg-red-600 text-white text-center py-2 text-sm font-medium no-print">
             This estimate has expired and is no longer valid for acceptance.
           </div>
-          ` : ''}
+          `
+              : ''
+          }
           
           <!-- Header -->
           <div class="p-8 md:p-12 border-b border-gray-100">
@@ -90,9 +94,13 @@ export function generateWebHTML(estimate: any): string {
               
               <div class="md:text-right">
                 <div class="inline-block px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4
-                  ${estimate.status === 'accepted' ? 'bg-green-100 text-green-700' :
-      estimate.status === 'rejected' ? 'bg-red-100 text-red-700' :
-        'bg-gray-100 text-gray-600'}">
+                  ${
+                    estimate.status === 'accepted'
+                      ? 'bg-green-100 text-green-700'
+                      : estimate.status === 'rejected'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-gray-100 text-gray-600'
+                  }">
                   ${estimate.status || 'DRAFT'}
                 </div>
               </div>
@@ -137,7 +145,9 @@ export function generateWebHTML(estimate: any): string {
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100 text-gray-700">
-                ${(estimate.lineItems || []).map((item: any) => `
+                ${(estimate.lineItems || [])
+                  .map(
+                    (item: any) => `
                 <tr>
                   <td class="py-6 align-top">
                     <div class="font-semibold text-gray-900">${item.description || 'Service Item'}</div>
@@ -146,7 +156,9 @@ export function generateWebHTML(estimate: any): string {
                   <td class="py-6 text-right align-top tabular-nums">${formatCurrency(item.unitPrice || 0, estimate.currency)}</td>
                   <td class="py-6 text-right align-top font-semibold text-gray-900 tabular-nums">${formatCurrency(item.lineTotal || 0, estimate.currency)}</td>
                 </tr>
-                `).join('')}
+                `,
+                  )
+                  .join('')}
               </tbody>
             </table>
           </div>
@@ -160,19 +172,27 @@ export function generateWebHTML(estimate: any): string {
                   <span class="tabular-nums font-medium">${formatCurrency(totals.subtotal, estimate.currency)}</span>
                 </div>
                 
-                ${totals.totalDiscount > 0 ? `
+                ${
+                  totals.totalDiscount > 0
+                    ? `
                 <div class="flex justify-between text-sm text-red-400">
                   <span>Discounts</span>
                   <span class="tabular-nums font-medium">-${formatCurrency(totals.totalDiscount, estimate.currency)}</span>
                 </div>
-                ` : ''}
+                `
+                    : ''
+                }
                 
-                ${totals.estimateDiscountAmount > 0 ? `
+                ${
+                  totals.estimateDiscountAmount > 0
+                    ? `
                 <div class="flex justify-between text-sm text-red-400">
                   <span>Adjustment</span>
                   <span class="tabular-nums font-medium">-${formatCurrency(totals.estimateDiscountAmount, estimate.currency)}</span>
                 </div>
-                ` : ''}
+                `
+                    : ''
+                }
 
                 <div class="flex justify-between text-sm text-gray-400">
                   <span>Tax (VAT)</span>
@@ -188,14 +208,18 @@ export function generateWebHTML(estimate: any): string {
           </div>
 
           <!-- Notes Section -->
-          ${estimate.notes ? `
+          ${
+            estimate.notes
+              ? `
           <div class="p-8 md:p-12 border-t border-gray-100">
             <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Terms & Notes</h2>
             <div class="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
               ${estimate.notes}
             </div>
           </div>
-          ` : ''}
+          `
+              : ''
+          }
 
           <!-- Footer -->
           <div class="p-8 md:px-12 md:py-8 bg-gray-50 text-center">

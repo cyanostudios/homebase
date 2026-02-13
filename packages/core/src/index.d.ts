@@ -140,7 +140,7 @@ export class Router {
    * Create async error handler middleware
    */
   static asyncHandler(
-    handler: (req: Request, res: Response, next: NextFunction) => Promise<any>
+    handler: (req: Request, res: Response, next: NextFunction) => Promise<any>,
   ): (req: Request, res: Response, next: NextFunction) => void;
 
   /**

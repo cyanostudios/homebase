@@ -36,8 +36,11 @@ export const MailList: React.FC = () => {
   });
 
   const pluginSources = useMemo(
-    () => Array.from(new Set(mailHistory.map((e) => e.pluginSource).filter((ps): ps is string => !!ps))),
-    [mailHistory]
+    () =>
+      Array.from(
+        new Set(mailHistory.map((e) => e.pluginSource).filter((ps): ps is string => !!ps)),
+      ),
+    [mailHistory],
   );
 
   useEffect(() => {
@@ -64,15 +67,26 @@ export const MailList: React.FC = () => {
             )}
             <div className="flex items-center gap-1 mr-2 px-2 border-r pr-4">
               {settings?.configured?.smtp || settings?.configured?.resend ? (
-                <Badge variant="outline" className="plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle font-medium">
+                <Badge
+                  variant="outline"
+                  className="plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle font-medium"
+                >
                   Konfigurerad
                 </Badge>
               ) : (
-                <Badge variant="secondary" className="bg-secondary/50 text-secondary-foreground border-transparent font-medium">
+                <Badge
+                  variant="secondary"
+                  className="bg-secondary/50 text-secondary-foreground border-transparent font-medium"
+                >
                   Ej konfigurerad
                 </Badge>
               )}
-              <Button variant="ghost" size="sm" onClick={() => openMailPanel()} title="Inställningar">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => openMailPanel()}
+                title="Inställningar"
+              >
                 <Settings className="h-4 w-4" />
               </Button>
             </div>
@@ -82,7 +96,7 @@ export const MailList: React.FC = () => {
             </Button>
           </div>
         }
-      />
+      />,
     );
     return () => setHeaderTrailing(null);
   }, [
@@ -103,7 +117,10 @@ export const MailList: React.FC = () => {
         <div className="p-4 border-b border-border flex items-center gap-2">
           <Mail className="h-5 w-5 text-plugin" />
           <span className="font-medium text-sm">Sent mail history</span>
-          <Badge variant="secondary" className="bg-secondary/50 text-secondary-foreground border-transparent font-medium">
+          <Badge
+            variant="secondary"
+            className="bg-secondary/50 text-secondary-foreground border-transparent font-medium"
+          >
             {totalCount} Total
           </Badge>
         </div>
@@ -141,12 +158,18 @@ export const MailList: React.FC = () => {
                         variant="outline"
                         className={cn(
                           'capitalize font-medium',
-                          entry.pluginSource === 'notes' && 'plugin-notes bg-plugin-subtle text-plugin border-plugin-subtle',
-                          entry.pluginSource === 'contacts' && 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle',
-                          entry.pluginSource === 'tasks' && 'plugin-tasks bg-plugin-subtle text-plugin border-plugin-subtle',
-                          entry.pluginSource === 'estimates' && 'plugin-estimates bg-plugin-subtle text-plugin border-plugin-subtle',
-                          entry.pluginSource === 'invoices' && 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle',
-                          entry.pluginSource === 'files' && 'plugin-files bg-plugin-subtle text-plugin border-plugin-subtle'
+                          entry.pluginSource === 'notes' &&
+                            'plugin-notes bg-plugin-subtle text-plugin border-plugin-subtle',
+                          entry.pluginSource === 'contacts' &&
+                            'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle',
+                          entry.pluginSource === 'tasks' &&
+                            'plugin-tasks bg-plugin-subtle text-plugin border-plugin-subtle',
+                          entry.pluginSource === 'estimates' &&
+                            'plugin-estimates bg-plugin-subtle text-plugin border-plugin-subtle',
+                          entry.pluginSource === 'invoices' &&
+                            'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle',
+                          entry.pluginSource === 'files' &&
+                            'plugin-files bg-plugin-subtle text-plugin border-plugin-subtle',
                         )}
                       >
                         {entry.pluginSource}

@@ -142,7 +142,11 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
             onClick={existingShare ? () => setShowShareDialog(true) : handleCreateShare}
             disabled={isCreatingShare}
           >
-            {isCreatingShare ? 'Creating Share...' : existingShare ? 'Share Settings' : 'Share Estimate'}
+            {isCreatingShare
+              ? 'Creating Share...'
+              : existingShare
+                ? 'Share Settings'
+                : 'Share Estimate'}
           </Button>
 
           <Button
@@ -170,14 +174,16 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
       {/* Share URL Display */}
       {existingShare && (
         <div
-          className={`mt-4 p-4 rounded-lg border ${isShareExpired
-            ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
-            : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
-            }`}
+          className={`mt-4 p-4 rounded-lg border ${
+            isShareExpired
+              ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+              : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+          }`}
         >
           <div
-            className={`text-sm font-medium mb-2 ${isShareExpired ? 'text-red-900 dark:text-red-400' : 'text-blue-900 dark:text-blue-400'
-              }`}
+            className={`text-sm font-medium mb-2 ${
+              isShareExpired ? 'text-red-900 dark:text-red-400' : 'text-blue-900 dark:text-blue-400'
+            }`}
           >
             {isShareExpired ? 'Share Link Expired' : 'Active Share Link'}
           </div>
@@ -193,7 +199,11 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
                   size="sm"
                   icon={copied ? Check : Copy}
                   onClick={handleCopyUrl}
-                  className={copied ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' : ''}
+                  className={
+                    copied
+                      ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300'
+                      : ''
+                  }
                 >
                   {copied ? 'Copied' : 'Copy'}
                 </Button>

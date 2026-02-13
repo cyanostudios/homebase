@@ -24,6 +24,7 @@ interface MainLayoutProps {
   detailPanelContent: React.ReactNode;
   detailPanelFooter?: React.ReactNode;
   onDetailPanelClose: () => void;
+  detailPanelPluginName?: string;
 }
 
 export function MainLayout({
@@ -40,6 +41,7 @@ export function MainLayout({
   detailPanelContent,
   detailPanelFooter,
   onDetailPanelClose,
+  detailPanelPluginName,
 }: MainLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [headerTrailing, setHeaderTrailing] = useState<React.ReactNode>(null);
@@ -81,6 +83,7 @@ export function MainLayout({
         onOpenMobileNav={() => setMobileNavOpen(true)}
         detailPanelTitle={detailPanelOpen ? detailPanelTitle : undefined}
         onDetailPanelClose={detailPanelOpen ? onDetailPanelClose : undefined}
+        detailPanelPluginName={detailPanelOpen ? detailPanelPluginName : undefined}
       />
 
       <main className="flex h-[calc(100vh-3.5rem)] pt-14 md:pl-[252px] md:pr-4">

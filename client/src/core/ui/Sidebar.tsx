@@ -16,7 +16,6 @@ import { categoryOrder } from '@/core/navigationConfig';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { cn } from '@/lib/utils';
 
-
 export type NavPage =
   | 'dashboard'
   | 'contacts'
@@ -175,7 +174,11 @@ export function Sidebar({
         <NavigationMenuItem key={item.label}>
           <Collapsible open={isSubmenuOpen} onOpenChange={() => toggleSubmenu(item.label)}>
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" type="button" className="w-full justify-start h-auto p-0 hover:bg-transparent">
+              <Button
+                variant="ghost"
+                type="button"
+                className="w-full justify-start h-auto p-0 hover:bg-transparent"
+              >
                 {content}
               </Button>
             </CollapsibleTrigger>

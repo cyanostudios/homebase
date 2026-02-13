@@ -125,9 +125,7 @@ class NoteModel {
       // Fetch notes before deletion for backup
       let backups = [];
       if (pool && userId && Array.isArray(idsTextArray) && idsTextArray.length > 0) {
-        const ids = idsTextArray
-          .map((id) => parseInt(id, 10))
-          .filter((id) => !isNaN(id));
+        const ids = idsTextArray.map((id) => parseInt(id, 10)).filter((id) => !isNaN(id));
         if (ids.length > 0) {
           const existing = await pool.query(
             'SELECT * FROM notes WHERE id = ANY($1::int[]) AND user_id = $2',

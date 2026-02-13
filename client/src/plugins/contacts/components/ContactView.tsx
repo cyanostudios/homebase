@@ -139,11 +139,14 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
         sent: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
         accepted: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-blue-300',
         rejected: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-blue-300',
-      }
+      },
     };
-    const colorClass = statusColors[plugin][status] || statusColors[plugin][Object.keys(statusColors[plugin])[0]];
+    const colorClass =
+      statusColors[plugin][status] || statusColors[plugin][Object.keys(statusColors[plugin])[0]];
     return (
-      <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium capitalize", colorClass)}>
+      <span
+        className={cn('px-2 py-0.5 rounded-full text-[10px] font-medium capitalize', colorClass)}
+      >
         {status}
       </span>
     );
@@ -153,41 +156,25 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     <DetailLayout
       sidebar={
         <div className="space-y-6">
-
-
-          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title="Information" className="p-4 text-xs font-semibold">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">System ID</span>
-                  <span className="font-mono font-medium">{formatDisplayNumber('contacts', contact.id)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Created</span>
-                  <span className="font-medium">{new Date(contact.createdAt).toLocaleDateString()}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Updated</span>
-                  <span className="font-medium">{new Date(contact.updatedAt).toLocaleDateString()}</span>
-                </div>
-              </div>
-            </DetailSection>
-          </Card>
-
           {(assignedTasks.length > 0 || mentionedInTasks.length > 0) && (
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
               <DetailSection title="Tasks" className="p-4">
                 <div className="space-y-3">
                   {assignedTasks.length > 0 && (
                     <div className="space-y-2">
-
                       {assignedTasks.map((task: any) => (
-                        <div key={task.id} className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle px-2 py-1.5 rounded-md border border-plugin-subtle">
+                        <div
+                          key={task.id}
+                          className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
+                        >
                           <span className="text-muted-foreground truncate mr-4">{task.title}</span>
                           <Button
                             size="sm"
                             variant="link"
-                            onClick={() => { closeContactPanel(); openTaskForView(task); }}
+                            onClick={() => {
+                              closeContactPanel();
+                              openTaskForView(task);
+                            }}
                             className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
                           >
                             View
@@ -198,14 +185,19 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                   )}
                   {mentionedInTasks.length > 0 && (
                     <div className="space-y-2">
-
                       {mentionedInTasks.map((task: any) => (
-                        <div key={task.id} className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle/50 px-2 py-1.5 rounded-md border border-plugin-subtle/50">
+                        <div
+                          key={task.id}
+                          className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle/50 px-2 py-1.5 rounded-md border border-border/50"
+                        >
                           <span className="text-muted-foreground truncate mr-4">{task.title}</span>
                           <Button
                             size="sm"
                             variant="link"
-                            onClick={() => { closeContactPanel(); openTaskForView(task); }}
+                            onClick={() => {
+                              closeContactPanel();
+                              openTaskForView(task);
+                            }}
                             className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
                           >
                             View
@@ -224,14 +216,20 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
               <DetailSection title="Estimates" className="p-4">
                 <div className="space-y-2">
                   {relatedEstimates.map((estimate: any) => (
-                    <div key={estimate.id} className="flex justify-between items-center text-[11px] plugin-estimates bg-plugin-subtle px-2 py-1.5 rounded-md border border-plugin-subtle">
+                    <div
+                      key={estimate.id}
+                      className="flex justify-between items-center text-[11px] plugin-estimates bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
+                    >
                       <span className="text-muted-foreground truncate mr-4">
                         {formatDisplayNumber('estimates', estimate.estimateNumber)}
                       </span>
                       <Button
                         size="sm"
                         variant="link"
-                        onClick={() => { closeContactPanel(); openEstimateForView(estimate); }}
+                        onClick={() => {
+                          closeContactPanel();
+                          openEstimateForView(estimate);
+                        }}
                         className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
                       >
                         View
@@ -248,14 +246,18 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
               <DetailSection title="Note Mentions" className="p-4">
                 <div className="space-y-2">
                   {mentionedInNotes.map((note: any) => (
-                    <div key={note.id} className="flex justify-between items-center text-[11px] plugin-notes bg-plugin-subtle px-2 py-1.5 rounded-md border border-plugin-subtle">
-                      <span className="text-muted-foreground truncate mr-4">
-                        {note.title}
-                      </span>
+                    <div
+                      key={note.id}
+                      className="flex justify-between items-center text-[11px] plugin-notes bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
+                    >
+                      <span className="text-muted-foreground truncate mr-4">{note.title}</span>
                       <Button
                         size="sm"
                         variant="link"
-                        onClick={() => { closeContactPanel(); openNoteForView(note); }}
+                        onClick={() => {
+                          closeContactPanel();
+                          openNoteForView(note);
+                        }}
                         className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
                       >
                         View
@@ -266,6 +268,31 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
               </DetailSection>
             </Card>
           )}
+
+          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <DetailSection title="Information" className="p-4 text-xs font-semibold">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">System ID</span>
+                  <span className="font-mono font-medium">
+                    {formatDisplayNumber('contacts', contact.id)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Created</span>
+                  <span className="font-medium">
+                    {new Date(contact.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Updated</span>
+                  <span className="font-medium">
+                    {new Date(contact.updatedAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            </DetailSection>
+          </Card>
         </div>
       }
     >
@@ -290,7 +317,11 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                 <div>
                   <div className="text-xs text-muted-foreground mb-1">Website</div>
                   <a
-                    href={contact.website.startsWith('http') ? contact.website : `https://${contact.website}`}
+                    href={
+                      contact.website.startsWith('http')
+                        ? contact.website
+                        : `https://${contact.website}`
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary hover:underline font-medium truncate block"
@@ -333,6 +364,20 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                 <div className="text-xs text-muted-foreground mb-1">F-Tax</div>
                 <div className="font-medium">{contact.fTax === 'yes' ? 'Registered' : 'No'}</div>
               </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Assignable</div>
+                <div className="font-medium">
+                  {contact.isAssignable ? (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                      Yes
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                      No
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </DetailSection>
         </Card>
@@ -371,7 +416,9 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                   <div key={person.id} className="text-sm flex justify-between items-start">
                     <div className="space-y-1">
                       <div className="font-semibold text-foreground">{person.name}</div>
-                      <div className="text-xs text-muted-foreground">{person.title || 'No title'}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {person.title || 'No title'}
+                      </div>
                       <div className="text-xs text-muted-foreground flex items-center gap-1">
                         <Mail className="w-3 h-3" /> {person.email || '—'}
                       </div>
@@ -382,8 +429,6 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
             </DetailSection>
           </Card>
         )}
-
-
       </div>
     </DetailLayout>
   );

@@ -2,6 +2,7 @@
 import React from 'react';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
+import { cn } from '@/lib/utils';
 
 interface YourItemViewProps {
   item: any; // Template: keep generic; your real plugin should type this
@@ -26,11 +27,15 @@ export const YourItemView: React.FC<YourItemViewProps> = ({ item }) => {
     <div className="space-y-4">
       {/* Summary */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-2">Summary</Heading>
+        <Heading level={3} className="mb-2">
+          Summary
+        </Heading>
         {title ? (
           <div className="text-sm text-gray-900">{title}</div>
         ) : (
-          <Text variant="caption" className="text-gray-500">No title</Text>
+          <Text variant="caption" className="text-gray-500">
+            No title
+          </Text>
         )}
         {description && (
           <div className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">{description}</div>
@@ -40,7 +45,9 @@ export const YourItemView: React.FC<YourItemViewProps> = ({ item }) => {
       {/* Other Fields (auto) */}
       {otherEntries.length > 0 && (
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">Details</Heading>
+          <Heading level={3} className="mb-3">
+            Details
+          </Heading>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {otherEntries.map(([key, value]) => (
               <div key={key}>
@@ -58,7 +65,9 @@ export const YourItemView: React.FC<YourItemViewProps> = ({ item }) => {
 
       {/* Metadata */}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3">Metadata</Heading>
+        <Heading level={3} className="mb-3">
+          Metadata
+        </Heading>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <div className="text-xs text-gray-500">System ID</div>

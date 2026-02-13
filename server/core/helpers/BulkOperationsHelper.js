@@ -30,9 +30,7 @@ class BulkOperationsHelper {
       }
 
       // Normalize, deduplicate, and filter empty values
-      const normalizedIds = Array.from(
-        new Set(ids.map((x) => String(x).trim()).filter(Boolean))
-      );
+      const normalizedIds = Array.from(new Set(ids.map((x) => String(x).trim()).filter(Boolean)));
 
       if (!normalizedIds.length) {
         Logger.info('Bulk delete called with empty IDs array', { tableName });

@@ -1,4 +1,14 @@
-import { Mail, Phone, ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText, Grid3x3, List as ListIcon } from 'lucide-react';
+import {
+  Mail,
+  Phone,
+  ArrowUp,
+  ArrowDown,
+  Trash2,
+  FileSpreadsheet,
+  FileText,
+  Grid3x3,
+  List as ListIcon,
+} from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -388,7 +398,7 @@ export const ContactList: React.FC = () => {
                     'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent',
                     contactIsSelected
                       ? 'plugin-contacts bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
-                      : 'hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md'
+                      : 'hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md',
                   )}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -422,7 +432,7 @@ export const ContactList: React.FC = () => {
                         'font-medium',
                         contact.contactType === 'company'
                           ? 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle'
-                          : 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle'
+                          : 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle',
                       )}
                     >
                       {contact.contactType === 'company' ? 'Company' : 'Private'}
@@ -500,7 +510,7 @@ export const ContactList: React.FC = () => {
                               'font-medium',
                               contact.contactType === 'company'
                                 ? 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle'
-                                : 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle'
+                                : 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle',
                             )}
                           >
                             {contact.contactType === 'company' ? 'Company' : 'Private'}
@@ -670,7 +680,7 @@ export const ContactList: React.FC = () => {
                             'font-medium',
                             contact.contactType === 'company'
                               ? 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle'
-                              : 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle'
+                              : 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle',
                           )}
                         >
                           {contact.contactType === 'company' ? 'Company' : 'Private'}
@@ -695,12 +705,12 @@ export const ContactList: React.FC = () => {
                 })}
               </TableBody>
             </Table>
-          </Card >
+          </Card>
         )}
-      </Card >
+      </Card>
 
       {/* Bulk Delete Modal */}
-      < BulkDeleteModal
+      <BulkDeleteModal
         isOpen={showBulkDeleteModal}
         onClose={() => setShowBulkDeleteModal(false)}
         onConfirm={handleBulkDelete}

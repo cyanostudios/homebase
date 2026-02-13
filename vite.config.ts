@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from 'path'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
 
 export default defineConfig({
   root: './client',
@@ -23,8 +23,8 @@ export default defineConfig({
     },
     headers: {
       'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
+      Pragma: 'no-cache',
+      Expires: '0',
     },
     proxy: {
       '/api': {
@@ -43,18 +43,21 @@ export default defineConfig({
         },
         onProxyRes: (proxyRes, req, res) => {
           // Disable caching for API responses in development
-          proxyRes.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
+          proxyRes.headers['Cache-Control'] =
+            'no-store, no-cache, must-revalidate, proxy-revalidate';
           proxyRes.headers['Pragma'] = 'no-cache';
           proxyRes.headers['Expires'] = '0';
-          
+
           // Forward Set-Cookie headers
           if (proxyRes.headers['set-cookie']) {
-            proxyRes.headers['set-cookie'] = proxyRes.headers['set-cookie'].map((cookie: string) => {
-              return cookie
-                .replace(/Domain=[^;]+;?/gi, 'Domain=localhost;')
-                .replace(/Secure;?/gi, '')
-                .replace(/SameSite=None/gi, 'SameSite=Lax');
-            });
+            proxyRes.headers['set-cookie'] = proxyRes.headers['set-cookie'].map(
+              (cookie: string) => {
+                return cookie
+                  .replace(/Domain=[^;]+;?/gi, 'Domain=localhost;')
+                  .replace(/Secure;?/gi, '')
+                  .replace(/SameSite=None/gi, 'SameSite=Lax');
+              },
+            );
           }
         },
         configure: (proxy, _options) => {
@@ -62,8 +65,8 @@ export default defineConfig({
             console.error('Vite proxy error:', err);
           });
         },
-      }
-    }
+      },
+    },
   },
   // Disable build cache in development to ensure fresh builds
   build: {
@@ -78,4 +81,4 @@ export default defineConfig({
   },
   // Clear Vite cache on startup in development
   clearScreen: false,
-})
+});

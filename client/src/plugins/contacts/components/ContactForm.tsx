@@ -1,4 +1,4 @@
-import { Building, User, Plus, Trash2 } from 'lucide-react';
+import { Building, User, Plus, Trash2, CheckSquare } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -94,6 +95,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
     // Notes
     notes: '',
+
+    // Settings
+    isAssignable: true,
   });
 
   // Register this form's unsaved changes state globally
@@ -129,6 +133,8 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         currency: currentContact.currency || 'SEK',
         fTax: currentContact.fTax || 'yes',
         notes: currentContact.notes || '',
+        isAssignable:
+          currentContact.isAssignable !== undefined ? currentContact.isAssignable : true,
       });
       markClean(); // Mark as clean after loading existing data
     } else {
@@ -157,6 +163,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
       currency: 'SEK',
       fTax: 'yes',
       notes: '',
+      isAssignable: true,
     });
     markClean();
   }, [markClean]);
@@ -217,7 +224,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
     }
   };
 
-  const updateField = (field: string, value: string) => {
+  const updateField = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     markDirty();
     clearValidationErrors();
@@ -354,7 +361,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             <div className="p-4 bg-gray-50/50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="contactNumber" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                  <Label
+                    htmlFor="contactNumber"
+                    className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                  >
                     Contact Number
                   </Label>
                   <Input
@@ -374,7 +384,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                 </div>
 
                 <div>
-                  <Label className="mb-1 text-[10px] uppercase font-bold text-gray-400">Contact Type</Label>
+                  <Label className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                    Contact Type
+                  </Label>
                   <div className="flex gap-2">
                     <Button
                       type="button"
@@ -402,13 +414,18 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
           {/* Basic Information */}
           <DetailSection
-            title={formData.contactType === 'company' ? 'Company Information' : 'Personal Information'}
+            title={
+              formData.contactType === 'company' ? 'Company Information' : 'Personal Information'
+            }
           >
             <div className="p-4 bg-gray-50/50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
               {formData.contactType === 'company' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="companyName" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                    <Label
+                      htmlFor="companyName"
+                      className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                    >
                       Company Name
                     </Label>
                     <Input
@@ -427,7 +444,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   </div>
 
                   <div>
-                    <Label htmlFor="companyType" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                    <Label
+                      htmlFor="companyType"
+                      className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                    >
                       Company Type
                     </Label>
                     <NativeSelect
@@ -443,7 +463,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   </div>
 
                   <div>
-                    <Label htmlFor="organizationNumber" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                    <Label
+                      htmlFor="organizationNumber"
+                      className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                    >
                       Organization Number
                     </Label>
                     <Input
@@ -462,7 +485,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   </div>
 
                   <div>
-                    <Label htmlFor="vatNumber" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                    <Label
+                      htmlFor="vatNumber"
+                      className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                    >
                       VAT Number
                     </Label>
                     <Input
@@ -477,7 +503,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="fullName" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                    <Label
+                      htmlFor="fullName"
+                      className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                    >
                       Full Name
                     </Label>
                     <Input
@@ -496,7 +525,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   </div>
 
                   <div>
-                    <Label htmlFor="personalNumber" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                    <Label
+                      htmlFor="personalNumber"
+                      className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                    >
                       Personal Number
                     </Label>
                     <Input
@@ -522,7 +554,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           <DetailSection title="Contact Details">
             <div className="p-4 bg-gray-50/50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="email" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                <Label
+                  htmlFor="email"
+                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                >
                   Email
                 </Label>
                 <Input
@@ -534,10 +569,11 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                 />
                 {getFieldError('email') && (
                   <p
-                    className={`mt-1 text-sm ${getFieldError('email')?.message.includes('Warning')
-                      ? 'text-yellow-600 dark:text-yellow-400'
-                      : 'text-red-600 dark:text-red-400'
-                      }`}
+                    className={`mt-1 text-sm ${
+                      getFieldError('email')?.message.includes('Warning')
+                        ? 'text-yellow-600 dark:text-yellow-400'
+                        : 'text-red-600 dark:text-red-400'
+                    }`}
                   >
                     {getFieldError('email')?.message}
                   </p>
@@ -545,7 +581,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               </div>
 
               <div>
-                <Label htmlFor="website" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                <Label
+                  htmlFor="website"
+                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                >
                   Website
                 </Label>
                 <Input
@@ -558,7 +597,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               </div>
 
               <div>
-                <Label htmlFor="phone" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                <Label
+                  htmlFor="phone"
+                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                >
                   Phone 1
                 </Label>
                 <Input
@@ -571,7 +613,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               </div>
 
               <div>
-                <Label htmlFor="phone2" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                <Label
+                  htmlFor="phone2"
+                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                >
                   Phone 2
                 </Label>
                 <Input
@@ -589,14 +634,24 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           <DetailSection title="Addresses">
             <div className="p-4 bg-gray-50/50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] uppercase font-bold text-gray-400">Postal Addresses</span>
-                <Button type="button" onClick={addAddress} variant="secondary" icon={Plus} size="sm">
+                <span className="text-[10px] uppercase font-bold text-gray-400">
+                  Postal Addresses
+                </span>
+                <Button
+                  type="button"
+                  onClick={addAddress}
+                  variant="secondary"
+                  icon={Plus}
+                  size="sm"
+                >
                   Add Address
                 </Button>
               </div>
 
               {formData.addresses.length === 0 ? (
-                <p className="text-gray-500 dark:text-gray-400 text-xs italic">No addresses added yet.</p>
+                <p className="text-gray-500 dark:text-gray-400 text-xs italic">
+                  No addresses added yet.
+                </p>
               ) : (
                 <div className="space-y-6">
                   {formData.addresses.map((address, index) => (
@@ -620,7 +675,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <Label htmlFor={`address-type-${address.id}`} className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                          <Label
+                            htmlFor={`address-type-${address.id}`}
+                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                          >
                             Type
                           </Label>
                           <NativeSelect
@@ -638,7 +696,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                         </div>
 
                         <div>
-                          <Label htmlFor={`address-email-${address.id}`} className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                          <Label
+                            htmlFor={`address-email-${address.id}`}
+                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                          >
                             Email
                           </Label>
                           <Input
@@ -651,43 +712,61 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                         </div>
 
                         <div className="sm:col-span-2">
-                          <Label htmlFor={`address-line1-${address.id}`} className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                          <Label
+                            htmlFor={`address-line1-${address.id}`}
+                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                          >
                             Address Line 1
                           </Label>
                           <Input
                             id={`address-line1-${address.id}`}
                             type="text"
                             value={address.addressLine1}
-                            onChange={(e) => updateAddress(address.id, 'addressLine1', e.target.value)}
+                            onChange={(e) =>
+                              updateAddress(address.id, 'addressLine1', e.target.value)
+                            }
                           />
                         </div>
 
                         <div className="sm:col-span-2">
-                          <Label htmlFor={`address-line2-${address.id}`} className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                          <Label
+                            htmlFor={`address-line2-${address.id}`}
+                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                          >
                             Address Line 2
                           </Label>
                           <Input
                             id={`address-line2-${address.id}`}
                             type="text"
                             value={address.addressLine2}
-                            onChange={(e) => updateAddress(address.id, 'addressLine2', e.target.value)}
+                            onChange={(e) =>
+                              updateAddress(address.id, 'addressLine2', e.target.value)
+                            }
                           />
                         </div>
 
                         <div>
-                          <Label htmlFor={`address-postal-${address.id}`} className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                          <Label
+                            htmlFor={`address-postal-${address.id}`}
+                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                          >
                             Postal Code
                           </Label>
                           <Input
                             id={`address-postal-${address.id}`}
                             type="text"
                             value={address.postalCode}
-                            onChange={(e) => updateAddress(address.id, 'postalCode', e.target.value)}
+                            onChange={(e) =>
+                              updateAddress(address.id, 'postalCode', e.target.value)
+                            }
                           />
                         </div>
 
                         <div>
-                          <Label htmlFor={`address-city-${address.id}`} className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                          <Label
+                            htmlFor={`address-city-${address.id}`}
+                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                          >
                             City
                           </Label>
                           <Input
@@ -699,7 +778,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                         </div>
 
                         <div>
-                          <Label htmlFor={`address-region-${address.id}`} className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                          <Label
+                            htmlFor={`address-region-${address.id}`}
+                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                          >
                             Region
                           </Label>
                           <Input
@@ -712,7 +794,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                         </div>
 
                         <div>
-                          <Label htmlFor={`address-country-${address.id}`} className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                          <Label
+                            htmlFor={`address-country-${address.id}`}
+                            className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                          >
                             Country
                           </Label>
                           <NativeSelect
@@ -739,7 +824,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
             <DetailSection title="Contact Persons">
               <div className="p-4 bg-gray-50/50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">Associated People</span>
+                  <span className="text-[10px] uppercase font-bold text-gray-400">
+                    Associated People
+                  </span>
                   <Button
                     type="button"
                     onClick={addContactPerson}
@@ -778,51 +865,71 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="sm:col-span-2">
-                            <Label htmlFor={`person-name-${person.id}`} className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                            <Label
+                              htmlFor={`person-name-${person.id}`}
+                              className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                            >
                               Name
                             </Label>
                             <Input
                               id={`person-name-${person.id}`}
                               type="text"
                               value={person.name}
-                              onChange={(e) => updateContactPerson(person.id, 'name', e.target.value)}
+                              onChange={(e) =>
+                                updateContactPerson(person.id, 'name', e.target.value)
+                              }
                             />
                           </div>
 
                           <div>
-                            <Label htmlFor={`person-title-${person.id}`} className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                            <Label
+                              htmlFor={`person-title-${person.id}`}
+                              className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                            >
                               Title
                             </Label>
                             <Input
                               id={`person-title-${person.id}`}
                               type="text"
                               value={person.title}
-                              onChange={(e) => updateContactPerson(person.id, 'title', e.target.value)}
+                              onChange={(e) =>
+                                updateContactPerson(person.id, 'title', e.target.value)
+                              }
                               placeholder="e.g. CEO, Sales Manager"
                             />
                           </div>
 
                           <div>
-                            <Label htmlFor={`person-email-${person.id}`} className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                            <Label
+                              htmlFor={`person-email-${person.id}`}
+                              className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                            >
                               Email
                             </Label>
                             <Input
                               id={`person-email-${person.id}`}
                               type="email"
                               value={person.email}
-                              onChange={(e) => updateContactPerson(person.id, 'email', e.target.value)}
+                              onChange={(e) =>
+                                updateContactPerson(person.id, 'email', e.target.value)
+                              }
                             />
                           </div>
 
                           <div>
-                            <Label htmlFor={`person-phone-${person.id}`} className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                            <Label
+                              htmlFor={`person-phone-${person.id}`}
+                              className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                            >
                               Phone
                             </Label>
                             <Input
                               id={`person-phone-${person.id}`}
                               type="tel"
                               value={person.phone}
-                              onChange={(e) => updateContactPerson(person.id, 'phone', e.target.value)}
+                              onChange={(e) =>
+                                updateContactPerson(person.id, 'phone', e.target.value)
+                              }
                             />
                           </div>
                         </div>
@@ -838,7 +945,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
           <DetailSection title="Business Settings">
             <div className="p-4 bg-gray-50/50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800 grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
-                <Label htmlFor="taxRate" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                <Label
+                  htmlFor="taxRate"
+                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                >
                   Tax Rate (%)
                 </Label>
                 <NativeSelect
@@ -854,7 +964,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               </div>
 
               <div>
-                <Label htmlFor="paymentTerms" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                <Label
+                  htmlFor="paymentTerms"
+                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                >
                   Terms (days)
                 </Label>
                 <NativeSelect
@@ -870,7 +983,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               </div>
 
               <div>
-                <Label htmlFor="currency" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                <Label
+                  htmlFor="currency"
+                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                >
                   Currency
                 </Label>
                 <NativeSelect
@@ -887,7 +1003,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
               </div>
 
               <div>
-                <Label htmlFor="fTax" className="mb-1 text-[10px] uppercase font-bold text-gray-400">
+                <Label
+                  htmlFor="fTax"
+                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                >
                   F-Tax
                 </Label>
                 <NativeSelect
@@ -898,6 +1017,25 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                   <option value="yes">Yes</option>
                   <option value="no">No</option>
                 </NativeSelect>
+              </div>
+
+              <div>
+                <Label
+                  htmlFor="isAssignable"
+                  className="mb-1 text-[10px] uppercase font-bold text-gray-400"
+                >
+                  Assignable
+                </Label>
+                <div className="flex items-center h-10">
+                  <Switch
+                    id="isAssignable"
+                    checked={formData.isAssignable}
+                    onCheckedChange={(checked) => updateField('isAssignable', checked)}
+                  />
+                  <Label htmlFor="isAssignable" className="ml-2 cursor-pointer text-sm font-normal">
+                    {formData.isAssignable ? 'Yes' : 'No'}
+                  </Label>
+                </div>
               </div>
             </div>
           </DetailSection>

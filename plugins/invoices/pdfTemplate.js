@@ -2,51 +2,58 @@
 // PDF template for invoices: shows issue/due dates, payment terms and paid/overdue badges.
 
 function formatDate(d) {
-    if (!d) return '';
-    const date = new Date(d);
-    return date.toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: '2-digit' });
-  }
-  
-  function formatCurrency(amount, currency = 'SEK') {
-    const n = Number.isFinite(Number(amount)) ? Number(amount) : 0;
-    return new Intl.NumberFormat('sv-SE', { style: 'currency', currency }).format(n);
-  }
-  
-  // Fallback calculator (only used if DB totals are missing). DB totals should already be provided.
-  function fallbackTotals(lineItems = [], invoiceDiscount = 0, vatRateDefault = 0.25) {
-    const subtotal = lineItems.reduce((sum, li) => sum + (Number(li.quantity || 0) * Number(li.unitPrice || 0)), 0);
-    const invoiceDiscountAmount = subtotal * (Number(invoiceDiscount || 0) / 100);
-    const afterDiscount = subtotal - invoiceDiscountAmount;
-    const totalVat = afterDiscount * vatRateDefault;
-    const total = afterDiscount + totalVat;
-    return {
-      subtotal, totalDiscount: 0, subtotalAfterDiscount: subtotal,
-      invoiceDiscountAmount, subtotalAfterInvoiceDiscount: afterDiscount,
-      totalVat, total
-    };
-  }
-  
-  function generatePDFHTML(invoice) {
-    // Prefer server-calculated totals; fall back if missing.
-    const totals = {
-      subtotal: invoice.subtotal ?? undefined,
-      totalDiscount: invoice.totalDiscount ?? undefined,
-      subtotalAfterDiscount: invoice.subtotalAfterDiscount ?? undefined,
-      invoiceDiscountAmount: invoice.invoiceDiscountAmount ?? undefined,
-      subtotalAfterInvoiceDiscount: invoice.subtotalAfterInvoiceDiscount ?? undefined,
-      totalVat: invoice.totalVat ?? undefined,
-      total: invoice.total ?? undefined,
-    };
-    const needFallback = Object.values(totals).some(v => typeof v !== 'number' || Number.isNaN(v));
-    const safeTotals = needFallback
-      ? fallbackTotals(invoice.lineItems, invoice.invoiceDiscount)
-      : totals;
-  
-    const isPaid = invoice.status === 'paid';
-    const isOverdue = invoice.status === 'overdue';
-    const numberLabel = invoice.invoiceNumber || `DRAFT-${invoice.id}`;
-  
-    return `
+  if (!d) return '';
+  const date = new Date(d);
+  return date.toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: '2-digit' });
+}
+
+function formatCurrency(amount, currency = 'SEK') {
+  const n = Number.isFinite(Number(amount)) ? Number(amount) : 0;
+  return new Intl.NumberFormat('sv-SE', { style: 'currency', currency }).format(n);
+}
+
+// Fallback calculator (only used if DB totals are missing). DB totals should already be provided.
+function fallbackTotals(lineItems = [], invoiceDiscount = 0, vatRateDefault = 0.25) {
+  const subtotal = lineItems.reduce(
+    (sum, li) => sum + Number(li.quantity || 0) * Number(li.unitPrice || 0),
+    0,
+  );
+  const invoiceDiscountAmount = subtotal * (Number(invoiceDiscount || 0) / 100);
+  const afterDiscount = subtotal - invoiceDiscountAmount;
+  const totalVat = afterDiscount * vatRateDefault;
+  const total = afterDiscount + totalVat;
+  return {
+    subtotal,
+    totalDiscount: 0,
+    subtotalAfterDiscount: subtotal,
+    invoiceDiscountAmount,
+    subtotalAfterInvoiceDiscount: afterDiscount,
+    totalVat,
+    total,
+  };
+}
+
+function generatePDFHTML(invoice) {
+  // Prefer server-calculated totals; fall back if missing.
+  const totals = {
+    subtotal: invoice.subtotal ?? undefined,
+    totalDiscount: invoice.totalDiscount ?? undefined,
+    subtotalAfterDiscount: invoice.subtotalAfterDiscount ?? undefined,
+    invoiceDiscountAmount: invoice.invoiceDiscountAmount ?? undefined,
+    subtotalAfterInvoiceDiscount: invoice.subtotalAfterInvoiceDiscount ?? undefined,
+    totalVat: invoice.totalVat ?? undefined,
+    total: invoice.total ?? undefined,
+  };
+  const needFallback = Object.values(totals).some((v) => typeof v !== 'number' || Number.isNaN(v));
+  const safeTotals = needFallback
+    ? fallbackTotals(invoice.lineItems, invoice.invoiceDiscount)
+    : totals;
+
+  const isPaid = invoice.status === 'paid';
+  const isOverdue = invoice.status === 'overdue';
+  const numberLabel = invoice.invoiceNumber || `DRAFT-${invoice.id}`;
+
+  return `
   <!DOCTYPE html>
   <html>
   <head>
@@ -134,17 +141,21 @@ function formatDate(d) {
           </tr>
         </thead>
         <tbody>
-          ${(invoice.lineItems || []).map(li => `
+          ${(invoice.lineItems || [])
+            .map(
+              (li) => `
             <tr>
               <td>
                 <div><strong>${li.name || li.title || 'Item'}</strong></div>
                 ${li.description ? `<div style="color:#6b7280; font-size:12px;">${li.description}</div>` : ''}
               </td>
               <td>${li.quantity || 0}</td>
-              <td class="right">${formatCurrency((li.unitPrice || 0), invoice.currency)}</td>
+              <td class="right">${formatCurrency(li.unitPrice || 0, invoice.currency)}</td>
               <td class="right">${formatCurrency((li.quantity || 0) * (li.unitPrice || 0), invoice.currency)}</td>
             </tr>
-          `).join('')}
+          `,
+            )
+            .join('')}
         </tbody>
       </table>
   
@@ -154,11 +165,15 @@ function formatDate(d) {
             <td class="label">Subtotal:</td>
             <td class="amount">${formatCurrency(safeTotals.subtotal, invoice.currency)}</td>
           </tr>
-          ${Number(safeTotals.invoiceDiscountAmount || 0) > 0 ? `
+          ${
+            Number(safeTotals.invoiceDiscountAmount || 0) > 0
+              ? `
           <tr>
             <td class="label">Invoice Discount:</td>
             <td class="amount">-${formatCurrency(safeTotals.invoiceDiscountAmount, invoice.currency)}</td>
-          </tr>` : ''}
+          </tr>`
+              : ''
+          }
           <tr>
             <td class="label">VAT:</td>
             <td class="amount">${formatCurrency(safeTotals.totalVat, invoice.currency)}</td>
@@ -170,11 +185,15 @@ function formatDate(d) {
         </table>
       </div>
   
-      ${invoice.notes ? `
+      ${
+        invoice.notes
+          ? `
         <div class="notes">
           ${invoice.notes}
         </div>
-      ` : ''}
+      `
+          : ''
+      }
   
       <div class="footer">
         <p>Generated on ${formatDate(new Date())}</p>
@@ -184,12 +203,11 @@ function formatDate(d) {
   </body>
   </html>
   `;
-  }
-  
-  module.exports = {
-    generatePDFHTML,
-    formatDate,
-    formatCurrency,
-    fallbackTotals
-  };
-  
+}
+
+module.exports = {
+  generatePDFHTML,
+  formatDate,
+  formatCurrency,
+  fallbackTotals,
+};

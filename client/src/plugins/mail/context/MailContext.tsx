@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from 'react';
 import { useApp } from '@/core/api/AppContext';
 import { mailApi } from '../api/mailApi';
 import type { MailLogEntry, MailSettings } from '../types/mail';
@@ -11,7 +18,11 @@ interface MailContextType {
   loading: boolean;
   openMailPanel: () => void;
   closeMailPanel: () => void;
-  loadHistory: (params?: { limit?: number; offset?: number; pluginSource?: string }) => Promise<void>;
+  loadHistory: (params?: {
+    limit?: number;
+    offset?: number;
+    pluginSource?: string;
+  }) => Promise<void>;
   pushMailEntry: (entry: MailLogEntry) => void;
   loadSettings: () => Promise<void>;
   testSettings: (data: {
@@ -92,7 +103,7 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         setLoading(false);
       }
     },
-    [isAuthenticated]
+    [isAuthenticated],
   );
 
   const pushMailEntry = useCallback((entry: MailLogEntry) => {

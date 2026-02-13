@@ -52,7 +52,7 @@ class PostgreSQLAdapter extends DatabaseService {
         orderByIndex === -1 ? -1 : orderByIndex,
         groupByIndex === -1 ? -1 : groupByIndex,
         limitIndex === -1 ? -1 : limitIndex,
-        offsetIndex === -1 ? -1 : offsetIndex
+        offsetIndex === -1 ? -1 : offsetIndex,
       );
 
       const whereIndex = upperSql.indexOf(' WHERE ');
@@ -63,7 +63,9 @@ class PostgreSQLAdapter extends DatabaseService {
           return `${sql} WHERE user_id = $${this._getParamCount(sql) + 1}`;
         } else {
           // Has ORDER BY/GROUP BY/LIMIT/OFFSET - insert WHERE before them
-          const insertPos = sql.toUpperCase().indexOf(upperSql.substring(lastClauseIndex, lastClauseIndex + 10));
+          const insertPos = sql
+            .toUpperCase()
+            .indexOf(upperSql.substring(lastClauseIndex, lastClauseIndex + 10));
           const beforeClause = sql.substring(0, insertPos);
           const afterClause = sql.substring(insertPos);
           return `${beforeClause} WHERE user_id = $${this._getParamCount(sql) + 1} ${afterClause}`;
@@ -87,7 +89,7 @@ class PostgreSQLAdapter extends DatabaseService {
           const offsetPos = sql.toUpperCase().indexOf(' OFFSET ');
 
           // Find the earliest clause position
-          const positions = [orderByPos, groupByPos, limitPos, offsetPos].filter(p => p !== -1);
+          const positions = [orderByPos, groupByPos, limitPos, offsetPos].filter((p) => p !== -1);
           if (positions.length > 0) {
             insertPos = Math.min(...positions);
           }
@@ -178,7 +180,7 @@ class PostgreSQLAdapter extends DatabaseService {
       throw new AppError(
         `Parameter count mismatch: expected ${paramCount}, got ${params.length}`,
         400,
-        AppError.CODES.BAD_REQUEST
+        AppError.CODES.BAD_REQUEST,
       );
     }
   }
@@ -236,12 +238,9 @@ class PostgreSQLAdapter extends DatabaseService {
         sql: finalSql.substring(0, 100),
         paramCount: finalParams.length,
       });
-      throw new AppError(
-        'Database query failed',
-        500,
-        AppError.CODES.DATABASE_ERROR,
-        { originalError: error.message }
-      );
+      throw new AppError('Database query failed', 500, AppError.CODES.DATABASE_ERROR, {
+        originalError: error.message,
+      });
     }
   }
 
@@ -306,7 +305,7 @@ class PostgreSQLAdapter extends DatabaseService {
           return val.substring(0, 100) + '... (truncated)';
         }
         return val;
-      })
+      }),
     });
 
     try {
@@ -318,7 +317,7 @@ class PostgreSQLAdapter extends DatabaseService {
         duration,
         table,
         rowCount: result.rows?.length || 0,
-        insertedId: result.rows?.[0]?.id
+        insertedId: result.rows?.[0]?.id,
       });
 
       return result.rows[0];
@@ -339,7 +338,7 @@ class PostgreSQLAdapter extends DatabaseService {
         errorTable: error.table,
         errorColumn: error.column,
         errorConstraint: error.constraint,
-        stackTrace: error.stack?.substring(0, 1000)
+        stackTrace: error.stack?.substring(0, 1000),
       });
 
       // Preserve original PostgreSQL error details
@@ -357,8 +356,8 @@ class PostgreSQLAdapter extends DatabaseService {
           errorDetail: error.detail,
           errorHint: error.hint,
           table: table,
-          constraint: error.constraint
-        }
+          constraint: error.constraint,
+        },
       );
     }
   }
@@ -395,12 +394,9 @@ class PostgreSQLAdapter extends DatabaseService {
         throw error;
       }
       this.logger?.error('Update failed', error, { table, id });
-      throw new AppError(
-        `Failed to update ${table}`,
-        500,
-        AppError.CODES.DATABASE_ERROR,
-        { originalError: error.message }
-      );
+      throw new AppError(`Failed to update ${table}`, 500, AppError.CODES.DATABASE_ERROR, {
+        originalError: error.message,
+      });
     }
   }
 
@@ -429,12 +425,9 @@ class PostgreSQLAdapter extends DatabaseService {
         throw error;
       }
       this.logger?.error('Delete failed', error, { table, id });
-      throw new AppError(
-        `Failed to delete from ${table}`,
-        500,
-        AppError.CODES.DATABASE_ERROR,
-        { originalError: error.message }
-      );
+      throw new AppError(`Failed to delete from ${table}`, 500, AppError.CODES.DATABASE_ERROR, {
+        originalError: error.message,
+      });
     }
   }
 }

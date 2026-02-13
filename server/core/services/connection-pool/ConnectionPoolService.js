@@ -4,10 +4,10 @@
 
 /**
  * ConnectionPoolService - Abstract interface for managing database connection pools
- * 
+ *
  * This service handles the lifecycle of database connection pools for tenants.
  * Different providers implement different pooling strategies:
- * 
+ *
  * - PostgresPoolProvider: Direct pg.Pool management with cleanup
  * - PgBouncerProvider: External connection pooler
  * - SupabasePoolProvider: Supabase Pooler integration

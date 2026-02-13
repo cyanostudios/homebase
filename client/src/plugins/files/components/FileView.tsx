@@ -54,12 +54,17 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
     <DetailLayout
       sidebar={
         <div className="space-y-6">
-          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50 plugin-files">
+          <Card
+            padding="none"
+            className="overflow-hidden border-none shadow-sm bg-background/50 plugin-files"
+          >
             <DetailSection title="Information" className="p-4">
               <div className="space-y-4 text-xs">
                 <div className="flex justify-between items-center group">
                   <span className="text-muted-foreground">Type</span>
-                  <span className="font-medium truncate max-w-[150px]">{f.mimeType || 'application/octet-stream'}</span>
+                  <span className="font-medium truncate max-w-[150px]">
+                    {f.mimeType || 'application/octet-stream'}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center group">
                   <span className="text-muted-foreground">Size</span>
@@ -82,15 +87,21 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
                 <div className="pt-2 mt-2 border-t border-border/50">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">ID</span>
-                    <span className="font-mono font-medium opacity-70">{formatDisplayNumber('files', f.id)}</span>
+                    <span className="font-mono font-medium opacity-70">
+                      {formatDisplayNumber('files', f.id)}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center mt-1">
                     <span className="text-muted-foreground">Created</span>
-                    <span className="font-medium font-mono text-[10px] opacity-70">{f.createdAt ? new Date(f.createdAt).toLocaleDateString() : '—'}</span>
+                    <span className="font-medium font-mono text-[10px] opacity-70">
+                      {f.createdAt ? new Date(f.createdAt).toLocaleDateString() : '—'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center mt-1">
                     <span className="text-muted-foreground">Updated</span>
-                    <span className="font-medium font-mono text-[10px] opacity-70">{f.updatedAt ? new Date(f.updatedAt).toLocaleDateString() : '—'}</span>
+                    <span className="font-medium font-mono text-[10px] opacity-70">
+                      {f.updatedAt ? new Date(f.updatedAt).toLocaleDateString() : '—'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -103,7 +114,10 @@ export const FileView: React.FC<Props> = ({ file, item }) => {
         {/* Preview Area */}
         {f.url ? (
           <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title={isImage ? "Image Preview" : isPdf ? "PDF Preview" : "File Content"} className="p-6">
+            <DetailSection
+              title={isImage ? 'Image Preview' : isPdf ? 'PDF Preview' : 'File Content'}
+              className="p-6"
+            >
               {isImage ? (
                 <div className="rounded-lg overflow-hidden border border-border/50 shadow-inner bg-muted/20 flex items-center justify-center min-h-[200px]">
                   <img src={f.url} alt={f.name || 'image'} className="max-w-full h-auto" />

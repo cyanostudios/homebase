@@ -1,4 +1,14 @@
-import { ArrowUp, ArrowDown, Trash2, FileSpreadsheet, FileText, Grid3x3, List, Settings, Upload } from 'lucide-react';
+import {
+  ArrowUp,
+  ArrowDown,
+  Trash2,
+  FileSpreadsheet,
+  FileText,
+  Grid3x3,
+  List,
+  Settings,
+  Upload,
+} from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -50,6 +60,7 @@ export const NoteList: React.FC = () => {
     selectedCount,
     isSelected,
     importNotes,
+    recentlyDuplicatedNoteId,
   } = useNotes();
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -374,7 +385,9 @@ export const NoteList: React.FC = () => {
                     'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent',
                     noteIsSelected
                       ? 'plugin-notes bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
-                      : 'hover:border-plugin-subtle hover:plugin-notes hover:shadow-md'
+                      : 'hover:border-plugin-subtle hover:plugin-notes hover:shadow-md',
+                    recentlyDuplicatedNoteId === String(note.id) &&
+                      'bg-green-50 dark:bg-green-950/30',
                   )}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -551,7 +564,11 @@ export const NoteList: React.FC = () => {
                   return (
                     <TableRow
                       key={note.id}
-                      className="cursor-pointer hover:bg-accent"
+                      className={cn(
+                        'cursor-pointer hover:bg-accent',
+                        recentlyDuplicatedNoteId === String(note.id) &&
+                          'bg-green-50 dark:bg-green-950/30',
+                      )}
                       tabIndex={0}
                       data-list-item={JSON.stringify(note)}
                       data-plugin-name="notes"

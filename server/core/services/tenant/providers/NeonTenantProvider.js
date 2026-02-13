@@ -10,7 +10,7 @@ const path = require('path');
 
 /**
  * NeonTenantProvider - Creates separate Neon projects for each tenant
- * 
+ *
  * Strategy: Database-per-tenant
  * - Each tenant gets their own Neon project
  * - Complete data isolation
@@ -24,7 +24,7 @@ class NeonTenantProvider extends TenantService {
     this.baseUrl = config.baseUrl || 'https://console.neon.tech/api/v2';
     this.region = config.region || 'aws-eu-central-1'; // Frankfurt (closest to Sweden)
     this.mainPool = config.mainPool; // Railway pool for tenant metadata
-    
+
     if (!this.apiKey) {
       throw new Error('NeonTenantProvider requires NEON_API_KEY');
     }
@@ -36,25 +36,25 @@ class NeonTenantProvider extends TenantService {
   async createTenant(userId, userEmail) {
     try {
       console.log(`🔨 Creating Neon tenant for user ${userId} (${userEmail})`);
-      
+
       // 1. Create Neon project
       const projectName = `homebase-tenant-${userId}`;
       const project = await this._createNeonProject(projectName);
-      
+
       // 2. Get default database connection string
       const connectionString = project.connection_uris[0].connection_uri;
-      
+
       // 3. Run migrations on new database
       await this._runMigrations(connectionString);
-      
+
       const result = {
         projectId: project.project.id,
         databaseName: project.databases[0].name,
         connectionString: connectionString,
       };
-      
+
       console.log(`✅ Neon tenant created: ${project.project.id}`);
-      
+
       return result;
     } catch (error) {
       console.error('Failed to create Neon tenant:', error.response?.data || error.message);
@@ -71,28 +71,25 @@ class NeonTenantProvider extends TenantService {
       if (!this.mainPool) {
         throw new Error('mainPool not configured for NeonTenantProvider');
       }
-      
+
       const result = await this.mainPool.query(
         'SELECT neon_project_id FROM tenants WHERE user_id = $1',
-        [userId]
+        [userId],
       );
-      
+
       if (result.rows.length === 0) {
         console.log(`⚠️  No Neon project found for user ${userId}`);
         return;
       }
-      
+
       const projectId = result.rows[0].neon_project_id;
-      
-      await axios.delete(
-        `${this.baseUrl}/projects/${projectId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-          },
-        }
-      );
-      
+
+      await axios.delete(`${this.baseUrl}/projects/${projectId}`, {
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+      });
+
       console.log(`✅ Deleted Neon project: ${projectId}`);
     } catch (error) {
       console.error('Failed to delete Neon project:', error.response?.data || error.message);
@@ -107,16 +104,16 @@ class NeonTenantProvider extends TenantService {
     if (!this.mainPool) {
       throw new Error('mainPool not configured for NeonTenantProvider');
     }
-    
+
     const result = await this.mainPool.query(
       'SELECT neon_connection_string FROM tenants WHERE user_id = $1',
-      [userId]
+      [userId],
     );
-    
+
     if (result.rows.length === 0) {
       throw new Error(`No tenant found for user ${userId}`);
     }
-    
+
     return result.rows[0].neon_connection_string;
   }
 
@@ -125,16 +122,13 @@ class NeonTenantProvider extends TenantService {
    */
   async listTenants() {
     try {
-      const response = await axios.get(
-        `${this.baseUrl}/projects`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-          },
-        }
-      );
-      
-      return response.data.projects.map(p => ({
+      const response = await axios.get(`${this.baseUrl}/projects`, {
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+      });
+
+      return response.data.projects.map((p) => ({
         id: p.id,
         name: p.name,
         region: p.region_id,
@@ -153,12 +147,9 @@ class NeonTenantProvider extends TenantService {
     if (!this.mainPool) {
       throw new Error('mainPool not configured for NeonTenantProvider');
     }
-    
-    const result = await this.mainPool.query(
-      'SELECT 1 FROM tenants WHERE user_id = $1',
-      [userId]
-    );
-    
+
+    const result = await this.mainPool.query('SELECT 1 FROM tenants WHERE user_id = $1', [userId]);
+
     return result.rows.length > 0;
   }
 
@@ -169,16 +160,16 @@ class NeonTenantProvider extends TenantService {
     if (!this.mainPool) {
       throw new Error('mainPool not configured for NeonTenantProvider');
     }
-    
+
     const result = await this.mainPool.query(
       'SELECT neon_project_id, neon_database_name, neon_connection_string FROM tenants WHERE user_id = $1',
-      [userId]
+      [userId],
     );
-    
+
     if (result.rows.length === 0) {
       throw new Error(`No tenant found for user ${userId}`);
     }
-    
+
     return {
       projectId: result.rows[0].neon_project_id,
       databaseName: result.rows[0].neon_database_name,
@@ -203,12 +194,12 @@ class NeonTenantProvider extends TenantService {
       },
       {
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
-      }
+      },
     );
-    
+
     return response.data;
   }
 
@@ -218,19 +209,20 @@ class NeonTenantProvider extends TenantService {
    */
   async _runMigrations(connectionString) {
     const pool = new Pool({ connectionString });
-    
+
     try {
       // Get all migration files
       const migrationsDir = path.join(__dirname, '../../../../migrations');
-      
+
       // Skip if migrations folder doesn't exist
       if (!fs.existsSync(migrationsDir)) {
         console.log('⚠️  No migrations folder found, skipping migrations');
         return;
       }
-      
-      const migrationFiles = fs.readdirSync(migrationsDir)
-        .filter(f => f.endsWith('.sql'))
+
+      const migrationFiles = fs
+        .readdirSync(migrationsDir)
+        .filter((f) => f.endsWith('.sql'))
         .sort();
 
       console.log(`   Running ${migrationFiles.length} migrations...`);

@@ -154,7 +154,7 @@ export function YourItemsProvider({
   const saveYourItem = async (raw: any): Promise<boolean> => {
     const errors = validate(raw);
     setValidationErrors(errors);
-    const blocking = errors.filter(e => !e.message.includes('Warning'));
+    const blocking = errors.filter((e) => !e.message.includes('Warning'));
     if (blocking.length > 0) return false;
 
     try {
@@ -165,7 +165,9 @@ export function YourItemsProvider({
           createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
           updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
         };
-        setYourItems(prev => prev.map(i => (i.id === (currentYourItem as any).id ? normalized : i)));
+        setYourItems((prev) =>
+          prev.map((i) => (i.id === (currentYourItem as any).id ? normalized : i)),
+        );
         setCurrentYourItem(normalized as any);
         setPanelMode('view');
         setValidationErrors([]);
@@ -176,7 +178,7 @@ export function YourItemsProvider({
           createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
           updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
         };
-        setYourItems(prev => [...prev, normalized]);
+        setYourItems((prev) => [...prev, normalized]);
         closeYourItemsPanel();
       }
       return true;
@@ -194,7 +196,7 @@ export function YourItemsProvider({
   const deleteYourItem = async (id: string) => {
     try {
       await api.deleteItem(id);
-      setYourItems(prev => prev.filter(i => i.id !== id));
+      setYourItems((prev) => prev.filter((i) => i.id !== id));
     } catch (err) {
       console.error('Failed to delete your-item:', err);
     }

@@ -178,8 +178,13 @@ export const createPanelHandlers = (
     }
   };
 
+  const handleDuplicateItem = (setShowDuplicateDialog: (show: boolean) => void) => {
+    setShowDuplicateDialog(true);
+  };
+
   return {
     handleDeleteItem,
+    handleDuplicateItem,
     confirmDelete,
     handleSave,
     handleCancel,

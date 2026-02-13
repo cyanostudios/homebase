@@ -17,6 +17,7 @@ import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { createPanelRenderers } from '@/core/rendering/panelRendering';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { Dashboard } from '@/core/ui/Dashboard';
 import { LoginComponent } from '@/core/ui/LoginComponent';
 import { MainLayout } from '@/core/ui/MainLayout';
@@ -131,6 +132,7 @@ function AppContent() {
   // State
   const [isMobileView, setIsMobileView] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
 
   // Initialize currentPage from localStorage, fallback to 'dashboard' (första sidan efter inloggning)
   const [currentPage, setCurrentPage] = useState<NavPage>(() => {
@@ -319,6 +321,7 @@ function AppContent() {
       ...handlers,
       currentPlugin,
       handleDeleteItem: () => handlers.handleDeleteItem(setShowDeleteConfirm),
+      handleDuplicateItem: () => handlers.handleDuplicateItem(setShowDuplicateDialog),
     },
   );
 
@@ -380,6 +383,7 @@ function AppContent() {
         detailPanelContent={detailPanelContent}
         detailPanelFooter={detailPanelFooter}
         onDetailPanelClose={onDetailPanelClose}
+        detailPanelPluginName={currentPlugin?.name}
       >
         {currentPage === 'dashboard' ? (
           <Dashboard onPageChange={handlePageChange} />
@@ -418,6 +422,130 @@ function AppContent() {
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
         variant="warning"
+      />
+
+      {/* Duplicate Dialog */}
+      <DuplicateDialog
+        isOpen={showDuplicateDialog}
+        onConfirm={(newName) => {
+          if (currentPlugin && currentPluginContext && currentItem) {
+            // Skip contacts - they don't support duplicate
+            if (currentPlugin.name === 'contacts') {
+              setShowDuplicateDialog(false);
+              return;
+            }
+
+            // Create a copy of the item with the new name
+            const itemCopy = { ...currentItem };
+
+            // Set the appropriate name field based on plugin
+            if (currentPlugin.name === 'notes' || currentPlugin.name === 'tasks') {
+              itemCopy.title = newName;
+            }
+            // For estimates/invoices, numbers are auto-generated, no name change needed
+
+            // Remove ID and timestamps so it creates a new item
+            delete itemCopy.id;
+            delete itemCopy.createdAt;
+            delete itemCopy.updatedAt;
+
+            // Notes: explicit createNote + close so duplicate always works
+            if (currentPlugin.name === 'notes') {
+              const createNote = currentPluginContext.createNote;
+              const closeNotePanel = currentPluginContext.closeNotePanel;
+              if (typeof createNote === 'function' && typeof closeNotePanel === 'function') {
+                const payload = {
+                  title: itemCopy.title ?? 'Untitled',
+                  content: itemCopy.content ?? '',
+                  mentions: itemCopy.mentions ?? [],
+                };
+                createNote(payload)
+                  .then((newNote) => {
+                    if (newNote?.id !== undefined && newNote?.id !== null) currentPluginContext.setRecentlyDuplicatedNoteId?.(String(newNote.id));
+                    closeNotePanel();
+                    setShowDuplicateDialog(false);
+                  })
+                  .catch((err) => {
+                    setShowDuplicateDialog(false);
+                    alert(err?.message || err?.error || 'Failed to duplicate note.');
+                  });
+              } else {
+                setShowDuplicateDialog(false);
+              }
+              return;
+            }
+
+            // Tasks: explicit createTask + close so duplicate works, then highlight in list
+            if (currentPlugin.name === 'tasks') {
+              const createTask = currentPluginContext.createTask;
+              const closeTaskPanel = currentPluginContext.closeTaskPanel;
+              if (typeof createTask === 'function' && typeof closeTaskPanel === 'function') {
+                const payload = {
+                  title: itemCopy.title ?? 'Untitled',
+                  content: itemCopy.content ?? '',
+                  status: itemCopy.status ?? 'not started',
+                  priority: itemCopy.priority ?? 'Medium',
+                  dueDate: itemCopy.dueDate ?? null,
+                  assignedTo: itemCopy.assignedTo ?? null,
+                  mentions: itemCopy.mentions ?? [],
+                };
+                createTask(payload)
+                  .then((newTask) => {
+                    if (newTask?.id !== undefined && newTask?.id !== null) currentPluginContext.setRecentlyDuplicatedTaskId?.(String(newTask.id));
+                    closeTaskPanel();
+                    setShowDuplicateDialog(false);
+                  })
+                  .catch((err) => {
+                    setShowDuplicateDialog(false);
+                    alert(err?.message || err?.error || 'Failed to duplicate task.');
+                  });
+              } else {
+                setShowDuplicateDialog(false);
+              }
+              return;
+            }
+
+            // Other plugins: resolve create/close by naming convention
+            const pluginNameSingular = currentPlugin.name.endsWith('s')
+              ? currentPlugin.name.slice(0, -1)
+              : currentPlugin.name;
+            const createFnName = `create${pluginNameSingular.charAt(0).toUpperCase() + pluginNameSingular.slice(1)}`;
+            const closeFnName = `close${pluginNameSingular.charAt(0).toUpperCase() + pluginNameSingular.slice(1)}Panel`;
+            const createFn = currentPluginContext[createFnName];
+            const closeFn = currentPluginContext[closeFnName];
+
+            if (createFn && closeFn) {
+              createFn(itemCopy)
+                .then(() => {
+                  closeFn();
+                  setShowDuplicateDialog(false);
+                })
+                .catch((err) => {
+                  setShowDuplicateDialog(false);
+                  alert(err?.message || err?.error || 'Failed to duplicate.');
+                });
+            } else {
+              console.warn(`Create or close function not found for plugin: ${currentPlugin.name}`);
+              setShowDuplicateDialog(false);
+            }
+          }
+        }}
+        onCancel={() => setShowDuplicateDialog(false)}
+        defaultName={
+          currentItem && currentPlugin && currentPlugin.name !== 'contacts'
+            ? (currentPlugin.name === 'notes' || currentPlugin.name === 'tasks')
+              ? `Copy of ${currentItem.title || 'Item'}`
+              : ''
+            : ''
+        }
+        nameLabel={
+          (currentPlugin?.name === 'notes' || currentPlugin?.name === 'tasks')
+            ? 'Title'
+            : 'Name'
+        }
+        confirmOnly={
+          currentPlugin?.name === 'estimates' || currentPlugin?.name === 'invoices'
+        }
       />
     </>
   );

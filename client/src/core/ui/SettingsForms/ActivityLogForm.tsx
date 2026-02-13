@@ -231,9 +231,7 @@ export function ActivityLogForm({ onCancel }: ActivityLogFormProps) {
                             {formatValue(log.action)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm">
-                          {formatValue(log.entityType)}
-                        </TableCell>
+                        <TableCell className="text-sm">{formatValue(log.entityType)}</TableCell>
                         <TableCell className="text-sm">
                           {log.entityName || <span className="text-muted-foreground">—</span>}
                         </TableCell>
@@ -278,18 +276,19 @@ export function ActivityLogForm({ onCancel }: ActivityLogFormProps) {
                                   {log.metadata.exportFormat}
                                 </div>
                               )}
-                              {(log.metadata.backup || log.metadata.backups) && log.action === 'delete' && (
-                                <div className="pt-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-xs border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
-                                    onClick={() => handleRestore(log)}
-                                  >
-                                    Restore {formatValue(log.entityType)}
-                                  </Button>
-                                </div>
-                              )}
+                              {(log.metadata.backup || log.metadata.backups) &&
+                                log.action === 'delete' && (
+                                  <div className="pt-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-xs border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                                      onClick={() => handleRestore(log)}
+                                    >
+                                      Restore {formatValue(log.entityType)}
+                                    </Button>
+                                  </div>
+                                )}
                             </div>
                           </TableCell>
                         </TableRow>

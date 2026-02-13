@@ -21,16 +21,16 @@ router.get('/health', async (req, res) => {
     // Get services
     const database = ServiceManager.get('database');
     const connectionPool = ServiceManager.get('connectionPool');
-    
+
     // Test database connection
     await database.query('SELECT 1');
-    
+
     // Get loaded plugins
     const loadedPlugins = pluginLoaderInstance ? pluginLoaderInstance.getAllPlugins() : [];
-    
+
     // Get pool statistics
     const poolStats = connectionPool.getPoolStats();
-    
+
     res.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),

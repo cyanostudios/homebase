@@ -27,6 +27,7 @@ NEON_API_KEY=din_neon_api_key_här
 ```
 
 **Exempel:**
+
 ```bash
 NEON_API_KEY=neon_api_key_abc123xyz789...
 ```
@@ -62,8 +63,8 @@ Om du redan har användare med Neon-databaser som skapades manuellt:
 
 ```sql
 -- Uppdatera befintlig användare med Neon connection string
-UPDATE tenants 
-SET 
+UPDATE tenants
+SET
   neon_connection_string = 'postgresql://user:password@host.neon.tech/dbname',
   neon_database_name = 'databasnamn',
   neon_project_id = 'projekt-id'
@@ -92,6 +93,7 @@ node scripts/create-test-user.js
 ```
 
 Detta kommer nu att:
+
 - ✅ Skapa användare
 - ✅ Skapa Neon-databas automatiskt
 - ✅ Köra migrations
@@ -117,6 +119,7 @@ Body: {
 ### Problem: "Failed to create tenant database"
 
 **Möjliga orsaker:**
+
 1. Ogiltig API-nyckel - kontrollera att du kopierade hela nyckeln
 2. API-nyckeln har inte rätt behörigheter - skapa en ny med full access
 3. Rate limiting - vänta några sekunder och försök igen
@@ -129,12 +132,14 @@ Body: {
 ## Neon API Limits
 
 Neon har vissa begränsningar:
+
 - **Free tier:** Begränsat antal projekt/databaser
 - **API rate limits:** Kontrollera Neon's dokumentation för aktuella limits
 
 ## Säkerhet
 
 ⚠️ **Viktigt:**
+
 - **Lägg ALDRIG `NEON_API_KEY` i Git**
 - `.env.local` är redan i `.gitignore`
 - Använd olika API-nycklar för development och production

@@ -7,7 +7,8 @@ class ResendAdapter {
   constructor(config = {}) {
     const resend = config.resend || {};
     this.apiKey = resend.apiKey || process.env.RESEND_API_KEY;
-    this.from = resend.from || process.env.RESEND_FROM || process.env.SMTP_FROM || 'noreply@homebase.se';
+    this.from =
+      resend.from || process.env.RESEND_FROM || process.env.SMTP_FROM || 'noreply@homebase.se';
 
     if (!this.apiKey) {
       throw new Error('Resend API key is required. Set RESEND_API_KEY or configure in services.');

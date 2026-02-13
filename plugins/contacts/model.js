@@ -61,6 +61,7 @@ class ContactModel {
         currency: contactData.currency || '',
         f_tax: contactData.fTax || '',
         notes: contactData.notes || '',
+        is_assignable: contactData.isAssignable !== undefined ? contactData.isAssignable : true,
       });
 
       Logger.info('Contact created', { contactId: result.id });
@@ -109,6 +110,7 @@ class ContactModel {
         currency: contactData.currency || '',
         f_tax: contactData.fTax || '',
         notes: contactData.notes || '',
+        is_assignable: contactData.isAssignable !== undefined ? contactData.isAssignable : true,
       });
 
       Logger.info('Contact updated', { contactId });
@@ -198,6 +200,7 @@ class ContactModel {
       currency: row.currency || '',
       fTax: row.f_tax || '',
       notes: row.notes || '',
+      isAssignable: row.is_assignable !== false, // Default to true if null/undefined
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

@@ -106,9 +106,7 @@ export function SettingsList({ onCategoryClick }: SettingsListProps) {
                   <Icon className="w-8 h-8" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-foreground mb-1">
-                    {category.label}
-                  </h3>
+                  <h3 className="text-base font-semibold text-foreground mb-1">{category.label}</h3>
                   <p className="text-sm text-muted-foreground line-clamp-2">
                     {category.description}
                   </p>

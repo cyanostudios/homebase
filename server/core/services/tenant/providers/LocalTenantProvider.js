@@ -9,7 +9,7 @@ const path = require('path');
 
 /**
  * LocalTenantProvider - Creates separate schemas for each tenant in local Postgres
- * 
+ *
  * Strategy: Schema-per-tenant
  * - Each tenant gets their own schema in the same database
  * - Good data isolation with lower overhead
@@ -21,7 +21,7 @@ class LocalTenantProvider extends TenantService {
     super();
     this.connectionString = config.connectionString || process.env.DATABASE_URL;
     this.mainPool = config.mainPool || new Pool({ connectionString: this.connectionString });
-    
+
     if (!this.connectionString) {
       throw new Error('LocalTenantProvider requires DATABASE_URL');
     }
@@ -33,26 +33,26 @@ class LocalTenantProvider extends TenantService {
   async createTenant(userId, userEmail) {
     try {
       console.log(`🔨 Creating local tenant schema for user ${userId} (${userEmail})`);
-      
+
       const schemaName = `tenant_${userId}`;
       const client = await this.mainPool.connect();
-      
+
       try {
         // 1. Create schema
         await client.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
         console.log(`   Created schema: ${schemaName}`);
-        
+
         // 2. Set search path to new schema
         await client.query(`SET search_path TO ${schemaName}`);
-        
+
         // 3. Run migrations in the schema
         await this._runMigrations(client, schemaName);
-        
+
         // 4. Create connection string with schema
         const tenantConnectionString = `${this.connectionString}?options=-csearch_path%3D${schemaName}`;
-        
+
         console.log(`✅ Local tenant created: ${schemaName}`);
-        
+
         return {
           projectId: schemaName, // Use schema name as project ID
           databaseName: schemaName,
@@ -73,9 +73,9 @@ class LocalTenantProvider extends TenantService {
   async deleteTenant(userId) {
     try {
       const schemaName = `tenant_${userId}`;
-      
+
       await this.mainPool.query(`DROP SCHEMA IF EXISTS ${schemaName} CASCADE`);
-      
+
       console.log(`✅ Deleted local tenant schema: ${schemaName}`);
     } catch (error) {
       console.error('Failed to delete local tenant:', error.message);
@@ -88,17 +88,17 @@ class LocalTenantProvider extends TenantService {
    */
   async getTenantConnection(userId) {
     const schemaName = `tenant_${userId}`;
-    
+
     // Check if schema exists
     const result = await this.mainPool.query(
       `SELECT schema_name FROM information_schema.schemata WHERE schema_name = $1`,
-      [schemaName]
+      [schemaName],
     );
-    
+
     if (result.rows.length === 0) {
       throw new Error(`No tenant schema found for user ${userId}`);
     }
-    
+
     return `${this.connectionString}?options=-csearch_path%3D${schemaName}`;
   }
 
@@ -112,8 +112,8 @@ class LocalTenantProvider extends TenantService {
       WHERE schema_name LIKE 'tenant_%'
       ORDER BY schema_name
     `);
-    
-    return result.rows.map(row => {
+
+    return result.rows.map((row) => {
       const userId = parseInt(row.schema_name.replace('tenant_', ''));
       return {
         id: row.schema_name,
@@ -129,12 +129,12 @@ class LocalTenantProvider extends TenantService {
    */
   async tenantExists(userId) {
     const schemaName = `tenant_${userId}`;
-    
+
     const result = await this.mainPool.query(
       `SELECT 1 FROM information_schema.schemata WHERE schema_name = $1`,
-      [schemaName]
+      [schemaName],
     );
-    
+
     return result.rows.length > 0;
   }
 
@@ -143,16 +143,16 @@ class LocalTenantProvider extends TenantService {
    */
   async getTenantMetadata(userId) {
     const schemaName = `tenant_${userId}`;
-    
+
     const result = await this.mainPool.query(
       `SELECT schema_name FROM information_schema.schemata WHERE schema_name = $1`,
-      [schemaName]
+      [schemaName],
     );
-    
+
     if (result.rows.length === 0) {
       throw new Error(`No tenant schema found for user ${userId}`);
     }
-    
+
     return {
       projectId: schemaName,
       databaseName: schemaName,
@@ -170,15 +170,16 @@ class LocalTenantProvider extends TenantService {
     try {
       // Get all migration files
       const migrationsDir = path.join(__dirname, '../../../../migrations');
-      
+
       // Skip if migrations folder doesn't exist
       if (!fs.existsSync(migrationsDir)) {
         console.log('⚠️  No migrations folder found, skipping migrations');
         return;
       }
-      
-      const migrationFiles = fs.readdirSync(migrationsDir)
-        .filter(f => f.endsWith('.sql'))
+
+      const migrationFiles = fs
+        .readdirSync(migrationsDir)
+        .filter((f) => f.endsWith('.sql'))
         .sort();
 
       console.log(`   Running ${migrationFiles.length} migrations in ${schemaName}...`);
@@ -186,7 +187,7 @@ class LocalTenantProvider extends TenantService {
       for (const file of migrationFiles) {
         const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
         console.log(`   Executing migration: ${file}`);
-        
+
         // Execute in the tenant schema
         await client.query(`SET search_path TO ${schemaName}`);
         await client.query(sql);

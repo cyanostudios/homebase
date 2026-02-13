@@ -87,7 +87,9 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
         authUser: authUser.trim(),
         authPass: authPass.trim() || undefined,
         fromAddress: fromAddress.trim() || smtpDefaults.fromAddress,
-        resendApiKey: resendApiKey.startsWith('••••') ? undefined : resendApiKey.trim() || undefined,
+        resendApiKey: resendApiKey.startsWith('••••')
+          ? undefined
+          : resendApiKey.trim() || undefined,
         resendFromAddress: resendFromAddress.trim() || undefined,
       });
       closeMailPanel();
@@ -97,8 +99,17 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
       setSaving(false);
     }
   }, [
-    provider, host, port, secure, authUser, authPass, fromAddress,
-    resendApiKey, resendFromAddress, saveSettings, closeMailPanel,
+    provider,
+    host,
+    port,
+    secure,
+    authUser,
+    authPass,
+    fromAddress,
+    resendApiKey,
+    resendFromAddress,
+    saveSettings,
+    closeMailPanel,
   ]);
 
   useEffect(() => {
@@ -194,7 +205,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
                       'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
                       settings.provider === 'resend'
                         ? 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle'
-                        : 'bg-muted text-muted-foreground'
+                        : 'bg-muted text-muted-foreground',
                     )}
                   >
                     Resend{settings.provider === 'resend' ? ' • Aktiv' : ''}
@@ -206,7 +217,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
                       'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
                       settings.provider === 'smtp'
                         ? 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle'
-                        : 'bg-muted text-muted-foreground'
+                        : 'bg-muted text-muted-foreground',
                     )}
                   >
                     SMTP{settings.provider === 'smtp' ? ' • Aktiv' : ''}
@@ -306,7 +317,9 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
                 type="password"
                 value={authPass}
                 onChange={(e) => setAuthPass(e.target.value)}
-                placeholder={settings?.smtp?.hasPassword ? 'Lämna tomt för att behålla befintligt' : ''}
+                placeholder={
+                  settings?.smtp?.hasPassword ? 'Lämna tomt för att behålla befintligt' : ''
+                }
                 autoComplete="new-password"
               />
             </div>
@@ -324,7 +337,9 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
         )}
 
         {error && <p className="text-sm text-destructive mt-2">{error}</p>}
-        {testSuccess && <p className="text-sm text-green-600 dark:text-green-400 mt-2">{testSuccess}</p>}
+        {testSuccess && (
+          <p className="text-sm text-green-600 dark:text-green-400 mt-2">{testSuccess}</p>
+        )}
 
         {/* Test section */}
         <div className="pt-4 mt-4 border-t border-border space-y-3">

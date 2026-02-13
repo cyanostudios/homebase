@@ -169,7 +169,8 @@ class MailModel {
       const secure = !!data.secure;
       const authUser = data.authUser != null ? String(data.authUser).trim() : '';
       const fromAddress = String(data.fromAddress || 'noreply@homebase.se').trim();
-      const resendFromAddress = data.resendFromAddress != null ? String(data.resendFromAddress).trim() : null;
+      const resendFromAddress =
+        data.resendFromAddress != null ? String(data.resendFromAddress).trim() : null;
 
       const existing = await db.query(
         `SELECT id FROM ${SETTINGS_TABLE} WHERE user_id = $1 LIMIT 1`,
@@ -190,7 +191,11 @@ class MailModel {
         if (data.authPass != null && String(data.authPass).trim() !== '') {
           updateData.auth_pass = String(data.authPass).trim();
         }
-        if (data.resendApiKey != null && String(data.resendApiKey).trim() !== '' && !String(data.resendApiKey).startsWith('••••')) {
+        if (
+          data.resendApiKey != null &&
+          String(data.resendApiKey).trim() !== '' &&
+          !String(data.resendApiKey).startsWith('••••')
+        ) {
           updateData.resend_api_key = String(data.resendApiKey).trim();
         }
         await db.update(SETTINGS_TABLE, existing[0].id, updateData);
@@ -203,9 +208,17 @@ class MailModel {
         port,
         secure,
         auth_user: authUser,
-        auth_pass: data.authPass != null && String(data.authPass).trim() !== '' ? String(data.authPass).trim() : null,
+        auth_pass:
+          data.authPass != null && String(data.authPass).trim() !== ''
+            ? String(data.authPass).trim()
+            : null,
         from_address: fromAddress,
-        resend_api_key: data.resendApiKey != null && String(data.resendApiKey).trim() !== '' && !String(data.resendApiKey).startsWith('••••') ? String(data.resendApiKey).trim() : null,
+        resend_api_key:
+          data.resendApiKey != null &&
+          String(data.resendApiKey).trim() !== '' &&
+          !String(data.resendApiKey).startsWith('••••')
+            ? String(data.resendApiKey).trim()
+            : null,
         resend_from_address: resendFromAddress || null,
         created_at: now,
         updated_at: now,

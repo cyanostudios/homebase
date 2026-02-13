@@ -57,7 +57,7 @@ export function ContactProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: ContactProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData } = useApp();
 
   // Panel states
   const [isContactPanelOpen, setIsContactPanelOpen] = useState(false);
@@ -295,6 +295,9 @@ export function ContactProvider({
         closeContactPanel();
       }
 
+      // Refresh global data to update other plugins (e.g. TaskForm assignee list)
+      await refreshData();
+
       return true;
     } catch (error: any) {
       console.error('Failed to save contact:', error);
@@ -331,6 +334,7 @@ export function ContactProvider({
     try {
       await contactsApi.deleteContact(id);
       setContacts((prev) => prev.filter((c) => c.id !== id));
+      await refreshData();
     } catch (error: any) {
       console.error('Failed to delete contact:', error);
       // V2: Handle standardized error format
@@ -356,6 +360,7 @@ export function ContactProvider({
       setContacts((prev) => prev.filter((c) => !uniqueIds.includes(String(c.id))));
       // Clear selection after successful delete
       clearContactSelectionCore();
+      await refreshData();
     } catch (error: any) {
       console.error('Bulk delete failed:', error);
       const errorMessage = error?.message || error?.error || 'Failed to delete contacts';
@@ -410,7 +415,9 @@ export function ContactProvider({
       return (
         <div className="flex items-center gap-2">
           <Icon className="w-4 h-4" style={{ color: iconColor }} />
-          <Badge variant="outline" className={cn('font-medium', badgeColor)}>{badgeText}</Badge>
+          <Badge variant="outline" className={cn('font-medium', badgeColor)}>
+            {badgeText}
+          </Badge>
         </div>
       );
     }

@@ -7,6 +7,7 @@ The V3 architecture introduces the **Action Registry** pattern to solve the prob
 ## The Problem
 
 In V2, plugins often imported each other's contexts directly:
+
 ```ts
 // ❌ Circular Dependency Risk
 import { useTasks } from '@/plugins/tasks/context/TaskContext';
@@ -17,13 +18,15 @@ If `TaskContext` also imported `NoteContext`, the app would crash or behave unpr
 ## The Solution: Action Registry (`ActionContext`)
 
 The `ActionContext` acts as a neutral "marketplace" in the Core layer.
+
 1.  **Core:** Provides the registry methods (`registerAction`, `getActions`).
 2.  **Providers:** Plugins register their capabilities when they mount.
-3.  **Consumers:** Plugins ask for capabilities by ID, without knowing *who* provides them.
+3.  **Consumers:** Plugins ask for capabilities by ID, without knowing _who_ provides them.
 
 ### 1. Registering an Action (Provider)
 
 In `TaskContext.tsx`:
+
 ```tsx
 const { registerAction, unregisterAction } = usePluginActions();
 
@@ -38,7 +41,7 @@ useEffect(() => {
     order: 10,
     onClick: (note) => {
       // Logic to open task panel with note data
-    }
+    },
   });
 
   return () => unregisterAction('create-task-from-note');
@@ -48,15 +51,16 @@ useEffect(() => {
 ### 2. Consuming Actions (Consumer)
 
 In `NoteContext.tsx`:
+
 ```tsx
 const pluginActions = usePluginActions('note'); // Get actions relevant to 'note' entities
 
 // Render them dynamically
-{pluginActions.map(action => (
-  <Button onClick={() => action.onClick(currentNote)}>
-    {action.label}
-  </Button>
-))}
+{
+  pluginActions.map((action) => (
+    <Button onClick={() => action.onClick(currentNote)}>{action.label}</Button>
+  ));
+}
 ```
 
 ## Benefits
@@ -67,6 +71,6 @@ const pluginActions = usePluginActions('note'); // Get actions relevant to 'note
 
 ## Best Practices
 
--   **Unregister:** Always return a cleanup function to unregister actions.
--   **Stable References:** Use `useCallback` for `onClick` handlers to prevent re-registration loops.
--   **Unique IDs:** Use descriptive IDs like `create-entity-from-source`.
+- **Unregister:** Always return a cleanup function to unregister actions.
+- **Stable References:** Use `useCallback` for `onClick` handlers to prevent re-registration loops.
+- **Unique IDs:** Use descriptive IDs like `create-entity-from-source`.

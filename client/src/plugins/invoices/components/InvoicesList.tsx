@@ -174,7 +174,11 @@ export function InvoicesList() {
     const colorClass = typeColors[type as keyof typeof typeColors] || typeColors.invoice;
     const label = typeLabels[type as keyof typeof typeLabels] || 'Faktura';
 
-    return <Badge variant="outline" className={colorClass}>{label}</Badge>;
+    return (
+      <Badge variant="outline" className={colorClass}>
+        {label}
+      </Badge>
+    );
   };
 
   const handleBulkDelete = async () => {

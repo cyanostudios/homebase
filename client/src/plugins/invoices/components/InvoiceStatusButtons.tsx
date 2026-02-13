@@ -35,8 +35,9 @@ export function InvoiceStatusButtons({ invoice, onStatusChange }: InvoiceStatusB
               size="sm"
               onClick={() => !isActive && onStatusChange(status)}
               disabled={isActive}
-              className={`h-7 px-3 text-[10px] uppercase font-bold tracking-tight ${isActive ? 'opacity-100' : ''
-                }`}
+              className={`h-7 px-3 text-[10px] uppercase font-bold tracking-tight ${
+                isActive ? 'opacity-100' : ''
+              }`}
             >
               {status}
             </Button>

@@ -29,9 +29,10 @@ async function getEmailServiceForUser(req) {
         port: userSettings.port,
         secure: userSettings.secure,
         from: userSettings.fromAddress,
-        auth: (userSettings.authUser && userSettings.authPass)
-          ? { user: userSettings.authUser, pass: userSettings.authPass }
-          : undefined,
+        auth:
+          userSettings.authUser && userSettings.authPass
+            ? { user: userSettings.authUser, pass: userSettings.authPass }
+            : undefined,
       },
     });
   }

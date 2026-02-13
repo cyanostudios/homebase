@@ -32,7 +32,7 @@ function errorHandler(error, req, res, next) {
     method: req.method,
     userId: req.session?.user?.id,
   });
-  
+
   logger.error('Request failed', error, {
     userId: req.session?.user?.id,
     path: req.path,
@@ -66,7 +66,7 @@ function errorHandler(error, req, res, next) {
   // Handle unknown errors
   // In development, show more details for debugging
   const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
-  
+
   // Always log full error to console for debugging
   console.error('=== ERROR HANDLER ===');
   console.error('Error:', error);
@@ -75,7 +75,7 @@ function errorHandler(error, req, res, next) {
   console.error('Path:', req.path);
   console.error('Method:', req.method);
   console.error('====================');
-  
+
   res.status(500).json({
     error: 'Internal server error',
     code: 'INTERNAL_ERROR',

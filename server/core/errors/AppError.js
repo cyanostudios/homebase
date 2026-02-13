@@ -9,7 +9,7 @@ class AppError extends Error {
     this.code = code;
     this.details = details;
     this.isOperational = true; // Mark as operational error (expected, handled)
-    
+
     // Capture stack trace
     Error.captureStackTrace(this, this.constructor);
   }
@@ -32,7 +32,7 @@ AppError.CODES = {
   NOT_FOUND: 'NOT_FOUND',
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   CONFLICT: 'CONFLICT',
-  
+
   // Server errors (5xx)
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   DATABASE_ERROR: 'DATABASE_ERROR',

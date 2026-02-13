@@ -49,7 +49,7 @@ const logger = ServiceManager.get('logger');
 // Use database service
 const contacts = await database.query(
   'SELECT * FROM contacts WHERE id = $1',
-  [contactId]
+  [contactId],
   // user_id filter automatically added
 );
 ```
@@ -70,13 +70,17 @@ if (!contact) {
 ```javascript
 const { commonRules, validateRequest } = require('./server/core/middleware/validation');
 
-router.post('/contacts', [
-  requireAuth(),
-  commonRules.string('companyName', 1, 255),
-  commonRules.email('email'),
-  commonRules.optionalString('phone'),
-  validateRequest,
-], controller.createContact);
+router.post(
+  '/contacts',
+  [
+    requireAuth(),
+    commonRules.string('companyName', 1, 255),
+    commonRules.email('email'),
+    commonRules.optionalString('phone'),
+    validateRequest,
+  ],
+  controller.createContact,
+);
 ```
 
 ### CSRF Protection

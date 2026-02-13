@@ -96,6 +96,7 @@ npm run build
 ```
 
 This will:
+
 - Build the frontend (Vite)
 - Compile TypeScript server code
 - Copy static assets
@@ -157,11 +158,13 @@ node scripts/setup-database.js
 ### Heroku
 
 1. **Create App**
+
    ```bash
    heroku create your-app-name
    ```
 
 2. **Set Environment Variables**
+
    ```bash
    heroku config:set NODE_ENV=production
    heroku config:set DATABASE_URL=your-database-url
@@ -170,6 +173,7 @@ node scripts/setup-database.js
    ```
 
 3. **Deploy**
+
    ```bash
    git push heroku main
    ```
@@ -182,6 +186,7 @@ node scripts/setup-database.js
 ### Docker
 
 1. **Create Dockerfile**
+
    ```dockerfile
    FROM node:22-alpine
    WORKDIR /app
@@ -239,6 +244,7 @@ curl https://your-domain.com/health
 ```
 
 Expected response:
+
 ```json
 {
   "status": "ok",
@@ -275,6 +281,7 @@ Expected response:
 ## Rollback Procedure
 
 1. **Revert Code**
+
    ```bash
    git revert HEAD
    git push
@@ -321,6 +328,7 @@ Expected response:
 ## Support
 
 For issues or questions:
+
 - Check logs: `heroku logs --tail` (Heroku) or platform equivalent
 - Review error tracking (Sentry)
 - Check application health endpoint

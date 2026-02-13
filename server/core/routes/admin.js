@@ -100,7 +100,10 @@ router.post(
         return res.status(400).json({ error: 'userId is required' });
       }
 
-      const { tenantConnectionString, targetUserId } = await adminService.switchTenant(req.session.user, userId);
+      const { tenantConnectionString, targetUserId } = await adminService.switchTenant(
+        req.session.user,
+        userId,
+      );
 
       // Update session with new tenant connection
       req.session.tenantConnectionString = tenantConnectionString;

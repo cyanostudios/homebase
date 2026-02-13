@@ -4,10 +4,10 @@
 
 /**
  * TenantService - Abstract interface for multi-tenancy strategies
- * 
+ *
  * This service handles the creation, deletion, and management of tenant databases.
  * Different providers implement different multi-tenancy strategies:
- * 
+ *
  * - NeonTenantProvider: Database-per-tenant using Neon projects
  * - SupabaseTenantProvider: Database-per-tenant using Supabase projects
  * - LocalTenantProvider: Schema-per-tenant in local Postgres

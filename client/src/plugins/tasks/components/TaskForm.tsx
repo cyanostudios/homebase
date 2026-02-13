@@ -209,8 +209,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     return date.toISOString().split('T')[0];
   };
 
-  // Get assignable contacts (for now, all contacts)
-  const assignableContacts = contacts;
+  // Get assignable contacts
+  const assignableContacts = contacts.filter((contact: any) => contact.isAssignable !== false);
 
   return (
     <div className="space-y-4">

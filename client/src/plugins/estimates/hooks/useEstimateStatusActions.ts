@@ -56,7 +56,8 @@ export function useEstimateStatusActions() {
       }
     } catch (error) {
       console.error('Failed to update status:', error);
-      const msg = error instanceof Error ? error.message : 'Failed to update status. Please try again.';
+      const msg =
+        error instanceof Error ? error.message : 'Failed to update status. Please try again.';
       alert(msg);
     }
   };

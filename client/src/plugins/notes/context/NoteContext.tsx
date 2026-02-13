@@ -1,4 +1,4 @@
-import { CheckSquare, Copy, Download, StickyNote } from 'lucide-react';
+import { CheckSquare, Download, StickyNote } from 'lucide-react';
 import React, {
   createContext,
   useContext,
@@ -35,6 +35,7 @@ interface NoteContextType {
   openNoteSettings: () => void;
   closeNotePanel: () => void;
   saveNote: (noteData: any) => Promise<boolean>;
+  createNote: (noteData: { title: string; content?: string; mentions?: any[] }) => Promise<Note>;
   deleteNote: (id: string) => Promise<void>;
   deleteNotes: (ids: string[]) => Promise<void>;
   duplicateNote: (note: Note) => Promise<void>;
@@ -52,6 +53,9 @@ interface NoteContextType {
   getPanelTitle: (mode: string, item: Note | null, isMobileView: boolean) => any;
   getPanelSubtitle: (mode: string, item: Note | null) => any;
   getDeleteMessage: (item: Note | null) => string;
+  /** ID of note just duplicated; list highlights it until next action. */
+  recentlyDuplicatedNoteId: string | null;
+  setRecentlyDuplicatedNoteId: (id: string | null) => void;
 }
 
 const NoteContext = createContext<NoteContextType | undefined>(undefined);
@@ -74,6 +78,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   // Data state
   const [notes, setNotes] = useState<Note[]>([]);
+  const [recentlyDuplicatedNoteId, setRecentlyDuplicatedNoteId] = useState<string | null>(null);
 
   // Use core bulk selection hook
   const {
@@ -169,6 +174,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const openNotePanel = useCallback(
     (note: Note | null) => {
+      setRecentlyDuplicatedNoteId(null);
       setCurrentNote(note);
       setPanelMode(note ? 'edit' : 'create');
       setIsNotePanelOpen(true);
@@ -180,6 +186,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const openNoteForEdit = useCallback(
     (note: Note) => {
+      setRecentlyDuplicatedNoteId(null);
       setCurrentNote(note);
       setPanelMode('edit');
       setIsNotePanelOpen(true);
@@ -191,6 +198,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const openNoteForView = useCallback(
     (note: Note) => {
+      setRecentlyDuplicatedNoteId(null);
       setCurrentNote(note);
       setPanelMode('view');
       setIsNotePanelOpen(true);
@@ -235,10 +243,10 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
             prev.map((note) =>
               note.id === currentNote.id
                 ? {
-                  ...savedNote,
-                  createdAt: new Date(savedNote.createdAt),
-                  updatedAt: new Date(savedNote.updatedAt),
-                }
+                    ...savedNote,
+                    createdAt: new Date(savedNote.createdAt),
+                    updatedAt: new Date(savedNote.updatedAt),
+                  }
                 : note,
             ),
           );
@@ -293,7 +301,9 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         setValidationErrors(validationErrors);
         return false;
       }
-    }, [currentNote, closeNotePanel, validateNote]);
+    },
+    [currentNote, closeNotePanel, validateNote],
+  );
 
   const deleteNote = useCallback(
     async (id: string) => {
@@ -315,25 +325,30 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         const errorMessage = error?.message || error?.error || 'Failed to delete note';
         alert(errorMessage);
       }
-    }, [isSelected, toggleNoteSelectedCore]);
+    },
+    [isSelected, toggleNoteSelectedCore],
+  );
 
   // Bulk delete using core bulkApi
-  const deleteNotes = useCallback(async (ids: string[]) => {
-    const uniqueIds = Array.from(new Set((ids || []).map(String))).filter(Boolean);
-    if (!uniqueIds.length) {
-      return;
-    }
+  const deleteNotes = useCallback(
+    async (ids: string[]) => {
+      const uniqueIds = Array.from(new Set((ids || []).map(String))).filter(Boolean);
+      if (!uniqueIds.length) {
+        return;
+      }
 
-    try {
-      await bulkApi.bulkDelete('notes', uniqueIds);
-      setNotes((prev) => prev.filter((note) => !uniqueIds.includes(String(note.id))));
-      clearNoteSelectionCore();
-    } catch (error: any) {
-      console.error('Bulk delete failed:', error);
-      const errorMessage = error?.message || error?.error || 'Failed to delete notes';
-      setValidationErrors([{ field: 'general', message: errorMessage }]);
-    }
-  }, [clearNoteSelectionCore]);
+      try {
+        await bulkApi.bulkDelete('notes', uniqueIds);
+        setNotes((prev) => prev.filter((note) => !uniqueIds.includes(String(note.id))));
+        clearNoteSelectionCore();
+      } catch (error: any) {
+        console.error('Bulk delete failed:', error);
+        const errorMessage = error?.message || error?.error || 'Failed to delete notes';
+        setValidationErrors([{ field: 'general', message: errorMessage }]);
+      }
+    },
+    [clearNoteSelectionCore],
+  );
 
   // Selection helpers - wrap core hook functions for backward compatibility
   const toggleNoteSelected = useCallback(
@@ -354,34 +369,45 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     clearNoteSelectionCore();
   }, [clearNoteSelectionCore]);
 
-  const duplicateNote = useCallback(
-    async (originalNote: Note) => {
-      try {
-        const duplicateData = {
-          title: `${originalNote.title} (Copy)`,
-          content: originalNote.content,
-          mentions: originalNote.mentions || [],
-        };
+  const duplicateNote = useCallback(async (originalNote: Note) => {
+    try {
+      const duplicateData = {
+        title: `${originalNote.title} (Copy)`,
+        content: originalNote.content,
+        mentions: originalNote.mentions || [],
+      };
 
-        const newNote = await notesApi.createNote(duplicateData);
+      const newNote = await notesApi.createNote(duplicateData);
 
-        setNotes((prev) => [
-          {
-            ...newNote,
-            createdAt: new Date(newNote.createdAt),
-            updatedAt: new Date(newNote.updatedAt),
-          },
-          ...prev,
-        ]);
+      setNotes((prev) => [
+        {
+          ...newNote,
+          createdAt: new Date(newNote.createdAt),
+          updatedAt: new Date(newNote.updatedAt),
+        },
+        ...prev,
+      ]);
 
-        console.log('Note duplicated successfully');
-      } catch (error: any) {
-        console.error('Failed to duplicate note:', error);
-        // V2: Handle standardized error format
-        const errorMessage =
-          error?.message || error?.error || 'Failed to duplicate note. Please try again.';
-        alert(errorMessage);
-      }
+      console.log('Note duplicated successfully');
+    } catch (error: any) {
+      console.error('Failed to duplicate note:', error);
+      // V2: Handle standardized error format
+      const errorMessage =
+        error?.message || error?.error || 'Failed to duplicate note. Please try again.';
+      alert(errorMessage);
+    }
+  }, []);
+
+  const createNote = useCallback(
+    async (noteData: { title: string; content?: string; mentions?: any[] }): Promise<Note> => {
+      const newNote = await notesApi.createNote(noteData);
+      const noteWithDates = {
+        ...newNote,
+        createdAt: new Date(newNote.createdAt),
+        updatedAt: new Date(newNote.updatedAt),
+      };
+      setNotes((prev) => [noteWithDates, ...prev]);
+      return noteWithDates;
     },
     [],
   );
@@ -446,19 +472,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
               Export
             </Button>
 
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={Copy}
-              onClick={() => {
-                duplicateNote(item);
-                closeNotePanel();
-              }}
-              className="h-7 text-[10px] px-2 shrink-0"
-            >
-              Duplicate
-            </Button>
-
             {/* Render dynamic plugin actions (e.g. "To Task") */}
             {pluginActions.map((action) => (
               <Button
@@ -516,6 +529,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     openNoteSettings,
     closeNotePanel,
     saveNote,
+    createNote,
     deleteNote,
     deleteNotes,
     duplicateNote,
@@ -546,6 +560,9 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
+
+    recentlyDuplicatedNoteId,
+    setRecentlyDuplicatedNoteId,
   };
 
   return <NoteContext.Provider value={value}>{children}</NoteContext.Provider>;
