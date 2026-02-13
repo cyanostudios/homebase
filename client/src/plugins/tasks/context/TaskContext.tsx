@@ -10,14 +10,13 @@ import React, {
 } from 'react';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { useActionRegistry } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { cn } from '@/lib/utils';
 
-import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { tasksApi } from '../api/tasksApi';
 import { Task, ValidationError, formatStatusForDisplay } from '../types/tasks';
 import { getTaskExportBaseFilename, getTasksExportConfig } from '../utils/taskExportConfig';
@@ -46,7 +45,13 @@ interface TaskContextType {
   }) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
   deleteTasks: (ids: string[]) => Promise<void>;
-  duplicateTask: (task: Task) => Promise<void>;
+  getDuplicateConfig: (
+    item: Task | null,
+  ) => { defaultName: string; nameLabel: string; confirmOnly: boolean } | null;
+  executeDuplicate: (
+    item: Task,
+    newName: string,
+  ) => Promise<{ closePanel: () => void; highlightId?: string }>;
   clearValidationErrors: () => void;
   // Bulk selection
   selectedTaskIds: string[];
@@ -108,7 +113,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     } else {
       setTasks([]);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadTasks]);
 
   const closeTaskPanel = useCallback(() => {
     setIsTaskPanelOpen(false);
@@ -433,37 +438,15 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     [currentTask, closeTaskPanel, clearTaskSelectionCore],
   );
 
-  const duplicateTask = useCallback(async (originalTask: Task) => {
-    try {
-      const duplicateData = {
-        title: `${originalTask.title} (Copy)`,
-        content: originalTask.content,
-        status: 'not started' as const,
-        priority: originalTask.priority,
-        dueDate: originalTask.dueDate,
-        assignedTo: originalTask.assignedTo,
-        mentions: originalTask.mentions || [],
-      };
-
-      const newTask = await tasksApi.createTask(duplicateData);
-      setTasks((prev) => [
-        {
-          ...newTask,
-          createdAt: new Date(newTask.createdAt),
-          updatedAt: new Date(newTask.updatedAt),
-          dueDate: newTask.dueDate ? new Date(newTask.dueDate) : null,
-        },
-        ...prev,
-      ]);
-
-      console.log('Task duplicated successfully');
-    } catch (error: any) {
-      console.error('Failed to duplicate task:', error);
-      // V2: Handle standardized error format
-      const errorMessage =
-        error?.message || error?.error || 'Failed to duplicate task. Please try again.';
-      alert(errorMessage);
+  const getDuplicateConfig = useCallback((item: Task | null) => {
+    if (!item) {
+      return null;
     }
+    return {
+      defaultName: `Copy of ${item.title || 'Item'}`,
+      nameLabel: 'Title',
+      confirmOnly: false,
+    };
   }, []);
 
   const createTask = useCallback(
@@ -487,6 +470,28 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       return taskWithDates;
     },
     [],
+  );
+
+  const executeDuplicate = useCallback(
+    async (
+      item: Task,
+      newName: string,
+    ): Promise<{ closePanel: () => void; highlightId?: string }> => {
+      const payload = {
+        title: (newName ?? item.title ?? 'Untitled').trim() || 'Untitled',
+        content: item.content ?? '',
+        status: item.status ?? 'not started',
+        priority: item.priority ?? 'Medium',
+        dueDate: item.dueDate ?? null,
+        assignedTo: item.assignedTo ?? null,
+        mentions: item.mentions ?? [],
+      };
+      const newTask = await createTask(payload);
+      const highlightId =
+        newTask?.id !== undefined && newTask?.id !== null ? String(newTask.id) : undefined;
+      return { closePanel: closeTaskPanel, highlightId };
+    },
+    [createTask, closeTaskPanel],
   );
 
   // NEW: Panel Title Functions (moved from PanelTitles.tsx)
@@ -582,7 +587,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
                   </span>
                 </div>
               )}
-
             </div>
           </div>
         );
@@ -648,7 +652,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     createTask,
     deleteTask,
     deleteTasks,
-    duplicateTask,
+    getDuplicateConfig,
+    executeDuplicate,
     clearValidationErrors,
 
     // Bulk selection

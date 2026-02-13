@@ -1,12 +1,12 @@
-import { User, Copy, Calendar, AlertCircle } from 'lucide-react';
+import { Calendar, AlertCircle } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
-import { DetailSection } from '@/core/ui/DetailSection';
-import { DetailCard } from '@/core/ui/DetailCard';
 import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailSection } from '@/core/ui/DetailSection';
+import { MentionContent } from '@/core/ui/MentionContent';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
@@ -14,11 +14,10 @@ import { useNotes } from '@/plugins/notes/hooks/useNotes';
 
 import { useTasks } from '../hooks/useTasks';
 
-import { MentionContent } from '@/core/ui/MentionContent';
-import { TaskPrioritySelect } from './TaskPrioritySelect';
-import { TaskStatusSelect } from './TaskStatusSelect';
 import { TaskAssigneeSelect } from './TaskAssigneeSelect';
 import { TaskDueDatePicker } from './TaskDueDatePicker';
+import { TaskPrioritySelect } from './TaskPrioritySelect';
+import { TaskStatusSelect } from './TaskStatusSelect';
 
 interface TaskViewProps {
   task: any;
@@ -26,7 +25,7 @@ interface TaskViewProps {
 
 export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
   const { openContactForView } = useContacts();
-  const { closeTaskPanel, duplicateTask, saveTask } = useTasks();
+  const { closeTaskPanel, saveTask } = useTasks();
   const { openNoteForView } = useNotes();
   const { contacts, refreshData } = useApp();
 
@@ -260,8 +259,8 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     }
   };
 
-  const assignedContact = getAssignedContact();
-  const dueDateInfo = formatDueDate(task?.dueDate);
+  const _assignedContact = getAssignedContact();
+  const _dueDateInfo = formatDueDate(task?.dueDate);
 
   if (!task) {
     return null;

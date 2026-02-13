@@ -85,6 +85,10 @@ interface AppContextType {
   registerTasksNavigation: (fn: ((task: Task) => void) | null) => void;
   registerEstimatesNavigation: (fn: ((estimate: Estimate) => void) | null) => void;
 
+  /** Open "Create task from note" dialog (set by AppContent so note detail footer can trigger it). */
+  openToTaskDialog: ((note: Note) => void) | null;
+  registerOpenToTaskDialog: (fn: ((note: Note) => void) | null) => void;
+
   // Close other panels function (typesafe across all registered plugins)
   closeOtherPanels: (except?: PluginNameUnion) => void;
 
@@ -228,6 +232,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
   const registerEstimatesNavigation = useCallback((fn: ((estimate: Estimate) => void) | null) => {
     queueMicrotask(() => setOpenEstimateForView(() => fn ?? undefined));
+  }, []);
+
+  const [openToTaskDialog, setOpenToTaskDialog] = useState<((note: Note) => void) | null>(null);
+  const registerOpenToTaskDialog = useCallback((fn: ((note: Note) => void) | null) => {
+    queueMicrotask(() => setOpenToTaskDialog(() => fn ?? null));
   }, []);
 
   useEffect(() => {
@@ -383,12 +392,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const getNotesForContact = useCallback(
     async (contactId: string): Promise<Note[]> => {
-      if (!user?.plugins?.includes('notes')) return [];
+      if (!user?.plugins?.includes('notes')) {
+        return [];
+      }
       const id = String(contactId);
       return notes.filter(
         (note) =>
-          note.mentions &&
-          note.mentions.some((mention: any) => String(mention.contactId) === id),
+          note.mentions && note.mentions.some((mention: any) => String(mention.contactId) === id),
       );
     },
     [user?.plugins, notes],
@@ -396,15 +406,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const getContactsForNote = useCallback(
     (noteId: string): Contact[] => {
-      if (!user?.plugins?.includes('notes')) return [];
+      if (!user?.plugins?.includes('notes')) {
+        return [];
+      }
       const note = notes.find((n) => String(n.id) === String(noteId));
       if (!note || !note.mentions) {
         return [];
       }
       return note.mentions
-        .map((mention: any) =>
-          contacts.find((c) => String(c.id) === String(mention.contactId)),
-        )
+        .map((mention: any) => contacts.find((c) => String(c.id) === String(mention.contactId)))
         .filter(Boolean) as Contact[];
     },
     [user?.plugins, notes, contacts],
@@ -412,7 +422,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const getEstimatesForContact = useCallback(
     async (contactId: string): Promise<Estimate[]> => {
-      if (!user?.plugins?.includes('estimates')) return [];
+      if (!user?.plugins?.includes('estimates')) {
+        return [];
+      }
       try {
         const estimatesData = await api.getEstimates();
         const transformedEstimates = (estimatesData || []).map((estimate: any) => ({
@@ -434,23 +446,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const getTasksForContact = useCallback(
     async (contactId: string): Promise<Task[]> => {
-      if (!user?.plugins?.includes('tasks')) return [];
+      if (!user?.plugins?.includes('tasks')) {
+        return [];
+      }
       const id = String(contactId);
-      return tasks.filter(
-        (task: Task) => String(task.assignedTo ?? '') === id,
-      );
+      return tasks.filter((task: Task) => String(task.assignedTo ?? '') === id);
     },
     [user?.plugins, tasks],
   );
 
   const getTasksWithMentionsForContact = useCallback(
     async (contactId: string): Promise<Task[]> => {
-      if (!user?.plugins?.includes('tasks')) return [];
+      if (!user?.plugins?.includes('tasks')) {
+        return [];
+      }
       const id = String(contactId);
       return tasks.filter(
         (task: Task) =>
-          task.mentions &&
-          task.mentions.some((mention: any) => String(mention.contactId) === id),
+          task.mentions && task.mentions.some((mention: any) => String(mention.contactId) === id),
       );
     },
     [user?.plugins, tasks],
@@ -505,6 +518,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         registerNotesNavigation,
         registerTasksNavigation,
         registerEstimatesNavigation,
+
+        openToTaskDialog,
+        registerOpenToTaskDialog,
 
         closeOtherPanels,
         registerPanelCloseFunction,

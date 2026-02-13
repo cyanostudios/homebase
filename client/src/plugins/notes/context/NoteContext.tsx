@@ -1,4 +1,3 @@
-import { CheckSquare, StickyNote } from 'lucide-react';
 import React, {
   createContext,
   useContext,
@@ -9,14 +8,12 @@ import React, {
   ReactNode,
 } from 'react';
 
-import { Button } from '@/components/ui/button';
 import { usePluginActions } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
-import { cn } from '@/lib/utils';
-
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
+
 import { notesApi } from '../api/notesApi';
 import { Note, ValidationError } from '../types/notes';
 import { getNoteExportBaseFilename, notesExportConfig } from '../utils/noteExportConfig';
@@ -41,7 +38,13 @@ interface NoteContextType {
   createNote: (noteData: { title: string; content?: string; mentions?: any[] }) => Promise<Note>;
   deleteNote: (id: string) => Promise<void>;
   deleteNotes: (ids: string[]) => Promise<void>;
-  duplicateNote: (note: Note) => Promise<void>;
+  getDuplicateConfig: (
+    item: Note | null,
+  ) => { defaultName: string; nameLabel: string; confirmOnly: boolean } | null;
+  executeDuplicate: (
+    item: Note,
+    newName: string,
+  ) => Promise<{ closePanel: () => void; highlightId?: string }>;
   clearValidationErrors: () => void;
   // Bulk selection
   selectedNoteIds: string[];
@@ -63,6 +66,14 @@ interface NoteContextType {
   exportFormats: ExportFormat[];
   /** Called by PanelFooter to export current item in given format. */
   onExportItem: (format: ExportFormat, item: Note) => void;
+  /** Optional actions shown in detail panel footer (e.g. "To Task") – same style as Delete/Export. */
+  detailFooterActions?: Array<{
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    onClick: (item: Note) => void;
+    className?: string;
+  }>;
 }
 
 const NoteContext = createContext<NoteContextType | undefined>(undefined);
@@ -77,8 +88,8 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const {
     registerPanelCloseFunction,
     unregisterPanelCloseFunction,
-    refreshData,
     registerNotesNavigation,
+    openToTaskDialog,
   } = useApp();
   const pluginActions = usePluginActions('note');
 
@@ -117,7 +128,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     } else {
       setNotes([]);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadNotes]);
 
   // Panel registration
   useEffect(() => {
@@ -395,33 +406,15 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     clearNoteSelectionCore();
   }, [clearNoteSelectionCore]);
 
-  const duplicateNote = useCallback(async (originalNote: Note) => {
-    try {
-      const duplicateData = {
-        title: `${originalNote.title} (Copy)`,
-        content: originalNote.content,
-        mentions: originalNote.mentions || [],
-      };
-
-      const newNote = await notesApi.createNote(duplicateData);
-
-      setNotes((prev) => [
-        {
-          ...newNote,
-          createdAt: new Date(newNote.createdAt),
-          updatedAt: new Date(newNote.updatedAt),
-        },
-        ...prev,
-      ]);
-
-      console.log('Note duplicated successfully');
-    } catch (error: any) {
-      console.error('Failed to duplicate note:', error);
-      // V2: Handle standardized error format
-      const errorMessage =
-        error?.message || error?.error || 'Failed to duplicate note. Please try again.';
-      alert(errorMessage);
+  const getDuplicateConfig = useCallback((item: Note | null) => {
+    if (!item) {
+      return null;
     }
+    return {
+      defaultName: `Copy of ${item.title || 'Item'}`,
+      nameLabel: 'Title',
+      confirmOnly: false,
+    };
   }, []);
 
   const createNote = useCallback(
@@ -436,6 +429,24 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       return noteWithDates;
     },
     [],
+  );
+
+  const executeDuplicate = useCallback(
+    async (
+      item: Note,
+      newName: string,
+    ): Promise<{ closePanel: () => void; highlightId?: string }> => {
+      const payload = {
+        title: (newName ?? item.title ?? 'Untitled').trim() || 'Untitled',
+        content: item.content ?? '',
+        mentions: item.mentions ?? [],
+      };
+      const newNote = await createNote(payload);
+      const highlightId =
+        newNote?.id !== undefined && newNote?.id !== null ? String(newNote.id) : undefined;
+      return { closePanel: closeNotePanel, highlightId };
+    },
+    [createNote, closeNotePanel],
   );
 
   const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
@@ -456,7 +467,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   }, []);
 
-  const convertToTask = useCallback(
+  const _convertToTask = useCallback(
     async (note: Note) => {
       // Find the specific action for task conversion if it exists in pluginActions
       const taskAction = pluginActions.find((a) => a.id === 'create-task-from-note');
@@ -490,27 +501,9 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   };
 
   const getPanelSubtitle = (mode: string, item: Note | null) => {
-    // View mode with item
+    // View mode: no subtitle actions (To Task etc. moved to footer)
     if (mode === 'view' && item) {
-      return (
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
-            {/* Render dynamic plugin actions (e.g. "To Task") */}
-            {pluginActions.map((action) => (
-              <Button
-                key={action.id}
-                variant={action.variant || 'secondary'}
-                size="sm"
-                icon={action.icon}
-                onClick={() => action.onClick(item)}
-                className={cn('h-7 text-[10px] px-2 shrink-0', action.className)}
-              >
-                {action.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-      );
+      return null;
     }
 
     // Non-view modes
@@ -555,7 +548,8 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     createNote,
     deleteNote,
     deleteNotes,
-    duplicateNote,
+    getDuplicateConfig,
+    executeDuplicate,
     clearValidationErrors,
     // Bulk selection
     selectedNoteIds,
@@ -589,6 +583,20 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
     exportFormats,
     onExportItem,
+
+    detailFooterActions: pluginActions.map((action) => ({
+      id: action.id,
+      label: action.label,
+      icon: action.icon,
+      onClick:
+        action.id === 'create-task-from-note' && openToTaskDialog
+          ? (note) => openToTaskDialog(note)
+          : action.onClick,
+      className:
+        action.id === 'create-task-from-note'
+          ? 'h-7 text-[10px] px-2 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30'
+          : 'h-7 text-[10px] px-2',
+    })),
   };
 
   return <NoteContext.Provider value={value}>{children}</NoteContext.Provider>;

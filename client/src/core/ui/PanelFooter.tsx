@@ -53,6 +53,19 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
       typeof onExportItem === 'function',
   );
 
+  const detailFooterActions = currentPluginContext?.detailFooterActions as
+    | Array<{
+        id: string;
+        label: string;
+        icon: React.ComponentType<{ className?: string }>;
+        onClick: (item: any) => void;
+        className?: string;
+      }>
+    | undefined;
+  const hasDetailFooterActions = Boolean(
+    currentItem && Array.isArray(detailFooterActions) && detailFooterActions.length > 0,
+  );
+
   if (currentMode === 'view') {
     return (
       <div className="flex items-center justify-between w-full">
@@ -67,7 +80,10 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
           >
             Delete
           </Button>
-          {currentPlugin?.name !== 'contacts' && (
+          {Boolean(
+            currentPluginContext?.getDuplicateConfig?.(currentItem) ||
+              (currentItem && currentPlugin && currentPlugin.name !== 'contacts'),
+          ) && (
             <Button
               type="button"
               onClick={onDuplicateItem}
@@ -79,6 +95,23 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
               Duplicate
             </Button>
           )}
+          {hasDetailFooterActions &&
+            detailFooterActions!.map((action) => {
+              const Icon = action.icon;
+              return (
+                <Button
+                  key={action.id}
+                  type="button"
+                  onClick={() => action.onClick(currentItem)}
+                  variant="ghost"
+                  size="sm"
+                  icon={Icon}
+                  className={action.className ?? 'h-7 text-[10px] px-2'}
+                >
+                  {action.label}
+                </Button>
+              );
+            })}
           {hasExport &&
             exportFormats!.map((format: string) => (
               <Button
