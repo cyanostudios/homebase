@@ -436,13 +436,13 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       newName: string,
     ): Promise<{ closePanel: () => void; highlightId?: string }> => {
       const payload = {
-        title: (newName ?? item.title ?? 'Untitled').trim() || 'Untitled',
+        title: (newName ?? item.title ?? '').trim() || 'Untitled',
         content: item.content ?? '',
         mentions: item.mentions ?? [],
       };
       const newNote = await createNote(payload);
       const highlightId =
-        newNote?.id !== undefined && newNote?.id !== null ? String(newNote.id) : undefined;
+        newNote?.id !== null && newNote?.id !== undefined ? String(newNote.id) : undefined;
       return { closePanel: closeNotePanel, highlightId };
     },
     [createNote, closeNotePanel],

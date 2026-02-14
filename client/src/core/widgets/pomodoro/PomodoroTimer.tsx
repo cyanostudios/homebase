@@ -148,8 +148,10 @@ export function PomodoroTimer({
             </>
           ) : (
             <>
-              <Timer className="w-4 h-4" />
-              <span className="text-sm font-medium">{timeDisplay}</span>
+              <Timer className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm font-medium tabular-nums min-w-[5ch] text-right">
+                {timeDisplay}
+              </span>
             </>
           )}
         </Button>
@@ -161,7 +163,7 @@ export function PomodoroTimer({
             variant="ghost"
             size="md"
             icon={Play}
-            className="!bg-blue-50 dark:!bg-blue-950/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+            className="!bg-green-50 dark:!bg-green-950/30 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50"
             aria-label="Start timer"
             title="Start timer"
           />
@@ -179,12 +181,12 @@ export function PomodoroTimer({
 
         {/* Expanded panel */}
         {expanded && !showSettings && (
-          <div className="absolute top-full right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg p-4 z-[60]">
+          <div className="absolute top-full right-0 mt-2 w-[320px] min-w-[320px] max-w-[320px] overflow-hidden bg-card border border-border rounded-lg shadow-lg p-4 z-[60] box-border">
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Timer className="w-5 h-5 text-muted-foreground" />
-                <Heading level={3} className="mb-0">
+            <div className="flex items-center justify-between gap-2 mb-4 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 shrink">
+                <Timer className="w-5 h-5 shrink-0 text-muted-foreground" />
+                <Heading level={3} className="mb-0 truncate">
                   Pomodoro Timer
                 </Heading>
               </div>
@@ -276,7 +278,7 @@ export function PomodoroTimer({
 
         {/* Settings-panel i compact-läge */}
         {expanded && showSettings && (
-          <div className="absolute top-full right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg p-4 z-[60]">
+          <div className="absolute top-full right-0 mt-2 w-[320px] min-w-[320px] max-w-[320px] overflow-hidden bg-card border border-border rounded-lg shadow-lg p-4 z-[60] box-border">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -453,7 +455,7 @@ export function PomodoroTimer({
   // Full/expanded vy utanför compact-läget
   if (showSettings) {
     return (
-      <div className="absolute top-full right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg p-4 z-50">
+      <div className="absolute top-full right-0 mt-2 w-[320px] min-w-[320px] max-w-[320px] overflow-hidden bg-card border border-border rounded-lg shadow-lg p-4 z-50 box-border">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -552,7 +554,7 @@ export function PomodoroTimer({
 
   // Expanded vy (timer)
   return (
-    <div className="absolute top-full right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg p-4 z-50">
+    <div className="absolute top-full right-0 mt-2 w-[320px] min-w-[320px] max-w-[320px] overflow-hidden bg-card border border-border rounded-lg shadow-lg p-4 z-50 box-border">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">

@@ -51,7 +51,7 @@ export const createPanelTitles = (
       return '';
     }
 
-    // Only Estimates uses custom title (JSX with contact link + amount); all others use central fallback.
+    // Only Estimates uses custom title (JSX); all others use central title from item.
     if (currentPlugin.name === 'estimates' && pluginContext?.getPanelTitle) {
       return pluginContext.getPanelTitle(
         currentMode,
@@ -115,7 +115,7 @@ export const createPanelTitles = (
       }
     }
 
-    // Generic fallback for unmigrated plugins
+    // Non-view modes: Edit/Create/Settings by plugin name
     const itemType = currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1);
     switch (currentMode) {
       case 'edit':
@@ -201,7 +201,7 @@ export const createPanelTitles = (
       return pluginContext.getDeleteMessage(currentItem);
     }
 
-    // Generic fallback (format display numbers with plugin prefix)
+    // Format display numbers with plugin prefix
     const itemName =
       currentItem.companyName ||
       currentItem.title ||

@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { cn } from '@/lib/utils';
 
 interface TaskAssigneeSelectProps {
   task: any;
@@ -29,9 +30,9 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
         value={task.assignedTo ? String(task.assignedTo) : 'unassigned'}
         onValueChange={(val) => onAssigneeChange(val === 'unassigned' ? null : val)}
       >
-        <SelectTrigger className="h-7 w-[160px] bg-background border-border/50 hover:bg-accent/50 transition-colors shadow-none rounded-md px-2 text-[10px] font-medium">
+        <SelectTrigger className="h-7 w-[120px] bg-background border-border/50 hover:bg-accent/50 transition-colors shadow-none rounded-md px-2 text-[10px] font-medium">
           <SelectValue>
-            <span className={!task.assignedTo ? 'text-muted-foreground italic' : ''}>
+            <span className={cn('block truncate', !task.assignedTo && 'text-muted-foreground')}>
               {displayValue}
             </span>
           </SelectValue>
@@ -39,7 +40,7 @@ export function TaskAssigneeSelect({ task, onAssigneeChange }: TaskAssigneeSelec
         <SelectContent className="rounded-xl border-border/50 shadow-xl min-w-[200px]">
           <SelectItem
             value="unassigned"
-            className="py-2 focus:bg-accent rounded-md text-[10px] italic text-muted-foreground"
+            className="py-2 focus:bg-accent rounded-md text-[10px] text-muted-foreground"
           >
             Not assigned
           </SelectItem>

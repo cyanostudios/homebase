@@ -27,6 +27,26 @@
 
 ## Layout & UI
 
+### Använd aldrig `cn()` eller andra verktyg utan import
+
+❌ **What we did (that didn't work):**
+I en komponent (t.ex. TaskAssigneeSelect) lade vi till `className={cn('block truncate', ...)}` utan att importera `cn` från `@/lib/utils`. Komponenten kraschade vid render (ReferenceError: cn is not defined) och hela appen visade blank skärm.
+
+✅ **What we do instead (that works):**
+
+```tsx
+// ✅ KORREKT – importera cn innan användning
+import { cn } from '@/lib/utils';
+
+// sedan i JSX
+<span className={cn('block truncate', !x && 'text-muted-foreground italic')}>
+```
+
+💡 **Why (lesson learned):**
+Om en referens (funktion/konstant) används men inte är importerad, kastar JavaScript ReferenceError. I React leder det till att komponenten kraschar och användaren får blank skärm. Vid små UI-ändringar (t.ex. lägga till `cn()` för classNames): kontrollera alltid att nödvändiga imports finns i filen.
+
+---
+
 ### Följ befintliga patterns strikt
 
 ❌ **What we did (that didn't work):**

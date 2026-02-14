@@ -128,13 +128,15 @@ export function TopBar({
   onDetailPanelClose,
   detailPanelPluginName,
 }: TopBarProps) {
-  const { user, logout, getSettings } = useApp();
+  const { user, logout, getSettings, settingsVersion } = useApp();
   const { theme, toggleTheme } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
   const [openWidgetId, setOpenWidgetId] = useState<string | null>(null);
   const [profileSettings, setProfileSettings] = useState<{ name?: string; title?: string } | null>(
     null,
   );
+  const [pomodoroClockEnabled, setPomodoroClockEnabled] = useState(true);
+  const [timeTrackingEnabled, setTimeTrackingEnabled] = useState(true);
 
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [currentTenantUserId, setCurrentTenantUserId] = useState<number | null>(null);
@@ -166,6 +168,23 @@ export function TopBar({
       loadProfileSettings();
     }
   }, [user, getSettings]);
+
+  // Load preferences (Pomodoro clock, Time tracking on/off)
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        const prefs = await getSettings('preferences');
+        setPomodoroClockEnabled(prefs?.pomodoroClockEnabled !== false);
+        setTimeTrackingEnabled(prefs?.timeTrackingEnabled !== false);
+      } catch (error) {
+        console.error('Failed to load preferences:', error);
+      }
+    };
+
+    if (user) {
+      loadPreferences();
+    }
+  }, [user, getSettings, settingsVersion]);
 
   const loadCurrentTenant = async () => {
     try {
@@ -275,7 +294,18 @@ export function TopBar({
     setOpenWidgetId(null);
   };
 
-  const topBarWidgets = getTopBarWidgets();
+  const topBarWidgets = useMemo(() => {
+    const all = getTopBarWidgets();
+    return all.filter((w) => {
+      if (w.id === 'pomodoro') {
+        return pomodoroClockEnabled;
+      }
+      if (w.id === 'time-tracking') {
+        return timeTrackingEnabled;
+      }
+      return true;
+    });
+  }, [pomodoroClockEnabled, timeTrackingEnabled]);
 
   return (
     <header className="fixed left-0 right-0 top-0 h-14 bg-background border-b border-border z-40">
@@ -284,11 +314,11 @@ export function TopBar({
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden flex-shrink-0"
+            className="md:hidden flex-shrink-0 h-7 w-7"
             onClick={onOpenMobileNav}
             aria-label="Open navigation"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-4 w-4" />
           </Button>
 
           <div className="hidden md:flex items-center gap-2 ml-8 mr-4 flex-shrink-0">
@@ -306,7 +336,7 @@ export function TopBar({
                     variant="link"
                     type="button"
                     onClick={() => onPageChange('dashboard')}
-                    className="h-auto p-0 text-muted-foreground hover:text-foreground hover:no-underline font-normal"
+                    className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground hover:no-underline font-normal"
                   >
                     Homebase
                   </Button>
@@ -326,15 +356,15 @@ export function TopBar({
                           onPageChange(currentPage);
                         }
                       }}
-                      className="h-auto p-0 hover:no-underline truncate text-sm sm:text-base font-normal"
+                      className="h-auto p-0 hover:no-underline truncate text-xs font-medium text-foreground min-w-0"
                     >
                       {activeBreadcrumbLabel}
                     </Button>
                   </BreadcrumbLink>
                   {detailPanelTitle && onDetailPanelClose && (
-                    <span className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-md border border-primary/20 flex-shrink-0">
-                      <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-primary"></span>
-                      <span className="hidden xs:inline truncate max-w-[100px] sm:max-w-none">
+                    <span className="inline-flex items-center gap-1 sm:gap-1.5 min-w-0 px-1.5 sm:px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-md border border-primary/20">
+                      <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-primary flex-shrink-0"></span>
+                      <span className="truncate max-w-[120px] sm:max-w-[200px]">
                         {detailPanelTitle}
                       </span>
                       <Button
@@ -344,7 +374,7 @@ export function TopBar({
                           e.stopPropagation();
                           onDetailPanelClose();
                         }}
-                        className="ml-0.5 h-5 w-5 p-0 hover:bg-primary/20 rounded transition-colors flex-shrink-0"
+                        className="ml-0.5 h-6 w-6 p-0 hover:bg-primary/20 rounded transition-colors flex-shrink-0"
                         aria-label="Close detail panel"
                       >
                         <X className="h-3 w-3" />
@@ -363,7 +393,7 @@ export function TopBar({
             size="icon"
             onClick={() => setSearchOpen(true)}
             aria-label="Search"
-            className="h-9 w-9 sm:h-10 sm:w-10"
+            className="h-7 w-7"
           >
             <Search className="h-4 w-4" />
           </Button>
@@ -371,7 +401,7 @@ export function TopBar({
             variant="ghost"
             size="icon"
             aria-label="Filter"
-            className="hidden sm:inline-flex h-9 w-9 sm:h-10 sm:w-10"
+            className="hidden sm:inline-flex h-7 w-7"
           >
             <Filter className="h-4 w-4" />
           </Button>
@@ -379,7 +409,7 @@ export function TopBar({
             variant="ghost"
             size="icon"
             aria-label="Notifications"
-            className="hidden md:inline-flex h-9 w-9 sm:h-10 sm:w-10"
+            className="hidden md:inline-flex h-7 w-7"
           >
             <Bell className="h-4 w-4" />
           </Button>
@@ -403,10 +433,10 @@ export function TopBar({
                 variant="ghost"
                 size="icon"
                 aria-label="User menu"
-                className="rounded-full h-9 w-9 sm:h-10 sm:w-10"
+                className="rounded-full h-7 w-7"
               >
                 <div
-                  className={`${getUserColor(user?.email)} text-white text-xs font-semibold rounded-full w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center`}
+                  className={`${getUserColor(user?.email)} text-white text-xs font-semibold rounded-full w-6 h-6 flex items-center justify-center`}
                 >
                   {getUserInitials(profileSettings?.name, user?.email)}
                 </div>

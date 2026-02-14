@@ -601,7 +601,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       newName: string,
     ): Promise<{ closePanel: () => void; highlightId?: string }> => {
       const payload = {
-        title: (newName ?? item.title ?? 'Untitled').trim() || 'Untitled',
+        title: (newName ?? item.title ?? '').trim() || 'Untitled',
         content: item.content ?? '',
         status: item.status ?? 'not started',
         priority: item.priority ?? 'Medium',
@@ -611,7 +611,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       };
       const newTask = await createTask(payload);
       const highlightId =
-        newTask?.id !== undefined && newTask?.id !== null ? String(newTask.id) : undefined;
+        newTask?.id !== null && newTask?.id !== undefined ? String(newTask.id) : undefined;
       return { closePanel: closeTaskPanel, highlightId };
     },
     [createTask, closeTaskPanel],
@@ -651,14 +651,40 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           },
         ];
 
-        // Get assigned contact if exists
-        const dueDate = item.dueDate
-          ? new Date(item.dueDate).toLocaleDateString(undefined, {
+        // Due date: same logic as TaskList (X days overdue / Due today / Due tomorrow / date)
+        const formatDueDateForHeader = (due: Date | string | null) => {
+          if (!due) {
+            return null;
+          }
+          const today = new Date();
+          const dueDate = new Date(due);
+          const diffTime = dueDate.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          if (diffDays < 0) {
+            return {
+              text: `${Math.abs(diffDays)} days overdue`,
+              className: 'text-destructive font-medium',
+            };
+          }
+          if (diffDays === 0) {
+            return {
+              text: 'Due today',
+              className: 'text-orange-600 dark:text-orange-400 font-medium',
+            };
+          }
+          if (diffDays === 1) {
+            return { text: 'Due tomorrow', className: 'text-yellow-600 dark:text-yellow-400' };
+          }
+          return {
+            text: dueDate.toLocaleDateString(undefined, {
               day: 'numeric',
               month: 'short',
               year: 'numeric',
-            })
-          : null;
+            }),
+            className: 'text-muted-foreground',
+          };
+        };
+        const dueDateInfo = formatDueDateForHeader(item.dueDate);
 
         const assignedContact = item.assignedTo
           ? contacts.find((c: any) => {
@@ -671,9 +697,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         return (
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
-              {dueDate && (
-                <span className="text-[10px] text-muted-foreground font-medium shrink-0">
-                  Due: {dueDate}
+              {dueDateInfo && (
+                <span className={cn('text-[10px] font-medium shrink-0', dueDateInfo.className)}>
+                  {dueDateInfo.text}
                 </span>
               )}
               {badges.map((badge) => (

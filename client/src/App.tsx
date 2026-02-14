@@ -140,7 +140,7 @@ function AppContent() {
     mentions?: unknown[];
   } | null>(null);
 
-  // Initialize currentPage from localStorage, fallback to 'dashboard' (första sidan efter inloggning)
+  // Initialize currentPage from localStorage, default 'dashboard'
   const [currentPage, setCurrentPage] = useState<NavPage>(() => {
     const saved = localStorage.getItem('homebase:currentPage');
     return (saved as NavPage) || 'dashboard';
@@ -413,7 +413,7 @@ function AppContent() {
         variant="warning"
       />
 
-      {/* Duplicate Dialog – uses plugin contract (getDuplicateConfig / executeDuplicate) or fallback for estimates/invoices */}
+      {/* Duplicate Dialog – plugin getDuplicateConfig/executeDuplicate or naming-convention for estimates/invoices */}
       <DuplicateDialog
         isOpen={showDuplicateDialog}
         onConfirm={(newName) => {
@@ -426,7 +426,7 @@ function AppContent() {
             executeDuplicate(currentItem, newName)
               .then(({ closePanel, highlightId }: ExecuteDuplicateResult) => {
                 closePanel();
-                if (highlightId !== undefined && highlightId !== null) {
+                if (highlightId !== null && highlightId !== undefined) {
                   if (typeof currentPluginContext.setRecentlyDuplicatedNoteId === 'function') {
                     currentPluginContext.setRecentlyDuplicatedNoteId(highlightId);
                   }
@@ -446,7 +446,7 @@ function AppContent() {
               });
             return;
           }
-          // Fallback: other plugins (estimates, invoices, etc.) by naming convention
+          // Other plugins (estimates, invoices, etc.) by naming convention
           const itemCopy = { ...currentItem };
           delete itemCopy.id;
           delete itemCopy.createdAt;

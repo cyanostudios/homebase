@@ -38,6 +38,8 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
   const [formData, setFormData] = useState({
     timezone: 'Europe/Stockholm',
     language: 'en',
+    pomodoroClockEnabled: true,
+    timeTrackingEnabled: true,
   });
 
   useEffect(() => {
@@ -52,6 +54,8 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
       setFormData({
         timezone: settings?.timezone || 'Europe/Stockholm',
         language: settings?.language || 'en',
+        pomodoroClockEnabled: settings?.pomodoroClockEnabled !== false,
+        timeTrackingEnabled: settings?.timeTrackingEnabled !== false,
       });
     } catch (error) {
       console.error('Failed to load preferences settings:', error);
@@ -66,6 +70,8 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
       await updateSettings('preferences', {
         timezone: formData.timezone,
         language: formData.language,
+        pomodoroClockEnabled: formData.pomodoroClockEnabled,
+        timeTrackingEnabled: formData.timeTrackingEnabled,
       });
       onCancel();
     } catch (error) {
@@ -73,7 +79,15 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
     } finally {
       setIsSaving(false);
     }
-  }, [formData.timezone, formData.language, onCancel, updateSettings, setIsSaving]);
+  }, [
+    formData.timezone,
+    formData.language,
+    formData.pomodoroClockEnabled,
+    formData.timeTrackingEnabled,
+    onCancel,
+    updateSettings,
+    setIsSaving,
+  ]);
 
   useEffect(() => {
     registerSaveHandler(handleSave);
@@ -89,22 +103,69 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
       <Card padding="sm" className="shadow-none px-0">
         <DetailSection title="Preferences">
           <div className="space-y-3">
-            <div>
-              <Label htmlFor="preferences-theme" className="mb-1">
-                Theme
-              </Label>
-              <div className="flex items-center gap-3">
-                <Sun className="w-4 h-4 text-muted-foreground" />
-                <Switch
-                  id="preferences-theme"
-                  checked={theme === 'dark'}
-                  onCheckedChange={toggleTheme}
-                  aria-label="Toggle dark mode"
-                />
-                <Moon className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground ml-2">
-                  {theme === 'dark' ? 'Dark mode' : 'Light mode'}
-                </span>
+            <div className="flex flex-wrap items-start gap-6">
+              <div className="flex flex-col gap-1.5">
+                <Label
+                  htmlFor="preferences-theme"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Theme
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Sun className="w-4 h-4 text-muted-foreground" />
+                  <Switch
+                    id="preferences-theme"
+                    checked={theme === 'dark'}
+                    onCheckedChange={toggleTheme}
+                    aria-label="Toggle dark mode"
+                  />
+                  <Moon className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {theme === 'dark' ? 'Dark' : 'Light'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label
+                  htmlFor="preferences-time-tracking"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Time tracking
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="preferences-time-tracking"
+                    checked={formData.timeTrackingEnabled}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, timeTrackingEnabled: checked })
+                    }
+                    aria-label="Show Time tracking in top bar"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {formData.timeTrackingEnabled ? 'On' : 'Off'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label
+                  htmlFor="preferences-pomodoro-clock"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Pomodoro
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="preferences-pomodoro-clock"
+                    checked={formData.pomodoroClockEnabled}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, pomodoroClockEnabled: checked })
+                    }
+                    aria-label="Show Pomodoro clock in top bar"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {formData.pomodoroClockEnabled ? 'On' : 'Off'}
+                  </span>
+                </div>
               </div>
             </div>
             <div>

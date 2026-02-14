@@ -45,9 +45,13 @@ export function ClockDisplay({
         >
           {settings.showClock ? (
             <>
-              <div className="text-sm font-medium text-foreground">{formattedTime}</div>
+              <div className="text-sm font-medium text-foreground tabular-nums min-w-[11ch] text-right">
+                {formattedTime}
+              </div>
               {settings.showDate && (
-                <div className="text-xs text-muted-foreground">{formattedDate}</div>
+                <div className="text-xs text-muted-foreground tabular-nums min-w-[9ch] text-right">
+                  {formattedDate}
+                </div>
               )}
             </>
           ) : (
