@@ -1,11 +1,9 @@
 // server/core/routes/index.js
-// Setup all core routes (auth, admin, health, settings)
+// Setup all core routes (auth, admin, health). Settings + activity-log are in plugins/settings.
 
 const authRoutes = require('./auth');
 const adminRoutes = require('./admin');
 const healthRoutes = require('./health');
-const settingsRoutes = require('./settings');
-const activityLogRoutes = require('./activityLog');
 
 /**
  * Setup all core routes
@@ -18,8 +16,6 @@ function setupCoreRoutes(app, dependencies) {
   // Setup route dependencies
   authRoutes.setupAuthRoutes(pool, authLimiter, requireAuth, pluginLoader);
   adminRoutes.setupAdminRoutes(pool, requireAuth);
-  settingsRoutes.setupSettingsRoutes(pool, requireAuth);
-  activityLogRoutes.setupActivityLogRoutes(requireAuth);
   healthRoutes.setPluginLoader(pluginLoader);
 
   // Health check (no auth required)
@@ -28,11 +24,7 @@ function setupCoreRoutes(app, dependencies) {
   // Auth routes (login, signup, logout)
   app.use('/api/auth', authRoutes);
 
-  // Settings routes (requires auth)
-  app.use('/api/settings', settingsRoutes);
-
-  // Activity log routes (requires auth)
-  app.use('/api/activity-log', activityLogRoutes);
+  // Settings and activity-log are served by plugins/settings at /api/settings and /api/settings/activity-log
 
   // Admin routes (requires superuser)
   app.use('/api/admin', adminRoutes);

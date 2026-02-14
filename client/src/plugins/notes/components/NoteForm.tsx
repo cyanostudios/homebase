@@ -65,6 +65,15 @@ export const NoteForm: React.FC<NoteFormProps> = ({
     };
   }, [isDirty, currentNote, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
+  const resetForm = useCallback(() => {
+    setFormData({
+      title: '',
+      content: '',
+      mentions: [],
+    });
+    markClean();
+  }, [markClean]);
+
   // Load currentNote data when editing
   useEffect(() => {
     if (currentNote) {
@@ -80,15 +89,6 @@ export const NoteForm: React.FC<NoteFormProps> = ({
       resetForm();
     }
   }, [currentNote, markClean, resetForm]);
-
-  const resetForm = useCallback(() => {
-    setFormData({
-      title: '',
-      content: '',
-      mentions: [],
-    });
-    markClean();
-  }, [markClean]);
 
   const handleSubmit = useCallback(async () => {
     if (isCurrentlySubmitting) {
@@ -120,8 +120,11 @@ export const NoteForm: React.FC<NoteFormProps> = ({
     });
   }, [attemptAction, onCancel]);
 
-  // Global functions with correct plural naming
+  // Global functions with correct plural naming (only when not in settings mode – settings form registers its own)
   useEffect(() => {
+    if (panelMode === 'settings') {
+      return;
+    }
     (window as any).submitNotesForm = handleSubmit; // PLURAL!
     (window as any).cancelNotesForm = handleCancel; // PLURAL!
 
@@ -129,7 +132,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
       delete (window as any).submitNotesForm;
       delete (window as any).cancelNotesForm;
     };
-  }, [handleSubmit, handleCancel]);
+  }, [handleSubmit, handleCancel, panelMode]);
 
   const handleDiscardChanges = () => {
     if (!currentNote) {

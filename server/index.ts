@@ -133,7 +133,7 @@ function requirePlugin(pluginName: string) {
 }
 
 // Initialize plugin system
-const pluginLoader = new PluginLoader(pool, requirePlugin);
+const pluginLoader = new PluginLoader(pool, requirePlugin, requireAuth);
 
 // CSRF token endpoint
 app.get('/api/csrf-token', csrfTokenHandler);

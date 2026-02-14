@@ -7,8 +7,8 @@
  * Last Modified: August 2025 - Global Navigation Guard Integration
  */
 
-import { Home, Settings } from 'lucide-react';
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { Home } from 'lucide-react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 
 import { ActionProvider } from '@/core/api/ActionContext';
 import { AppProvider, useApp } from '@/core/api/AppContext';
@@ -24,10 +24,6 @@ import { LoginComponent } from '@/core/ui/LoginComponent';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { createPanelFooter } from '@/core/ui/PanelFooter';
 import { createPanelTitles } from '@/core/ui/PanelTitles';
-import { ActivityLogForm } from '@/core/ui/SettingsForms/ActivityLogForm';
-import { PreferencesSettingsForm } from '@/core/ui/SettingsForms/PreferencesSettingsForm';
-import { ProfileSettingsForm } from '@/core/ui/SettingsForms/ProfileSettingsForm';
-import { SettingsList } from '@/core/ui/SettingsList';
 import type { NavPage } from '@/core/ui/Sidebar'; // <-- viktig typ-import
 import {
   GlobalNavigationGuardProvider,
@@ -117,7 +113,7 @@ function findCurrentPlugin(pluginContexts: any[]): any {
 
 // Main App Content
 function AppContent() {
-  const { isAuthenticated, isLoading, registerOpenToTaskDialog } = useApp();
+  const { isAuthenticated, isLoading, registerOpenToTaskDialog, closeOtherPanels } = useApp();
   const { attemptNavigation, showWarning, confirmDiscard, cancelDiscard, warningMessage } =
     useGlobalNavigationGuard();
 
@@ -129,6 +125,8 @@ function AppContent() {
       return { plugin, context: null, isOpen: false };
     }
   });
+  const pluginContextsRef = useRef(pluginContexts);
+  pluginContextsRef.current = pluginContexts;
 
   // State
   const [isMobileView, setIsMobileView] = useState(false);
@@ -147,8 +145,6 @@ function AppContent() {
     const saved = localStorage.getItem('homebase:currentPage');
     return (saved as NavPage) || 'dashboard';
   });
-
-  const [settingsCategory, setSettingsCategory] = useState<string | null>(null);
 
   // Save currentPage to localStorage whenever it changes
   useEffect(() => {
@@ -189,10 +185,19 @@ function AppContent() {
   // Protected page change
   const handlePageChange = useCallback(
     (page: NavPage) => {
-      // <-- också typad som NavPage
-      attemptNavigation(() => setCurrentPage(page));
+      // In list view there is no active detail form, so navigation should be immediate.
+      if (!isAnyPanelOpen) {
+        setCurrentPage(page);
+        return;
+      }
+
+      // Detail panel open: protect navigation with global unsaved-check, then hard-close panels.
+      attemptNavigation(() => {
+        setCurrentPage(page);
+        closeOtherPanels();
+      });
     },
-    [attemptNavigation],
+    [attemptNavigation, closeOtherPanels, isAnyPanelOpen],
   );
 
   // Screen size detection
@@ -205,10 +210,13 @@ function AppContent() {
 
   // Keyboard handler
   useEffect(() => {
-    const keyboardHandler = createKeyboardHandler(pluginContexts, attemptNavigation);
+    const keyboardHandler = createKeyboardHandler(
+      () => pluginContextsRef.current,
+      attemptNavigation,
+    );
     document.addEventListener('keydown', keyboardHandler);
     return () => document.removeEventListener('keydown', keyboardHandler);
-  }, [pluginContexts, attemptNavigation]);
+  }, [attemptNavigation]);
 
   // All hooks must be before early returns
   const currentPagePlugin = useMemo(() => {
@@ -222,9 +230,6 @@ function AppContent() {
   const contentTitle = useMemo(() => {
     if (currentPage === 'dashboard') {
       return 'Dashboard';
-    }
-    if (currentPage === 'settings') {
-      return 'Settings';
     }
 
     if (!currentPagePlugin?.navigation) {
@@ -242,9 +247,6 @@ function AppContent() {
   const contentIcon = useMemo(() => {
     if (currentPage === 'dashboard') {
       return Home;
-    }
-    if (currentPage === 'settings') {
-      return Settings;
     }
 
     if (!currentPagePlugin?.navigation) {
@@ -346,51 +348,17 @@ function AppContent() {
           setShowDuplicateDialog(true);
         }
       },
+      handleEditItem: handlers.handleEditItem,
+      isSubmitting: currentPluginContext?.isSaving ?? false,
     },
   );
 
-  // Settings panel state
-  const isSettingsPanelOpen = settingsCategory !== null;
-  const settingsPanelTitle =
-    settingsCategory === 'profile'
-      ? 'User Profile'
-      : settingsCategory === 'preferences'
-        ? 'Preferences'
-        : settingsCategory === 'activity-log'
-          ? 'Activity Log'
-          : 'Settings';
-
-  const settingsPanelContent =
-    settingsCategory === 'profile' ? (
-      <ProfileSettingsForm
-        onCancel={() => {
-          setSettingsCategory(null);
-        }}
-      />
-    ) : settingsCategory === 'preferences' ? (
-      <PreferencesSettingsForm
-        onCancel={() => {
-          setSettingsCategory(null);
-        }}
-      />
-    ) : settingsCategory === 'activity-log' ? (
-      <ActivityLogForm
-        onCancel={() => {
-          setSettingsCategory(null);
-        }}
-      />
-    ) : null;
-
-  // Use settings panel if settings page is active, otherwise use plugin panel
-  const detailPanelOpen = currentPage === 'settings' ? isSettingsPanelOpen : isAnyPanelOpen;
-  const detailPanelTitle =
-    currentPage === 'settings' ? settingsPanelTitle : panelTitles.getPanelTitle();
-  const detailPanelSubtitle = currentPage === 'settings' ? null : panelTitles.getPanelSubtitle();
-  const detailPanelContent =
-    currentPage === 'settings' ? settingsPanelContent : renderers.renderPanelContent();
-  const detailPanelFooter = currentPage === 'settings' ? null : panelFooter;
-  const onDetailPanelClose =
-    currentPage === 'settings' ? () => setSettingsCategory(null) : handlers.getCloseHandler();
+  const detailPanelOpen = isAnyPanelOpen;
+  const detailPanelTitle = panelTitles.getPanelTitle();
+  const detailPanelSubtitle = panelTitles.getPanelSubtitle();
+  const detailPanelContent = renderers.renderPanelContent();
+  const detailPanelFooter = panelFooter;
+  const onDetailPanelClose = handlers.getCloseHandler();
 
   return (
     <>
@@ -411,12 +379,6 @@ function AppContent() {
       >
         {currentPage === 'dashboard' ? (
           <Dashboard onPageChange={handlePageChange} />
-        ) : currentPage === 'settings' ? (
-          <SettingsList
-            onCategoryClick={(categoryId) => {
-              setSettingsCategory(categoryId);
-            }}
-          />
         ) : (
           renderers.renderCurrentPage(currentPage, PLUGIN_REGISTRY)
         )}

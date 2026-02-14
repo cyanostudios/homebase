@@ -24,7 +24,7 @@ import { getTaskExportBaseFilename, getTasksExportConfig } from '../utils/taskEx
 interface TaskContextType {
   isTaskPanelOpen: boolean;
   currentTask: Task | null;
-  panelMode: 'create' | 'edit' | 'view';
+  panelMode: 'create' | 'edit' | 'view' | 'settings';
   validationErrors: ValidationError[];
 
   tasks: Task[];
@@ -32,6 +32,7 @@ interface TaskContextType {
   openTaskPanel: (task: Task | null) => void;
   openTaskForEdit: (task: Task) => void;
   openTaskForView: (task: Task) => void;
+  openTaskSettings: () => void;
   closeTaskPanel: () => void;
   saveTask: (taskData: any, taskId?: string) => Promise<boolean>;
   createTask: (taskData: {
@@ -109,7 +110,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
 
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -269,6 +270,16 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     },
     [onCloseOtherPanels],
   );
+
+  const openTaskSettings = useCallback(() => {
+    setRecentlyDuplicatedTaskId(null);
+    setCurrentTask(null);
+    setPanelMode('settings');
+    setIsTaskPanelOpen(true);
+    setValidationErrors([]);
+    setQuickEditDraft(null);
+    onCloseOtherPanels();
+  }, [onCloseOtherPanels]);
 
   const openTaskForViewRef = useRef(openTaskForView);
   useEffect(() => {
@@ -609,6 +620,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   // NEW: Panel Title Functions (moved from PanelTitles.tsx)
   const getPanelTitle = (mode: string, item: Task | null, isMobileView: boolean) => {
+    if (mode === 'settings') {
+      return 'Tasks settings';
+    }
     // View mode with item
     if (mode === 'view' && item) {
       const title = item.title || `Task #${item.id}`;
@@ -640,6 +654,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const getPanelSubtitle = useCallback(
     (mode: string, item: Task | null) => {
+      if (mode === 'settings') {
+        return null;
+      }
       // View mode with item
       if (mode === 'view' && item) {
         const statusColors: Record<string, string> = {
@@ -760,6 +777,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     openTaskPanel,
     openTaskForEdit,
     openTaskForView,
+    openTaskSettings,
     closeTaskPanel,
     saveTask,
     createTask,

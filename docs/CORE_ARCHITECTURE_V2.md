@@ -30,7 +30,14 @@ client/src/core/
 ├── handlers/panelHandlers.ts # Panel coordination logic
 ├── rendering/panelRendering.tsx # Content rendering
 ├── keyboard/keyboardHandlers.ts # Universal navigation
+├── widgets/ # TopBar widget registry (see terminology below)
+│ ├── registry.ts # registerWidget, getTopBarWidgets
+│ ├── clock/ # Clock widget
+│ ├── pomodoro/ # Pomodoro timer widget
+│ └── time-tracking/ # Time tracking skeleton (no persistence yet)
 └── ui/ # Core UI components
+
+Terminology: **TopBar Widgets** (core/widgets) are the compact tools in the header (clock, pomodoro, time-tracking). **Dashboard Widgets** are plugin-provided blocks on the dashboard (e.g. pluginRegistry.dashboardWidget). The two are separate; TopBar widgets do not depend on the plugin registry.
 ├── PanelFooter.tsx
 ├── PanelTitles.tsx
 ├── UniversalPanel.tsx
@@ -90,6 +97,7 @@ registerEstimatesNavigation: (fn: ((estimate: Estimate) => void) | null) => void
 // Data refresh
 refreshData: () => Promise<void>;
 }
+
 ```
 
 **Plugin-aware data loading:** `loadData()` only fetches API data for plugins present in `user.plugins` (contacts, notes, tasks); otherwise empty arrays are used. The getters `getNotesForContact`, `getTasksForContact`, `getTasksWithMentionsForContact`, and `getEstimatesForContact` return empty arrays when the corresponding plugin is not enabled for the user, so cross-plugin views never call APIs for disabled plugins.
@@ -455,6 +463,7 @@ code: error.code
 ### Backend Plugin
 
 **Structure:**
+
 ```
 
 plugins/my-plugin/
@@ -467,6 +476,7 @@ plugins/my-plugin/
 ```
 
 **Development steps:**
+
 1. Copy template structure
 2. Configure plugin metadata
 3. Implement model using core services
@@ -476,6 +486,7 @@ plugins/my-plugin/
 ### Frontend Plugin
 
 **Structure:**
+
 ```
 
 client/src/plugins/my-plugin/
@@ -657,9 +668,10 @@ const database = ServiceManager.get('database');
 const results = await database.query('SELECT _ FROM contacts', []);
 // Tenant filtering automatic
 
-````
+```
 
 **Benefits:**
+
 - Infrastructure swappable
 - Security enforced
 - Testing simplified
@@ -672,12 +684,13 @@ const results = await database.query('SELECT _ FROM contacts', []);
 ### Middleware måste registreras i server/index.ts
 
 ❌ **FEL:**
+
 ```javascript
 // Skapade middleware i server/core/middleware/activityLog.js
 // Registrerade den i server/core/middleware/setup.js
 // Men server/index.ts använder INTE setupMiddleware() - den registrerar middleware direkt!
 // Resultat: Middleware kördes aldrig, inga logs skapades
-````
+```
 
 ✅ **KORREKT:**
 

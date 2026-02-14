@@ -4,9 +4,10 @@ const path = require('path');
 const ServiceManager = require('./server/core/ServiceManager');
 
 class PluginLoader {
-  constructor(pool, requirePlugin) {
+  constructor(pool, requirePlugin, requireAuth) {
     this.pool = pool; // Kept for backward compatibility if needed, but should rely on ServiceManager
     this.requirePlugin = requirePlugin;
+    this.requireAuth = requireAuth || null;
     this.loadedPlugins = new Map();
   }
 
@@ -75,6 +76,7 @@ class PluginLoader {
       // Middleware
       middleware: {
         requirePlugin: this.requirePlugin,
+        requireAuth: this.requireAuth,
       },
     };
 

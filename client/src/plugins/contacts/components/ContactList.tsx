@@ -8,10 +8,9 @@ import {
   FileText,
   Grid3x3,
   List as ListIcon,
+  Settings,
 } from 'lucide-react';
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-
-import { cn } from '@/lib/utils';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useApp } from '@/core/api/AppContext';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -31,19 +31,23 @@ import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportItems } from '@/core/utils/exportUtils';
-import { contactExportConfig } from '../utils/contactExportConfig';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
+import { contactExportConfig } from '../utils/contactExportConfig';
 
 type SortField = 'contactNumber' | 'name' | 'type' | 'email';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
 
+const CONTACTS_SETTINGS_KEY = 'contacts';
+
 export const ContactList: React.FC = () => {
   const {
     contacts,
     openContactForView,
+    openContactSettings,
     deleteContact,
     deleteContacts,
     selectedContactIds,
@@ -53,6 +57,7 @@ export const ContactList: React.FC = () => {
     selectedCount,
     isSelected,
   } = useContacts();
+  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,15 +76,31 @@ export const ContactList: React.FC = () => {
 
   const [sortField, setSortField] = useState<SortField>('contactNumber');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    const saved = localStorage.getItem('homebase:contacts:viewMode');
-    return (saved as ViewMode) || 'list';
-  });
+  const [viewMode, setViewModeState] = useState<ViewMode>('list');
 
-  // Save viewMode to localStorage
+  // Load contacts settings from API
   useEffect(() => {
-    localStorage.setItem('homebase:contacts:viewMode', viewMode);
-  }, [viewMode]);
+    let cancelled = false;
+    getSettings(CONTACTS_SETTINGS_KEY)
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        setViewModeState(settings?.viewMode === 'grid' ? 'grid' : 'list');
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
+
+  const setViewMode = useCallback(
+    (mode: ViewMode) => {
+      setViewModeState(mode);
+      updateSettings(CONTACTS_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
+    },
+    [updateSettings],
+  );
 
   // Detect mobile screen size
   useEffect(() => {
@@ -250,6 +271,15 @@ export const ContactList: React.FC = () => {
         rightActions={
           <div className="flex gap-2">
             <Button
+              variant="outline"
+              size="icon"
+              onClick={() => openContactSettings()}
+              className="h-9 w-9"
+              title="Contact Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+            <Button
               variant={viewMode === 'grid' ? 'default' : 'outline'}
               size="icon"
               onClick={() => setViewMode('grid')}
@@ -272,7 +302,7 @@ export const ContactList: React.FC = () => {
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing]);
+  }, [searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing, openContactSettings]);
 
   // Protected navigation handlers
   const handleOpenForView = (contact: any) => attemptNavigation(() => openContactForView(contact));

@@ -1,10 +1,9 @@
 // client/src/core/ui/SettingsForms/PreferencesSettingsForm.tsx
-// Preferences settings form component
+// Preferences settings form – actions are in panel footer
 
 import { Moon, Sun } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
@@ -12,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { useTheme } from '@/hooks/useTheme';
+import { useSettingsContext } from '@/plugins/settings/context/SettingsContext';
 
 interface PreferencesSettingsFormProps {
   onCancel: () => void;
@@ -33,8 +33,8 @@ const languages = [
 export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormProps) {
   const { getSettings, updateSettings } = useApp();
   const { theme, toggleTheme } = useTheme();
+  const { registerSaveHandler, setIsSaving } = useSettingsContext();
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     timezone: 'Europe/Stockholm',
     language: 'en',
@@ -60,7 +60,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
       await updateSettings('preferences', {
@@ -73,7 +73,12 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [formData.timezone, formData.language, onCancel, updateSettings, setIsSaving]);
+
+  useEffect(() => {
+    registerSaveHandler(handleSave);
+    return () => registerSaveHandler(null);
+  }, [registerSaveHandler, handleSave]);
 
   if (isLoading) {
     return <div className="p-6">Loading...</div>;
@@ -81,7 +86,6 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
 
   return (
     <div className="space-y-6">
-      {/* Preferences */}
       <Card padding="sm" className="shadow-none px-0">
         <DetailSection title="Preferences">
           <div className="space-y-3">
@@ -138,16 +142,6 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
           </div>
         </DetailSection>
       </Card>
-
-      {/* Actions */}
-      <div className="flex justify-end gap-3">
-        <Button variant="ghost" onClick={onCancel} disabled={isSaving}>
-          Cancel
-        </Button>
-        <Button onClick={handleSave} disabled={isSaving}>
-          {isSaving ? 'Saving...' : 'Save'}
-        </Button>
-      </div>
     </div>
   );
 }

@@ -69,7 +69,7 @@ export type NavPage = 'contacts' | 'notes' | 'estimates' | 'invoices' | 'tasks' 
 ```
 
 💡 **Why (lesson learned):**
-Settings är en core-funktion, inte ett plugin. Behandla det som en special case i routing. När du lägger till nya pages, uppdatera ALLA ställen där NavPage type används.
+As of the Settings-plugin migration, Settings is implemented as an always-on plugin and uses the same routing/panel flow as other plugins (no special case). When adding new nav pages, still update all places where the NavPage type is used.
 
 ---
 
@@ -155,6 +155,37 @@ const handleSave = async () => {
 
 💡 **Why (lesson learned):**
 Plugins har full Context (Provider, hook, state management) eftersom de hanterar komplex CRUD. Settings är enklare - bara load/save operations. Settings-forms kan använda AppContext direkt istället för egen Context. Överdriv inte arkitekturen. Om något är enkelt, håll det enkelt. Contexts är för komplex state-hantering.
+
+---
+
+## React / Hooks
+
+### Deklarera callbacks före useEffect som använder dem (undvik TDZ)
+
+❌ **What we did (that didn't work):**
+I formulär (t.ex. NoteForm, ContactForm) hade vi en `useEffect` som anropade `resetForm()` i dependency-arrayen och i else-grenen, medan `const resetForm = useCallback(...)` deklarerades längre ner i komponenten.
+
+✅ **What we do instead (that works):**
+
+```tsx
+// ✅ KORREKT – resetForm deklareras FÖRE useEffect som använder den
+const resetForm = useCallback(() => {
+  setFormData({ ... });
+  markClean();
+}, [markClean]);
+
+useEffect(() => {
+  if (currentItem) {
+    setFormData(/* load from currentItem */);
+    markClean();
+  } else {
+    resetForm();
+  }
+}, [currentItem, markClean, resetForm]);
+```
+
+💡 **Why (lesson learned):**
+I JavaScript/React gäller "Temporal Dead Zone" (TDZ): en variabel får inte användas före sin deklaration. Om en `useEffect` (eller annan kod) refererar till `resetForm` innan `const resetForm = useCallback(...)` har körts, får du `ReferenceError: Cannot access 'resetForm' before initialization`. Alltid deklarera `useCallback`/`useMemo` (och andra identifierare) **ovanför** alla `useEffect` som använder dem.
 
 ---
 

@@ -34,10 +34,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Switch } from '@/components/ui/switch';
 import { useApp } from '@/core/api/AppContext';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
+import { getTopBarWidgets } from '@/core/widgets';
 import { useTheme } from '@/hooks/useTheme';
 
-import { ClockDisplay } from './clock/ClockDisplay';
-import { PomodoroTimer } from './pomodoro/PomodoroTimer';
 import type { NavPage } from './Sidebar';
 
 interface TopBarProps {
@@ -132,7 +131,7 @@ export function TopBar({
   const { user, logout, getSettings } = useApp();
   const { theme, toggleTheme } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
-  const [openPanel, setOpenPanel] = useState<'pomodoro' | 'clock' | null>(null);
+  const [openWidgetId, setOpenWidgetId] = useState<string | null>(null);
   const [profileSettings, setProfileSettings] = useState<{ name?: string; title?: string } | null>(
     null,
   );
@@ -252,7 +251,8 @@ export function TopBar({
   const commandItems = useMemo(() => {
     const items: { label: string; page: NavPage }[] = [{ label: 'Dashboard', page: 'dashboard' }];
     PLUGIN_REGISTRY.forEach((plugin) => {
-      if (user?.plugins.includes(plugin.name) && plugin.navigation) {
+      const isEnabled = plugin.name === 'settings' || (user?.plugins ?? []).includes(plugin.name);
+      if (isEnabled && plugin.navigation) {
         items.push({ label: plugin.navigation.label, page: plugin.name as NavPage });
         plugin.navigation.submenu?.forEach((sub) => {
           items.push({ label: sub.label, page: sub.page as NavPage });
@@ -267,13 +267,15 @@ export function TopBar({
     setSearchOpen(false);
   };
 
-  const handlePanelToggle = (panel: 'pomodoro' | 'clock') => {
-    setOpenPanel(openPanel === panel ? null : panel);
+  const handleWidgetToggle = (widgetId: string) => {
+    setOpenWidgetId((current) => (current === widgetId ? null : widgetId));
   };
 
-  const handleClosePanel = () => {
-    setOpenPanel(null);
+  const handleCloseWidgetPanel = () => {
+    setOpenWidgetId(null);
   };
+
+  const topBarWidgets = getTopBarWidgets();
 
   return (
     <header className="fixed left-0 right-0 top-0 h-14 bg-background border-b border-border z-40">
@@ -382,19 +384,18 @@ export function TopBar({
             <Bell className="h-4 w-4" />
           </Button>
 
-          <PomodoroTimer
-            compact={true}
-            isExpanded={openPanel === 'pomodoro'}
-            onToggle={() => handlePanelToggle('pomodoro')}
-            onClose={handleClosePanel}
-          />
-
-          <ClockDisplay
-            compact={true}
-            isExpanded={openPanel === 'clock'}
-            onToggle={() => handlePanelToggle('clock')}
-            onClose={handleClosePanel}
-          />
+          {topBarWidgets.map((widget) => {
+            const WidgetComponent = widget.component;
+            return (
+              <WidgetComponent
+                key={widget.id}
+                compact={true}
+                isExpanded={openWidgetId === widget.id}
+                onToggle={() => handleWidgetToggle(widget.id)}
+                onClose={handleCloseWidgetPanel}
+              />
+            );
+          })}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

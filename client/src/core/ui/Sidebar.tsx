@@ -54,7 +54,8 @@ export function Sidebar({
     ]);
 
     PLUGIN_REGISTRY.forEach((plugin) => {
-      if (user?.plugins.includes(plugin.name) && plugin.navigation) {
+      const isEnabled = plugin.name === 'settings' || (user?.plugins ?? []).includes(plugin.name);
+      if (isEnabled && plugin.navigation) {
         const { category, label, icon, order, submenu, badge } = plugin.navigation;
         if (!categoriesMap.has(category)) {
           categoriesMap.set(category, []);

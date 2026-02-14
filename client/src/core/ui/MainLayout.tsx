@@ -60,11 +60,8 @@ export function MainLayout({
     setHeaderTrailing(null);
   }, [currentPage]);
 
-  // Wrapper to close detail panel when navigating
+  // Navigation (including close behavior) is handled upstream in App.tsx.
   const handlePageChange = (page: NavPage) => {
-    if (detailPanelOpen) {
-      onDetailPanelClose();
-    }
     onPageChange(page);
   };
 

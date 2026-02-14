@@ -34,7 +34,7 @@ const ACTION_COLORS: Record<string, string> = {
 
 const formatValue = (val: string) => val.charAt(0).toUpperCase() + val.slice(1);
 
-export function ActivityLogForm({ onCancel }: ActivityLogFormProps) {
+export function ActivityLogForm({ onCancel: _onCancel }: ActivityLogFormProps) {
   const { user } = useApp();
   const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -317,13 +317,6 @@ export function ActivityLogForm({ onCancel }: ActivityLogFormProps) {
           </>
         )}
       </Card>
-
-      {/* Actions */}
-      <div className="flex justify-end gap-3">
-        <Button variant="ghost" onClick={onCancel}>
-          Close
-        </Button>
-      </div>
     </div>
   );
 }

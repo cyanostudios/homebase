@@ -14,6 +14,8 @@ import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 import { useContacts } from '../hooks/useContacts';
 
+import { ContactSettingsForm } from './ContactSettingsForm';
+
 interface ContactPerson {
   id: string;
   name: string;
@@ -47,7 +49,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
   onCancel,
   isSubmitting: externalIsSubmitting = false,
 }) => {
-  const { validationErrors, clearValidationErrors } = useContacts();
+  const { validationErrors, clearValidationErrors, panelMode } = useContacts();
   const {
     isDirty,
     showWarning,
@@ -108,6 +110,31 @@ export const ContactForm: React.FC<ContactFormProps> = ({
     };
   }, [isDirty, currentContact, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
+  const resetForm = useCallback(() => {
+    setFormData({
+      contactNumber: '',
+      contactType: 'company',
+      companyName: '',
+      companyType: 'AB',
+      organizationNumber: '',
+      vatNumber: '',
+      personalNumber: '',
+      contactPersons: [],
+      addresses: [],
+      email: '',
+      phone: '',
+      phone2: '',
+      website: '',
+      taxRate: '25',
+      paymentTerms: '30',
+      currency: 'SEK',
+      fTax: 'yes',
+      notes: '',
+      isAssignable: false,
+    });
+    markClean();
+  }, [markClean]);
+
   // Load currentContact data when editing
   useEffect(() => {
     if (currentContact) {
@@ -141,31 +168,6 @@ export const ContactForm: React.FC<ContactFormProps> = ({
     }
   }, [currentContact, markClean, resetForm]);
 
-  const resetForm = useCallback(() => {
-    setFormData({
-      contactNumber: '',
-      contactType: 'company',
-      companyName: '',
-      companyType: 'AB',
-      organizationNumber: '',
-      vatNumber: '',
-      personalNumber: '',
-      contactPersons: [],
-      addresses: [],
-      email: '',
-      phone: '',
-      phone2: '',
-      website: '',
-      taxRate: '25',
-      paymentTerms: '30',
-      currency: 'SEK',
-      fTax: 'yes',
-      notes: '',
-      isAssignable: false,
-    });
-    markClean();
-  }, [markClean]);
-
   // Use internal state or external prop (external takes precedence)
   const isCurrentlySubmitting = externalIsSubmitting || isSubmitting;
 
@@ -198,6 +200,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
   // Global functions with correct plural naming
   useEffect(() => {
+    if (panelMode === 'settings') {
+      return;
+    }
     (window as any).submitContactsForm = handleSubmit; // PLURAL!
     (window as any).cancelContactsForm = handleCancel; // PLURAL!
 
@@ -205,7 +210,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
       delete (window as any).submitContactsForm;
       delete (window as any).cancelContactsForm;
     };
-  }, [handleSubmit, handleCancel]);
+  }, [handleSubmit, handleCancel, panelMode]);
 
   const handleDiscardChanges = () => {
     if (!currentContact) {
@@ -233,6 +238,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
   // Check if there are any blocking errors (non-warning)
   const hasBlockingErrors = validationErrors.some((error) => !error.message.includes('Warning'));
+
+  if (panelMode === 'settings') {
+    return <ContactSettingsForm onCancel={onCancel} />;
+  }
 
   // Contact Person Functions
   const addContactPerson = () => {

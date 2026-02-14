@@ -84,6 +84,10 @@ import { InvoicesProvider } from '@/plugins/invoices/context/InvoicesContext';
 import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
 import { invoicesNavigation } from '@/plugins/invoices/navigation';
 // Notes
+import { MailList } from '@/plugins/mail/components/MailList';
+import { MailSettingsForm } from '@/plugins/mail/components/MailSettingsForm';
+import { MailProvider } from '@/plugins/mail/context/MailContext';
+import { useMail } from '@/plugins/mail/hooks/useMail';
 import { NoteForm } from '@/plugins/notes/components/NoteForm';
 import { NoteList } from '@/plugins/notes/components/NoteList';
 import { NotesDashboardWidget } from '@/plugins/notes/components/NotesDashboardWidget';
@@ -91,6 +95,11 @@ import { NoteView } from '@/plugins/notes/components/NoteView';
 import { NoteProvider } from '@/plugins/notes/context/NoteContext';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 // Tasks
+import { SettingsForm } from '@/plugins/settings/components/SettingsForm';
+import { SettingsList } from '@/plugins/settings/components/SettingsList';
+import { SettingsProvider } from '@/plugins/settings/context/SettingsContext';
+import { useSettings } from '@/plugins/settings/hooks/useSettings';
+import { settingsNavigation } from '@/plugins/settings/navigation';
 import { TaskForm } from '@/plugins/tasks/components/TaskForm';
 import { TaskList } from '@/plugins/tasks/components/TaskList';
 import { TasksDashboardWidget } from '@/plugins/tasks/components/TasksDashboardWidget';
@@ -98,10 +107,7 @@ import { TaskView } from '@/plugins/tasks/components/TaskView';
 import { TaskProvider } from '@/plugins/tasks/context/TaskContext';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
 // Mail
-import { MailList } from '@/plugins/mail/components/MailList';
-import { MailSettingsForm } from '@/plugins/mail/components/MailSettingsForm';
-import { MailProvider } from '@/plugins/mail/context/MailContext';
-import { useMail } from '@/plugins/mail/hooks/useMail';
+// Settings (always-on)
 
 export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   {
@@ -229,5 +235,16 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       order: 1,
     },
     displayPrefix: 'MAIL',
+  },
+  {
+    name: 'settings',
+    Provider: SettingsProvider,
+    hook: useSettings,
+    panelKey: 'isSettingsPanelOpen',
+    components: {
+      List: SettingsList,
+      Form: SettingsForm,
+    },
+    navigation: settingsNavigation,
   },
 ];

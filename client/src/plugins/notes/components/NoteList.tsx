@@ -9,12 +9,10 @@ import {
   Settings,
   Upload,
 } from 'lucide-react';
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 
-import { cn } from '@/lib/utils';
-
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -23,18 +21,22 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useApp } from '@/core/api/AppContext';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
-import { exportItems } from '@/core/utils/exportUtils';
-import { notesExportConfig } from '../utils/noteExportConfig';
-import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { ImportWizard } from '@/core/ui/ImportWizard';
+import { exportItems } from '@/core/utils/exportUtils';
 import { ImportSchema } from '@/core/utils/importUtils';
+import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { cn } from '@/lib/utils';
 
 import { useNotes } from '../hooks/useNotes';
+import { notesExportConfig } from '../utils/noteExportConfig';
+
+const NOTES_SETTINGS_KEY = 'notes';
 
 type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
@@ -80,17 +82,34 @@ export const NoteList: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  const { getSettings, updateSettings, settingsVersion } = useApp();
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    const saved = localStorage.getItem('homebase:notes:viewMode');
-    return (saved as ViewMode) || 'list';
-  });
+  const [viewMode, setViewModeState] = useState<ViewMode>('list');
 
-  // Save viewMode to localStorage
+  // Load notes settings from API (and when settings are updated elsewhere)
   useEffect(() => {
-    localStorage.setItem('homebase:notes:viewMode', viewMode);
-  }, [viewMode]);
+    let cancelled = false;
+    getSettings(NOTES_SETTINGS_KEY)
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        setViewModeState(settings?.viewMode === 'grid' ? 'grid' : 'list');
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
+
+  const setViewMode = useCallback(
+    (mode: ViewMode) => {
+      setViewModeState(mode);
+      updateSettings(NOTES_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
+    },
+    [updateSettings],
+  );
 
   // Detect mobile screen size
   useEffect(() => {

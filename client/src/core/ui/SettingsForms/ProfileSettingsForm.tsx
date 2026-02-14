@@ -1,14 +1,14 @@
 // client/src/core/ui/SettingsForms/ProfileSettingsForm.tsx
-// Profile settings form component
+// Profile settings form – actions are in panel footer
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { useSettingsContext } from '@/plugins/settings/context/SettingsContext';
 
 interface ProfileSettingsFormProps {
   onCancel: () => void;
@@ -16,13 +16,28 @@ interface ProfileSettingsFormProps {
 
 export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
   const { user, getSettings, updateSettings } = useApp();
+  const { registerSaveHandler, setIsSaving } = useSettingsContext();
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     title: '',
     email: user?.email || '',
   });
+
+  const handleSave = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      await updateSettings('profile', {
+        name: formData.name,
+        title: formData.title,
+      });
+      onCancel();
+    } catch (error) {
+      console.error('Failed to save profile settings:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [formData.name, formData.title, onCancel, updateSettings, setIsSaving]);
 
   useEffect(() => {
     loadSettings();
@@ -45,20 +60,10 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
     }
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await updateSettings('profile', {
-        name: formData.name,
-        title: formData.title,
-      });
-      onCancel();
-    } catch (error) {
-      console.error('Failed to save profile settings:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  useEffect(() => {
+    registerSaveHandler(handleSave);
+    return () => registerSaveHandler(null);
+  }, [registerSaveHandler, handleSave]);
 
   if (isLoading) {
     return <div className="p-6">Loading...</div>;
@@ -66,7 +71,6 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
 
   return (
     <div className="space-y-6">
-      {/* Profile Information */}
       <Card padding="sm" className="shadow-none px-0">
         <DetailSection title="Profile Information">
           <div className="space-y-3">
@@ -110,16 +114,6 @@ export function ProfileSettingsForm({ onCancel }: ProfileSettingsFormProps) {
           </div>
         </DetailSection>
       </Card>
-
-      {/* Actions */}
-      <div className="flex justify-end gap-3">
-        <Button variant="ghost" onClick={onCancel} disabled={isSaving}>
-          Cancel
-        </Button>
-        <Button onClick={handleSave} disabled={isSaving}>
-          {isSaving ? 'Saving...' : 'Save'}
-        </Button>
-      </div>
     </div>
   );
 }

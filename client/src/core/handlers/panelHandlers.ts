@@ -30,8 +30,8 @@ function findPanelFunction(context: any, action: string, pluginName?: string): a
   return typeof context[fnName] === 'function' ? context[fnName] : null;
 }
 
-// Utility function to find open functions
-function findOpenFunction(context: any, mode: string, pluginName?: string): any {
+// Utility function to find open functions (exported for use in PanelFooter)
+export function findOpenFunction(context: any, mode: string, pluginName?: string): any {
   if (!context || !pluginName) {
     return null;
   }
@@ -94,40 +94,44 @@ export const createPanelHandlers = (
   };
 
   const handleSaveClick = () => {
-    if (currentPlugin) {
-      // Generic pattern: submit + PluginName + Form
-      const pluginNameCapitalized = toCamel(currentPlugin.name);
-      const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
-      const functionName = `submit${cap}Form`;
-
-      const submitFunction = (window as any)[functionName];
-
-      if (submitFunction) {
-        submitFunction();
-      } else {
-        console.warn(
-          `Global function ${functionName} not found. Make sure the plugin registers it correctly.`,
-        );
-      }
+    if (!currentPlugin) {
+      return;
+    }
+    // Settings plugin: submitSettingsForm is registered by SettingsForm and calls context.submitSave
+    // Generic pattern: submit + PluginName + Form
+    const pluginNameCapitalized = toCamel(currentPlugin.name);
+    const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
+    const functionName = `submit${cap}Form`;
+    const submitFunction = (window as any)[functionName];
+    if (submitFunction) {
+      submitFunction();
+    } else {
+      console.warn(
+        `Global function ${functionName} not found. Make sure the plugin registers it correctly.`,
+      );
     }
   };
 
   const handleCancelClick = () => {
-    if (currentPlugin) {
-      // Generic pattern: cancel + PluginName + Form
-      const pluginNameCapitalized = toCamel(currentPlugin.name);
-      const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
-      const functionName = `cancel${cap}Form`;
-
-      const cancelFunction = (window as any)[functionName];
-
-      if (cancelFunction) {
-        cancelFunction();
-      } else {
-        console.warn(
-          `Global function ${functionName} not found. Make sure the plugin registers it correctly.`,
-        );
-      }
+    if (!currentPlugin) {
+      return;
+    }
+    // Settings plugin: use context close directly (no window globals)
+    if (currentPlugin.name === 'settings' && currentPluginContext?.closeSettingsPanel) {
+      currentPluginContext.closeSettingsPanel();
+      return;
+    }
+    // Generic pattern: cancel + PluginName + Form
+    const pluginNameCapitalized = toCamel(currentPlugin.name);
+    const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
+    const functionName = `cancel${cap}Form`;
+    const cancelFunction = (window as any)[functionName];
+    if (cancelFunction) {
+      cancelFunction();
+    } else {
+      console.warn(
+        `Global function ${functionName} not found. Make sure the plugin registers it correctly.`,
+      );
     }
   };
 
@@ -182,6 +186,25 @@ export const createPanelHandlers = (
     setShowDuplicateDialog(true);
   };
 
+  const handleEditItem = () => {
+    if (!currentPluginContext || !currentItem || !currentPlugin) {
+      return;
+    }
+    const editFn = findOpenFunction(currentPluginContext, 'edit', currentPlugin.name);
+    if (editFn) {
+      try {
+        editFn(currentItem);
+      } catch (error) {
+        console.error(`Failed to open edit mode for plugin: ${currentPlugin.name}`, {
+          error,
+          currentItem,
+        });
+      }
+    } else {
+      console.warn(`Edit function not found for plugin: ${currentPlugin.name}`);
+    }
+  };
+
   return {
     handleDeleteItem,
     handleDuplicateItem,
@@ -192,5 +215,6 @@ export const createPanelHandlers = (
     handleCancelClick,
     getCloseHandler,
     handleEstimateContactClick,
+    handleEditItem,
   };
 };

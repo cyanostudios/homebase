@@ -6,8 +6,9 @@ import {
   FileText,
   Grid3x3,
   List as ListIcon,
+  Settings,
 } from 'lucide-react';
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,21 +28,24 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { exportItems } from '@/core/utils/exportUtils';
-import { getTasksExportConfig } from '../utils/taskExportConfig';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useTasks } from '../hooks/useTasks';
 import { TASK_STATUS_COLORS, TASK_PRIORITY_COLORS, formatStatusForDisplay } from '../types/tasks';
+import { getTasksExportConfig } from '../utils/taskExportConfig';
 
 type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
 
+const TASKS_SETTINGS_KEY = 'tasks';
+
 export const TaskList: React.FC = () => {
   const {
     tasks,
     openTaskForView,
+    openTaskSettings,
     deleteTask,
     deleteTasks,
     selectedTaskIds,
@@ -52,7 +56,7 @@ export const TaskList: React.FC = () => {
     isSelected,
     recentlyDuplicatedTaskId,
   } = useTasks();
-  const { contacts } = useApp();
+  const { contacts, getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,15 +75,31 @@ export const TaskList: React.FC = () => {
 
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    const saved = localStorage.getItem('homebase:tasks:viewMode');
-    return (saved as ViewMode) || 'list';
-  });
+  const [viewMode, setViewModeState] = useState<ViewMode>('list');
 
-  // Save viewMode to localStorage
+  // Load tasks settings from API
   useEffect(() => {
-    localStorage.setItem('homebase:tasks:viewMode', viewMode);
-  }, [viewMode]);
+    let cancelled = false;
+    getSettings(TASKS_SETTINGS_KEY)
+      .then((settings) => {
+        if (cancelled) {
+          return;
+        }
+        setViewModeState(settings?.viewMode === 'grid' ? 'grid' : 'list');
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
+
+  const setViewMode = useCallback(
+    (mode: ViewMode) => {
+      setViewModeState(mode);
+      updateSettings(TASKS_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
+    },
+    [updateSettings],
+  );
 
   // Detect mobile screen size
   useEffect(() => {
@@ -318,6 +338,15 @@ export const TaskList: React.FC = () => {
         rightActions={
           <div className="flex gap-2">
             <Button
+              variant="outline"
+              size="icon"
+              onClick={() => openTaskSettings()}
+              className="h-9 w-9"
+              title="Task Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+            <Button
               variant={viewMode === 'grid' ? 'default' : 'outline'}
               size="icon"
               onClick={() => setViewMode('grid')}
@@ -340,7 +369,7 @@ export const TaskList: React.FC = () => {
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing]);
+  }, [searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing, openTaskSettings]);
 
   // Protected navigation handlers
   const handleOpenForView = (task: any) => {

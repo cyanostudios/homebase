@@ -24,7 +24,7 @@ interface ContactContextType {
   // Contact Panel State
   isContactPanelOpen: boolean;
   currentContact: Contact | null;
-  panelMode: 'create' | 'edit' | 'view';
+  panelMode: 'create' | 'edit' | 'view' | 'settings';
   validationErrors: ValidationError[];
 
   // Contacts Data
@@ -34,6 +34,7 @@ interface ContactContextType {
   openContactPanel: (contact: Contact | null) => void;
   openContactForEdit: (contact: Contact) => void;
   openContactForView: (contact: Contact) => void;
+  openContactSettings: () => void;
   closeContactPanel: () => void;
   saveContact: (contactData: any) => Promise<boolean>;
   deleteContact: (id: string) => Promise<void>;
@@ -73,7 +74,7 @@ export function ContactProvider({
   // Panel states
   const [isContactPanelOpen, setIsContactPanelOpen] = useState(false);
   const [currentContact, setCurrentContact] = useState<Contact | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
 
   // Data state
@@ -247,6 +248,14 @@ export function ContactProvider({
     onCloseOtherPanels();
   };
 
+  const openContactSettings = useCallback(() => {
+    setCurrentContact(null);
+    setPanelMode('settings');
+    setIsContactPanelOpen(true);
+    setValidationErrors([]);
+    onCloseOtherPanels();
+  }, [onCloseOtherPanels]);
+
   const closeContactPanel = () => {
     setIsContactPanelOpen(false);
     setCurrentContact(null);
@@ -377,6 +386,9 @@ export function ContactProvider({
 
   // Panel title helpers
   const getPanelTitle = (mode: string, item: Contact | null, isMobileView: boolean) => {
+    if (mode === 'settings') {
+      return 'Contacts settings';
+    }
     if (mode === 'view' && item) {
       const contactNumber = formatDisplayNumber('contacts', item.contactNumber || item.id);
       // För privatpersoner lagras fullständigt namn i companyName i vår typ
@@ -409,6 +421,9 @@ export function ContactProvider({
   };
 
   const getPanelSubtitle = (mode: string, item: Contact | null) => {
+    if (mode === 'settings') {
+      return null;
+    }
     if (mode === 'view' && item) {
       const isCompany = item.contactType === 'company';
       const Icon = isCompany ? Building : User;
@@ -478,6 +493,7 @@ export function ContactProvider({
     openContactPanel,
     openContactForEdit,
     openContactForView,
+    openContactSettings,
     closeContactPanel,
     saveContact,
     deleteContact,

@@ -66,6 +66,52 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
     currentItem && Array.isArray(detailFooterActions) && detailFooterActions.length > 0,
   );
 
+  // Settings plugin: Activity log = only Close; Profile/Preferences = Cancel + Save (same as rest of platform)
+  if (currentPlugin?.name === 'settings') {
+    if (currentItem?.category === 'activity-log') {
+      return (
+        <div className="flex justify-end w-full">
+          <Button
+            type="button"
+            onClick={onClosePanel}
+            variant="secondary"
+            size="sm"
+            icon={X}
+            className="h-7 text-[10px] px-2"
+          >
+            Close
+          </Button>
+        </div>
+      );
+    }
+    return (
+      <div className="flex justify-end space-x-2">
+        <Button
+          type="button"
+          onClick={onCancelClick}
+          variant="secondary"
+          size="sm"
+          icon={X}
+          disabled={isSubmitting}
+          className="h-7 text-[10px] px-2"
+        >
+          Close
+        </Button>
+        <Button
+          type="button"
+          onClick={onSaveClick}
+          variant="primary"
+          size="sm"
+          icon={Check}
+          disabled={hasBlockingErrors || isSubmitting}
+          className="h-7 text-[10px] px-2 bg-green-600 hover:bg-green-700 text-white border-none"
+        >
+          {isSubmitting ? 'Saving...' : 'Save'}
+        </Button>
+      </div>
+    );
+  }
+
   if (currentMode === 'view') {
     return (
       <div className="flex items-center justify-between w-full">
@@ -195,28 +241,6 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   );
 };
 
-// ---- Helpers ----
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
-/**
- * Hyphen-safe opener resolver.
- * Examples:
- *  - 'contacts' + 'edit' -> context.openContactForEdit
- *  - 'notes' + 'view' -> context.openNoteForView
- */
-function findOpenFunction(context: any, mode: 'edit' | 'view', pluginName?: string): any {
-  if (!context || !pluginName) {
-    return null;
-  }
-
-  // Generic: convert kebab to camel, singularize trailing 's'
-  const camel = pluginName.replace(/-([a-z])/g, (_, c) => c.toUpperCase()); // e.g., invoices -> Invoices
-  const singular = camel.endsWith('s') ? camel.slice(0, -1) : camel; // contacts -> contact
-  const fnName = `open${cap(singular)}For${cap(mode)}`; // openProductForEdit
-  const fn = context[fnName];
-  return typeof fn === 'function' ? fn : null;
-}
-
 export const createPanelFooter = (
   currentMode: 'create' | 'edit' | 'view' | 'settings',
   currentItem: any,
@@ -227,25 +251,12 @@ export const createPanelFooter = (
     handleDeleteItem: () => void;
     handleDuplicateItem: () => void;
     getCloseHandler: () => () => void;
-    handleSaveClick: () => void; // generic (non-Woo) submit
-    handleCancelClick: () => void; // generic (non-Woo) cancel
+    handleSaveClick: () => void;
+    handleCancelClick: () => void;
+    handleEditItem: () => void;
+    isSubmitting?: boolean;
   },
 ) => {
-  const pluginName = handlers.currentPlugin?.name;
-
-  // Route EDIT to the correct opener (hyphen-safe + Woo override)
-  const handleEditItem = () => {
-    if (!currentPluginContext || !currentItem || !pluginName) {
-      return;
-    }
-    const editFn = findOpenFunction(currentPluginContext, 'edit', pluginName);
-    if (editFn) {
-      editFn(currentItem);
-    } else {
-      console.warn(`Edit function not found for plugin: ${pluginName}`);
-    }
-  };
-
   const handleSave = () => {
     handlers.handleSaveClick();
   };
@@ -271,9 +282,10 @@ export const createPanelFooter = (
       onDeleteItem={handlers.handleDeleteItem}
       onDuplicateItem={handlers.handleDuplicateItem}
       onClosePanel={onClosePanel}
-      onEditItem={handleEditItem}
+      onEditItem={handlers.handleEditItem}
       onSaveClick={handleSave}
       onCancelClick={handleCancel}
+      isSubmitting={handlers.isSubmitting ?? false}
     />
   );
 };

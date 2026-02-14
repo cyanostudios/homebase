@@ -82,10 +82,16 @@ Different users can have different plugin sets (e.g. only contacts, or contacts 
 
 Plugins (notes, tasks, estimates) register their "open for view" function with AppContext when they mount, via `registerNotesNavigation`, `registerTasksNavigation`, and `registerEstimatesNavigation`. Use a **stable callback** (e.g. a ref bridge: store the real handler in a ref, register a wrapper that calls `ref.current`) so that registration does not trigger setState in AppContext during render. That avoids React warnings ("Cannot update a component while rendering another") and unnecessary re-renders.
 
+### Settings plugin (always-on)
+
+- **Settings** is implemented as a normal plugin (`plugins/settings` on the server, `client/src/plugins/settings` on the client) but is **always active**: it is not gated by `user_plugin_access`. The backend injects `settings` into `user.plugins` in auth responses (login, signup, GET /me); the frontend treats Settings as enabled in nav and search even if missing from `user.plugins`.
+- **API:** User settings and activity log are served by the settings plugin at `/api/settings` (GET/PUT all or per category) and `/api/settings/activity-log` (GET with query params). Core no longer mounts separate settings or activity-log routes.
+- **Panel flow:** Settings uses the same plugin panel flow as other plugins (List = category list, Form = Profile/Preferences/ActivityLog wrapper). There is no `currentPage === 'settings'` special case in App.
+
 ### Other behaviour
 
 - **ActivityLogForm:** Restore for notes is only offered when `user?.plugins?.includes('notes')`; otherwise the user sees a message that the notes plugin is required.
-- **Server:** All plugin routes that should be gated (including OAuth callbacks such as the files plugin cloud callback) use `requirePlugin` so that users without access to that plugin receive 403.
+- **Server:** All plugin routes that should be gated (including OAuth callbacks such as the files plugin cloud callback) use `requirePlugin` so that users without access to that plugin receive 403. The settings plugin uses `requireAuth` only (no plugin-access check).
 
 ## Best Practices
 

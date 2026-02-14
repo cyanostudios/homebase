@@ -79,7 +79,7 @@ class ActivityLogApi {
     }
 
     const queryString = queryParams.toString();
-    const endpoint = `/api/activity-log${queryString ? `?${queryString}` : ''}`;
+    const endpoint = `/api/settings/activity-log${queryString ? `?${queryString}` : ''}`;
 
     return this.request(endpoint, {
       method: 'GET',

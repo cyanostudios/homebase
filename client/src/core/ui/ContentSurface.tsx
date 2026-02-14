@@ -12,7 +12,7 @@ export function ContentSurface({ children, className }: ContentSurfaceProps) {
   return (
     <Card
       className={cn(
-        'relative z-30 h-full w-full m-2 md:m-4 p-4 md:p-6 rounded-2xl shadow-lg flex flex-col',
+        'relative h-full min-h-0 w-full m-2 md:m-4 p-4 md:p-6 rounded-2xl shadow-lg flex flex-col overflow-hidden',
         className,
       )}
     >

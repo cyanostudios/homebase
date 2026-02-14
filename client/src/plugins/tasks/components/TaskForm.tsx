@@ -14,6 +14,8 @@ import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { useTasks } from '../hooks/useTasks';
 import { TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
 
+import { TaskSettingsForm } from './TaskSettingsForm';
+
 type TaskStatus = (typeof TASK_STATUS_OPTIONS)[number];
 type TaskPriority = (typeof TASK_PRIORITY_OPTIONS)[number];
 
@@ -40,7 +42,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   onCancel,
   isSubmitting: externalIsSubmitting = false,
 }) => {
-  const { validationErrors, clearValidationErrors } = useTasks();
+  const { validationErrors, clearValidationErrors, panelMode } = useTasks();
   const { contacts } = useApp();
   const {
     isDirty,
@@ -78,6 +80,19 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     };
   }, [isDirty, currentTask, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
+  const resetForm = useCallback(() => {
+    setFormData({
+      title: '',
+      content: '',
+      mentions: [],
+      status: 'not started',
+      priority: 'Medium',
+      dueDate: null,
+      assignedTo: null,
+    });
+    markClean();
+  }, [markClean]);
+
   // Load currentTask data when editing
   useEffect(() => {
     if (currentTask) {
@@ -95,19 +110,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       resetForm();
     }
   }, [currentTask, markClean, resetForm]);
-
-  const resetForm = useCallback(() => {
-    setFormData({
-      title: '',
-      content: '',
-      mentions: [],
-      status: 'not started',
-      priority: 'Medium',
-      dueDate: null,
-      assignedTo: null,
-    });
-    markClean();
-  }, [markClean]);
 
   const handleSubmit = useCallback(async () => {
     if (isCurrentlySubmitting) {
@@ -151,6 +153,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
 
   // Global functions with correct plural naming
   useEffect(() => {
+    if (panelMode === 'settings') {
+      return;
+    }
     (window as any).submitTasksForm = handleSubmit; // PLURAL!
     (window as any).cancelTasksForm = handleCancel; // PLURAL!
 
@@ -158,7 +163,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       delete (window as any).submitTasksForm;
       delete (window as any).cancelTasksForm;
     };
-  }, [handleSubmit, handleCancel]);
+  }, [handleSubmit, handleCancel, panelMode]);
 
   const handleDiscardChanges = () => {
     if (!currentTask) {
@@ -201,6 +206,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({
 
   // Check if there are any blocking errors (non-warning)
   const hasBlockingErrors = validationErrors.some((error) => !error.message.includes('Warning'));
+
+  if (panelMode === 'settings') {
+    return <TaskSettingsForm onCancel={onCancel} />;
+  }
 
   // Format date for input field
   const formatDateForInput = (date: Date | null) => {

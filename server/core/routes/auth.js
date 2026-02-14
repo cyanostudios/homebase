@@ -14,6 +14,15 @@ let pluginLoader = null;
 // Initialize AuthService
 const authService = new AuthService();
 
+/** Always-on plugin: ensure 'settings' is in the plugins array for nav/API consistency. */
+function ensureSettingsInPlugins(plugins) {
+  const list = Array.isArray(plugins) ? [...plugins] : [];
+  if (!list.includes('settings')) {
+    list.push('settings');
+  }
+  return list;
+}
+
 /**
  * Setup auth routes with dependencies
  * @param {Pool} mainPool - Main database pool (Unused in new Service pattern, kept for compatibility)
@@ -72,12 +81,12 @@ router.post(
         return res.status(500).json({ error: 'Login failed: Invalid response from auth service' });
       }
 
-      // Save user info in session
+      // Save user info in session (settings plugin always in plugins)
       req.session.user = {
         id: user.id,
         email: user.email,
         role: user.role,
-        plugins: user.plugins || [],
+        plugins: ensureSettingsInPlugins(user.plugins || []),
       };
 
       // Save tenant connection string in session
@@ -110,7 +119,7 @@ router.post(
             id: user.id,
             email: user.email,
             role: user.role,
-            plugins: user.plugins || [],
+            plugins: ensureSettingsInPlugins(user.plugins || []),
           },
         });
       });
@@ -149,12 +158,12 @@ router.post('/signup', async (req, res) => {
   try {
     const { user, tenantDb } = await authService.signup({ email, password, plugins });
 
-    // Auto-login logic
+    // Auto-login logic (settings plugin always in plugins)
     req.session.user = {
       id: user.id,
       email: user.email,
       role: user.role,
-      plugins: user.plugins,
+      plugins: ensureSettingsInPlugins(user.plugins || []),
     };
 
     req.session.tenantConnectionString = tenantDb.connectionString;
@@ -169,7 +178,7 @@ router.post('/signup', async (req, res) => {
       }
 
       res.status(201).json({
-        user,
+        user: { ...user, plugins: ensureSettingsInPlugins(user.plugins || []) },
       });
     });
   } catch (error) {
@@ -236,7 +245,7 @@ router.get(
       res.json({
         user: {
           ...req.session.user,
-          plugins: plugins,
+          plugins: ensureSettingsInPlugins(plugins),
         },
         currentTenantUserId: currentTenantUserId,
       });

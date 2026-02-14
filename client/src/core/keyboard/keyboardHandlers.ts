@@ -42,10 +42,11 @@ function findOpenFunction(context: any, mode: string, pluginName?: string): any 
 }
 
 export const createKeyboardHandler = (
-  pluginContexts: any[],
+  getPluginContexts: () => any[],
   attemptNavigation?: (action: () => void) => void,
 ) => {
   return (e: KeyboardEvent) => {
+    const pluginContexts = getPluginContexts();
     // Don't interfere with form inputs, textareas, etc.
     const target = e.target as HTMLElement;
     if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
