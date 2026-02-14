@@ -37,12 +37,6 @@ interface FilesContextType {
   deleteFile: (id: string) => Promise<void>;
   clearValidationErrors: () => void;
 
-  // PanelTitles integration
-  getPanelTitle: (
-    mode: 'create' | 'edit' | 'view',
-    item: FileItem | null,
-    isMobile?: boolean,
-  ) => string;
   getPanelSubtitle: (mode: 'create' | 'edit' | 'view', item: FileItem | null) => React.ReactNode;
   getDeleteMessage: (item: FileItem | null) => string;
 
@@ -413,16 +407,6 @@ export function FilesProvider({
     return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
   };
 
-  const getPanelTitle = (mode: 'create' | 'edit' | 'view', item: FileItem | null): string => {
-    if (mode === 'create') {
-      return 'Upload Files';
-    }
-    if (mode === 'edit') {
-      return 'Rename File';
-    }
-    return item?.name || 'File';
-  };
-
   const getPanelSubtitle = (
     mode: 'create' | 'edit' | 'view',
     item: FileItem | null,
@@ -487,7 +471,6 @@ export function FilesProvider({
     deleteFile,
     deleteFiles,
     clearValidationErrors,
-    getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
   };

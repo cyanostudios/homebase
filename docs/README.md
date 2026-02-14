@@ -251,6 +251,9 @@ Change providers: Update config/services.js + environment variables → No code 
 
 🚨 CRITICAL RULES FOR DEVELOPMENT
 
+**0. NEVER BREAK THE PLATFORM**  
+Do not introduce changes that break core behaviour: plugin/sidebar navigation, panel open/close, login, or basic CRUD. When in doubt: read the code, reproduce the issue, find root cause, then fix—avoid guesswork. See `LESSONS_LEARNED.md` for the overriding principle (Swedish) and patterns.
+
 1. ALWAYS Use Core Services
    // ✅ CORRECT
    const database = ServiceManager.get('database');

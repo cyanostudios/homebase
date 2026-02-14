@@ -25,9 +25,15 @@ class MailApi {
 
   async getHistory(params?: { limit?: number; offset?: number; pluginSource?: string }) {
     const search = new URLSearchParams();
-    if (params?.limit) search.set('limit', String(params.limit));
-    if (params?.offset) search.set('offset', String(params.offset));
-    if (params?.pluginSource) search.set('pluginSource', params.pluginSource);
+    if (params?.limit) {
+      search.set('limit', String(params.limit));
+    }
+    if (params?.offset) {
+      search.set('offset', String(params.offset));
+    }
+    if (params?.pluginSource) {
+      search.set('pluginSource', params.pluginSource);
+    }
     const qs = search.toString();
     return this.request(`/history${qs ? `?${qs}` : ''}`);
   }

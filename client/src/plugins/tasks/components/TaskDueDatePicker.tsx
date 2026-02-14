@@ -1,8 +1,8 @@
-import React from 'react';
 import { Calendar as CalendarIcon } from 'lucide-react';
+import React from 'react';
 
-import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 interface TaskDueDatePickerProps {
   task: any;
@@ -11,7 +11,9 @@ interface TaskDueDatePickerProps {
 
 export function TaskDueDatePicker({ task, onDueDateChange }: TaskDueDatePickerProps) {
   const formatDateForInput = (date: any) => {
-    if (!date) return '';
+    if (!date) {
+      return '';
+    }
     const d = new Date(date);
     return d.toISOString().split('T')[0];
   };

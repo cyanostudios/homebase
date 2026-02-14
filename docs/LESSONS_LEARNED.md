@@ -5,6 +5,12 @@
 
 ---
 
+## ⚠️ Överordnad princip: Ta inte sönder plattformen
+
+**Det är av yttersta vikt att inget arbete (refaktorering, nya features, buggfixar) får ta sönder plattformen.** Navigation mellan sidor/plugins, panelöppning/stängning, inloggning och grundläggande CRUD ska fortsätta fungera. Vid osäkerhet: läs befintlig implementation, felsök strukturerat (repro → orsak → fix), och undvik gissningar. Läs denna dokumentation och följ etablerade patterns innan större ändringar.
+
+---
+
 ## Database SDK
 
 > **Note:** Detaljerad dokumentation om Database SDK finns nu i `BACKEND_PLUGIN_GUIDE_V2.md` under "Database SDK Common Pitfalls".

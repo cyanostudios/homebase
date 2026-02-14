@@ -26,7 +26,7 @@ export function ContentToolbar({
           placeholder={searchPlaceholder}
           value={searchValue}
           onChange={(event) => onSearchChange(event.target.value)}
-          className="w-full pl-10"
+          className="h-7 text-[10px] pl-10 w-full"
         />
       </div>
       <div className="flex items-center gap-2 w-full sm:w-auto">

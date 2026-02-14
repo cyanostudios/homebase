@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { NativeSelect } from '@/components/ui/select';
+
 import { parseCSV, mapCsvToObjects, ImportSchema } from '../utils/importUtils';
 
 interface ImportWizardProps {
@@ -41,7 +42,9 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
     setFileName(file.name);
     const reader = new FileReader();
@@ -93,7 +96,9 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     }, 300);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && handleOnClose()}>
@@ -167,7 +172,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                       >
                         <option value="-1">Ignore Column</option>
                         {csvData[0]?.map((h, i) => (
-                          <option key={i} value={i}>
+                          <option key={h ?? `col-${i}`} value={i}>
                             {h}
                           </option>
                         ))}
@@ -203,7 +208,8 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                       .slice(0, 5)
                       .map((row, i) => (
                         <tr
-                          key={i}
+                          // eslint-disable-next-line react/no-array-index-key -- preview rows have no stable id
+                          key={`preview-${i}-${JSON.stringify(row).slice(0, 40)}`}
                           className="border-b border-gray-100 dark:border-gray-800 last:border-b-0"
                         >
                           {schema.fields

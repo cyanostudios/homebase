@@ -7,6 +7,7 @@ interface ContentHeaderProps {
   title: string;
   icon?: LucideIcon;
   actionLabel?: string;
+  actionIcon?: LucideIcon;
   onAction?: () => void;
   trailing?: React.ReactNode;
 }
@@ -15,6 +16,7 @@ export function ContentHeader({
   title,
   icon: Icon,
   actionLabel,
+  actionIcon: ActionIcon,
   onAction,
   trailing,
 }: ContentHeaderProps) {
@@ -27,7 +29,13 @@ export function ContentHeader({
       <div className="flex items-center gap-2 flex-wrap">
         {trailing}
         {actionLabel && onAction && (
-          <Button onClick={onAction} className="w-full md:w-auto">
+          <Button
+            onClick={onAction}
+            variant="secondary"
+            size="sm"
+            icon={ActionIcon}
+            className="h-7 text-[10px] px-2 w-full md:w-auto bg-green-600 hover:bg-green-700 text-white border-none"
+          >
             {actionLabel}
           </Button>
         )}

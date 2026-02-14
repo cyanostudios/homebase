@@ -1,11 +1,16 @@
 import type { ExportFormatConfig } from '@/core/utils/exportUtils';
+
 import type { Task } from '../types/tasks';
 
 function formatDate(date: Date | string | null | undefined): string {
-  if (!date) return '';
+  if (!date) {
+    return '';
+  }
   try {
     const d = typeof date === 'string' ? new Date(date) : date;
-    if (isNaN(d.getTime())) return '';
+    if (isNaN(d.getTime())) {
+      return '';
+    }
     return d.toLocaleDateString('sv-SE');
   } catch {
     return '';
@@ -17,7 +22,9 @@ function getAssignedName(
   contacts: { id: string; companyName?: string }[],
   assignedTo: string | null,
 ): string {
-  if (!assignedTo || !contacts.length) return '';
+  if (!assignedTo || !contacts.length) {
+    return '';
+  }
   const c = contacts.find((x) => String(x.id) === String(assignedTo));
   return c?.companyName ?? '';
 }
@@ -51,13 +58,9 @@ export function taskToCsvRow(
       : '',
     assignedTo: getAssignedName(contacts, task.assignedTo),
     createdAt:
-      task.createdAt instanceof Date
-        ? task.createdAt.toISOString()
-        : String(task.createdAt ?? ''),
+      task.createdAt instanceof Date ? task.createdAt.toISOString() : String(task.createdAt ?? ''),
     updatedAt:
-      task.updatedAt instanceof Date
-        ? task.updatedAt.toISOString()
-        : String(task.updatedAt ?? ''),
+      task.updatedAt instanceof Date ? task.updatedAt.toISOString() : String(task.updatedAt ?? ''),
   };
 }
 
@@ -87,7 +90,16 @@ export function getTasksExportConfig(
       baseFilename: `tasks-export-${new Date().toISOString().split('T')[0]}`,
     },
     csv: {
-      headers: ['title', 'content', 'status', 'priority', 'dueDate', 'assignedTo', 'createdAt', 'updatedAt'],
+      headers: [
+        'title',
+        'content',
+        'status',
+        'priority',
+        'dueDate',
+        'assignedTo',
+        'createdAt',
+        'updatedAt',
+      ],
       mapItemToRow: (task: Task) => taskToCsvRow(task, contacts),
     },
     pdf: {

@@ -16,6 +16,7 @@ interface MainLayoutProps {
   contentTitle: string;
   contentIcon?: LucideIcon;
   contentActionLabel?: string;
+  contentActionIcon?: LucideIcon;
   onContentAction?: () => void;
   // DetailPanel props
   detailPanelOpen: boolean;
@@ -34,6 +35,7 @@ export function MainLayout({
   contentTitle,
   contentIcon,
   contentActionLabel,
+  contentActionIcon,
   onContentAction,
   detailPanelOpen,
   detailPanelTitle,
@@ -97,6 +99,7 @@ export function MainLayout({
                       title={contentTitle}
                       icon={contentIcon}
                       actionLabel={contentActionLabel}
+                      actionIcon={contentActionIcon}
                       onAction={onContentAction}
                       trailing={headerTrailing}
                     />
@@ -143,6 +146,7 @@ export function MainLayout({
                       title={contentTitle}
                       icon={contentIcon}
                       actionLabel={contentActionLabel}
+                      actionIcon={contentActionIcon}
                       onAction={onContentAction}
                       trailing={headerTrailing}
                     />

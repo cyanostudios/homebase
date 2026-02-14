@@ -298,40 +298,40 @@ export const NoteList: React.FC = () => {
         rightActions={
           <div className="flex gap-2">
             <Button
-              variant="outline"
-              size="icon"
+              variant="secondary"
+              size="sm"
+              icon={Settings}
               onClick={() => openNoteSettings()}
-              className="h-9 w-9"
-              title="Note Settings"
+              className="h-7 text-[10px] px-2"
             >
-              <Settings className="w-4 h-4" />
+              Settings
             </Button>
             <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setIsImportWizardOpen(true)}
-              className="h-9 w-9"
-              title="Import Notes"
-            >
-              <Upload className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
-              size="icon"
+              variant={viewMode === 'grid' ? 'default' : 'secondary'}
+              size="sm"
+              icon={Grid3x3}
               onClick={() => setViewMode('grid')}
-              className="h-9 w-9"
-              title="Grid view"
+              className="h-7 text-[10px] px-2"
             >
-              <Grid3x3 className="w-4 h-4" />
+              Grid
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="icon"
+              variant={viewMode === 'list' ? 'default' : 'secondary'}
+              size="sm"
+              icon={List}
               onClick={() => setViewMode('list')}
-              className="h-9 w-9"
-              title="List view"
+              className="h-7 text-[10px] px-2"
             >
-              <List className="w-4 h-4" />
+              List
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Upload}
+              onClick={() => setIsImportWizardOpen(true)}
+              className="h-7 text-[10px] px-2"
+            >
+              Import
             </Button>
           </div>
         }

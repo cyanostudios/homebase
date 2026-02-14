@@ -1,4 +1,3 @@
-import { Building, User } from 'lucide-react';
 import React, {
   createContext,
   useCallback,
@@ -12,7 +11,6 @@ import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { cn } from '@/lib/utils';
 
@@ -48,12 +46,11 @@ interface ContactContextType {
   selectedCount: number;
   isSelected: (id: string) => boolean;
 
-  // Panel Title helpers
-  getPanelTitle: (mode: string, item: Contact | null, isMobileView: boolean) => any;
   getPanelSubtitle: (mode: string, item: Contact | null) => any;
   getDeleteMessage: (item: Contact | null) => string;
   exportFormats: ExportFormat[];
   onExportItem: (format: ExportFormat, item: Contact) => void;
+  importContacts: (data: any[]) => Promise<void>;
 }
 
 const ContactContext = createContext<ContactContextType | undefined>(undefined);
@@ -384,60 +381,26 @@ export function ContactProvider({
     }
   };
 
-  // Panel title helpers
-  const getPanelTitle = (mode: string, item: Contact | null, isMobileView: boolean) => {
-    if (mode === 'settings') {
-      return 'Contacts settings';
-    }
-    if (mode === 'view' && item) {
-      const contactNumber = formatDisplayNumber('contacts', item.contactNumber || item.id);
-      // För privatpersoner lagras fullständigt namn i companyName i vår typ
-      const name = item.companyName || '';
-      const orgNumber = item.organizationNumber || item.personalNumber || '';
-
-      if (isMobileView && orgNumber) {
-        return (
-          <div>
-            <div>
-              {contactNumber} • {name}
-            </div>
-            <div className="text-sm font-normal text-gray-600 dark:text-gray-400 mt-1">
-              {orgNumber}
-            </div>
-          </div>
-        );
-      }
-      return `${contactNumber} • ${name}${orgNumber ? ` • ${orgNumber}` : ''}`;
-    }
-
-    switch (mode) {
-      case 'edit':
-        return 'Edit Contact';
-      case 'create':
-        return 'Create Contact';
-      default:
-        return 'Contact';
-    }
-  };
-
   const getPanelSubtitle = (mode: string, item: Contact | null) => {
     if (mode === 'settings') {
       return null;
     }
     if (mode === 'view' && item) {
       const isCompany = item.contactType === 'company';
-      const Icon = isCompany ? Building : User;
-      const iconColor = isCompany ? '#2563eb' : '#16a34a';
-      const badgeText = isCompany ? 'Company' : 'Private Person';
-      const badgeColor = isCompany
-        ? 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50'
-        : 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50';
-
+      const typeColors = {
+        company: 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
+        personal:
+          'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
+      };
+      const color = isCompany ? typeColors.company : typeColors.personal;
+      const label = isCompany ? 'Company' : 'Personal';
       return (
-        <div className="flex items-center gap-2">
-          <Icon className="w-4 h-4" style={{ color: iconColor }} />
-          <Badge variant="outline" className={cn('font-medium', badgeColor)}>
-            {badgeText}
+        <div className="flex items-center gap-1.5">
+          <Badge
+            variant="outline"
+            className={cn('text-[10px] px-1.5 h-5 shrink-0 font-medium', color)}
+          >
+            {label}
           </Badge>
         </div>
       );
@@ -479,6 +442,28 @@ export function ContactProvider({
     }
   }, []);
 
+  const importContacts = useCallback(async (data: any[]) => {
+    let successCount = 0;
+    for (const row of data) {
+      try {
+        const payload = {
+          companyName: row.companyName ?? row.name ?? '',
+          contactType: row.contactType ?? row.type ?? 'company',
+          email: row.email ?? '',
+          phone: row.phone ?? '',
+          notes: row.notes ?? '',
+        };
+        await contactsApi.createContact(payload);
+        successCount++;
+      } catch (error) {
+        console.error('Failed to import contact', row, error);
+      }
+    }
+    if (successCount > 0) {
+      await loadContacts();
+    }
+  }, []);
+
   const value: ContactContextType = {
     // Contact Panel State
     isContactPanelOpen,
@@ -508,13 +493,12 @@ export function ContactProvider({
     selectedCount,
     isSelected,
 
-    // Panel Title helpers
-    getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
 
     exportFormats,
     onExportItem,
+    importContacts,
   };
 
   return <ContactContext.Provider value={value}>{children}</ContactContext.Provider>;

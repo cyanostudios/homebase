@@ -51,6 +51,7 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
   // Load existing share when component mounts
   useEffect(() => {
     loadExistingShare();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load when invoice.id changes
   }, [invoice.id]);
 
   // Initialize share expiry date to 30 days from now

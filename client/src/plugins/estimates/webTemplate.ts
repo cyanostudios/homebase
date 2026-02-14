@@ -1,7 +1,7 @@
 // client/src/plugins/estimates/webTemplate.ts
 // TypeScript version of web template for frontend use
 
-interface LineItem {
+interface _LineItem {
   id?: string;
   description: string;
   quantity: number;

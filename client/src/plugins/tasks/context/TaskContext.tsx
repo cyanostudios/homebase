@@ -62,14 +62,13 @@ interface TaskContextType {
   selectedCount: number;
   isSelected: (id: string) => boolean;
 
-  // NEW: Panel Title Functions
-  getPanelTitle: (mode: string, item: Task | null, isMobileView: boolean) => any;
   getPanelSubtitle: (mode: string, item: Task | null) => any;
   getDeleteMessage: (item: Task | null) => string;
   recentlyDuplicatedTaskId: string | null;
   setRecentlyDuplicatedTaskId: (id: string | null) => void;
   exportFormats: ExportFormat[];
   onExportItem: (format: ExportFormat, item: Task) => void;
+  importTasks: (data: any[]) => Promise<void>;
 
   // Quick-edit in view mode (status, priority, due date, assignee): draft until "Update" is clicked
   quickEditDraft: Partial<{
@@ -618,40 +617,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     [createTask, closeTaskPanel],
   );
 
-  // NEW: Panel Title Functions (moved from PanelTitles.tsx)
-  const getPanelTitle = (mode: string, item: Task | null, isMobileView: boolean) => {
-    if (mode === 'settings') {
-      return 'Tasks settings';
-    }
-    // View mode with item
-    if (mode === 'view' && item) {
-      const title = item.title || `Task #${item.id}`;
-      const dueDate = item.dueDate ? new Date(item.dueDate).toLocaleDateString() : null;
-
-      if (isMobileView && dueDate) {
-        return (
-          <div>
-            <div>{title}</div>
-            <div className="text-sm font-normal text-gray-600 dark:text-gray-400 mt-1">
-              Due: {dueDate}
-            </div>
-          </div>
-        );
-      }
-      return `${title}${dueDate ? ` • Due: ${dueDate}` : ''}`;
-    }
-
-    // Non-view modes (create/edit)
-    switch (mode) {
-      case 'edit':
-        return 'Edit Task';
-      case 'create':
-        return 'Create Task';
-      default:
-        return 'Task';
-    }
-  };
-
   const getPanelSubtitle = useCallback(
     (mode: string, item: Task | null) => {
       if (mode === 'settings') {
@@ -687,9 +652,16 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         ];
 
         // Get assigned contact if exists
+        const dueDate = item.dueDate
+          ? new Date(item.dueDate).toLocaleDateString(undefined, {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })
+          : null;
+
         const assignedContact = item.assignedTo
           ? contacts.find((c: any) => {
-              // Handle both string and number ID comparison
               const contactId = String(c.id);
               const assignedId = String(item.assignedTo);
               return contactId === assignedId;
@@ -697,8 +669,13 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           : null;
 
         return (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
+              {dueDate && (
+                <span className="text-[10px] text-muted-foreground font-medium shrink-0">
+                  Due: {dueDate}
+                </span>
+              )}
               {badges.map((badge) => (
                 <Badge
                   key={`${badge.text}-${badge.color}`}
@@ -766,6 +743,30 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     [tasksExportConfig],
   );
 
+  const importTasks = useCallback(
+    async (data: any[]) => {
+      let successCount = 0;
+      for (const row of data) {
+        try {
+          const payload = {
+            title: row.title ?? '',
+            content: row.content ?? '',
+            status: row.status ?? 'not started',
+            priority: row.priority ?? 'Medium',
+          };
+          await tasksApi.createTask(payload);
+          successCount++;
+        } catch (error) {
+          console.error('Failed to import task', row, error);
+        }
+      }
+      if (successCount > 0) {
+        await loadTasks();
+      }
+    },
+    [loadTasks],
+  );
+
   const value: TaskContextType = {
     isTaskPanelOpen,
     currentTask,
@@ -795,8 +796,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     selectedCount,
     isSelected,
 
-    // NEW: Panel Title Functions
-    getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
 
@@ -805,6 +804,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
     exportFormats,
     onExportItem,
+    importTasks,
 
     quickEditDraft,
     setQuickEditField,

@@ -10,8 +10,11 @@ This document defines MANDATORY naming conventions and patterns for all Homebase
 - 🎯 Success Rate: 100% when following these conventions exactly
 - 🔒 Security: Enforced at every layer
 - 📦 SDK: Use @homebase/core for stable interfaces
+- ⚠️ **Platform stability first:** Do not break navigation, panels, or core flows (see `LESSONS_LEARNED.md`).
 
 🔒 CRITICAL REQUIREMENTS
+
+0. **Do not break the platform.** Navigation, panel behaviour, and basic CRUD must keep working. Prefer reading code and fixing root cause over guesswork.
 
 1. Plugin Registry Entry
    Every plugin MUST be registered in client/src/core/pluginRegistry.ts:

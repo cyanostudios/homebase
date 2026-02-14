@@ -1,11 +1,11 @@
-import { StickyNote, Calculator, CheckSquare, Mail, Globe, Phone, Building } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
-import { DetailSection } from '@/core/ui/DetailSection';
 import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailSection } from '@/core/ui/DetailSection';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
@@ -32,10 +32,10 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
   const [relatedEstimates, setRelatedEstimates] = useState<any[]>([]);
   const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
   const [mentionedInTasks, setMentionedInTasks] = useState<any[]>([]);
-  const [loadingNotes, setLoadingNotes] = useState(false);
-  const [loadingEstimates, setLoadingEstimates] = useState(false);
-  const [loadingTasks, setLoadingTasks] = useState(false);
-  const [loadingTaskMentions, setLoadingTaskMentions] = useState(false);
+  const [_loadingNotes, setLoadingNotes] = useState(false);
+  const [_loadingEstimates, setLoadingEstimates] = useState(false);
+  const [_loadingTasks, setLoadingTasks] = useState(false);
+  const [_loadingTaskMentions, setLoadingTaskMentions] = useState(false);
 
   // Load cross-plugin data when contact changes
   useEffect(() => {
@@ -115,7 +115,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     return null;
   }
 
-  const getStatusBadge = (status: string, plugin: 'task' | 'estimate') => {
+  const _getStatusBadge = (status: string, plugin: 'task' | 'estimate') => {
     const statusColors: any = {
       task: {
         'not started': 'bg-muted text-muted-foreground',
@@ -145,65 +145,60 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     <DetailLayout
       sidebar={
         <div className="space-y-6">
-          {openTaskForView &&
-            (assignedTasks.length > 0 || mentionedInTasks.length > 0) && (
-              <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-                <DetailSection title="Tasks" className="p-4">
-                  <div className="space-y-3">
-                    {assignedTasks.length > 0 && (
-                      <div className="space-y-2">
-                        {assignedTasks.map((task: any) => (
-                          <div
-                            key={task.id}
-                            className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
+          {openTaskForView && (assignedTasks.length > 0 || mentionedInTasks.length > 0) && (
+            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+              <DetailSection title="Tasks" className="p-4">
+                <div className="space-y-3">
+                  {assignedTasks.length > 0 && (
+                    <div className="space-y-2">
+                      {assignedTasks.map((task: any) => (
+                        <div
+                          key={task.id}
+                          className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
+                        >
+                          <span className="text-muted-foreground truncate mr-4">{task.title}</span>
+                          <Button
+                            size="sm"
+                            variant="link"
+                            onClick={() => {
+                              closeContactPanel();
+                              openTaskForView(task);
+                            }}
+                            className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
                           >
-                            <span className="text-muted-foreground truncate mr-4">
-                              {task.title}
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="link"
-                              onClick={() => {
-                                closeContactPanel();
-                                openTaskForView(task);
-                              }}
-                              className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
-                            >
-                              View
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {mentionedInTasks.length > 0 && (
-                      <div className="space-y-2">
-                        {mentionedInTasks.map((task: any) => (
-                          <div
-                            key={task.id}
-                            className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle/50 px-2 py-1.5 rounded-md border border-border/50"
+                            View
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {mentionedInTasks.length > 0 && (
+                    <div className="space-y-2">
+                      {mentionedInTasks.map((task: any) => (
+                        <div
+                          key={task.id}
+                          className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle/50 px-2 py-1.5 rounded-md border border-border/50"
+                        >
+                          <span className="text-muted-foreground truncate mr-4">{task.title}</span>
+                          <Button
+                            size="sm"
+                            variant="link"
+                            onClick={() => {
+                              closeContactPanel();
+                              openTaskForView(task);
+                            }}
+                            className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
                           >
-                            <span className="text-muted-foreground truncate mr-4">
-                              {task.title}
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="link"
-                              onClick={() => {
-                                closeContactPanel();
-                                openTaskForView(task);
-                              }}
-                              className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
-                            >
-                              View
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </DetailSection>
-              </Card>
-            )}
+                            View
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </DetailSection>
+            </Card>
+          )}
 
           {openEstimateForView && relatedEstimates.length > 0 && (
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">

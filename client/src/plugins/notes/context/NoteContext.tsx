@@ -55,9 +55,6 @@ interface NoteContextType {
   isSelected: (id: string) => boolean;
   importNotes: (data: any[]) => Promise<void>;
 
-  // NEW: Panel Title Functions
-  getPanelTitle: (mode: string, item: Note | null, isMobileView: boolean) => any;
-  getPanelSubtitle: (mode: string, item: Note | null) => any;
   getDeleteMessage: (item: Note | null) => string;
   /** ID of note just duplicated; list highlights it until next action. */
   recentlyDuplicatedNoteId: string | null;
@@ -482,45 +479,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     [pluginActions],
   );
 
-  // NEW: Panel Title Functions (moved from PanelTitles.tsx)
-  const getPanelTitle = (mode: string, item: Note | null, _isMobileView: boolean) => {
-    // View mode with item
-    if (mode === 'view' && item) {
-      return item.title || `Note #${item.id}`;
-    }
-
-    // Non-view modes (create/edit)
-    switch (mode) {
-      case 'edit':
-        return 'Edit Note';
-      case 'create':
-        return 'Create Note';
-      case 'settings':
-        return 'Notes Settings';
-      default:
-        return 'Note';
-    }
-  };
-
-  const getPanelSubtitle = (mode: string, item: Note | null) => {
-    // View mode: no subtitle actions (To Task etc. moved to footer)
-    if (mode === 'view' && item) {
-      return null;
-    }
-
-    // Non-view modes
-    switch (mode) {
-      case 'edit':
-        return 'Update note information';
-      case 'create':
-        return 'Enter new note details';
-      case 'settings':
-        return 'Configure plugin preferences';
-      default:
-        return '';
-    }
-  };
-
   const getDeleteMessage = (item: Note | null) => {
     if (!item) {
       return 'Are you sure you want to delete this note?';
@@ -575,9 +533,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       }
     },
 
-    // NEW: Panel Title Functions
-    getPanelTitle,
-    getPanelSubtitle,
     getDeleteMessage,
 
     recentlyDuplicatedNoteId,

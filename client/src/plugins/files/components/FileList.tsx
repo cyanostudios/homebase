@@ -11,16 +11,15 @@ import {
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 
-import { cn } from '@/lib/utils';
-
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { cn } from '@/lib/utils';
 
 import { useFiles } from '../hooks/useFiles';
 

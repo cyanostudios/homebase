@@ -6,9 +6,9 @@ import { User, Globe, History } from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
 
 import { Card } from '@/components/ui/card';
+import { SettingsCategory as SettingsCategoryType } from '@/core/settings/types';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
-import { SettingsCategory as SettingsCategoryType } from '@/core/settings/types';
 
 interface SettingsCategory {
   id: string;

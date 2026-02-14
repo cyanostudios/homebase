@@ -14,8 +14,10 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for health checks and CSRF token endpoint
-    return req.path === '/api/health' || req.path === '/api/csrf-token';
+    // Skip rate limiting for health, CSRF, and session check (needed for auth state)
+    return (
+      req.path === '/api/health' || req.path === '/api/csrf-token' || req.path === '/api/auth/me'
+    );
   },
 });
 
@@ -25,7 +27,7 @@ const globalLimiter = rateLimit({
  */
 const authLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: process.env.NODE_ENV === 'development' ? 50 : 5, // More lenient in development
+  max: process.env.NODE_ENV === 'development' ? 200 : 5, // Lenient in dev; strict in prod
   message: 'Too many login attempts, please try again later',
   skipSuccessfulRequests: true,
   standardHeaders: true,

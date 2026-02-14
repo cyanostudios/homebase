@@ -185,6 +185,7 @@ export function usePomodoroTimer() {
     if (state === 'idle') {
       setTimeLeft(getCurrentDuration());
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- getCurrentDuration is stable
   }, [sessionType, state, settings]);
 
   // Cleanup on unmount

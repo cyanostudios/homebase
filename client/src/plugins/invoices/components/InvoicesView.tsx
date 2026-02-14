@@ -1,8 +1,8 @@
 import React from 'react';
 
 import { Card } from '@/components/ui/card';
-import { DetailSection } from '@/core/ui/DetailSection';
 import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailSection } from '@/core/ui/DetailSection';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
@@ -26,7 +26,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
   const updated = actualItem.updatedAt ? new Date(actualItem.updatedAt) : null;
   const issueDate = actualItem.issueDate ? new Date(actualItem.issueDate) : null;
   const dueDate = actualItem.dueDate ? new Date(actualItem.dueDate) : null;
-  const paidAt = actualItem.paidAt ? new Date(actualItem.paidAt) : null;
+  const _paidAt = actualItem.paidAt ? new Date(actualItem.paidAt) : null;
 
   // Summary fields
   const invoiceNumberDisplay = formatDisplayNumber(

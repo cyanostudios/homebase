@@ -88,6 +88,7 @@ export const MentionContent: React.FC<MentionContentProps> = ({
             <Button
               variant="link"
               size="sm"
+              // eslint-disable-next-line react/no-array-index-key -- index needed when same contact appears multiple times
               key={`mention-${segment.mention.contactId}-${index}`}
               onClick={() => onMentionClick(segment.mention!.contactId)}
               className="h-auto p-0 px-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium bg-blue-50 dark:bg-blue-950/30 rounded"
@@ -99,6 +100,7 @@ export const MentionContent: React.FC<MentionContentProps> = ({
         if (contactExists && !onMentionClick) {
           return (
             <span
+              // eslint-disable-next-line react/no-array-index-key
               key={`mention-${segment.mention.contactId}-${index}`}
               className="text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-950/30 px-1 rounded"
             >
@@ -108,6 +110,7 @@ export const MentionContent: React.FC<MentionContentProps> = ({
         }
         return (
           <span
+            // eslint-disable-next-line react/no-array-index-key
             key={`mention-${segment.mention.contactId}-${index}`}
             className="text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1 rounded font-medium"
           >
@@ -116,7 +119,10 @@ export const MentionContent: React.FC<MentionContentProps> = ({
         );
       }
       return segment.text.split('\n').map((line, lineIndex) => (
-        <React.Fragment key={`text-${index}-${lineIndex}`}>
+        <React.Fragment
+          // eslint-disable-next-line react/no-array-index-key
+          key={`text-${index}-${lineIndex}`}
+        >
           {line}
           {lineIndex < segment.text.split('\n').length - 1 ? <br /> : null}
         </React.Fragment>

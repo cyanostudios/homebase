@@ -1,10 +1,9 @@
-import React, { useMemo } from 'react';
 import { ExternalLink, File, FileText, Image as ImageIcon } from 'lucide-react';
+import React, { useMemo } from 'react';
 
 import { Card } from '@/components/ui/card';
-import { DetailSection } from '@/core/ui/DetailSection';
 import { DetailLayout } from '@/core/ui/DetailLayout';
-import { Text } from '@/core/ui/Typography';
+import { DetailSection } from '@/core/ui/DetailSection';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import type { FileItem } from '../types/files';

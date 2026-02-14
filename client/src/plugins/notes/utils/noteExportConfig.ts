@@ -1,11 +1,16 @@
 import type { ExportFormatConfig } from '@/core/utils/exportUtils';
+
 import type { Note } from '../types/notes';
 
 function formatDate(date: Date | string | null | undefined): string {
-  if (!date) return '';
+  if (!date) {
+    return '';
+  }
   try {
     const d = typeof date === 'string' ? new Date(date) : date;
-    if (isNaN(d.getTime())) return '';
+    if (isNaN(d.getTime())) {
+      return '';
+    }
     return d.toLocaleDateString('sv-SE');
   } catch {
     return '';
@@ -30,13 +35,9 @@ export function noteToCsvRow(note: Note): Record<string, any> {
     title: note.title || '',
     content: (note.content || '').slice(0, 500),
     createdAt:
-      note.createdAt instanceof Date
-        ? note.createdAt.toISOString()
-        : String(note.createdAt ?? ''),
+      note.createdAt instanceof Date ? note.createdAt.toISOString() : String(note.createdAt ?? ''),
     updatedAt:
-      note.updatedAt instanceof Date
-        ? note.updatedAt.toISOString()
-        : String(note.updatedAt ?? ''),
+      note.updatedAt instanceof Date ? note.updatedAt.toISOString() : String(note.updatedAt ?? ''),
     mentionsCount: Array.isArray(note.mentions) ? note.mentions.length : 0,
   };
 }

@@ -1,13 +1,13 @@
 import { Share, Copy, Check, X } from 'lucide-react';
 import React from 'react';
 
-import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 
 interface ShareDialogProps {
   isOpen: boolean;

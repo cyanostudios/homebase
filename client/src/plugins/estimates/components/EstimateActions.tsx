@@ -1,14 +1,14 @@
 import { Share, Copy, Check, Download, Copy as CopyIcon, ExternalLink } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
-import { ShareDialog } from './ShareDialog';
-
 import { Button } from '@/components/ui/button';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import { estimateShareApi, estimatesApi } from '../api/estimatesApi';
 import { useEstimates } from '../hooks/useEstimates';
 import type { Estimate, EstimateShare } from '../types/estimate';
+
+import { ShareDialog } from './ShareDialog';
 
 interface EstimateActionsProps {
   estimate: Estimate;
@@ -30,6 +30,7 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
   // Load existing share when component mounts
   useEffect(() => {
     loadExistingShare();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load when estimate.id changes
   }, [estimate.id]);
 
   const loadExistingShare = async () => {

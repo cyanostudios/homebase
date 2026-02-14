@@ -7,7 +7,7 @@
  * Last Modified: August 2025 - Global Navigation Guard Integration
  */
 
-import { Home } from 'lucide-react';
+import { Home, Plus } from 'lucide-react';
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 
 import { ActionProvider } from '@/core/api/ActionContext';
@@ -286,6 +286,7 @@ function AppContent() {
 
     return {
       label: `Add ${singular(currentPagePlugin.navigation?.label || '')}`,
+      icon: Plus,
       onClick: () => attemptNavigation(() => (openPanel as (item: any) => void)(null)),
     };
   }, [currentPage, currentPagePlugin, pluginContexts, attemptNavigation]);
@@ -368,6 +369,7 @@ function AppContent() {
         contentTitle={contentTitle}
         contentIcon={contentIcon}
         contentActionLabel={primaryAction?.label}
+        contentActionIcon={primaryAction?.icon}
         onContentAction={primaryAction?.onClick}
         detailPanelOpen={detailPanelOpen}
         detailPanelTitle={detailPanelTitle}

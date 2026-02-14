@@ -107,6 +107,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
     } else {
       resetForm();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resetForm intentionally excluded
   }, [currentEstimate, markClean]);
 
   // Calculate totals when line items OR estimate discount changes
@@ -310,7 +311,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                       {validationErrors
                         .filter((error) => !error.message.includes('Warning'))
                         .map((error, index) => (
-                          <li key={index}>{error.message}</li>
+                          <li key={error.field ?? index}>{error.message}</li>
                         ))}
                     </ul>
                   </div>

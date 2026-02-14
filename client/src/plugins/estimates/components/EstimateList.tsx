@@ -9,8 +9,6 @@ import {
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
-import { cn } from '@/lib/utils';
-
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -30,6 +28,7 @@ import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportToCSV, exportToPDF } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { cn } from '@/lib/utils';
 
 import { useEstimates } from '../hooks/useEstimates';
 import { calculateEstimateTotals } from '../types/estimate';

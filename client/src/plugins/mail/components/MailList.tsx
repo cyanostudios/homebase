@@ -1,8 +1,6 @@
+import { format } from 'date-fns';
 import { Mail, Settings, RefreshCw } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
-
-import { cn } from '@/lib/utils';
-import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,10 +13,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
+import { cn } from '@/lib/utils';
 
 import { useMail } from '../hooks/useMail';
-import { format } from 'date-fns';
 
 export const MailList: React.FC = () => {
   const { mailHistory, totalCount, settings, loading, loadHistory, openMailPanel } = useMail();

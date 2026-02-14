@@ -2,10 +2,9 @@ import React from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { DetailSection } from '@/core/ui/DetailSection';
 import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailSection } from '@/core/ui/DetailSection';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
-import { cn } from '@/lib/utils';
 
 import { useEstimateStatusActions } from '../hooks/useEstimateStatusActions';
 import { Estimate, calculateEstimateTotals } from '../types/estimate';

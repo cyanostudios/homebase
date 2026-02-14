@@ -3,10 +3,9 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
-import { cn } from '@/lib/utils';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
 import { InvoicesApi, invoicesApi } from '../api/invoicesApi';
 
@@ -62,8 +61,6 @@ interface InvoicesContextType {
   isSelected: (id: string) => boolean;
   clearValidationErrors: () => void;
 
-  // Panel Title Functions
-  getPanelTitle: (mode: string, item: Invoice | null, isMobileView: boolean) => any;
   getPanelSubtitle: (mode: string, item: Invoice | null) => any;
   getDeleteMessage: (item: Invoice | null) => string;
 }
@@ -313,53 +310,6 @@ export function InvoicesProvider({
     }
   };
 
-  // Panel Title Functions
-  const getPanelTitle = (mode: string, item: Invoice | null, isMobileView: boolean) => {
-    if (mode === 'view' && item) {
-      const invoiceNumber = formatDisplayNumber('invoices', item.invoiceNumber || item.id);
-      const total = (item.total || 0).toFixed(2);
-      const currency = item.currency || 'SEK';
-      const contactName = item.contactName || 'Customer';
-
-      if (isMobileView) {
-        return (
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-foreground">
-                {invoiceNumber} • @{contactName}
-              </span>
-            </div>
-            <div className="text-sm font-normal text-muted-foreground mt-1">
-              {total} {currency}
-            </div>
-          </div>
-        );
-      }
-      return (
-        <div className="flex items-center gap-2">
-          <span>{invoiceNumber}</span>
-          <span className="text-muted-foreground/30 font-light mx-1">|</span>
-          <span className="text-blue-600 dark:text-blue-400 font-medium whitespace-nowrap">
-            @{contactName}
-          </span>
-          <span className="text-muted-foreground/30 font-light mx-1">|</span>
-          <span className="text-muted-foreground whitespace-nowrap">
-            {total} {currency}
-          </span>
-        </div>
-      );
-    }
-
-    switch (mode) {
-      case 'edit':
-        return 'Edit Invoice';
-      case 'create':
-        return 'Create Invoice';
-      default:
-        return 'Invoice';
-    }
-  };
-
   const getPanelSubtitle = (mode: string, item: Invoice | null) => {
     if (mode === 'view' && item) {
       const statusColors: Record<string, string> = {
@@ -446,7 +396,6 @@ export function InvoicesProvider({
     clearInvoiceSelection: clearInvoiceSelectionCore,
     selectedCount,
     isSelected,
-    getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
   };

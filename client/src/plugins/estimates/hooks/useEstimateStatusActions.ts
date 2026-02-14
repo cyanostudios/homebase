@@ -14,7 +14,7 @@ export function useEstimateStatusActions() {
 
   // Format validTo for API (YYYY-MM-DD) to avoid timezone/format issues
   const formatValidTo = (dateValue: any): string | null => {
-    if (dateValue == null || dateValue === '') {
+    if (dateValue === null || dateValue === undefined || dateValue === '') {
       return null;
     }
     const date = dateValue instanceof Date ? dateValue : new Date(dateValue);

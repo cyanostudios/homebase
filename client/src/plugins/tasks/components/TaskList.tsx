@@ -7,6 +7,7 @@ import {
   Grid3x3,
   List as ListIcon,
   Settings,
+  Upload,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 
@@ -27,7 +28,9 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
+import { ImportWizard } from '@/core/ui/ImportWizard';
 import { exportItems } from '@/core/utils/exportUtils';
+import { ImportSchema } from '@/core/utils/importUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -41,11 +44,21 @@ type ViewMode = 'grid' | 'list';
 
 const TASKS_SETTINGS_KEY = 'tasks';
 
+const TASK_IMPORT_SCHEMA: ImportSchema = {
+  fields: [
+    { key: 'title', label: 'Title', required: true },
+    { key: 'content', label: 'Content', required: false },
+    { key: 'status', label: 'Status', required: false },
+    { key: 'priority', label: 'Priority', required: false },
+  ],
+};
+
 export const TaskList: React.FC = () => {
   const {
     tasks,
     openTaskForView,
     openTaskSettings,
+    importTasks,
     deleteTask,
     deleteTasks,
     selectedTaskIds,
@@ -72,6 +85,7 @@ export const TaskList: React.FC = () => {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -338,31 +352,40 @@ export const TaskList: React.FC = () => {
         rightActions={
           <div className="flex gap-2">
             <Button
-              variant="outline"
-              size="icon"
+              variant="secondary"
+              size="sm"
+              icon={Settings}
               onClick={() => openTaskSettings()}
-              className="h-9 w-9"
-              title="Task Settings"
+              className="h-7 text-[10px] px-2"
             >
-              <Settings className="w-4 h-4" />
+              Settings
             </Button>
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
-              size="icon"
+              variant={viewMode === 'grid' ? 'default' : 'secondary'}
+              size="sm"
+              icon={Grid3x3}
               onClick={() => setViewMode('grid')}
-              className="h-9 w-9"
-              title="Grid view"
+              className="h-7 text-[10px] px-2"
             >
-              <Grid3x3 className="w-4 h-4" />
+              Grid
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="icon"
+              variant={viewMode === 'list' ? 'default' : 'secondary'}
+              size="sm"
+              icon={ListIcon}
               onClick={() => setViewMode('list')}
-              className="h-9 w-9"
-              title="List view"
+              className="h-7 text-[10px] px-2"
             >
-              <ListIcon className="w-4 h-4" />
+              List
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Upload}
+              onClick={() => setIsImportWizardOpen(true)}
+              className="h-7 text-[10px] px-2"
+            >
+              Import
             </Button>
           </div>
         }
@@ -733,6 +756,14 @@ export const TaskList: React.FC = () => {
         itemCount={selectedCount}
         itemLabel="tasks"
         isLoading={deleting}
+      />
+
+      <ImportWizard
+        isOpen={isImportWizardOpen}
+        onClose={() => setIsImportWizardOpen(false)}
+        onImport={importTasks}
+        schema={TASK_IMPORT_SCHEMA}
+        title="Import Tasks"
       />
 
       <ConfirmDialog

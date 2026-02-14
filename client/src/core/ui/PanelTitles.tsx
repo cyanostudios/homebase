@@ -51,38 +51,38 @@ export const createPanelTitles = (
       return '';
     }
 
-    // Check if plugin has its own title functions
-    if (pluginContext && pluginContext.getPanelTitle) {
-      if (currentPlugin.name === 'estimates') {
-        // Estimates needs the handleEstimateContactClick function
-        return pluginContext.getPanelTitle(
-          currentMode,
-          currentItem,
-          isMobileView,
-          handleEstimateContactClick,
-        );
-      } else {
-        return pluginContext.getPanelTitle(currentMode, currentItem, isMobileView);
-      }
+    // Only Estimates uses custom title (JSX with contact link + amount); all others use central fallback.
+    if (currentPlugin.name === 'estimates' && pluginContext?.getPanelTitle) {
+      return pluginContext.getPanelTitle(
+        currentMode,
+        currentItem,
+        isMobileView,
+        handleEstimateContactClick,
+      );
     }
 
-    // Fallback to legacy PLUGIN_CONFIGS for non-migrated plugins
+    // Central title from current item: order title → companyName/name → plugin display numbers → id.
     if (currentMode === 'view' && currentItem) {
       const cfg = PLUGIN_CONFIGS[currentPlugin.name];
       if (cfg?.getTitle) {
         const titleData = cfg.getTitle(currentItem);
-
         if (currentPlugin.name === 'import') {
           return titleData.title;
         }
       }
 
-      // Generic fallback fields
       if (currentItem.title) {
         return currentItem.title;
       }
       if (currentItem.name) {
         return currentItem.name;
+      }
+      if (currentPlugin.name === 'contacts') {
+        const name = currentItem.companyName?.trim();
+        if (name) {
+          return name;
+        }
+        return formatDisplayNumber('contacts', currentItem.contactNumber ?? currentItem.id);
       }
       if (currentItem.companyName) {
         return currentItem.companyName;
@@ -131,21 +131,20 @@ export const createPanelTitles = (
 
   const getPanelSubtitle = () => {
     if (!currentPlugin) {
-      return '';
+      return null;
     }
 
-    // Check if plugin has its own subtitle functions
-    if (pluginContext && pluginContext.getPanelSubtitle) {
+    // Only plugins with rich subtitle (Contacts, Tasks, Estimates) implement getPanelSubtitle.
+    if (pluginContext && typeof pluginContext.getPanelSubtitle === 'function') {
       return pluginContext.getPanelSubtitle(currentMode, currentItem);
     }
 
-    // Fallback to legacy PLUGIN_CONFIGS for non-migrated plugins
+    // Legacy PLUGIN_CONFIGS (e.g. import)
     if (currentMode === 'view' && currentItem) {
       const cfg = PLUGIN_CONFIGS[currentPlugin.name];
       if (cfg?.getSubtitle) {
         const subtitleData = cfg.getSubtitle(currentItem);
         const Icon = subtitleData.icon;
-
         if (subtitleData.badge) {
           return (
             <div className="flex items-center gap-2">
@@ -162,7 +161,8 @@ export const createPanelTitles = (
               )}
             </div>
           );
-        } else if (subtitleData.text) {
+        }
+        if (subtitleData.text) {
           return (
             <div className="flex items-center gap-2">
               <Icon className="w-4 h-4" style={{ color: subtitleData.iconColor }} />
@@ -171,10 +171,8 @@ export const createPanelTitles = (
           );
         }
       }
-      return 'View details';
     }
 
-    // Non-view modes for non-migrated plugins
     if (currentPlugin.name === 'import') {
       switch (currentMode) {
         case 'select':
@@ -190,16 +188,7 @@ export const createPanelTitles = (
       }
     }
 
-    // Generic fallback for unmigrated plugins
-    const itemType = currentPlugin.name.slice(0, -1);
-    switch (currentMode) {
-      case 'edit':
-        return `Update ${itemType} information`;
-      case 'create':
-        return `Enter new ${itemType} details`;
-      default:
-        return '';
-    }
+    return null;
   };
 
   const getDeleteMessage = () => {

@@ -1,12 +1,7 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  ReactNode,
-} from 'react';
+import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
+
 import { useApp } from '@/core/api/AppContext';
+
 import { mailApi } from '../api/mailApi';
 import type { MailLogEntry, MailSettings } from '../types/mail';
 
@@ -74,6 +69,7 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   useEffect(() => {
     registerPanelCloseFunction('mail', closeMailPanel);
     return () => unregisterPanelCloseFunction('mail');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- register once on mount
   }, []);
 
   useEffect(() => {
@@ -91,7 +87,9 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const loadHistory = useCallback(
     async (params?: { limit?: number; offset?: number; pluginSource?: string }) => {
-      if (!isAuthenticated) return;
+      if (!isAuthenticated) {
+        return;
+      }
       setLoading(true);
       try {
         const res = await mailApi.getHistory({ limit: 50, offset: 0, ...params });
@@ -114,7 +112,9 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   }, []);
 
   const loadSettings = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      return;
+    }
     try {
       const s = await mailApi.getSettings();
       setSettings(s);
@@ -169,7 +169,9 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     resendApiKey?: string;
     resendFromAddress?: string;
   }) => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      return;
+    }
     await mailApi.testSettings(data);
   };
 
@@ -184,7 +186,9 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     resendApiKey?: string;
     resendFromAddress?: string;
   }) => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      return;
+    }
     await mailApi.saveSettings(data);
     await loadSettings();
   };

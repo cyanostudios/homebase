@@ -256,7 +256,8 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
           <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
           <div>
             {(filesErrors.length ? filesErrors : generalErrors).map((m, i) => (
-              <div key={i}>{m}</div>
+              // eslint-disable-next-line react/no-array-index-key -- error list has no stable id
+              <div key={`err-${i}-${m.slice(0, 20)}`}>{m}</div>
             ))}
           </div>
         </div>

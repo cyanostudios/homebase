@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { Button } from '@/components/ui/button';
+
 import { Invoice } from '../types/invoices';
 
 interface InvoiceStatusButtonsProps {
@@ -7,7 +9,7 @@ interface InvoiceStatusButtonsProps {
   onStatusChange: (status: string) => void;
 }
 
-const INVOICE_STATUS_COLORS = {
+const _INVOICE_STATUS_COLORS = {
   draft:
     'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700',
   sent: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800',

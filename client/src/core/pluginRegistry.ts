@@ -99,7 +99,6 @@ import { SettingsForm } from '@/plugins/settings/components/SettingsForm';
 import { SettingsList } from '@/plugins/settings/components/SettingsList';
 import { SettingsProvider } from '@/plugins/settings/context/SettingsContext';
 import { useSettings } from '@/plugins/settings/hooks/useSettings';
-import { settingsNavigation } from '@/plugins/settings/navigation';
 import { TaskForm } from '@/plugins/tasks/components/TaskForm';
 import { TaskList } from '@/plugins/tasks/components/TaskList';
 import { TasksDashboardWidget } from '@/plugins/tasks/components/TasksDashboardWidget';
@@ -245,6 +244,6 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       List: SettingsList,
       Form: SettingsForm,
     },
-    navigation: settingsNavigation,
+    // No navigation: settings is reached only via TopBar profile dropdown (Settings), not sidebar
   },
 ];

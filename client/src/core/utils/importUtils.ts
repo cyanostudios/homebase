@@ -67,7 +67,9 @@ export function parseCSV(text: string): string[][] {
  */
 export function mapCsvToObjects(csvData: string[][], mapping: Record<string, number>): any[] {
   const [headers, ...rows] = csvData;
-  if (!headers) return [];
+  if (!headers) {
+    return [];
+  }
 
   return rows.map((row) => {
     const obj: any = {};

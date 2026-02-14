@@ -17,7 +17,11 @@ export function getDisplayPrefix(pluginName: string): string {
 export function formatDisplayNumber(pluginName: string, numberOrId: string): string {
   const prefix = getDisplayPrefix(pluginName);
   const num = String(numberOrId ?? '').trim();
-  if (!prefix) return num;
-  if (!num) return prefix;
+  if (!prefix) {
+    return num;
+  }
+  if (!num) {
+    return prefix;
+  }
   return `${prefix}-${num}`;
 }

@@ -1,12 +1,19 @@
-import { Calculator } from 'lucide-react';
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  ReactNode,
+} from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/core/api/AppContext';
-import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
 import { estimatesApi } from '../api/estimatesApi';
@@ -68,11 +75,8 @@ export function EstimateProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: EstimateProviderProps) {
-  const {
-    registerPanelCloseFunction,
-    unregisterPanelCloseFunction,
-    registerEstimatesNavigation,
-  } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, registerEstimatesNavigation } =
+    useApp();
 
   // Panel state
   const [isEstimatePanelOpen, setIsEstimatePanelOpen] = useState(false);
@@ -205,13 +209,16 @@ export function EstimateProvider({
     onCloseOtherPanels();
   };
 
-  const openEstimateForView = (estimate: Estimate) => {
-    setCurrentEstimate(estimate);
-    setPanelMode('view');
-    setIsEstimatePanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  };
+  const openEstimateForView = useCallback(
+    (estimate: Estimate) => {
+      setCurrentEstimate(estimate);
+      setPanelMode('view');
+      setIsEstimatePanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
   const openEstimateForViewRef = useRef(openEstimateForView);
   useEffect(() => {

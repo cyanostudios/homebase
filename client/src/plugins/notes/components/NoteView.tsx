@@ -1,18 +1,15 @@
-import { CheckSquare, Copy, Download } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
-import { DetailSection } from '@/core/ui/DetailSection';
-import { DetailCard } from '@/core/ui/DetailCard';
 import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailSection } from '@/core/ui/DetailSection';
+import { MentionContent } from '@/core/ui/MentionContent';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
-
-import { MentionContent } from '@/core/ui/MentionContent';
 
 interface NoteViewProps {
   note: any;

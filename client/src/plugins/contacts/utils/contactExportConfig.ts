@@ -1,11 +1,16 @@
 import type { ExportFormatConfig } from '@/core/utils/exportUtils';
+
 import type { Contact } from '../types/contacts';
 
 function formatDate(date: Date | string | null | undefined): string {
-  if (!date) return '';
+  if (!date) {
+    return '';
+  }
   try {
     const d = typeof date === 'string' ? new Date(date) : date;
-    if (isNaN(d.getTime())) return '';
+    if (isNaN(d.getTime())) {
+      return '';
+    }
     return d.toLocaleDateString('sv-SE');
   } catch {
     return '';

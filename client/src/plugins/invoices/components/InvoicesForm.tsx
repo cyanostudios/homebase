@@ -272,7 +272,7 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
                 {validationErrors
                   .filter((e) => !e.message.includes('Warning'))
                   .map((e, i) => (
-                    <li key={i}>{e.message}</li>
+                    <li key={e.field ?? `err-${i}`}>{e.message}</li>
                   ))}
               </ul>
             </div>

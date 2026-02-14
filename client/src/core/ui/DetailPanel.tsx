@@ -115,7 +115,7 @@ export function DetailPanel({
       <div className="flex items-center justify-between py-4 px-6 flex-shrink-0">
         <div className="flex flex-1 items-center gap-4 min-w-0 mr-4">
           <h2 className="text-lg font-semibold tracking-tight truncate shrink-0">
-            {title.length > 35 ? `${title.substring(0, 35)}...` : title}
+            {title.length > 70 ? `${title.substring(0, 70)}...` : title}
           </h2>
           {subtitle && (
             <div className="text-sm text-muted-foreground flex-1 min-w-0">

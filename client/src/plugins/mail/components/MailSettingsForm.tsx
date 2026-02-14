@@ -1,13 +1,13 @@
 import { Mail, Send } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import { cn } from '@/lib/utils';
-
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
+
 import { useMail } from '../hooks/useMail';
 import type { SmtpSettings } from '../types/mail';
 
@@ -32,7 +32,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
   const { settings, loadSettings, saveSettings, testSettings, closeMailPanel } = useMail();
   const userHasSelectedProvider = useRef(false);
   const [provider, setProvider] = useState<Provider>('smtp');
-  const [saving, setSaving] = useState(false);
+  const [_saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testSuccess, setTestSuccess] = useState<string | null>(null);
   const [testTo, setTestTo] = useState('');
@@ -52,6 +52,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
 
   useEffect(() => {
     loadSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, []);
 
   useEffect(() => {

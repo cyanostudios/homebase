@@ -9,6 +9,7 @@ import {
   Grid3x3,
   List as ListIcon,
   Settings,
+  Upload,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 
@@ -29,12 +30,15 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
+import { ImportWizard } from '@/core/ui/ImportWizard';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportItems } from '@/core/utils/exportUtils';
+import { ImportSchema } from '@/core/utils/importUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useContacts } from '../hooks/useContacts';
+import { CONTACT_TYPE_COLORS } from '../types/contacts';
 import { contactExportConfig } from '../utils/contactExportConfig';
 
 type SortField = 'contactNumber' | 'name' | 'type' | 'email';
@@ -43,11 +47,22 @@ type ViewMode = 'grid' | 'list';
 
 const CONTACTS_SETTINGS_KEY = 'contacts';
 
+const CONTACT_IMPORT_SCHEMA: ImportSchema = {
+  fields: [
+    { key: 'companyName', label: 'Name', required: true },
+    { key: 'contactType', label: 'Type', required: false },
+    { key: 'email', label: 'Email', required: false },
+    { key: 'phone', label: 'Phone', required: false },
+    { key: 'notes', label: 'Notes', required: false },
+  ],
+};
+
 export const ContactList: React.FC = () => {
   const {
     contacts,
     openContactForView,
     openContactSettings,
+    importContacts,
     deleteContact,
     deleteContacts,
     selectedContactIds,
@@ -73,6 +88,7 @@ export const ContactList: React.FC = () => {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
   const [sortField, setSortField] = useState<SortField>('contactNumber');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -271,31 +287,40 @@ export const ContactList: React.FC = () => {
         rightActions={
           <div className="flex gap-2">
             <Button
-              variant="outline"
-              size="icon"
+              variant="secondary"
+              size="sm"
+              icon={Settings}
               onClick={() => openContactSettings()}
-              className="h-9 w-9"
-              title="Contact Settings"
+              className="h-7 text-[10px] px-2"
             >
-              <Settings className="w-4 h-4" />
+              Settings
             </Button>
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
-              size="icon"
+              variant={viewMode === 'grid' ? 'default' : 'secondary'}
+              size="sm"
+              icon={Grid3x3}
               onClick={() => setViewMode('grid')}
-              className="h-9 w-9"
-              title="Grid view"
+              className="h-7 text-[10px] px-2"
             >
-              <Grid3x3 className="w-4 h-4" />
+              Grid
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="icon"
+              variant={viewMode === 'list' ? 'default' : 'secondary'}
+              size="sm"
+              icon={ListIcon}
               onClick={() => setViewMode('list')}
-              className="h-9 w-9"
-              title="List view"
+              className="h-7 text-[10px] px-2"
             >
-              <ListIcon className="w-4 h-4" />
+              List
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Upload}
+              onClick={() => setIsImportWizardOpen(true)}
+              className="h-7 text-[10px] px-2"
+            >
+              Import
             </Button>
           </div>
         }
@@ -383,15 +408,7 @@ export const ContactList: React.FC = () => {
                         {formatDisplayNumber('contacts', contact.contactNumber || contact.id)}
                       </span>
                     </div>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        'font-medium',
-                        contact.contactType === 'company'
-                          ? 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle'
-                          : 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle',
-                      )}
-                    >
+                    <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
                       {contact.contactType === 'company' ? 'Company' : 'Private'}
                     </Badge>
                   </div>
@@ -461,15 +478,7 @@ export const ContactList: React.FC = () => {
                           <span className="font-mono text-xs text-muted-foreground">
                             {formatDisplayNumber('contacts', contact.contactNumber || contact.id)}
                           </span>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              'font-medium',
-                              contact.contactType === 'company'
-                                ? 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle'
-                                : 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle',
-                            )}
-                          >
+                          <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
                             {contact.contactType === 'company' ? 'Company' : 'Private'}
                           </Badge>
                         </div>
@@ -631,15 +640,7 @@ export const ContactList: React.FC = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'font-medium',
-                            contact.contactType === 'company'
-                              ? 'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle'
-                              : 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle',
-                          )}
-                        >
+                        <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
                           {contact.contactType === 'company' ? 'Company' : 'Private'}
                         </Badge>
                       </TableCell>
@@ -674,6 +675,14 @@ export const ContactList: React.FC = () => {
         itemCount={selectedCount}
         itemLabel="contacts"
         isLoading={deleting}
+      />
+
+      <ImportWizard
+        isOpen={isImportWizardOpen}
+        onClose={() => setIsImportWizardOpen(false)}
+        onImport={importContacts}
+        schema={CONTACT_IMPORT_SCHEMA}
+        title="Import Contacts"
       />
 
       <ConfirmDialog

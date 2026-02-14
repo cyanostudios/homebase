@@ -60,7 +60,6 @@ export function exportToTxt(
     alert('No data to export');
     return;
   }
-  const txtConfig = { getContent, getFilename, baseFilename };
   if (items.length === 1) {
     const content = getContent(items[0]);
     const filename = getFilename(items[0]);
@@ -96,10 +95,17 @@ export function exportItems(options: ExportItemsOptions): void | Promise<void> {
     case 'txt': {
       const c = config.txt;
       if (!c?.getContent || !c?.getFilename) {
-        console.warn('Export format "txt" requires config.txt.getContent and config.txt.getFilename');
+        console.warn(
+          'Export format "txt" requires config.txt.getContent and config.txt.getFilename',
+        );
         return;
       }
-      exportToTxt(items, c.getContent, c.getFilename, items.length > 1 ? c.baseFilename ?? baseFilename : undefined);
+      exportToTxt(
+        items,
+        c.getContent,
+        c.getFilename,
+        items.length > 1 ? (c.baseFilename ?? baseFilename) : undefined,
+      );
       return;
     }
     case 'csv': {
