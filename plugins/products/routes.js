@@ -35,6 +35,9 @@ function createProductRoutes(controller, context) {
       return res.status(400).json({ error: 'Upload failed', code: 'VALIDATION_ERROR' });
     });
 
+  // Category cache (read-only from DB; MUST be before '/' route)
+  router.get('/category-cache', gate, (req, res) => controller.getCategoryCache(req, res));
+
   // Lookup tables (MUST be before '/' route)
   router.get('/brands', gate, (req, res) => controller.getBrands(req, res));
   router.post('/brands', gate, csrfProtection, [commonRules.string('name', 1, 255)], validateRequest, (req, res) => controller.createBrand(req, res));

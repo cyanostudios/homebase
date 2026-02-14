@@ -6,6 +6,7 @@ const { AppError } = require('../../server/core/errors/AppError');
 
 const OrdersModel = require('../orders/model');
 const { mapProductToFyndiqArticle } = require('./mapToFyndiqArticle');
+const { fetchCategoriesFromApi: fetchCategoriesFromApiModule } = require('./fetchCategories');
 
 class FyndiqProductsController {
   constructor(model) {
@@ -116,35 +117,18 @@ class FyndiqProductsController {
         return res.status(400).json({ ok: false, error: 'Fyndiq settings not found. Save settings first.' });
       }
 
-      const { url, resp, text, json } = await this.fyndiqRequest(`/api/v1/categories/${encodeURIComponent(market)}/${encodeURIComponent(language)}/`, {
-        username,
-        password,
-        method: 'GET',
-      });
-
-      if (!resp.ok) {
-        const detail = json?.message || json?.error || (typeof json === 'object' ? JSON.stringify(json) : null) || text || resp.statusText || `HTTP ${resp.status}`;
-        if (resp.status === 401) {
-          return res.status(502).json({
-            ok: false,
-            error: 'Fyndiq API rejected credentials. Check username and password in Fyndiq Products plugin settings.',
-            detail: detail || 'Missing Authorization header',
-          });
-        }
-        return res.status(resp.status).json({ ok: false, error: 'Failed to fetch Fyndiq categories', endpoint: url, detail });
-      }
-
-      const items = Array.isArray(json)
-        ? json.map((x) => ({
-            id: String(x?.id ?? ''),
-            name: String(x?.name ?? ''),
-            path: x?.path != null ? String(x.path) : undefined,
-          }))
-        : [];
-      return res.json({ ok: true, endpoint: url, items });
+      const items = await fetchCategoriesFromApiModule(market, language, username, password);
+      return res.json({ ok: true, items });
     } catch (error) {
       Logger.error('Fyndiq getCategories error', error, { userId: Context.getUserId(req) });
       const detail = error?.message || String(error);
+      if (detail?.includes('credentials') || detail?.includes('401')) {
+        return res.status(502).json({
+          ok: false,
+          error: 'Fyndiq API rejected credentials. Check username and password in Fyndiq Products plugin settings.',
+          detail: detail || 'Missing Authorization header',
+        });
+      }
       return res.status(502).json({ ok: false, error: 'Failed to fetch Fyndiq categories', detail: detail || 'Unknown error' });
     }
   }

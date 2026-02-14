@@ -21,9 +21,6 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 import { getFxLatest } from '@/core/api/fxApi';
-import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
-import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
-import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceApi';
 import { productsApi } from '../api/productsApi';
 import { useProducts } from '../hooks/useProducts';
 
@@ -443,6 +440,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     productSettings,
     getChannelDataCache,
     setChannelDataCache,
+    getChannelCategories,
   } = useProducts();
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
@@ -871,8 +869,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     })();
   }, [activeTab, isBatchMode]);
 
-  // Fetch category lists from CDON, Fyndiq, WooCommerce when Kategorier tab is active
-  const marketToLanguage: Record<string, string> = { se: 'sv-SE', dk: 'da-DK', fi: 'fi-FI', no: 'nb-NO' };
+  // Fetch category lists from server cache (GET /api/products/category-cache) when Kategorier tab is active
   useEffect(() => {
     if (activeTab !== 'kategori' || isBatchMode || !channelInstances.length) return;
     const channelInstancesToFetch = channelInstances.filter((i) =>
@@ -884,36 +881,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       categoryFetchStartedRef.current.add(key);
       setChannelCategoriesLoading((prev) => ({ ...prev, [key]: true }));
       setChannelCategoriesError((prev) => ({ ...prev, [key]: '' }));
-      const ch = String(inst.channel).toLowerCase();
-      const market = inst.market?.trim()?.toLowerCase().slice(0, 2) ?? null;
-      const language = market ? (marketToLanguage[market] || 'sv-SE') : 'sv-SE';
       (async () => {
         try {
-          if (ch === 'cdon' && market) {
-            const res = await cdonApi.getCategories(market.toUpperCase(), language);
-            const items = Array.isArray(res?.items) ? res.items : [];
-            setChannelCategoriesList((prev) => ({
-              ...prev,
-              [key]: items.map((x: any) => ({ id: String(x?.id ?? ''), name: String(x?.name ?? ''), path: x?.path != null ? String(x.path) : undefined })),
-            }));
-          } else if (ch === 'fyndiq' && market) {
-            const res = await fyndiqApi.getCategories(market, language);
-            const items = Array.isArray(res?.items) ? res.items : [];
-            setChannelCategoriesList((prev) => ({
-              ...prev,
-              [key]: items.map((x: any) => ({ id: String(x?.id ?? ''), name: String(x?.name ?? ''), path: x?.path != null ? String(x.path) : undefined })),
-            }));
-          } else if (ch === 'woocommerce') {
-            const res = await woocommerceApi.getCategories({ instanceId: key, perPage: 200 });
-            const items = Array.isArray(res?.items) ? res.items : [];
-            setChannelCategoriesList((prev) => ({
-              ...prev,
-              [key]: items.map((x: any) => ({
-                id: String(x?.id ?? ''),
-                name: String(x?.name ?? ''),
-                parent: x?.parent != null ? Number(x.parent) : 0,
-              })),
-            }));
+          const items = await getChannelCategories(inst);
+          setChannelCategoriesList((prev) => ({ ...prev, [key]: items }));
+          if (String(inst.channel).toLowerCase() === 'woocommerce') {
             setWooExpandedIds((prev) => ({ ...prev, [key]: new Set<string>() }));
           }
         } catch (e: any) {
@@ -927,7 +899,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         }
       })();
     }
-  }, [activeTab, isBatchMode, channelInstances]);
+  }, [activeTab, isBatchMode, channelInstances, getChannelCategories]);
 
   const updateField = (field: keyof FormData, value: string | number | string[]) => {
     setFormData((prev) => {

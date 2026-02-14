@@ -67,6 +67,8 @@ interface ProductContextType {
   getChannelDataCache: (productKey: string) => { instances: any[]; overrides: any[]; targetKeys: string[] } | null;
   setChannelDataCache: (productKey: string, data: { instances: any[]; overrides: any[]; targetKeys: string[] }) => void;
   clearChannelDataCache: () => void;
+
+  getChannelCategories: (inst: { channel: string; id: string | number; market?: string | null; instanceKey?: string }) => Promise<Array<{ id: string; name: string; path?: string; parent?: number }>>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -115,6 +117,54 @@ export function ProductProvider({
   const clearChannelDataCache = useCallback(() => {
     channelDataCacheRef.current = null;
   }, []);
+
+  const MARKET_TO_LANGUAGE: Record<string, string> = { se: 'sv-SE', dk: 'da-DK', fi: 'fi-FI', no: 'nb-NO' };
+  const TTL_CDON_FYNDIQ_MS = 24 * 60 * 60 * 1000;
+  const TTL_WOO_MS = 6 * 60 * 60 * 1000;
+
+  const channelCategoriesCacheRef = useRef<Record<string, { items: Array<{ id: string; name: string; path?: string; parent?: number }>; fetchedAt: number }>>({});
+
+  const getChannelCategories = useCallback(
+    async (inst: { channel: string; id: string | number; market?: string | null; instanceKey?: string }): Promise<Array<{ id: string; name: string; path?: string; parent?: number }>> => {
+      const ch = String(inst.channel || '').toLowerCase();
+      const market = (inst.market ?? inst.instanceKey ?? 'se').toString().trim().toLowerCase().slice(0, 2);
+      const language = MARKET_TO_LANGUAGE[market] || 'sv-SE';
+
+      let cacheKey: string;
+      let ttlMs: number;
+      if (ch === 'cdon') {
+        cacheKey = `cdon:${market.toUpperCase()}:${language}`;
+        ttlMs = TTL_CDON_FYNDIQ_MS;
+      } else if (ch === 'fyndiq') {
+        cacheKey = `fyndiq:${market}:${language}`;
+        ttlMs = TTL_CDON_FYNDIQ_MS;
+      } else if (ch === 'woocommerce') {
+        cacheKey = `woo:${inst.id}`;
+        ttlMs = TTL_WOO_MS;
+      } else {
+        return [];
+      }
+
+      const cached = channelCategoriesCacheRef.current[cacheKey];
+      if (cached && Date.now() - cached.fetchedAt < ttlMs) {
+        return cached.items;
+      }
+
+      const res = await fetch(`/api/products/category-cache?key=${encodeURIComponent(cacheKey)}`, { credentials: 'include' });
+      if (res.status === 404) {
+        channelCategoriesCacheRef.current[cacheKey] = { items: [], fetchedAt: Date.now() };
+        return [];
+      }
+      if (!res.ok) {
+        throw new Error(res.statusText || 'Failed to load categories');
+      }
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      channelCategoriesCacheRef.current[cacheKey] = { items, fetchedAt: Date.now() };
+      return items;
+    },
+    [],
+  );
 
   const loadProductSettings = useCallback(async () => {
     try {
@@ -861,6 +911,7 @@ export function ProductProvider({
       getChannelDataCache,
       setChannelDataCache,
       clearChannelDataCache,
+      getChannelCategories,
     }),
     [
       isProductPanelOpen,
@@ -879,6 +930,7 @@ export function ProductProvider({
       getChannelDataCache,
       setChannelDataCache,
       clearChannelDataCache,
+      getChannelCategories,
     ],
   );
 

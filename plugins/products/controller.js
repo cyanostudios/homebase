@@ -1,6 +1,6 @@
 // plugins/products/controller.js
 
-const { Logger, Context } = require('@homebase/core');
+const { Logger, Context, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const XLSX = require('xlsx');
 const csvParser = require('csv-parser');
@@ -861,6 +861,48 @@ class ProductController {
       }
       return res.status(500).json({ error: 'Failed to import products' });
     }
+  }
+
+  /**
+   * GET /api/products/category-cache?key=...
+   * Read-only: returns cached channel categories from DB. No call to CDON/Fyndiq/Woo API.
+   */
+  async getCategoryCache(req, res) {
+    const key = String(req.query?.key ?? '').trim();
+    if (!key) {
+      return res.status(400).json({ error: 'Query parameter key is required.' });
+    }
+    const prefix = key.split(':')[0]?.toLowerCase();
+    if (prefix !== 'cdon' && prefix !== 'fyndiq' && prefix !== 'woo') {
+      return res.status(400).json({ error: 'Key must start with cdon:, fyndiq:, or woo:.' });
+    }
+    const db = Database.get(req);
+    const userId = Context.getUserId(req);
+    if (userId == null) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    let row;
+    if (prefix === 'woo') {
+      const r = await db.query(
+        'SELECT payload, fetched_at FROM category_cache WHERE cache_key = $1 AND user_id = $2',
+        [key, userId],
+      );
+      row = (Array.isArray(r) ? r[0] : r?.rows?.[0]) ?? null;
+    } else {
+      const r = await db.query(
+        'SELECT payload, fetched_at FROM category_cache WHERE cache_key = $1 AND user_id IS NULL',
+        [key],
+      );
+      row = (Array.isArray(r) ? r[0] : r?.rows?.[0]) ?? null;
+    }
+    if (!row) {
+      return res.status(404).json({ error: 'No cache entry for this key.' });
+    }
+    const items = Array.isArray(row.payload) ? row.payload : [];
+    return res.json({
+      items,
+      fetchedAt: row.fetched_at ? new Date(row.fetched_at).toISOString() : null,
+    });
   }
 }
 

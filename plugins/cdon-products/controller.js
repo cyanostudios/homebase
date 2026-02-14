@@ -9,6 +9,7 @@ const { AppError } = require('../../server/core/errors/AppError');
 
 const OrdersModel = require('../orders/model');
 const { mapProductToCdonArticle } = require('./mapToCdonArticle');
+const { fetchCategoriesFromApi: fetchCategoriesFromApiModule } = require('./fetchCategories');
 
 const CDON_MERCHANTS_API = 'https://merchants-api.cdon.com/api';
 const CDON_CATEGORIZATION_API = 'https://cdonexternalapi-prod-apim.azure-api.net/categorization/api/v1';
@@ -394,28 +395,18 @@ class CdonProductsController {
       if (!merchantId || !apiToken) {
         return res.status(400).json({ ok: false, error: 'CDON settings not found. Save merchantID and API token first.' });
       }
-      const url = `${CDON_MERCHANTS_API}/v1/categories/${encodeURIComponent(market)}/${encodeURIComponent(language)}/`;
-      const { resp, text, json } = await this.cdonRequest(url, {
-        merchantId,
-        apiToken,
-        method: 'GET',
-      });
-      if (!resp.ok) {
-        const detail = json?.message || json?.error_description || json?.error || (typeof json === 'object' ? JSON.stringify(json) : null) || text || resp.statusText;
-        if (resp.status === 401) {
-          return res.status(502).json({
-            ok: false,
-            error: 'CDON API rejected credentials. Check Merchant ID and API token in CDON Products plugin settings.',
-            detail: detail || 'Missing Authorization header',
-          });
-        }
-        return res.status(resp.status).json({ ok: false, error: 'Failed to fetch CDON categories', detail });
-      }
-      const items = this._normalizeCategoryItems(json);
-      return res.json({ ok: true, endpoint: url, items });
+      const items = await fetchCategoriesFromApiModule(market, language, merchantId, apiToken);
+      return res.json({ ok: true, items });
     } catch (error) {
       Logger.error('CDON getCategories error', error, { userId: Context.getUserId(req) });
       const detail = error?.message || String(error);
+      if (error?.message?.includes('401') || detail?.includes('credentials')) {
+        return res.status(502).json({
+          ok: false,
+          error: 'CDON API rejected credentials. Check Merchant ID and API token in CDON Products plugin settings.',
+          detail: detail || 'Missing Authorization header',
+        });
+      }
       return res.status(502).json({ ok: false, error: 'Failed to fetch CDON categories', detail });
     }
   }

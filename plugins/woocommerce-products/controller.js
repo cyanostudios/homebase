@@ -9,6 +9,7 @@ const { AppError } = require('../../server/core/errors/AppError');
 const OrdersModel = require('../orders/model');
 const CdonProductsModel = require('../cdon-products/model');
 const FyndiqProductsModel = require('../fyndiq-products/model');
+const { fetchCategoriesFromApi: fetchWooCategoriesFromApi } = require('./fetchCategories');
 
 class WooCommerceController {
   constructor(model) {
@@ -497,39 +498,11 @@ class WooCommerceController {
   async getCategories(req, res) {
     try {
       const inst = await this._getInstanceOrThrow(req);
-      const settings = inst.credentials;
-
-      const base = this.normalizeBaseUrl(settings.storeUrl);
       const perPageRaw = req.query?.perPage != null ? Number(req.query.perPage) : 100;
       const perPage = Number.isFinite(perPageRaw) ? Math.min(Math.max(Math.trunc(perPageRaw), 1), 100) : 100;
-      const search = req.query?.search != null ? String(req.query.search).trim() : '';
 
-      const allItems = [];
-      let page = 1;
-
-      for (;;) {
-        const url = new URL(`${base}/wp-json/wc/v3/products/categories`);
-        url.searchParams.set('per_page', String(perPage));
-        url.searchParams.set('page', String(page));
-        if (search) url.searchParams.set('search', search);
-
-        const resp = await this.fetchWithWooAuth(url.toString(), { method: 'GET' }, settings);
-        const text = await resp.text().catch(() => '');
-        let json = null;
-        try { json = text ? JSON.parse(text) : null; } catch { json = null; }
-
-        if (!resp.ok) {
-          return res.status(resp.status).json({ ok: false, error: 'Failed to fetch Woo categories', endpoint: url.toString(), detail: json || text || resp.statusText });
-        }
-
-        const items = Array.isArray(json) ? json : [];
-        allItems.push(...items);
-
-        if (items.length < perPage) break;
-        page += 1;
-      }
-
-      return res.json({ ok: true, items: allItems });
+      const items = await fetchWooCategoriesFromApi(inst.credentials, perPage);
+      return res.json({ ok: true, items });
     } catch (error) {
       Logger.error('Woo getCategories error', error, { userId: Context.getUserId(req) });
       return res.status(502).json({ ok: false, error: 'Failed to fetch Woo categories' });
