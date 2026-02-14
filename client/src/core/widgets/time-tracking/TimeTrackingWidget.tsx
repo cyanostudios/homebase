@@ -47,14 +47,12 @@ export function TimeTrackingWidget({
   const [selectedContactId, setSelectedContactId] = useState<string>('');
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<TimeTrackingSettings>(loadSettings());
-  const [addError, setAddError] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [useManualEntry, setUseManualEntry] = useState(false);
   const [manualMinutes, setManualMinutes] = useState<string>('');
   const [manualDate, setManualDate] = useState<Date>(() => new Date());
   const [manualDateOpen, setManualDateOpen] = useState(false);
-  const [manualContactId, setManualContactId] = useState<string>('');
-  const [manualError, setManualError] = useState<string | null>(null);
-  const [addingManual, setAddingManual] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -103,26 +101,38 @@ export function TimeTrackingWidget({
   };
 
   const handleAddToContact = async () => {
-    if (!selectedContactId || elapsedSeconds <= 0) {
+    if (!selectedContactId) {
+      return;
+    }
+    const isManual = useManualEntry;
+    const minutes = parseInt(manualMinutes, 10);
+    if (isManual && (Number.isNaN(minutes) || minutes <= 0)) {
+      return;
+    }
+    if (!isManual && elapsedSeconds <= 0) {
       return;
     }
     setAddError(null);
     setAdding(true);
     try {
+      const seconds = isManual ? minutes * 60 : elapsedSeconds;
+      const loggedAt = isManual ? manualDate.toISOString() : new Date().toISOString();
       const res = await fetch(`/api/contacts/${selectedContactId}/time-entries`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          seconds: elapsedSeconds,
-          loggedAt: new Date().toISOString(),
-        }),
+        body: JSON.stringify({ seconds, loggedAt }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to add time');
       }
-      setElapsedSeconds(0);
+      if (!isManual) {
+        setElapsedSeconds(0);
+      } else {
+        setManualMinutes('');
+        setManualDate(new Date());
+      }
     } catch (e) {
       setAddError(e instanceof Error ? e.message : 'Failed to add time');
     } finally {
@@ -130,33 +140,12 @@ export function TimeTrackingWidget({
     }
   };
 
-  const handleAddManualTime = async () => {
-    const minutes = parseInt(manualMinutes, 10);
-    if (!manualContactId || Number.isNaN(minutes) || minutes <= 0) {
-      return;
-    }
-    setManualError(null);
-    setAddingManual(true);
-    try {
-      const loggedAt = manualDate.toISOString();
-      const res = await fetch(`/api/contacts/${manualContactId}/time-entries`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seconds: minutes * 60, loggedAt }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to add time');
-      }
-      setManualMinutes('');
-      setManualDate(new Date());
-    } catch (e) {
-      setManualError(e instanceof Error ? e.message : 'Failed to add time');
-    } finally {
-      setAddingManual(false);
-    }
-  };
+  const canAdd =
+    selectedContactId &&
+    (useManualEntry
+      ? manualMinutes.trim() !== '' && parseInt(manualMinutes, 10) > 0
+      : elapsedSeconds > 0);
+  const isAdding = adding;
 
   if (!compact) {
     return null;
@@ -265,43 +254,16 @@ export function TimeTrackingWidget({
             </Button>
           </div>
 
-          <div className="space-y-2 border-t border-border pt-4 min-w-0">
-            <label className="block text-sm font-medium text-foreground">Contact</label>
-            <Select
-              value={selectedContactId || 'none'}
-              onValueChange={(v) => setSelectedContactId(v === 'none' ? '' : v)}
-            >
-              <SelectTrigger className="w-full h-8 text-sm border-border/50 bg-background">
-                <SelectValue placeholder="Select contact" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl border-border/50 shadow-xl min-w-[200px]">
-                <SelectItem value="none" className="text-muted-foreground">
-                  Select contact
-                </SelectItem>
-                {contacts.map((c: any) => (
-                  <SelectItem key={c.id} value={String(c.id)} className="text-sm">
-                    {c.companyName || formatDisplayNumber('contacts', c.id)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              onClick={handleAddToContact}
-              disabled={isRunning || elapsedSeconds <= 0 || !selectedContactId || adding}
-              variant="secondary"
-              size="sm"
-              className="w-full"
-            >
-              {adding ? 'Adding…' : 'Add time to contact'}
-            </Button>
-            {addError && (
-              <Text variant="muted" className="text-xs text-destructive">
-                {addError}
-              </Text>
-            )}
-
-            <div className="border-t border-border pt-4 mt-4 space-y-2">
+          <div className="space-y-3 border-t border-border pt-4 min-w-0">
+            <div className="flex items-center justify-between">
               <Text className="text-sm font-medium text-foreground">Add time manually</Text>
+              <Switch
+                checked={useManualEntry}
+                onCheckedChange={setUseManualEntry}
+                aria-label="Add time manually"
+              />
+            </div>
+            {useManualEntry && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="sr-only">Minutes</label>
@@ -359,12 +321,16 @@ export function TimeTrackingWidget({
                   </Popover>
                 </div>
               </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Contact</label>
               <Select
-                value={manualContactId || 'none'}
-                onValueChange={(v) => setManualContactId(v === 'none' ? '' : v)}
+                value={selectedContactId || 'none'}
+                onValueChange={(v) => setSelectedContactId(v === 'none' ? '' : v)}
               >
                 <SelectTrigger className="w-full h-8 text-sm border-border/50 bg-background">
-                  <SelectValue placeholder="Contact" />
+                  <SelectValue placeholder="Select contact" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-border/50 shadow-xl min-w-[200px]">
                   <SelectItem value="none" className="text-muted-foreground">
@@ -377,26 +343,22 @@ export function TimeTrackingWidget({
                   ))}
                 </SelectContent>
               </Select>
-              <Button
-                onClick={handleAddManualTime}
-                disabled={
-                  !manualContactId ||
-                  !manualMinutes ||
-                  parseInt(manualMinutes, 10) <= 0 ||
-                  addingManual
-                }
-                variant="outline"
-                size="sm"
-                className="w-full"
-              >
-                {addingManual ? 'Adding…' : 'Add manual entry'}
-              </Button>
-              {manualError && (
-                <Text variant="muted" className="text-xs text-destructive">
-                  {manualError}
-                </Text>
-              )}
             </div>
+
+            <Button
+              onClick={handleAddToContact}
+              disabled={!canAdd || isAdding}
+              variant="secondary"
+              size="sm"
+              className="w-full"
+            >
+              {isAdding ? 'Adding…' : 'Add time to contact'}
+            </Button>
+            {addError && (
+              <Text variant="muted" className="text-xs text-destructive">
+                {addError}
+              </Text>
+            )}
           </div>
         </div>
       )}
