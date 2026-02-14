@@ -29,3 +29,12 @@ tools/codex-runner/tmp-codex-*
 
 # Uploaded files (should not be committed)
 server/uploads/
+
+# Local debug/scratch (do not commit)
+debug_*.js
+emergency_search.js
+
+# Cursor local notes (keep .cursor/rules/ and plans if needed)
+.cursor/omskrivning*.md
+.cursor/*_output*.md
+.cursor/*.plan.md
