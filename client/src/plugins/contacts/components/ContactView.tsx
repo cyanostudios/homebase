@@ -1,5 +1,5 @@
-import { Mail } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import { Mail, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -36,6 +36,61 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
   const [_loadingEstimates, setLoadingEstimates] = useState(false);
   const [_loadingTasks, setLoadingTasks] = useState(false);
   const [_loadingTaskMentions, setLoadingTaskMentions] = useState(false);
+  const [timeEntries, setTimeEntries] = useState<
+    { id: string; seconds: number; loggedAt: string }[]
+  >([]);
+  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
+
+  const loadTimeEntries = useCallback(async (contactId: string) => {
+    try {
+      const res = await fetch(`/api/contacts/${contactId}/time-entries`, {
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTimeEntries(data);
+      } else {
+        setTimeEntries([]);
+      }
+    } catch {
+      setTimeEntries([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (contact?.id) {
+      loadTimeEntries(contact.id);
+    } else {
+      setTimeEntries([]);
+    }
+  }, [contact?.id, loadTimeEntries]);
+
+  const handleDeleteTimeEntry = async (entryId: string) => {
+    if (!contact?.id) {
+      return;
+    }
+    setDeletingEntryId(entryId);
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}/time-entries/${entryId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setTimeEntries((prev) => prev.filter((e) => e.id !== entryId));
+      }
+    } finally {
+      setDeletingEntryId(null);
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) {
+      return `${h}h ${m}m`;
+    }
+    return `${m} min`;
+  };
 
   // Load cross-plugin data when contact changes
   useEffect(() => {
@@ -257,6 +312,38 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
               </DetailSection>
             </Card>
           )}
+
+          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+            <DetailSection title="Time log" className="p-4">
+              <div className="space-y-2">
+                {timeEntries.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No time entries</p>
+                ) : (
+                  timeEntries.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="flex justify-between items-center text-[11px] bg-muted/50 px-2 py-1.5 rounded-md border border-border/50"
+                    >
+                      <span className="text-foreground">
+                        {formatDuration(entry.seconds)} ·{' '}
+                        {new Date(entry.loggedAt).toLocaleDateString()}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDeleteTimeEntry(entry.id)}
+                        disabled={deletingEntryId === entry.id}
+                        aria-label="Delete time entry"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </DetailSection>
+          </Card>
 
           <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
             <DetailSection title="Information" className="p-4 text-xs font-semibold">

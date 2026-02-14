@@ -4,7 +4,12 @@ const express = require('express');
 const router = express.Router();
 const config = require('./plugin.config');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
-const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
+const {
+  body,
+  commonRules,
+  param,
+  validateRequest,
+} = require('../../server/core/middleware/validation');
 
 function createContactRoutes(controller, context) {
   // V3: Get requirePlugin from context.middleware instead of parameter
@@ -62,6 +67,35 @@ function createContactRoutes(controller, context) {
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
+  );
+
+  // GET /api/contacts/:id/time-entries
+  router.get('/:id/time-entries', gate, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.getTimeEntries(req, res),
+  );
+
+  // POST /api/contacts/:id/time-entries
+  router.post(
+    '/:id/time-entries',
+    gate,
+    commonRules.id('id'),
+    body('seconds').isInt({ min: 0 }).toInt().withMessage('seconds must be a non-negative integer'),
+    body('loggedAt')
+      .optional({ values: 'falsy' })
+      .isISO8601()
+      .withMessage('loggedAt must be a valid ISO 8601 date'),
+    validateRequest,
+    (req, res) => controller.createTimeEntry(req, res),
+  );
+
+  // DELETE /api/contacts/:id/time-entries/:entryId
+  router.delete(
+    '/:id/time-entries/:entryId',
+    gate,
+    param('id').isInt().withMessage('id must be a valid integer'),
+    param('entryId').isInt().withMessage('entryId must be a valid integer'),
+    validateRequest,
+    (req, res) => controller.deleteTimeEntry(req, res),
   );
 
   // DELETE /api/contacts/:id - Delete contact

@@ -1,19 +1,39 @@
 /**
  * Time tracking widget (TopBar).
  * Same UI pattern as Pomodoro: compact bar with timer + Start/Stop, expanded panel with details and settings.
+ * Supports adding stopped time (or manual time) to a contact.
  */
-import { Play, RotateCcw, Settings, Square, Timer, X } from 'lucide-react';
+import {
+  Calendar as CalendarIcon,
+  Play,
+  RotateCcw,
+  Settings,
+  Square,
+  Timer,
+  X,
+} from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
+import { DayPicker } from 'react-day-picker';
+import 'react-day-picker/dist/style.css';
 
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useApp } from '@/core/api/AppContext';
 import { Heading, Text } from '@/core/ui/Typography';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { cn } from '@/lib/utils';
 
 import type { TopBarWidgetProps } from '../registry';
 
 import { type TimeTrackingSettings, loadSettings, saveSettings } from './timeTrackingSettings';
-
-type TargetType = 'contact' | 'project';
 
 export function TimeTrackingWidget({
   compact = true,
@@ -21,12 +41,20 @@ export function TimeTrackingWidget({
   onToggle,
   onClose,
 }: TopBarWidgetProps) {
+  const { contacts } = useApp();
   const [isRunning, setIsRunning] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [targetType, setTargetType] = useState<TargetType>('contact');
-  const [targetId, setTargetId] = useState<string>('');
+  const [selectedContactId, setSelectedContactId] = useState<string>('');
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<TimeTrackingSettings>(loadSettings());
+  const [addError, setAddError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [manualMinutes, setManualMinutes] = useState<string>('');
+  const [manualDate, setManualDate] = useState<Date>(() => new Date());
+  const [manualDateOpen, setManualDateOpen] = useState(false);
+  const [manualContactId, setManualContactId] = useState<string>('');
+  const [manualError, setManualError] = useState<string | null>(null);
+  const [addingManual, setAddingManual] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -72,6 +100,62 @@ export function TimeTrackingWidget({
     const next = { ...settings, [field]: value };
     setSettings(next);
     saveSettings(next);
+  };
+
+  const handleAddToContact = async () => {
+    if (!selectedContactId || elapsedSeconds <= 0) {
+      return;
+    }
+    setAddError(null);
+    setAdding(true);
+    try {
+      const res = await fetch(`/api/contacts/${selectedContactId}/time-entries`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seconds: elapsedSeconds,
+          loggedAt: new Date().toISOString(),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to add time');
+      }
+      setElapsedSeconds(0);
+    } catch (e) {
+      setAddError(e instanceof Error ? e.message : 'Failed to add time');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleAddManualTime = async () => {
+    const minutes = parseInt(manualMinutes, 10);
+    if (!manualContactId || Number.isNaN(minutes) || minutes <= 0) {
+      return;
+    }
+    setManualError(null);
+    setAddingManual(true);
+    try {
+      const loggedAt = manualDate.toISOString();
+      const res = await fetch(`/api/contacts/${manualContactId}/time-entries`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seconds: minutes * 60, loggedAt }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to add time');
+      }
+      setManualMinutes('');
+      setManualDate(new Date());
+    } catch (e) {
+      setManualError(e instanceof Error ? e.message : 'Failed to add time');
+    } finally {
+      setAddingManual(false);
+    }
   };
 
   if (!compact) {
@@ -182,29 +266,137 @@ export function TimeTrackingWidget({
           </div>
 
           <div className="space-y-2 border-t border-border pt-4 min-w-0">
-            <label className="block text-sm font-medium text-foreground">Target type</label>
-            <select
-              value={targetType}
-              onChange={(e) => setTargetType(e.target.value as TargetType)}
-              className="w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background text-foreground"
+            <label className="block text-sm font-medium text-foreground">Contact</label>
+            <Select
+              value={selectedContactId || 'none'}
+              onValueChange={(v) => setSelectedContactId(v === 'none' ? '' : v)}
             >
-              <option value="contact">Contact</option>
-              <option value="project">Project</option>
-            </select>
+              <SelectTrigger className="w-full h-8 text-sm border-border/50 bg-background">
+                <SelectValue placeholder="Select contact" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-border/50 shadow-xl min-w-[200px]">
+                <SelectItem value="none" className="text-muted-foreground">
+                  Select contact
+                </SelectItem>
+                {contacts.map((c: any) => (
+                  <SelectItem key={c.id} value={String(c.id)} className="text-sm">
+                    {c.companyName || formatDisplayNumber('contacts', c.id)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={handleAddToContact}
+              disabled={isRunning || elapsedSeconds <= 0 || !selectedContactId || adding}
+              variant="secondary"
+              size="sm"
+              className="w-full"
+            >
+              {adding ? 'Adding…' : 'Add time to contact'}
+            </Button>
+            {addError && (
+              <Text variant="muted" className="text-xs text-destructive">
+                {addError}
+              </Text>
+            )}
 
-            <label className="block text-sm font-medium text-foreground mt-2">
-              Target (placeholder)
-            </label>
-            <input
-              type="text"
-              value={targetId}
-              onChange={(e) => setTargetId(e.target.value)}
-              placeholder={targetType === 'contact' ? 'Contact name or ID' : 'Project name or ID'}
-              className="w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background text-foreground"
-            />
-            <Text variant="muted" className="text-xs">
-              No persistence yet — skeleton only.
-            </Text>
+            <div className="border-t border-border pt-4 mt-4 space-y-2">
+              <Text className="text-sm font-medium text-foreground">Add time manually</Text>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="sr-only">Minutes</label>
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="Min"
+                    value={manualMinutes}
+                    onChange={(e) => setManualMinutes(e.target.value)}
+                    className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background"
+                  />
+                </div>
+                <div>
+                  <Popover open={manualDateOpen} onOpenChange={setManualDateOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={cn(
+                          'w-full h-8 flex items-center justify-between rounded-md border border-border bg-background px-2 text-[10px] font-medium',
+                          'transition-colors hover:bg-accent/50 cursor-pointer',
+                        )}
+                      >
+                        <span>{manualDate.toLocaleDateString()}</span>
+                        <CalendarIcon className="w-3 h-3 text-muted-foreground opacity-50" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-auto p-0">
+                      <DayPicker
+                        mode="single"
+                        selected={manualDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            setManualDate(date);
+                            setManualDateOpen(false);
+                          }
+                        }}
+                        initialFocus
+                        weekStartsOn={1}
+                      />
+                      <div className="p-2 border-t border-border">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="w-full h-7 text-xs"
+                          onClick={() => {
+                            setManualDate(new Date());
+                            setManualDateOpen(false);
+                          }}
+                        >
+                          Today
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              <Select
+                value={manualContactId || 'none'}
+                onValueChange={(v) => setManualContactId(v === 'none' ? '' : v)}
+              >
+                <SelectTrigger className="w-full h-8 text-sm border-border/50 bg-background">
+                  <SelectValue placeholder="Contact" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-border/50 shadow-xl min-w-[200px]">
+                  <SelectItem value="none" className="text-muted-foreground">
+                    Select contact
+                  </SelectItem>
+                  {contacts.map((c: any) => (
+                    <SelectItem key={c.id} value={String(c.id)} className="text-sm">
+                      {c.companyName || formatDisplayNumber('contacts', c.id)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={handleAddManualTime}
+                disabled={
+                  !manualContactId ||
+                  !manualMinutes ||
+                  parseInt(manualMinutes, 10) <= 0 ||
+                  addingManual
+                }
+                variant="outline"
+                size="sm"
+                className="w-full"
+              >
+                {addingManual ? 'Adding…' : 'Add manual entry'}
+              </Button>
+              {manualError && (
+                <Text variant="muted" className="text-xs text-destructive">
+                  {manualError}
+                </Text>
+              )}
+            </div>
           </div>
         </div>
       )}

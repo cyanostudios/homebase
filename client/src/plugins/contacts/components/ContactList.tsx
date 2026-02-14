@@ -405,7 +405,7 @@ export const ContactList: React.FC = () => {
                         aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
                       />
                       <span className="font-mono text-[10px] text-muted-foreground">
-                        {formatDisplayNumber('contacts', contact.contactNumber || contact.id)}
+                        {formatDisplayNumber('contacts', contact.id)}
                       </span>
                     </div>
                     <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
@@ -476,7 +476,7 @@ export const ContactList: React.FC = () => {
                             aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
                           />
                           <span className="font-mono text-xs text-muted-foreground">
-                            {formatDisplayNumber('contacts', contact.contactNumber || contact.id)}
+                            {formatDisplayNumber('contacts', contact.id)}
                           </span>
                           <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
                             {contact.contactType === 'company' ? 'Company' : 'Private'}
@@ -622,7 +622,7 @@ export const ContactList: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">
-                        {formatDisplayNumber('contacts', contact.contactNumber || contact.id)}
+                        {formatDisplayNumber('contacts', contact.id)}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-0.5">

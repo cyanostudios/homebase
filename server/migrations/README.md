@@ -1,10 +1,28 @@
-# Invoices hardening migration (2025-10-27)
+# Migrations
 
-## Files
+## 027-contact-time-entries.sql
+
+Skapar tabellen `contact_time_entries` (time tracking mot contacts).
+
+**Kör på alla tenants:**
+
+```bash
+npm run migrate:contact-time-entries
+```
+
+Kräver `DATABASE_URL` (och vid Neon: tenants med `neon_connection_string` i `tenants`). Vid lokalt schema-per-tenant: `TENANT_PROVIDER=local`.
+
+**Manuellt (en databas):** Öppna SQL-editor (t.ex. Neon Console), klistra in innehållet i `027-contact-time-entries.sql` och kör. Idempotent (`CREATE TABLE IF NOT EXISTS`).
+
+---
+
+## Invoices hardening migration (2025-10-27)
+
+### Files
 
 - `2025-10-27_invoices_hardening.sql` — idempotent. Säkra typer/timestamps/totals/line_items + invoice_shares + index.
 
-## How to run (Neon Console)
+### How to run (Neon Console)
 
 1. Öppna Neon → SQL editor.
 2. Klistra in hela filens innehåll och kör.

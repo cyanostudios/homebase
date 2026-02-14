@@ -121,6 +121,55 @@ class ContactController {
       res.status(500).json({ error: 'Failed to delete contact' });
     }
   }
+
+  async getTimeEntries(req, res) {
+    try {
+      const entries = await this.model.getTimeEntries(req, req.params.id);
+      res.json(entries);
+    } catch (error) {
+      Logger.error('Get time entries failed', error, {
+        contactId: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to fetch time entries' });
+    }
+  }
+
+  async createTimeEntry(req, res) {
+    try {
+      const entry = await this.model.createTimeEntry(req, req.params.id, req.body);
+      res.status(201).json(entry);
+    } catch (error) {
+      Logger.error('Create time entry failed', error, {
+        contactId: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to create time entry' });
+    }
+  }
+
+  async deleteTimeEntry(req, res) {
+    try {
+      await this.model.deleteTimeEntry(req, req.params.id, req.params.entryId);
+      res.json({ message: 'Time entry deleted' });
+    } catch (error) {
+      Logger.error('Delete time entry failed', error, {
+        contactId: req.params.id,
+        entryId: req.params.entryId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to delete time entry' });
+    }
+  }
 }
 
 module.exports = ContactController;
