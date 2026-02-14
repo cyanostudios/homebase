@@ -30,37 +30,34 @@ class ActivityLogService {
         return;
       }
 
-      // Get user ID from session
-      const userId = req.session?.user?.id;
-      if (!userId) {
-        // Silently fail if no user (e.g., during signup)
+      // Tenant-scope user ID (owner id so all tenant activity is under one scope; consistent with tenant tables)
+      const scopeUserId = req.session?.currentTenantUserId ?? req.session?.user?.id;
+      const actorUserId = req.session?.user?.id;
+      if (!scopeUserId) {
         return;
       }
 
-      // Extract IP and user agent from request
       const ip = req.ip || req.connection?.remoteAddress || 'unknown';
       const userAgent = req.get('user-agent') || 'unknown';
-
-      // Build metadata object
       const metadata = {
         ip,
         userAgent,
+        ...(actorUserId != null && { actor_user_id: actorUserId }),
+        ...(req.session?.user?.email && { actor_email: req.session.user.email }),
         ...additionalMetadata,
       };
 
-      // Insert activity log (non-blocking, fire and forget)
-      // Use a promise but don't await to avoid blocking the request
       tenantPool
         .query(
           `INSERT INTO activity_log (user_id, action, entity_type, entity_id, entity_name, metadata, created_at)
            VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW())`,
-          [userId, action, entityType, entityId, entityName, JSON.stringify(metadata)],
+          [scopeUserId, action, entityType, entityId, entityName, JSON.stringify(metadata)],
         )
         .catch((error) => {
           // Log error but don't throw (don't break the request)
           const logger = ServiceManager.get('logger');
           logger.error('Failed to log activity', error, {
-            userId,
+            scopeUserId,
             action,
             entityType,
             entityId,
@@ -94,8 +91,8 @@ class ActivityLogService {
       throw new Error('No tenant pool available');
     }
 
-    const userId = req.session?.user?.id;
-    if (!userId) {
+    const scopeUserId = req.session?.currentTenantUserId ?? req.session?.user?.id;
+    if (!scopeUserId) {
       throw new Error('User not authenticated');
     }
 
@@ -108,9 +105,8 @@ class ActivityLogService {
       endDate = null,
     } = options;
 
-    // Build WHERE clause
     const conditions = ['user_id = $1'];
-    const params = [userId];
+    const params = [scopeUserId];
     let paramIndex = 2;
 
     if (entityType) {

@@ -121,11 +121,25 @@ function requirePlugin(pluginName: string) {
     if (req.session.user.role === 'superuser') {
       return next();
     }
-    const result = await pool.query(
+    const tenantId = req.session.tenantId;
+    if (tenantId !== undefined && tenantId !== null) {
+      try {
+        const result = await pool.query(
+          'SELECT enabled FROM tenant_plugin_access WHERE tenant_id = $1 AND plugin_name = $2 AND enabled = true',
+          [tenantId, pluginName],
+        );
+        if (result.rows.length > 0) {
+          return next();
+        }
+      } catch {
+        // tenant_plugin_access may not exist before migration; fall back to user_plugin_access
+      }
+    }
+    const fallback = await pool.query(
       'SELECT enabled FROM user_plugin_access WHERE user_id = $1 AND plugin_name = $2',
       [req.session.user.id, pluginName],
     );
-    if (!result.rows.length || !result.rows[0].enabled) {
+    if (!fallback.rows.length || !fallback.rows[0].enabled) {
       return res.status(403).json({ error: `Access denied to ${pluginName} plugin` });
     }
     next();

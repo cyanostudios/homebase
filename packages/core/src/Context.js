@@ -33,12 +33,33 @@ class Context {
   }
 
   /**
-   * Get user role
+   * Get user role (platform-level)
    * @param {Object} req - Express request
    * @returns {string|null} User role
    */
   static getUserRole(req) {
     return req.session?.user?.role || null;
+  }
+
+  /**
+   * Get tenant role (per-tenant: user, editor, admin)
+   * @param {Object} req - Express request
+   * @returns {string|null} Tenant role
+   */
+  static getTenantRole(req) {
+    return req.session?.tenantRole || null;
+  }
+
+  /**
+   * Check if user has at least the given tenant role (hierarchy: user < editor < admin)
+   * @param {Object} req - Express request
+   * @param {string} role - 'user' | 'editor' | 'admin'
+   * @returns {boolean}
+   */
+  static hasTenantRoleAtLeast(req, role) {
+    const order = { user: 0, editor: 1, admin: 2 };
+    const userRole = req.session?.tenantRole || 'user';
+    return (order[userRole] ?? -1) >= (order[role] ?? 0);
   }
 
   /**

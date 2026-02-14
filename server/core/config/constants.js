@@ -48,10 +48,17 @@ const DEFAULT_USER_PLUGINS = AVAILABLE_PLUGINS.filter(
 );
 
 module.exports = {
-  // User Roles
+  // User Roles (platform-level)
   USER_ROLES: {
     USER: 'user',
     SUPERUSER: 'superuser',
+  },
+
+  // Tenant Roles (per-tenant: User, Editor, Admin)
+  TENANT_ROLES: {
+    USER: 'user',
+    EDITOR: 'editor',
+    ADMIN: 'admin',
   },
 
   // Default Plugins

@@ -2,11 +2,13 @@
 const bcrypt = require('bcrypt');
 const ServiceManager = require('../../ServiceManager');
 const UserService = require('../user/UserService');
+const TenantContextService = require('../tenant/TenantContextService');
 const { DEFAULT_AVAILABLE_PLUGINS, DEFAULT_USER_PLUGINS } = require('../../config/constants');
 
 class AuthService {
   constructor() {
     this.userService = new UserService();
+    this.tenantContextService = new TenantContextService();
     this.logger = ServiceManager.get('logger');
     this.tenantService = ServiceManager.get('tenant');
   }
@@ -36,66 +38,34 @@ class AuthService {
 
     this.logger.info('Password validated', { userId: user.id });
 
-    // Get plugins
-    const plugins = await this.userService.getPluginAccess(user.id);
-
-    // Get tenant
-    // We access the main db via userService's pool mechanism implicitly or explicit query
-    // The previous code queried 'tenants' table from main pool.
-    // TenantService usually handles provisioning but maybe not simple lookup?
-    // Let's use a direct query here via UserService's db access or similar.
-    // Actually, TenantService should probably have a method to get tenant info.
-    // But for now, let's keep it consistent with the "Refactor" scope: move logic to Service.
-
-    // Note: In a cleaner architecture, TenantService would handle all tenant lookups.
-    // But since TenantService in `ServiceManager` seems to return a Provider instance...
-    // Let's assume we can query it.
-
-    let tenantConnectionString;
+    let tenantContext;
     try {
-      const db = this.userService._getPool();
-      this.logger.info('Querying tenant database', {
+      tenantContext = await this.tenantContextService.getTenantContextByUserId(user.id);
+    } catch (err) {
+      this.logger.warn('Tenant context lookup failed, trying legacy path', {
         userId: user.id,
-        dbType: db.constructor?.name,
+        message: err.message,
       });
+      tenantContext = null;
+    }
 
-      // Query without userId context to avoid tenant filtering on system tables
-      const tenantResult = await db.query(
-        'SELECT neon_connection_string FROM tenants WHERE user_id = $1',
-        [user.id],
-        {}, // Empty context to avoid tenant filtering
+    if (!tenantContext || !tenantContext.tenantConnectionString) {
+      this.logger.error('No tenant database found', null, { userId: user.id, email: user.email });
+      throw new Error('Tenant database not configured');
+    }
+
+    let plugins = [];
+    try {
+      plugins = await this.tenantContextService.getTenantPluginNames(
+        tenantContext.tenantId,
+        tenantContext.tenantOwnerUserId,
       );
-
-      this.logger.info('Tenant query result', {
-        userId: user.id,
-        resultType: typeof tenantResult,
-        isArray: Array.isArray(tenantResult),
-        length: tenantResult?.length,
-      });
-
-      // PostgreSQLAdapter.query() returns rows directly (array), not {rows: [...]}
-      if (!tenantResult || tenantResult.length === 0) {
-        this.logger.error('No tenant database found', null, { userId: user.id, email: user.email });
-        throw new Error('Tenant database not configured');
-      }
-
-      tenantConnectionString = tenantResult[0].neon_connection_string;
-
-      if (!tenantConnectionString) {
-        this.logger.error('Tenant connection string is null/undefined', null, { userId: user.id });
-        throw new Error('Tenant database connection string is missing');
-      }
-
-      this.logger.info('Tenant database found', {
-        userId: user.id,
-        hasConnectionString: !!tenantConnectionString,
-      });
-    } catch (error) {
-      this.logger.error('Error querying tenant database', error, {
-        userId: user.id,
-        email: user.email,
-      });
-      throw error;
+    } catch (err) {
+      this.logger.warn('Tenant plugins lookup failed, using user plugins', { userId: user.id });
+      plugins = await this.userService.getPluginAccess(user.id);
+    }
+    if (!plugins || !plugins.length) {
+      plugins = await this.userService.getPluginAccess(user.id);
     }
 
     return {
@@ -103,9 +73,12 @@ class AuthService {
         id: user.id,
         email: user.email,
         role: user.role,
-        plugins,
+        plugins: plugins || [],
       },
-      tenantConnectionString,
+      tenantConnectionString: tenantContext.tenantConnectionString,
+      tenantId: tenantContext.tenantId,
+      tenantRole: tenantContext.tenantRole,
+      tenantOwnerUserId: tenantContext.tenantOwnerUserId,
     };
   }
 
@@ -146,14 +119,41 @@ class AuthService {
     this.logger.info('Creating tenant database', { userId: user.id });
     const tenantDb = await this.tenantService.createTenant(user.id, user.email);
 
-    // Save tenant info
     const db = this.userService._getPool();
+    // Insert tenant (owner_user_id for multi-user; keep user_id for backward compat)
+    const insertTenantSql = `
+      INSERT INTO tenants (user_id, owner_user_id, neon_project_id, neon_database_name, neon_connection_string)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id
+    `;
+    const tenantRows = await db.query(insertTenantSql, [
+      user.id,
+      user.id,
+      tenantDb.projectId,
+      tenantDb.databaseName,
+      tenantDb.connectionString,
+    ]);
+    const tenantId = tenantRows[0]?.id;
+    if (!tenantId) throw new Error('Failed to create tenant row');
+
+    // Membership: owner is admin
     await db.query(
-      'INSERT INTO tenants (user_id, neon_project_id, neon_database_name, neon_connection_string) VALUES ($1, $2, $3, $4)',
-      [user.id, tenantDb.projectId, tenantDb.databaseName, tenantDb.connectionString],
+      `INSERT INTO tenant_memberships (tenant_id, user_id, role, status, created_by)
+       VALUES ($1, $2, 'admin', 'active', $2)`,
+      [tenantId, user.id],
     );
 
-    // Grant plugins
+    // Tenant plugin access (shared for all members)
+    for (const pluginName of selectedPlugins) {
+      await db.query(
+        `INSERT INTO tenant_plugin_access (tenant_id, plugin_name, enabled, granted_by_user_id)
+         VALUES ($1, $2, true, $3)
+         ON CONFLICT (tenant_id, plugin_name) DO NOTHING`,
+        [tenantId, pluginName, user.id],
+      );
+    }
+
+    // Legacy: keep user_plugin_access for backward compat until requirePlugin is switched
     await this.userService.grantPluginAccess(user.id, selectedPlugins);
 
     return {
@@ -163,7 +163,7 @@ class AuthService {
         role: user.role,
         plugins: selectedPlugins,
       },
-      tenantDb,
+      tenantDb: { ...tenantDb, tenantId },
     };
   }
 }

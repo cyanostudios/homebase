@@ -108,8 +108,8 @@ class UserService {
     // Delete from user_plugin_access
     await db.query('DELETE FROM user_plugin_access WHERE user_id = $1', [id]);
 
-    // Delete from tenants
-    await db.query('DELETE FROM tenants WHERE user_id = $1', [id]);
+    // Delete tenant(s) where user is owner (cascades to tenant_memberships, tenant_plugin_access)
+    await db.query('DELETE FROM tenants WHERE user_id = $1 OR owner_user_id = $1', [id, id]);
 
     // Delete from users
     // PostgreSQLAdapter.query() returns rows directly (array), not {rows: [...]}

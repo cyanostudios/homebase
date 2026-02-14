@@ -72,6 +72,14 @@ Rate limiting
 Audit logging
 Common vulnerabilities & prevention
 
+TENANT_USERS_AND_RBAC.md
+
+Multi-user per tenant (User / Editor / Admin roles)
+Session and auth flow (tenantId, tenantRole, currentTenantUserId)
+Plugin access per tenant; team management API
+Legacy compatibility (login works with or without migration)
+Migration and backfill (npm run migrate:tenant-memberships)
+
 🔧 Plugin Development Guides
 Follow these for building plugins:
 

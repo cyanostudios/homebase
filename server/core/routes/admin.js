@@ -100,18 +100,20 @@ router.post(
         return res.status(400).json({ error: 'userId is required' });
       }
 
-      const { tenantConnectionString, targetUserId } = await adminService.switchTenant(
-        req.session.user,
-        userId,
-      );
+      const { tenantConnectionString, targetUserId, tenantId, tenantRole, tenantOwnerUserId } =
+        await adminService.switchTenant(req.session.user, userId);
 
-      // Update session with new tenant connection
       req.session.tenantConnectionString = tenantConnectionString;
       req.session.currentTenantUserId = targetUserId;
+      req.session.tenantId = tenantId ?? null;
+      req.session.tenantRole = tenantRole ?? null;
+      req.session.tenantOwnerUserId = tenantOwnerUserId ?? null;
 
       res.json({
         message: 'Switched tenant successfully',
         tenantUserId: targetUserId,
+        tenantId,
+        tenantRole,
       });
     } catch (error) {
       const logger = ServiceManager.get('logger');

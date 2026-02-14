@@ -70,7 +70,7 @@ router.post(
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      const { user, tenantConnectionString } = result;
+      const { user, tenantConnectionString, tenantId, tenantRole, tenantOwnerUserId } = result;
 
       if (!user || !tenantConnectionString) {
         logger.error('Login result missing required fields', null, {
@@ -89,11 +89,12 @@ router.post(
         plugins: ensureSettingsInPlugins(user.plugins || []),
       };
 
-      // Save tenant connection string in session
       req.session.tenantConnectionString = tenantConnectionString;
-
-      // Set currentTenantUserId to logged-in user by default
-      req.session.currentTenantUserId = user.id;
+      req.session.tenantId = tenantId ?? null;
+      req.session.tenantRole = tenantRole ?? null;
+      req.session.tenantOwnerUserId = tenantOwnerUserId ?? null;
+      // Tenant DB scope: use owner id so all members see shared data (existing tables filter by user_id)
+      req.session.currentTenantUserId = tenantOwnerUserId ?? user.id;
 
       // Log tenant routing info
       const dbHost = tenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
@@ -158,7 +159,7 @@ router.post('/signup', async (req, res) => {
   try {
     const { user, tenantDb } = await authService.signup({ email, password, plugins });
 
-    // Auto-login logic (settings plugin always in plugins)
+    // Auto-login: new account is tenant owner
     req.session.user = {
       id: user.id,
       email: user.email,
@@ -167,6 +168,9 @@ router.post('/signup', async (req, res) => {
     };
 
     req.session.tenantConnectionString = tenantDb.connectionString;
+    req.session.tenantId = tenantDb.tenantId ?? null;
+    req.session.tenantRole = 'admin';
+    req.session.tenantOwnerUserId = user.id;
     req.session.currentTenantUserId = user.id;
 
     // Save session before responding
@@ -221,25 +225,27 @@ router.get(
       }
 
       const currentTenantUserId = req.session.currentTenantUserId || req.session.user.id;
+      const tenantId = req.session.tenantId ?? null;
+      const tenantRole = req.session.tenantRole ?? null;
+      const tenantOwnerUserId = req.session.tenantOwnerUserId ?? null;
 
-      // If admin has switched to another tenant, get that tenant's plugins
+      // Resolve plugins for current tenant context (owner = currentTenantUserId)
       let plugins = req.session.user.plugins || [];
-
-      if (req.session.user.role === 'superuser' && currentTenantUserId !== req.session.user.id) {
-        try {
-          // We can use UserService for this lookup now strictly speaking, but keeping it simple for "me" route
-          // Or we can import UserService here too.
-          // Let's use authService.userService
-          plugins = await authService.userService.getPluginAccess(currentTenantUserId);
-        } catch (pluginError) {
-          const logger = ServiceManager.get('logger');
-          logger.error('Failed to get plugin access for tenant user', pluginError, {
-            currentTenantUserId,
-            userId: req.session.user.id,
-          });
-          // Fallback to user's own plugins if tenant lookup fails
-          plugins = req.session.user.plugins || [];
+      try {
+        const ctx =
+          await authService.tenantContextService.getTenantContextByUserId(currentTenantUserId);
+        if (ctx) {
+          plugins = await authService.tenantContextService.getTenantPluginNames(
+            ctx.tenantId,
+            ctx.tenantOwnerUserId,
+          );
         }
+      } catch (pluginError) {
+        const logger = ServiceManager.get('logger');
+        logger.error('Failed to get tenant plugins for /me', pluginError, {
+          currentTenantUserId,
+          userId: req.session.user.id,
+        });
       }
 
       res.json({
@@ -247,7 +253,10 @@ router.get(
           ...req.session.user,
           plugins: ensureSettingsInPlugins(plugins),
         },
-        currentTenantUserId: currentTenantUserId,
+        currentTenantUserId,
+        tenantId,
+        tenantRole,
+        tenantOwnerUserId,
       });
     } catch (error) {
       const logger = ServiceManager.get('logger');

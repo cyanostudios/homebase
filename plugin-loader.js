@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const ServiceManager = require('./server/core/ServiceManager');
+const { requireTenantRole } = require('./server/core/middleware/authorization');
 
 class PluginLoader {
   constructor(pool, requirePlugin, requireAuth) {
@@ -77,6 +78,7 @@ class PluginLoader {
       middleware: {
         requirePlugin: this.requirePlugin,
         requireAuth: this.requireAuth,
+        requireTenantRole,
       },
     };
 
