@@ -91,6 +91,16 @@ function createOrdersRoutes(controller, context) {
     (req, res) => controller.batchUpdateStatus(req, res),
   );
 
+  // POST /api/orders/plocklista/pdf - Export pick list PDF for selected orders (body: { ids: string[] })
+  router.post(
+    '/plocklista/pdf',
+    gate,
+    csrfProtection,
+    [commonRules.array('ids', 200)],
+    validateRequest,
+    (req, res) => controller.generatePlocklistaPdf(req, res),
+  );
+
   // GET /api/orders/:id
   router.get(
     '/:id',

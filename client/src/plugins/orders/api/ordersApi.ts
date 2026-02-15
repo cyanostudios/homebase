@@ -127,6 +127,41 @@ class OrdersApi {
       body: JSON.stringify({ ids, ...data }),
     })) as any;
   }
+
+  /** Download plocklista (pick list) PDF for selected order ids. channelLabels: optional map orderId -> display name (same as Channel column in list). */
+  async downloadPlocklistaPdf(
+    ids: string[],
+    channelLabels?: Record<string, string>,
+  ): Promise<Blob> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': await this.getCsrfToken(),
+    };
+    const response = await fetch(`${this.basePath}/plocklista/pdf`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: JSON.stringify({ ids, channelLabels: channelLabels ?? undefined }),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      let message = 'Failed to download plocklista PDF';
+      try {
+        const payload = text ? JSON.parse(text) : null;
+        if (payload?.error) message = payload.error;
+      } catch {}
+      const err: any = new Error(message);
+      err.status = response.status;
+      throw err;
+    }
+    const contentType = response.headers.get('Content-Type') || '';
+    if (!contentType.toLowerCase().includes('application/pdf')) {
+      const err: any = new Error('Server did not return a PDF (got ' + contentType + ')');
+      err.status = response.status;
+      throw err;
+    }
+    return response.blob();
+  }
 }
 
 export const ordersApi = new OrdersApi();

@@ -77,6 +77,7 @@ export const OrdersList: React.FC = () => {
   const [batchCarrier, setBatchCarrier] = useState('');
   const [batchTracking, setBatchTracking] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [exportingPlocklista, setExportingPlocklista] = useState(false);
   const [batchUpdateResult, setBatchUpdateResult] = useState<{ updated: number; requested: number } | { error: string } | null>(null);
 
   // Quick-sync on open: trigger sync in background; if started, show spinner and poll until done, then refetch list
@@ -136,11 +137,10 @@ export const OrdersList: React.FC = () => {
     loadWooInstances();
   }, []);
 
-  // Format channel display name
+  // Format channel display name. Uses only API-documented fields: CDON/Fyndiq raw.market, WooCommerce match by raw._homebase_store_url.
   const formatChannelName = useCallback((order: OrderListItem): string => {
     const channel = order.channel?.toLowerCase() || '';
     let raw = order.raw;
-    // Parse raw if it's a string
     if (typeof raw === 'string') {
       try {
         raw = JSON.parse(raw);
@@ -150,94 +150,37 @@ export const OrdersList: React.FC = () => {
     }
 
     if (channel === 'cdon') {
-      // Try to extract market from raw data
-      let market: string | null = null;
-      if (raw) {
-        // CDON orders might have CountryCode in raw data
-        const countryCode = raw?.CountryCode || raw?.countryCode || raw?.Country || raw?.country;
-        if (countryCode) {
-          const country = String(countryCode).toLowerCase();
-          if (country.includes('sweden') || country === 'se') market = 'SE';
-          else if (country.includes('denmark') || country === 'dk') market = 'DK';
-          else if (country.includes('finland') || country === 'fi') market = 'FI';
-          else if (country.includes('norway') || country === 'no') market = 'NO';
-        }
-      }
-
+      const market = raw != null && raw.market != null ? String(raw.market).trim().toUpperCase() : null;
       return market ? `CDON ${market}` : 'CDON';
     }
 
     if (channel === 'fyndiq') {
-      // Try to extract market from raw data
-      let market: string | null = null;
-      if (raw) {
-        const marketCode = raw?.market || raw?.Market || raw?.country_code || raw?.countryCode;
-        if (marketCode) {
-          const m = String(marketCode).toLowerCase();
-          if (m === 'se' || m === 'sweden') market = 'SE';
-          else if (m === 'dk' || m === 'denmark') market = 'DK';
-          else if (m === 'fi' || m === 'finland') market = 'FI';
-          else if (m === 'no' || m === 'norway') market = 'NO';
-        }
-      }
-
+      const market = raw != null && raw.market != null ? String(raw.market).trim().toUpperCase() : null;
       return market ? `Fyndiq ${market}` : 'Fyndiq';
     }
 
     if (channel === 'woocommerce') {
-      // Use store name from channel instances, matching by store URL
-      if (wooInstances.length > 0 && raw) {
-        // Try to get store URL from raw data (saved when order was imported)
-        const orderStoreUrl = raw?._homebase_store_url || raw?.store_url || raw?.storeUrl;
-
-        if (orderStoreUrl) {
-          // Normalize URLs for comparison (remove trailing slashes, http/https, www)
-          const normalizeUrl = (url: string) => {
-            try {
-              const u = new URL(url);
-              return u.hostname.replace(/^www\./, '') + u.pathname.replace(/\/$/, '');
-            } catch {
-              return url.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
-            }
-          };
-
-          const normalizedOrderUrl = normalizeUrl(orderStoreUrl);
-
-          // Find matching instance by store URL
-          const matchingInstance = wooInstances.find((inst) => {
-            const instStoreUrl = inst.credentials?.storeUrl || inst.credentials?.store_url;
-            if (!instStoreUrl) return false;
-            const normalizedInstUrl = normalizeUrl(instStoreUrl);
-            return normalizedInstUrl === normalizedOrderUrl;
-          });
-
-          if (matchingInstance?.label) {
-            return matchingInstance.label;
+      const orderStoreUrl = raw != null && typeof raw === 'object' ? (raw._homebase_store_url ?? raw.store_url ?? raw.storeUrl) : null;
+      if (orderStoreUrl && wooInstances.length > 0) {
+        const normalizeUrl = (url: string) => {
+          try {
+            const u = new URL(url);
+            return u.hostname.replace(/^www\./, '') + u.pathname.replace(/\/$/, '');
+          } catch {
+            return String(url).toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
           }
-        }
-
-        // Fallback: If there's only one instance, use its label
-        if (wooInstances.length === 1 && wooInstances[0]?.label) {
-          return wooInstances[0].label;
-        }
-
-        // Fallback: Try to find default instance
-        const defaultInstance = wooInstances.find((inst) => inst.instanceKey === 'default');
-        if (defaultInstance?.label) {
-          return defaultInstance.label;
-        }
-
-        // Fallback: Use first instance with a label
-        const instanceWithLabel = wooInstances.find((inst) => inst.label);
-        if (instanceWithLabel?.label) {
-          return instanceWithLabel.label;
-        }
+        };
+        const normalizedOrderUrl = normalizeUrl(String(orderStoreUrl));
+        const matchingInstance = wooInstances.find((inst) => {
+          const instStoreUrl = inst.credentials?.storeUrl ?? inst.credentials?.store_url;
+          return instStoreUrl ? normalizeUrl(instStoreUrl) === normalizedOrderUrl : false;
+        });
+        if (matchingInstance?.label) return matchingInstance.label;
       }
       return 'WooCommerce';
     }
 
-    // Default: capitalize first letter
-    return channel.charAt(0).toUpperCase() + channel.slice(1);
+    return channel ? channel.charAt(0).toUpperCase() + channel.slice(1) : '';
   }, [wooInstances]);
 
   const fetchDetail = useCallback(async (id: string) => {
@@ -421,10 +364,45 @@ export const OrdersList: React.FC = () => {
     }
   };
 
+  const handleExportPlocklista = async () => {
+    if (selectedIds.size === 0) return;
+    setExportingPlocklista(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const channelLabels: Record<string, string> = {};
+      ids.forEach((id) => {
+        const order = orders.find((o) => String(o.id) === id);
+        if (order) channelLabels[id] = formatChannelName(order);
+      });
+      const blob = await ordersApi.downloadPlocklistaPdf(ids, channelLabels);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `plocklista-${new Date().toISOString().slice(0, 10)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      const msg = err?.message || err?.toString?.() || 'Kunde inte ladda ner plocklista.';
+      setBatchUpdateResult({ error: msg });
+      console.error('Plocklista PDF export error:', err);
+    } finally {
+      setExportingPlocklista(false);
+    }
+  };
+
   const toolbarActions = (
     <div className="flex items-center gap-2 flex-wrap">
       {selectedIds.size > 0 && (
         <>
+          <Button
+            onClick={handleExportPlocklista}
+            disabled={exportingPlocklista}
+            variant="outline"
+            size="sm"
+            icon={Download}
+          >
+            {exportingPlocklista ? 'Skapar PDF…' : 'Exportera plocklista (PDF)'}
+          </Button>
           <Button
             onClick={() => {
               setBatchUpdateResult(null);

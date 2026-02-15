@@ -13,6 +13,8 @@ const FyndiqProductsModel = require('../fyndiq-products/model');
 
 const orderSyncState = require('./orderSyncState');
 const orderSyncService = require('./orderSyncService');
+const puppeteer = require('puppeteer');
+const { generatePlocklistaHTML } = require('./plocklistaPdfTemplate');
 
 class OrdersController {
   constructor(model) {
@@ -332,6 +334,109 @@ class OrdersController {
       Logger.error('Orders get error', error, { userId: Context.getUserId(req), id: req.params.id });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       return res.status(500).json({ error: 'Failed to fetch order' });
+    }
+  }
+
+  /** POST /api/orders/plocklista/pdf - Generate pick list PDF for batch-selected orders. */
+  async generatePlocklistaPdf(req, res) {
+    let browser = null;
+    try {
+      const idsRaw = req.body?.ids;
+      if (!Array.isArray(idsRaw) || idsRaw.length === 0) {
+        return res.status(400).json({ error: 'ids[] required (non-empty array)' });
+      }
+
+      const orders = [];
+      for (const id of idsRaw) {
+        try {
+          const order = await this.model.getById(req, id);
+          if (order) orders.push(order);
+        } catch (err) {
+          if (err instanceof AppError && err.statusCode === 404) continue;
+          throw err;
+        }
+      }
+
+      if (orders.length === 0) {
+        return res.status(404).json({ error: 'No orders found for the given ids' });
+      }
+
+      const channelLabels = req.body?.channelLabels && typeof req.body.channelLabels === 'object' ? req.body.channelLabels : null;
+
+      const payload = orders.map((order) => {
+        const items = Array.isArray(order.items) ? order.items : [];
+        const channel = String(order.channel || '').toLowerCase();
+
+        const isWooShippingItem = (it) => {
+          if (channel !== 'woocommerce') return false;
+          const hasProductId = it.productId != null || it.product_id != null;
+          if (hasProductId) return false;
+          const raw = it.raw && typeof it.raw === 'object' ? it.raw : {};
+          return raw.method_id != null;
+        };
+
+        const productItems = items.filter((it) => !isWooShippingItem(it));
+        const shippingItems = items.filter(isWooShippingItem);
+
+        let ordersumma = 0;
+        for (const it of productItems) {
+          const qty = Number(it.quantity);
+          const unit = it.unitPrice != null ? Number(it.unitPrice) : 0;
+          if (Number.isFinite(qty) && Number.isFinite(unit)) ordersumma += qty * unit;
+        }
+
+        const total = order.totalAmount != null ? Number(order.totalAmount) : null;
+        let frakt = null;
+        if (channel === 'woocommerce' && shippingItems.length > 0) {
+          let shippingSum = 0;
+          for (const it of shippingItems) {
+            const qty = Number(it.quantity);
+            const unit = it.unitPrice != null ? Number(it.unitPrice) : 0;
+            if (Number.isFinite(qty) && Number.isFinite(unit)) shippingSum += qty * unit;
+          }
+          frakt = Number.isFinite(shippingSum) ? shippingSum : null;
+        } else if (total != null && Number.isFinite(total)) {
+          frakt = total - ordersumma;
+          if (frakt < 0) frakt = 0;
+        }
+
+        const platformLabel = channelLabels != null && order.id != null ? (channelLabels[String(order.id)] ?? null) : null;
+        const orderForTemplate = { ...order, items: productItems, platformLabel: platformLabel || undefined };
+        return { order: orderForTemplate, ordersumma, frakt };
+      });
+
+      const html = generatePlocklistaHTML(payload);
+
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '12mm', right: '12mm', bottom: '16mm', left: '12mm' },
+      });
+
+      const dateStr = new Date().toISOString().slice(0, 10);
+      Logger.info('Plocklista PDF generated', { userId: Context.getUserId(req), orderCount: orders.length });
+
+      const buffer = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="plocklista-${dateStr}.pdf"`);
+      res.setHeader('Content-Length', buffer.length);
+      res.end(buffer);
+    } catch (error) {
+      Logger.error('Plocklista PDF generation failed', error, { userId: Context.getUserId(req) });
+      return res.status(500).json({ error: 'Failed to generate plocklista PDF' });
+    } finally {
+      if (browser) {
+        try {
+          await browser.close();
+        } catch {}
+      }
     }
   }
 
