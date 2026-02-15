@@ -1,6 +1,6 @@
 // Settings list (categories). Uses plugin context to open panel on category click.
 
-import { User, Globe, History } from 'lucide-react';
+import { User, Globe, History, Users } from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
 
 import { Card } from '@/components/ui/card';
@@ -39,6 +39,13 @@ const settingsCategories: SettingsCategory[] = [
     icon: History,
     category: 'activity-log',
     description: 'View your activity history',
+  },
+  {
+    id: 'team',
+    label: 'Team',
+    icon: Users,
+    category: 'team',
+    description: 'Manage members and roles for your account',
   },
 ];
 

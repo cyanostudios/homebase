@@ -6,6 +6,7 @@ import React, { useEffect } from 'react';
 import { ActivityLogForm } from '@/core/ui/SettingsForms/ActivityLogForm';
 import { PreferencesSettingsForm } from '@/core/ui/SettingsForms/PreferencesSettingsForm';
 import { ProfileSettingsForm } from '@/core/ui/SettingsForms/ProfileSettingsForm';
+import { TeamSettingsForm } from '@/core/ui/SettingsForms/TeamSettingsForm';
 
 import { useSettingsContext } from '../context/SettingsContext';
 
@@ -39,6 +40,9 @@ export function SettingsForm({ currentSetting, currentItem, onCancel }: Settings
   }
   if (category === 'activity-log') {
     return <ActivityLogForm onCancel={onCancel} />;
+  }
+  if (category === 'team') {
+    return <TeamSettingsForm onCancel={onCancel} />;
   }
   return null;
 }

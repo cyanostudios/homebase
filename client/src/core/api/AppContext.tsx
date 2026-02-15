@@ -114,12 +114,6 @@ const api = {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    // Add CSRF token for mutations (but not for login - it's before authentication)
-    // CSRF is temporarily disabled, so we skip this
-    // if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method) && !endpoint.includes('/auth/login')) {
-    //   headers['X-CSRF-Token'] = await getCsrfToken();
-    // }
-
     const response = await fetch(`/api${endpoint}`, {
       headers,
       credentials: 'include',
@@ -146,7 +140,6 @@ const api = {
   },
 
   async login(email: string, password: string) {
-    // Login doesn't need CSRF token (it's before authentication)
     return this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
@@ -154,7 +147,6 @@ const api = {
   },
 
   async signup(email: string, password: string) {
-    // Signup doesn't need CSRF token (it's before authentication)
     return this.request('/auth/signup', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
@@ -162,7 +154,6 @@ const api = {
   },
 
   async logout() {
-    // Logout needs CSRF token (user is authenticated)
     return this.request('/auth/logout', { method: 'POST' });
   },
 

@@ -25,13 +25,12 @@ function ensureSettingsInPlugins(plugins) {
 
 /**
  * Setup auth routes with dependencies
- * @param {Pool} mainPool - Main database pool (Unused in new Service pattern, kept for compatibility)
+ * @param {Pool} _pool - Main database pool (unused; auth uses ServiceManager)
  * @param {Function} limiter - Auth rate limiter
  * @param {Function} authMiddleware - Auth middleware
  * @param {Object} loader - Plugin loader instance
  */
-function setupAuthRoutes(mainPool, limiter, authMiddleware, loader) {
-  // pool = mainPool; // Managed by Service layer now
+function setupAuthRoutes(_pool, limiter, authMiddleware, loader) {
   authLimiter = limiter;
   requireAuth = authMiddleware;
   pluginLoader = loader;

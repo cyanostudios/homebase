@@ -1,7 +1,7 @@
 // client/src/core/settings/types.ts
 // Types for settings system
 
-export type SettingsCategory = 'profile' | 'preferences' | 'activity-log';
+export type SettingsCategory = 'profile' | 'preferences' | 'activity-log' | 'team';
 
 export interface ProfileSettings {
   name?: string;

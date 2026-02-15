@@ -66,9 +66,9 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
     currentItem && Array.isArray(detailFooterActions) && detailFooterActions.length > 0,
   );
 
-  // Settings plugin: Activity log = only Close; Profile/Preferences = Cancel + Save (same as rest of platform)
+  // Settings plugin: Activity log & Team = only Close; Profile/Preferences = Cancel + Save
   if (currentPlugin?.name === 'settings') {
-    if (currentItem?.category === 'activity-log') {
+    if (currentItem?.category === 'activity-log' || currentItem?.category === 'team') {
       return (
         <div className="flex justify-end w-full">
           <Button

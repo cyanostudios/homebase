@@ -4,6 +4,7 @@ const SETTINGS_CATEGORY_LABELS: Record<string, string> = {
   profile: 'User Profile',
   preferences: 'Preferences',
   'activity-log': 'Activity Log',
+  team: 'Team',
 };
 
 export interface SettingsContextType {

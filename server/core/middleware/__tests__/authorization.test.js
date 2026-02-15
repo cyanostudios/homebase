@@ -74,7 +74,7 @@ describe('requireTenantRole', () => {
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith({
-      error: 'Forbidden: insufficient tenant role',
+      error: 'Forbidden: insufficient account role',
       required: ['admin'],
     });
     expect(next).not.toHaveBeenCalled();

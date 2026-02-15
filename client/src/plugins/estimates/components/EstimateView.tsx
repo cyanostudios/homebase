@@ -1,3 +1,4 @@
+import { Info, Zap } from 'lucide-react';
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -37,7 +38,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
   const estimateNumberDisplay = formatDisplayNumber('estimates', estimate.estimateNumber);
 
   return (
-    <>
+    <div className="plugin-estimates">
       <DetailLayout
         sidebar={
           <div className="space-y-6">
@@ -45,7 +46,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
               padding="none"
               className="overflow-hidden border-none shadow-sm bg-background/50 plugin-estimates"
             >
-              <DetailSection title="Information" className="p-4">
+              <DetailSection title="Information" icon={Info} className="p-4">
                 <div className="space-y-4 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Number</span>
@@ -92,7 +93,12 @@ export function EstimateView({ estimate }: EstimateViewProps) {
             </Card>
 
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Quick Actions" className="p-4">
+              <DetailSection
+                title="Quick Actions"
+                icon={Zap}
+                iconPlugin="estimates"
+                className="p-4"
+              >
                 <div className="space-y-4">
                   <EstimateStatusButtons
                     estimate={estimate}
@@ -265,6 +271,6 @@ export function EstimateView({ estimate }: EstimateViewProps) {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

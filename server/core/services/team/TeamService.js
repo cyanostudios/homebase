@@ -86,16 +86,42 @@ class TeamService {
   }
 
   /**
-   * Update a member's tenant role
+   * Update a member's tenant role.
+   * Prevents downgrading the last admin – there must always be at least one admin for the account.
    * @param {number} tenantId
-   * @param {number} userId} member to update
-   * @param {string} role
+   * @param {number} userId - member to update
+   * @param {string} role - new role
    */
   async updateMemberRole(tenantId, userId, role) {
     if (!Object.values(TENANT_ROLES).includes(role)) {
       throw new Error(`Invalid role. Must be one of: ${Object.values(TENANT_ROLES).join(', ')}`);
     }
     const db = this._getPool();
+
+    const memberRow = await db.query(
+      'SELECT role FROM tenant_memberships WHERE tenant_id = $1 AND user_id = $2',
+      [tenantId, userId],
+    );
+    const memberRows = memberRow?.rows ?? (Array.isArray(memberRow) ? memberRow : []);
+    if (!memberRows.length) {
+      throw new Error('Member not found in this tenant');
+    }
+
+    const currentRole = memberRows[0].role;
+    if (currentRole === 'admin' && role !== 'admin') {
+      const countResult = await db.query(
+        "SELECT COUNT(*) AS n FROM tenant_memberships WHERE tenant_id = $1 AND role = 'admin'",
+        [tenantId],
+      );
+      const countRows = countResult?.rows ?? (Array.isArray(countResult) ? countResult : []);
+      const adminCount = parseInt(countRows[0]?.n ?? countRows[0]?.count ?? '0', 10);
+      if (adminCount <= 1) {
+        throw new Error(
+          'Cannot change the last admin to another role. There must always be at least one admin for the account.',
+        );
+      }
+    }
+
     const result = await db.query(
       'UPDATE tenant_memberships SET role = $1 WHERE tenant_id = $2 AND user_id = $3 RETURNING user_id',
       [role, tenantId, userId],
@@ -108,12 +134,37 @@ class TeamService {
   }
 
   /**
-   * Remove a member from the tenant (delete membership only; user remains in users table)
+   * Remove a member from the tenant (delete membership only; user remains in users table).
+   * Prevents removing the last admin – there must always be at least one admin for the account.
    * @param {number} tenantId
    * @param {number} userId
    */
   async removeMember(tenantId, userId) {
     const db = this._getPool();
+
+    const memberRow = await db.query(
+      'SELECT role FROM tenant_memberships WHERE tenant_id = $1 AND user_id = $2',
+      [tenantId, userId],
+    );
+    const memberRows = memberRow?.rows ?? (Array.isArray(memberRow) ? memberRow : []);
+    if (!memberRows.length) {
+      throw new Error('Member not found in this tenant');
+    }
+
+    if (memberRows[0].role === 'admin') {
+      const countResult = await db.query(
+        "SELECT COUNT(*) AS n FROM tenant_memberships WHERE tenant_id = $1 AND role = 'admin'",
+        [tenantId],
+      );
+      const countRows = countResult?.rows ?? (Array.isArray(countResult) ? countResult : []);
+      const adminCount = parseInt(countRows[0]?.n ?? countRows[0]?.count ?? '0', 10);
+      if (adminCount <= 1) {
+        throw new Error(
+          'Cannot remove the last admin. There must always be at least one admin for the account.',
+        );
+      }
+    }
+
     const result = await db.query(
       'DELETE FROM tenant_memberships WHERE tenant_id = $1 AND user_id = $2 RETURNING user_id',
       [tenantId, userId],

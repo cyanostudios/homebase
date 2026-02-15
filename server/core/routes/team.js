@@ -17,17 +17,17 @@ function setupTeamRoutes(authMiddleware, mainPool) {
 
 /**
  * GET /team/users
- * List members of the current tenant (editor or admin)
+ * List members of the current account (user, editor, admin – all can view)
  */
 router.get(
   '/users',
   (req, res, next) => requireAuth(req, res, next),
-  requireTenantRole(['editor', 'admin']),
+  requireTenantRole(['user', 'editor', 'admin']),
   async (req, res) => {
     try {
       const tenantId = req.session.tenantId;
       if (tenantId == null) {
-        return res.status(400).json({ error: 'No tenant context' });
+        return res.status(400).json({ error: 'No account context' });
       }
       const members = await teamService.listMembers(tenantId);
       res.json({ members });
@@ -52,7 +52,7 @@ router.post(
     try {
       const tenantId = req.session.tenantId;
       if (tenantId == null) {
-        return res.status(400).json({ error: 'No tenant context' });
+        return res.status(400).json({ error: 'No account context' });
       }
       const { email, password, role } = req.body || {};
       if (!email || typeof email !== 'string' || !email.trim()) {
@@ -92,7 +92,7 @@ router.patch(
       const tenantId = req.session.tenantId;
       const userId = parseInt(req.params.userId, 10);
       if (tenantId == null || isNaN(userId)) {
-        return res.status(400).json({ error: 'Invalid tenant or user id' });
+        return res.status(400).json({ error: 'Invalid account or user id' });
       }
       const { role } = req.body || {};
       if (!role) {
@@ -105,6 +105,9 @@ router.patch(
       logger.error('Update member role failed', error, { userId: req.params.userId });
       if (error.message.includes('Invalid role') || error.message.includes('not found')) {
         return res.status(400).json({ error: error.message });
+      }
+      if (error.message.includes('last admin')) {
+        return res.status(403).json({ error: error.message });
       }
       res.status(500).json({ error: 'Failed to update role' });
     }
@@ -124,7 +127,7 @@ router.delete(
       const tenantId = req.session.tenantId;
       const userId = parseInt(req.params.userId, 10);
       if (tenantId == null || isNaN(userId)) {
-        return res.status(400).json({ error: 'Invalid tenant or user id' });
+        return res.status(400).json({ error: 'Invalid account or user id' });
       }
       await teamService.removeMember(tenantId, userId);
       res.json({ message: 'Member removed', userId });
@@ -133,6 +136,9 @@ router.delete(
       logger.error('Remove team member failed', error, { userId: req.params.userId });
       if (error.message.includes('not found')) {
         return res.status(404).json({ error: error.message });
+      }
+      if (error.message.includes('last admin')) {
+        return res.status(403).json({ error: error.message });
       }
       res.status(500).json({ error: 'Failed to remove member' });
     }

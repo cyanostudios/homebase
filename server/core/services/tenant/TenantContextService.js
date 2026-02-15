@@ -14,9 +14,13 @@ class TenantContextService {
     return us._getPool();
   }
 
+  _rows(result) {
+    return result?.rows ?? (Array.isArray(result) ? result : []);
+  }
+
   /**
    * Get tenant context for a user (by membership or as owner).
-   * Works even when tenant_memberships/owner_user_id do not exist yet (legacy DB).
+   * Tries legacy query first so login works even when tenant_memberships/owner_user_id do not exist.
    * @param {number} userId - Logged-in user id
    * @returns {Promise<{ tenantId: number, tenantRole: string, tenantConnectionString: string, tenantOwnerUserId: number }|null>}
    */
@@ -24,8 +28,27 @@ class TenantContextService {
     const db = this._getPool();
     if (!db || !db.query) return null;
 
+    // 1) Legacy first: tenants by user_id only (no tenant_memberships / owner_user_id required)
     try {
-      // 1) Prefer tenant_memberships (user belongs to a tenant)
+      const legacy = await db.query(
+        'SELECT id, neon_connection_string, user_id FROM tenants WHERE user_id = $1 LIMIT 1',
+        [userId],
+      );
+      const rows = this._rows(legacy);
+      if (rows.length && rows[0].neon_connection_string) {
+        return {
+          tenantId: rows[0].id,
+          tenantRole: 'admin',
+          tenantConnectionString: rows[0].neon_connection_string,
+          tenantOwnerUserId: rows[0].user_id,
+        };
+      }
+    } catch (e) {
+      this.logger.warn('Legacy tenant lookup failed', { userId, message: e.message });
+    }
+
+    // 2) With membership (tenant_memberships + tenants)
+    try {
       const withMembership = await db.query(
         `SELECT tm.tenant_id, tm.role,
                 t.neon_connection_string,
@@ -36,9 +59,7 @@ class TenantContextService {
          LIMIT 1`,
         [userId],
       );
-
-      const membershipRows =
-        withMembership?.rows ?? (Array.isArray(withMembership) ? withMembership : []);
+      const membershipRows = this._rows(withMembership);
       if (membershipRows.length && membershipRows[0].neon_connection_string) {
         return {
           tenantId: membershipRows[0].tenant_id,
@@ -47,8 +68,12 @@ class TenantContextService {
           tenantOwnerUserId: membershipRows[0].owner_user_id,
         };
       }
+    } catch {
+      // tenant_memberships or owner_user_id may not exist
+    }
 
-      // 2) Fallback: user is tenant owner (tenants.user_id or owner_user_id)
+    // 3) Owner fallback (tenants.user_id or owner_user_id)
+    try {
       const asOwner = await db.query(
         `SELECT id, neon_connection_string, COALESCE(owner_user_id, user_id) AS owner_user_id
          FROM tenants
@@ -56,8 +81,7 @@ class TenantContextService {
          LIMIT 1`,
         [userId],
       );
-
-      const ownerRows = asOwner?.rows ?? (Array.isArray(asOwner) ? asOwner : []);
+      const ownerRows = this._rows(asOwner);
       if (ownerRows.length && ownerRows[0].neon_connection_string) {
         return {
           tenantId: ownerRows[0].id,
@@ -66,31 +90,8 @@ class TenantContextService {
           tenantOwnerUserId: ownerRows[0].owner_user_id,
         };
       }
-    } catch (err) {
-      // Legacy DB: no tenant_memberships or owner_user_id yet
-      this.logger.info('Tenant context fallback to legacy tenants lookup', {
-        userId,
-        reason: err.message?.slice(0, 80),
-      });
-    }
-
-    // 3) Legacy: tenants by user_id only (no owner_user_id)
-    try {
-      const legacy = await db.query(
-        'SELECT id, neon_connection_string, user_id FROM tenants WHERE user_id = $1 LIMIT 1',
-        [userId],
-      );
-      const rows = legacy?.rows ?? (Array.isArray(legacy) ? legacy : []);
-      if (rows.length && rows[0].neon_connection_string) {
-        return {
-          tenantId: rows[0].id,
-          tenantRole: 'admin',
-          tenantConnectionString: rows[0].neon_connection_string,
-          tenantOwnerUserId: rows[0].user_id,
-        };
-      }
-    } catch (e) {
-      this.logger.error('Legacy tenant lookup failed', e, { userId });
+    } catch {
+      // owner_user_id column may not exist
     }
 
     return null;
@@ -111,11 +112,9 @@ class TenantContextService {
         'SELECT plugin_name FROM tenant_plugin_access WHERE tenant_id = $1 AND enabled = true',
         [tenantId],
       );
-      const list = byTenant?.rows ?? (Array.isArray(byTenant) ? byTenant : []);
-      if (list.length) {
-        return list.map((r) => r.plugin_name);
-      }
-    } catch (err) {
+      const list = this._rows(byTenant);
+      if (list.length) return list.map((r) => r.plugin_name);
+    } catch {
       // tenant_plugin_access may not exist before migration
     }
 
@@ -125,7 +124,7 @@ class TenantContextService {
           'SELECT plugin_name FROM user_plugin_access WHERE user_id = $1 AND enabled = true',
           [ownerUserId],
         );
-        const list = byUser?.rows ?? (Array.isArray(byUser) ? byUser : []);
+        const list = this._rows(byUser);
         return list.map((r) => r.plugin_name);
       } catch (e) {
         this.logger.warn('user_plugin_access lookup failed', { ownerUserId, message: e.message });

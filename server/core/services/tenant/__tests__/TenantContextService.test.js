@@ -26,17 +26,34 @@ describe('TenantContextService', () => {
       expect(ctx).toBeNull();
     });
 
-    test('returns context from tenant_memberships when present', async () => {
-      mockPool.query
-        .mockResolvedValueOnce([
-          {
-            tenant_id: 10,
-            role: 'editor',
-            neon_connection_string: 'postgres://tenant/db',
-            owner_user_id: 5,
-          },
-        ])
-        .mockRejectedValue(new Error('should not run'));
+    test('returns context from legacy tenants (user_id) first', async () => {
+      mockPool.query.mockResolvedValueOnce([
+        {
+          id: 10,
+          neon_connection_string: 'postgres://legacy/db',
+          user_id: 3,
+        },
+      ]);
+
+      const ctx = await service.getTenantContextByUserId(3);
+      expect(ctx).toEqual({
+        tenantId: 10,
+        tenantRole: 'admin',
+        tenantConnectionString: 'postgres://legacy/db',
+        tenantOwnerUserId: 3,
+      });
+      expect(mockPool.query).toHaveBeenCalledTimes(1);
+    });
+
+    test('returns context from tenant_memberships when legacy returns empty', async () => {
+      mockPool.query.mockResolvedValueOnce([]).mockResolvedValueOnce([
+        {
+          tenant_id: 10,
+          role: 'editor',
+          neon_connection_string: 'postgres://tenant/db',
+          owner_user_id: 5,
+        },
+      ]);
 
       const ctx = await service.getTenantContextByUserId(99);
       expect(ctx).toEqual({
@@ -45,17 +62,20 @@ describe('TenantContextService', () => {
         tenantConnectionString: 'postgres://tenant/db',
         tenantOwnerUserId: 5,
       });
-      expect(mockPool.query).toHaveBeenCalledTimes(1);
+      expect(mockPool.query).toHaveBeenCalledTimes(2);
     });
 
-    test('falls back to owner when no membership row', async () => {
-      mockPool.query.mockResolvedValueOnce([]).mockResolvedValueOnce([
-        {
-          id: 10,
-          neon_connection_string: 'postgres://owner/db',
-          owner_user_id: 7,
-        },
-      ]);
+    test('falls back to owner when legacy and membership empty', async () => {
+      mockPool.query
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            id: 10,
+            neon_connection_string: 'postgres://owner/db',
+            owner_user_id: 7,
+          },
+        ]);
 
       const ctx = await service.getTenantContextByUserId(7);
       expect(ctx).toEqual({
@@ -64,11 +84,11 @@ describe('TenantContextService', () => {
         tenantConnectionString: 'postgres://owner/db',
         tenantOwnerUserId: 7,
       });
-      expect(mockPool.query).toHaveBeenCalledTimes(2);
+      expect(mockPool.query).toHaveBeenCalledTimes(3);
     });
 
-    test('returns null when no membership and no owner row', async () => {
-      mockPool.query.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    test('returns null when no legacy, membership, or owner row', async () => {
+      mockPool.query.mockResolvedValueOnce([]).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
       const ctx = await service.getTenantContextByUserId(999);
       expect(ctx).toBeNull();
     });

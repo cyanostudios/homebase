@@ -37,7 +37,7 @@ function requireTenantRole(allowedRoles) {
       return next();
     }
     return res.status(403).json({
-      error: 'Forbidden: insufficient tenant role',
+      error: 'Forbidden: insufficient account role',
       required: allowedRoles,
     });
   };

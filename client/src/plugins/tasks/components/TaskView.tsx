@@ -1,4 +1,4 @@
-import { Calendar, AlertCircle } from 'lucide-react';
+import { AtSign, Calendar, AlertCircle, Info, SlidersHorizontal } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -219,12 +219,17 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
   }
 
   return (
-    <>
+    <div className="plugin-tasks">
       <DetailLayout
         sidebar={
           <div className="space-y-6">
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Task Properties" className="p-4">
+              <DetailSection
+                title="Task Properties"
+                icon={SlidersHorizontal}
+                iconPlugin="tasks"
+                className="p-4"
+              >
                 <div className="space-y-2">
                   <TaskStatusSelect
                     task={displayTask ?? task}
@@ -251,7 +256,12 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
                 padding="none"
                 className="overflow-hidden border-none shadow-sm bg-background/50"
               >
-                <DetailSection title="Mentions" className="p-4">
+                <DetailSection
+                  title="Mentioned Contacts"
+                  icon={AtSign}
+                  iconPlugin="contacts"
+                  className="p-4"
+                >
                   <div className="space-y-2">
                     {(() => {
                       const uniqueMentions = Array.from(
@@ -306,7 +316,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
             )}
 
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Information" className="p-4">
+              <DetailSection title="Information" icon={Info} className="p-4">
                 <div className="space-y-4 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">ID</span>
@@ -373,6 +383,6 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         onCancel={() => setShowDiscardQuickEditDialog(false)}
         variant="warning"
       />
-    </>
+    </div>
   );
 };

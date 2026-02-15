@@ -240,6 +240,24 @@ I JavaScript/React gäller "Temporal Dead Zone" (TDZ): en variabel får inte anv
 
 ---
 
+## Authentication & Tenant Context (Design Changes)
+
+### Designändringar som lägger till nya sökvägar måste inte bryta legacy
+
+❌ **What we did (that didn't work):**
+Efter en designändring (multi-tenant / RBAC med `tenant_memberships` och `owner_user_id` på `tenants`) slutade inloggning fungera för befintliga användare. Tenant-context hämtades **först** via de nya sökvägarna (membership, sedan owner med `owner_user_id`). I äldre/legacy-databas fanns bara `tenants.user_id` och `tenants.neon_connection_string`. När de nya sökvägarna kördes först kastade SQL (saknad kolumn/tabell) eller gav tomt, och den legacy-vänliga sökvägen (bara `tenants WHERE user_id = ?`) kördes inte tillräckligt tidigt. Då returnerade `getTenantContextByUserId` `null` och inloggning gav "Tenant database not configured".
+
+✅ **What we do instead (that works):**
+
+- **Legacy-först vid lookup:** Den gamla, fungerande sökvägen (som inte kräver nya schema) körs **först**. I `TenantContextService.getTenantContextByUserId`: först `SELECT id, neon_connection_string, user_id FROM tenants WHERE user_id = $1`. Om den ger träff → returnera. Sedan prova membership- och owner-sökvägarna.
+- **Schema-oberoende:** Koden ska inte anta att `tenant_memberships` eller `owner_user_id` finns. Varje ny sökväg i egen try/catch så att fel inte blockerar legacy.
+- **Tydlig fallback-ordning:** Dokumentera och testa ordningen (1) legacy, 2) membership, 3) owner så att befintliga installationer fungerar utan migration.
+
+💡 **Why (lesson learned):**
+En designåtgärd kan göra att inloggning slutar fungera om den byter **hur** systemet hittar tenant/session (nya tabeller/kolumner) och gör den **gamla sökvägen** beroende av att de nya lyckas – när de nya failar i nuvarande DB används den gamla inte. Alltid säkerställ att den sökväg som fungerar i dagens schema körs först eller åtminstone alltid körs som fallback; rensa sedan gammal kod (t.ex. döda kommentarer) så att bara en tydlig ordning finns.
+
+---
+
 ## Development Workflow
 
 > **Note:** Detaljerad dokumentation om development workflow finns nu i `DEVELOPMENT_GUIDE_V2.md` under "Development Workflow".
@@ -590,6 +608,6 @@ const onDiscardQuickEditAndClose = useCallback(() => {
 
 ---
 
-**Senast uppdaterad:** 2026-02-13  
+**Senast uppdaterad:** 2026-02-10  
 **Syfte:** Undvika att upprepa samma misstag  
-**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles, använd PluginLoader för dynamiska plugin-listor, ta bort oanvända filer, PostgreSQLAdapter returnerar rows direkt (array) - använd inte .rows i core services, hybrid-lösning för bulk delete: plugin-specifik pre-deletion + generisk core-helper, PostgreSQLAdapter.\_addTenantFilter() måste hantera RETURNING-klausuler korrekt. Valfria fält: använd optional({ values: 'falsy' }) i express-validator så att tom sträng inte triggar formatvalidering. Flex-scroll: min-h-0 på flex-barn så att bara scroll-området rullar. Discard changes i edit: anropa onCancel() explicit för att växla tillbaka till view. Plugin-specifik close: exponera getCloseHandler(defaultClose) från context och använd i createPanelFooter. Quick-edit "Discard": kasta bara draft, anropa inte panel-close om användaren ska stanna i detail view.
+**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles, använd PluginLoader för dynamiska plugin-listor, ta bort oanvända filer, PostgreSQLAdapter returnerar rows direkt (array) - använd inte .rows i core services, hybrid-lösning för bulk delete: plugin-specifik pre-deletion + generisk core-helper, PostgreSQLAdapter.\_addTenantFilter() måste hantera RETURNING-klausuler korrekt. Valfria fält: använd optional({ values: 'falsy' }) i express-validator så att tom sträng inte triggar formatvalidering. Flex-scroll: min-h-0 på flex-barn så att bara scroll-området rullar. Discard changes i edit: anropa onCancel() explicit för att växla tillbaka till view. Plugin-specifik close: exponera getCloseHandler(defaultClose) från context och använd i createPanelFooter. Quick-edit "Discard": kasta bara draft, anropa inte panel-close om användaren ska stanna i detail view. **Auth/tenant:** När nya sökvägar (tabeller/kolumner) införs för tenant-context: kör legacy-sökvägen (som fungerar i nuvarande schema) först så att inloggning inte bryts.

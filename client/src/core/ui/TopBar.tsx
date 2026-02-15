@@ -464,12 +464,12 @@ export function TopBar({
               <DropdownMenuSeparator />
               {isAdmin && (
                 <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>Switch tenant</DropdownMenuSubTrigger>
+                  <DropdownMenuSubTrigger>Switch account</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
                     {isLoadingTenants ? (
-                      <DropdownMenuItem disabled>Loading tenants...</DropdownMenuItem>
+                      <DropdownMenuItem disabled>Loading accounts...</DropdownMenuItem>
                     ) : !tenants || tenants.length === 0 ? (
-                      <DropdownMenuItem disabled>No tenants found</DropdownMenuItem>
+                      <DropdownMenuItem disabled>No accounts found</DropdownMenuItem>
                     ) : (
                       tenants.map((tenant) => (
                         <DropdownMenuItem
