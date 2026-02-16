@@ -48,6 +48,20 @@ function createChannelsRoutes(controller, context) {
     (req, res) => controller.setProductEnabled(req, res)
   );
 
+  router.put('/map/bulk',
+    gate,
+    csrfProtection,
+    [
+      commonRules.string('productId', 1, 255),
+      body('updates').isArray({ min: 0 }).withMessage('updates must be an array'),
+      body('updates.*.channel').trim().notEmpty().withMessage('channel is required'),
+      body('updates.*.enabled').isBoolean().withMessage('enabled must be a boolean'),
+      body('updates.*.channelInstanceId').optional().isInt({ min: 1 }),
+    ],
+    validateRequest,
+    (req, res) => controller.setProductMapBulk(req, res),
+  );
+
   // Recent error logs for a channel
   router.get(
     '/errors',
@@ -129,6 +143,24 @@ function createChannelsRoutes(controller, context) {
     ],
     validateRequest,
     (req, res) => controller.upsertOverride(req, res),
+  );
+
+  router.put(
+    '/overrides/bulk',
+    gate,
+    csrfProtection,
+    [
+      commonRules.string('productId', 1, 255),
+      body('items').isArray({ min: 1 }).withMessage('items must be a non-empty array'),
+      body('items.*.channelInstanceId').isInt({ min: 1 }).withMessage('channelInstanceId is required'),
+      body('items.*.active').optional().isBoolean(),
+      body('items.*.priceAmount').optional({ nullable: true }).isNumeric(),
+      body('items.*.currency').optional({ nullable: true }).isString(),
+      body('items.*.vatRate').optional({ nullable: true }).isNumeric(),
+      body('items.*.category').optional({ nullable: true }).isString(),
+    ],
+    validateRequest,
+    (req, res) => controller.upsertOverridesBulk(req, res),
   );
 
   // ---- Import template (CSV) ----

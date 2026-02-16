@@ -66,11 +66,11 @@ export const createPanelHandlers = (
     setShowDeleteConfirm(false);
   };
 
-  const handleSave = async (data: any) => {
+  const handleSave = async (data: any, options?: any) => {
     if (currentPluginContext && currentPlugin) {
-      // DYNAMIC: Find save function automatically
+      // DYNAMIC: Find save function automatically (products pass options e.g. channelOverridesToSave)
       const saveFunction = findPluginFunction(currentPluginContext, 'save', currentPlugin.name);
-      return saveFunction ? await saveFunction(data) : false;
+      return saveFunction ? await saveFunction(data, options) : false;
     }
     return false;
   };

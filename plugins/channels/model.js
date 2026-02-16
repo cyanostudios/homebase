@@ -144,8 +144,7 @@ class ChannelsModel {
       const sql = `
         SELECT channel, channel_instance_id
         FROM ${ChannelsModel.CHANNEL_MAP_TABLE}
-        WHERE user_id = $1 AND product_id = $2
-          AND (enabled = TRUE OR external_id IS NOT NULL)
+        WHERE user_id = $1 AND product_id = $2 AND enabled = TRUE
       `;
       const rows = await db.query(sql, [userId, pid]);
       return rows.map((r) => ({
@@ -264,6 +263,32 @@ class ChannelsModel {
       }
       throw new AppError('Failed to set product enabled', 500, AppError.CODES.DATABASE_ERROR);
     }
+  }
+
+  /**
+   * Apply multiple enable/disable updates for one product in one request (fewer round-trips).
+   * @param {object} req
+   * @param {{ productId: string, updates: Array<{ channel: string, channelInstanceId?: number, enabled: boolean }> }} opts
+   */
+  async setProductMapBulk(req, { productId, updates } = {}) {
+    if (!productId || !Array.isArray(updates) || updates.length === 0) {
+      return { ok: true, count: 0 };
+    }
+    for (const u of updates) {
+      try {
+        await this.setProductEnabled(req, {
+          productId,
+          channel: u.channel,
+          enabled: !!u.enabled,
+          channelInstanceId: u.channelInstanceId,
+        });
+      } catch (err) {
+        Logger.error('setProductMapBulk item failed', err);
+        if (err instanceof AppError) throw err;
+        throw new AppError('Failed to update channel mapping', 500, AppError.CODES.DATABASE_ERROR);
+      }
+    }
+    return { ok: true, count: updates.length };
   }
 
   // ---------- READ: recent channel errors ----------
@@ -597,6 +622,75 @@ class ChannelsModel {
       Logger.error('Failed to upsert product override', error);
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to upsert product override', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  /**
+   * Bulk upsert overrides for one product: one SELECT for instances, one multi-row INSERT.
+   * @param {object} req - request
+   * @param {{ productId: string, items: Array<{ channelInstanceId: number, active?: boolean, priceAmount?: number|null, currency?: string|null, vatRate?: number|null, category?: string|null }> }} opts
+   */
+  async upsertProductOverridesBulk(req, { productId, items } = {}) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+
+      const pid = String(productId || '').trim();
+      if (!pid) throw new AppError('productId is required', 400, AppError.CODES.VALIDATION_ERROR);
+      if (!Array.isArray(items) || items.length === 0) return { ok: true, count: 0 };
+
+      const instanceIds = [...new Set(items.map((o) => Number(o.channelInstanceId)).filter((id) => Number.isFinite(id) && id >= 1))];
+      if (instanceIds.length === 0) return { ok: true, count: 0 };
+
+      const instRows = await db.query(
+        `SELECT id, channel, instance_key FROM ${ChannelsModel.CHANNEL_INSTANCES_TABLE}
+         WHERE user_id = $1 AND id = ANY($2::int[])`,
+        [userId, instanceIds],
+      );
+      const instMap = new Map(instRows.map((r) => [r.id, { channel: this.sanitizeChannelKey(r.channel), instanceKey: String(r.instance_key) }]));
+
+      const rows = [];
+      for (const o of items) {
+        const instId = Number(o.channelInstanceId);
+        if (!Number.isFinite(instId) || instId < 1) continue;
+        const inst = instMap.get(instId);
+        if (!inst) continue;
+        const price = o.priceAmount != null && Number.isFinite(Number(o.priceAmount)) ? Number(o.priceAmount) : null;
+        const vat = o.vatRate != null && Number.isFinite(Number(o.vatRate)) ? Number(o.vatRate) : null;
+        const cur = o.currency != null && String(o.currency).trim() ? String(o.currency).trim().toUpperCase() : null;
+        const cat = o.category != null && String(o.category).trim() ? String(o.category).trim() : null;
+        rows.push({ instId, ch: inst.channel, instanceKey: inst.instanceKey, active: !!o.active, price, cur, vat, cat });
+      }
+      if (rows.length === 0) return { ok: true, count: 0 };
+
+      const values = [];
+      const params = [userId, pid];
+      let idx = 3;
+      for (const r of rows) {
+        values.push(`($1, $2, $${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6}, $${idx + 7}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`);
+        params.push(r.ch, r.instanceKey, r.instId, r.active, r.price, r.cur, r.vat, r.cat);
+        idx += 8;
+      }
+      await db.query(
+        `INSERT INTO ${ChannelsModel.CHANNEL_OVERRIDES_TABLE}
+          (user_id, product_id, channel, instance, channel_instance_id, active, price_amount, currency, vat_rate, category, created_at, updated_at)
+         VALUES ${values.join(', ')}
+         ON CONFLICT (user_id, product_id, channel, instance) DO UPDATE SET
+          channel_instance_id = EXCLUDED.channel_instance_id,
+          active = EXCLUDED.active,
+          price_amount = EXCLUDED.price_amount,
+          currency = EXCLUDED.currency,
+          vat_rate = EXCLUDED.vat_rate,
+          category = EXCLUDED.category,
+          updated_at = CURRENT_TIMESTAMP`,
+        params,
+      );
+      return { ok: true, count: rows.length };
+    } catch (error) {
+      Logger.error('Failed to upsert product overrides bulk', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to upsert product overrides', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 

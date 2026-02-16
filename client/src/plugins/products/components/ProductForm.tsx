@@ -714,7 +714,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     const productKey = currentProduct?.id ?? 'new';
     const cached = getChannelDataCache(productKey);
     if (cached) {
-      setChannelInstances(cached.instances);
       setChannelOverrides(cached.overrides);
       const priceInit: Record<string, { priceAmount: string; salePrice: string }> = {};
       for (const inst of cached.instances) {
@@ -724,14 +723,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       setChannelPriceOverrides(priceInit);
       setCurrentTargetKeys(new Set(cached.targetKeys));
       setSelectedTargetKeys(new Set(cached.targetKeys));
-      return;
+      setChannelInstances(cached.instances);
+      return undefined;
     }
 
     let cancelled = false;
     setChannelTargetsLoading(true);
     (async () => {
       try {
-        const instResp = await channelsApi.getInstances({ includeDisabled: true });
+        const instResp = await channelsApi.getInstances();
         if (cancelled) return;
         const insts = instResp?.items ?? [];
         setChannelInstances(insts);
@@ -1134,6 +1134,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       return next;
     });
     markDirty();
+    if (market === 'se' && (field === 'title' || field === 'description')) clearValidationErrors();
   };
 
   const handleSubmit = useCallback(async () => {
@@ -1297,7 +1298,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           };
         })
         .filter((x): x is NonNullable<typeof x> => x != null);
-      const channelOverridesToSave = channelInstances
+      // Use fresh instances from API at save time so Woo (and all instances) are included for override save
+      const instResp = await channelsApi.getInstances({ includeDisabled: true });
+      const saveInstances = instResp?.items ?? [];
+      const channelOverridesToSave = saveInstances
         .filter((i) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()))
         .map((inst) => {
           const ch = String(inst.channel).toLowerCase();

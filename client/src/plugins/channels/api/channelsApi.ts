@@ -104,6 +104,18 @@ class ChannelsApi {
     });
   }
 
+  // PUT /api/channels/map/bulk — apply multiple enable/disable in one request
+  async setProductMapBulk(body: {
+    productId: string;
+    updates: Array<{ channel: string; channelInstanceId?: number; enabled: boolean }>;
+  }): Promise<{ ok: true; count: number }> {
+    if (!body.updates?.length) return Promise.resolve({ ok: true, count: 0 });
+    return this.request('/map/bulk', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  }
+
   // GET /api/channels/errors?channel=...&limit=...
   async getErrors(params: { channel: string; limit?: number }): Promise<{ ok: true; items: ChannelErrorLogItem[] }> {
     const q = new URLSearchParams({ channel: params.channel });
@@ -164,6 +176,36 @@ class ChannelsApi {
     return this.request('/overrides', {
       method: 'PUT',
       body: JSON.stringify(body),
+    });
+  }
+
+  /** Bulk upsert overrides (one request, one DB round-trip). */
+  async upsertOverridesBulk(body: {
+    productId: string;
+    items: Array<{
+      channelInstanceId: number | string;
+      active?: boolean;
+      priceAmount?: number | null;
+      category?: string | null;
+    }>;
+  }): Promise<{ ok: true; count: number }> {
+    const items = body.items
+      .map((o) => {
+        const id = Number(o.channelInstanceId);
+        if (!Number.isFinite(id) || id < 1) return null;
+        const row: { channelInstanceId: number; active: boolean; priceAmount?: number; category?: string } = {
+          channelInstanceId: id,
+          active: o.active ?? true,
+        };
+        if (o.priceAmount != null && Number.isFinite(Number(o.priceAmount))) row.priceAmount = Number(o.priceAmount);
+        if (o.category != null && String(o.category).trim() !== '') row.category = String(o.category).trim();
+        return row;
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null);
+    if (items.length === 0) return Promise.resolve({ ok: true, count: 0 });
+    return this.request('/overrides/bulk', {
+      method: 'PUT',
+      body: JSON.stringify({ productId: body.productId, items }),
     });
   }
 

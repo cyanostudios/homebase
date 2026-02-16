@@ -15,7 +15,7 @@ export const createPanelRenderers = (
   currentPluginContext: any,
   currentMode: string,
   currentItem: any,
-  handleSave: (data: any) => Promise<boolean>,
+  handleSave: (data: any, options?: any) => Promise<boolean>,
   handleCancel: () => void,
 ) => {
   const renderPanelContent = () => {

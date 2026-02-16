@@ -113,6 +113,22 @@ class ChannelsController {
   }
 
   /**
+   * PUT /api/channels/map/bulk
+   * Body: { productId: string, updates: Array<{ channel: string, channelInstanceId?: number, enabled: boolean }> }
+   */
+  async setProductMapBulk(req, res) {
+    try {
+      const { productId, updates } = req.body || {};
+      const result = await this.model.setProductMapBulk(req, { productId, updates });
+      return res.json({ ok: true, ...result });
+    } catch (error) {
+      Logger.error('Channels setProductMapBulk error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to update channel mapping' });
+    }
+  }
+
+  /**
    * GET /api/channels/errors?channel=...&limit=...
    * Returns recent rows from channel_error_log for this user + channel.
    */
@@ -213,6 +229,22 @@ class ChannelsController {
       Logger.error('Channels upsertOverride error', error, { userId: Context.getUserId(req) });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       return res.status(500).json({ error: 'Failed to save override' });
+    }
+  }
+
+  /**
+   * PUT /api/channels/overrides/bulk
+   * Body: { productId: string, items: Array<{ channelInstanceId: number, active?: boolean, priceAmount?: number, category?: string }> }
+   */
+  async upsertOverridesBulk(req, res) {
+    try {
+      const { productId, items } = req.body || {};
+      const result = await this.model.upsertProductOverridesBulk(req, { productId, items });
+      return res.json({ ok: true, ...result });
+    } catch (error) {
+      Logger.error('Channels upsertOverridesBulk error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to save overrides' });
     }
   }
 

@@ -50,7 +50,12 @@ interface ProductContextType {
   batchProductIds: string[];
 
   // CRUD actions
-  saveProduct: (data: any, options?: { hadChanges?: boolean }) => Promise<boolean>;
+  saveProduct: (data: any, options?: {
+    hadChanges?: boolean;
+    channelTargets?: Array<{ channel: string; channelInstanceId: number | null }>;
+    channelTargetsWithMarket?: Array<{ channel: string; channelInstanceId: number | null; market: string }>;
+    channelOverridesToSave?: Array<{ channelInstanceId: number | string; category?: string | null; priceAmount?: number | null }>;
+  }) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<void>;
   deleteProducts: (ids: string[]) => Promise<void>; // bulk
   batchUpdateProducts: (ids: string[], updates: { priceAmount?: number; quantity?: number; status?: string; vatRate?: number; currency?: string }) => Promise<{ updatedCount: number }>;
@@ -380,7 +385,7 @@ export function ProductProvider({
     channelTargetsWithMarket?: Array<{ channel: string; channelInstanceId: number | null; market: string }>;
     categoryOverrides?: Array<{ channelInstanceId: string; category: string | null }>;
     /** Per-channel category + price overrides (overrides categoryOverrides when present). */
-    channelOverridesToSave?: Array<{ channelInstanceId: number; category?: string | null; priceAmount?: number | null }>;
+    channelOverridesToSave?: Array<{ channelInstanceId: number | string; category?: string | null; priceAmount?: number | null }>;
   }): Promise<boolean> => {
     const data: Record<string, unknown> = {
       productNumber: (raw.productNumber ?? '').trim(),
@@ -492,7 +497,6 @@ export function ProductProvider({
         );
         setCurrentProduct(normalized);
         setValidationErrors([]);
-        closeProductPanel();
 
         // Channel diff: apply Kanaler tab selections, then export to final enabled targets
         const desiredTargets = options?.channelTargets ?? null;
@@ -521,40 +525,41 @@ export function ProductProvider({
               const k = t.channelInstanceId != null ? `${t.channel}:${t.channelInstanceId}` : t.channel;
               return !desiredSet.has(k);
             });
-            for (const t of toEnable) {
-              await channelsApi.setProductEnabled({
-                productId: String(saved.id),
+            const mapUpdates = [
+              ...toEnable.map((t) => ({
                 channel: t.channel,
-                enabled: true,
                 channelInstanceId: t.channelInstanceId ?? undefined,
-              });
-            }
-            for (const t of toDisable) {
-              await channelsApi.setProductEnabled({
-                productId: String(saved.id),
+                enabled: true as const,
+              })),
+              ...toDisable.map((t) => ({
                 channel: t.channel,
-                enabled: false,
                 channelInstanceId: t.channelInstanceId != null ? Number(t.channelInstanceId) : undefined,
+                enabled: false as const,
+              })),
+            ];
+            if (mapUpdates.length > 0) {
+              await channelsApi.setProductMapBulk({
+                productId: String(saved.id),
+                updates: mapUpdates,
               });
             }
           } catch (diffErr) {
             console.warn('Channel diff failed', diffErr);
           }
         }
-        // Save per-instance overrides (category + price)
+        // Save per-instance overrides (category + price) in one bulk request
         const overridesToSave = options?.channelOverridesToSave;
         if (overridesToSave?.length && saved.id) {
           try {
-            for (const o of overridesToSave) {
-              const instanceId = Number(o.channelInstanceId);
-              if (!Number.isFinite(instanceId) || instanceId < 1) continue;
-              await channelsApi.upsertOverride({
-                productId: String(saved.id),
-                channelInstanceId: instanceId,
+            await channelsApi.upsertOverridesBulk({
+              productId: String(saved.id),
+              items: overridesToSave.map((o) => ({
+                channelInstanceId: o.channelInstanceId,
+                active: true,
                 category: o.category ?? undefined,
                 priceAmount: o.priceAmount ?? undefined,
-              });
-            }
+              })),
+            });
           } catch (overrideErr) {
             console.warn('Channel overrides save failed', overrideErr);
           }
@@ -562,13 +567,15 @@ export function ProductProvider({
           const catOverrides = options?.categoryOverrides;
           if (catOverrides?.length && saved.id) {
             try {
-              for (const o of catOverrides) {
-                await channelsApi.upsertOverride({
-                  productId: String(saved.id),
-                  channelInstanceId: o.channelInstanceId,
-                  category: o.category,
-                });
-              }
+              await Promise.all(
+                catOverrides.map((o) =>
+                  channelsApi.upsertOverride({
+                    productId: String(saved.id),
+                    channelInstanceId: o.channelInstanceId,
+                    category: o.category,
+                  }),
+                ),
+              );
             } catch (catErr) {
               console.warn('Category overrides save failed', catErr);
             }
@@ -576,28 +583,30 @@ export function ProductProvider({
         }
 
         if (options?.hadChanges || (desiredTargets && desiredTargets.length > 0)) {
-          try {
-            const { targets } = await channelsApi.getProductTargets(String(saved.id));
-            if (targets?.length) {
+          const productForSync = saved;
+          (async () => {
+            try {
+              const { targets } = await channelsApi.getProductTargets(String(productForSync.id));
+              if (!targets?.length) return;
               const payload = {
-                id: saved.id,
-                productNumber: saved.productNumber,
-                sku: saved.sku,
-                mpn: saved.mpn,
-                title: saved.title,
-                status: saved.status,
-                quantity: saved.quantity,
-                priceAmount: saved.priceAmount,
-                currency: saved.currency,
-                vatRate: saved.vatRate,
-                description: saved.description,
-                mainImage: saved.mainImage,
-                images: saved.images,
-                categories: saved.categories,
-                brand: saved.brand,
-                gtin: saved.gtin,
-                createdAt: saved.createdAt,
-                updatedAt: saved.updatedAt,
+                id: productForSync.id,
+                productNumber: productForSync.productNumber,
+                sku: productForSync.sku,
+                mpn: productForSync.mpn,
+                title: productForSync.title,
+                status: productForSync.status,
+                quantity: productForSync.quantity,
+                priceAmount: productForSync.priceAmount,
+                currency: productForSync.currency,
+                vatRate: productForSync.vatRate,
+                description: productForSync.description,
+                mainImage: productForSync.mainImage,
+                images: productForSync.images,
+                categories: productForSync.categories,
+                brand: productForSync.brand,
+                gtin: productForSync.gtin,
+                createdAt: productForSync.createdAt,
+                updatedAt: productForSync.updatedAt,
               };
               const wooTargets = targets.filter((t) => t.channel === 'woocommerce');
               const wooInstanceIds = wooTargets.map((t) => t.channelInstanceId).filter((id): id is string => id != null);
@@ -614,12 +623,13 @@ export function ProductProvider({
               if (targets.some((t) => t.channel === 'fyndiq')) {
                 await fyndiqApi.exportProducts([payload], { markets: ['se', 'dk', 'fi'] });
               }
+            } catch (syncErr) {
+              console.warn('Sync to channels after save failed', syncErr);
             }
-          } catch (syncErr) {
-            console.warn('Sync to channels after save failed', syncErr);
-          }
+          })();
         }
         clearChannelDataCache();
+        closeProductPanel();
       } else {
         const saved = await productsApi.createProduct(data);
         const listId = data.listId != null && String(data.listId).trim() !== '' ? String(data.listId).trim() : null;
@@ -638,37 +648,35 @@ export function ProductProvider({
           updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
         };
         setProducts((prev) => [...prev, normalized]);
-        closeProductPanel();
 
         // Apply Kanaler tab selections for new product: enable selected channels
         const desiredTargets = options?.channelTargets ?? [];
         if (desiredTargets.length > 0) {
           try {
-            for (const t of desiredTargets) {
-              await channelsApi.setProductEnabled({
-                productId: String(saved.id),
+            await channelsApi.setProductMapBulk({
+              productId: String(saved.id),
+              updates: desiredTargets.map((t) => ({
                 channel: t.channel,
-                enabled: true,
                 channelInstanceId: t.channelInstanceId ?? undefined,
-              });
-            }
+                enabled: true,
+              })),
+            });
           } catch (channelErr) {
             console.warn('Channel enable after create failed', channelErr);
           }
-          // Per-instance overrides for new product (category + price)
+          // Per-instance overrides for new product (category + price) in one bulk request
           const overridesToSaveNew = options?.channelOverridesToSave;
           if (overridesToSaveNew?.length) {
             try {
-              for (const o of overridesToSaveNew) {
-                const instanceId = Number(o.channelInstanceId);
-                if (!Number.isFinite(instanceId) || instanceId < 1) continue;
-                await channelsApi.upsertOverride({
-                  productId: String(saved.id),
-                  channelInstanceId: instanceId,
+              await channelsApi.upsertOverridesBulk({
+                productId: String(saved.id),
+                items: overridesToSaveNew.map((o) => ({
+                  channelInstanceId: o.channelInstanceId,
+                  active: true,
                   category: o.category ?? undefined,
                   priceAmount: o.priceAmount ?? undefined,
-                });
-              }
+                })),
+              });
             } catch (overrideErr) {
               console.warn('Channel overrides after create failed', overrideErr);
             }
@@ -676,41 +684,45 @@ export function ProductProvider({
             const catOverrides = options?.categoryOverrides;
             if (catOverrides?.length) {
               try {
-                for (const o of catOverrides) {
-                  await channelsApi.upsertOverride({
-                    productId: String(saved.id),
-                    channelInstanceId: o.channelInstanceId,
-                    category: o.category,
-                  });
-                }
+                await Promise.all(
+                  catOverrides.map((o) =>
+                    channelsApi.upsertOverride({
+                      productId: String(saved.id),
+                      channelInstanceId: o.channelInstanceId,
+                      category: o.category,
+                    }),
+                  ),
+                );
               } catch (catErr) {
                 console.warn('Category overrides after create failed', catErr);
               }
             }
           }
-          // Export to enabled channels
-          try {
-            const { targets } = await channelsApi.getProductTargets(String(saved.id));
-            if (targets?.length) {
+          // Export to enabled channels in background (do not block UI)
+          const productForSync = saved;
+          (async () => {
+            try {
+              const { targets } = await channelsApi.getProductTargets(String(productForSync.id));
+              if (!targets?.length) return;
               const payload = {
-                id: saved.id,
-                productNumber: saved.productNumber,
-                sku: saved.sku,
-                mpn: saved.mpn,
-                title: saved.title,
-                status: saved.status,
-                quantity: saved.quantity,
-                priceAmount: saved.priceAmount,
-                currency: saved.currency,
-                vatRate: saved.vatRate,
-                description: saved.description,
-                mainImage: saved.mainImage,
-                images: saved.images,
-                categories: saved.categories,
-                brand: saved.brand,
-                gtin: saved.gtin,
-                createdAt: saved.createdAt,
-                updatedAt: saved.updatedAt,
+                id: productForSync.id,
+                productNumber: productForSync.productNumber,
+                sku: productForSync.sku,
+                mpn: productForSync.mpn,
+                title: productForSync.title,
+                status: productForSync.status,
+                quantity: productForSync.quantity,
+                priceAmount: productForSync.priceAmount,
+                currency: productForSync.currency,
+                vatRate: productForSync.vatRate,
+                description: productForSync.description,
+                mainImage: productForSync.mainImage,
+                images: productForSync.images,
+                categories: productForSync.categories,
+                brand: productForSync.brand,
+                gtin: productForSync.gtin,
+                createdAt: productForSync.createdAt,
+                updatedAt: productForSync.updatedAt,
               };
               const wooTargets = targets.filter((t) => t.channel === 'woocommerce');
               const wooInstanceIds = wooTargets.map((t) => t.channelInstanceId).filter((id): id is string => id != null);
@@ -723,12 +735,13 @@ export function ProductProvider({
               if (targets.some((t) => t.channel === 'fyndiq')) {
                 await fyndiqApi.exportProducts([payload], { markets: ['se', 'dk', 'fi'] });
               }
+            } catch (syncErr) {
+              console.warn('Sync to channels after create failed', syncErr);
             }
-          } catch (syncErr) {
-            console.warn('Sync to channels after create failed', syncErr);
-          }
+          })();
         }
         clearChannelDataCache();
+        closeProductPanel();
       }
       return true;
     } catch (error: any) {

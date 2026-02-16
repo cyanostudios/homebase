@@ -63,6 +63,52 @@ class WooCommerceController {
     };
   }
 
+  parseOverrideCategoryIds(rawCategory) {
+    if (rawCategory == null) return [];
+    const value = String(rawCategory).trim();
+    if (!value) return [];
+
+    const toIds = (items) => items
+      .map((x) => Number(x))
+      .filter((x) => Number.isFinite(x) && x > 0)
+      .map((x) => ({ id: x }));
+
+    if (value.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? toIds(parsed) : toIds([value]);
+      } catch {
+        return toIds([value]);
+      }
+    }
+
+    return toIds([value]);
+  }
+
+  async getWooOverrideCategoriesByProduct(req, { productIds, channelInstanceId }) {
+    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    if (!userId || !Array.isArray(productIds) || productIds.length === 0) return new Map();
+
+    const db = Database.get(req);
+    const rows = await db.query(
+      `
+      SELECT product_id::text AS product_id, category
+      FROM channel_product_overrides
+      WHERE user_id = $1
+        AND channel = 'woocommerce'
+        AND channel_instance_id = $2
+        AND product_id::text = ANY($3::text[])
+      `,
+      [userId, Number(channelInstanceId), productIds],
+    );
+
+    const out = new Map();
+    for (const row of rows || []) {
+      out.set(String(row.product_id), this.parseOverrideCategoryIds(row.category));
+    }
+    return out;
+  }
+
   // ---- Instances (multi-store support) ----
 
   async listInstances(req, res) {
@@ -287,9 +333,14 @@ class WooCommerceController {
 
         const createPayload = [];
         const updatePayload = [];
+        const categoriesByProductId = await this.getWooOverrideCategoriesByProduct(req, {
+          productIds,
+          channelInstanceId: instanceId,
+        });
+
         for (const p of products) {
-          const payload = this.mapProductToWoo(p);
           const pid = String(p?.id || '');
+          const payload = this.mapProductToWoo(p, categoriesByProductId.get(pid) || []);
           const sku = String(p?.sku || payload?.sku || '').trim();
           const mappedId = mapByProductId.get(pid) || (sku ? existingBySku.get(sku) : null);
           if (mappedId) {
@@ -1087,7 +1138,7 @@ class WooCommerceController {
   }
 
   // Transform MVP Product -> Woo product payload
-  mapProductToWoo(p) {
+  mapProductToWoo(p, overrideCategories = []) {
     const images = [];
     if (p?.mainImage) images.push({ src: p.mainImage });
     if (Array.isArray(p?.images)) {
@@ -1115,6 +1166,7 @@ class WooCommerceController {
       manage_stock: true,
       stock_quantity: p?.quantity != null ? Number(p.quantity) : undefined,
       description: p?.description || '',
+      categories: Array.isArray(overrideCategories) && overrideCategories.length > 0 ? overrideCategories : undefined,
       images: images.length ? images : undefined,
       attributes: attrs.length ? attrs : undefined,
       meta_data: metaData.length ? metaData : undefined,
