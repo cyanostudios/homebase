@@ -24,6 +24,7 @@ export interface Contact {
   currency: string;
   fTax: string;
   notes: string;
+  tags?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

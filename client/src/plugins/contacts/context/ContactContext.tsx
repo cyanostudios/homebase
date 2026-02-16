@@ -4,6 +4,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useRef,
   ReactNode,
 } from 'react';
 
@@ -51,6 +52,18 @@ interface ContactContextType {
   exportFormats: ExportFormat[];
   onExportItem: (format: ExportFormat, item: Contact) => void;
   importContacts: (data: any[]) => Promise<void>;
+
+  // Tags quick-edit in view mode (same UX pattern as tasks)
+  displayTags: string[];
+  addTagToDraft: (tag: string) => void;
+  removeTagFromDraft: (tag: string) => void;
+  hasTagsChanges: boolean;
+  onApplyTagsEdit: () => Promise<void>;
+  showDiscardTagsDialog: boolean;
+  setShowDiscardTagsDialog: (show: boolean) => void;
+  getCloseHandler: (defaultClose: () => void) => () => void;
+  onDiscardTagsAndClose: () => void;
+  tagError: string | null;
 }
 
 const ContactContext = createContext<ContactContextType | undefined>(undefined);
@@ -76,6 +89,10 @@ export function ContactProvider({
 
   // Data state
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [tagsDraft, setTagsDraft] = useState<string[] | null>(null);
+  const [showDiscardTagsDialog, setShowDiscardTagsDialog] = useState(false);
+  const [tagError, setTagError] = useState<string | null>(null);
+  const pendingCloseRef = useRef<(() => void) | null>(null);
 
   // Use core bulk selection hook
   const {
@@ -253,17 +270,80 @@ export function ContactProvider({
     onCloseOtherPanels();
   }, [onCloseOtherPanels]);
 
-  const closeContactPanel = () => {
+  const closeContactPanel = useCallback(() => {
     setIsContactPanelOpen(false);
     setCurrentContact(null);
     setPanelMode('create');
     setValidationErrors([]);
-  };
+    setTagsDraft(null);
+    setTagError(null);
+  }, []);
 
   const clearValidationErrors = () => {
     setValidationErrors([]);
   };
 
+  const contactTagsKey = JSON.stringify(
+    Array.isArray(currentContact?.tags) ? currentContact.tags : [],
+  );
+  useEffect(() => {
+    setTagsDraft(null);
+    setTagError(null);
+  }, [currentContact?.id, contactTagsKey]);
+
+  const displayTags =
+    currentContact && tagsDraft !== null
+      ? tagsDraft
+      : Array.isArray(currentContact?.tags)
+        ? currentContact.tags
+        : [];
+
+  const addTagToDraft = useCallback(
+    (tag: string) => {
+      const next = String(tag || '').trim();
+      if (!next) {
+        return;
+      }
+      setTagError(null);
+      setTagsDraft((prev) => {
+        const base = prev ?? (Array.isArray(currentContact?.tags) ? currentContact.tags : []);
+        if (base.some((t) => String(t).toLowerCase() === next.toLowerCase())) {
+          return prev;
+        }
+        return [...base, next];
+      });
+    },
+    [currentContact],
+  );
+
+  const removeTagFromDraft = useCallback(
+    (tag: string) => {
+      setTagError(null);
+      setTagsDraft((prev) => {
+        if (prev === null) {
+          const base = Array.isArray(currentContact?.tags) ? currentContact.tags : [];
+          return base.filter((t) => t !== tag);
+        }
+        return prev.filter((t) => t !== tag);
+      });
+    },
+    [currentContact],
+  );
+
+  const hasTagsChanges = Boolean(
+    currentContact &&
+      (() => {
+        const saved = Array.isArray(currentContact.tags) ? currentContact.tags : [];
+        const draft = tagsDraft ?? saved;
+        if (draft.length !== saved.length) {
+          return true;
+        }
+        return draft.some((t, i) => saved[i] !== t);
+      })(),
+  );
+
+  // Not wrapped in useCallback to avoid large dependency chain; onApplyTagsEdit depends on this
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const saveContact = async (contactData: any): Promise<boolean> => {
     // Contact number: backend assigns on create; only send for update
     if (!currentContact) {
@@ -288,6 +368,12 @@ export function ContactProvider({
         saved = await contactsApi.updateContact(currentContact.id, contactData);
         const normalized: Contact = {
           ...saved,
+          tags:
+            typeof contactData.tags !== 'undefined'
+              ? Array.isArray(contactData.tags)
+                ? contactData.tags
+                : []
+              : (saved.tags ?? []),
           createdAt: new Date(saved.createdAt),
           updatedAt: new Date(saved.updatedAt),
         };
@@ -338,9 +424,42 @@ export function ContactProvider({
       }
 
       setValidationErrors(validationErrors);
+      setTagError(validationErrors.find((e) => e.field === 'general')?.message ?? null);
       return false;
     }
   };
+
+  const onApplyTagsEdit = useCallback(async () => {
+    if (!currentContact) {
+      return;
+    }
+    setTagError(null);
+    const nextTags = tagsDraft ?? (Array.isArray(currentContact.tags) ? currentContact.tags : []);
+    const success = await saveContact({ ...currentContact, tags: nextTags });
+    if (success) {
+      setTagsDraft(null);
+    }
+  }, [currentContact, tagsDraft, saveContact]);
+
+  const getCloseHandler = useCallback(
+    (defaultClose: () => void) => {
+      return () => {
+        if (hasTagsChanges) {
+          pendingCloseRef.current = defaultClose;
+          setShowDiscardTagsDialog(true);
+        } else {
+          defaultClose();
+        }
+      };
+    },
+    [hasTagsChanges],
+  );
+
+  const onDiscardTagsAndClose = useCallback(() => {
+    setTagsDraft(null);
+    setShowDiscardTagsDialog(false);
+    // Keep same behavior as tasks quick-edit: discard draft and stay in detail view
+  }, []);
 
   const deleteContact = async (id: string) => {
     try {
@@ -499,6 +618,16 @@ export function ContactProvider({
     exportFormats,
     onExportItem,
     importContacts,
+    displayTags,
+    addTagToDraft,
+    removeTagFromDraft,
+    hasTagsChanges,
+    onApplyTagsEdit,
+    showDiscardTagsDialog,
+    setShowDiscardTagsDialog,
+    getCloseHandler,
+    onDiscardTagsAndClose,
+    tagError,
   };
 
   return <ContactContext.Provider value={value}>{children}</ContactContext.Provider>;

@@ -1,9 +1,24 @@
-import { CheckSquare, Clock, FileText, Info, Mail, StickyNote, Trash2 } from 'lucide-react';
+import {
+  CheckSquare,
+  Clock,
+  FileText,
+  Info,
+  Mail,
+  SlidersHorizontal,
+  StickyNote,
+  Tag,
+  Trash2,
+  X,
+} from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -20,12 +35,23 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     getEstimatesForContact,
     getTasksForContact,
     getTasksWithMentionsForContact,
+    getSettings,
+    settingsVersion,
     openNoteForView,
     openTaskForView,
     openEstimateForView,
   } = useApp();
 
-  const { closeContactPanel } = useContacts();
+  const {
+    closeContactPanel,
+    displayTags,
+    addTagToDraft,
+    removeTagFromDraft,
+    tagError,
+    showDiscardTagsDialog,
+    setShowDiscardTagsDialog,
+    onDiscardTagsAndClose,
+  } = useContacts();
 
   // State for cross-plugin data
   const [mentionedInNotes, setMentionedInNotes] = useState<any[]>([]);
@@ -40,6 +66,30 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     { id: string; seconds: number; loggedAt: string }[]
   >([]);
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [tagToAdd, setTagToAdd] = useState('');
+
+  useEffect(() => {
+    const loadTags = async () => {
+      try {
+        const settings = await getSettings('contacts');
+        const list = Array.isArray(settings?.tags) ? settings.tags : [];
+        setAvailableTags(
+          list
+            .filter((t: any) => typeof t === 'string')
+            .map((t: string) => t.trim())
+            .filter(Boolean),
+        );
+      } catch {
+        setAvailableTags([]);
+      }
+    };
+    loadTags();
+  }, [getSettings, settingsVersion]);
+
+  const addableTags = availableTags.filter(
+    (t) => !displayTags.some((ct) => String(ct).toLowerCase() === String(t).toLowerCase()),
+  );
 
   const loadTimeEntries = useCallback(async (contactId: string) => {
     try {
@@ -201,6 +251,67 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
       <DetailLayout
         sidebar={
           <div className="space-y-6">
+            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+              <DetailSection
+                title="Contact Properties"
+                icon={SlidersHorizontal}
+                iconPlugin="contacts"
+                className="p-4"
+              >
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Tags</Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Add one or more tags to this contact.
+                    </p>
+                  </div>
+
+                  {tagError && <div className="text-[11px] text-destructive">{tagError}</div>}
+
+                  <NativeSelect
+                    value={tagToAdd}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val) {
+                        addTagToDraft(val);
+                      }
+                      setTagToAdd('');
+                    }}
+                    disabled={addableTags.length === 0}
+                    className="w-full"
+                  >
+                    <option value="">
+                      {addableTags.length === 0 ? 'No more tags to add' : 'Add a tag...'}
+                    </option>
+                    {addableTags.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </NativeSelect>
+
+                  {displayTags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {displayTags.map((t) => (
+                        <Badge key={t} variant="secondary" className="flex items-center gap-1">
+                          <Tag className="h-3 w-3" />
+                          {t}
+                          <button
+                            type="button"
+                            className="ml-1 rounded hover:bg-muted p-0.5 disabled:opacity-50"
+                            onClick={() => removeTagFromDraft(t)}
+                            aria-label={`Remove tag ${t}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </DetailSection>
+            </Card>
+
             {openTaskForView && (assignedTasks.length > 0 || mentionedInTasks.length > 0) && (
               <Card
                 padding="none"
@@ -531,6 +642,17 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
           )}
         </div>
       </DetailLayout>
+
+      <ConfirmDialog
+        isOpen={showDiscardTagsDialog}
+        title="Unsaved changes"
+        message="You have unsaved changes to tags. Do you want to discard them?"
+        confirmText="Discard changes"
+        cancelText="Continue editing"
+        onConfirm={onDiscardTagsAndClose}
+        onCancel={() => setShowDiscardTagsDialog(false)}
+        variant="warning"
+      />
     </div>
   );
 };

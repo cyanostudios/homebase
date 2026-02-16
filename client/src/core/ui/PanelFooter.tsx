@@ -208,6 +208,20 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
                 Update
               </Button>
             )}
+          {currentPlugin?.name === 'contacts' &&
+            typeof (currentPluginContext as any)?.hasTagsChanges === 'boolean' &&
+            (currentPluginContext as any).hasTagsChanges && (
+              <Button
+                type="button"
+                onClick={() => (currentPluginContext as any)?.onApplyTagsEdit?.()}
+                variant="primary"
+                size="sm"
+                icon={Check}
+                className="h-7 text-[10px] px-2 bg-green-600 hover:bg-green-700 text-white border-none"
+              >
+                Update
+              </Button>
+            )}
         </div>
       </div>
     );
@@ -268,7 +282,7 @@ export const createPanelFooter = (
   const baseClose = handlers.getCloseHandler();
   const onClosePanel =
     typeof currentPluginContext?.getCloseHandler === 'function' &&
-    handlers.currentPlugin?.name === 'tasks'
+    (handlers.currentPlugin?.name === 'tasks' || handlers.currentPlugin?.name === 'contacts')
       ? currentPluginContext.getCloseHandler(baseClose)
       : baseClose;
 

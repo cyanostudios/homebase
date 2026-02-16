@@ -61,6 +61,7 @@ class ContactModel {
         currency: contactData.currency || '',
         f_tax: contactData.fTax || '',
         notes: contactData.notes || '',
+        tags: JSON.stringify(contactData.tags || []),
         is_assignable: contactData.isAssignable === true,
       });
 
@@ -91,7 +92,7 @@ class ContactModel {
       }
 
       // Use db.update for automatic tenant isolation
-      const result = await db.update('contacts', contactId, {
+      const updatePayload = {
         contact_number: contactData.contactNumber,
         contact_type: contactData.contactType || '',
         company_name: contactData.companyName || '',
@@ -111,7 +112,13 @@ class ContactModel {
         f_tax: contactData.fTax || '',
         notes: contactData.notes || '',
         is_assignable: contactData.isAssignable !== undefined ? contactData.isAssignable : true,
-      });
+      };
+      // Only update tags when provided to avoid wiping on partial updates
+      if (typeof contactData.tags !== 'undefined') {
+        updatePayload.tags = JSON.stringify(contactData.tags || []);
+      }
+
+      const result = await db.update('contacts', contactId, updatePayload);
 
       Logger.info('Contact updated', { contactId });
 
@@ -267,6 +274,18 @@ class ContactModel {
       }
     }
 
+    let tags = row.tags || [];
+    if (typeof tags === 'string') {
+      try {
+        tags = JSON.parse(tags);
+      } catch (e) {
+        tags = [];
+      }
+    }
+    if (!Array.isArray(tags)) {
+      tags = [];
+    }
+
     return {
       id: row.id.toString(),
       contactNumber: row.contact_number,
@@ -287,6 +306,7 @@ class ContactModel {
       currency: row.currency || '',
       fTax: row.f_tax || '',
       notes: row.notes || '',
+      tags,
       isAssignable: row.is_assignable !== false, // Default to true if null/undefined
       createdAt: row.created_at,
       updatedAt: row.updated_at,

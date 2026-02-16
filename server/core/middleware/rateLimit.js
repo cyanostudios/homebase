@@ -14,9 +14,12 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for health, CSRF, and session check (needed for auth state)
+    // Skip rate limiting for health, CSRF, session check, and login (so dev/local login never blocked)
     return (
-      req.path === '/api/health' || req.path === '/api/csrf-token' || req.path === '/api/auth/me'
+      req.path === '/api/health' ||
+      req.path === '/api/csrf-token' ||
+      req.path === '/api/auth/me' ||
+      req.path === '/api/auth/login'
     );
   },
 });
@@ -32,6 +35,7 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => process.env.NODE_ENV !== 'production', // Only enforce in production; dev/local login never blocked
 });
 
 /**

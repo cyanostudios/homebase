@@ -41,7 +41,7 @@ import { useContacts } from '../hooks/useContacts';
 import { CONTACT_TYPE_COLORS } from '../types/contacts';
 import { contactExportConfig } from '../utils/contactExportConfig';
 
-type SortField = 'contactNumber' | 'name' | 'type' | 'email';
+type SortField = 'name' | 'type' | 'email';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
 
@@ -90,7 +90,7 @@ export const ContactList: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
-  const [sortField, setSortField] = useState<SortField>('contactNumber');
+  const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [viewMode, setViewModeState] = useState<ViewMode>('list');
 
@@ -159,12 +159,9 @@ export const ContactList: React.FC = () => {
       } else if (sortField === 'type') {
         aValue = a.contactType;
         bValue = b.contactType;
-      } else if (sortField === 'email') {
-        aValue = a.email.toLowerCase();
-        bValue = b.email.toLowerCase();
       } else {
-        aValue = a.contactNumber;
-        bValue = b.contactNumber;
+        aValue = a.email?.toLowerCase() ?? '';
+        bValue = b.email?.toLowerCase() ?? '';
       }
 
       return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
@@ -534,20 +531,6 @@ export const ContactList: React.FC = () => {
                   </TableHead>
                   <TableHead
                     className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => handleSort('contactNumber')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>#</span>
-                      {sortField === 'contactNumber' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="h-3 w-3 inline" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3 inline" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
                     onClick={() => handleSort('name')}
                   >
                     <div className="flex items-center gap-2">
@@ -574,6 +557,7 @@ export const ContactList: React.FC = () => {
                         ))}
                     </div>
                   </TableHead>
+                  <TableHead>Tags</TableHead>
                   <TableHead
                     className="cursor-pointer hover:bg-muted/50 select-none"
                     onClick={() => handleSort('email')}
@@ -621,9 +605,6 @@ export const ContactList: React.FC = () => {
                           aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
                         />
                       </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {formatDisplayNumber('contacts', contact.id)}
-                      </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-0.5">
                           <span className="font-semibold">{contact.companyName}</span>
@@ -643,6 +624,21 @@ export const ContactList: React.FC = () => {
                         <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
                           {contact.contactType === 'company' ? 'Company' : 'Private'}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {Array.isArray(contact.tags) && contact.tags.length > 0
+                            ? contact.tags.map((t: string) => (
+                                <Badge
+                                  key={t}
+                                  variant="secondary"
+                                  className="text-[10px] font-normal"
+                                >
+                                  {t}
+                                </Badge>
+                              ))
+                            : '—'}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1.5 text-sm">
