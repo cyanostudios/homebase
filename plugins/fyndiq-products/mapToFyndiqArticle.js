@@ -70,14 +70,8 @@ function mapProductToFyndiqArticle(product, overridesByMarket, defaultLanguage, 
     shipping_time.push({ market: m, min, max });
   }
 
-  // Categories: required. From channelSpecific or per-market override only. No fallback to product.categories.
-  let categories = fyndiq.categories;
-  if (!Array.isArray(categories) || categories.length === 0) {
-    const firstMk = markets[0] ? markets[0].toLowerCase() : null;
-    const cat = firstMk && overridesByMarket && overridesByMarket[firstMk]?.category;
-    categories = cat != null ? [String(cat)] : [];
-  }
-  if (!Array.isArray(categories)) categories = [];
+  // Categories: required. From channelSpecific.fyndiq.categories only; no fallback.
+  const categories = Array.isArray(fyndiq.categories) ? fyndiq.categories.filter((c) => c != null && String(c).trim()).map((c) => String(c).trim()) : [];
   if (categories.length === 0) return null;
 
   const payload = {

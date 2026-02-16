@@ -118,7 +118,6 @@ export function ProductProvider({
     channelDataCacheRef.current = null;
   }, []);
 
-  const MARKET_TO_LANGUAGE: Record<string, string> = { se: 'sv-SE', dk: 'da-DK', fi: 'fi-FI', no: 'nb-NO' };
   const TTL_CDON_FYNDIQ_MS = 24 * 60 * 60 * 1000;
   const TTL_WOO_MS = 6 * 60 * 60 * 1000;
 
@@ -127,16 +126,15 @@ export function ProductProvider({
   const getChannelCategories = useCallback(
     async (inst: { channel: string; id: string | number; market?: string | null; instanceKey?: string }): Promise<Array<{ id: string; name: string; path?: string; parent?: number }>> => {
       const ch = String(inst.channel || '').toLowerCase();
-      const market = (inst.market ?? inst.instanceKey ?? 'se').toString().trim().toLowerCase().slice(0, 2);
-      const language = MARKET_TO_LANGUAGE[market] || 'sv-SE';
+      const categoryLanguage = productSettings?.categoryLanguage ?? 'sv-SE';
 
       let cacheKey: string;
       let ttlMs: number;
       if (ch === 'cdon') {
-        cacheKey = `cdon:${market.toUpperCase()}:${language}`;
+        cacheKey = `cdon:categories:${categoryLanguage}`;
         ttlMs = TTL_CDON_FYNDIQ_MS;
       } else if (ch === 'fyndiq') {
-        cacheKey = `fyndiq:${market}:${language}`;
+        cacheKey = `fyndiq:categories:${categoryLanguage}`;
         ttlMs = TTL_CDON_FYNDIQ_MS;
       } else if (ch === 'woocommerce') {
         cacheKey = `woo:${inst.id}`;
@@ -156,14 +154,22 @@ export function ProductProvider({
         return [];
       }
       if (!res.ok) {
-        throw new Error(res.statusText || 'Failed to load categories');
+        let message = res.statusText || 'Failed to load categories';
+        try {
+          const errBody = await res.json();
+          if (errBody?.error && typeof errBody.error === 'string') message = errBody.error;
+          if (errBody?.detail && typeof errBody.detail === 'string' && errBody.detail !== message) message = `${message}: ${errBody.detail}`;
+        } catch {
+          // keep message from statusText
+        }
+        throw new Error(message);
       }
       const data = await res.json();
       const items = Array.isArray(data?.items) ? data.items : [];
       channelCategoriesCacheRef.current[cacheKey] = { items, fetchedAt: Date.now() };
       return items;
     },
-    [],
+    [productSettings?.categoryLanguage],
   );
 
   const loadProductSettings = useCallback(async () => {
@@ -540,9 +546,11 @@ export function ProductProvider({
         if (overridesToSave?.length && saved.id) {
           try {
             for (const o of overridesToSave) {
+              const instanceId = Number(o.channelInstanceId);
+              if (!Number.isFinite(instanceId) || instanceId < 1) continue;
               await channelsApi.upsertOverride({
                 productId: String(saved.id),
-                channelInstanceId: String(o.channelInstanceId),
+                channelInstanceId: instanceId,
                 category: o.category ?? undefined,
                 priceAmount: o.priceAmount ?? undefined,
               });
@@ -630,6 +638,7 @@ export function ProductProvider({
           updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
         };
         setProducts((prev) => [...prev, normalized]);
+        closeProductPanel();
 
         // Apply Kanaler tab selections for new product: enable selected channels
         const desiredTargets = options?.channelTargets ?? [];
@@ -651,9 +660,11 @@ export function ProductProvider({
           if (overridesToSaveNew?.length) {
             try {
               for (const o of overridesToSaveNew) {
+                const instanceId = Number(o.channelInstanceId);
+                if (!Number.isFinite(instanceId) || instanceId < 1) continue;
                 await channelsApi.upsertOverride({
                   productId: String(saved.id),
-                  channelInstanceId: String(o.channelInstanceId),
+                  channelInstanceId: instanceId,
                   category: o.category ?? undefined,
                   priceAmount: o.priceAmount ?? undefined,
                 });
@@ -718,8 +729,6 @@ export function ProductProvider({
           }
         }
         clearChannelDataCache();
-
-        closeProductPanel();
       }
       return true;
     } catch (error: any) {

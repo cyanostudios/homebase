@@ -15,7 +15,8 @@ const { fetchCategoriesFromApi: fetchCdonCategories } = require('../plugins/cdon
 const { fetchCategoriesFromApi: fetchFyndiqCategories } = require('../plugins/fyndiq-products/fetchCategories');
 const { fetchCategoriesFromApi: fetchWooCategories } = require('../plugins/woocommerce-products/fetchCategories');
 
-const MARKET_TO_LANGUAGE = { se: 'sv-SE', dk: 'da-DK', fi: 'fi-FI', no: 'nb-NO' };
+const LANGUAGE_TO_MARKET = { 'sv-SE': 'SE', 'da-DK': 'DK', 'fi-FI': 'FI', 'nb-NO': 'NO' };
+const DEFAULT_CATEGORY_LANGUAGE = 'sv-SE';
 
 async function getTenants(mainPool) {
   const tenantProvider = process.env.TENANT_PROVIDER || 'neon';
@@ -80,53 +81,68 @@ async function runJobForTenant(connectionString, tenantInfo) {
     }
 
     const userId = tenantInfo.user_id;
+    let categoryLanguage = DEFAULT_CATEGORY_LANGUAGE;
+    try {
+      const settingsRes = await client.query(
+        "SELECT settings FROM user_settings WHERE user_id = $1 AND category = 'products' LIMIT 1",
+        [userId],
+      );
+      const settings = settingsRes?.rows?.[0]?.settings;
+      if (settings && typeof settings === 'object' && settings.categoryLanguage) {
+        const lang = settings.categoryLanguage;
+        if (lang === 'sv-SE' || lang === 'da-DK' || lang === 'fi-FI' || lang === 'nb-NO') {
+          categoryLanguage = lang;
+        }
+      }
+    } catch (_) {
+      // keep default
+    }
+
+    const market = LANGUAGE_TO_MARKET[categoryLanguage] || 'SE';
+    const marketLower = market.toLowerCase();
+
+    const cdonSettingsRes = await client.query(
+      'SELECT api_key, api_secret FROM cdon_settings WHERE user_id = $1 LIMIT 1',
+      [userId],
+    );
+    const cdonSettings = cdonSettingsRes?.rows?.[0];
+    if (cdonSettings?.api_key && cdonSettings?.api_secret) {
+      const cdonCacheKey = `cdon:categories:${categoryLanguage}`;
+      try {
+        const items = await fetchCdonCategories(market, categoryLanguage, cdonSettings.api_key, cdonSettings.api_secret);
+        await upsertCategoryCache(client, cdonCacheKey, null, items);
+      } catch (err) {
+        const msg = err?.message ?? err?.stack ?? String(err);
+        console.warn(`   [${tenantInfo.email}] CDON ${cdonCacheKey}: ${msg}`);
+      }
+    }
+
+    const fyndiqSettingsRes = await client.query(
+      'SELECT api_key, api_secret FROM fyndiq_settings WHERE user_id = $1 LIMIT 1',
+      [userId],
+    );
+    const fyndiqSettings = fyndiqSettingsRes?.rows?.[0];
+    if (fyndiqSettings?.api_key && fyndiqSettings?.api_secret) {
+      const fyndiqCacheKey = `fyndiq:categories:${categoryLanguage}`;
+      try {
+        const items = await fetchFyndiqCategories(marketLower, categoryLanguage, fyndiqSettings.api_key, fyndiqSettings.api_secret);
+        await upsertCategoryCache(client, fyndiqCacheKey, null, items);
+      } catch (err) {
+        const msg = err?.message ?? err?.stack ?? String(err);
+        console.warn(`   [${tenantInfo.email}] Fyndiq ${fyndiqCacheKey}: ${msg}`);
+      }
+    }
+
     const instancesRes = await client.query(`
       SELECT id, user_id, channel, instance_key, market, credentials
       FROM channel_instances
       WHERE channel IN ('cdon', 'fyndiq', 'woocommerce') AND enabled = true
     `);
     const instances = instancesRes.rows || [];
-
     for (const inst of instances) {
       const channel = String(inst.channel || '').toLowerCase();
       const instId = String(inst.id);
-
-      if (channel === 'cdon') {
-        const market = (inst.market || inst.instance_key || '').toString().trim().toLowerCase().slice(0, 2) || null;
-        if (!market) continue;
-        const language = MARKET_TO_LANGUAGE[market] || 'sv-SE';
-        const settingsRes = await client.query(
-          'SELECT api_key, api_secret FROM cdon_settings WHERE user_id = $1 LIMIT 1',
-          [inst.user_id],
-        );
-        const settings = settingsRes.rows?.[0];
-        if (!settings?.api_key || !settings?.api_secret) continue;
-        const cdonCacheKey = `cdon:${market.toUpperCase()}:${language}`;
-        try {
-          const items = await fetchCdonCategories(market.toUpperCase(), language, settings.api_key, settings.api_secret);
-          await upsertCategoryCache(client, cdonCacheKey, null, items);
-        } catch (err) {
-          const msg = err?.message ?? err?.stack ?? String(err);
-          console.warn(`   [${tenantInfo.email}] CDON ${cdonCacheKey}: ${msg}`);
-        }
-      } else if (channel === 'fyndiq') {
-        const market = (inst.market || inst.instance_key || '').toString().trim().toLowerCase().slice(0, 2) || null;
-        if (!market) continue;
-        const language = MARKET_TO_LANGUAGE[market] || 'sv-SE';
-        const settingsRes = await client.query(
-          'SELECT api_key, api_secret FROM fyndiq_settings WHERE user_id = $1 LIMIT 1',
-          [inst.user_id],
-        );
-        const settings = settingsRes.rows?.[0];
-        if (!settings?.api_key || !settings?.api_secret) continue;
-        const fyndiqCacheKey = `fyndiq:${market}:${language}`;
-        try {
-          const items = await fetchFyndiqCategories(market, language, settings.api_key, settings.api_secret);
-          await upsertCategoryCache(client, fyndiqCacheKey, null, items);
-        } catch (err) {
-          console.warn(`   [${tenantInfo.email}] Fyndiq ${fyndiqCacheKey}: ${err.message}`);
-        }
-      } else if (channel === 'woocommerce') {
+      if (channel === 'woocommerce') {
         const creds = inst.credentials || {};
         const storeUrl = creds.storeUrl || creds.store_url;
         if (!storeUrl || !creds.consumerKey && !creds.consumer_key) continue;

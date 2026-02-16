@@ -62,6 +62,9 @@ export type ProductSettingsFyndiqMarketKey = 'se' | 'dk' | 'fi' | 'no';
 
 export type MarketDelivery = { shippingMin?: number; shippingMax?: number };
 
+/** Language for CDON/Fyndiq category lists. Default sv-SE when missing. */
+export type CategoryLanguage = 'sv-SE' | 'da-DK' | 'fi-FI' | 'nb-NO';
+
 /** Product plugin settings (stored in user_settings, category: products) */
 export interface ProductSettings {
   /** @deprecated Use defaultDeliveryCdon / defaultDeliveryFyndiq. Kept for migration. */
@@ -70,4 +73,6 @@ export interface ProductSettings {
   defaultDeliveryCdon?: Record<ProductSettingsCdonMarketKey, MarketDelivery>;
   /** Default shipping times per Fyndiq market (se, dk, fi, no). Used when product has no manual Fyndiq shipping_time. */
   defaultDeliveryFyndiq?: Record<ProductSettingsFyndiqMarketKey, MarketDelivery>;
+  /** Language for CDON/Fyndiq category dropdowns. Persistent; default sv-SE when missing. */
+  categoryLanguage?: CategoryLanguage;
 }

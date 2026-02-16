@@ -7,6 +7,10 @@ const csvParser = require('csv-parser');
 const { Readable } = require('stream');
 
 const lookupsModel = require('./lookupsModel');
+const { fetchCategoriesFromApi: fetchCdonCategories } = require('../cdon-products/fetchCategories');
+const { fetchCategoriesFromApi: fetchFyndiqCategories } = require('../fyndiq-products/fetchCategories');
+
+const LANGUAGE_TO_MARKET = { 'sv-SE': 'SE', 'da-DK': 'DK', 'fi-FI': 'FI', 'nb-NO': 'NO' };
 
 const IMPORT_MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB
 const IMPORT_MAX_ROWS = 5000;
@@ -865,7 +869,8 @@ class ProductController {
 
   /**
    * GET /api/products/category-cache?key=...
-   * Read-only: returns cached channel categories from DB. No call to CDON/Fyndiq/Woo API.
+   * Returns cached channel categories. For cdon:categories:{lang} and fyndiq:categories:{lang},
+   * on-demand fetch and cache on miss (user_id NULL). Woo: no on-demand.
    */
   async getCategoryCache(req, res) {
     const key = String(req.query?.key ?? '').trim();
@@ -895,6 +900,64 @@ class ProductController {
       );
       row = (Array.isArray(r) ? r[0] : r?.rows?.[0]) ?? null;
     }
+
+    if (!row && (prefix === 'cdon' || prefix === 'fyndiq')) {
+      const match = key.match(/^(cdon|fyndiq):categories:(.+)$/);
+      if (match) {
+        const lang = String(match[2] || '').trim();
+        const market = LANGUAGE_TO_MARKET[lang];
+        if (market && (prefix === 'cdon' || prefix === 'fyndiq')) {
+          try {
+            let items = [];
+            if (prefix === 'cdon') {
+              const credsRows = await db.query(
+                'SELECT api_key, api_secret FROM cdon_settings WHERE user_id = $1 LIMIT 1',
+                [userId],
+              );
+              const c = credsRows?.[0];
+              if (!c?.api_key || !c?.api_secret) {
+                return res.status(502).json({ error: 'CDON credentials missing', detail: 'Configure CDON in settings' });
+              }
+              items = await fetchCdonCategories(market, lang, c.api_key, c.api_secret);
+            } else {
+              const credsRows = await db.query(
+                'SELECT api_key, api_secret FROM fyndiq_settings WHERE user_id = $1 LIMIT 1',
+                [userId],
+              );
+              const c = credsRows?.[0];
+              if (!c?.api_key || !c?.api_secret) {
+                return res.status(502).json({ error: 'Fyndiq credentials missing', detail: 'Configure Fyndiq in settings' });
+              }
+              const marketLower = market.toLowerCase();
+              items = await fetchFyndiqCategories(marketLower, lang, c.api_key, c.api_secret);
+            }
+            const payload = Array.isArray(items) ? items : [];
+            const fetchedAt = new Date();
+            const up = await db.query(
+              'UPDATE category_cache SET payload = $2, fetched_at = $3 WHERE cache_key = $1 AND user_id IS NULL',
+              [key, JSON.stringify(payload), fetchedAt],
+            );
+            if (!up.rowCount || up.rowCount === 0) {
+              await db.query(
+                'INSERT INTO category_cache (cache_key, user_id, payload, fetched_at) VALUES ($1, NULL, $2::jsonb, $3)',
+                [key, JSON.stringify(payload), fetchedAt],
+              );
+            }
+            return res.json({
+              items: payload,
+              fetchedAt: fetchedAt.toISOString(),
+            });
+          } catch (err) {
+            Logger.error('Category cache on-demand fetch failed', { key, error: err?.message });
+            return res.status(502).json({
+              error: 'Failed to fetch categories',
+              detail: err?.message ?? String(err),
+            });
+          }
+        }
+      }
+    }
+
     if (!row) {
       return res.status(404).json({ error: 'No cache entry for this key.' });
     }

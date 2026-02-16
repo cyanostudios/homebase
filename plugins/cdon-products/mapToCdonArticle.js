@@ -87,9 +87,8 @@ function mapProductToCdonArticle(product, overridesByMarket, defaultLanguage, ma
     shipping_time,
   };
 
-  // Optional: category (CDON uses single category for bulk)
-  const cat = cdon.category ?? (overridesByMarket?.[markets[0]?.toLowerCase()]?.category) ?? (product?.categories?.[0]);
-  if (cat != null && String(cat).trim()) payload.category = String(cat).trim();
+  // Optional: category (CDON uses single category for bulk). From channelSpecific only; no fallback.
+  if (cdon.category != null && String(cdon.category).trim()) payload.category = String(cdon.category).trim();
 
   if (product?.brand != null && String(product.brand).trim()) payload.brand = String(product.brand).trim();
   if (product?.gtin != null && String(product.gtin).trim()) payload.gtin = String(product.gtin).trim();

@@ -89,6 +89,134 @@ function buildWooCategoryTree(
 /** CDON/Fyndiq category tree node. Hierarchy from id dot notation: "1.423.18326" → under "1.423" under "1". */
 type ChannelCategoryNode = { id: string; name: string; children: ChannelCategoryNode[] };
 
+/** Flatten tree to list of { id, pathLabel } for search results (pathLabel = "Root > Child > Leaf"). */
+function flattenTreeWithPaths<T extends { id: string; name: string; children: T[] }>(
+  nodes: T[],
+  parentPath: string[] = [],
+): Array<{ id: string; pathLabel: string }> {
+  const result: Array<{ id: string; pathLabel: string }> = [];
+  for (const node of nodes) {
+    const path = [...parentPath, node.name];
+    const pathLabel = path.join(' > ');
+    result.push({ id: node.id, pathLabel });
+    result.push(...flattenTreeWithPaths(node.children, path));
+  }
+  return result;
+}
+
+/** Filter flat category list by search string (match on pathLabel or id). */
+function filterCategorySearchResults(
+  items: Array<{ id: string; pathLabel: string }>,
+  query: string,
+): Array<{ id: string; pathLabel: string }> {
+  const q = query.trim().toLowerCase();
+  if (!q) return items;
+  return items.filter(
+    (item) =>
+      item.pathLabel.toLowerCase().includes(q) || item.id.toLowerCase().includes(q),
+  );
+}
+
+/** Memoized search results for Woo: flatten tree once per list, filter on query. */
+function WooCategorySearchList({
+  list,
+  searchQuery,
+  wooCats,
+  addWooCategory,
+  removeWooCategory,
+}: {
+  list: Array<{ id: string; name: string; parent?: number }>;
+  searchQuery: string;
+  wooCats: string[];
+  addWooCategory: (id: string) => void;
+  removeWooCategory: (id: string) => void;
+}) {
+  const tree = React.useMemo(() => buildWooCategoryTree(list), [list]);
+  const flattened = React.useMemo(() => flattenTreeWithPaths(tree), [tree]);
+  const filtered = React.useMemo(
+    () => filterCategorySearchResults(flattened, searchQuery),
+    [flattened, searchQuery],
+  );
+  return (
+    <>
+      <ul className="py-1">
+        {filtered.map((item) => (
+          <li key={item.id} className="list-none">
+            <button
+              type="button"
+              className="w-full text-left text-sm py-2 px-3 hover:bg-gray-100 rounded flex items-center gap-2"
+              onClick={() => addWooCategory(item.id)}
+            >
+              <Checkbox
+                checked={wooCats.includes(item.id)}
+                onCheckedChange={(checked) => (checked ? addWooCategory(item.id) : removeWooCategory(item.id))}
+                onClick={(e) => e.stopPropagation()}
+                className="shrink-0"
+              />
+              <span className="flex-1 min-w-0 truncate" title={item.pathLabel}>
+                {item.pathLabel}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {filtered.length === 0 && searchQuery.trim() !== '' && (
+        <p className="text-sm text-gray-500 px-2 py-2">Ingen träff</p>
+      )}
+    </>
+  );
+}
+
+/** Memoized search results for CDON/Fyndiq: flatten tree once per list, filter on query. */
+function ChannelCategorySearchList({
+  list,
+  isFyndiq,
+  searchQuery,
+  validIds,
+  selectedId,
+  setChannelCategory,
+}: {
+  list: Array<{ id: string; name: string; path?: string }>;
+  isFyndiq: boolean;
+  searchQuery: string;
+  validIds: Set<string>;
+  selectedId: string;
+  setChannelCategory: (id: string) => void;
+}) {
+  const tree = React.useMemo(
+    () => (isFyndiq ? buildFyndiqCategoryTree(list) : buildChannelCategoryTree(list)),
+    [list, isFyndiq],
+  );
+  const flattened = React.useMemo(() => flattenTreeWithPaths(tree), [tree]);
+  const filteredByQuery = React.useMemo(
+    () => filterCategorySearchResults(flattened, searchQuery),
+    [flattened, searchQuery],
+  );
+  const filtered = filteredByQuery.filter((item) => validIds.has(item.id));
+  return (
+    <>
+      <ul className="py-1">
+        {filtered.map((item) => (
+          <li key={item.id} className="list-none">
+            <button
+              type="button"
+              className={`w-full text-left text-sm py-2 px-3 hover:bg-gray-100 rounded ${selectedId === item.id ? 'bg-blue-50 text-blue-800' : ''}`}
+              onClick={() => setChannelCategory(item.id)}
+            >
+              <span className="flex-1 min-w-0 truncate block" title={item.pathLabel}>
+                {item.pathLabel}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {filtered.length === 0 && searchQuery.trim() !== '' && (
+        <p className="text-sm text-gray-500 px-2 py-2">Ingen träff</p>
+      )}
+    </>
+  );
+}
+
 /** Build tree from flat list. One node per id; missing parents get same id as parentId (no synthetic __parent: id). Better name wins. Sorted by id (numeric). */
 function buildChannelCategoryTree(
   list: Array<{ id: string; name: string; path?: string }>,
@@ -357,8 +485,10 @@ type TextData = {
 };
 
 type ChannelCategory = {
-  cdon?: Record<string, string>;
-  fyndiq?: Record<string, string>;
+  /** One category ID for CDON (all markets). */
+  cdon?: string;
+  /** One category ID for Fyndiq (all markets). */
+  fyndiq?: string;
   /** WooCommerce: array of category ids per instance */
   woocommerce?: Record<string, string | string[]>;
 };
@@ -419,7 +549,7 @@ type FormData = {
   markets: Record<MarketKey, MarketData>;
   /** Per-market language: title, description (SE/DK/FI/NO) */
   texts: Record<MarketKey, TextData>;
-  /** Per-channel categories (e.g. cdon.se, fyndiq.se) */
+  /** Per-channel categories: one value for CDON, one for Fyndiq; Woo per instance */
   channelCategories: ChannelCategory;
   /** CDON/Fyndiq advanced (stored in channelSpecific) */
   channelSpecific?: Record<string, unknown>;
@@ -562,6 +692,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const [channelCategoryExpandedIds, setChannelCategoryExpandedIds] = useState<Record<string, Set<string>>>({});
   /** CDON/Fyndiq: which instance's category panel is open. */
   const [channelCategoryPanelOpen, setChannelCategoryPanelOpen] = useState<Record<string, boolean>>({});
+  /** Category search filter per row (key = inst.id). */
+  const [categorySearch, setCategorySearch] = useState<Record<string, string>>({});
 
   // Target key: "channel" or "channel:instanceId" for matching
   const targetKey = (channel: string, channelInstanceId: string | null) =>
@@ -599,7 +731,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     setChannelTargetsLoading(true);
     (async () => {
       try {
-        const instResp = await channelsApi.getInstances();
+        const instResp = await channelsApi.getInstances({ includeDisabled: true });
         if (cancelled) return;
         const insts = instResp?.items ?? [];
         setChannelInstances(insts);
@@ -658,32 +790,34 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     return [s];
   };
 
-  // Sync overrides into channelCategories and channelPriceOverrides when overrides first load
+  // Sync overrides into channelCategories (Woo only) and channelPriceOverrides when overrides first load. CDON/Fyndiq category come from channelSpecific only.
   const hasSyncedOverridesRef = React.useRef(false);
   useEffect(() => {
     if (!currentProduct?.id || channelOverrides.length === 0 || channelInstances.length === 0 || hasSyncedOverridesRef.current) return;
     hasSyncedOverridesRef.current = true;
     setFormData((prev) => {
-      const next = { ...prev.channelCategories } as Record<string, Record<string, string | string[]>>;
+      const nextWoo = { ...(prev.channelCategories?.woocommerce ?? {}) };
       for (const ov of channelOverrides) {
         if (!ov.instanceId) continue;
         const inst = channelInstances.find((i) => i.id === ov.instanceId);
-        if (!inst) continue;
-        const ch = inst.channel;
+        if (!inst || String(inst.channel).toLowerCase() !== 'woocommerce') continue;
         const key = inst.instanceKey;
-        if (!next[ch]) next[ch] = {};
-        if (ch === 'woocommerce') {
-          next[ch][key] = ov.category != null ? parseWooCategory(ov.category) : [];
-        } else if (ov.category != null) {
-          next[ch][key] = ov.category;
-        }
+        nextWoo[key] = ov.category != null ? parseWooCategory(ov.category) : [];
       }
-      return { ...prev, channelCategories: next };
+      return {
+        ...prev,
+        channelCategories: {
+          ...prev.channelCategories,
+          cdon: prev.channelCategories?.cdon ?? '',
+          fyndiq: prev.channelCategories?.fyndiq ?? '',
+          woocommerce: nextWoo,
+        },
+      };
     });
     const priceInit: Record<string, { priceAmount: string; salePrice: string }> = {};
     for (const inst of channelInstances) {
       const ov = channelOverrides.find((o: any) => String(o.instanceId) === String(inst.id));
-      priceInit[String(inst.id)] = { priceAmount: ov?.priceAmount != null ? String(ov.priceAmount) : '', salePrice: '' };
+      priceInit[String(inst.id)] = { priceAmount: ov?.priceAmount != null ? String(ov.priceAmount) : '', salePrice: ov?.salePrice != null ? String(ov.salePrice) : '' };
     }
     setChannelPriceOverrides(priceInit);
   }, [channelOverrides, channelInstances, currentProduct?.id]);
@@ -822,9 +956,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         markets,
         texts,
         channelCategories: {
-          cdon: (cs.cdon as any)?.categories ?? {},
-          fyndiq: (cs.fyndiq as any)?.categories ?? {},
-          woocommerce: (cs.woocommerce as any)?.categories ?? {},
+          cdon: (cs.cdon as any)?.category != null && String((cs.cdon as any).category).trim() !== '' ? String((cs.cdon as any).category).trim() : '',
+          fyndiq: (Array.isArray((cs.fyndiq as any)?.categories) && (cs.fyndiq as any).categories[0] != null) ? String((cs.fyndiq as any).categories[0]) : '',
+          woocommerce: (cs.woocommerce as any)?.categories && typeof (cs.woocommerce as any).categories === 'object' ? (cs.woocommerce as any).categories : {},
         },
         channelSpecific: cs,
       });
@@ -869,21 +1003,42 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     })();
   }, [activeTab, isBatchMode]);
 
-  // Fetch category lists from server cache (GET /api/products/category-cache) when Kategorier tab is active
-  useEffect(() => {
-    if (activeTab !== 'kategori' || isBatchMode || !channelInstances.length) return;
-    const channelInstancesToFetch = channelInstances.filter((i) =>
+  // Aggregated list for Kategorier tab: one row CDON, one row Fyndiq, then one per Woo store.
+  const categoryTabInstances = React.useMemo(() => {
+    const base = channelInstances.filter((i) =>
       ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()) && hasValidMarket(i),
     );
-    for (const inst of channelInstancesToFetch) {
-      const key = String(inst.id);
+    const hasCdon = base.some((i) => String(i.channel).toLowerCase() === 'cdon');
+    const hasFyndiq = base.some((i) => String(i.channel).toLowerCase() === 'fyndiq');
+    const result: Array<{ channel: string; id: string; label: string; instanceKey: string; isVirtual?: boolean }> = [];
+    if (hasCdon) result.push({ channel: 'cdon', id: 'cdon', label: 'CDON', instanceKey: 'cdon', isVirtual: true });
+    if (hasFyndiq) result.push({ channel: 'fyndiq', id: 'fyndiq', label: 'Fyndiq', instanceKey: 'fyndiq', isVirtual: true });
+    for (const inst of base) {
+      if (String(inst.channel).toLowerCase() === 'woocommerce') {
+        result.push({
+          channel: inst.channel,
+          id: String(inst.id),
+          label: inst.label || `WooCommerce.${inst.instanceKey}`,
+          instanceKey: inst.instanceKey,
+        });
+      }
+    }
+    return result;
+  }, [channelInstances]);
+
+  // Fetch category lists from server cache when Kategorier tab is active (one fetch for CDON, one for Fyndiq, per Woo store).
+  useEffect(() => {
+    if (activeTab !== 'kategori' || isBatchMode || !categoryTabInstances.length) return;
+    for (const inst of categoryTabInstances) {
+      const key = inst.id;
       if (categoryFetchStartedRef.current.has(key)) continue;
       categoryFetchStartedRef.current.add(key);
       setChannelCategoriesLoading((prev) => ({ ...prev, [key]: true }));
       setChannelCategoriesError((prev) => ({ ...prev, [key]: '' }));
+      const fetchInst = inst.isVirtual ? { channel: inst.channel, id: inst.id } : { channel: inst.channel, id: Number(inst.id), instanceKey: inst.instanceKey };
       (async () => {
         try {
-          const items = await getChannelCategories(inst);
+          const items = await getChannelCategories(fetchInst as any);
           setChannelCategoriesList((prev) => ({ ...prev, [key]: items }));
           if (String(inst.channel).toLowerCase() === 'woocommerce') {
             setWooExpandedIds((prev) => ({ ...prev, [key]: new Set<string>() }));
@@ -899,7 +1054,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         }
       })();
     }
-  }, [activeTab, isBatchMode, channelInstances, getChannelCategories]);
+  }, [activeTab, isBatchMode, categoryTabInstances, getChannelCategories]);
 
   const updateField = (field: keyof FormData, value: string | number | string[]) => {
     setFormData((prev) => {
@@ -1020,10 +1175,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       return;
     }
 
-    if (!String(formData.sku || '').trim()) {
-      return;
-    }
-
+    if (!String(formData.sku || '').trim()) return;
     setIsSubmitting(true);
     try {
       const hadChanges = !!currentProduct && isDirty;
@@ -1085,7 +1237,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         cdon: {
           markets: formData.markets,
           texts: formData.texts,
-          categories: formData.channelCategories,
+          category: (formData.channelCategories?.cdon ?? '').trim() || null,
           shipping_time: shippingTime,
           ...(cdonDeliveryType.length > 0 && { delivery_type: cdonDeliveryType }),
           ...(cdonTitle.length > 0 && { title: cdonTitle }),
@@ -1094,7 +1246,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         fyndiq: {
           markets: formData.markets,
           texts: formData.texts,
-          categories: formData.channelCategories,
+          categories: (formData.channelCategories?.fyndiq ?? '').trim() ? [String(formData.channelCategories.fyndiq).trim()] : [],
           shipping_time: shippingTime,
           ...(fyndiqDeliveryType.length > 0 && { delivery_type: fyndiqDeliveryType }),
           ...(fyndiqTitle.length > 0 && { title: fyndiqTitle }),
@@ -1148,10 +1300,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       const channelOverridesToSave = channelInstances
         .filter((i) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()))
         .map((inst) => {
-          const rawCat = formData.channelCategories?.[inst.channel as 'cdon'|'fyndiq'|'woocommerce']?.[inst.instanceKey];
-          const cat = inst.channel === 'woocommerce'
+          const ch = String(inst.channel).toLowerCase();
+          const rawCat = ch === 'woocommerce'
+            ? formData.channelCategories?.woocommerce?.[inst.instanceKey]
+            : null;
+          const cat = ch === 'woocommerce'
             ? (Array.isArray(rawCat) ? (rawCat.length ? JSON.stringify(rawCat) : null) : (typeof rawCat === 'string' && rawCat?.trim() ? rawCat.trim() : null))
-            : (typeof rawCat === 'string' ? (rawCat?.trim() || null) : null);
+            : null;
           const po = channelPriceOverrides[String(inst.id)];
           const priceStr = (po?.priceAmount ?? '').trim().replace(',', '.');
           const priceAmount = priceStr !== '' && Number.isFinite(Number(priceStr)) && Number(priceStr) >= 0 ? Number(priceStr) : null;
@@ -1936,54 +2091,59 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             <p className="text-sm text-gray-600 mb-4">
               Välj kategori per kanal. Listorna hämtas från CDON, Fyndiq respektive WooCommerce.
             </p>
-            {currentProduct?.id && channelInstances.length > 0 && (
+            {currentProduct?.id && categoryTabInstances.length > 0 && (
               <div className="space-y-3">
-                {channelInstances
-                  .filter((i) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()) && hasValidMarket(i))
-                  .map((inst) => {
-                    const ov = channelOverrides.find((o: any) => o.instanceId === inst.id);
-                    const rawCatVal = ov?.category ?? formData.channelCategories?.[inst.channel as 'cdon'|'fyndiq'|'woocommerce']?.[inst.instanceKey];
-                    const label = inst.label || `${inst.channel}.${inst.instanceKey}`;
-                    const list = channelCategoriesList[String(inst.id)] ?? [];
-                    const loading = channelCategoriesLoading[String(inst.id)];
-                    const error = channelCategoriesError[String(inst.id)];
+                {categoryTabInstances.map((inst) => {
                     const isWoo = String(inst.channel).toLowerCase() === 'woocommerce';
+                    const rawCatVal = isWoo
+                      ? formData.channelCategories?.woocommerce?.[inst.instanceKey]
+                      : (inst.channel === 'cdon' ? formData.channelCategories?.cdon : formData.channelCategories?.fyndiq);
+                    const label = inst.label;
+                    const list = channelCategoriesList[inst.id] ?? [];
+                    const loading = channelCategoriesLoading[inst.id];
+                    const error = channelCategoriesError[inst.id];
                     const wooCats: string[] = isWoo
                       ? (Array.isArray(rawCatVal) ? rawCatVal : (rawCatVal ? [rawCatVal] : []))
                       : [];
                     const cat = !isWoo ? (typeof rawCatVal === 'string' ? rawCatVal : '') : '';
                     const wooTree = isWoo ? buildWooCategoryTree(list as Array<{ id: string; name: string; parent?: number }>) : [];
-                    const expandedSet = wooExpandedIds[String(inst.id)] ?? new Set<string>();
+                    const expandedSet = wooExpandedIds[inst.id] ?? new Set<string>();
                     const setExpanded = (id: string, open: boolean) => {
                       setWooExpandedIds((prev) => {
-                        const next = new Set(prev[String(inst.id)] ?? []);
+                        const next = new Set(prev[inst.id] ?? []);
                         if (open) next.add(id);
                         else next.delete(id);
-                        return { ...prev, [String(inst.id)]: next };
+                        return { ...prev, [inst.id]: next };
                       });
                     };
                     const channelTree = isWoo ? [] : (String(inst.channel).toLowerCase() === 'fyndiq' ? buildFyndiqCategoryTree(list) : buildChannelCategoryTree(list));
                     const channelRealIds = !isWoo ? new Set(list.map((x) => x.id)) : new Set<string>();
-                    const channelExpandedSet = channelCategoryExpandedIds[String(inst.id)] ?? new Set<string>();
+                    const channelExpandedSet = channelCategoryExpandedIds[inst.id] ?? new Set<string>();
                     const setChannelExpanded = (id: string, open: boolean) => {
                       setChannelCategoryExpandedIds((prev) => {
-                        const next = new Set(prev[String(inst.id)] ?? []);
+                        const next = new Set(prev[inst.id] ?? []);
                         if (open) next.add(id);
                         else next.delete(id);
-                        return { ...prev, [String(inst.id)]: next };
+                        return { ...prev, [inst.id]: next };
                       });
                     };
                     const setChannelCategory = (categoryId: string) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        channelCategories: {
-                          ...prev.channelCategories,
-                          [inst.channel]: {
-                            ...(prev.channelCategories?.[inst.channel as 'cdon'|'fyndiq'|'woocommerce'] ?? {}),
-                            [inst.instanceKey]: categoryId,
+                      if (inst.channel === 'cdon') {
+                        setFormData((prev) => ({ ...prev, channelCategories: { ...prev.channelCategories, cdon: categoryId } }));
+                      } else if (inst.channel === 'fyndiq') {
+                        setFormData((prev) => ({ ...prev, channelCategories: { ...prev.channelCategories, fyndiq: categoryId } }));
+                      } else {
+                        setFormData((prev) => ({
+                          ...prev,
+                          channelCategories: {
+                            ...prev.channelCategories,
+                            woocommerce: {
+                              ...(prev.channelCategories?.woocommerce ?? {}),
+                              [inst.instanceKey]: [categoryId],
+                            },
                           },
-                        },
-                      }));
+                        }));
+                      }
                       markDirty();
                     };
                     const addWooCategory = (id: string) => {
@@ -2025,11 +2185,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           )}
                           {!loading && list.length > 0 && isWoo && (
                             <Collapsible
-                              open={wooPanelOpen[String(inst.id)] ?? false}
-                              onOpenChange={(open) => setWooPanelOpen((prev) => ({ ...prev, [String(inst.id)]: open }))}
+                              open={wooPanelOpen[inst.id] ?? false}
+                              onOpenChange={(open) => setWooPanelOpen((prev) => ({ ...prev, [inst.id]: open }))}
                             >
                               <CollapsibleTrigger className="flex items-center gap-2 w-full text-left text-sm border border-gray-200 rounded-md px-3 py-2 bg-gray-50/50 hover:bg-gray-100 min-h-0">
-                                {(wooPanelOpen[String(inst.id)] ?? false) ? (
+                                {(wooPanelOpen[inst.id] ?? false) ? (
                                   <ChevronDown className="w-4 h-4 shrink-0" />
                                 ) : (
                                   <ChevronRight className="w-4 h-4 shrink-0" />
@@ -2063,21 +2223,44 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                   {wooTree.length === 0 ? (
                                     <p className="text-sm text-gray-500 px-2 py-2">Inga kategorier</p>
                                   ) : (
-                                    <ul className="py-1">
-                                      {wooTree.map((node) => (
-                                        <CategoryTreeRow
-                                          key={node.id}
-                                          node={node}
-                                          selectedId=""
-                                          selectedIds={new Set(wooCats)}
-                                          expandedIds={expandedSet}
-                                          onToggleExpand={setExpanded}
-                                          onSelect={addWooCategory}
-                                          onToggle={(id, checked) => (checked ? addWooCategory(id) : removeWooCategory(id))}
-                                          depth={0}
+                                    <>
+                                      <div className="sticky top-0 z-10 p-2 bg-gray-50/50 border-b border-gray-200">
+                                        <Input
+                                          type="search"
+                                          placeholder="Sök kategori..."
+                                          className="h-8 text-sm"
+                                          value={categorySearch[inst.id] ?? ''}
+                                          onChange={(e) =>
+                                            setCategorySearch((prev) => ({ ...prev, [inst.id]: e.target.value }))
+                                          }
                                         />
-                                      ))}
-                                    </ul>
+                                      </div>
+                                      {(categorySearch[inst.id] ?? '').trim() !== '' ? (
+                                        <WooCategorySearchList
+                                          list={list as Array<{ id: string; name: string; parent?: number }>}
+                                          searchQuery={categorySearch[inst.id] ?? ''}
+                                          wooCats={wooCats}
+                                          addWooCategory={addWooCategory}
+                                          removeWooCategory={removeWooCategory}
+                                        />
+                                      ) : (
+                                        <ul className="py-1">
+                                          {wooTree.map((node) => (
+                                            <CategoryTreeRow
+                                              key={node.id}
+                                              node={node}
+                                              selectedId=""
+                                              selectedIds={new Set(wooCats)}
+                                              expandedIds={expandedSet}
+                                              onToggleExpand={setExpanded}
+                                              onSelect={addWooCategory}
+                                              onToggle={(id, checked) => (checked ? addWooCategory(id) : removeWooCategory(id))}
+                                              depth={0}
+                                            />
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               </CollapsibleContent>
@@ -2085,11 +2268,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           )}
                           {!loading && list.length > 0 && !isWoo && (
                             <Collapsible
-                              open={channelCategoryPanelOpen[String(inst.id)] ?? false}
-                              onOpenChange={(open) => setChannelCategoryPanelOpen((prev) => ({ ...prev, [String(inst.id)]: open }))}
+                              open={channelCategoryPanelOpen[inst.id] ?? false}
+                              onOpenChange={(open) => setChannelCategoryPanelOpen((prev) => ({ ...prev, [inst.id]: open }))}
                             >
                               <CollapsibleTrigger className="flex items-center gap-2 w-full text-left text-sm border border-gray-200 rounded-md px-3 py-2 bg-gray-50/50 hover:bg-gray-100 min-h-0">
-                                {(channelCategoryPanelOpen[String(inst.id)] ?? false) ? (
+                                {(channelCategoryPanelOpen[inst.id] ?? false) ? (
                                   <ChevronDown className="w-4 h-4 shrink-0" />
                                 ) : (
                                   <ChevronRight className="w-4 h-4 shrink-0" />
@@ -2108,22 +2291,44 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                               </CollapsibleTrigger>
                               <CollapsibleContent>
                                 <div className="mt-2 border border-gray-200 rounded-md max-h-64 overflow-y-auto bg-gray-50/50">
+                                  <div className="sticky top-0 z-10 p-2 bg-gray-50/50 border-b border-gray-200">
+                                    <Input
+                                      type="search"
+                                      placeholder="Sök kategori..."
+                                      className="h-8 text-sm"
+                                      value={categorySearch[inst.id] ?? ''}
+                                      onChange={(e) =>
+                                        setCategorySearch((prev) => ({ ...prev, [inst.id]: e.target.value }))
+                                      }
+                                    />
+                                  </div>
+                                  {(categorySearch[inst.id] ?? '').trim() !== '' ? (
+                                    <ChannelCategorySearchList
+                                      list={list}
+                                      isFyndiq={String(inst.channel).toLowerCase() === 'fyndiq'}
+                                      searchQuery={categorySearch[inst.id] ?? ''}
+                                      validIds={channelRealIds}
+                                      selectedId={cat}
+                                      setChannelCategory={setChannelCategory}
+                                    />
+                                  ) : (
                                     <ul className="py-1">
-                                    {channelTree.map((node) => (
-                                      <CategoryTreeRow
-                                        key={node.id}
-                                        node={node as CategoryTreeNode}
-                                        selectedId={cat}
-                                        expandedIds={channelExpandedSet}
-                                        onToggleExpand={setChannelExpanded}
-                                        onSelect={(id) => {
-                                          if (id && channelRealIds.has(id)) setChannelCategory(id);
-                                        }}
-                                        depth={0}
-                                        channelListStyle
-                                      />
-                                    ))}
-                                  </ul>
+                                      {channelTree.map((node) => (
+                                        <CategoryTreeRow
+                                          key={node.id}
+                                          node={node as CategoryTreeNode}
+                                          selectedId={cat}
+                                          expandedIds={channelExpandedSet}
+                                          onToggleExpand={setChannelExpanded}
+                                          onSelect={(id) => {
+                                            if (id && channelRealIds.has(id)) setChannelCategory(id);
+                                          }}
+                                          depth={0}
+                                          channelListStyle
+                                        />
+                                      ))}
+                                    </ul>
+                                  )}
                                 </div>
                               </CollapsibleContent>
                             </Collapsible>

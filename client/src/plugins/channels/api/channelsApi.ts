@@ -154,7 +154,7 @@ class ChannelsApi {
 
   async upsertOverride(body: {
     productId: string;
-    channelInstanceId: string;
+    channelInstanceId: string | number;
     active?: boolean;
     priceAmount?: number | string | null;
     currency?: string | null;
