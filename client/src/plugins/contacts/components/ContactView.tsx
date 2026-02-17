@@ -15,8 +15,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
@@ -258,47 +263,55 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                 iconPlugin="contacts"
                 className="p-4"
               >
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Tags</Label>
-                    <p className="text-[11px] text-muted-foreground">
-                      Add one or more tags to this contact.
-                    </p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+                      Tags
+                    </div>
+                    <Select
+                      value={tagToAdd || '__add_tag__'}
+                      onValueChange={(val) => {
+                        if (val && val !== '__add_tag__') {
+                          addTagToDraft(val);
+                          setTagToAdd('');
+                        }
+                      }}
+                      disabled={addableTags.length === 0}
+                    >
+                      <SelectTrigger className="h-7 w-[140px] bg-background border-border/50 hover:bg-accent/50 transition-colors shadow-none rounded-md px-2 text-[10px] font-medium">
+                        <SelectValue placeholder="Add a tag..." />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/50 shadow-xl min-w-[180px]">
+                        <SelectItem
+                          value="__add_tag__"
+                          className="py-2 focus:bg-accent rounded-md text-muted-foreground"
+                        >
+                          {addableTags.length === 0 ? 'No more tags to add' : 'Add a tag...'}
+                        </SelectItem>
+                        {addableTags.map((t) => (
+                          <SelectItem key={t} value={t} className="py-2 focus:bg-accent rounded-md">
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {tagError && <div className="text-[11px] text-destructive">{tagError}</div>}
 
-                  <NativeSelect
-                    value={tagToAdd}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val) {
-                        addTagToDraft(val);
-                      }
-                      setTagToAdd('');
-                    }}
-                    disabled={addableTags.length === 0}
-                    className="w-full"
-                  >
-                    <option value="">
-                      {addableTags.length === 0 ? 'No more tags to add' : 'Add a tag...'}
-                    </option>
-                    {addableTags.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </NativeSelect>
-
                   {displayTags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 pt-1">
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
                       {displayTags.map((t) => (
-                        <Badge key={t} variant="secondary" className="flex items-center gap-1">
-                          <Tag className="h-3 w-3" />
+                        <Badge
+                          key={t}
+                          variant="secondary"
+                          className="flex items-center gap-1 text-[10px] font-medium px-2 h-5 border-transparent"
+                        >
+                          <Tag className="h-3 w-3 shrink-0" />
                           {t}
                           <button
                             type="button"
-                            className="ml-1 rounded hover:bg-muted p-0.5 disabled:opacity-50"
+                            className="ml-0.5 rounded hover:bg-muted p-0.5 disabled:opacity-50"
                             onClick={() => removeTagFromDraft(t)}
                             aria-label={`Remove tag ${t}`}
                           >

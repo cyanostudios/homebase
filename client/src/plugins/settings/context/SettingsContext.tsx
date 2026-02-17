@@ -1,4 +1,14 @@
-import React, { createContext, useCallback, useContext, useRef, useState, ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  ReactNode,
+} from 'react';
+
+import { useApp } from '@/core/api/AppContext';
 
 const SETTINGS_CATEGORY_LABELS: Record<string, string> = {
   profile: 'User Profile',
@@ -63,6 +73,12 @@ export function SettingsProvider({
     setIsSettingsPanelOpen(false);
     setSettingsCategory(null);
   }, []);
+
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  useEffect(() => {
+    registerPanelCloseFunction('settings', closeSettingsPanel);
+    return () => unregisterPanelCloseFunction('settings');
+  }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeSettingsPanel]);
 
   const currentSetting =
     isSettingsPanelOpen && settingsCategory ? { category: settingsCategory } : null;
