@@ -29,7 +29,8 @@
     "migrate:activity-log": "node scripts/run-activity-log-migration.js",
     "migrate:contact-time-entries": "node scripts/run-contact-time-entries-migration.js",
     "migrate:contacts-tags": "node scripts/run-contacts-tags-migration.js",
-    "migrate:tenant-memberships": "node scripts/run-tenant-memberships-migration.js"
+    "migrate:tenant-memberships": "node scripts/run-tenant-memberships-migration.js",
+    "migrate:matches": "node scripts/run-matches-migration.js"
   },
   "dependencies": {
     "@homebase/core": "file:packages/core",

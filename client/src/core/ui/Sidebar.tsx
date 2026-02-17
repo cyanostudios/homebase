@@ -26,6 +26,7 @@ export type NavPage =
   | 'invoices-payments'
   | 'invoices-reports'
   | 'tasks'
+  | 'matches'
   | 'files'
   | 'settings';
 

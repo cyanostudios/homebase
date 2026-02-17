@@ -5,6 +5,7 @@ import {
   Calculator,
   Files as FilesIcon,
   Mail,
+  Trophy,
   LucideIcon,
 } from 'lucide-react';
 import React from 'react';
@@ -88,6 +89,11 @@ import { MailList } from '@/plugins/mail/components/MailList';
 import { MailSettingsForm } from '@/plugins/mail/components/MailSettingsForm';
 import { MailProvider } from '@/plugins/mail/context/MailContext';
 import { useMail } from '@/plugins/mail/hooks/useMail';
+import { MatchForm } from '@/plugins/matches/components/MatchForm';
+import { MatchList } from '@/plugins/matches/components/MatchList';
+import { MatchView } from '@/plugins/matches/components/MatchView';
+import { MatchProvider } from '@/plugins/matches/context/MatchContext';
+import { useMatches } from '@/plugins/matches/hooks/useMatches';
 import { NoteForm } from '@/plugins/notes/components/NoteForm';
 import { NoteList } from '@/plugins/notes/components/NoteList';
 import { NotesDashboardWidget } from '@/plugins/notes/components/NotesDashboardWidget';
@@ -105,6 +111,7 @@ import { TasksDashboardWidget } from '@/plugins/tasks/components/TasksDashboardW
 import { TaskView } from '@/plugins/tasks/components/TaskView';
 import { TaskProvider } from '@/plugins/tasks/context/TaskContext';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
+// Matches
 // Mail
 // Settings (always-on)
 
@@ -217,6 +224,24 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     dashboardWidget: FilesDashboardWidget,
     displayPrefix: 'FLS',
+  },
+  {
+    name: 'matches',
+    Provider: MatchProvider,
+    hook: useMatches,
+    panelKey: 'isMatchPanelOpen',
+    components: {
+      List: MatchList,
+      Form: MatchForm,
+      View: MatchView,
+    },
+    navigation: {
+      category: 'Main',
+      label: 'Matches',
+      icon: Trophy,
+      order: 4,
+    },
+    displayPrefix: 'MAT',
   },
   {
     name: 'mail',

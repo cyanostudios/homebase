@@ -74,6 +74,13 @@ const commonRules = {
       .isInt({ min, max })
       .withMessage(`${field} must be an integer between ${min} and ${max}`),
 
+  /** Optional integer: allow null/undefined/empty; when present must be in range. */
+  optionalInteger: (field, min = 0, max = Number.MAX_SAFE_INTEGER) =>
+    body(field)
+      .optional({ values: 'falsy' })
+      .isInt({ min, max })
+      .withMessage(`${field} must be an integer between ${min} and ${max}`),
+
   date: (field) =>
     body(field)
       .optional({ values: 'falsy' }) // Allow null, undefined, empty string
@@ -92,6 +99,22 @@ const commonRules = {
         // Convert to Date object if not null/undefined/empty
         return value === null || value === undefined || value === '' ? null : new Date(value);
       }),
+
+  /** Required date (ISO 8601). Use when DB column is NOT NULL. */
+  requiredDate: (field) =>
+    body(field)
+      .notEmpty()
+      .withMessage(`${field} is required`)
+      .custom((value) => {
+        const iso8601Regex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/;
+        if (!iso8601Regex.test(value)) {
+          throw new Error(`${field} must be a valid ISO 8601 date`);
+        }
+        return true;
+      })
+      .customSanitizer((value) =>
+        value === null || value === undefined || value === '' ? null : new Date(value),
+      ),
 
   enum: (field, values) =>
     body(field)

@@ -307,8 +307,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await api.login(email, password);
-      setUser(response.user);
+      await api.login(email, password);
+      const me = await api.getMe();
+      setUser(me.user);
       setIsAuthenticated(true);
       return true;
     } catch (error: any) {
@@ -328,9 +329,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     password: string,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await api.signup(email, password);
-      // Auto-login after successful signup
-      setUser(response.user);
+      await api.signup(email, password);
+      const me = await api.getMe();
+      setUser(me.user);
       setIsAuthenticated(true);
       return { success: true };
     } catch (error: any) {

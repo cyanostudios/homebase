@@ -1,14 +1,9 @@
 // client/src/core/handlers/panelHandlers.ts
 
 import { PLUGIN_REGISTRY, type PluginRegistryEntry } from '@/core/pluginRegistry';
+import { getSingularCap } from '@/core/pluginSingular';
 
-// --- helpers: hyphen-safe singular + capitalization ---
 const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-const singularCap = (pluginName: string) => {
-  const camel = toCamel(pluginName); // e.g., "invoices" -> "invoices"
-  const base = camel.endsWith('s') ? camel.slice(0, -1) : camel; // -> "invoice"
-  return base.charAt(0).toUpperCase() + base.slice(1); // -> "Invoice"
-};
 
 // Utility function to find plugin functions dynamically
 function findPluginFunction(context: any, action: string, pluginName?: string): any {
@@ -16,7 +11,7 @@ function findPluginFunction(context: any, action: string, pluginName?: string): 
     return null;
   }
   // Generic: action + SingularCap
-  const fnName = `${action}${singularCap(pluginName)}`;
+  const fnName = `${action}${getSingularCap(pluginName)}`;
   return typeof context[fnName] === 'function' ? context[fnName] : null;
 }
 
@@ -26,7 +21,7 @@ function findPanelFunction(context: any, action: string, pluginName?: string): a
     return null;
   }
   // Generic: action + SingularCap + "Panel"
-  const fnName = `${action}${singularCap(pluginName)}Panel`;
+  const fnName = `${action}${getSingularCap(pluginName)}Panel`;
   return typeof context[fnName] === 'function' ? context[fnName] : null;
 }
 
@@ -36,7 +31,7 @@ export function findOpenFunction(context: any, mode: string, pluginName?: string
     return null;
   }
   // Generic: open + SingularCap + ForX
-  const functionName = `open${singularCap(pluginName)}For${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
+  const functionName = `open${getSingularCap(pluginName)}For${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
   return typeof context[functionName] === 'function' ? context[functionName] : null;
 }
 

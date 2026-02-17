@@ -2,13 +2,7 @@
 
 import React from 'react';
 
-// --- helpers: hyphen-safe singular + capitalization ---
-const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-const singularCap = (pluginName: string) => {
-  const camel = toCamel(pluginName); // e.g., "invoices" -> "invoices"
-  const base = camel.endsWith('s') ? camel.slice(0, -1) : camel; // -> "invoice"
-  return base.charAt(0).toUpperCase() + base.slice(1); // -> "Invoice"
-};
+import { getSingular, getSingularCap } from '@/core/pluginSingular';
 
 export const createPanelRenderers = (
   currentPlugin: any,
@@ -28,7 +22,7 @@ export const createPanelRenderers = (
 
     if (currentMode === 'view') {
       // DYNAMIC: Generate props based on plugin name automatically using helper
-      const singularName = singularCap(currentPlugin.name).toLowerCase(); // 'invoice' -> 'invoice'
+      const singularName = getSingular(currentPlugin.name);
       const props = { [singularName]: currentItem };
 
       // Also pass generic 'item' prop for plugins that might use it
@@ -37,7 +31,7 @@ export const createPanelRenderers = (
       return <ViewComponent {...finalProps} />;
     } else {
       // DYNAMIC: Generate form props based on plugin name using helper
-      const singularCapName = singularCap(currentPlugin.name); // 'Invoice'
+      const singularCapName = getSingularCap(currentPlugin.name);
       const currentItemProp = `current${singularCapName}`;
 
       const formProps = {

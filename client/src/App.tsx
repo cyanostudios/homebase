@@ -15,6 +15,7 @@ import { AppProvider, useApp } from '@/core/api/AppContext';
 import { createPanelHandlers } from '@/core/handlers/panelHandlers';
 import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
+import { getSingularCap } from '@/core/pluginSingular';
 import { createPanelRenderers } from '@/core/rendering/panelRendering';
 import type { ExecuteDuplicateResult } from '@/core/types/pluginContract';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -58,8 +59,7 @@ function findCurrentItem(pluginContexts: any[]): any {
       continue;
     }
     try {
-      const singular = plugin.name.slice(0, -1); // 'contacts' -> 'contact'
-      const currentItemProperty = `current${singular.charAt(0).toUpperCase() + singular.slice(1)}`;
+      const currentItemProperty = `current${getSingularCap(plugin.name)}`;
       const currentItem = context[currentItemProperty];
       if (currentItem) {
         return currentItem;
@@ -154,17 +154,11 @@ function AppContent() {
   // Clear bulk selection in all plugins when user navigates to another page (sidebar)
   // So selection is not cleared when opening view (list unmounts) but is cleared when switching plugin
   useEffect(() => {
-    const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
-    const singularCap = (pluginName: string) => {
-      const camel = toCamel(pluginName);
-      const base = camel.endsWith('s') ? camel.slice(0, -1) : camel;
-      return base.charAt(0).toUpperCase() + base.slice(1);
-    };
     pluginContexts.forEach(({ plugin, context }) => {
       if (!context) {
         return;
       }
-      const clearFnName = `clear${singularCap(plugin.name)}Selection`;
+      const clearFnName = `clear${getSingularCap(plugin.name)}Selection`;
       const clearFn = context[clearFnName as keyof typeof context];
       if (typeof clearFn === 'function') {
         clearFn();
@@ -294,19 +288,17 @@ function AppContent() {
       return null;
     }
 
-    const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-    const singular = (label: string) => (label.endsWith('s') ? label.slice(0, -1) : label);
-    const cap = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
-
-    const fnName = `open${cap(singular(toCamel(currentPagePlugin.name)))}Panel`;
+    const capName = getSingularCap(currentPagePlugin.name);
+    const fnName = `open${capName}Panel`;
     const openPanel = context[fnName as keyof typeof context];
 
     if (typeof openPanel !== 'function') {
       return null;
     }
 
+    const singularLabel = getSingularCap(currentPagePlugin.name);
     return {
-      label: `Add ${singular(currentPagePlugin.navigation?.label || '')}`,
+      label: `Add ${singularLabel}`,
       icon: Plus,
       onClick: () => attemptNavigation(() => (openPanel as (item: any) => void)(null)),
     };
@@ -476,11 +468,9 @@ function AppContent() {
           delete itemCopy.createdAt;
           delete itemCopy.updatedAt;
           if (currentPlugin) {
-            const pluginNameSingular = currentPlugin.name.endsWith('s')
-              ? currentPlugin.name.slice(0, -1)
-              : currentPlugin.name;
-            const createFnName = `create${pluginNameSingular.charAt(0).toUpperCase() + pluginNameSingular.slice(1)}`;
-            const closeFnName = `close${pluginNameSingular.charAt(0).toUpperCase() + pluginNameSingular.slice(1)}Panel`;
+            const capName = getSingularCap(currentPlugin.name);
+            const createFnName = `create${capName}`;
+            const closeFnName = `close${capName}Panel`;
             const createFn = currentPluginContext[createFnName];
             const closeFn = currentPluginContext[closeFnName];
             if (createFn && closeFn) {

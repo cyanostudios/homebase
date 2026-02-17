@@ -61,6 +61,10 @@ export const createPanelTitles = (
       );
     }
 
+    if (currentPlugin.name === 'matches' && pluginContext?.getPanelTitle) {
+      return pluginContext.getPanelTitle(currentMode, currentItem);
+    }
+
     // Central title from current item: order title → companyName/name → plugin display numbers → id.
     if (currentMode === 'view' && currentItem) {
       const cfg = PLUGIN_CONFIGS[currentPlugin.name];

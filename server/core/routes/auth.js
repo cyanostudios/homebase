@@ -3,6 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
+const { DEFAULT_AVAILABLE_PLUGINS } = require('../config/constants');
 const AuthService = require('../services/auth/AuthService');
 const ServiceManager = require('../ServiceManager');
 
@@ -229,22 +230,27 @@ router.get(
       const tenantOwnerUserId = req.session.tenantOwnerUserId ?? null;
 
       // Resolve plugins for current tenant context (owner = currentTenantUserId)
+      // Superuser always gets all available plugins (including newly added ones)
       let plugins = req.session.user.plugins || [];
-      try {
-        const ctx =
-          await authService.tenantContextService.getTenantContextByUserId(currentTenantUserId);
-        if (ctx) {
-          plugins = await authService.tenantContextService.getTenantPluginNames(
-            ctx.tenantId,
-            ctx.tenantOwnerUserId,
-          );
+      if (req.session.user.role === 'superuser') {
+        plugins = DEFAULT_AVAILABLE_PLUGINS || [];
+      } else {
+        try {
+          const ctx =
+            await authService.tenantContextService.getTenantContextByUserId(currentTenantUserId);
+          if (ctx) {
+            plugins = await authService.tenantContextService.getTenantPluginNames(
+              ctx.tenantId,
+              ctx.tenantOwnerUserId,
+            );
+          }
+        } catch (pluginError) {
+          const logger = ServiceManager.get('logger');
+          logger.error('Failed to get tenant plugins for /me', pluginError, {
+            currentTenantUserId,
+            userId: req.session.user.id,
+          });
         }
-      } catch (pluginError) {
-        const logger = ServiceManager.get('logger');
-        logger.error('Failed to get tenant plugins for /me', pluginError, {
-          currentTenantUserId,
-          userId: req.session.user.id,
-        });
       }
 
       res.json({
