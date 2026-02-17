@@ -87,6 +87,23 @@ In the `View` component, the "Information" section (System ID, Dates) should use
 </div>
 ```
 
+### 3.1 List toolbar buttons
+
+List views use `ContentToolbar` and set it via `useContentLayout().setHeaderTrailing`. All toolbar actions (Settings, Grid, List, Import, etc.) must use the same button style for consistency:
+
+- **Component:** `Button` from `@/components/ui/button`.
+- **Variant:** `variant="secondary"` for secondary actions.
+- **Size:** `size="sm"`, `className="h-7 text-[10px] px-2"`.
+- **Icon + label:** Use the `icon` prop (e.g. `icon={Settings}`) and put the label as children (e.g. `Settings`). Do not use icon-only buttons for primary toolbar actions like Settings—use the same style as in Files, Contacts, and Mail.
+
+### 3.2 Plugin settings panel
+
+When a plugin has a settings screen that opens in the detail panel (e.g. Files cloud storage, Mail SMTP):
+
+- **Content:** Use `DetailSection` to group settings (e.g. "Cloud storage", "Email provider").
+- **Footer:** The panel shows Close (Cancel) and Save. For settings, Save may persist and then close, or simply close; Close always closes the panel.
+- **Core behaviour:** If the plugin’s Form component returns early when `panelMode === 'settings'` (and therefore does not register submit/cancel event listeners), core panel handlers must close the panel for that plugin when in `settings` mode by calling the context’s close function directly. See `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §7 (Plugin settings page).
+
 ## 4. Typography Scale
 
 - **Headings:** `text-lg font-semibold` (Panel Titles)

@@ -157,8 +157,9 @@ export function InvoicesProvider({
     return errors;
   };
 
-  // Actions
+  // Actions (clear bulk selection when opening panel)
   const openInvoicesPanel = (item: Invoice | null) => {
+    clearInvoiceSelectionCore();
     setCurrentInvoice(item);
     setPanelMode(item ? 'edit' : 'create');
     setIsInvoicesPanelOpen(true);
@@ -167,6 +168,7 @@ export function InvoicesProvider({
   };
 
   const openInvoiceForEdit = (item: Invoice) => {
+    clearInvoiceSelectionCore();
     setCurrentInvoice(item);
     setPanelMode('edit');
     setIsInvoicesPanelOpen(true);

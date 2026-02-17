@@ -1,13 +1,19 @@
 // templates/plugin-frontend-template/components/YourItemForm.tsx
+// Uses DetailSection and standard form controls. When panelMode === 'settings',
+// renders YourItemSettingsForm; Close/Save work because we register listeners before the return.
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/core/ui/Button';
-import { Heading } from '@/core/ui/Typography';
-import { Card } from '@/core/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
+import { DetailSection } from '@/core/ui/DetailSection';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useYourItems } from '../hooks/useYourItems';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
+
+import { YourItemSettingsForm } from './YourItemSettingsForm';
 
 interface YourItemFormProps {
   currentItem?: any;
@@ -22,7 +28,7 @@ export const YourItemForm: React.FC<YourItemFormProps> = ({
   onCancel,
   isSubmitting = false,
 }) => {
-  const { validationErrors, clearValidationErrors } = useYourItems();
+  const { validationErrors, clearValidationErrors, panelMode } = useYourItems();
   const {
     isDirty,
     showWarning,
@@ -47,7 +53,7 @@ export const YourItemForm: React.FC<YourItemFormProps> = ({
     return () => unregisterUnsavedChangesChecker(formKey);
   }, [isDirty, currentItem, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
-  // Load data for edit/view
+  // Load data for edit
   useEffect(() => {
     if (currentItem) {
       setFormData({
@@ -55,10 +61,11 @@ export const YourItemForm: React.FC<YourItemFormProps> = ({
         description: currentItem.description || '',
       });
       markClean();
-    } else {
-      resetForm();
+    } else if (panelMode !== 'settings') {
+      setFormData({ title: '', description: '' });
+      markClean();
     }
-  }, [currentItem, markClean]);
+  }, [currentItem, panelMode, markClean]);
 
   const resetForm = useCallback(() => {
     setFormData({ title: '', description: '' });
@@ -66,18 +73,22 @@ export const YourItemForm: React.FC<YourItemFormProps> = ({
   }, [markClean]);
 
   const handleSubmit = useCallback(async () => {
+    if (panelMode === 'settings') {
+      onCancel();
+      return;
+    }
     const ok = await onSave(formData);
     if (ok) {
       markClean();
       if (!currentItem) resetForm();
     }
-  }, [formData, onSave, markClean, currentItem, resetForm]);
+  }, [panelMode, formData, onSave, onCancel, markClean, currentItem, resetForm]);
 
   const handleCancel = useCallback(() => {
     attemptAction(() => onCancel());
   }, [attemptAction, onCancel]);
 
-  // Listen to global events dispatched by TemplateContext (PLURAL functions dispatch custom events)
+  // Register listeners before any early return so Close/Save work in settings mode too
   useEffect(() => {
     const onSubmit = () => handleSubmit();
     const onCancelEv = () => handleCancel();
@@ -88,6 +99,11 @@ export const YourItemForm: React.FC<YourItemFormProps> = ({
       window.removeEventListener('cancelYourItemForm', onCancelEv as EventListener);
     };
   }, [handleSubmit, handleCancel]);
+
+  // Settings mode: render settings form; footer Close/Save still trigger the listeners above
+  if (panelMode === 'settings') {
+    return <YourItemSettingsForm onCancel={onCancel} />;
+  }
 
   const updateField = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -117,71 +133,58 @@ export const YourItemForm: React.FC<YourItemFormProps> = ({
           handleSubmit();
         }}
       >
-        {/* Validation Summary */}
         {hasBlockingErrors && (
-          <Card padding="sm" className="shadow-none px-0">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="text-sm text-red-800 font-medium">Cannot save item</div>
-              <ul className="list-disc list-inside mt-2 text-sm text-red-700">
-                {validationErrors
-                  .filter((e) => !e.message.includes('Warning'))
-                  .map((e, i) => (
-                    <li key={i}>{e.message}</li>
-                  ))}
-              </ul>
-            </div>
+          <Card className="shadow-none border-destructive/50 bg-destructive/5 p-4">
+            <div className="text-sm text-destructive font-medium">Cannot save item</div>
+            <ul className="list-disc list-inside mt-2 text-sm text-destructive/90">
+              {validationErrors
+                .filter((e) => !e.message.includes('Warning'))
+                .map((e, i) => (
+                  <li key={i}>{e.message}</li>
+                ))}
+            </ul>
           </Card>
         )}
 
-        {/* Basic Fields */}
-        <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">
-            Details
-          </Heading>
-          <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
-            <div className="md:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-              <input
-                type="text"
+        <DetailSection title="Details">
+          <div className="space-y-3 grid grid-cols-1 md:grid-cols-2 md:gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="your-item-title">Title</Label>
+              <Input
+                id="your-item-title"
                 value={formData.title}
                 onChange={(e) => updateField('title', e.target.value)}
                 placeholder="Enter a title"
-                className={cn(
-                  'w-full px-3 py-1.5 text-base border rounded-md focus:ring-2 focus:ring-plugin-subtle focus:border-plugin-subtle',
-                  getFieldError('title') ? 'border-red-500' : 'border-gray-300',
-                )}
-                required
+                className={cn(getFieldError('title') && 'border-destructive')}
               />
               {getFieldError('title') && (
-                <p className="mt-1 text-sm text-red-600">{getFieldError('title')?.message}</p>
+                <p className="text-sm text-destructive">{getFieldError('title')?.message}</p>
               )}
             </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="your-item-description">Description</Label>
               <textarea
+                id="your-item-description"
                 value={formData.description}
                 onChange={(e) => updateField('description', e.target.value)}
                 rows={4}
                 placeholder="Optional description…"
-                className="w-full px-3 py-2 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-plugin-subtle focus:border-plugin-subtle resize-vertical"
+                className="w-full px-3 py-2 text-sm border border-input rounded-md bg-background focus:ring-2 focus:ring-ring focus:border-ring resize-y"
               />
             </div>
           </div>
-        </Card>
+        </DetailSection>
 
-        {/* Optional local buttons (panel usually provides Save/Cancel) */}
         <div className="flex gap-2">
-          <Button type="submit" variant="primary" disabled={isSubmitting}>
+          <Button type="submit" variant="default" disabled={isSubmitting}>
             Save
           </Button>
-          <Button type="button" variant="ghost" onClick={handleCancel}>
+          <Button type="button" variant="secondary" onClick={handleCancel}>
             Cancel
           </Button>
         </div>
       </form>
 
-      {/* Unsaved Changes Warning */}
       <ConfirmDialog
         isOpen={showWarning}
         title="Unsaved Changes"

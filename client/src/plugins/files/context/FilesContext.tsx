@@ -23,7 +23,7 @@ import type { ValidationError, FileItem } from '../types/files';
 interface FilesContextType {
   isFilesPanelOpen: boolean;
   currentFile: FileItem | null;
-  panelMode: 'create' | 'edit' | 'view';
+  panelMode: 'create' | 'edit' | 'view' | 'settings';
   validationErrors: ValidationError[];
   files: FileItem[];
 
@@ -31,13 +31,17 @@ interface FilesContextType {
   openFilePanel: (item: FileItem | null) => void; // Alias for App.tsx primaryAction
   openFileForEdit: (item: FileItem) => void;
   openFileForView: (item: FileItem) => void;
+  openFileSettings: () => void;
   closeFilePanel: () => void;
   closeFilesPanel: () => void;
   saveFile: (data: any) => Promise<boolean>;
   deleteFile: (id: string) => Promise<void>;
   clearValidationErrors: () => void;
 
-  getPanelSubtitle: (mode: 'create' | 'edit' | 'view', item: FileItem | null) => React.ReactNode;
+  getPanelSubtitle: (
+    mode: 'create' | 'edit' | 'view' | 'settings',
+    item: FileItem | null,
+  ) => React.ReactNode;
   getDeleteMessage: (item: FileItem | null) => string;
 
   // Cloud Storage
@@ -79,7 +83,7 @@ export function FilesProvider({
 
   const [isFilesPanelOpen, setIsFilesPanelOpen] = useState(false);
   const [currentFile, setCurrentFile] = useState<FileItem | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
 
@@ -158,6 +162,7 @@ export function FilesProvider({
   };
 
   const openFilesPanel = (item: FileItem | null) => {
+    clearFileSelectionCore();
     setCurrentFile(item);
     setPanelMode(item ? 'edit' : 'create');
     setIsFilesPanelOpen(true);
@@ -165,6 +170,7 @@ export function FilesProvider({
     onCloseOtherPanels();
   };
   const openFileForEdit = (item: FileItem) => {
+    clearFileSelectionCore();
     setCurrentFile(item);
     setPanelMode('edit');
     setIsFilesPanelOpen(true);
@@ -174,6 +180,14 @@ export function FilesProvider({
   const openFileForView = (item: FileItem) => {
     setCurrentFile(item);
     setPanelMode('view');
+    setIsFilesPanelOpen(true);
+    setValidationErrors([]);
+    onCloseOtherPanels();
+  };
+  const openFileSettings = () => {
+    clearFileSelectionCore();
+    setCurrentFile(null);
+    setPanelMode('settings');
     setIsFilesPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
@@ -408,9 +422,12 @@ export function FilesProvider({
   };
 
   const getPanelSubtitle = (
-    mode: 'create' | 'edit' | 'view',
+    mode: 'create' | 'edit' | 'view' | 'settings',
     item: FileItem | null,
   ): React.ReactNode => {
+    if (mode === 'settings') {
+      return 'Connect and manage cloud storage';
+    }
     if (mode === 'create') {
       return 'Select one or multiple files to upload';
     }
@@ -465,6 +482,7 @@ export function FilesProvider({
     openFilePanel: openFilesPanel, // Alias for App.tsx primaryAction (singular)
     openFileForEdit,
     openFileForView,
+    openFileSettings,
     closeFilePanel,
     closeFilesPanel,
     saveFile,

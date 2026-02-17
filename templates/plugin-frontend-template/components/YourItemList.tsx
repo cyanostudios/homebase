@@ -1,41 +1,41 @@
 // templates/plugin-frontend-template/components/YourItemList.tsx
+// List + toolbar follow PLUGIN_DEVELOPMENT_STANDARDS_V2.md §6 and UI_AND_UX_STANDARDS_V3.md
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit, Eye, ChevronUp, ChevronDown, Search } from 'lucide-react';
-import { useYourItems } from '../hooks/useYourItems';
+import { Plus, ChevronUp, ChevronDown, Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useContentLayout } from '@/core/ui/ContentLayoutContext';
+import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
-import { Button } from '@/core/ui/Button';
-import { Heading, Text } from '@/core/ui/Typography';
-import { Card } from '@/core/ui/Card';
-
 import { cn } from '@/lib/utils';
+
+import { useYourItems } from '../hooks/useYourItems';
 
 type SortField = 'title' | 'updatedAt' | 'id';
 type SortOrder = 'asc' | 'desc';
 
 export const YourItemList: React.FC = () => {
-  const { yourItems, openYourItemsPanel, openYourItemForEdit, openYourItemForView } =
-    useYourItems();
+  const {
+    yourItems,
+    openYourItemsPanel,
+    openYourItemForEdit,
+    openYourItemForView,
+    openYourItemsSettings,
+  } = useYourItems();
+  const { setHeaderTrailing } = useContentLayout();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('title');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [isMobileView, setIsMobileView] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsMobileView(window.innerWidth < 768);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
-  };
 
   const normalized = (it: any) => ({
     id: String(it.id ?? ''),
@@ -81,187 +81,130 @@ export const YourItemList: React.FC = () => {
     return filtered.sort(cmp);
   }, [yourItems, searchTerm, sortField, sortOrder]);
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null;
-    return sortOrder === 'asc' ? (
-      <ChevronUp className="w-4 h-4" />
-    ) : (
-      <ChevronDown className="w-4 h-4" />
-    );
+  const handleSort = (field: SortField) => {
+    if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
   };
 
-  const handleOpenForView = (item: any) => attemptNavigation(() => openYourItemForView(item));
-  const handleOpenForEdit = (item: any) => attemptNavigation(() => openYourItemForEdit(item));
-  const handleOpenPanel = () => attemptNavigation(() => openYourItemsPanel(null));
-
-  return (
-    <div className="p-4 sm:p-8">
-      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <Heading level={1}>
-            Your Items ({searchTerm ? filteredAndSorted.length : yourItems.length}
-            {searchTerm &&
-              filteredAndSorted.length !== yourItems.length &&
-              ` of ${yourItems.length}`}
-            )
-          </Heading>
-          <Text variant="caption">Template list</Text>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Search by title or id..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-plugin-subtle focus:border-plugin-subtle"
-            />
-          </div>
+  // Toolbar: same pattern as Files, Contacts, Mail (see §6 PLUGIN_DEVELOPMENT_STANDARDS_V2.md)
+  useEffect(() => {
+    setHeaderTrailing(
+      <ContentToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by title or id..."
+        rightActions={
           <div className="flex gap-2">
-            <Button onClick={handleOpenPanel} variant="primary" icon={Plus}>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Settings}
+              onClick={() => openYourItemsSettings()}
+              className="h-7 text-[10px] px-2"
+              title="Plugin settings"
+            >
+              Settings
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Plus}
+              onClick={() => attemptNavigation(() => openYourItemsPanel(null))}
+              className="h-7 text-[10px] px-2"
+            >
               Add Item
             </Button>
           </div>
-        </div>
-      </div>
+        }
+      />,
+    );
+    return () => setHeaderTrailing(null);
+  }, [
+    searchTerm,
+    setHeaderTrailing,
+    openYourItemsSettings,
+    openYourItemsPanel,
+    attemptNavigation,
+  ]);
 
-      <Card>
-        {!isMobileView ? (
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  onClick={() => handleSort('title')}
-                >
-                  <div className="flex items-center gap-1">
-                    Title
-                    <SortIcon field="title" />
-                  </div>
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  onClick={() => handleSort('updatedAt')}
-                >
-                  <div className="flex items-center gap-1">
-                    Updated
-                    <SortIcon field="updatedAt" />
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredAndSorted.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="px-6 py-12 text-center text-gray-400">
-                    {searchTerm
-                      ? 'No items match your search.'
-                      : 'No items yet. Click "Add Item" to get started.'}
-                  </td>
-                </tr>
-              ) : (
-                filteredAndSorted.map((it: any, idx: number) => {
-                  const raw = it.raw;
-                  return (
-                    <tr
-                      key={it.id}
-                      className={cn(
-                        idx % 2 === 0 ? 'bg-white' : 'bg-gray-50',
-                        'hover:bg-plugin-subtle focus:bg-plugin-subtle focus:outline-none focus:ring-2 focus:ring-plugin-subtle focus:ring-inset cursor-pointer',
-                      )}
-                      tabIndex={0}
-                      data-list-item={JSON.stringify(raw)}
-                      data-plugin-name="your-items"
-                      role="button"
-                      aria-label={`Open item ${it.title || it.id}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleOpenForView(raw);
-                      }}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{it.title || '—'}</div>
-                        <div className="text-xs text-gray-500">{it.id}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {it.updatedAt ? it.updatedAt.toLocaleDateString() : '—'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            icon={Eye}
-                            onClick={(e: React.MouseEvent) => {
-                              e.stopPropagation();
-                              handleOpenForView(raw);
-                            }}
-                          >
-                            View
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            icon={Edit}
-                            onClick={(e: React.MouseEvent) => {
-                              e.stopPropagation();
-                              handleOpenForEdit(raw);
-                            }}
-                          >
-                            Edit
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        ) : (
-          <div className="divide-y divide-gray-200">
+  const handleOpenForView = (item: any) => attemptNavigation(() => openYourItemForView(item));
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return null;
+    return sortOrder === 'asc' ? (
+      <ChevronUp className="h-3 w-3 inline" />
+    ) : (
+      <ChevronDown className="h-3 w-3 inline" />
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="shadow-none plugin-your-items">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead
+                className="cursor-pointer hover:bg-muted/50 select-none"
+                onClick={() => handleSort('title')}
+              >
+                <div className="flex items-center gap-2">
+                  <span>Title</span>
+                  <SortIcon field="title" />
+                </div>
+              </TableHead>
+              <TableHead
+                className="cursor-pointer hover:bg-muted/50 select-none"
+                onClick={() => handleSort('updatedAt')}
+              >
+                <div className="flex items-center gap-2">
+                  <span>Updated</span>
+                  <SortIcon field="updatedAt" />
+                </div>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {filteredAndSorted.length === 0 ? (
-              <div className="p-6 text-center text-gray-400">
-                {searchTerm
-                  ? 'No items match your search.'
-                  : 'No items yet. Click "Add Item" to get started.'}
-              </div>
+              <TableRow>
+                <TableCell colSpan={2} className="p-6 text-center text-muted-foreground">
+                  {searchTerm
+                    ? 'No items match your search.'
+                    : 'No items yet. Click "Add Item" to get started.'}
+                </TableCell>
+              </TableRow>
             ) : (
               filteredAndSorted.map((it: any) => (
-                <div key={it.id} className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-medium text-gray-900">{it.title || '—'}</h3>
-                      <div className="mt-1 space-y-1">
-                        <div className="text-xs text-gray-600">{it.id}</div>
-                        <div className="text-xs text-gray-600">
-                          {it.updatedAt ? it.updatedAt.toLocaleString() : '—'}
-                        </div>
-                      </div>
+                <TableRow
+                  key={it.id}
+                  className={cn(
+                    'hover:bg-gray-50 dark:hover:bg-gray-900/50 cursor-pointer',
+                    'focus:bg-plugin-subtle focus:outline-none focus:ring-2 focus:ring-plugin-subtle focus:ring-inset',
+                  )}
+                  tabIndex={0}
+                  data-list-item={JSON.stringify(it.raw)}
+                  data-plugin-name="your-items"
+                  role="button"
+                  aria-label={`Open ${it.title || it.id}`}
+                  onClick={() => handleOpenForView(it.raw)}
+                >
+                  <TableCell>
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {it.title || '—'}
                     </div>
-                    <div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={Eye}
-                        onClick={() => handleOpenForView(it.raw)}
-                        className="h-8 px-3"
-                      >
-                        View
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                    <div className="text-xs text-muted-foreground">{it.id}</div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {it.updatedAt ? it.updatedAt.toLocaleDateString() : '—'}
+                  </TableCell>
+                </TableRow>
               ))
             )}
-          </div>
-        )}
+          </TableBody>
+        </Table>
       </Card>
     </div>
   );

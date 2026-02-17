@@ -151,6 +151,27 @@ function AppContent() {
     localStorage.setItem('homebase:currentPage', currentPage);
   }, [currentPage]);
 
+  // Clear bulk selection in all plugins when user navigates to another page (sidebar)
+  // So selection is not cleared when opening view (list unmounts) but is cleared when switching plugin
+  useEffect(() => {
+    const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+    const singularCap = (pluginName: string) => {
+      const camel = toCamel(pluginName);
+      const base = camel.endsWith('s') ? camel.slice(0, -1) : camel;
+      return base.charAt(0).toUpperCase() + base.slice(1);
+    };
+    pluginContexts.forEach(({ plugin, context }) => {
+      if (!context) {
+        return;
+      }
+      const clearFnName = `clear${singularCap(plugin.name)}Selection`;
+      const clearFn = context[clearFnName as keyof typeof context];
+      if (typeof clearFn === 'function') {
+        clearFn();
+      }
+    });
+  }, [currentPage]); // eslint-disable-line react-hooks/exhaustive-deps -- pluginContexts is stable from PLUGIN_REGISTRY
+
   // Register "Create task from note" dialog opener so NoteContext footer can open it
   useEffect(() => {
     registerOpenToTaskDialog((note) => {

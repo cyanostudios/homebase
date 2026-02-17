@@ -3,13 +3,15 @@ import { Upload, File as FileIcon, Trash2, AlertTriangle } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Heading, Text } from '@/core/ui/Typography';
+import { DetailSection } from '@/core/ui/DetailSection';
+import { cn } from '@/lib/utils';
 
 import { useFiles } from '../hooks/useFiles';
 import type { ValidationError } from '../types/files';
+
+import { FileSettingsForm } from './FileSettingsForm';
 
 interface FileFormProps {
   currentItem?: { id?: string; name?: string } | null; // finns i edit-läge
@@ -20,11 +22,9 @@ interface FileFormProps {
 type Picked = { id: string; file: File };
 
 export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCancel }) => {
+  const { validationErrors, clearValidationErrors, panelMode } = useFiles();
   const isEdit = !!currentItem; // edit-läge om vi har ett item
   const inputRef = useRef<HTMLInputElement | null>(null);
-
-  // ---- Files context: visa/rensa valideringsfel från servern ----
-  const { validationErrors, clearValidationErrors } = useFiles();
 
   // Loading state to prevent double submission
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -158,9 +158,12 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
 
   // ------------ submit/cancel via universal footer ------------
   const handleSubmit = useCallback(async () => {
+    if (panelMode === 'settings') {
+      return;
+    }
     if (isSubmitting) {
       return;
-    } // Prevent double submission
+    }
 
     setIsSubmitting(true);
     try {
@@ -182,7 +185,7 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
     } finally {
       setIsSubmitting(false);
     }
-  }, [isEdit, onSave, name, items, isSubmitting]);
+  }, [panelMode, isEdit, onSave, name, items, isSubmitting]);
 
   const handleCancel = useCallback(() => {
     onCancel();
@@ -201,124 +204,120 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
     };
   }, [handleSubmit, handleCancel]);
 
+  // Settings: render settings form (after all hooks so rules-of-hooks are satisfied)
+  if (panelMode === 'settings') {
+    return <FileSettingsForm onCancel={onCancel} />;
+  }
+
   // ---------------- render ----------------
   if (isEdit) {
     // ----- EDIT (rename only) -----
     return (
-      <Card className="shadow-none">
-        <Heading level={2} className="mb-2">
-          Rename File
-        </Heading>
-        <Text variant="caption" className="text-gray-500 dark:text-gray-400 mb-4 block">
-          Ändra endast filnamnet. Själva filinnehållet hanteras via upload i Create-läget.
-        </Text>
-
-        <Label htmlFor="file-name" className="text-xs mb-1">
-          Name *
-        </Label>
-        <Input
-          id="file-name"
-          type="text"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            if (hasAnyError) {
-              clearValidationErrors();
-            }
-          }}
-          className={nameErrors.length ? 'border-red-400' : ''}
-          placeholder="document.pdf"
-        />
-        {nameErrors.length > 0 && (
-          <div className="mt-1 text-xs text-red-600">{nameErrors.join(' • ')}</div>
-        )}
-
-        <Text variant="caption" className="text-gray-500 dark:text-gray-400 mt-3 block">
-          Tryck Save i panelens footer för att spara namnet.
-        </Text>
-      </Card>
+      <div className="p-6 space-y-6">
+        <DetailSection title="Rename File">
+          <p className="text-sm text-muted-foreground mb-4">
+            Ändra endast filnamnet. Själva filinnehållet hanteras via upload i Create-läget.
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="file-name">Name *</Label>
+            <Input
+              id="file-name"
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (hasAnyError) {
+                  clearValidationErrors();
+                }
+              }}
+              className={nameErrors.length ? 'border-destructive' : ''}
+              placeholder="document.pdf"
+            />
+            {nameErrors.length > 0 && (
+              <p className="text-sm text-destructive">{nameErrors.join(' • ')}</p>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Tryck Save i panelens footer för att spara namnet.
+          </p>
+        </DetailSection>
+      </div>
     );
   }
 
   // ----- CREATE (upload) -----
   return (
-    <Card className="shadow-none">
-      <Heading level={2} className="mb-2">
-        Upload Files
-      </Heading>
-      <Text variant="caption" className="text-gray-500 dark:text-gray-400 mb-3 block">
-        Dra & släpp filer eller klicka för att välja flera.
-      </Text>
+    <div className="p-6 space-y-6">
+      <DetailSection title="Upload Files">
+        <p className="text-sm text-muted-foreground mb-4">
+          Dra & släpp filer eller klicka för att välja flera.
+        </p>
 
-      {/* Error banner */}
-      {(filesErrors.length > 0 || generalErrors.length > 0) && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-          <div>
-            {(filesErrors.length ? filesErrors : generalErrors).map((m, i) => (
-              // eslint-disable-next-line react/no-array-index-key -- error list has no stable id
-              <div key={`err-${i}-${m.slice(0, 20)}`}>{m}</div>
-            ))}
+        {(filesErrors.length > 0 || generalErrors.length > 0) && (
+          <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <div>
+              {(filesErrors.length ? filesErrors : generalErrors).map((m) => (
+                <div key={String(m).slice(0, 80)}>{m}</div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div
+          role="button"
+          tabIndex={0}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+          onDragEnter={onDragEnter}
+          onDragLeave={onDragLeave}
+          className={cn(
+            'border-2 border-dashed rounded-xl p-8 transition-colors cursor-pointer',
+            dragOver ? 'border-primary bg-primary/5' : 'border-border bg-muted/20',
+            filesErrors.length && 'border-destructive/50 bg-destructive/5',
+          )}
+          onClick={pick}
+        >
+          <div className="flex flex-col items-center gap-3 text-center">
+            <Upload className="w-8 h-8 text-muted-foreground" />
+            <div className="text-sm text-muted-foreground">
+              Släpp filer här eller <span className="text-primary underline">välj filer</span>
+            </div>
+            <input ref={inputRef} type="file" multiple className="hidden" onChange={onChange} />
           </div>
         </div>
-      )}
 
-      <div
-        role="button"
-        tabIndex={0}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onDragEnter={onDragEnter}
-        onDragLeave={onDragLeave}
-        className={`border-2 border-dashed rounded-xl p-8 transition-colors ${
-          dragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
-        } ${filesErrors.length ? 'border-red-400 bg-red-50/50' : ''}`}
-        onClick={pick}
-      >
-        <div className="flex flex-col items-center gap-3 text-center">
-          <Upload className="w-8 h-8" />
-          <div className="text-sm text-gray-700 dark:text-gray-300">
-            Släpp filer här eller{' '}
-            <span className="text-blue-600 dark:text-blue-400 underline">välj filer</span>
-          </div>
-          <input ref={inputRef} type="file" multiple className="hidden" onChange={onChange} />
-        </div>
-      </div>
-
-      {items.length > 0 && (
-        <div className="mt-6">
-          <Heading level={3} className="mb-3">
-            Filer i kö ({items.length})
-          </Heading>
-          <div className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
-            {items.map(({ id, file }) => (
-              <div key={id} className="p-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <FileIcon className="w-5 h-5 text-gray-500 dark:text-gray-400 shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-sm text-gray-900 dark:text-gray-100 truncate">
-                      {file.name}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {file.type || 'application/octet-stream'} • {sizeStr(file.size)}
+        {items.length > 0 && (
+          <div className="mt-6 space-y-3">
+            <h4 className="font-medium text-sm">Filer i kö ({items.length})</h4>
+            <div className="divide-y divide-border rounded-lg border border-border bg-background">
+              {items.map(({ id, file }) => (
+                <div key={id} className="p-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FileIcon className="w-5 h-5 text-muted-foreground shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{file.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {file.type || 'application/octet-stream'} • {sizeStr(file.size)}
+                      </div>
                     </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => remove(id)}
+                    title="Remove"
+                    className="h-8 text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Remove
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => remove(id)}
-                  title="Remove"
-                  className="h-8 text-gray-500 hover:text-red-600"
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Remove
-                </Button>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-    </Card>
+        )}
+      </DetailSection>
+    </div>
   );
 };

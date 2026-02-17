@@ -369,7 +369,7 @@ export function EstimateList() {
                 <Card
                   key={estimate.id}
                   className={cn(
-                    'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[180px] border-transparent',
+                    'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[180px] border-transparent bg-gray-50 dark:bg-gray-900/40',
                     estimateIsSelected
                       ? 'plugin-estimates bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
                       : 'hover:border-plugin-subtle hover:plugin-estimates hover:shadow-md',

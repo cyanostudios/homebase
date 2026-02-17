@@ -1,4 +1,4 @@
-import { Eye, LayoutGrid, List, Tag, X } from 'lucide-react';
+import { Eye, LayoutGrid, List, Plus, Tag, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -95,47 +95,32 @@ export const ContactSettingsForm: React.FC<ContactSettingsFormProps> = ({ onCanc
 
   return (
     <div className="space-y-6">
-      <DetailSection
-        title={
-          <div className="flex items-center gap-2">
-            <Eye className="w-3.5 h-3.5" />
-            <span>Default view</span>
-          </div>
-        }
-      >
+      <DetailSection title="Default view" icon={Eye}>
         <DetailCard className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div className="space-y-0.5">
               <Label className="text-sm font-semibold">View mode</Label>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[11px] text-muted-foreground">
                 How your contacts are displayed by default
               </p>
             </div>
-            <div className="flex bg-white dark:bg-gray-800 p-1 rounded-lg border border-gray-100 dark:border-gray-700">
+            <div className="flex rounded-lg border border-input bg-muted/30 p-1">
               <Button
                 variant={viewMode === 'grid' ? 'default' : 'ghost'}
                 size="sm"
-                className={
-                  viewMode === 'grid'
-                    ? 'h-8 px-3 text-[10px] uppercase font-bold tracking-tight'
-                    : 'h-8 px-3 text-[10px] uppercase font-bold tracking-tight text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
-                }
+                icon={LayoutGrid}
+                className="h-7 text-[10px] px-2"
                 onClick={() => setViewMode('grid')}
               >
-                <LayoutGrid className="w-3.5 h-3.5" />
                 Grid
               </Button>
               <Button
                 variant={viewMode === 'list' ? 'default' : 'ghost'}
                 size="sm"
-                className={
-                  viewMode === 'list'
-                    ? 'h-8 px-3 text-[10px] uppercase font-bold tracking-tight'
-                    : 'h-8 px-3 text-[10px] uppercase font-bold tracking-tight text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
-                }
+                icon={List}
+                className="h-7 text-[10px] px-2"
                 onClick={() => setViewMode('list')}
               >
-                <List className="w-3.5 h-3.5" />
                 List
               </Button>
             </div>
@@ -143,27 +128,21 @@ export const ContactSettingsForm: React.FC<ContactSettingsFormProps> = ({ onCanc
         </DetailCard>
       </DetailSection>
 
-      <DetailSection
-        title={
-          <div className="flex items-center gap-2">
-            <Tag className="w-3.5 h-3.5" />
-            <span>Tags</span>
-          </div>
-        }
-      >
+      <DetailSection title="Tags" icon={Tag} iconPlugin="contacts">
         <DetailCard className="space-y-4">
           <div className="space-y-1">
             <Label className="text-sm font-semibold">Available tags</Label>
-            <p className="text-[11px] text-gray-500">
+            <p className="text-[11px] text-muted-foreground">
               Tags can be assigned to contacts in Contact Properties.
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Input
               value={newTag}
               onChange={(e) => setNewTag(e.target.value)}
               placeholder="Add a tag (e.g. Family, Work)"
+              className="flex-1"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -171,7 +150,15 @@ export const ContactSettingsForm: React.FC<ContactSettingsFormProps> = ({ onCanc
                 }
               }}
             />
-            <Button type="button" onClick={addTag} disabled={!newTag.trim()}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon={Plus}
+              onClick={addTag}
+              disabled={!newTag.trim()}
+              className="h-7 text-[10px] px-2"
+            >
               Add
             </Button>
           </div>
@@ -181,16 +168,18 @@ export const ContactSettingsForm: React.FC<ContactSettingsFormProps> = ({ onCanc
           ) : (
             <div className="flex flex-wrap gap-2">
               {tags.map((t) => (
-                <Badge key={t} variant="secondary" className="flex items-center gap-1">
-                  {t}
-                  <button
+                <Badge key={t} variant="secondary" className="flex items-center gap-1 pr-1">
+                  <span>{t}</span>
+                  <Button
                     type="button"
-                    className="ml-1 rounded hover:bg-muted p-0.5"
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-5 min-w-5 p-0 rounded hover:bg-muted"
                     onClick={() => removeTag(t)}
                     aria-label={`Remove tag ${t}`}
                   >
                     <X className="h-3 w-3" />
-                  </button>
+                  </Button>
                 </Badge>
               ))}
             </div>

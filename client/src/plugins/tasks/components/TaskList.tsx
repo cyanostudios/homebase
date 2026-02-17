@@ -444,7 +444,7 @@ export const TaskList: React.FC = () => {
                 <Card
                   key={task.id}
                   className={cn(
-                    'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent',
+                    'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent bg-gray-50 dark:bg-gray-900/40',
                     taskIsSelected
                       ? 'plugin-tasks bg-plugin-subtle ring-1 border-plugin-subtle ring-plugin-subtle/50'
                       : 'hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md',

@@ -192,8 +192,9 @@ export function EstimateProvider({
     return errors;
   };
 
-  // CRUD
+  // CRUD (clear bulk selection when opening panel)
   const openEstimatePanel = (estimate: Estimate | null) => {
+    clearEstimateSelectionCore();
     setCurrentEstimate(estimate);
     setPanelMode(estimate ? 'edit' : 'create');
     setIsEstimatePanelOpen(true);
@@ -202,6 +203,7 @@ export function EstimateProvider({
   };
 
   const openEstimateForEdit = (estimate: Estimate) => {
+    clearEstimateSelectionCore();
     setCurrentEstimate(estimate);
     setPanelMode('edit');
     setIsEstimatePanelOpen(true);

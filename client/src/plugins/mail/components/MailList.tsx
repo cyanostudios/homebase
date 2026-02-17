@@ -54,7 +54,7 @@ export const MailList: React.FC = () => {
               <select
                 value={pluginFilter}
                 onChange={(e) => setPluginFilter(e.target.value)}
-                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm mr-2"
+                className="h-7 rounded-md border border-input bg-background px-2 py-1 text-[10px]"
               >
                 <option value="">All plugins</option>
                 {pluginSources.map((ps: string) => (
@@ -64,33 +64,41 @@ export const MailList: React.FC = () => {
                 ))}
               </select>
             )}
-            <div className="flex items-center gap-1 mr-2 px-2 border-r pr-4">
+            <div className="flex items-center gap-2">
               {settings?.configured?.smtp || settings?.configured?.resend ? (
                 <Badge
                   variant="outline"
-                  className="plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle font-medium"
+                  className="plugin-mail bg-plugin-subtle text-plugin border-plugin-subtle font-medium text-[10px]"
                 >
                   Konfigurerad
                 </Badge>
               ) : (
                 <Badge
                   variant="secondary"
-                  className="bg-secondary/50 text-secondary-foreground border-transparent font-medium"
+                  className="bg-secondary/50 text-secondary-foreground border-transparent font-medium text-[10px]"
                 >
                   Ej konfigurerad
                 </Badge>
               )}
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="sm"
+                icon={Settings}
                 onClick={() => openMailPanel()}
                 title="Inställningar"
+                className="h-7 text-[10px] px-2"
               >
-                <Settings className="h-4 w-4" />
+                Settings
               </Button>
             </div>
-            <Button variant="outline" size="sm" onClick={() => loadHistory()} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadHistory()}
+              disabled={loading}
+              className="h-7 text-[10px] px-2"
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
               Uppdatera
             </Button>
           </div>
@@ -110,23 +118,22 @@ export const MailList: React.FC = () => {
   ]);
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* History table */}
-      <Card className="plugin-mail">
+    <div className="space-y-4">
+      <Card className="shadow-none plugin-mail">
         <div className="p-4 border-b border-border flex items-center gap-2">
           <Mail className="h-5 w-5 text-plugin" />
           <span className="font-medium text-sm">Sent mail history</span>
           <Badge
             variant="secondary"
-            className="bg-secondary/50 text-secondary-foreground border-transparent font-medium"
+            className="bg-secondary/50 text-secondary-foreground border-transparent font-medium text-[10px]"
           >
             {totalCount} Total
           </Badge>
         </div>
         {loading && mailHistory.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">Loading...</div>
+          <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
         ) : filtered.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">
+          <div className="p-8 text-center text-muted-foreground text-sm">
             No sent emails yet. Mail is sent from other plugins (e.g. Besiktningar).
           </div>
         ) : (
@@ -141,14 +148,17 @@ export const MailList: React.FC = () => {
             </TableHeader>
             <TableBody>
               {filtered.map((entry) => (
-                <TableRow key={entry.id}>
+                <TableRow
+                  key={entry.id}
+                  className="hover:bg-muted/50 plugin-mail hover:bg-plugin-subtle/50 transition-colors"
+                >
                   <TableCell className="text-muted-foreground text-sm">
                     {entry.sentAt ? format(new Date(entry.sentAt), 'yyyy-MM-dd HH:mm') : '—'}
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate" title={entry.to}>
+                  <TableCell className="max-w-[200px] truncate font-medium" title={entry.to}>
                     {entry.to}
                   </TableCell>
-                  <TableCell className="max-w-[280px] truncate" title={entry.subject}>
+                  <TableCell className="max-w-[280px] truncate text-sm" title={entry.subject}>
                     {entry.subject || '—'}
                   </TableCell>
                   <TableCell>
@@ -156,7 +166,7 @@ export const MailList: React.FC = () => {
                       <Badge
                         variant="outline"
                         className={cn(
-                          'capitalize font-medium',
+                          'capitalize font-medium text-[10px]',
                           entry.pluginSource === 'notes' &&
                             'plugin-notes bg-plugin-subtle text-plugin border-plugin-subtle',
                           entry.pluginSource === 'contacts' &&
@@ -174,7 +184,7 @@ export const MailList: React.FC = () => {
                         {entry.pluginSource}
                       </Badge>
                     ) : (
-                      '—'
+                      <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
                 </TableRow>

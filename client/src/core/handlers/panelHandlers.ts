@@ -97,6 +97,15 @@ export const createPanelHandlers = (
     if (!currentPlugin) {
       return;
     }
+    // Files settings: no form to submit; just close the panel
+    if (
+      currentPlugin.name === 'files' &&
+      currentMode === 'settings' &&
+      typeof currentPluginContext?.closeFilePanel === 'function'
+    ) {
+      currentPluginContext.closeFilePanel();
+      return;
+    }
     // Settings plugin: submitSettingsForm is registered by SettingsForm and calls context.submitSave
     // Generic pattern: submit + PluginName + Form
     const pluginNameCapitalized = toCamel(currentPlugin.name);
@@ -119,6 +128,15 @@ export const createPanelHandlers = (
     // Settings plugin: use context close directly (no window globals)
     if (currentPlugin.name === 'settings' && currentPluginContext?.closeSettingsPanel) {
       currentPluginContext.closeSettingsPanel();
+      return;
+    }
+    // Files settings: FileForm returns early so event listeners are never registered; close directly
+    if (
+      currentPlugin.name === 'files' &&
+      currentMode === 'settings' &&
+      typeof currentPluginContext?.closeFilePanel === 'function'
+    ) {
+      currentPluginContext.closeFilePanel();
       return;
     }
     // Generic pattern: cancel + PluginName + Form

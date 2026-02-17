@@ -2,28 +2,31 @@ import {
   File,
   Trash2,
   Grid3x3,
-  List,
-  ChevronUp,
-  ChevronDown,
-  Cloud,
+  List as ListIcon,
+  ArrowUp,
+  ArrowDown,
   Settings,
-  X,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
-import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useFiles } from '../hooks/useFiles';
-
-import { CloudStorageSettings } from './CloudStorageSettings';
 
 type SortField = 'name' | 'updatedAt' | 'id';
 type SortOrder = 'asc' | 'desc';
@@ -66,15 +69,12 @@ export const FileList: React.FC = () => {
   const {
     files,
     openFileForView,
-    cloudStorageSettings,
-    getCloudStorageEmbedUrl,
-    // Selection API
+    openFileSettings,
     selectedFileIds,
     toggleFileSelected,
     selectAllFiles,
     clearFileSelection,
     selectedCount,
-    // Bulk delete
     deleteFiles,
   } = useFiles();
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -86,8 +86,6 @@ export const FileList: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [showCloudSettings, setShowCloudSettings] = useState(false);
-  const [openingCloudService, setOpeningCloudService] = useState<string | null>(null);
 
   const normalized = (it: any) => ({
     id: String(it.id ?? ''),
@@ -175,17 +173,6 @@ export const FileList: React.FC = () => {
     }
   };
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) {
-      return null;
-    }
-    return sortOrder === 'asc' ? (
-      <ChevronUp className="w-4 h-4" />
-    ) : (
-      <ChevronDown className="w-4 h-4" />
-    );
-  };
-
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -205,29 +192,41 @@ export const FileList: React.FC = () => {
         rightActions={
           <div className="flex gap-2">
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
-              size="icon"
-              onClick={() => setViewMode('grid')}
-              className="h-9 w-9"
-              title="Grid view"
+              variant="secondary"
+              size="sm"
+              onClick={() => openFileSettings()}
+              className="h-7 text-[10px] px-2"
+              title="Files settings"
             >
-              <Grid3x3 className="w-4 h-4" />
+              <Settings className="w-4 h-4 mr-1" />
+              Settings
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="icon"
+              variant={viewMode === 'grid' ? 'default' : 'secondary'}
+              size="sm"
+              onClick={() => setViewMode('grid')}
+              className="h-7 text-[10px] px-2"
+              title="Grid view"
+            >
+              <Grid3x3 className="w-4 h-4 mr-1" />
+              Grid
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'secondary'}
+              size="sm"
               onClick={() => setViewMode('list')}
-              className="h-9 w-9"
+              className="h-7 text-[10px] px-2"
               title="List view"
             >
-              <List className="w-4 h-4" />
+              <ListIcon className="w-4 h-4 mr-1" />
+              List
             </Button>
           </div>
         }
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing]);
+  }, [searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing, openFileSettings]);
 
   const handleOpenForView = (item: any) => attemptNavigation(() => openFileForView(item));
 
@@ -248,79 +247,8 @@ export const FileList: React.FC = () => {
     }
   };
 
-  const handleOpenCloudStorage = async (service: 'onedrive' | 'dropbox' | 'googledrive') => {
-    setOpeningCloudService(service);
-    try {
-      const embedUrl = await getCloudStorageEmbedUrl(service);
-      if (embedUrl) {
-        window.open(embedUrl, '_blank', 'width=1200,height=800');
-      }
-    } catch (err) {
-      console.error(`Failed to open ${service}:`, err);
-      alert(`Failed to open ${service} file manager`);
-    } finally {
-      setOpeningCloudService(null);
-    }
-  };
-
-  const connectedServices = [
-    cloudStorageSettings.onedrive?.connected && { name: 'onedrive', label: 'OneDrive', icon: '📁' },
-    cloudStorageSettings.dropbox?.connected && { name: 'dropbox', label: 'Dropbox', icon: '📦' },
-    cloudStorageSettings.googledrive?.connected && {
-      name: 'googledrive',
-      label: 'Google Drive',
-      icon: '☁️',
-    },
-  ].filter(Boolean) as Array<{ name: string; label: string; icon: string }>;
-
   return (
     <div className="space-y-4">
-      {/* Cloud Storage Info */}
-      {connectedServices.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-600">Cloud storage:</span>
-          {connectedServices.map((service) => (
-            <Button
-              key={service.name}
-              variant="outline"
-              size="sm"
-              onClick={() => handleOpenCloudStorage(service.name as any)}
-              disabled={openingCloudService === service.name}
-              className="h-7 px-2 text-xs"
-              title={`Open ${service.label}`}
-            >
-              <span>{service.icon}</span>
-              <span>{service.label}</span>
-              {openingCloudService === service.name && <span className="animate-pulse">...</span>}
-            </Button>
-          ))}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowCloudSettings(true)}
-            className="h-7 px-2 text-xs"
-            title="Manage cloud storage"
-          >
-            <Settings className="w-3 h-3" />
-            <span>Settings</span>
-          </Button>
-        </div>
-      )}
-      {connectedServices.length === 0 && (
-        <div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowCloudSettings(true)}
-            className="h-7 px-2 text-xs plugin-files border-plugin-subtle text-plugin hover:bg-plugin-subtle"
-          >
-            <Cloud className="w-3 h-3" />
-            <span>Connect cloud storage</span>
-          </Button>
-        </div>
-      )}
-
-      {/* Bulk Action Bar */}
       <BulkActionBar
         selectedCount={selectedCount}
         onClearSelection={clearFileSelection}
@@ -334,176 +262,183 @@ export const FileList: React.FC = () => {
         ]}
       />
 
-      <Card>
+      <Card className="shadow-none border-none bg-transparent">
         {viewMode === 'grid' ? (
-          <div className="p-4">
-            {filteredAndSorted.length === 0 ? (
-              <div className="p-12 text-center text-gray-400">
+          filteredAndSorted.length === 0 ? (
+            <Card className="shadow-none">
+              <div className="p-6 text-center text-muted-foreground">
                 {searchTerm
                   ? 'No files found matching your search.'
                   : 'No files yet. Click "Add File" to get started.'}
               </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {filteredAndSorted.map((row: any) => {
-                  const isSelected = selectedFileIds.includes(row.id);
-                  const FileIcon = getFileIcon(row.mimeType);
-                  const isImage = row.mimeType?.startsWith('image/');
-                  return (
-                    <div
-                      key={row.id}
-                      className={cn(
-                        'relative border rounded-lg p-3 cursor-pointer transition-all',
-                        isSelected
-                          ? 'plugin-files bg-plugin-subtle ring-2 ring-plugin-subtle border-plugin-subtle'
-                          : 'border-border hover:border-plugin-subtle hover:plugin-files hover:shadow-md',
-                      )}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleOpenForView(row.raw);
-                      }}
-                    >
-                      <div className="absolute top-2 left-2">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4"
-                          checked={isSelected}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={() => toggleFileSelected(row.id)}
-                          aria-label={isSelected ? 'Unselect file' : 'Select file'}
+            </Card>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {filteredAndSorted.map((row: any) => {
+                const isSelected = selectedFileIds.includes(row.id);
+                const FileIcon = getFileIcon(row.mimeType);
+                const isImage = row.mimeType?.startsWith('image/');
+                return (
+                  <Card
+                    key={row.id}
+                    className={cn(
+                      'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[140px] border-transparent bg-gray-50 dark:bg-gray-900/40',
+                      isSelected
+                        ? 'plugin-files bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
+                        : 'hover:border-plugin-subtle hover:plugin-files hover:shadow-md',
+                    )}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                        return;
+                      }
+                      e.preventDefault();
+                      handleOpenForView(row.raw);
+                    }}
+                    data-list-item={JSON.stringify(row.raw)}
+                    data-plugin-name="files"
+                    role="button"
+                    aria-label={`Open file ${row.name}`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 cursor-pointer shrink-0"
+                        checked={isSelected}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={() => toggleFileSelected(row.id)}
+                        aria-label={isSelected ? 'Unselect file' : 'Select file'}
+                      />
+                    </div>
+                    <div className="flex flex-col items-center text-center flex-1 min-h-[80px] justify-center">
+                      {isImage && row.url ? (
+                        <img
+                          src={row.url}
+                          alt={row.name}
+                          className="w-full h-20 object-cover rounded mb-2"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
                         />
-                      </div>
-                      <div className="mt-6 flex flex-col items-center text-center">
-                        {isImage && row.url ? (
-                          <img
-                            src={row.url}
-                            alt={row.name}
-                            className="w-full h-24 object-cover rounded mb-2"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-24 flex items-center justify-center bg-gray-100 rounded mb-2">
-                            <FileIcon className="w-8 h-8 text-gray-400" />
-                          </div>
-                        )}
-                        <div
-                          className="text-xs font-medium text-gray-900 truncate w-full"
-                          title={row.name}
-                        >
-                          {row.name || '—'}
+                      ) : (
+                        <div className="w-full h-20 flex items-center justify-center bg-muted/30 rounded mb-2">
+                          <FileIcon className="w-8 h-8 text-muted-foreground" />
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">{humanSize(row.size)}</div>
+                      )}
+                      <div className="text-sm font-medium truncate w-full" title={row.name}>
+                        {row.name || '—'}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {humanSize(row.size)}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )
         ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="w-10 px-4 py-3">
-                  <input
-                    ref={headerCheckboxRef}
-                    type="checkbox"
-                    className="h-4 w-4"
-                    aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
-                    checked={allVisibleSelected}
-                    onChange={onToggleAllVisible}
-                  />
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  onClick={() => handleSort('name')}
-                >
-                  <div className="flex items-center gap-1">
-                    Name
-                    <SortIcon field="name" />
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Size
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  onClick={() => handleSort('updatedAt')}
-                >
-                  <div className="flex items-center gap-1">
-                    Updated
-                    <SortIcon field="updatedAt" />
-                  </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredAndSorted.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                    {searchTerm
-                      ? 'No files found matching your search.'
-                      : 'No files yet. Click "Add File" to get started.'}
-                  </td>
-                </tr>
-              ) : (
-                filteredAndSorted.map((row: any, idx: number) => {
-                  const isSelected = selectedFileIds.includes(row.id);
-                  return (
-                    <tr
-                      key={row.id}
-                      className={cn(
-                        idx % 2 === 0 ? 'bg-white' : 'bg-gray-50',
-                        'plugin-files hover:bg-plugin-subtle transition-colors focus:bg-plugin-subtle focus:outline-none focus:ring-2 focus:ring-plugin-subtle focus:ring-inset cursor-pointer',
-                      )}
-                      tabIndex={0}
-                      data-list-item={JSON.stringify(row.raw)}
-                      data-plugin-name="files"
-                      role="button"
-                      aria-label={`Open file ${row.name}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleOpenForView(row.raw);
-                      }}
-                    >
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4"
-                          checked={isSelected}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={() => toggleFileSelected(row.id)}
-                          aria-label={isSelected ? 'Unselect file' : 'Select file'}
-                        />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <File className="w-4 h-4 text-gray-400" />
-                          <div className="text-sm font-medium text-gray-900">{row.name || '—'}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-700">{row.mimeType || '—'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{humanSize(row.size)}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-700">
+          <Card className="shadow-none">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <input
+                      ref={headerCheckboxRef}
+                      type="checkbox"
+                      className="h-4 w-4 cursor-pointer"
+                      aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
+                      checked={allVisibleSelected}
+                      onChange={onToggleAllVisible}
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('name')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>Name</span>
+                      {sortField === 'name' &&
+                        (sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3 w-3 inline" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 inline" />
+                        ))}
+                    </div>
+                  </TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Size</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('updatedAt')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>Updated</span>
+                      {sortField === 'updatedAt' &&
+                        (sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3 w-3 inline" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 inline" />
+                        ))}
+                    </div>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAndSorted.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
+                      {searchTerm
+                        ? 'No files found matching your search.'
+                        : 'No files yet. Click "Add File" to get started.'}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredAndSorted.map((row: any) => {
+                    const isSelected = selectedFileIds.includes(row.id);
+                    return (
+                      <TableRow
+                        key={row.id}
+                        className="cursor-pointer hover:bg-muted/50 plugin-files hover:bg-plugin-subtle/50 transition-colors"
+                        tabIndex={0}
+                        data-list-item={JSON.stringify(row.raw)}
+                        data-plugin-name="files"
+                        role="button"
+                        aria-label={`Open file ${row.name}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleOpenForView(row.raw);
+                        }}
+                      >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 cursor-pointer"
+                            checked={isSelected}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={() => toggleFileSelected(row.id)}
+                            aria-label={isSelected ? 'Unselect file' : 'Select file'}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <File className="w-4 h-4 text-muted-foreground shrink-0" />
+                            <span className="font-medium">{row.name || '—'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {row.mimeType || '—'}
+                        </TableCell>
+                        <TableCell className="text-sm">{humanSize(row.size)}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
                           {row.updatedAt ? row.updatedAt.toLocaleDateString() : '—'}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </Card>
         )}
       </Card>
 
@@ -517,34 +452,6 @@ export const FileList: React.FC = () => {
         isLoading={deleting}
         warningMessage="This will also remove the physical files."
       />
-
-      {/* Cloud Storage Settings Modal */}
-      {showCloudSettings && (
-        <div className="fixed inset-0 z-50">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setShowCloudSettings(false)}
-          />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="bg-white rounded-xl shadow-xl border p-6">
-              <div className="flex items-center justify-between mb-4">
-                <Heading level={3} className="mb-0">
-                  Cloud Storage Settings
-                </Heading>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowCloudSettings(false)}
-                  className="h-8 w-8 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
-              <CloudStorageSettings />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

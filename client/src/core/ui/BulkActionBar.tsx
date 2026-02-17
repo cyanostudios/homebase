@@ -35,37 +35,36 @@ export function BulkActionBar({
   }
 
   return (
-    <div
-      className={`mt-2 text-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2 ${className}`}
-    >
+    <div className={`mt-2 flex flex-col sm:flex-row sm:items-center gap-2 ${className}`}>
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="px-2 py-1.5 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
+        <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
           {selectedCount} selected
         </span>
         <Button
-          variant="link"
+          variant="ghost"
           size="sm"
-          className="h-auto p-0 text-blue-700 hover:text-blue-900 font-normal underline decoration-blue-700/30"
+          className="h-7 text-[10px] px-2 text-red-600 underline decoration-red-600/50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:text-red-300"
           onClick={onClearSelection}
           type="button"
         >
           Clear selection
         </Button>
       </div>
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 w-full sm:w-auto">
+      <div className="flex flex-wrap items-center gap-2">
         {actions.map((action) => {
           const Icon = action.icon;
+          const isDestructive = action.variant === 'destructive';
           return (
             <Button
               key={action.label}
-              variant={action.variant === 'destructive' ? 'destructive' : 'outline'}
+              variant={isDestructive ? 'destructive' : 'secondary'}
               size="sm"
+              icon={Icon}
               onClick={action.onClick}
-              className={`min-h-[44px] sm:min-h-0 w-full sm:w-auto ${
-                action.variant === 'destructive' ? 'text-white hover:text-white' : ''
+              className={`h-7 text-[10px] px-2 ${
+                isDestructive ? 'text-white hover:text-white border-none' : ''
               }`}
             >
-              {Icon && <Icon className="w-4 h-4" />}
               {action.label}
             </Button>
           );

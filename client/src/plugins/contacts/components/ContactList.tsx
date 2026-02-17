@@ -138,15 +138,33 @@ export const ContactList: React.FC = () => {
   };
 
   const sortedContacts = useMemo(() => {
+    const needle = searchTerm.trim().toLowerCase();
+    if (!needle) {
+      return [...contacts].sort((a, b) => {
+        let aValue: string;
+        let bValue: string;
+        if (sortField === 'name') {
+          aValue = a.companyName.toLowerCase();
+          bValue = b.companyName.toLowerCase();
+        } else if (sortField === 'type') {
+          aValue = a.contactType;
+          bValue = b.contactType;
+        } else {
+          aValue = a.email?.toLowerCase() ?? '';
+          bValue = b.email?.toLowerCase() ?? '';
+        }
+        return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      });
+    }
     const filtered = contacts.filter(
       (contact) =>
-        contact.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.contactNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (contact.organizationNumber &&
-          contact.organizationNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (contact.personalNumber &&
-          contact.personalNumber.toLowerCase().includes(searchTerm.toLowerCase())),
+        contact.companyName.toLowerCase().includes(needle) ||
+        contact.contactNumber.toLowerCase().includes(needle) ||
+        contact.email.toLowerCase().includes(needle) ||
+        (contact.organizationNumber && contact.organizationNumber.toLowerCase().includes(needle)) ||
+        (contact.personalNumber && contact.personalNumber.toLowerCase().includes(needle)) ||
+        (Array.isArray(contact.tags) &&
+          contact.tags.some((t) => typeof t === 'string' && t.toLowerCase().includes(needle))),
     );
 
     return [...filtered].sort((a, b) => {
@@ -374,7 +392,7 @@ export const ContactList: React.FC = () => {
                 <Card
                   key={contact.id}
                   className={cn(
-                    'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent',
+                    'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent bg-gray-50 dark:bg-gray-900/40',
                     contactIsSelected
                       ? 'plugin-contacts bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
                       : 'hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md',

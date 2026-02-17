@@ -20,7 +20,7 @@ interface YourItemsContextType {
   // Panel State
   isYourItemsPanelOpen: boolean;
   currentYourItem: YourItem | null;
-  panelMode: 'create' | 'edit' | 'view';
+  panelMode: 'create' | 'edit' | 'view' | 'settings';
   validationErrors: ValidationError[];
 
   // Data
@@ -30,6 +30,7 @@ interface YourItemsContextType {
   openYourItemsPanel: (item: YourItem | null) => void;
   openYourItemForEdit: (item: YourItem) => void;
   openYourItemForView: (item: YourItem) => void;
+  openYourItemsSettings: () => void;
   closeYourItemsPanel: () => void;
   saveYourItem: (data: any) => Promise<boolean>;
   deleteYourItem: (id: string) => Promise<void>;
@@ -56,7 +57,7 @@ export function YourItemsProvider({
   // Panel
   const [isYourItemsPanelOpen, setIsYourItemsPanelOpen] = useState(false);
   const [currentYourItem, setCurrentYourItem] = useState<YourItem | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
 
   // Data
@@ -142,6 +143,14 @@ export function YourItemsProvider({
     onCloseOtherPanels();
   };
 
+  const openYourItemsSettings = () => {
+    setCurrentYourItem(null);
+    setPanelMode('settings');
+    setIsYourItemsPanelOpen(true);
+    setValidationErrors([]);
+    onCloseOtherPanels();
+  };
+
   const closeYourItemsPanel = () => {
     setIsYourItemsPanelOpen(false);
     setCurrentYourItem(null);
@@ -211,6 +220,7 @@ export function YourItemsProvider({
     openYourItemsPanel,
     openYourItemForEdit,
     openYourItemForView,
+    openYourItemsSettings,
     closeYourItemsPanel,
     saveYourItem,
     deleteYourItem,

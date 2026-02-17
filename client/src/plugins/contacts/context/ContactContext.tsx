@@ -237,8 +237,9 @@ export function ContactProvider({
     return errors;
   };
 
-  // Panel actions
+  // Panel actions (clear bulk selection when opening panel or settings)
   const openContactPanel = (contact: Contact | null) => {
+    clearContactSelectionCore();
     setCurrentContact(contact);
     setPanelMode(contact ? 'edit' : 'create');
     setIsContactPanelOpen(true);
@@ -247,6 +248,7 @@ export function ContactProvider({
   };
 
   const openContactForEdit = (contact: Contact) => {
+    clearContactSelectionCore();
     setCurrentContact(contact);
     setPanelMode('edit');
     setIsContactPanelOpen(true);
@@ -263,12 +265,13 @@ export function ContactProvider({
   };
 
   const openContactSettings = useCallback(() => {
+    clearContactSelectionCore();
     setCurrentContact(null);
     setPanelMode('settings');
     setIsContactPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+  }, [onCloseOtherPanels, clearContactSelectionCore]);
 
   const closeContactPanel = useCallback(() => {
     setIsContactPanelOpen(false);
@@ -364,8 +367,15 @@ export function ContactProvider({
       let saved: Contact;
 
       if (currentContact) {
-        // Update
-        saved = await contactsApi.updateContact(currentContact.id, contactData);
+        // Update: always send existing tags when form doesn't include them, so they are never lost
+        const updatePayload =
+          typeof contactData.tags !== 'undefined'
+            ? contactData
+            : {
+                ...contactData,
+                tags: Array.isArray(currentContact.tags) ? currentContact.tags : [],
+              };
+        saved = await contactsApi.updateContact(currentContact.id, updatePayload);
         const normalized: Contact = {
           ...saved,
           tags:

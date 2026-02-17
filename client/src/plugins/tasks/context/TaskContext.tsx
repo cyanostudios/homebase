@@ -234,6 +234,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const openTaskPanel = useCallback(
     (task: Task | null) => {
+      clearTaskSelectionCore();
       setRecentlyDuplicatedTaskId(null);
       setCurrentTask(task);
       setPanelMode(task ? 'edit' : 'create');
@@ -241,11 +242,12 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setValidationErrors([]);
       onCloseOtherPanels();
     },
-    [onCloseOtherPanels],
+    [onCloseOtherPanels, clearTaskSelectionCore],
   );
 
   const openTaskForEdit = useCallback(
     (task: Task) => {
+      clearTaskSelectionCore();
       setRecentlyDuplicatedTaskId(null);
       setCurrentTask(task);
       setPanelMode('edit');
@@ -254,7 +256,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setQuickEditDraft(null);
       onCloseOtherPanels();
     },
-    [onCloseOtherPanels],
+    [onCloseOtherPanels, clearTaskSelectionCore],
   );
 
   const openTaskForView = useCallback(
@@ -271,6 +273,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   );
 
   const openTaskSettings = useCallback(() => {
+    clearTaskSelectionCore();
     setRecentlyDuplicatedTaskId(null);
     setCurrentTask(null);
     setPanelMode('settings');
@@ -278,7 +281,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setValidationErrors([]);
     setQuickEditDraft(null);
     onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+  }, [onCloseOtherPanels, clearTaskSelectionCore]);
 
   const openTaskForViewRef = useRef(openTaskForView);
   useEffect(() => {

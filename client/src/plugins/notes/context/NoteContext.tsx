@@ -196,6 +196,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const openNotePanel = useCallback(
     (note: Note | null) => {
+      clearNoteSelectionCore();
       setRecentlyDuplicatedNoteId(null);
       setCurrentNote(note);
       setPanelMode(note ? 'edit' : 'create');
@@ -203,11 +204,12 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setValidationErrors([]);
       onCloseOtherPanels();
     },
-    [onCloseOtherPanels],
+    [onCloseOtherPanels, clearNoteSelectionCore],
   );
 
   const openNoteForEdit = useCallback(
     (note: Note) => {
+      clearNoteSelectionCore();
       setRecentlyDuplicatedNoteId(null);
       setCurrentNote(note);
       setPanelMode('edit');
@@ -215,7 +217,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setValidationErrors([]);
       onCloseOtherPanels();
     },
-    [onCloseOtherPanels],
+    [onCloseOtherPanels, clearNoteSelectionCore],
   );
 
   const openNoteForView = useCallback(
@@ -231,12 +233,13 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   );
 
   const openNoteSettings = useCallback(() => {
+    clearNoteSelectionCore();
     setCurrentNote(null);
     setPanelMode('settings');
     setIsNotePanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+  }, [onCloseOtherPanels, clearNoteSelectionCore]);
 
   const openNoteForViewRef = useRef(openNoteForView);
   useEffect(() => {
