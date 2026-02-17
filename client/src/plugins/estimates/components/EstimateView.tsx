@@ -1,17 +1,17 @@
-import { Info, Zap } from 'lucide-react';
+import { Info } from 'lucide-react';
 import React from 'react';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 
-import { useEstimateStatusActions } from '../hooks/useEstimateStatusActions';
+import { useEstimates } from '../hooks/useEstimates';
 import { Estimate, calculateEstimateTotals } from '../types/estimate';
 
-import { EstimateActions } from './EstimateActions';
-import { EstimateStatusButtons } from './EstimateStatusButtons';
+import { EstimateShareBlock } from './EstimateActions';
+import { EstimateStatusSelect } from './EstimateStatusSelect';
 import { StatusReasonModal } from './StatusReasonModal';
 
 interface EstimateViewProps {
@@ -20,15 +20,27 @@ interface EstimateViewProps {
 
 export function EstimateView({ estimate }: EstimateViewProps) {
   const {
-    showStatusModal,
-    showSentConfirmation,
-    pendingStatus,
-    handleStatusChange,
-    handleSentConfirm,
-    handleSentCancel,
-    handleModalConfirm,
-    handleModalCancel,
-  } = useEstimateStatusActions();
+    quickEditDraft,
+    setQuickEditField,
+    estimateQuickEditShowStatusModal,
+    estimateQuickEditShowSentConfirmation,
+    estimateQuickEditPendingStatus,
+    handleEstimateQuickEditSentConfirm,
+    handleEstimateQuickEditSentCancel,
+    handleEstimateQuickEditModalConfirm,
+    handleEstimateQuickEditModalCancel,
+    showDiscardQuickEditDialog,
+    setShowDiscardQuickEditDialog,
+    onDiscardQuickEditAndClose,
+  } = useEstimates();
+
+  const displayEstimate = React.useMemo(
+    () =>
+      estimate
+        ? { ...estimate, status: (quickEditDraft?.status ?? estimate.status) as Estimate['status'] }
+        : null,
+    [estimate, quickEditDraft?.status],
+  );
 
   if (!estimate) {
     return null;
@@ -46,18 +58,16 @@ export function EstimateView({ estimate }: EstimateViewProps) {
               padding="none"
               className="overflow-hidden border-none shadow-sm bg-background/50 plugin-estimates"
             >
-              <DetailSection title="Information" icon={Info} className="p-4">
+              <DetailSection title="Information" icon={Info} iconPlugin="estimates" className="p-4">
                 <div className="space-y-4 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Number</span>
                     <span className="font-mono font-medium">{estimateNumberDisplay || '—'}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Status</span>
-                    <span className="capitalize font-medium text-plugin">
-                      {estimate.status?.toLowerCase().replace(/^./, (str) => str.toUpperCase())}
-                    </span>
-                  </div>
+                  <EstimateStatusSelect
+                    estimate={displayEstimate ?? estimate}
+                    onStatusChange={(status) => setQuickEditField('status', status)}
+                  />
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Contact</span>
                     <span className="font-medium truncate max-w-[150px]">
@@ -91,23 +101,6 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                 </div>
               </DetailSection>
             </Card>
-
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection
-                title="Quick Actions"
-                icon={Zap}
-                iconPlugin="estimates"
-                className="p-4"
-              >
-                <div className="space-y-4">
-                  <EstimateStatusButtons
-                    estimate={estimate}
-                    onStatusChange={(status) => handleStatusChange(estimate, status)}
-                  />
-                  <EstimateActions estimate={estimate} />
-                </div>
-              </DetailSection>
-            </Card>
           </div>
         }
       >
@@ -115,7 +108,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
           {/* Internal Notes */}
           {estimate.notes && (
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Notes" className="p-6">
+              <DetailSection title="Notes" iconPlugin="estimates" className="p-6">
                 <div className="text-sm text-muted-foreground italic leading-relaxed">
                   "{estimate.notes}"
                 </div>
@@ -125,7 +118,11 @@ export function EstimateView({ estimate }: EstimateViewProps) {
 
           {/* Line Items */}
           <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title={`Line Items (${estimate.lineItems.length})`} className="p-6">
+            <DetailSection
+              title={`Line Items (${estimate.lineItems.length})`}
+              iconPlugin="estimates"
+              className="p-6"
+            >
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -174,7 +171,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
 
           {/* Pricing Summary */}
           <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title="Pricing Summary" className="p-6">
+            <DetailSection title="Pricing Summary" iconPlugin="estimates" className="p-6">
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
@@ -212,65 +209,47 @@ export function EstimateView({ estimate }: EstimateViewProps) {
                     {totals.total.toFixed(2)} {estimate.currency}
                   </span>
                 </div>
+                <div className="pt-4 mt-4 border-t border-border/50">
+                  <EstimateShareBlock estimate={estimate} />
+                </div>
               </div>
             </DetailSection>
           </Card>
         </div>
       </DetailLayout>
 
-      {/* Status Reason Modal */}
+      {/* Status Reason Modal (when applying quick-edit to accepted/rejected) */}
       <StatusReasonModal
-        isOpen={showStatusModal}
-        onClose={handleModalCancel}
-        onConfirm={(reasons) => handleModalConfirm(estimate, reasons)}
-        status={pendingStatus || 'accepted'}
+        isOpen={estimateQuickEditShowStatusModal}
+        onClose={handleEstimateQuickEditModalCancel}
+        onConfirm={handleEstimateQuickEditModalConfirm}
+        status={estimateQuickEditPendingStatus || 'accepted'}
         estimateNumber={formatDisplayNumber('estimates', estimate.estimateNumber)}
       />
 
-      {/* Sent Confirmation Dialog */}
-      {showSentConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
-              <div>
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  Mark estimate as sent?
-                </h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Estimate {formatDisplayNumber('estimates', estimate.estimateNumber)}
-                </p>
-              </div>
-            </div>
+      {/* Sent Confirmation (when applying quick-edit to sent) */}
+      <ConfirmDialog
+        isOpen={estimateQuickEditShowSentConfirmation}
+        title="Mark estimate as sent?"
+        message={`Estimate ${formatDisplayNumber('estimates', estimate.estimateNumber)}. This will change the status to "Sent" and indicate that the estimate has been delivered to the customer. You can change it back to "Draft" at any time if needed.`}
+        confirmText="Mark as Sent"
+        cancelText="Cancel"
+        onConfirm={handleEstimateQuickEditSentConfirm}
+        onCancel={handleEstimateQuickEditSentCancel}
+        variant="warning"
+      />
 
-            {/* Content */}
-            <div className="p-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                This will change the status to "Sent" and indicate that the estimate has been
-                delivered to the customer.
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                You can change it back to "Draft" at any time if needed.
-              </p>
-            </div>
-
-            {/* Footer */}
-            <div className="flex justify-end space-x-3 p-4 border-t border-gray-100 dark:border-gray-700">
-              <Button variant="secondary" size="sm" onClick={handleSentCancel}>
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => handleSentConfirm(estimate)}
-                className="bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-800"
-              >
-                Mark as Sent
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Discard quick-edit changes when closing */}
+      <ConfirmDialog
+        isOpen={showDiscardQuickEditDialog}
+        title="Unsaved changes"
+        message="You have unsaved status change. Do you want to discard it?"
+        confirmText="Discard"
+        cancelText="Continue editing"
+        onConfirm={onDiscardQuickEditAndClose}
+        onCancel={() => setShowDiscardQuickEditDialog(false)}
+        variant="warning"
+      />
     </div>
   );
 }

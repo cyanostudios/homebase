@@ -43,7 +43,7 @@ interface TopBarProps {
   currentPage: NavPage;
   onPageChange: (page: NavPage) => void;
   onOpenMobileNav: () => void;
-  detailPanelTitle?: string;
+  detailPanelTitle?: string | React.ReactNode;
   onDetailPanelClose?: () => void;
   detailPanelPluginName?: string;
 }

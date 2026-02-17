@@ -1,4 +1,14 @@
-import { Plus, Trash2, Copy } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Copy,
+  User,
+  FileText,
+  ListOrdered,
+  Percent,
+  Calculator,
+  StickyNote,
+} from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -9,7 +19,7 @@ import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { Heading } from '@/core/ui/Typography';
+import { DetailSection } from '@/core/ui/DetailSection';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
@@ -323,357 +333,369 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
         {/* Customer Selection */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">
-            Customer Information
-          </Heading>
-          <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
-            <div>
-              <Label htmlFor="estimate-contact" className="mb-1">
-                Customer
-              </Label>
-              <NativeSelect
-                id="estimate-contact"
-                value={formData.contactId}
-                onChange={(e) => handleContactChange(e.target.value)}
-                className={getFieldError('contactId') ? 'border-red-500' : ''}
-                required
-              >
-                <option value="">Select a customer...</option>
-                {safeContacts.map((contact) => (
-                  <option key={contact.id} value={contact.id}>
-                    {contact.companyName}{' '}
-                    {contact.organizationNumber && `(${contact.organizationNumber})`}
-                  </option>
-                ))}
-              </NativeSelect>
-              {getFieldError('contactId') && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                  {getFieldError('contactId')?.message}
-                </p>
-              )}
-            </div>
+          <DetailSection title="Customer Information" icon={User} iconPlugin="estimates">
+            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
+              <div>
+                <Label htmlFor="estimate-contact" className="mb-1">
+                  Customer
+                </Label>
+                <NativeSelect
+                  id="estimate-contact"
+                  value={formData.contactId}
+                  onChange={(e) => handleContactChange(e.target.value)}
+                  className={getFieldError('contactId') ? 'border-red-500' : ''}
+                  required
+                >
+                  <option value="">Select a customer...</option>
+                  {safeContacts.map((contact) => (
+                    <option key={contact.id} value={contact.id}>
+                      {contact.companyName}{' '}
+                      {contact.organizationNumber && `(${contact.organizationNumber})`}
+                    </option>
+                  ))}
+                </NativeSelect>
+                {getFieldError('contactId') && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {getFieldError('contactId')?.message}
+                  </p>
+                )}
+              </div>
 
-            <div>
-              <Label htmlFor="estimate-currency" className="mb-1">
-                Currency
-              </Label>
-              <NativeSelect
-                id="estimate-currency"
-                value={formData.currency}
-                onChange={(e) => updateField('currency', e.target.value)}
-              >
-                <option value="SEK">SEK (Swedish Krona)</option>
-                <option value="EUR">EUR (Euro)</option>
-                <option value="USD">USD (US Dollar)</option>
-                <option value="NOK">NOK (Norwegian Krone)</option>
-                <option value="DKK">DKK (Danish Krone)</option>
-              </NativeSelect>
+              <div>
+                <Label htmlFor="estimate-currency" className="mb-1">
+                  Currency
+                </Label>
+                <NativeSelect
+                  id="estimate-currency"
+                  value={formData.currency}
+                  onChange={(e) => updateField('currency', e.target.value)}
+                >
+                  <option value="SEK">SEK (Swedish Krona)</option>
+                  <option value="EUR">EUR (Euro)</option>
+                  <option value="USD">USD (US Dollar)</option>
+                  <option value="NOK">NOK (Norwegian Krone)</option>
+                  <option value="DKK">DKK (Danish Krone)</option>
+                </NativeSelect>
+              </div>
             </div>
-          </div>
+          </DetailSection>
         </Card>
 
         {/* Estimate Details */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">
-            Estimate Details
-          </Heading>
-          <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
-            <div>
-              <Label htmlFor="estimate-valid-to" className="mb-1">
-                Valid To
-              </Label>
-              <Input
-                id="estimate-valid-to"
-                type="date"
-                value={formatValidToDate(formData.validTo)}
-                onChange={(e) => updateField('validTo', parseValidToDate(e.target.value))}
-                required
-              />
-            </div>
+          <DetailSection title="Estimate Details" icon={FileText} iconPlugin="estimates">
+            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
+              <div>
+                <Label htmlFor="estimate-valid-to" className="mb-1">
+                  Valid To
+                </Label>
+                <Input
+                  id="estimate-valid-to"
+                  type="date"
+                  value={formatValidToDate(formData.validTo)}
+                  onChange={(e) => updateField('validTo', parseValidToDate(e.target.value))}
+                  required
+                />
+              </div>
 
-            <div>
-              <Label htmlFor="estimate-status" className="mb-1">
-                Status
-              </Label>
-              <NativeSelect
-                id="estimate-status"
-                value={formData.status}
-                onChange={(e) => updateField('status', e.target.value)}
-              >
-                <option value="draft">Draft</option>
-                <option value="sent">Sent</option>
-                <option value="accepted">Accepted</option>
-                <option value="rejected">Rejected</option>
-              </NativeSelect>
+              <div>
+                <Label htmlFor="estimate-status" className="mb-1">
+                  Status
+                </Label>
+                <NativeSelect
+                  id="estimate-status"
+                  value={formData.status}
+                  onChange={(e) => updateField('status', e.target.value)}
+                >
+                  <option value="draft">Draft</option>
+                  <option value="sent">Sent</option>
+                  <option value="accepted">Accepted</option>
+                  <option value="rejected">Rejected</option>
+                </NativeSelect>
+              </div>
             </div>
-          </div>
+          </DetailSection>
         </Card>
 
         {/* Line Items */}
         <Card padding="sm" className="shadow-none px-0">
-          <div className="flex items-center justify-between mb-3">
-            <Heading level={3}>Line Items</Heading>
-            <Button type="button" onClick={addLineItem} variant="secondary" icon={Plus} size="sm">
-              Add Item
-            </Button>
-          </div>
-
-          {formData.lineItems.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400 text-sm">No line items added yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {formData.lineItems.map((item, index) => (
-                <div
-                  key={item.id}
-                  className={`border border-gray-200 dark:border-gray-800 rounded-lg p-3 ${
-                    duplicatedItemIds.has(item.id) ? 'bg-green-50 dark:bg-green-950/30' : ''
-                  }`}
-                >
-                  {/* Row 1: Item number + Description + Action */}
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex-shrink-0 w-12">
-                      Item {index + 1}
-                    </span>
-                    <Textarea
-                      value={item.description}
-                      onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                      placeholder="Service or product description"
-                      rows={1}
-                      className="flex-1 text-sm resize-none h-auto min-h-[2.5rem]"
-                      required
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => duplicateLineItem(index)}
-                      variant="secondary"
-                      icon={Copy}
-                      size="sm"
-                      className="h-8 w-8 p-0 flex-shrink-0"
-                      title="Duplicate item"
-                    ></Button>
-                    <Button
-                      type="button"
-                      onClick={() => removeLineItem(index)}
-                      variant="danger"
-                      icon={Trash2}
-                      size="sm"
-                      className="h-8 w-8 p-0 flex-shrink-0"
-                    ></Button>
-                  </div>
-
-                  {/* Row 2: Numbers table */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 dark:bg-gray-900/50">
-                        <tr>
-                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Qty
-                          </th>
-                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Unit Price
-                          </th>
-                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Discount %
-                          </th>
-                          <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            VAT %
-                          </th>
-                          <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Discount
-                          </th>
-                          <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            VAT
-                          </th>
-                          <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Total
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td className="px-2 py-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={item.quantity}
-                              onChange={(e) =>
-                                updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)
-                              }
-                              className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                              required
-                            />
-                          </td>
-                          <td className="px-2 py-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={item.unitPrice}
-                              onChange={(e) =>
-                                updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)
-                              }
-                              className="w-20 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                              required
-                            />
-                          </td>
-                          <td className="px-2 py-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={item.discount || 0}
-                              onChange={(e) =>
-                                updateLineItem(index, 'discount', parseFloat(e.target.value) || 0)
-                              }
-                              className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                            />
-                          </td>
-                          <td className="px-2 py-1">
-                            <NativeSelect
-                              value={item.vatRate}
-                              onChange={(e) =>
-                                updateLineItem(index, 'vatRate', parseFloat(e.target.value))
-                              }
-                              className="w-16 h-8 px-1 py-1 text-sm"
-                            >
-                              <option value="0">0%</option>
-                              <option value="6">6%</option>
-                              <option value="12">12%</option>
-                              <option value="25">25%</option>
-                            </NativeSelect>
-                          </td>
-                          <td className="px-2 py-1 text-right text-sm text-gray-900 dark:text-gray-100">
-                            -{(item.discountAmount || 0).toFixed(2)}
-                          </td>
-                          <td className="px-2 py-1 text-right text-sm text-gray-900 dark:text-gray-100">
-                            {(item.vatAmount || 0).toFixed(2)}
-                          </td>
-                          <td className="px-2 py-1 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {(item.lineTotal || 0).toFixed(2)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))}
+          <DetailSection title="Line Items" icon={ListOrdered} iconPlugin="estimates">
+            <div className="flex items-center justify-end mb-3">
+              <Button
+                type="button"
+                onClick={addLineItem}
+                variant="secondary"
+                icon={Plus}
+                size="sm"
+                className="h-7 text-[10px] px-2"
+              >
+                Add Item
+              </Button>
             </div>
-          )}
+
+            {formData.lineItems.length === 0 ? (
+              <p className="text-gray-500 dark:text-gray-400 text-sm">No line items added yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {formData.lineItems.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className={`border border-gray-200 dark:border-gray-800 rounded-lg p-3 ${
+                      duplicatedItemIds.has(item.id) ? 'bg-green-50 dark:bg-green-950/30' : ''
+                    }`}
+                  >
+                    {/* Row 1: Item number + Description + Action */}
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex-shrink-0 w-12">
+                        Item {index + 1}
+                      </span>
+                      <Textarea
+                        value={item.description}
+                        onChange={(e) => updateLineItem(index, 'description', e.target.value)}
+                        placeholder="Service or product description"
+                        rows={1}
+                        className="flex-1 text-sm resize-none h-auto min-h-[2.5rem]"
+                        required
+                      />
+                      <Button
+                        type="button"
+                        onClick={() => duplicateLineItem(index)}
+                        variant="secondary"
+                        icon={Copy}
+                        size="sm"
+                        className="h-8 w-8 p-0 flex-shrink-0"
+                        title="Duplicate item"
+                      ></Button>
+                      <Button
+                        type="button"
+                        onClick={() => removeLineItem(index)}
+                        variant="danger"
+                        icon={Trash2}
+                        size="sm"
+                        className="h-8 w-8 p-0 flex-shrink-0"
+                      ></Button>
+                    </div>
+
+                    {/* Row 2: Numbers table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 dark:bg-gray-900/50">
+                          <tr>
+                            <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                              Qty
+                            </th>
+                            <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                              Unit Price
+                            </th>
+                            <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                              Discount %
+                            </th>
+                            <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                              VAT %
+                            </th>
+                            <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                              Discount
+                            </th>
+                            <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                              VAT
+                            </th>
+                            <th className="px-2 py-1 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                              Total
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td className="px-2 py-1">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)
+                                }
+                                className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                required
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={item.unitPrice}
+                                onChange={(e) =>
+                                  updateLineItem(
+                                    index,
+                                    'unitPrice',
+                                    parseFloat(e.target.value) || 0,
+                                  )
+                                }
+                                className="w-20 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                required
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={item.discount || 0}
+                                onChange={(e) =>
+                                  updateLineItem(index, 'discount', parseFloat(e.target.value) || 0)
+                                }
+                                className="w-16 h-8 px-2 py-1 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <NativeSelect
+                                value={item.vatRate}
+                                onChange={(e) =>
+                                  updateLineItem(index, 'vatRate', parseFloat(e.target.value))
+                                }
+                                className="w-16 h-8 px-1 py-1 text-sm"
+                              >
+                                <option value="0">0%</option>
+                                <option value="6">6%</option>
+                                <option value="12">12%</option>
+                                <option value="25">25%</option>
+                              </NativeSelect>
+                            </td>
+                            <td className="px-2 py-1 text-right text-sm text-gray-900 dark:text-gray-100">
+                              -{(item.discountAmount || 0).toFixed(2)}
+                            </td>
+                            <td className="px-2 py-1 text-right text-sm text-gray-900 dark:text-gray-100">
+                              {(item.vatAmount || 0).toFixed(2)}
+                            </td>
+                            <td className="px-2 py-1 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {(item.lineTotal || 0).toFixed(2)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DetailSection>
         </Card>
 
-        {/* NEW: Estimate Discount - After line items, before totals */}
+        {/* Estimate Discount - After line items, before totals */}
         {formData.lineItems.length > 0 && (
           <Card padding="sm" className="shadow-none px-0">
-            <div className="flex items-center gap-4 mb-2">
-              <Label
-                htmlFor="estimate-discount"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Estimate Discount (%)
-              </Label>
-              <div className="max-w-xs">
-                <Input
-                  id="estimate-discount"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={formData.estimateDiscount || 0}
-                  onChange={(e) => updateField('estimateDiscount', parseFloat(e.target.value) || 0)}
-                  placeholder="0.00"
-                  className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                />
+            <DetailSection title="Estimate Discount" icon={Percent} iconPlugin="estimates">
+              <div className="flex items-center gap-4 mb-2">
+                <Label
+                  htmlFor="estimate-discount"
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  Estimate Discount (%)
+                </Label>
+                <div className="max-w-xs">
+                  <Input
+                    id="estimate-discount"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={formData.estimateDiscount || 0}
+                    onChange={(e) =>
+                      updateField('estimateDiscount', parseFloat(e.target.value) || 0)
+                    }
+                    placeholder="0.00"
+                    className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                  />
+                </div>
               </div>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Discount applied to subtotal after line item discounts
-            </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Discount applied to subtotal after line item discounts
+              </p>
+            </DetailSection>
           </Card>
         )}
 
-        {/* Totals Summary - UPDATED to show all discount steps */}
+        {/* Totals Summary */}
         {formData.lineItems.length > 0 && (
           <Card padding="sm" className="shadow-none px-0">
-            <Heading level={3} className="mb-3">
-              Summary
-            </Heading>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal:</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {(totals.subtotal || 0).toFixed(2)} {formData.currency}
-                </span>
+            <DetailSection title="Summary" icon={Calculator} iconPlugin="estimates">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal:</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {(totals.subtotal || 0).toFixed(2)} {formData.currency}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Total Line Item Discounts:
+                  </span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    -{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Subtotal after line discounts:
+                  </span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}
+                  </span>
+                </div>
+                {/* NEW: Show estimate discount if applied */}
+                {formData.estimateDiscount > 0 && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Estimate Discount ({formData.estimateDiscount}%):
+                      </span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        -{(totals.estimateDiscountAmount || 0).toFixed(2)} {formData.currency}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-2">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Subtotal after estimate discount:
+                      </span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {(totals.subtotalAfterEstimateDiscount || 0).toFixed(2)} {formData.currency}
+                      </span>
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Total VAT:</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {(totals.totalVat || 0).toFixed(2)} {formData.currency}
+                  </span>
+                </div>
+                <div className="flex justify-between text-lg font-semibold border-t border-gray-200 dark:border-gray-800 pt-2">
+                  <span>Total:</span>
+                  <span>
+                    {(totals.total || 0).toFixed(2)} {formData.currency}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Total Line Item Discounts:
-                </span>
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  -{(totals.totalDiscount || 0).toFixed(2)} {formData.currency}
-                </span>
-              </div>
-              <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Subtotal after line discounts:
-                </span>
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {(totals.subtotalAfterDiscount || 0).toFixed(2)} {formData.currency}
-                </span>
-              </div>
-              {/* NEW: Show estimate discount if applied */}
-              {formData.estimateDiscount > 0 && (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      Estimate Discount ({formData.estimateDiscount}%):
-                    </span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      -{(totals.estimateDiscountAmount || 0).toFixed(2)} {formData.currency}
-                    </span>
-                  </div>
-                  <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      Subtotal after estimate discount:
-                    </span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {(totals.subtotalAfterEstimateDiscount || 0).toFixed(2)} {formData.currency}
-                    </span>
-                  </div>
-                </>
-              )}
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Total VAT:</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {(totals.totalVat || 0).toFixed(2)} {formData.currency}
-                </span>
-              </div>
-              <div className="flex justify-between text-lg font-semibold border-t border-gray-200 dark:border-gray-800 pt-2">
-                <span>Total:</span>
-                <span>
-                  {(totals.total || 0).toFixed(2)} {formData.currency}
-                </span>
-              </div>
-            </div>
+            </DetailSection>
           </Card>
         )}
 
         {/* Notes */}
         <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">
-            Notes
-          </Heading>
-          <div>
-            <Label htmlFor="estimate-notes" className="mb-1">
-              Additional Notes
-            </Label>
-            <Textarea
-              id="estimate-notes"
-              value={formData.notes}
-              onChange={(e) => updateField('notes', e.target.value)}
-              placeholder="Additional notes or terms..."
-              rows={4}
-              className="resize-vertical"
-            />
-          </div>
+          <DetailSection title="Notes" icon={StickyNote} iconPlugin="estimates">
+            <div>
+              <Label htmlFor="estimate-notes" className="mb-1">
+                Additional Notes
+              </Label>
+              <Textarea
+                id="estimate-notes"
+                value={formData.notes}
+                onChange={(e) => updateField('notes', e.target.value)}
+                placeholder="Additional notes or terms..."
+                rows={4}
+                className="resize-vertical"
+              />
+            </div>
+          </DetailSection>
         </Card>
       </form>
 

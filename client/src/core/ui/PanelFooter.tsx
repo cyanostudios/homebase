@@ -60,6 +60,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
         icon: React.ComponentType<{ className?: string }>;
         onClick: (item: any) => void;
         className?: string;
+        disabled?: boolean;
       }>
     | undefined;
   const hasDetailFooterActions = Boolean(
@@ -152,6 +153,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
                   variant="ghost"
                   size="sm"
                   icon={Icon}
+                  disabled={action.disabled}
                   className={action.className ?? 'h-7 text-[10px] px-2'}
                 >
                   {action.label}
@@ -194,7 +196,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
           >
             Edit
           </Button>
-          {currentPlugin?.name === 'tasks' &&
+          {(currentPlugin?.name === 'tasks' || currentPlugin?.name === 'estimates') &&
             typeof (currentPluginContext as any)?.hasQuickEditChanges === 'boolean' &&
             (currentPluginContext as any).hasQuickEditChanges && (
               <Button
@@ -282,7 +284,9 @@ export const createPanelFooter = (
   const baseClose = handlers.getCloseHandler();
   const onClosePanel =
     typeof currentPluginContext?.getCloseHandler === 'function' &&
-    (handlers.currentPlugin?.name === 'tasks' || handlers.currentPlugin?.name === 'contacts')
+    (handlers.currentPlugin?.name === 'tasks' ||
+      handlers.currentPlugin?.name === 'contacts' ||
+      handlers.currentPlugin?.name === 'estimates')
       ? currentPluginContext.getCloseHandler(baseClose)
       : baseClose;
 

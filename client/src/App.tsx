@@ -454,6 +454,9 @@ function AppContent() {
                   if (typeof currentPluginContext.setRecentlyDuplicatedTaskId === 'function') {
                     currentPluginContext.setRecentlyDuplicatedTaskId(highlightId);
                   }
+                  if (typeof currentPluginContext.setRecentlyDuplicatedEstimateId === 'function') {
+                    currentPluginContext.setRecentlyDuplicatedEstimateId(highlightId);
+                  }
                 }
                 setShowDuplicateDialog(false);
               })
@@ -628,3 +631,10 @@ function App() {
 }
 
 export default App;
+
+// Root component: accept HMR but force full reload to avoid "Failed to reload App.tsx"
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    import.meta.hot?.invalidate();
+  });
+}

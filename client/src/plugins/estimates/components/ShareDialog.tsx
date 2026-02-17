@@ -1,4 +1,4 @@
-import { Share, Copy, Check, X } from 'lucide-react';
+import { Share, Copy, Check, X, ExternalLink } from 'lucide-react';
 import React from 'react';
 
 import {
@@ -29,6 +29,12 @@ export function ShareDialog({ isOpen, onClose, shareUrl, estimateNumber }: Share
     }
   };
 
+  const handleView = () => {
+    if (shareUrl) {
+      window.open(shareUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent className="sm:max-w-lg">
@@ -43,42 +49,43 @@ export function ShareDialog({ isOpen, onClose, shareUrl, estimateNumber }: Share
         </AlertDialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Anyone with this link can view estimate{' '}
-              <span className="font-medium text-gray-900 dark:text-gray-100">{estimateNumber}</span>
-              .
-            </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Anyone with this link can view estimate{' '}
+            <span className="font-medium text-gray-900 dark:text-gray-100">{estimateNumber}</span>.
+          </p>
+
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+            <p className="text-sm font-mono break-all select-all text-foreground">{shareUrl}</p>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <div className="grid flex-1 gap-2">
-              <label htmlFor="share-url" className="sr-only">
-                Share URL
-              </label>
-              <div className="flex items-center rounded-md border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-2">
-                <p className="text-sm font-mono break-all select-all text-gray-700 dark:text-gray-300">
-                  {shareUrl}
-                </p>
-              </div>
-            </div>
+          <div className="flex gap-2">
             <Button
+              variant="secondary"
               size="sm"
-              className="px-3"
+              icon={copied ? Check : Copy}
               onClick={handleCopy}
-              variant={copied ? 'secondary' : 'default'}
+              className={`h-7 text-[10px] px-2 ${copied ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' : ''}`}
             >
-              <span className="sr-only">Copy</span>
-              {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-              <span className="ml-2">{copied ? 'Copied' : 'Copy'}</span>
+              {copied ? 'Copied' : 'Copy'}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={ExternalLink}
+              onClick={handleView}
+              className="h-7 text-[10px] px-2"
+            >
+              View
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onClose}
+              className="h-7 text-[10px] px-2"
+            >
+              Close
             </Button>
           </div>
-        </div>
-
-        <div className="flex justify-end pt-2">
-          <Button variant="secondary" onClick={onClose}>
-            Close
-          </Button>
         </div>
       </AlertDialogContent>
     </AlertDialog>

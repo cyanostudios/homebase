@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 interface DetailPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  title: string | React.ReactNode;
   subtitle?: string | React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -52,10 +52,11 @@ export function DetailPanel({
       return;
     }
 
+    const titleKey = typeof title === 'string' ? title : '[node]';
     const justOpened = !previousOpenRef.current;
-    const titleChanged = previousTitleRef.current !== title;
+    const titleChanged = previousTitleRef.current !== titleKey;
     previousOpenRef.current = true;
-    previousTitleRef.current = title;
+    previousTitleRef.current = titleKey;
 
     if (!justOpened && !titleChanged) {
       return;
@@ -114,9 +115,13 @@ export function DetailPanel({
       {/* Fixed Header */}
       <div className="flex items-center justify-between py-4 px-6 flex-shrink-0">
         <div className="flex flex-1 items-center gap-4 min-w-0 mr-4">
-          <h2 className="text-lg font-semibold tracking-tight truncate shrink-0">
-            {title.length > 70 ? `${title.substring(0, 70)}...` : title}
-          </h2>
+          {typeof title === 'string' ? (
+            <h2 className="text-lg font-semibold tracking-tight truncate shrink-0">
+              {title.length > 70 ? `${title.substring(0, 70)}...` : title}
+            </h2>
+          ) : (
+            <div className="text-lg font-semibold tracking-tight shrink-0 min-w-0">{title}</div>
+          )}
           {subtitle && (
             <div className="text-sm text-muted-foreground flex-1 min-w-0">
               {typeof subtitle === 'string' ? <p className="truncate">{subtitle}</p> : subtitle}

@@ -1,3 +1,4 @@
+import { Download, ExternalLink, Share } from 'lucide-react';
 import React, {
   createContext,
   useContext,
@@ -5,6 +6,7 @@ import React, {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
   ReactNode,
 } from 'react';
 
@@ -16,9 +18,14 @@ import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 
-import { estimatesApi } from '../api/estimatesApi';
+import { estimateShareApi, estimatesApi } from '../api/estimatesApi';
 import { PublicRouteHandler } from '../components/PublicRouteHandler';
-import { Estimate, ValidationError, calculateEstimateTotals } from '../types/estimate';
+import {
+  Estimate,
+  EstimateShare,
+  ValidationError,
+  calculateEstimateTotals,
+} from '../types/estimate';
 
 interface EstimateContextType {
   // Panel State
@@ -41,7 +48,16 @@ interface EstimateContextType {
   ) => Promise<{ success: boolean; message?: string }>;
   deleteEstimate: (id: string) => Promise<void>;
   deleteEstimates: (ids: string[]) => Promise<void>;
-  duplicateEstimate: (estimate: Estimate) => Promise<void>;
+  duplicateEstimate: (estimate: Estimate) => Promise<Estimate | null>;
+  getDuplicateConfig: (
+    item: Estimate | null,
+  ) => { defaultName: string; nameLabel: string; confirmOnly: boolean } | null;
+  executeDuplicate: (
+    item: Estimate,
+    newName: string,
+  ) => Promise<{ closePanel: () => void; highlightId?: string }>;
+  recentlyDuplicatedEstimateId: string | null;
+  setRecentlyDuplicatedEstimateId: (id: string | null) => void;
   clearValidationErrors: () => void;
   // Bulk selection
   selectedEstimateIds: string[];
@@ -60,6 +76,43 @@ interface EstimateContextType {
   ) => any;
   getPanelSubtitle: (mode: string, item: Estimate | null) => any;
   getDeleteMessage: (item: Estimate | null) => string;
+
+  // Footer actions (view mode) + share state for view UI
+  detailFooterActions: Array<{
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    onClick: (item: Estimate) => void;
+    className?: string;
+    disabled?: boolean;
+  }>;
+  estimateShareExistingShare: EstimateShare | null;
+  estimateShareShowDialog: boolean;
+  setEstimateShareShowDialog: (show: boolean) => void;
+  estimateShareShowExpiredModal: boolean;
+  setEstimateShareShowExpiredModal: (show: boolean) => void;
+  estimateShareIsDownloadingPdf: boolean;
+  estimateShareIsCreatingShare: boolean;
+  handleEstimateCopyShareUrl: () => void;
+  handleEstimateRevokeShare: () => void;
+
+  // Quick-edit status in view mode (draft until "Update" is clicked, like tasks)
+  quickEditDraft: Partial<{ status: string }> | null;
+  setQuickEditField: (field: 'status', value: string) => void;
+  hasQuickEditChanges: boolean;
+  onApplyQuickEdit: () => Promise<void>;
+  showDiscardQuickEditDialog: boolean;
+  setShowDiscardQuickEditDialog: (show: boolean) => void;
+  getCloseHandler: (defaultClose: () => void) => () => void;
+  onDiscardQuickEditAndClose: () => void;
+  // Status modals when applying quick edit (sent confirmation / reason modal)
+  estimateQuickEditShowStatusModal: boolean;
+  estimateQuickEditShowSentConfirmation: boolean;
+  estimateQuickEditPendingStatus: 'accepted' | 'rejected' | null;
+  handleEstimateQuickEditSentConfirm: () => void;
+  handleEstimateQuickEditSentCancel: () => void;
+  handleEstimateQuickEditModalConfirm: (reasons: string[]) => void;
+  handleEstimateQuickEditModalCancel: () => void;
 }
 
 const EstimateContext = createContext<EstimateContextType | undefined>(undefined);
@@ -86,6 +139,21 @@ export function EstimateProvider({
 
   // Data state
   const [estimates, setEstimates] = useState<Estimate[]>([]);
+  const [recentlyDuplicatedEstimateId, setRecentlyDuplicatedEstimateId] = useState<string | null>(
+    null,
+  );
+
+  // Quick-edit status draft (view mode)
+  const [quickEditDraft, setQuickEditDraft] = useState<Partial<{ status: string }> | null>(null);
+  const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
+  const pendingCloseRef = useRef<(() => void) | null>(null);
+  // Status modals when applying quick edit
+  const [estimateQuickEditShowStatusModal, setEstimateQuickEditShowStatusModal] = useState(false);
+  const [estimateQuickEditShowSentConfirmation, setEstimateQuickEditShowSentConfirmation] =
+    useState(false);
+  const [estimateQuickEditPendingStatus, setEstimateQuickEditPendingStatus] = useState<
+    'accepted' | 'rejected' | null
+  >(null);
 
   // Use core bulk selection hook
   const {
@@ -148,7 +216,7 @@ export function EstimateProvider({
   };
 
   // ---- FIXED: robust parsing for both string and { estimateNumber } ----
-  const generateNextEstimateNumber = async (): Promise<string> => {
+  const generateNextEstimateNumber = useCallback(async (): Promise<string> => {
     try {
       const raw: unknown = await estimatesApi.getNextEstimateNumber();
 
@@ -171,7 +239,7 @@ export function EstimateProvider({
       console.error('Failed to generate estimate number:', error);
       return `EST-${Date.now()}`;
     }
-  };
+  }, []);
 
   // ---- VALIDATION kept in module scope so it's always in scope where used ----
   const validateEstimate = (estimateData: any): ValidationError[] => {
@@ -195,6 +263,8 @@ export function EstimateProvider({
   // CRUD (clear bulk selection when opening panel)
   const openEstimatePanel = (estimate: Estimate | null) => {
     clearEstimateSelectionCore();
+    setRecentlyDuplicatedEstimateId(null);
+    setQuickEditDraft(null);
     setCurrentEstimate(estimate);
     setPanelMode(estimate ? 'edit' : 'create');
     setIsEstimatePanelOpen(true);
@@ -204,6 +274,8 @@ export function EstimateProvider({
 
   const openEstimateForEdit = (estimate: Estimate) => {
     clearEstimateSelectionCore();
+    setRecentlyDuplicatedEstimateId(null);
+    setQuickEditDraft(null);
     setCurrentEstimate(estimate);
     setPanelMode('edit');
     setIsEstimatePanelOpen(true);
@@ -213,6 +285,8 @@ export function EstimateProvider({
 
   const openEstimateForView = useCallback(
     (estimate: Estimate) => {
+      setRecentlyDuplicatedEstimateId(null);
+      setQuickEditDraft(null);
       setCurrentEstimate(estimate);
       setPanelMode('view');
       setIsEstimatePanelOpen(true);
@@ -236,104 +310,108 @@ export function EstimateProvider({
     return () => registerEstimatesNavigation(null);
   }, [registerEstimatesNavigation, openEstimateForViewBridge]);
 
-  const closeEstimatePanel = () => {
+  const closeEstimatePanel = useCallback(() => {
     setIsEstimatePanelOpen(false);
     setCurrentEstimate(null);
     setPanelMode('create');
     setValidationErrors([]);
-  };
+    setQuickEditDraft(null);
+  }, []);
 
   const clearValidationErrors = () => setValidationErrors([]);
 
-  const saveEstimate = async (
-    estimateData: any,
-    estimateId?: string,
-  ): Promise<{ success: boolean; message?: string }> => {
-    // When estimateId is provided we're updating an existing estimate (e.g. quick action status change).
-    // Skip create-style validation so we don't block on contact/validTo/lineItems.
-    if (!estimateId) {
-      const errors = validateEstimate(estimateData);
-      setValidationErrors(errors);
-      if (errors.length > 0) {
-        const message = errors.map((e) => e.message).join('. ');
-        return { success: false, message };
+  const saveEstimate = useCallback(
+    async (
+      estimateData: any,
+      estimateId?: string,
+    ): Promise<{ success: boolean; message?: string }> => {
+      // When estimateId is provided we're updating an existing estimate (e.g. quick action status change).
+      // Skip create-style validation so we don't block on contact/validTo/lineItems.
+      if (!estimateId) {
+        const errors = validateEstimate(estimateData);
+        setValidationErrors(errors);
+        if (errors.length > 0) {
+          const message = errors.map((e) => e.message).join('. ');
+          return { success: false, message };
+        }
       }
-    }
 
-    try {
-      let saved: Estimate;
-      const idToUpdate = estimateId ?? currentEstimate?.id ?? null;
+      try {
+        let saved: Estimate;
+        const idToUpdate = estimateId ?? currentEstimate?.id ?? null;
 
-      if (idToUpdate) {
-        saved = await estimatesApi.updateEstimate(idToUpdate, estimateData);
-        setEstimates((prev) =>
-          prev.map((e) =>
-            e.id === idToUpdate
-              ? {
-                  ...saved,
-                  validTo: new Date(saved.validTo),
-                  createdAt: new Date(saved.createdAt),
-                  updatedAt: new Date(saved.updatedAt),
-                }
-              : e,
-          ),
-        );
-        if (currentEstimate?.id === idToUpdate) {
-          setCurrentEstimate({
-            ...saved,
-            validTo: new Date(saved.validTo),
-            createdAt: new Date(saved.createdAt),
-            updatedAt: new Date(saved.updatedAt),
+        if (idToUpdate) {
+          saved = await estimatesApi.updateEstimate(idToUpdate, estimateData);
+          setEstimates((prev) =>
+            prev.map((e) =>
+              e.id === idToUpdate
+                ? {
+                    ...saved,
+                    validTo: new Date(saved.validTo),
+                    createdAt: new Date(saved.createdAt),
+                    updatedAt: new Date(saved.updatedAt),
+                  }
+                : e,
+            ),
+          );
+          if (currentEstimate?.id === idToUpdate) {
+            setCurrentEstimate({
+              ...saved,
+              validTo: new Date(saved.validTo),
+              createdAt: new Date(saved.createdAt),
+              updatedAt: new Date(saved.updatedAt),
+            });
+          }
+          setPanelMode('view');
+          setValidationErrors([]);
+        } else {
+          saved = await estimatesApi.createEstimate(estimateData);
+          setEstimates((prev) => [
+            ...prev,
+            {
+              ...saved,
+              validTo: new Date(saved.validTo),
+              createdAt: new Date(saved.createdAt),
+              updatedAt: new Date(saved.updatedAt),
+            },
+          ]);
+          closeEstimatePanel();
+        }
+
+        return { success: true };
+      } catch (error: any) {
+        console.error('API Error when saving estimate:', error);
+
+        // V2: Handle standardized error format from backend
+        const validationErrors: ValidationError[] = [];
+
+        // Check if backend returned validation errors in details array
+        if (error?.details && Array.isArray(error.details)) {
+          error.details.forEach((detail: any) => {
+            if (typeof detail === 'string') {
+              validationErrors.push({ field: 'general', message: detail });
+            } else if (detail?.field && detail?.message) {
+              validationErrors.push({ field: detail.field, message: detail.message });
+            } else if (detail?.msg) {
+              validationErrors.push({ field: detail.param || 'general', message: detail.msg });
+            }
           });
         }
-        setPanelMode('view');
-        setValidationErrors([]);
-      } else {
-        saved = await estimatesApi.createEstimate(estimateData);
-        setEstimates((prev) => [
-          ...prev,
-          {
-            ...saved,
-            validTo: new Date(saved.validTo),
-            createdAt: new Date(saved.createdAt),
-            updatedAt: new Date(saved.updatedAt),
-          },
-        ]);
-        closeEstimatePanel();
+
+        // If no validation errors from backend, use error message
+        if (validationErrors.length === 0) {
+          const errorMessage =
+            error?.message || error?.error || 'Failed to save estimate. Please try again.';
+          validationErrors.push({ field: 'general', message: errorMessage });
+        }
+
+        setValidationErrors(validationErrors);
+        const message = validationErrors.map((e) => e.message).join('. ');
+        return { success: false, message };
       }
-
-      return { success: true };
-    } catch (error: any) {
-      console.error('API Error when saving estimate:', error);
-
-      // V2: Handle standardized error format from backend
-      const validationErrors: ValidationError[] = [];
-
-      // Check if backend returned validation errors in details array
-      if (error?.details && Array.isArray(error.details)) {
-        error.details.forEach((detail: any) => {
-          if (typeof detail === 'string') {
-            validationErrors.push({ field: 'general', message: detail });
-          } else if (detail?.field && detail?.message) {
-            validationErrors.push({ field: detail.field, message: detail.message });
-          } else if (detail?.msg) {
-            validationErrors.push({ field: detail.param || 'general', message: detail.msg });
-          }
-        });
-      }
-
-      // If no validation errors from backend, use error message
-      if (validationErrors.length === 0) {
-        const errorMessage =
-          error?.message || error?.error || 'Failed to save estimate. Please try again.';
-        validationErrors.push({ field: 'general', message: errorMessage });
-      }
-
-      setValidationErrors(validationErrors);
-      const message = validationErrors.map((e) => e.message).join('. ');
-      return { success: false, message };
-    }
-  };
+    },
+    [currentEstimate, closeEstimatePanel],
+  );
 
   const deleteEstimate = async (id: string) => {
     try {
@@ -373,43 +451,327 @@ export function EstimateProvider({
     }
   };
 
-  const duplicateEstimate = async (original: Estimate) => {
-    try {
-      const estimateNumber = await generateNextEstimateNumber();
+  const duplicateEstimate = useCallback(
+    async (original: Estimate): Promise<Estimate | null> => {
+      try {
+        const estimateNumber = await generateNextEstimateNumber();
 
-      const duplicateData: any = {
-        ...original,
-        estimateNumber,
-        status: 'draft' as const,
-        validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        lineItems: original.lineItems.map((item) => ({
-          ...item,
-          id: `${Date.now()}-${Math.random()}`,
-        })),
-      };
+        const duplicateData: any = {
+          ...original,
+          estimateNumber,
+          status: 'draft' as const,
+          validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          lineItems: original.lineItems.map((item) => ({
+            ...item,
+            id: `${Date.now()}-${Math.random()}`,
+          })),
+        };
 
-      delete duplicateData.id;
-      delete duplicateData.createdAt;
-      delete duplicateData.updatedAt;
+        delete duplicateData.id;
+        delete duplicateData.createdAt;
+        delete duplicateData.updatedAt;
 
-      const saved = await estimatesApi.createEstimate(duplicateData);
-      setEstimates((prev) => [
-        ...prev,
-        {
+        const saved = await estimatesApi.createEstimate(duplicateData);
+        const newEstimate = {
           ...saved,
           validTo: new Date(saved.validTo),
           createdAt: new Date(saved.createdAt),
           updatedAt: new Date(saved.updatedAt),
-        },
-      ]);
-    } catch (error: any) {
-      console.error('Failed to duplicate estimate:', error);
-      // V2: Handle standardized error format
-      const errorMessage =
-        error?.message || error?.error || 'Failed to duplicate estimate. Please try again.';
-      alert(errorMessage);
+        };
+        setEstimates((prev) => [newEstimate, ...prev]);
+        return newEstimate;
+      } catch (error: any) {
+        console.error('Failed to duplicate estimate:', error);
+        const errorMessage =
+          error?.message || error?.error || 'Failed to duplicate estimate. Please try again.';
+        alert(errorMessage);
+        return null;
+      }
+    },
+    [generateNextEstimateNumber],
+  );
+
+  const getDuplicateConfig = useCallback((item: Estimate | null) => {
+    if (!item) {
+      return null;
     }
-  };
+    return {
+      defaultName: item.contactName ? `Copy of ${item.contactName}` : '',
+      nameLabel: 'Estimate',
+      confirmOnly: true,
+    };
+  }, []);
+
+  const executeDuplicate = useCallback(
+    async (
+      item: Estimate,
+      _newName: string,
+    ): Promise<{ closePanel: () => void; highlightId?: string }> => {
+      const newEstimate = await duplicateEstimate(item);
+      const highlightId = (newEstimate?.id ?? null) !== null ? String(newEstimate.id) : undefined;
+      return { closePanel: closeEstimatePanel, highlightId };
+    },
+    [duplicateEstimate, closeEstimatePanel],
+  );
+
+  // Share state (for view mode footer + share URL box in view)
+  const [estimateShareExistingShare, setEstimateShareExistingShare] =
+    useState<EstimateShare | null>(null);
+  const [estimateShareShowDialog, setEstimateShareShowDialog] = useState(false);
+  const [estimateShareShowExpiredModal, setEstimateShareShowExpiredModal] = useState(false);
+  const [estimateShareIsDownloadingPdf, setEstimateShareIsDownloadingPdf] = useState(false);
+  const [estimateShareIsCreatingShare, setEstimateShareIsCreatingShare] = useState(false);
+
+  useEffect(() => {
+    if (panelMode === 'view' && currentEstimate?.id) {
+      let cancelled = false;
+      estimateShareApi
+        .getShares(currentEstimate.id)
+        .then((shares) => {
+          if (cancelled) {
+            return;
+          }
+          const active = shares.find((s) => new Date(s.validUntil) > new Date());
+          setEstimateShareExistingShare(active || null);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setEstimateShareExistingShare(null);
+          }
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+    setEstimateShareExistingShare(null);
+  }, [panelMode, currentEstimate?.id]);
+
+  const handleDownloadPdf = useCallback(async (estimate: Estimate) => {
+    setEstimateShareIsDownloadingPdf(true);
+    try {
+      await estimatesApi.downloadPDF(estimate.id);
+    } catch (error) {
+      console.error('Failed to download PDF:', error);
+      alert('Failed to download PDF. Please try again.');
+    } finally {
+      setEstimateShareIsDownloadingPdf(false);
+    }
+  }, []);
+
+  const handleShareClick = useCallback(
+    async (estimate: Estimate) => {
+      if (new Date(estimate.validTo) <= new Date()) {
+        setEstimateShareShowExpiredModal(true);
+        return;
+      }
+      if (estimateShareExistingShare) {
+        setEstimateShareShowDialog(true);
+        return;
+      }
+      setEstimateShareIsCreatingShare(true);
+      try {
+        const share = await estimateShareApi.createShare({
+          estimateId: estimate.id,
+          validUntil: estimate.validTo,
+        });
+        setEstimateShareExistingShare(share);
+        setEstimateShareShowDialog(true);
+      } catch (error) {
+        console.error('Failed to create share:', error);
+        alert(error instanceof Error ? error.message : 'Failed to create share link');
+      } finally {
+        setEstimateShareIsCreatingShare(false);
+      }
+    },
+    [estimateShareExistingShare],
+  );
+
+  const handleEstimateCopyShareUrl = useCallback(() => {
+    if (!estimateShareExistingShare) {
+      return;
+    }
+    const url = estimateShareApi.generateShareUrl(estimateShareExistingShare.shareToken);
+    navigator.clipboard.writeText(url).catch(() => {});
+  }, [estimateShareExistingShare]);
+
+  const handleEstimateRevokeShare = useCallback(async () => {
+    if (!estimateShareExistingShare) {
+      return;
+    }
+    try {
+      await estimateShareApi.revokeShare(estimateShareExistingShare.id);
+      setEstimateShareExistingShare(null);
+    } catch (error) {
+      console.error('Failed to revoke share:', error);
+      alert('Failed to revoke share link');
+    }
+  }, [estimateShareExistingShare]);
+
+  // ---- Quick-edit status (view mode): draft until "Update" is clicked ----
+  const setQuickEditField = useCallback((field: 'status', value: string) => {
+    setQuickEditDraft((prev) => (prev ? { ...prev, [field]: value } : { [field]: value }));
+  }, []);
+
+  const hasQuickEditChanges = Boolean(
+    currentEstimate &&
+      (quickEditDraft?.status ?? null) !== null &&
+      quickEditDraft.status !== currentEstimate.status,
+  );
+
+  const formatValidTo = useCallback((dateValue: any): string | null => {
+    if (dateValue === null || dateValue === undefined || dateValue === '') {
+      return null;
+    }
+    const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+    return date.toISOString().split('T')[0];
+  }, []);
+
+  const performStatusChange = useCallback(
+    async (estimate: Estimate, newStatus: string, reasons: string[] = []) => {
+      const validTo = formatValidTo(estimate.validTo);
+      const lineItems = estimate.lineItems ?? [];
+      const updatedData = {
+        contactId: estimate.contactId ?? null,
+        contactName: estimate.contactName ?? '',
+        organizationNumber: estimate.organizationNumber ?? '',
+        currency: estimate.currency ?? 'SEK',
+        lineItems,
+        estimateDiscount: estimate.estimateDiscount ?? 0,
+        notes: estimate.notes ?? '',
+        validTo,
+        status: newStatus,
+        acceptanceReasons: newStatus === 'accepted' ? reasons : (estimate.acceptanceReasons ?? []),
+        rejectionReasons: newStatus === 'rejected' ? reasons : (estimate.rejectionReasons ?? []),
+      };
+      const result = await saveEstimate(updatedData, estimate.id);
+      if (!result.success) {
+        alert(result.message ?? 'Failed to update status. Please try again.');
+      }
+    },
+    [formatValidTo, saveEstimate],
+  );
+
+  const onApplyQuickEdit = useCallback(async () => {
+    if (!currentEstimate || !quickEditDraft?.status) {
+      return;
+    }
+    const draftStatus = quickEditDraft.status;
+
+    if (draftStatus === 'sent' && currentEstimate.status !== 'sent') {
+      setEstimateQuickEditShowSentConfirmation(true);
+      return;
+    }
+    if (
+      (draftStatus === 'accepted' || draftStatus === 'rejected') &&
+      currentEstimate.status !== draftStatus
+    ) {
+      setEstimateQuickEditPendingStatus(draftStatus);
+      setEstimateQuickEditShowStatusModal(true);
+      return;
+    }
+
+    await performStatusChange(currentEstimate, draftStatus, []);
+    setQuickEditDraft(null);
+  }, [currentEstimate, quickEditDraft?.status, performStatusChange]);
+
+  const getCloseHandler = useCallback(
+    (defaultClose: () => void) => {
+      return () => {
+        if (hasQuickEditChanges) {
+          pendingCloseRef.current = defaultClose;
+          setShowDiscardQuickEditDialog(true);
+        } else {
+          defaultClose();
+        }
+      };
+    },
+    [hasQuickEditChanges],
+  );
+
+  const onDiscardQuickEditAndClose = useCallback(() => {
+    setQuickEditDraft(null);
+    setShowDiscardQuickEditDialog(false);
+  }, []);
+
+  const handleEstimateQuickEditSentConfirm = useCallback(async () => {
+    if (!currentEstimate) {
+      return;
+    }
+    await performStatusChange(currentEstimate, 'sent', []);
+    setEstimateQuickEditShowSentConfirmation(false);
+    setQuickEditDraft(null);
+  }, [currentEstimate, performStatusChange]);
+
+  const handleEstimateQuickEditSentCancel = useCallback(() => {
+    setEstimateQuickEditShowSentConfirmation(false);
+  }, []);
+
+  const handleEstimateQuickEditModalConfirm = useCallback(
+    async (reasons: string[]) => {
+      if (!currentEstimate || !estimateQuickEditPendingStatus) {
+        return;
+      }
+      await performStatusChange(currentEstimate, estimateQuickEditPendingStatus, reasons);
+      setEstimateQuickEditShowStatusModal(false);
+      setEstimateQuickEditPendingStatus(null);
+      setQuickEditDraft(null);
+    },
+    [currentEstimate, estimateQuickEditPendingStatus, performStatusChange],
+  );
+
+  const handleEstimateQuickEditModalCancel = useCallback(() => {
+    setEstimateQuickEditShowStatusModal(false);
+    setEstimateQuickEditPendingStatus(null);
+  }, []);
+
+  const detailFooterActions = useMemo(() => {
+    if (panelMode !== 'view' || !currentEstimate) {
+      return [];
+    }
+    const hasActiveShare =
+      estimateShareExistingShare && new Date(estimateShareExistingShare.validUntil) > new Date();
+    const actions = [
+      {
+        id: 'download-pdf',
+        label: estimateShareIsDownloadingPdf ? 'Generating PDF…' : 'Download PDF',
+        icon: Download,
+        onClick: (item: Estimate) => handleDownloadPdf(item),
+        className: 'h-7 text-[10px] px-2',
+        disabled: estimateShareIsDownloadingPdf,
+      },
+    ];
+    if (hasActiveShare && estimateShareExistingShare) {
+      const shareUrl = estimateShareApi.generateShareUrl(estimateShareExistingShare.shareToken);
+      actions.push({
+        id: 'view-share',
+        label: 'View',
+        icon: ExternalLink,
+        onClick: () => window.open(shareUrl, '_blank', 'noopener,noreferrer'),
+        className: 'h-7 text-[10px] px-2',
+      });
+    } else {
+      actions.push({
+        id: 'share',
+        label: estimateShareIsCreatingShare ? 'Creating Share…' : 'Share estimate',
+        icon: Share,
+        onClick: (item: Estimate) => handleShareClick(item),
+        className: 'h-7 text-[10px] px-2',
+        disabled: estimateShareIsCreatingShare,
+      });
+    }
+    return actions;
+  }, [
+    panelMode,
+    currentEstimate,
+    estimateShareIsDownloadingPdf,
+    estimateShareIsCreatingShare,
+    estimateShareExistingShare,
+    handleDownloadPdf,
+    handleShareClick,
+  ]);
 
   // Titles / subtitles
   const getPanelTitle = (
@@ -535,6 +897,10 @@ export function EstimateProvider({
     deleteEstimate,
     deleteEstimates,
     duplicateEstimate,
+    getDuplicateConfig,
+    executeDuplicate,
+    recentlyDuplicatedEstimateId,
+    setRecentlyDuplicatedEstimateId,
     clearValidationErrors,
 
     // Bulk selection
@@ -548,6 +914,33 @@ export function EstimateProvider({
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
+
+    detailFooterActions,
+    estimateShareExistingShare,
+    estimateShareShowDialog,
+    setEstimateShareShowDialog,
+    estimateShareShowExpiredModal,
+    setEstimateShareShowExpiredModal,
+    estimateShareIsDownloadingPdf,
+    estimateShareIsCreatingShare,
+    handleEstimateCopyShareUrl,
+    handleEstimateRevokeShare,
+
+    quickEditDraft,
+    setQuickEditField,
+    hasQuickEditChanges,
+    onApplyQuickEdit,
+    showDiscardQuickEditDialog,
+    setShowDiscardQuickEditDialog,
+    getCloseHandler,
+    onDiscardQuickEditAndClose,
+    estimateQuickEditShowStatusModal,
+    estimateQuickEditShowSentConfirmation,
+    estimateQuickEditPendingStatus,
+    handleEstimateQuickEditSentConfirm,
+    handleEstimateQuickEditSentCancel,
+    handleEstimateQuickEditModalConfirm,
+    handleEstimateQuickEditModalCancel,
   };
 
   return (

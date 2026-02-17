@@ -49,6 +49,31 @@ export const REJECTION_REASONS: StatusReason[] = [
   { id: 'terms_unacceptable', label: 'Terms and conditions unacceptable', category: 'rejected' },
 ];
 
+// Status display for dropdown
+export const ESTIMATE_STATUS_OPTIONS = ['draft', 'sent', 'accepted', 'rejected'] as const;
+
+export const ESTIMATE_STATUS_COLORS = {
+  draft: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
+  sent: 'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
+  accepted: 'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
+  rejected: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
+} as const;
+
+export function formatEstimateStatusForDisplay(status: string): string {
+  switch (status) {
+    case 'draft':
+      return 'Draft';
+    case 'sent':
+      return 'Sent';
+    case 'accepted':
+      return 'Accepted';
+    case 'rejected':
+      return 'Rejected';
+    default:
+      return status.charAt(0).toUpperCase() + status.slice(1);
+  }
+}
+
 export interface Estimate {
   id: string;
   estimateNumber: string; // "2025-001" format

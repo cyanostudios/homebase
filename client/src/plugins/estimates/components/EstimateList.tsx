@@ -7,7 +7,7 @@ import {
   Grid3x3,
   List as ListIcon,
 } from 'lucide-react';
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useApp } from '@/core/api/AppContext';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -49,22 +50,41 @@ export function EstimateList() {
     clearEstimateSelection,
     selectedCount,
     isSelected,
+    recentlyDuplicatedEstimateId,
   } = useEstimates();
+  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const { setHeaderTrailing } = useContentLayout();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    const saved = localStorage.getItem('homebase:estimates:viewMode');
-    return (saved as ViewMode) || 'list';
-  });
+  const [viewMode, setViewModeState] = useState<ViewMode>('list');
 
-  // Save viewMode to localStorage
+  const ESTIMATES_SETTINGS_KEY = 'estimates';
+
   useEffect(() => {
-    localStorage.setItem('homebase:estimates:viewMode', viewMode);
-  }, [viewMode]);
+    let cancelled = false;
+    getSettings(ESTIMATES_SETTINGS_KEY)
+      .then((settings: { viewMode?: ViewMode }) => {
+        if (cancelled) {
+          return;
+        }
+        setViewModeState(settings?.viewMode === 'grid' ? 'grid' : 'list');
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
+
+  const setViewMode = useCallback(
+    (mode: ViewMode) => {
+      setViewModeState(mode);
+      updateSettings(ESTIMATES_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
+    },
+    [updateSettings],
+  );
 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -284,7 +304,6 @@ export function EstimateList() {
     await exportToPDF(pdfData, filename, pdfHeaders, 'Estimates Export');
   };
 
-  // Set header trailing (search + view mode toggle) in ContentHeader
   useEffect(() => {
     setHeaderTrailing(
       <ContentToolbar
@@ -294,22 +313,22 @@ export function EstimateList() {
         rightActions={
           <div className="flex gap-2">
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
-              size="icon"
+              variant={viewMode === 'grid' ? 'default' : 'secondary'}
+              size="sm"
+              icon={Grid3x3}
               onClick={() => setViewMode('grid')}
-              className="h-9 w-9"
-              title="Grid view"
+              className="h-7 text-[10px] px-2"
             >
-              <Grid3x3 className="w-4 h-4" />
+              Grid
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="icon"
+              variant={viewMode === 'list' ? 'default' : 'secondary'}
+              size="sm"
+              icon={ListIcon}
               onClick={() => setViewMode('list')}
-              className="h-9 w-9"
-              title="List view"
+              className="h-7 text-[10px] px-2"
             >
-              <ListIcon className="w-4 h-4" />
+              List
             </Button>
           </div>
         }
@@ -373,6 +392,8 @@ export function EstimateList() {
                     estimateIsSelected
                       ? 'plugin-estimates bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
                       : 'hover:border-plugin-subtle hover:plugin-estimates hover:shadow-md',
+                    recentlyDuplicatedEstimateId === String(estimate.id) &&
+                      'bg-green-50 dark:bg-green-950/30',
                   )}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -439,7 +460,11 @@ export function EstimateList() {
                 return (
                   <Card
                     key={estimate.id}
-                    className="p-4 cursor-pointer hover:bg-accent transition-colors"
+                    className={cn(
+                      'p-4 cursor-pointer hover:bg-accent transition-colors',
+                      recentlyDuplicatedEstimateId === String(estimate.id) &&
+                        'bg-green-50 dark:bg-green-950/30',
+                    )}
                     onClick={(e) => {
                       if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                         return;
@@ -589,7 +614,11 @@ export function EstimateList() {
                   return (
                     <TableRow
                       key={estimate.id}
-                      className="cursor-pointer hover:bg-accent"
+                      className={cn(
+                        'cursor-pointer hover:bg-accent',
+                        recentlyDuplicatedEstimateId === String(estimate.id) &&
+                          'bg-green-50 dark:bg-green-950/30',
+                      )}
                       tabIndex={0}
                       data-list-item={JSON.stringify(estimate)}
                       data-plugin-name="estimates"

@@ -145,6 +145,7 @@ export function ContactProvider({
       const contactsData = await contactsApi.getContacts();
       const transformedContacts: Contact[] = contactsData.map((contact: any) => ({
         ...contact,
+        tags: Array.isArray(contact.tags) ? contact.tags : [],
         createdAt: new Date(contact.createdAt),
         updatedAt: new Date(contact.updatedAt),
       }));
@@ -367,14 +368,13 @@ export function ContactProvider({
       let saved: Contact;
 
       if (currentContact) {
-        // Update: always send existing tags when form doesn't include them, so they are never lost
+        // Update: send existing tags when form doesn't include them; never send tags: [] when we don't know current tags (would wipe DB)
         const updatePayload =
           typeof contactData.tags !== 'undefined'
             ? contactData
-            : {
-                ...contactData,
-                tags: Array.isArray(currentContact.tags) ? currentContact.tags : [],
-              };
+            : Array.isArray(currentContact.tags)
+              ? { ...contactData, tags: currentContact.tags }
+              : contactData; // omit tags so backend leaves column unchanged
         saved = await contactsApi.updateContact(currentContact.id, updatePayload);
         const normalized: Contact = {
           ...saved,
