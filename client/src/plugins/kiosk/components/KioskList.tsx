@@ -19,36 +19,36 @@ import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
-import { useMatches } from '../hooks/useMatches';
-import type { Match } from '../types/match';
+import { useKiosk } from '../hooks/useKiosk';
+import type { Slot } from '../types/kiosk';
 
-const MATCHES_SETTINGS_KEY = 'matches';
+const KIOSK_SETTINGS_KEY = 'kiosk';
 type ViewMode = 'grid' | 'list';
-type SortField = 'start_time' | 'home_team' | 'updatedAt';
+type SortField = 'slot_time' | 'location' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
-export function MatchList() {
+export function KioskList() {
   const {
-    matches,
-    openMatchPanel,
-    openMatchForView,
-    openMatchSettings,
-    deleteMatch: _deleteMatch,
-    deleteMatches,
-    selectedMatchIds,
-    toggleMatchSelected,
-    selectAllMatches,
-    clearMatchSelection,
+    slots,
+    openSlotPanel,
+    openSlotForView,
+    openSlotSettings,
+    deleteSlot: _deleteSlot,
+    deleteSlots,
+    selectedSlotIds,
+    toggleSlotSelected,
+    selectAllSlots,
+    clearSlotSelection,
     selectedCount,
     isSelected,
-    recentlyDuplicatedMatchId,
-  } = useMatches();
+    recentlyDuplicatedSlotId,
+  } = useKiosk();
   const { getSettings, updateSettings, settingsVersion } = useApp();
   const { setHeaderTrailing } = useContentLayout();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, _setSortField] = useState<SortField>('start_time');
+  const [sortField, _setSortField] = useState<SortField>('slot_time');
   const [sortOrder, _setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewModeState] = useState<ViewMode>('list');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -56,7 +56,7 @@ export function MatchList() {
 
   useEffect(() => {
     let cancelled = false;
-    getSettings(MATCHES_SETTINGS_KEY)
+    getSettings(KIOSK_SETTINGS_KEY)
       .then((settings: { viewMode?: ViewMode }) => {
         if (!cancelled) {
           setViewModeState(settings?.viewMode === 'grid' ? 'grid' : 'list');
@@ -71,37 +71,32 @@ export function MatchList() {
   const setViewMode = useCallback(
     (mode: ViewMode) => {
       setViewModeState(mode);
-      updateSettings(MATCHES_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
+      updateSettings(KIOSK_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
     },
     [updateSettings],
   );
 
   const filteredAndSorted = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
-    const filtered = matches.filter((m) => {
+    const filtered = slots.filter((s) => {
       if (!needle) {
         return true;
       }
-      return (
-        (m.home_team ?? '').toLowerCase().includes(needle) ||
-        (m.away_team ?? '').toLowerCase().includes(needle) ||
-        (m.location ?? '').toLowerCase().includes(needle) ||
-        (m.sport_type ?? '').toLowerCase().includes(needle)
-      );
+      return (s.location ?? '').toLowerCase().includes(needle);
     });
     return [...filtered].sort((a, b) => {
       let aVal: string | number;
       let bVal: string | number;
       switch (sortField) {
-        case 'start_time':
-          aVal = a.start_time ? new Date(a.start_time).getTime() : 0;
-          bVal = b.start_time ? new Date(b.start_time).getTime() : 0;
+        case 'slot_time':
+          aVal = a.slot_time ? new Date(a.slot_time).getTime() : 0;
+          bVal = b.slot_time ? new Date(b.slot_time).getTime() : 0;
           return sortOrder === 'asc'
             ? (aVal as number) - (bVal as number)
             : (bVal as number) - (aVal as number);
-        case 'home_team':
-          aVal = (a.home_team ?? '').toLowerCase();
-          bVal = (b.home_team ?? '').toLowerCase();
+        case 'location':
+          aVal = (a.location ?? '').toLowerCase();
+          bVal = (b.location ?? '').toLowerCase();
           break;
         case 'updatedAt':
           aVal = a.updated_at ? new Date(a.updated_at).getTime() : 0;
@@ -116,23 +111,23 @@ export function MatchList() {
       const cmp = String(aVal).localeCompare(String(bVal), undefined, { sensitivity: 'base' });
       return sortOrder === 'asc' ? cmp : -cmp;
     });
-  }, [matches, searchTerm, sortField, sortOrder]);
+  }, [slots, searchTerm, sortField, sortOrder]);
 
-  const handleOpenForView = (match: Match) => attemptNavigation(() => openMatchForView(match));
+  const handleOpenForView = (slot: Slot) => attemptNavigation(() => openSlotForView(slot));
 
   useEffect(() => {
     setHeaderTrailing(
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search by team, location..."
+        searchPlaceholder="Search by location..."
         rightActions={
           <div className="flex gap-2">
             <Button
               variant="secondary"
               size="sm"
               icon={Settings}
-              onClick={() => openMatchSettings()}
+              onClick={() => openSlotSettings()}
               className="h-7 text-[10px] px-2"
               title="Settings"
             >
@@ -167,31 +162,31 @@ export function MatchList() {
     viewMode,
     setViewMode,
     setHeaderTrailing,
-    openMatchSettings,
-    openMatchPanel,
+    openSlotSettings,
+    openSlotPanel,
     attemptNavigation,
   ]);
 
   const handleBulkDelete = useCallback(async () => {
     setDeleting(true);
     try {
-      await deleteMatches(selectedMatchIds);
+      await deleteSlots(selectedSlotIds);
       setShowBulkDeleteModal(false);
     } finally {
       setDeleting(false);
     }
-  }, [deleteMatches, selectedMatchIds]);
+  }, [deleteSlots, selectedSlotIds]);
 
   const formatDateTime = (s: string | null) =>
     s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 
   return (
-    <div className="space-y-4 plugin-matches">
+    <div className="space-y-4 plugin-kiosk">
       {selectedCount > 0 && (
         <BulkActionBar
           selectedCount={selectedCount}
-          onSelectAll={() => selectAllMatches(matches.map((m) => m.id))}
-          onClearSelection={clearMatchSelection}
+          onSelectAll={() => selectAllSlots(slots.map((s) => s.id))}
+          onClearSelection={clearSlotSelection}
           actions={[
             {
               id: 'bulk-delete',
@@ -208,7 +203,7 @@ export function MatchList() {
         isOpen={showBulkDeleteModal}
         onClose={() => setShowBulkDeleteModal(false)}
         onConfirm={handleBulkDelete}
-        itemLabel="matches"
+        itemLabel="slots"
         count={selectedCount}
         isDeleting={deleting}
       />
@@ -216,127 +211,114 @@ export function MatchList() {
       {filteredAndSorted.length === 0 ? (
         <Card className="shadow-none p-6 text-center text-muted-foreground">
           {searchTerm
-            ? 'No matches match your search.'
-            : 'No matches yet. Click "Add match" to add one.'}
+            ? 'No slots match your search.'
+            : 'No slots yet. Click "Add Slot" to add one.'}
         </Card>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredAndSorted.map((match) => {
-            const selected = isSelected(match.id);
+          {filteredAndSorted.map((slot) => {
+            const selected = isSelected(slot.id);
             return (
               <Card
-                key={match.id}
+                key={slot.id}
                 className={cn(
                   'relative p-5 cursor-pointer transition-all flex flex-col min-h-[140px] border-transparent bg-gray-50 dark:bg-gray-900/40',
                   selected
-                    ? 'plugin-matches bg-plugin-subtle ring-1 border-plugin-subtle'
-                    : 'hover:border-plugin-subtle hover:plugin-matches hover:shadow-md',
-                  recentlyDuplicatedMatchId === String(match.id) &&
+                    ? 'plugin-kiosk bg-plugin-subtle ring-1 border-plugin-subtle'
+                    : 'hover:border-plugin-subtle hover:plugin-kiosk hover:shadow-md',
+                  recentlyDuplicatedSlotId === String(slot.id) &&
                     'bg-green-50 dark:bg-green-950/30',
                 )}
                 onClick={(e) => {
                   if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                     return;
                   }
-                  handleOpenForView(match);
+                  handleOpenForView(slot);
                 }}
-                data-list-item={JSON.stringify(match)}
-                data-plugin-name="matches"
+                data-list-item={JSON.stringify(slot)}
+                data-plugin-name="kiosk"
                 role="button"
-                aria-label={`Open ${match.home_team} – ${match.away_team}`}
+                aria-label={`Open ${slot.location || 'Slot'} ${formatDateTime(slot.slot_time)}`}
               >
                 <div className="flex items-start justify-between mb-2">
                   <input
                     type="checkbox"
                     checked={selected}
-                    onChange={() => toggleMatchSelected(match.id)}
+                    onChange={() => toggleSlotSelected(slot.id)}
                     onClick={(e) => e.stopPropagation()}
                     className="cursor-pointer h-4 w-4"
                     aria-label={selected ? 'Deselect' : 'Select'}
                   />
                 </div>
-                <h3 className="font-semibold text-sm">
-                  {match.home_team} – {match.away_team}
-                </h3>
+                <h3 className="font-semibold text-sm">{slot.location || '—'}</h3>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {match.sport_type} · {match.format}
-                  {match.total_minutes !== null && match.total_minutes !== undefined
-                    ? ` · ${match.total_minutes} min`
-                    : ''}
+                  {formatDateTime(slot.slot_time)} · Capacity {slot.capacity}
                 </div>
-                {match.location && (
-                  <div className="text-xs text-muted-foreground truncate">{match.location}</div>
-                )}
+                <div className="text-[10px] text-muted-foreground mt-1">
+                  {slot.visible ? 'Visible' : 'Hidden'} · Notifications{' '}
+                  {slot.notifications_enabled ? 'on' : 'off'}
+                </div>
                 <div className="text-[10px] text-muted-foreground mt-auto pt-2">
-                  {formatDateTime(match.start_time)}
+                  {slot.updated_at ? new Date(slot.updated_at).toLocaleDateString('sv-SE') : '—'}
                 </div>
               </Card>
             );
           })}
         </div>
       ) : (
-        <Card className="shadow-none plugin-matches">
+        <Card className="shadow-none plugin-kiosk">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8"></TableHead>
-                <TableHead>Match</TableHead>
-                <TableHead>Sport · Format</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Time</TableHead>
+                <TableHead>Capacity</TableHead>
+                <TableHead>Visible</TableHead>
                 <TableHead className="text-right">Updated</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAndSorted.map((match) => (
+              {filteredAndSorted.map((slot) => (
                 <TableRow
-                  key={match.id}
+                  key={slot.id}
                   className={cn(
                     'cursor-pointer hover:bg-muted/50',
-                    isSelected(match.id) && 'bg-plugin-subtle',
-                    recentlyDuplicatedMatchId === String(match.id) &&
+                    isSelected(slot.id) && 'bg-plugin-subtle',
+                    recentlyDuplicatedSlotId === String(slot.id) &&
                       'bg-green-50 dark:bg-green-950/30',
                   )}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                       return;
                     }
-                    handleOpenForView(match);
+                    handleOpenForView(slot);
                   }}
-                  data-list-item={JSON.stringify(match)}
-                  data-plugin-name="matches"
+                  data-list-item={JSON.stringify(slot)}
+                  data-plugin-name="kiosk"
                   role="button"
-                  aria-label={`Open ${match.home_team} – ${match.away_team}`}
+                  aria-label={`Open ${slot.location || 'Slot'} ${formatDateTime(slot.slot_time)}`}
                 >
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
-                      checked={isSelected(match.id)}
-                      onChange={() => toggleMatchSelected(match.id)}
+                      checked={isSelected(slot.id)}
+                      onChange={() => toggleSlotSelected(slot.id)}
                       className="cursor-pointer h-4 w-4"
                     />
                   </TableCell>
                   <TableCell>
-                    <span className="font-medium">
-                      {match.home_team} – {match.away_team}
-                    </span>
+                    <span className="font-medium">{slot.location || '—'}</span>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {match.sport_type} · {match.format}
-                    {match.total_minutes !== null && match.total_minutes !== undefined
-                      ? ` · ${match.total_minutes} min`
-                      : ''}
+                    {formatDateTime(slot.slot_time)}
                   </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{slot.capacity}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {match.location || '—'}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {formatDateTime(match.start_time)}
+                    {slot.visible ? 'Yes' : 'No'}
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground text-xs">
-                    {match.updated_at
-                      ? new Date(match.updated_at).toLocaleDateString('sv-SE')
-                      : '—'}
+                    {slot.updated_at ? new Date(slot.updated_at).toLocaleDateString('sv-SE') : '—'}
                   </TableCell>
                 </TableRow>
               ))}

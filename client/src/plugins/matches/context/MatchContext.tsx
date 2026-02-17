@@ -7,6 +7,7 @@ import React, {
   ReactNode,
 } from 'react';
 
+import { usePluginActions } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
@@ -41,6 +42,24 @@ interface MatchContextType {
   getPanelTitle: (mode: string, item: Match | null) => React.ReactNode;
   getPanelSubtitle: (mode: string, item: Match | null) => React.ReactNode;
   getDeleteMessage: (item: Match | null) => string;
+
+  getDuplicateConfig: (
+    item: Match | null,
+  ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
+  executeDuplicate: (
+    item: Match,
+    newName: string,
+  ) => Promise<{ closePanel: () => void; highlightId?: string }>;
+  recentlyDuplicatedMatchId: string | null;
+  setRecentlyDuplicatedMatchId: (id: string | null) => void;
+
+  detailFooterActions?: Array<{
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    onClick: (item: Match) => void;
+    className?: string;
+  }>;
 }
 
 const MatchContext = createContext<MatchContextType | undefined>(undefined);
@@ -56,13 +75,17 @@ export function MatchProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: MatchProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, openToSlotDialog, user } =
+    useApp();
+  const pluginActions = usePluginActions('match');
+  const hasKioskPlugin = Boolean(user?.plugins?.includes('kiosk'));
 
   const [isMatchPanelOpen, setIsMatchPanelOpen] = useState(false);
   const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [recentlyDuplicatedMatchId, setRecentlyDuplicatedMatchId] = useState<string | null>(null);
 
   const {
     selectedIds: selectedMatchIds,
@@ -126,6 +149,7 @@ export function MatchProvider({
   const openMatchPanel = useCallback(
     (match: Match | null) => {
       clearMatchSelectionCore();
+      setRecentlyDuplicatedMatchId(null);
       setCurrentMatch(match);
       setPanelMode(match ? 'edit' : 'create');
       setIsMatchPanelOpen(true);
@@ -138,6 +162,7 @@ export function MatchProvider({
   const openMatchForEdit = useCallback(
     (match: Match) => {
       clearMatchSelectionCore();
+      setRecentlyDuplicatedMatchId(null);
       setCurrentMatch(match);
       setPanelMode('edit');
       setIsMatchPanelOpen(true);
@@ -149,6 +174,7 @@ export function MatchProvider({
 
   const openMatchForView = useCallback(
     (match: Match) => {
+      setRecentlyDuplicatedMatchId(null);
       setCurrentMatch(match);
       setPanelMode('view');
       setIsMatchPanelOpen(true);
@@ -160,6 +186,7 @@ export function MatchProvider({
 
   const openMatchSettings = useCallback(() => {
     clearMatchSelectionCore();
+    setRecentlyDuplicatedMatchId(null);
     setCurrentMatch(null);
     setPanelMode('settings');
     setIsMatchPanelOpen(true);
@@ -279,6 +306,52 @@ export function MatchProvider({
     return `Are you sure you want to delete the match ${item.home_team} – ${item.away_team}?`;
   }, []);
 
+  const getDuplicateConfig = useCallback((item: Match | null) => {
+    if (!item) {
+      return null;
+    }
+    return { defaultName: '', nameLabel: '', confirmOnly: true };
+  }, []);
+
+  const executeDuplicate = useCallback(
+    async (
+      item: Match,
+      _newName: string,
+    ): Promise<{ closePanel: () => void; highlightId?: string }> => {
+      const copy = {
+        home_team: item.home_team,
+        away_team: item.away_team,
+        location: item.location ?? '',
+        start_time: item.start_time,
+        sport_type: item.sport_type,
+        format: item.format,
+        total_minutes: item.total_minutes,
+      };
+      const newMatch = await matchesApi.createMatch(copy);
+      setMatches((prev) => [newMatch, ...prev]);
+      const highlightId =
+        newMatch?.id !== null && newMatch?.id !== undefined ? String(newMatch.id) : undefined;
+      return { closePanel: closeMatchPanel, highlightId };
+    },
+    [closeMatchPanel],
+  );
+
+  const detailFooterActions = pluginActions
+    .filter((action) => action.id !== 'create-slot-from-match' || hasKioskPlugin)
+    .map((action) => ({
+      id: action.id,
+      label: action.label,
+      icon: action.icon,
+      onClick:
+        action.id === 'create-slot-from-match' && openToSlotDialog
+          ? (match: Match) => openToSlotDialog(match)
+          : (action.onClick as (match: Match) => void),
+      className:
+        action.id === 'create-slot-from-match'
+          ? 'h-7 text-[10px] px-2 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30'
+          : 'h-7 text-[10px] px-2',
+    }));
+
   const value: MatchContextType = {
     isMatchPanelOpen,
     currentMatch,
@@ -303,6 +376,11 @@ export function MatchProvider({
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
+    getDuplicateConfig,
+    executeDuplicate,
+    recentlyDuplicatedMatchId,
+    setRecentlyDuplicatedMatchId,
+    detailFooterActions,
   };
 
   return <MatchContext.Provider value={value}>{children}</MatchContext.Provider>;

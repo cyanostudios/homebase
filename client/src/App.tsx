@@ -30,6 +30,7 @@ import {
   GlobalNavigationGuardProvider,
   useGlobalNavigationGuard,
 } from '@/hooks/useGlobalNavigationGuard';
+import { kioskApi } from '@/plugins/kiosk/api/kioskApi';
 
 // Dynamic Plugin Providers - scales infinitely without App.tsx changes
 function PluginProviders({ children }: { children: React.ReactNode }) {
@@ -113,7 +114,13 @@ function findCurrentPlugin(pluginContexts: any[]): any {
 
 // Main App Content
 function AppContent() {
-  const { isAuthenticated, isLoading, registerOpenToTaskDialog, closeOtherPanels } = useApp();
+  const {
+    isAuthenticated,
+    isLoading,
+    registerOpenToTaskDialog,
+    registerOpenToSlotDialog,
+    closeOtherPanels,
+  } = useApp();
   const { attemptNavigation, showWarning, confirmDiscard, cancelDiscard, warningMessage } =
     useGlobalNavigationGuard();
 
@@ -138,6 +145,13 @@ function AppContent() {
     title?: string;
     content?: string;
     mentions?: unknown[];
+  } | null>(null);
+  const [showToSlotDialog, setShowToSlotDialog] = useState(false);
+  const [matchForSlot, setMatchForSlot] = useState<{
+    home_team: string;
+    away_team: string;
+    location?: string | null;
+    start_time: string;
   } | null>(null);
 
   // Initialize currentPage from localStorage, default 'dashboard'
@@ -174,6 +188,15 @@ function AppContent() {
     });
     return () => registerOpenToTaskDialog(null);
   }, [registerOpenToTaskDialog]);
+
+  // Register "Create slot from match" dialog opener so MatchContext footer can open it
+  useEffect(() => {
+    registerOpenToSlotDialog((match) => {
+      setMatchForSlot(match);
+      setShowToSlotDialog(true);
+    });
+    return () => registerOpenToSlotDialog(null);
+  }, [registerOpenToSlotDialog]);
 
   // Auto-detect current plugin/item/mode
   const currentPlugin = findCurrentPlugin(pluginContexts);
@@ -449,6 +472,12 @@ function AppContent() {
                   if (typeof currentPluginContext.setRecentlyDuplicatedEstimateId === 'function') {
                     currentPluginContext.setRecentlyDuplicatedEstimateId(highlightId);
                   }
+                  if (typeof currentPluginContext.setRecentlyDuplicatedMatchId === 'function') {
+                    currentPluginContext.setRecentlyDuplicatedMatchId(highlightId);
+                  }
+                  if (typeof currentPluginContext.setRecentlyDuplicatedSlotId === 'function') {
+                    currentPluginContext.setRecentlyDuplicatedSlotId(highlightId);
+                  }
                 }
                 setShowDuplicateDialog(false);
               })
@@ -584,6 +613,66 @@ function AppContent() {
         onCancel={() => {
           setShowToTaskDialog(false);
           setNoteForTask(null);
+        }}
+      />
+
+      {/* Create slot from match – cross-plugin (matches → kiosk) */}
+      <DuplicateDialog
+        isOpen={showToSlotDialog}
+        title="Create slot from match"
+        nameLabel=""
+        confirmText="Create slot"
+        defaultName=""
+        confirmOnly={true}
+        onConfirm={() => {
+          if (!matchForSlot) {
+            setShowToSlotDialog(false);
+            setMatchForSlot(null);
+            return;
+          }
+          const matchEntry = pluginContexts.find(({ plugin }) => plugin.name === 'matches');
+          const kioskEntry = pluginContexts.find(({ plugin }) => plugin.name === 'kiosk');
+          const matchContext = matchEntry?.context;
+          const kioskContext = kioskEntry?.context;
+          const closeMatchPanel = matchContext?.closeMatchPanel;
+          const setRecentlyDuplicatedSlotId = kioskContext?.setRecentlyDuplicatedSlotId;
+          const locationStr = `${matchForSlot.home_team} – ${matchForSlot.away_team}${matchForSlot.location ? ` · ${matchForSlot.location}` : ''}`;
+          kioskApi
+            .createSlot({
+              location: locationStr,
+              slot_time: matchForSlot.start_time,
+              capacity: 1,
+              visible: true,
+              notifications_enabled: true,
+            })
+            .then(async (newSlot) => {
+              if (typeof closeMatchPanel === 'function') {
+                closeMatchPanel();
+              }
+              const refreshSlots = kioskContext?.refreshSlots;
+              if (typeof refreshSlots === 'function') {
+                await refreshSlots();
+              }
+              attemptNavigation(() => setCurrentPage('kiosk'));
+              if (newSlot?.id !== undefined && typeof setRecentlyDuplicatedSlotId === 'function') {
+                setRecentlyDuplicatedSlotId(String(newSlot.id));
+              }
+              setShowToSlotDialog(false);
+              setMatchForSlot(null);
+            })
+            .catch((err: unknown) => {
+              setShowToSlotDialog(false);
+              setMatchForSlot(null);
+              alert(
+                (err as { message?: string; error?: string })?.message ??
+                  (err as { message?: string; error?: string })?.error ??
+                  'Failed to create slot from match.',
+              );
+            });
+        }}
+        onCancel={() => {
+          setShowToSlotDialog(false);
+          setMatchForSlot(null);
         }}
       />
     </>

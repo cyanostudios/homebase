@@ -89,6 +89,26 @@ interface AppContextType {
   openToTaskDialog: ((note: Note) => void) | null;
   registerOpenToTaskDialog: (fn: ((note: Note) => void) | null) => void;
 
+  /** Open "Create slot from match" dialog (set by App so match detail footer can trigger it). */
+  openToSlotDialog:
+    | ((match: {
+        home_team: string;
+        away_team: string;
+        location?: string | null;
+        start_time: string;
+      }) => void)
+    | null;
+  registerOpenToSlotDialog: (
+    fn:
+      | ((match: {
+          home_team: string;
+          away_team: string;
+          location?: string | null;
+          start_time: string;
+        }) => void)
+      | null,
+  ) => void;
+
   // Close other panels function (typesafe across all registered plugins)
   closeOtherPanels: (except?: PluginNameUnion) => void;
 
@@ -229,6 +249,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const registerOpenToTaskDialog = useCallback((fn: ((note: Note) => void) | null) => {
     queueMicrotask(() => setOpenToTaskDialog(() => fn ?? null));
   }, []);
+
+  const [openToSlotDialog, setOpenToSlotDialog] = useState<
+    | ((match: {
+        home_team: string;
+        away_team: string;
+        location?: string | null;
+        start_time: string;
+      }) => void)
+    | null
+  >(null);
+  const registerOpenToSlotDialog = useCallback(
+    (
+      fn:
+        | ((match: {
+            home_team: string;
+            away_team: string;
+            location?: string | null;
+            start_time: string;
+          }) => void)
+        | null,
+    ) => {
+      queueMicrotask(() => setOpenToSlotDialog(() => fn ?? null));
+    },
+    [],
+  );
 
   useEffect(() => {
     checkAuth();
@@ -513,6 +558,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         openToTaskDialog,
         registerOpenToTaskDialog,
+        openToSlotDialog,
+        registerOpenToSlotDialog,
 
         closeOtherPanels,
         registerPanelCloseFunction,

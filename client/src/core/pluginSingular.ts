@@ -1,7 +1,7 @@
 // client/src/core/pluginSingular.ts
 // Shared singular form for plugin names (e.g. matches -> match) so core and plugins stay in sync.
 
-const IRREGULAR: Record<string, string> = { matches: 'match' };
+const IRREGULAR: Record<string, string> = { matches: 'match', kiosk: 'slot' };
 const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 
 export function getSingular(pluginName: string): string {

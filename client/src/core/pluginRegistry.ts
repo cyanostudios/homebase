@@ -5,6 +5,7 @@ import {
   Calculator,
   Files as FilesIcon,
   Mail,
+  Store,
   Trophy,
   LucideIcon,
 } from 'lucide-react';
@@ -85,6 +86,11 @@ import { InvoicesProvider } from '@/plugins/invoices/context/InvoicesContext';
 import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
 import { invoicesNavigation } from '@/plugins/invoices/navigation';
 // Notes
+import { KioskForm } from '@/plugins/kiosk/components/KioskForm';
+import { KioskList } from '@/plugins/kiosk/components/KioskList';
+import { KioskView } from '@/plugins/kiosk/components/KioskView';
+import { KioskProvider } from '@/plugins/kiosk/context/KioskContext';
+import { useKiosk } from '@/plugins/kiosk/hooks/useKiosk';
 import { MailList } from '@/plugins/mail/components/MailList';
 import { MailSettingsForm } from '@/plugins/mail/components/MailSettingsForm';
 import { MailProvider } from '@/plugins/mail/context/MailContext';
@@ -242,6 +248,24 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       order: 4,
     },
     displayPrefix: 'MAT',
+  },
+  {
+    name: 'kiosk',
+    Provider: KioskProvider,
+    hook: useKiosk,
+    panelKey: 'isKioskPanelOpen',
+    components: {
+      List: KioskList,
+      Form: KioskForm,
+      View: KioskView,
+    },
+    navigation: {
+      category: 'Main',
+      label: 'Kiosk',
+      icon: Store,
+      order: 5,
+    },
+    displayPrefix: 'KSK',
   },
   {
     name: 'mail',
