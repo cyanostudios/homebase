@@ -53,11 +53,12 @@ app.use(
   }),
 );
 app.use(compression());
+// CORS: allow frontend origin so login/session work when frontend and API are on different hosts
 app.use(
   cors({
     origin:
       process.env.NODE_ENV === 'production'
-        ? false
+        ? process.env.FRONTEND_URL || false
         : process.env.FRONTEND_URL || 'http://localhost:3001',
     credentials: true,
   }),
