@@ -39,6 +39,9 @@ export const createPanelRenderers = (
         currentItem: currentItem, // Fallback generic prop
         onSave: handleSave,
         onCancel: handleCancel,
+        ...(typeof currentPluginContext?.saveSlots === 'function'
+          ? { onSaveSlots: currentPluginContext.saveSlots }
+          : {}),
       };
 
       return <FormComponent {...formProps} />;

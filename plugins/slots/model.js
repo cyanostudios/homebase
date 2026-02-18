@@ -131,6 +131,82 @@ class KioskModel {
     }
   }
 
+  async batchCreate(req, slotsData) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.currentTenantUserId || req.session?.user?.id;
+      if (!userId) {
+        throw new AppError(
+          'User context required for batch create',
+          401,
+          AppError.CODES.UNAUTHORIZED,
+        );
+      }
+      if (!Array.isArray(slotsData) || slotsData.length === 0) {
+        throw new AppError(
+          'slots array is required and must not be empty',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+      if (slotsData.length > 50) {
+        throw new AppError(
+          'Too many slots (max 50 per request)',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+
+      const rows = await db.transaction(async (tx) => {
+        const inserted = [];
+        for (const slotData of slotsData) {
+          const cap = validateCapacity(slotData.capacity);
+          const location = (slotData.location || '').trim() || null;
+          const slot_time = slotData.slot_time || null;
+          if (!slot_time) {
+            throw new AppError(
+              'slot_time is required for each slot',
+              400,
+              AppError.CODES.VALIDATION_ERROR,
+            );
+          }
+          const visible = slotData.visible !== false && slotData.visible !== 'false';
+          const notifications_enabled =
+            slotData.notifications_enabled !== false && slotData.notifications_enabled !== 'false';
+          const contact_id = slotData.contact_id || null;
+          const mentions = JSON.stringify(
+            Array.isArray(slotData.mentions) ? slotData.mentions : [],
+          );
+
+          const sql = `INSERT INTO kiosk_slots (location, slot_time, capacity, visible, notifications_enabled, contact_id, mentions, user_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`;
+          const params = [
+            location,
+            slot_time,
+            cap,
+            visible,
+            notifications_enabled,
+            contact_id,
+            mentions,
+            userId,
+          ];
+          const res = await tx.query(sql, params);
+          if (res && res[0]) {
+            inserted.push(res[0]);
+          }
+        }
+        return inserted;
+      });
+
+      Logger.info('Kiosk slots batch created', { count: rows.length });
+      return rows.map((row) => this.transformRow(row));
+    } catch (error) {
+      Logger.error('Failed to batch create kiosk slots', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to batch create kiosk slots', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async bulkDelete(req, idsTextArray) {
     try {
       const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');

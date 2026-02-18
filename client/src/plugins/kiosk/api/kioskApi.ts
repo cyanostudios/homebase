@@ -122,6 +122,25 @@ class KioskApi {
     return rowToSlot(row);
   }
 
+  async createBatchSlots(
+    slots: Array<{
+      location?: string | null;
+      slot_time: string;
+      capacity?: number;
+      visible?: boolean;
+      notifications_enabled?: boolean;
+      contact_id?: string | null;
+      mentions?: KioskMention[];
+    }>,
+  ): Promise<Slot[]> {
+    const body = { slots };
+    const rows = await this.request('/slots/batch', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    return Array.isArray(rows) ? rows.map((row: Record<string, unknown>) => rowToSlot(row)) : [];
+  }
+
   async updateSlot(id: string, data: Partial<Slot>): Promise<Slot> {
     const body = {
       location: data.location ?? null,

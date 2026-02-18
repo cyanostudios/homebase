@@ -30,6 +30,7 @@ interface KioskContextType {
   openSlotSettings: () => void;
   closeSlotPanel: () => void;
   saveSlot: (data: Record<string, unknown>, slotId?: string) => Promise<boolean>;
+  saveSlots: (dataArray: Record<string, unknown>[]) => Promise<boolean>;
   deleteSlot: (id: string) => Promise<void>;
   deleteSlots: (ids: string[]) => Promise<void>;
   clearValidationErrors: () => void;
@@ -330,6 +331,39 @@ export function KioskProvider({
     [currentSlot, validateSlot, closeSlotPanel],
   );
 
+  const saveSlots = useCallback(
+    async (dataArray: Record<string, unknown>[]): Promise<boolean> => {
+      const errors: ValidationError[] = [];
+      for (let i = 0; i < dataArray.length; i++) {
+        const errs = validateSlot(dataArray[i]);
+        for (const e of errs) {
+          errors.push({ field: e.field, message: `Slot ${i + 1}: ${e.message}` });
+        }
+      }
+      if (errors.length > 0) {
+        setValidationErrors(errors);
+        return false;
+      }
+      try {
+        const created = await kioskApi.createBatchSlots(
+          dataArray as Parameters<typeof kioskApi.createBatchSlots>[0],
+        );
+        setSlots((prev) => [...created, ...prev]);
+        setValidationErrors([]);
+        closeSlotPanel();
+        return true;
+      } catch (error: unknown) {
+        const msg =
+          (error as { message?: string; error?: string })?.message ||
+          (error as { message?: string; error?: string })?.error ||
+          'Failed to create slots';
+        setValidationErrors([{ field: 'general', message: msg }]);
+        return false;
+      }
+    },
+    [validateSlot, closeSlotPanel],
+  );
+
   const onApplyQuickEdit = useCallback(async () => {
     if (!currentSlot) {
       return;
@@ -498,6 +532,7 @@ export function KioskProvider({
     openSlotSettings,
     closeSlotPanel,
     saveSlot,
+    saveSlots,
     deleteSlot,
     deleteSlots,
     clearValidationErrors,

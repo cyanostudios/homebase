@@ -22,6 +22,27 @@ function createKioskRoutes(controller, context) {
     (req, res) => controller.create(req, res),
   );
 
+  router.post(
+    '/batch',
+    gate,
+    (req, res, next) => {
+      if (!req.body || !Array.isArray(req.body.slots)) {
+        return res.status(400).json({
+          error: 'Request body must contain a slots array',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      if (req.body.slots.length > 50) {
+        return res.status(400).json({
+          error: 'Too many slots (max 50 per request)',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      next();
+    },
+    (req, res) => controller.batchCreate(req, res),
+  );
+
   router.put(
     '/:id',
     gate,

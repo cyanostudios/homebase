@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,23 @@ interface KioskFormState {
   notifications_enabled: boolean;
 }
 
+const DURATION_OPTIONS = [
+  { value: 15, label: '15 min' },
+  { value: 30, label: '30 min' },
+  { value: 45, label: '45 min' },
+  { value: 60, label: '1 hr' },
+  { value: 90, label: '1.5 hr' },
+  { value: 120, label: '2 hr' },
+];
+
+const GAP_OPTIONS = [
+  { value: 0, label: '0 min' },
+  { value: 15, label: '15 min' },
+  { value: 30, label: '30 min' },
+  { value: 45, label: '45 min' },
+  { value: 60, label: '1 hr' },
+];
+
 interface KioskFormProps {
   currentSlot?: {
     id: string;
@@ -44,6 +61,7 @@ interface KioskFormProps {
     mentions?: KioskMention[];
   } | null;
   onSave: (data: Record<string, unknown>) => Promise<boolean>;
+  onSaveSlots?: (dataArray: Record<string, unknown>[]) => Promise<boolean>;
   onCancel: () => void;
   isSubmitting?: boolean;
 }
@@ -64,6 +82,7 @@ function toDatetimeLocal(iso: string | null): string {
 export function KioskForm({
   currentSlot,
   onSave,
+  onSaveSlots,
   onCancel,
   isSubmitting: _isSubmitting = false,
 }: KioskFormProps) {
@@ -93,6 +112,11 @@ export function KioskForm({
   });
   /** Selected contact IDs for this slot (multiple contacts). */
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  /** Series mode: generate multiple slots from start time + duration + gap */
+  const [isSeries, setIsSeries] = useState(false);
+  const [seriesCount, setSeriesCount] = useState(2);
+  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [gapMinutes, setGapMinutes] = useState(30);
 
   useEffect(() => {
     const formKey = `kiosk-form-${currentSlot?.id || 'new'}`;
@@ -109,8 +133,21 @@ export function KioskForm({
       notifications_enabled: true,
     });
     setSelectedContactIds([]);
+    setIsSeries(false);
+    setSeriesCount(2);
+    setDurationMinutes(60);
+    setGapMinutes(30);
     markClean();
   }, [markClean]);
+
+  const generatedTimes = useMemo(() => {
+    if (!isSeries || !formData.slot_time) {
+      return [];
+    }
+    const startMs = new Date(formData.slot_time).getTime();
+    const intervalMs = (durationMinutes + gapMinutes) * 60_000;
+    return Array.from({ length: seriesCount }, (_, i) => new Date(startMs + i * intervalMs));
+  }, [isSeries, formData.slot_time, seriesCount, durationMinutes, gapMinutes]);
 
   useEffect(() => {
     if (currentSlot) {
@@ -147,6 +184,25 @@ export function KioskForm({
         contactName: c.companyName ?? 'Contact',
         companyName: c.companyName,
       }));
+
+    if (isSeries && onSaveSlots && generatedTimes.length > 0) {
+      const payloads = generatedTimes.map((date) => ({
+        location: formData.location,
+        slot_time: date.toISOString(),
+        capacity: formData.capacity,
+        visible: formData.visible,
+        notifications_enabled: formData.notifications_enabled,
+        contact_id: selectedContactIds[0] ?? null,
+        mentions,
+      }));
+      const ok = await onSaveSlots(payloads);
+      if (ok) {
+        markClean();
+        resetForm();
+      }
+      return;
+    }
+
     const payload = {
       ...formData,
       slot_time: formData.slot_time ? new Date(formData.slot_time).toISOString() : '',
@@ -166,10 +222,13 @@ export function KioskForm({
     selectedContactIds,
     assignableContacts,
     onSave,
+    onSaveSlots,
     onCancel,
     markClean,
     currentSlot,
     resetForm,
+    isSeries,
+    generatedTimes,
   ]);
 
   const handleCancel = useCallback(() => {
@@ -231,6 +290,92 @@ export function KioskForm({
                   <li key={`${e.field}-${e.message}`}>{e.message}</li>
                 ))}
             </ul>
+          </Card>
+        )}
+
+        {!currentSlot && onSaveSlots && (
+          <div className="flex items-center justify-between rounded-lg border border-border p-4">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium">Generate series</Label>
+              <p className="text-[11px] text-muted-foreground">
+                Create multiple slots from start time, duration and gap
+              </p>
+            </div>
+            <Switch checked={isSeries} onCheckedChange={setIsSeries} />
+          </div>
+        )}
+
+        {!currentSlot && isSeries && onSaveSlots && (
+          <Card className="p-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="series-count">Number of slots</Label>
+                <Input
+                  id="series-count"
+                  type="number"
+                  min={2}
+                  max={20}
+                  value={seriesCount}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    if (!Number.isNaN(v)) {
+                      setSeriesCount(Math.min(20, Math.max(2, v)));
+                    }
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="series-duration">Duration per slot</Label>
+                <Select
+                  value={String(durationMinutes)}
+                  onValueChange={(v) => setDurationMinutes(parseInt(v, 10))}
+                >
+                  <SelectTrigger id="series-duration">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DURATION_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={String(o.value)}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="series-gap">Gap between slots</Label>
+                <Select
+                  value={String(gapMinutes)}
+                  onValueChange={(v) => setGapMinutes(parseInt(v, 10))}
+                >
+                  <SelectTrigger id="series-gap">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GAP_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={String(o.value)}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {generatedTimes.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm">Preview</Label>
+                <ul className="text-sm text-muted-foreground border rounded-md divide-y divide-border max-h-40 overflow-y-auto">
+                  {generatedTimes.map((d) => (
+                    <li key={d.toISOString()} className="px-3 py-2">
+                      {d.toLocaleString('sv-SE', {
+                        dateStyle: 'short',
+                        timeStyle: 'short',
+                      })}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </Card>
         )}
 

@@ -29,6 +29,30 @@ class KioskController {
     }
   }
 
+  async batchCreate(req, res) {
+    try {
+      const slots = req.body?.slots;
+      if (!Array.isArray(slots) || slots.length === 0) {
+        return res.status(400).json({
+          error: 'slots array is required and must not be empty',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      if (slots.length > 50) {
+        return res.status(400).json({
+          error: 'Too many slots (max 50 per request)',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      const created = await this.model.batchCreate(req, slots);
+      res.json(created);
+    } catch (error) {
+      Logger.error('Batch create kiosk slots failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to batch create slots' });
+    }
+  }
+
   async update(req, res) {
     try {
       const slot = await this.model.update(req, req.params.id, req.body);
