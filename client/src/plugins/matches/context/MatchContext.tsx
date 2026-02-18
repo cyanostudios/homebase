@@ -95,7 +95,7 @@ export function MatchProvider({
     user,
   } = useApp();
   const pluginActions = usePluginActions('match');
-  const hasKioskPlugin = Boolean(user?.plugins?.includes('kiosk'));
+  const hasSlotsPlugin = Boolean(user?.plugins?.includes('slots'));
 
   const [isMatchPanelOpen, setIsMatchPanelOpen] = useState(false);
   const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
@@ -470,7 +470,7 @@ export function MatchProvider({
   );
 
   const detailFooterActions = pluginActions
-    .filter((action) => action.id !== 'create-slot-from-match' || hasKioskPlugin)
+    .filter((action) => action.id !== 'create-slot-from-match' || hasSlotsPlugin)
     .map((action) => ({
       id: action.id,
       label: action.label,

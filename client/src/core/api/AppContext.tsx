@@ -514,11 +514,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const getKioskSlotsForContact = useCallback(
     async (contactId: string): Promise<Slot[]> => {
-      if (!user?.plugins?.includes('kiosk')) {
+      if (!user?.plugins?.includes('slots')) {
         return [];
       }
       try {
-        const rows = await api.request('/kiosk');
+        const rows = await api.request('/slots');
         const id = String(contactId);
         return (rows || []).filter(
           (row: { contact_id?: number | string | null; mentions?: { contactId: string }[] }) =>

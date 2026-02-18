@@ -186,13 +186,13 @@ export function KioskForm({
     if (panelMode === 'settings') {
       return;
     }
-    (window as unknown as { submitKioskForm?: () => void }).submitKioskForm = () =>
+    (window as unknown as { submitSlotsForm?: () => void }).submitSlotsForm = () =>
       submitRef.current?.();
-    (window as unknown as { cancelKioskForm?: () => void }).cancelKioskForm = () =>
+    (window as unknown as { cancelSlotsForm?: () => void }).cancelSlotsForm = () =>
       cancelRef.current?.();
     return () => {
-      delete (window as unknown as { submitKioskForm?: () => void }).submitKioskForm;
-      delete (window as unknown as { cancelKioskForm?: () => void }).cancelKioskForm;
+      delete (window as unknown as { submitSlotsForm?: () => void }).submitSlotsForm;
+      delete (window as unknown as { cancelSlotsForm?: () => void }).cancelSlotsForm;
     };
   }, [panelMode]);
 
@@ -234,20 +234,20 @@ export function KioskForm({
           </Card>
         )}
 
-        <DetailSection title="Slot" iconPlugin="kiosk" className="p-4">
+        <DetailSection title="Slot" iconPlugin="slots" className="p-4">
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="kiosk-location">Plats (Location)</Label>
+                <Label htmlFor="slots-location">Plats (Location)</Label>
                 <Input
-                  id="kiosk-location"
+                  id="slots-location"
                   value={formData.location}
                   onChange={(e) => updateField('location', e.target.value)}
                   placeholder="e.g. Main entrance"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="kiosk-time">Tid (Time)</Label>
+                <Label htmlFor="slots-time">Tid (Time)</Label>
                 <MatchDateTimePicker
                   value={formData.slot_time}
                   onChange={(v) => updateField('slot_time', v)}
@@ -346,7 +346,7 @@ export function KioskForm({
             <div className="flex items-center justify-between rounded-lg border border-border p-4">
               <div className="space-y-0.5">
                 <Label className="text-sm font-medium">Visible</Label>
-                <p className="text-[11px] text-muted-foreground">Show this slot in the kiosk</p>
+                <p className="text-[11px] text-muted-foreground">Show this slot in the list</p>
               </div>
               <Switch
                 checked={formData.visible}

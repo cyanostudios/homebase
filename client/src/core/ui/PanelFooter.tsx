@@ -198,7 +198,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
           </Button>
           {(currentPlugin?.name === 'tasks' ||
             currentPlugin?.name === 'estimates' ||
-            currentPlugin?.name === 'kiosk' ||
+            currentPlugin?.name === 'slots' ||
             currentPlugin?.name === 'matches') &&
             typeof (currentPluginContext as any)?.hasQuickEditChanges === 'boolean' &&
             (currentPluginContext as any).hasQuickEditChanges && (
@@ -290,7 +290,7 @@ export const createPanelFooter = (
     (handlers.currentPlugin?.name === 'tasks' ||
       handlers.currentPlugin?.name === 'contacts' ||
       handlers.currentPlugin?.name === 'estimates' ||
-      handlers.currentPlugin?.name === 'kiosk' ||
+      handlers.currentPlugin?.name === 'slots' ||
       handlers.currentPlugin?.name === 'matches')
       ? currentPluginContext.getCloseHandler(baseClose)
       : baseClose;

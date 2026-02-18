@@ -495,17 +495,17 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
               </Card>
             )}
 
-            {user?.plugins?.includes('kiosk') && openSlotForView && kioskSlots.length > 0 && (
+            {user?.plugins?.includes('slots') && openSlotForView && kioskSlots.length > 0 && (
               <Card
                 padding="none"
                 className="overflow-hidden border-none shadow-sm bg-background/50"
               >
-                <DetailSection title="Kiosk slots" icon={Store} iconPlugin="kiosk" className="p-4">
+                <DetailSection title="Slots" icon={Store} iconPlugin="slots" className="p-4">
                   <div className="space-y-2">
                     {kioskSlots.map((slot: any) => (
                       <div
                         key={slot.id}
-                        className="flex justify-between items-center text-[11px] plugin-kiosk bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
+                        className="flex justify-between items-center text-[11px] plugin-slots bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
                       >
                         <span className="text-muted-foreground truncate mr-4">
                           {slot.location || '—'} ·{' '}

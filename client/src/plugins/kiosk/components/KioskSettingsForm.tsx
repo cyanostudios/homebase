@@ -13,7 +13,7 @@ export interface KioskSettingsFormProps {
   onCancel: () => void;
 }
 
-const KIOSK_SETTINGS_KEY = 'kiosk';
+const SLOTS_SETTINGS_KEY = 'slots';
 
 export function KioskSettingsForm({ onCancel }: KioskSettingsFormProps) {
   const { getSettings, updateSettings } = useApp();
@@ -24,7 +24,7 @@ export function KioskSettingsForm({ onCancel }: KioskSettingsFormProps) {
     const load = async () => {
       setIsLoading(true);
       try {
-        const settings = await getSettings(KIOSK_SETTINGS_KEY);
+        const settings = await getSettings(SLOTS_SETTINGS_KEY);
         if (settings?.viewMode === 'list') {
           setViewMode('list');
         } else if (settings?.viewMode === 'grid') {
@@ -41,7 +41,7 @@ export function KioskSettingsForm({ onCancel }: KioskSettingsFormProps) {
 
   const handleSave = useCallback(async () => {
     try {
-      await updateSettings(KIOSK_SETTINGS_KEY, { viewMode });
+      await updateSettings(SLOTS_SETTINGS_KEY, { viewMode });
       onCancel();
     } catch (error) {
       console.error('Failed to save kiosk settings:', error);
@@ -54,13 +54,13 @@ export function KioskSettingsForm({ onCancel }: KioskSettingsFormProps) {
   cancelRef.current = onCancel;
 
   useEffect(() => {
-    (window as unknown as { submitKioskForm?: () => void }).submitKioskForm = () =>
+    (window as unknown as { submitSlotsForm?: () => void }).submitSlotsForm = () =>
       saveRef.current?.();
-    (window as unknown as { cancelKioskForm?: () => void }).cancelKioskForm = () =>
+    (window as unknown as { cancelSlotsForm?: () => void }).cancelSlotsForm = () =>
       cancelRef.current?.();
     return () => {
-      delete (window as unknown as { submitKioskForm?: () => void }).submitKioskForm;
-      delete (window as unknown as { cancelKioskForm?: () => void }).cancelKioskForm;
+      delete (window as unknown as { submitSlotsForm?: () => void }).submitSlotsForm;
+      delete (window as unknown as { cancelSlotsForm?: () => void }).cancelSlotsForm;
     };
   }, []);
 

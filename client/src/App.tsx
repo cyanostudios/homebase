@@ -157,7 +157,9 @@ function AppContent() {
   // Initialize currentPage from localStorage, default 'dashboard'
   const [currentPage, setCurrentPage] = useState<NavPage>(() => {
     const saved = localStorage.getItem('homebase:currentPage');
-    return (saved as NavPage) || 'dashboard';
+    // Migrate legacy plugin name kiosk -> slots
+    const page = (saved === 'kiosk' ? 'slots' : saved) as NavPage;
+    return page || 'dashboard';
   });
 
   // Save currentPage to localStorage whenever it changes
@@ -616,7 +618,7 @@ function AppContent() {
         }}
       />
 
-      {/* Create slot from match – cross-plugin (matches → kiosk) */}
+      {/* Create slot from match – cross-plugin (matches → slots) */}
       <DuplicateDialog
         isOpen={showToSlotDialog}
         title="Create slot from match"
@@ -631,11 +633,10 @@ function AppContent() {
             return;
           }
           const matchEntry = pluginContexts.find(({ plugin }) => plugin.name === 'matches');
-          const kioskEntry = pluginContexts.find(({ plugin }) => plugin.name === 'kiosk');
+          const _slotsEntry = pluginContexts.find(({ plugin }) => plugin.name === 'slots');
           const matchContext = matchEntry?.context;
-          const kioskContext = kioskEntry?.context;
           const closeMatchPanel = matchContext?.closeMatchPanel;
-          const setRecentlyDuplicatedSlotId = kioskContext?.setRecentlyDuplicatedSlotId;
+          const setRecentlyDuplicatedSlotId = slotsContext?.setRecentlyDuplicatedSlotId;
           const locationStr = `${matchForSlot.home_team} – ${matchForSlot.away_team}${matchForSlot.location ? ` · ${matchForSlot.location}` : ''}`;
           kioskApi
             .createSlot({
@@ -649,11 +650,11 @@ function AppContent() {
               if (typeof closeMatchPanel === 'function') {
                 closeMatchPanel();
               }
-              const refreshSlots = kioskContext?.refreshSlots;
+              const refreshSlots = slotsContext?.refreshSlots;
               if (typeof refreshSlots === 'function') {
                 await refreshSlots();
               }
-              attemptNavigation(() => setCurrentPage('kiosk'));
+              attemptNavigation(() => setCurrentPage('slots'));
               if (newSlot?.id !== undefined && typeof setRecentlyDuplicatedSlotId === 'function') {
                 setRecentlyDuplicatedSlotId(String(newSlot.id));
               }

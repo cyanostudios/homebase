@@ -250,7 +250,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     displayPrefix: 'MAT',
   },
   {
-    name: 'kiosk',
+    name: 'slots',
     Provider: KioskProvider,
     hook: useKiosk,
     panelKey: 'isKioskPanelOpen',
@@ -261,11 +261,11 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     },
     navigation: {
       category: 'Main',
-      label: 'Kiosk',
+      label: 'Slots',
       icon: Store,
       order: 5,
     },
-    displayPrefix: 'KSK',
+    displayPrefix: 'SLT',
   },
   {
     name: 'mail',

@@ -91,12 +91,12 @@ class KioskApi {
   }
 
   async getSlots(): Promise<Slot[]> {
-    const rows = await this.request('/kiosk');
+    const rows = await this.request('/slots');
     return (rows || []).map((row: Record<string, unknown>) => rowToSlot(row));
   }
 
   async getSlot(id: string): Promise<Slot> {
-    const row = await this.request(`/kiosk/${id}`);
+    const row = await this.request(`/slots/${id}`);
     return rowToSlot(row);
   }
 
@@ -118,7 +118,7 @@ class KioskApi {
       contact_id: data.contact_id ?? null,
       mentions: data.mentions ?? [],
     };
-    const row = await this.request('/kiosk', { method: 'POST', body: JSON.stringify(body) });
+    const row = await this.request('/slots', { method: 'POST', body: JSON.stringify(body) });
     return rowToSlot(row);
   }
 
@@ -132,12 +132,12 @@ class KioskApi {
       contact_id: data.contact_id ?? null,
       mentions: data.mentions ?? [],
     };
-    const row = await this.request(`/kiosk/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+    const row = await this.request(`/slots/${id}`, { method: 'PUT', body: JSON.stringify(body) });
     return rowToSlot(row);
   }
 
   async deleteSlot(id: string): Promise<void> {
-    await this.request(`/kiosk/${id}`, { method: 'DELETE' });
+    await this.request(`/slots/${id}`, { method: 'DELETE' });
   }
 }
 

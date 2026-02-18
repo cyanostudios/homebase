@@ -22,7 +22,9 @@ import { cn } from '@/lib/utils';
 import { useKiosk } from '../hooks/useKiosk';
 import type { Slot } from '../types/kiosk';
 
-const KIOSK_SETTINGS_KEY = 'kiosk';
+import { CapacityAssignedDots } from './CapacityAssignedDots';
+
+const SLOTS_SETTINGS_KEY = 'slots';
 type ViewMode = 'grid' | 'list';
 type SortField = 'slot_time' | 'location' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
@@ -57,7 +59,7 @@ export function KioskList() {
 
   useEffect(() => {
     let cancelled = false;
-    getSettings(KIOSK_SETTINGS_KEY)
+    getSettings(SLOTS_SETTINGS_KEY)
       .then((settings: { viewMode?: ViewMode }) => {
         if (!cancelled) {
           setViewModeState(settings?.viewMode === 'grid' ? 'grid' : 'list');
@@ -72,7 +74,7 @@ export function KioskList() {
   const setViewMode = useCallback(
     (mode: ViewMode) => {
       setViewModeState(mode);
-      updateSettings(KIOSK_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
+      updateSettings(SLOTS_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
     },
     [updateSettings],
   );
@@ -215,7 +217,7 @@ export function KioskList() {
     s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 
   return (
-    <div className="space-y-4 plugin-kiosk">
+    <div className="space-y-4 plugin-slots">
       {selectedCount > 0 && (
         <BulkActionBar
           selectedCount={selectedCount}
@@ -258,8 +260,8 @@ export function KioskList() {
                 className={cn(
                   'relative p-5 cursor-pointer transition-all flex flex-col min-h-[140px] border-transparent bg-gray-50 dark:bg-gray-900/40',
                   selected
-                    ? 'plugin-kiosk bg-plugin-subtle ring-1 border-plugin-subtle'
-                    : 'hover:border-plugin-subtle hover:plugin-kiosk hover:shadow-md',
+                    ? 'plugin-slots bg-plugin-subtle ring-1 border-plugin-subtle'
+                    : 'hover:border-plugin-subtle hover:plugin-slots hover:shadow-md',
                   recentlyDuplicatedSlotId === String(slot.id) &&
                     'bg-green-50 dark:bg-green-950/30',
                 )}
@@ -270,7 +272,7 @@ export function KioskList() {
                   handleOpenForView(slot);
                 }}
                 data-list-item={JSON.stringify(slot)}
-                data-plugin-name="kiosk"
+                data-plugin-name="slots"
                 role="button"
                 aria-label={`Open ${slot.location || 'Slot'} ${formatDateTime(slot.slot_time)}`}
               >
@@ -286,7 +288,11 @@ export function KioskList() {
                 </div>
                 <h3 className="font-semibold text-sm">{slot.location || '—'}</h3>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {formatDateTime(slot.slot_time)} · Capacity {slot.capacity}
+                  {formatDateTime(slot.slot_time)} · Capacity {slot.capacity}{' '}
+                  <CapacityAssignedDots
+                    capacity={slot.capacity}
+                    assignedCount={slot.mentions?.length ?? 0}
+                  />
                 </div>
                 <div className="text-[10px] text-muted-foreground mt-1">
                   {slot.visible ? 'Visible' : 'Hidden'} · Notifications{' '}
@@ -300,7 +306,7 @@ export function KioskList() {
           })}
         </div>
       ) : (
-        <Card className="shadow-none plugin-kiosk">
+        <Card className="shadow-none plugin-slots">
           <Table>
             <TableHeader>
               <TableRow>
@@ -398,7 +404,7 @@ export function KioskList() {
                     handleOpenForView(slot);
                   }}
                   data-list-item={JSON.stringify(slot)}
-                  data-plugin-name="kiosk"
+                  data-plugin-name="slots"
                   role="button"
                   aria-label={`Open ${slot.location || 'Slot'} ${formatDateTime(slot.slot_time)}`}
                 >
@@ -417,7 +423,15 @@ export function KioskList() {
                   <TableCell className="text-muted-foreground text-sm">
                     {formatDateTime(slot.slot_time)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{slot.capacity}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    <span className="inline-flex items-center gap-1.5">
+                      {slot.capacity}
+                      <CapacityAssignedDots
+                        capacity={slot.capacity}
+                        assignedCount={slot.mentions?.length ?? 0}
+                      />
+                    </span>
+                  </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {slot.visible ? 'Yes' : 'No'}
                   </TableCell>

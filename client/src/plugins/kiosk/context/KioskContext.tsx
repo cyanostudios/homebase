@@ -93,7 +93,7 @@ export function KioskProvider({
   useEffect(() => {
     const unregister = registerAction('match', {
       id: 'create-slot-from-match',
-      label: 'To Kiosk',
+      label: 'To Slot',
       icon: Store,
       variant: 'primary',
       className:
@@ -132,8 +132,8 @@ export function KioskProvider({
   }, []);
 
   useEffect(() => {
-    registerPanelCloseFunction('kiosk', closeSlotPanel);
-    return () => unregisterPanelCloseFunction('kiosk');
+    registerPanelCloseFunction('slots', closeSlotPanel);
+    return () => unregisterPanelCloseFunction('slots');
   }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeSlotPanel]);
 
   const loadSlots = useCallback(async () => {
@@ -141,11 +141,11 @@ export function KioskProvider({
       const data = await kioskApi.getSlots();
       setSlots(data);
     } catch (error: unknown) {
-      console.error('Failed to load kiosk slots:', error);
+      console.error('Failed to load slots:', error);
       const msg =
         (error as { message?: string; error?: string })?.message ||
         (error as { message?: string; error?: string })?.error ||
-        'Failed to load kiosk slots';
+        'Failed to load slots';
       setValidationErrors([{ field: 'general', message: msg }]);
     }
   }, []);
@@ -396,7 +396,7 @@ export function KioskProvider({
         return;
       }
       try {
-        await bulkApi.bulkDelete('kiosk', unique);
+        await bulkApi.bulkDelete('slots', unique);
         setSlots((prev) => prev.filter((s) => !unique.includes(s.id)));
         if (currentSlot && unique.includes(currentSlot.id)) {
           closeSlotPanel();
@@ -426,7 +426,7 @@ export function KioskProvider({
       return 'New slot';
     }
     if (mode === 'settings') {
-      return 'Settings – Kiosk';
+      return 'Settings – Slots';
     }
     return 'Slot';
   }, []);

@@ -20,6 +20,8 @@ import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useKioskContext } from '../context/KioskContext';
 import type { Slot } from '../types/kiosk';
 
+import { CapacityAssignedDots } from './CapacityAssignedDots';
+
 interface KioskViewProps {
   slot?: Slot;
   item?: Slot;
@@ -58,7 +60,7 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
   }
 
   return (
-    <div className="plugin-kiosk">
+    <div className="plugin-slots">
       <DetailLayout
         sidebar={
           <div className="space-y-6">
@@ -66,7 +68,7 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
               <DetailSection
                 title="Slot Properties"
                 icon={SlidersHorizontal}
-                iconPlugin="kiosk"
+                iconPlugin="slots"
                 className="p-4"
               >
                 <div className="space-y-2">
@@ -126,7 +128,7 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
                           <Badge
                             key={m.contactId}
                             variant="secondary"
-                            className="flex items-center gap-1 text-[10px] font-medium px-2 h-5 border-transparent plugin-kiosk"
+                            className="flex items-center gap-1 text-[10px] font-medium px-2 h-5 border-transparent plugin-slots"
                           >
                             <User className="h-3 w-3 shrink-0" />
                             <span className="truncate max-w-[100px]">{name}</span>
@@ -158,7 +160,7 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
             </Card>
 
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Information" icon={Info} iconPlugin="kiosk" className="p-4">
+              <DetailSection title="Information" icon={Info} iconPlugin="slots" className="p-4">
                 <div className="space-y-4 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Location</span>
@@ -208,14 +210,18 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
       >
         <div className="space-y-6">
           <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title="Slot" iconPlugin="kiosk" className="p-6">
+            <DetailSection title="Slot" iconPlugin="slots" className="p-6">
               <div className="text-lg font-semibold">{slot.location || '—'}</div>
               <div className="mt-2 text-sm text-muted-foreground">
                 {formatDateTime(slot.slot_time)}
               </div>
-              <div className="mt-2 flex gap-2 flex-wrap">
+              <div className="mt-2 flex gap-2 flex-wrap items-center">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Capacity: {slot.capacity}
+                  Capacity: {slot.capacity}{' '}
+                  <CapacityAssignedDots
+                    capacity={slot.capacity}
+                    assignedCount={slot.mentions?.length ?? 0}
+                  />
                 </span>
                 <span className="text-xs font-medium text-muted-foreground">
                   · {slot.visible ? 'Visible' : 'Hidden'}
