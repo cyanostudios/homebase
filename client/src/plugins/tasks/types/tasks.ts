@@ -1,3 +1,7 @@
+import type { Mention } from '@/core/types/mention';
+
+export type { Mention };
+
 export interface Task {
   id: string;
   title: string;
@@ -10,14 +14,6 @@ export interface Task {
   createdFromNote: string | null; // Note ID
   createdAt: Date;
   updatedAt: Date;
-}
-
-export interface Mention {
-  contactId: string;
-  contactName: string;
-  companyName: string;
-  position: number;
-  length: number;
 }
 
 export interface ValidationError {

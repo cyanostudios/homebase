@@ -15,6 +15,7 @@ import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { createPanelRenderers } from '@/core/rendering/panelRendering';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { Dashboard } from '@/core/ui/Dashboard';
 import { LoginComponent } from '@/core/ui/LoginComponent';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { createPanelFooter } from '@/core/ui/PanelFooter';
@@ -191,6 +192,9 @@ function AppContent() {
   }, [currentPage]);
 
   const contentTitle = useMemo(() => {
+    if (currentPage === 'dashboard') {
+      return 'Dashboard';
+    }
     if (currentPage === 'settings') {
       return 'Settings';
     }
@@ -356,7 +360,9 @@ function AppContent() {
         detailPanelFooter={detailPanelFooter}
         onDetailPanelClose={onDetailPanelClose}
       >
-        {currentPage === 'settings' ? (
+        {currentPage === 'dashboard' ? (
+          <Dashboard onPageChange={handlePageChange} />
+        ) : currentPage === 'settings' ? (
           <SettingsList
             onCategoryClick={(categoryId) => {
               setSettingsCategory(categoryId);

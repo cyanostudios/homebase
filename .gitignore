@@ -38,3 +38,6 @@ emergency_search.js
 .cursor/omskrivning*.md
 .cursor/*_output*.md
 .cursor/*.plan.md
+
+# Alt. version folder (reference only, do not commit)
+homebase-V3.X/

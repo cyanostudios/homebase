@@ -203,6 +203,9 @@ export function TopBar({
   };
 
   const pageLabel = useMemo(() => {
+    if (currentPage === 'dashboard') {
+      return 'Dashboard';
+    }
     if (currentPage === 'settings') {
       return 'Settings';
     }
@@ -221,7 +224,7 @@ export function TopBar({
   }, [currentPage]);
 
   const commandItems = useMemo(() => {
-    const items: { label: string; page: NavPage }[] = [];
+    const items: { label: string; page: NavPage }[] = [{ label: 'Dashboard', page: 'dashboard' }];
     const plugins = user?.plugins ?? [];
     PLUGIN_REGISTRY.forEach((plugin) => {
       if (!plugins.includes(plugin.name) || !plugin.navigation) return;

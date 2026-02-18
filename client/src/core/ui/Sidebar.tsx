@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, LogOut, Settings } from 'lucide-react';
+import { ChevronDown, ChevronRight, Home, LogOut, Settings } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +30,7 @@ const PLUGIN_ICON_COLORS: Record<string, string> = {
 };
 
 export type NavPage =
+  | 'dashboard'
   | 'contacts'
   | 'notes'
   | 'estimates'
@@ -98,12 +99,23 @@ export function Sidebar({
       items.sort((a, b) => a.order - b.order);
     });
 
+    const dashboardItem = {
+      label: 'Dashboard',
+      icon: Home,
+      page: 'dashboard' as NavPage,
+      order: 0,
+    };
     return categoryOrder
       .filter((category) => categoriesMap.has(category))
-      .map((category) => ({
-        title: category,
-        items: categoriesMap.get(category)!,
-      }));
+      .map((category) => {
+        const items =
+          category === 'Main'
+            ? [dashboardItem, ...(categoriesMap.get(category) ?? [])].sort(
+                (a, b) => a.order - b.order,
+              )
+            : categoriesMap.get(category)!;
+        return { title: category, items };
+      });
   }, [user]);
 
   // Auto-open submenu if current page is a submenu item

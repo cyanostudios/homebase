@@ -10,7 +10,7 @@ import { useNotes } from '@/plugins/notes/hooks/useNotes';
 
 import { useTasks } from '../hooks/useTasks';
 
-import { MentionContent } from './MentionContent';
+import { MentionContent } from '@/core/ui/MentionContent';
 import { TaskPriorityButtons } from './TaskPriorityButtons';
 import { TaskStatusButtons } from './TaskStatusButtons';
 
@@ -283,7 +283,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         <DetailSection title="Content">
           <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
             <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-              <MentionContent content={task.content} mentions={task.mentions} />
+              <MentionContent content={task.content} mentions={task.mentions} onMentionClick={handleContactClick} />
             </div>
           </div>
         </DetailSection>

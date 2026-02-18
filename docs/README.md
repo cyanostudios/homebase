@@ -44,6 +44,12 @@ Panel coordination
 Cross-plugin features
 Performance optimizations
 
+MENTIONS_AND_CROSS_PLUGIN_UI.md
+
+Core @-mention type and components (MentionTextarea, MentionContent)
+Plugin usage and onMentionClick pattern
+Cross-plugin ID matching
+
 ARCHITECTURE_REFACTOR.md
 
 Core + plugins refactor summary
