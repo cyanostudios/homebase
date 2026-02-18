@@ -23,6 +23,7 @@ function createMatchRoutes(controller, context) {
     commonRules.enum('sport_type', ['football', 'handball']).optional(),
     commonRules.enum('format', MATCH_FORMATS).optional(),
     commonRules.optionalInteger('total_minutes', 1, 999),
+    commonRules.optionalInteger('contact_id', 1, Number.MAX_SAFE_INTEGER),
     validateRequest,
     (req, res) => controller.create(req, res),
   );
@@ -38,6 +39,7 @@ function createMatchRoutes(controller, context) {
     commonRules.enum('sport_type', ['football', 'handball']).optional(),
     commonRules.enum('format', MATCH_FORMATS).optional(),
     commonRules.optionalInteger('total_minutes', 1, 999),
+    commonRules.optionalInteger('contact_id', 1, Number.MAX_SAFE_INTEGER),
     validateRequest,
     (req, res) => controller.update(req, res),
   );

@@ -35,6 +35,14 @@ NODE_ENV=production
 PORT=3002
 ```
 
+#### CORS when frontend and API are on different domains
+
+If the frontend is deployed separately (e.g. Vercel) and the API elsewhere (e.g. Railway), the browser will block requests unless the API sends the correct CORS header.
+
+- Set **FRONTEND_URL** to the frontend’s full origin (e.g. `https://your-app.vercel.app`). Do not add a trailing slash.
+- The server uses this as `Access-Control-Allow-Origin` in production so login, cookies and API calls work from that origin.
+- If `FRONTEND_URL` is not set in production, CORS falls back to `origin: false` (no header), and login will fail when frontend and API domains differ.
+
 #### Service Providers (V2)
 
 ```bash
@@ -277,6 +285,11 @@ Expected response:
 - Ensure `SESSION_SECRET` is set and secure
 - Check session store configuration
 - Verify cookies are working (check browser)
+
+### Login fails when frontend and API are on different domains
+
+- Set **FRONTEND_URL** on the API server to the exact frontend origin (e.g. `https://your-app.vercel.app`).
+- Restart the API after changing env vars. Without this, the browser blocks the response and login/cookies will not work.
 
 ## Rollback Procedure
 

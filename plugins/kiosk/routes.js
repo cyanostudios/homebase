@@ -17,6 +17,7 @@ function createKioskRoutes(controller, context) {
     commonRules.optionalString('location', 255),
     commonRules.requiredDate('slot_time'),
     commonRules.optionalInteger('capacity', 1, 5),
+    commonRules.optionalInteger('contact_id', 1, Number.MAX_SAFE_INTEGER),
     validateRequest,
     (req, res) => controller.create(req, res),
   );
@@ -28,6 +29,7 @@ function createKioskRoutes(controller, context) {
     commonRules.optionalString('location', 255),
     commonRules.requiredDate('slot_time'),
     commonRules.optionalInteger('capacity', 1, 5),
+    commonRules.optionalInteger('contact_id', 1, Number.MAX_SAFE_INTEGER),
     validateRequest,
     (req, res) => controller.update(req, res),
   );

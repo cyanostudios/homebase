@@ -4,6 +4,7 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 
 import type { Slot } from '../types/kiosk';
 
@@ -21,6 +22,16 @@ function formatDateTime(s: string | null): string {
 
 export function KioskView({ slot: slotProp, item }: KioskViewProps) {
   const slot = slotProp ?? item ?? null;
+  const { contacts, openContactForView } = useContacts();
+  const linkedContacts =
+    slot?.mentions?.length > 0
+      ? slot.mentions
+          .map((m) =>
+            contacts.find((c: { id: number | string }) => String(c.id) === String(m.contactId)),
+          )
+          .filter(Boolean)
+      : [];
+
   if (!slot) {
     return null;
   }
@@ -55,6 +66,27 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
                     <span className="text-muted-foreground">Notifications</span>
                     <span className="font-medium">{slot.notifications_enabled ? 'On' : 'Off'}</span>
                   </div>
+                  {linkedContacts.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-muted-foreground text-[10px]">Contacts</span>
+                      {linkedContacts.map(
+                        (contact: { id: number | string; companyName?: string }) => (
+                          <div key={contact.id} className="flex justify-between items-center">
+                            <span className="font-medium truncate max-w-[120px] text-xs">
+                              {(contact as { companyName?: string }).companyName ?? 'Contact'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => openContactForView(contact)}
+                              className="text-[10px] font-medium text-primary hover:underline shrink-0"
+                            >
+                              View
+                            </button>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  )}
                   <div className="pt-2 mt-2 border-t border-border/50">
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Created</span>

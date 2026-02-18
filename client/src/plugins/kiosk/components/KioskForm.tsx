@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Card } from '@/components/ui/card';
@@ -11,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -18,7 +20,7 @@ import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { MatchDateTimePicker } from '@/plugins/matches/components/MatchDateTimePicker';
 
 import { useKiosk } from '../hooks/useKiosk';
-import { CAPACITY_OPTIONS } from '../types/kiosk';
+import { CAPACITY_OPTIONS, type KioskMention } from '../types/kiosk';
 
 import { KioskSettingsForm } from './KioskSettingsForm';
 
@@ -38,8 +40,10 @@ interface KioskFormProps {
     capacity: number;
     visible: boolean;
     notifications_enabled: boolean;
+    contact_id?: string | null;
+    mentions?: KioskMention[];
   } | null;
-  onSave: (data: KioskFormState) => Promise<boolean>;
+  onSave: (data: Record<string, unknown>) => Promise<boolean>;
   onCancel: () => void;
   isSubmitting?: boolean;
 }
@@ -63,7 +67,11 @@ export function KioskForm({
   onCancel,
   isSubmitting: _isSubmitting = false,
 }: KioskFormProps) {
+  const { contacts } = useApp();
   const { validationErrors, clearValidationErrors, panelMode } = useKiosk();
+  const assignableContacts = contacts.filter(
+    (c: { isAssignable?: boolean }) => c.isAssignable !== false,
+  );
   const {
     isDirty,
     showWarning,
@@ -83,6 +91,8 @@ export function KioskForm({
     visible: true,
     notifications_enabled: true,
   });
+  /** Selected contact IDs for this slot (multiple contacts). */
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
 
   useEffect(() => {
     const formKey = `kiosk-form-${currentSlot?.id || 'new'}`;
@@ -98,6 +108,7 @@ export function KioskForm({
       visible: true,
       notifications_enabled: true,
     });
+    setSelectedContactIds([]);
     markClean();
   }, [markClean]);
 
@@ -110,6 +121,13 @@ export function KioskForm({
         visible: currentSlot.visible,
         notifications_enabled: currentSlot.notifications_enabled,
       });
+      const fromMentions =
+        currentSlot.mentions?.map((m) => String(m.contactId)).filter(Boolean) ?? [];
+      const fromContactId =
+        currentSlot.contact_id && !fromMentions.includes(String(currentSlot.contact_id))
+          ? [String(currentSlot.contact_id)]
+          : [];
+      setSelectedContactIds(fromMentions.length > 0 ? fromMentions : fromContactId);
       markClean();
     } else if (panelMode !== 'settings') {
       resetForm();
@@ -121,9 +139,19 @@ export function KioskForm({
       onCancel();
       return;
     }
+    const mentions: KioskMention[] = selectedContactIds
+      .map((id) => assignableContacts.find((c: { id: number | string }) => String(c.id) === id))
+      .filter(Boolean)
+      .map((c: { id: number | string; companyName?: string }) => ({
+        contactId: String(c.id),
+        contactName: c.companyName ?? 'Contact',
+        companyName: c.companyName,
+      }));
     const payload = {
       ...formData,
       slot_time: formData.slot_time ? new Date(formData.slot_time).toISOString() : '',
+      contact_id: selectedContactIds[0] ?? null,
+      mentions,
     };
     const ok = await onSave(payload);
     if (ok) {
@@ -132,7 +160,17 @@ export function KioskForm({
         resetForm();
       }
     }
-  }, [panelMode, formData, onSave, onCancel, markClean, currentSlot, resetForm]);
+  }, [
+    panelMode,
+    formData,
+    selectedContactIds,
+    assignableContacts,
+    onSave,
+    onCancel,
+    markClean,
+    currentSlot,
+    resetForm,
+  ]);
 
   const handleCancel = useCallback(() => {
     attemptAction(() => onCancel());
@@ -219,6 +257,70 @@ export function KioskForm({
                   <p className="text-sm text-destructive">{getFieldError('slot_time')?.message}</p>
                 )}
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Kontakter (Contacts)</Label>
+              <div className="flex gap-2">
+                <Select
+                  value="__add__"
+                  onValueChange={(v) => {
+                    if (v && v !== '__add__' && !selectedContactIds.includes(v)) {
+                      setSelectedContactIds((prev) => [...prev, v]);
+                      markDirty();
+                      clearValidationErrors();
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Lägg till kontakt..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__add__" className="text-muted-foreground">
+                      Lägg till kontakt...
+                    </SelectItem>
+                    {assignableContacts
+                      .filter(
+                        (c: { id: number | string }) => !selectedContactIds.includes(String(c.id)),
+                      )
+                      .map((contact: { id: number | string; companyName?: string }) => (
+                        <SelectItem key={contact.id} value={String(contact.id)}>
+                          {contact.companyName ?? `Contact ${contact.id}`}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedContactIds.length > 0 && (
+                <ul className="flex flex-wrap gap-2 mt-2">
+                  {selectedContactIds.map((id) => {
+                    const contact = assignableContacts.find(
+                      (c: { id: number | string }) => String(c.id) === id,
+                    );
+                    const name =
+                      (contact as { companyName?: string } | undefined)?.companyName ?? id;
+                    return (
+                      <li
+                        key={id}
+                        className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-medium"
+                      >
+                        {name}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedContactIds((prev) => prev.filter((x) => x !== id));
+                            markDirty();
+                            clearValidationErrors();
+                          }}
+                          className="rounded hover:bg-muted-foreground/20 p-0.5"
+                          aria-label={`Ta bort ${name}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Capacity (1–5)</Label>

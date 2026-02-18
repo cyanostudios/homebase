@@ -1,5 +1,5 @@
-import { Grid3x3, List, Settings, Trash2 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp, Grid3x3, List, Settings, Trash2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -24,7 +24,7 @@ import type { Match } from '../types/match';
 
 const MATCHES_SETTINGS_KEY = 'matches';
 type ViewMode = 'grid' | 'list';
-type SortField = 'start_time' | 'home_team' | 'updatedAt';
+type SortField = 'start_time' | 'home_team' | 'location' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
 export function MatchList() {
@@ -48,11 +48,12 @@ export function MatchList() {
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, _setSortField] = useState<SortField>('start_time');
-  const [sortOrder, _setSortOrder] = useState<SortOrder>('desc');
+  const [sortField, setSortField] = useState<SortField>('start_time');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewModeState] = useState<ViewMode>('list');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,17 +77,25 @@ export function MatchList() {
     [updateSettings],
   );
 
+  const formatDateTimeForFilter = useCallback(
+    (s: string | null) =>
+      s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '',
+    [],
+  );
+
   const filteredAndSorted = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
     const filtered = matches.filter((m) => {
       if (!needle) {
         return true;
       }
+      const timeStr = formatDateTimeForFilter(m.start_time ?? null).toLowerCase();
       return (
         (m.home_team ?? '').toLowerCase().includes(needle) ||
         (m.away_team ?? '').toLowerCase().includes(needle) ||
         (m.location ?? '').toLowerCase().includes(needle) ||
-        (m.sport_type ?? '').toLowerCase().includes(needle)
+        (m.sport_type ?? '').toLowerCase().includes(needle) ||
+        timeStr.includes(needle)
       );
     });
     return [...filtered].sort((a, b) => {
@@ -103,6 +112,10 @@ export function MatchList() {
           aVal = (a.home_team ?? '').toLowerCase();
           bVal = (b.home_team ?? '').toLowerCase();
           break;
+        case 'location':
+          aVal = (a.location ?? '').toLowerCase();
+          bVal = (b.location ?? '').toLowerCase();
+          break;
         case 'updatedAt':
           aVal = a.updated_at ? new Date(a.updated_at).getTime() : 0;
           bVal = b.updated_at ? new Date(b.updated_at).getTime() : 0;
@@ -116,7 +129,33 @@ export function MatchList() {
       const cmp = String(aVal).localeCompare(String(bVal), undefined, { sensitivity: 'base' });
       return sortOrder === 'asc' ? cmp : -cmp;
     });
-  }, [matches, searchTerm, sortField, sortOrder]);
+  }, [matches, searchTerm, sortField, sortOrder, formatDateTimeForFilter]);
+
+  const visibleMatchIds = useMemo(() => filteredAndSorted.map((m) => m.id), [filteredAndSorted]);
+  const allVisibleSelected = useMemo(
+    () => visibleMatchIds.length > 0 && visibleMatchIds.every((id) => isSelected(id)),
+    [visibleMatchIds, isSelected],
+  );
+  const someVisibleSelected = useMemo(
+    () => visibleMatchIds.some((id) => isSelected(id)),
+    [visibleMatchIds, isSelected],
+  );
+  useEffect(() => {
+    if (!headerCheckboxRef.current) {
+      return;
+    }
+    headerCheckboxRef.current.indeterminate = !allVisibleSelected && someVisibleSelected;
+  }, [allVisibleSelected, someVisibleSelected]);
+  const onToggleAllVisible = useCallback(() => {
+    if (allVisibleSelected) {
+      const set = new Set(visibleMatchIds);
+      const remaining = selectedMatchIds.filter((id) => !set.has(id));
+      selectAllMatches(remaining);
+    } else {
+      const union = Array.from(new Set([...selectedMatchIds, ...visibleMatchIds]));
+      selectAllMatches(union);
+    }
+  }, [allVisibleSelected, visibleMatchIds, selectedMatchIds, selectAllMatches]);
 
   const handleOpenForView = (match: Match) => attemptNavigation(() => openMatchForView(match));
 
@@ -125,7 +164,7 @@ export function MatchList() {
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search by team, location..."
+        searchPlaceholder="Search by name, location, time..."
         rightActions={
           <div className="flex gap-2">
             <Button
@@ -208,9 +247,9 @@ export function MatchList() {
         isOpen={showBulkDeleteModal}
         onClose={() => setShowBulkDeleteModal(false)}
         onConfirm={handleBulkDelete}
+        itemCount={selectedCount}
         itemLabel="matches"
-        count={selectedCount}
-        isDeleting={deleting}
+        isLoading={deleting}
       />
 
       {filteredAndSorted.length === 0 ? (
@@ -279,12 +318,101 @@ export function MatchList() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-8"></TableHead>
-                <TableHead>Match</TableHead>
+                <TableHead className="w-12">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    className="h-4 w-4 cursor-pointer"
+                    aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
+                    checked={allVisibleSelected}
+                    onChange={onToggleAllVisible}
+                  />
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => {
+                    if (sortField === 'home_team') {
+                      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortField('home_team');
+                      setSortOrder('asc');
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Match</span>
+                    {sortField === 'home_team' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
                 <TableHead>Sport · Format</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead className="text-right">Updated</TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => {
+                    if (sortField === 'location') {
+                      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortField('location');
+                      setSortOrder('asc');
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Location</span>
+                    {sortField === 'location' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => {
+                    if (sortField === 'start_time') {
+                      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortField('start_time');
+                      setSortOrder('asc');
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Time</span>
+                    {sortField === 'start_time' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="text-right cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => {
+                    if (sortField === 'updatedAt') {
+                      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortField('updatedAt');
+                      setSortOrder('asc');
+                    }
+                  }}
+                >
+                  <div className="flex items-center justify-end gap-2">
+                    <span>Updated</span>
+                    {sortField === 'updatedAt' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -308,12 +436,13 @@ export function MatchList() {
                   role="button"
                   aria-label={`Open ${match.home_team} – ${match.away_team}`}
                 >
-                  <TableCell onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={isSelected(match.id)}
                       onChange={() => toggleMatchSelected(match.id)}
                       className="cursor-pointer h-4 w-4"
+                      aria-label={isSelected(match.id) ? 'Unselect match' : 'Select match'}
                     />
                   </TableCell>
                   <TableCell>

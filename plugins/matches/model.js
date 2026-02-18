@@ -45,8 +45,17 @@ class MatchModel {
   async create(req, matchData) {
     try {
       const db = Database.get(req);
-      const { home_team, away_team, location, start_time, sport_type, format, total_minutes } =
-        matchData;
+      const {
+        home_team,
+        away_team,
+        location,
+        start_time,
+        sport_type,
+        format,
+        total_minutes,
+        contact_id,
+        mentions,
+      } = matchData;
       validateSportAndFormat(sport_type, format);
 
       const result = await db.insert('matches', {
@@ -57,6 +66,8 @@ class MatchModel {
         sport_type: sport_type || 'football',
         format: format || null,
         total_minutes: total_minutes != null ? parseInt(total_minutes, 10) : null,
+        contact_id: contact_id || null,
+        mentions: JSON.stringify(Array.isArray(mentions) ? mentions : []),
       });
 
       Logger.info('Match created', { matchId: result.id });
@@ -83,8 +94,17 @@ class MatchModel {
         throw new AppError('Match not found', 404, AppError.CODES.NOT_FOUND);
       }
 
-      const { home_team, away_team, location, start_time, sport_type, format, total_minutes } =
-        matchData;
+      const {
+        home_team,
+        away_team,
+        location,
+        start_time,
+        sport_type,
+        format,
+        total_minutes,
+        contact_id,
+        mentions,
+      } = matchData;
       validateSportAndFormat(sport_type, format);
 
       const result = await db.update('matches', matchId, {
@@ -95,6 +115,11 @@ class MatchModel {
         sport_type: sport_type || 'football',
         format: format || null,
         total_minutes: total_minutes != null ? parseInt(total_minutes, 10) : null,
+        contact_id: contact_id ?? existing[0].contact_id ?? null,
+        mentions:
+          mentions !== undefined
+            ? JSON.stringify(Array.isArray(mentions) ? mentions : [])
+            : existing[0].mentions,
       });
 
       Logger.info('Match updated', { matchId });
@@ -135,6 +160,17 @@ class MatchModel {
   }
 
   transformRow(row) {
+    let mentions = row.mentions;
+    if (typeof mentions === 'string') {
+      try {
+        mentions = JSON.parse(mentions);
+      } catch {
+        mentions = [];
+      }
+    }
+    if (!Array.isArray(mentions)) {
+      mentions = [];
+    }
     return {
       id: row.id.toString(),
       home_team: row.home_team,
@@ -144,6 +180,8 @@ class MatchModel {
       sport_type: row.sport_type || 'football',
       format: row.format,
       total_minutes: row.total_minutes,
+      contact_id: row.contact_id != null ? row.contact_id.toString() : null,
+      mentions,
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

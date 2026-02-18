@@ -1,4 +1,40 @@
-import { Match } from '../types/match';
+import { Match, MatchMention } from '../types/match';
+
+function parseMentions(row: Record<string, unknown>): MatchMention[] {
+  let raw = row.mentions;
+  if (raw === null || raw === undefined) {
+    return [];
+  }
+  if (typeof raw === 'string') {
+    try {
+      raw = JSON.parse(raw) as MatchMention[];
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(raw) ? (raw as MatchMention[]) : [];
+}
+
+function rowToMatch(row: Record<string, unknown>): Match {
+  return {
+    id: String(row.id),
+    home_team: (row.home_team as string) ?? '',
+    away_team: (row.away_team as string) ?? '',
+    location: (row.location as string) ?? null,
+    start_time: (row.start_time as string) ?? '',
+    sport_type: (row.sport_type as Match['sport_type']) ?? 'football',
+    format: (row.format as string) ?? '',
+    total_minutes:
+      row.total_minutes !== null && row.total_minutes !== undefined
+        ? Number(row.total_minutes)
+        : null,
+    contact_id:
+      row.contact_id !== null && row.contact_id !== undefined ? String(row.contact_id) : null,
+    mentions: parseMentions(row),
+    created_at: (row.created_at as string) ?? '',
+    updated_at: (row.updated_at as string) ?? '',
+  };
+}
 
 class MatchesApi {
   private csrfToken: string | null = null;
@@ -56,34 +92,12 @@ class MatchesApi {
 
   async getMatches(): Promise<Match[]> {
     const rows = await this.request('/matches');
-    return (rows || []).map((row: any) => ({
-      id: String(row.id),
-      home_team: row.home_team ?? '',
-      away_team: row.away_team ?? '',
-      location: row.location ?? null,
-      start_time: row.start_time,
-      sport_type: row.sport_type ?? 'football',
-      format: row.format ?? '',
-      total_minutes: row.total_minutes ?? null,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-    }));
+    return (rows || []).map((row: Record<string, unknown>) => rowToMatch(row));
   }
 
   async getMatch(id: string): Promise<Match> {
     const row = await this.request(`/matches/${id}`);
-    return {
-      id: String(row.id),
-      home_team: row.home_team ?? '',
-      away_team: row.away_team ?? '',
-      location: row.location ?? null,
-      start_time: row.start_time,
-      sport_type: row.sport_type ?? 'football',
-      format: row.format ?? '',
-      total_minutes: row.total_minutes ?? null,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-    };
+    return rowToMatch(row);
   }
 
   async createMatch(data: {
@@ -94,6 +108,8 @@ class MatchesApi {
     sport_type: string;
     format: string;
     total_minutes?: number | null;
+    contact_id?: string | null;
+    mentions?: MatchMention[];
   }): Promise<Match> {
     const body = {
       home_team: data.home_team,
@@ -103,20 +119,11 @@ class MatchesApi {
       sport_type: data.sport_type,
       format: data.format,
       total_minutes: data.total_minutes ?? null,
+      contact_id: data.contact_id ?? null,
+      mentions: data.mentions ?? [],
     };
     const row = await this.request('/matches', { method: 'POST', body: JSON.stringify(body) });
-    return {
-      id: String(row.id),
-      home_team: row.home_team ?? '',
-      away_team: row.away_team ?? '',
-      location: row.location ?? null,
-      start_time: row.start_time,
-      sport_type: row.sport_type ?? 'football',
-      format: row.format ?? '',
-      total_minutes: row.total_minutes ?? null,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-    };
+    return rowToMatch(row);
   }
 
   async updateMatch(id: string, data: Partial<Match>): Promise<Match> {
@@ -128,20 +135,11 @@ class MatchesApi {
       sport_type: data.sport_type,
       format: data.format,
       total_minutes: data.total_minutes ?? null,
+      contact_id: data.contact_id ?? null,
+      mentions: data.mentions ?? [],
     };
     const row = await this.request(`/matches/${id}`, { method: 'PUT', body: JSON.stringify(body) });
-    return {
-      id: String(row.id),
-      home_team: row.home_team ?? '',
-      away_team: row.away_team ?? '',
-      location: row.location ?? null,
-      start_time: row.start_time,
-      sport_type: row.sport_type ?? 'football',
-      format: row.format ?? '',
-      total_minutes: row.total_minutes ?? null,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-    };
+    return rowToMatch(row);
   }
 
   async deleteMatch(id: string): Promise<void> {

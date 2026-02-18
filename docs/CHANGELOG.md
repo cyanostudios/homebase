@@ -4,6 +4,38 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-02 – CORS och inloggning i production
+
+- **Problem:** När frontend och API ligger på olika domäner (t.ex. Vercel + Railway) blockerade webbläsaren svar pga saknad `Access-Control-Allow-Origin`; inloggning/cookies fungerade inte.
+- **Lösning:** I production används `process.env.FRONTEND_URL` som tillåten CORS-origin när den är satt (i stället för hårdkodat `origin: false`). Se `server/index.ts` och `docs/DEPLOYMENT_V2.md`.
+- **Krav:** Sätt miljövariabeln **FRONTEND_URL** till frontendens URL (t.ex. `https://din-app.vercel.app`) på API-servern och starta om.
+
+---
+
+## 2026-02 – Kiosk-plugin
+
+- **Nytt plugin:** Kiosk – slots med plats, tid, kapacitet (1–5), synlighet och notiser.
+- **Backend:** `plugins/kiosk/` (model, controller, routes), migration `029-kiosk.sql`, tabell `kiosk_slots`.
+- **Frontend:** `client/src/plugins/kiosk/` (KioskList, KioskForm, KioskView, KioskContext, kioskApi).
+- **Koppling till Matches:** I match-detail kan användaren skapa slot från match via "To Kiosk" (AppContext `openToSlotDialog` / `registerOpenToSlotDialog`, KioskContext registrerar action `create-slot-from-match`).
+
+---
+
+## 2026-02 – Matches-plugin och pluginSingular-refaktor
+
+- **Matches-plugin:** Eget plugin (list/form/view, MatchContext, navigation under Main). Tidigare workarounds borttagna.
+- **pluginSingular:** Core-lager för singular-entity-plugins (panelKey, currentItem, open/close/save/delete) så att plugins inte behöver duplicera samma logik. Matches (och andra) använder detta där det passar.
+
+---
+
+## 2026-02 – Estimates: quick-edit status, Share, view-footer
+
+- **Quick-edit status:** Snabb redigering av estimate-status i view-läge; Update-knapp för att spara.
+- **Share:** ShareDialog för att dela estimate (layout och flöde uppdaterade).
+- **View-footer:** Tydligare footer-aktioner (Update, share/view) och städning av oanvända knappkomponenter.
+
+---
+
 ## 2026-02 – Tenant users och RBAC
 
 ### Multi-user per tenant
@@ -76,4 +108,4 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
-**Senast uppdaterad:** 2026-02-13
+**Senast uppdaterad:** 2026-02-10

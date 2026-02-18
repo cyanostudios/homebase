@@ -1,3 +1,11 @@
+export interface KioskMention {
+  contactId: string;
+  contactName: string;
+  companyName?: string;
+  position?: number;
+  length?: number;
+}
+
 export interface Slot {
   id: string;
   location: string | null;
@@ -5,6 +13,8 @@ export interface Slot {
   capacity: number;
   visible: boolean;
   notifications_enabled: boolean;
+  contact_id: string | null;
+  mentions: KioskMention[];
   created_at: string;
   updated_at: string;
 }

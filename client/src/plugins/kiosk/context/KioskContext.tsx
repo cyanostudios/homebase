@@ -2,9 +2,10 @@ import { Store } from 'lucide-react';
 import React, {
   createContext,
   useContext,
-  useState,
   useEffect,
   useCallback,
+  useRef,
+  useState,
   ReactNode,
 } from 'react';
 
@@ -73,7 +74,8 @@ export function KioskProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: KioskProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, registerKioskNavigation } =
+    useApp();
   const { registerAction } = useActionRegistry();
 
   // Register "To Kiosk" action on match entity (MatchContext wires openToSlotDialog when showing footer)
@@ -193,6 +195,19 @@ export function KioskProvider({
     },
     [onCloseOtherPanels],
   );
+
+  const openSlotForViewRef = useRef(openSlotForView);
+  useEffect(() => {
+    openSlotForViewRef.current = openSlotForView;
+  }, [openSlotForView]);
+  const openSlotForViewBridge = useCallback((slot: Slot) => {
+    openSlotForViewRef.current(slot);
+  }, []);
+
+  useEffect(() => {
+    registerKioskNavigation(openSlotForViewBridge);
+    return () => registerKioskNavigation(null);
+  }, [registerKioskNavigation, openSlotForViewBridge]);
 
   const openSlotSettings = useCallback(() => {
     clearSlotSelectionCore();

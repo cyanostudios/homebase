@@ -5,7 +5,7 @@
  * It provides authentication, cross-plugin data, and panel coordination.
  *
  * 🚨 BEFORE MAKING ANY CHANGES:
- * 1. Read COLLABORATION_GUIDE.md and AI_AGENT_INSTRUCTIONS.md
+ * 1. Read docs/LESSONS_LEARNED.md and docs/PLUGIN_ARCHITECTURE_V3.md
  * 2. Understand that changes here affect ALL plugins
  * 3. Test thoroughly with all existing plugins (contacts, notes, estimates, tasks, invoices, files)
  * 4. Verify cross-plugin features still work (@mentions, references)
@@ -43,6 +43,8 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 
 import { Contact } from '@/plugins/contacts/types/contacts';
 import { Estimate } from '@/plugins/estimates/types/estimate';
+import { Slot } from '@/plugins/kiosk/types/kiosk';
+import { Match } from '@/plugins/matches/types/match';
 import { Note } from '@/plugins/notes/types/notes';
 import { Task } from '@/plugins/tasks/types/tasks';
 
@@ -76,14 +78,20 @@ interface AppContextType {
   getEstimatesForContact: (contactId: string) => Promise<Estimate[]>;
   getTasksForContact: (contactId: string) => Promise<Task[]>;
   getTasksWithMentionsForContact: (contactId: string) => Promise<Task[]>;
+  getKioskSlotsForContact: (contactId: string) => Promise<Slot[]>;
+  getMatchesForContact: (contactId: string) => Promise<Match[]>;
 
   // Optional plugin navigation (set by plugins when mounted; used by e.g. ContactView)
   openNoteForView: ((note: Note) => void) | undefined;
   openTaskForView: ((task: Task) => void) | undefined;
   openEstimateForView: ((estimate: Estimate) => void) | undefined;
+  openSlotForView: ((slot: Slot) => void) | undefined;
+  openMatchForView: ((match: Match) => void) | undefined;
   registerNotesNavigation: (fn: ((note: Note) => void) | null) => void;
   registerTasksNavigation: (fn: ((task: Task) => void) | null) => void;
   registerEstimatesNavigation: (fn: ((estimate: Estimate) => void) | null) => void;
+  registerKioskNavigation: (fn: ((slot: Slot) => void) | null) => void;
+  registerMatchesNavigation: (fn: ((match: Match) => void) | null) => void;
 
   /** Open "Create task from note" dialog (set by AppContent so note detail footer can trigger it). */
   openToTaskDialog: ((note: Note) => void) | null;
@@ -234,6 +242,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [openEstimateForView, setOpenEstimateForView] = useState<
     ((estimate: Estimate) => void) | undefined
   >(undefined);
+  const [openSlotForView, setOpenSlotForView] = useState<((slot: Slot) => void) | undefined>(
+    undefined,
+  );
+  const [openMatchForView, setOpenMatchForView] = useState<((match: Match) => void) | undefined>(
+    undefined,
+  );
 
   const registerNotesNavigation = useCallback((fn: ((note: Note) => void) | null) => {
     queueMicrotask(() => setOpenNoteForView(() => fn ?? undefined));
@@ -243,6 +257,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
   const registerEstimatesNavigation = useCallback((fn: ((estimate: Estimate) => void) | null) => {
     queueMicrotask(() => setOpenEstimateForView(() => fn ?? undefined));
+  }, []);
+  const registerKioskNavigation = useCallback((fn: ((slot: Slot) => void) | null) => {
+    queueMicrotask(() => setOpenSlotForView(() => fn ?? undefined));
+  }, []);
+  const registerMatchesNavigation = useCallback((fn: ((match: Match) => void) | null) => {
+    queueMicrotask(() => setOpenMatchForView(() => fn ?? undefined));
   }, []);
 
   const [openToTaskDialog, setOpenToTaskDialog] = useState<((note: Note) => void) | null>(null);
@@ -492,6 +512,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [user?.plugins, tasks],
   );
 
+  const getKioskSlotsForContact = useCallback(
+    async (contactId: string): Promise<Slot[]> => {
+      if (!user?.plugins?.includes('kiosk')) {
+        return [];
+      }
+      try {
+        const rows = await api.request('/kiosk');
+        const id = String(contactId);
+        return (rows || []).filter(
+          (row: { contact_id?: number | string | null; mentions?: { contactId: string }[] }) =>
+            (row.contact_id !== null &&
+              row.contact_id !== undefined &&
+              String(row.contact_id) === id) ||
+            (Array.isArray(row.mentions) && row.mentions.some((m) => String(m.contactId) === id)),
+        );
+      } catch {
+        return [];
+      }
+    },
+    [user?.plugins],
+  );
+
+  const getMatchesForContact = useCallback(
+    async (contactId: string): Promise<Match[]> => {
+      if (!user?.plugins?.includes('matches')) {
+        return [];
+      }
+      try {
+        const rows = await api.request('/matches');
+        const id = String(contactId);
+        return (rows || []).filter(
+          (row: { contact_id?: number | string | null; mentions?: { contactId: string }[] }) =>
+            (row.contact_id !== null &&
+              row.contact_id !== undefined &&
+              String(row.contact_id) === id) ||
+            (Array.isArray(row.mentions) &&
+              row.mentions.some((m: { contactId: string }) => String(m.contactId) === id)),
+        ) as Match[];
+      } catch {
+        return [];
+      }
+    },
+    [user?.plugins],
+  );
+
   const getTasksWithMentionsForContact = useCallback(
     async (contactId: string): Promise<Task[]> => {
       if (!user?.plugins?.includes('tasks')) {
@@ -548,13 +613,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getEstimatesForContact,
         getTasksForContact,
         getTasksWithMentionsForContact,
+        getKioskSlotsForContact,
+        getMatchesForContact,
 
         openNoteForView,
         openTaskForView,
         openEstimateForView,
+        openSlotForView,
+        openMatchForView,
         registerNotesNavigation,
         registerTasksNavigation,
         registerEstimatesNavigation,
+        registerKioskNavigation,
+        registerMatchesNavigation,
 
         openToTaskDialog,
         registerOpenToTaskDialog,

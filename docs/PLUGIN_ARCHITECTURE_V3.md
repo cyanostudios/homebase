@@ -88,6 +88,12 @@ Plugins (notes, tasks, estimates) register their "open for view" function with A
 - **API:** User settings and activity log are served by the settings plugin at `/api/settings` (GET/PUT all or per category) and `/api/settings/activity-log` (GET with query params). Core no longer mounts separate settings or activity-log routes.
 - **Panel flow:** Settings uses the same plugin panel flow as other plugins (List = category list, Form = Profile/Preferences/ActivityLog wrapper). There is no `currentPage === 'settings'` special case in App.
 
+### Cross-plugin dialog registration (e.g. Kiosk from Matches)
+
+When one plugin can create or open another plugin’s entity from a source entity (e.g. “create slot from match”), Core can expose a callback that the target plugin registers, so the source plugin stays decoupled from the target.
+
+- **AppContext** exposes `openToSlotDialog` and `registerOpenToSlotDialog`. The Kiosk plugin registers a function that opens the slot-creation flow with pre-filled data from a match. MatchContext uses `openToSlotDialog(match)` from the detail footer and registers an action `create-slot-from-match` via the Action Registry. No direct import of Kiosk in Matches (or vice versa for this flow).
+
 ### Other behaviour
 
 - **ActivityLogForm:** Restore for notes is only offered when `user?.plugins?.includes('notes')`; otherwise the user sees a message that the notes plugin is required.

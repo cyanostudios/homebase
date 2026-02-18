@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
   ReactNode,
 } from 'react';
 
@@ -75,8 +76,13 @@ export function MatchProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: MatchProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction, openToSlotDialog, user } =
-    useApp();
+  const {
+    registerPanelCloseFunction,
+    unregisterPanelCloseFunction,
+    openToSlotDialog,
+    registerMatchesNavigation,
+    user,
+  } = useApp();
   const pluginActions = usePluginActions('match');
   const hasKioskPlugin = Boolean(user?.plugins?.includes('kiosk'));
 
@@ -183,6 +189,19 @@ export function MatchProvider({
     },
     [onCloseOtherPanels],
   );
+
+  const openMatchForViewRef = useRef(openMatchForView);
+  useEffect(() => {
+    openMatchForViewRef.current = openMatchForView;
+  }, [openMatchForView]);
+  const openMatchForViewBridge = useCallback((match: Match) => {
+    openMatchForViewRef.current(match);
+  }, []);
+
+  useEffect(() => {
+    registerMatchesNavigation(openMatchForViewBridge);
+    return () => registerMatchesNavigation(null);
+  }, [registerMatchesNavigation, openMatchForViewBridge]);
 
   const openMatchSettings = useCallback(() => {
     clearMatchSelectionCore();

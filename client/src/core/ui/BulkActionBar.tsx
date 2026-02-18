@@ -1,7 +1,7 @@
 // client/src/core/ui/BulkActionBar.tsx
 // Generic bulk action bar component for list views
 
-import { type LucideIcon } from 'lucide-react';
+import { XCircle, type LucideIcon } from 'lucide-react';
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,7 @@ export function BulkActionBar({
         <Button
           variant="ghost"
           size="sm"
+          icon={XCircle}
           className="h-7 text-[10px] px-2 text-red-600 underline decoration-red-600/50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:text-red-300"
           onClick={onClearSelection}
           type="button"
@@ -57,13 +58,15 @@ export function BulkActionBar({
           return (
             <Button
               key={action.label}
-              variant={isDestructive ? 'destructive' : 'secondary'}
+              variant={isDestructive ? 'ghost' : 'secondary'}
               size="sm"
               icon={Icon}
               onClick={action.onClick}
-              className={`h-7 text-[10px] px-2 ${
-                isDestructive ? 'text-white hover:text-white border-none' : ''
-              }`}
+              className={
+                isDestructive
+                  ? 'h-7 text-[10px] px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/30'
+                  : 'h-7 text-[10px] px-2'
+              }
             >
               {action.label}
             </Button>

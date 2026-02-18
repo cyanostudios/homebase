@@ -36,7 +36,15 @@ class KioskModel {
   async create(req, slotData) {
     try {
       const db = Database.get(req);
-      const { location, slot_time, capacity, visible, notifications_enabled } = slotData;
+      const {
+        location,
+        slot_time,
+        capacity,
+        visible,
+        notifications_enabled,
+        contact_id,
+        mentions,
+      } = slotData;
       const cap = validateCapacity(capacity);
 
       const result = await db.insert('kiosk_slots', {
@@ -45,6 +53,8 @@ class KioskModel {
         capacity: cap,
         visible: visible !== false && visible !== 'false',
         notifications_enabled: notifications_enabled !== false && notifications_enabled !== 'false',
+        contact_id: contact_id || null,
+        mentions: JSON.stringify(Array.isArray(mentions) ? mentions : []),
       });
 
       Logger.info('Kiosk slot created', { slotId: result.id });
@@ -71,7 +81,15 @@ class KioskModel {
         throw new AppError('Kiosk slot not found', 404, AppError.CODES.NOT_FOUND);
       }
 
-      const { location, slot_time, capacity, visible, notifications_enabled } = slotData;
+      const {
+        location,
+        slot_time,
+        capacity,
+        visible,
+        notifications_enabled,
+        contact_id,
+        mentions,
+      } = slotData;
       const cap = capacity != null ? validateCapacity(capacity) : existing[0].capacity;
 
       const result = await db.update('kiosk_slots', slotId, {
@@ -80,6 +98,11 @@ class KioskModel {
         capacity: cap,
         visible: visible !== false && visible !== 'false',
         notifications_enabled: notifications_enabled !== false && notifications_enabled !== 'false',
+        contact_id: contact_id ?? existing[0].contact_id ?? null,
+        mentions:
+          mentions !== undefined
+            ? JSON.stringify(Array.isArray(mentions) ? mentions : [])
+            : existing[0].mentions,
       });
 
       Logger.info('Kiosk slot updated', { slotId });
@@ -120,6 +143,17 @@ class KioskModel {
   }
 
   transformRow(row) {
+    let mentions = row.mentions;
+    if (typeof mentions === 'string') {
+      try {
+        mentions = JSON.parse(mentions);
+      } catch {
+        mentions = [];
+      }
+    }
+    if (!Array.isArray(mentions)) {
+      mentions = [];
+    }
     return {
       id: row.id.toString(),
       location: row.location,
@@ -127,6 +161,8 @@ class KioskModel {
       capacity: row.capacity,
       visible: Boolean(row.visible),
       notifications_enabled: Boolean(row.notifications_enabled),
+      contact_id: row.contact_id != null ? row.contact_id.toString() : null,
+      mentions,
       created_at: row.created_at,
       updated_at: row.updated_at,
     };

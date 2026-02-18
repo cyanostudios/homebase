@@ -6,7 +6,9 @@ import {
   Mail,
   SlidersHorizontal,
   StickyNote,
+  Store,
   Tag,
+  Trophy,
   Trash2,
   X,
 } from 'lucide-react';
@@ -36,15 +38,20 @@ interface ContactViewProps {
 
 export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
   const {
+    user,
     getNotesForContact,
     getEstimatesForContact,
     getTasksForContact,
     getTasksWithMentionsForContact,
+    getKioskSlotsForContact,
+    getMatchesForContact,
     getSettings,
     settingsVersion,
     openNoteForView,
     openTaskForView,
     openEstimateForView,
+    openSlotForView,
+    openMatchForView,
   } = useApp();
 
   const {
@@ -63,6 +70,8 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
   const [relatedEstimates, setRelatedEstimates] = useState<any[]>([]);
   const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
   const [mentionedInTasks, setMentionedInTasks] = useState<any[]>([]);
+  const [kioskSlots, setKioskSlots] = useState<any[]>([]);
+  const [matchMatches, setMatchMatches] = useState<any[]>([]);
   const [_loadingNotes, setLoadingNotes] = useState(false);
   const [_loadingEstimates, setLoadingEstimates] = useState(false);
   const [_loadingTasks, setLoadingTasks] = useState(false);
@@ -209,16 +218,41 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
       }
     };
 
+    // Load kiosk slots linked to this contact
+    const loadKioskSlots = async () => {
+      try {
+        const slots = await getKioskSlotsForContact(contact.id);
+        setKioskSlots(slots);
+      } catch (error) {
+        console.error('Failed to load kiosk slots for contact:', error);
+        setKioskSlots([]);
+      }
+    };
+
+    const loadMatches = async () => {
+      try {
+        const list = await getMatchesForContact(contact.id);
+        setMatchMatches(list);
+      } catch (error) {
+        console.error('Failed to load matches for contact:', error);
+        setMatchMatches([]);
+      }
+    };
+
     loadNotes();
     loadEstimates();
     loadTasks();
     loadTaskMentions();
+    loadKioskSlots();
+    loadMatches();
   }, [
     contact?.id,
     getNotesForContact,
     getEstimatesForContact,
     getTasksForContact,
     getTasksWithMentionsForContact,
+    getKioskSlotsForContact,
+    getMatchesForContact,
   ]);
 
   if (!contact) {
@@ -456,6 +490,91 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
                         </Button>
                       </div>
                     ))}
+                  </div>
+                </DetailSection>
+              </Card>
+            )}
+
+            {user?.plugins?.includes('kiosk') && openSlotForView && kioskSlots.length > 0 && (
+              <Card
+                padding="none"
+                className="overflow-hidden border-none shadow-sm bg-background/50"
+              >
+                <DetailSection title="Kiosk slots" icon={Store} iconPlugin="kiosk" className="p-4">
+                  <div className="space-y-2">
+                    {kioskSlots.map((slot: any) => (
+                      <div
+                        key={slot.id}
+                        className="flex justify-between items-center text-[11px] plugin-kiosk bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
+                      >
+                        <span className="text-muted-foreground truncate mr-4">
+                          {slot.location || '—'} ·{' '}
+                          {slot.slot_time
+                            ? new Date(slot.slot_time).toLocaleString('sv-SE', {
+                                dateStyle: 'short',
+                                timeStyle: 'short',
+                              })
+                            : '—'}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="link"
+                          onClick={() => {
+                            closeContactPanel();
+                            openSlotForView(slot);
+                          }}
+                          className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
+                        >
+                          View
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </DetailSection>
+              </Card>
+            )}
+
+            {user?.plugins?.includes('matches') && openMatchForView && matchMatches.length > 0 && (
+              <Card
+                padding="none"
+                className="overflow-hidden border-none shadow-sm bg-background/50"
+              >
+                <DetailSection title="Matches" icon={Trophy} iconPlugin="matches" className="p-4">
+                  <div className="space-y-2">
+                    {matchMatches.map(
+                      (m: {
+                        id: string;
+                        home_team?: string;
+                        away_team?: string;
+                        start_time?: string;
+                      }) => (
+                        <div
+                          key={m.id}
+                          className="flex justify-between items-center text-[11px] plugin-matches bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
+                        >
+                          <span className="text-muted-foreground truncate mr-4">
+                            {m.home_team ?? '—'} – {m.away_team ?? '—'}
+                            {m.start_time
+                              ? ` · ${new Date(m.start_time).toLocaleString('sv-SE', {
+                                  dateStyle: 'short',
+                                  timeStyle: 'short',
+                                })}`
+                              : ''}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="link"
+                            onClick={() => {
+                              closeContactPanel();
+                              openMatchForView(m);
+                            }}
+                            className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
+                          >
+                            View
+                          </Button>
+                        </div>
+                      ),
+                    )}
                   </div>
                 </DetailSection>
               </Card>

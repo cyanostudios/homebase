@@ -1,5 +1,5 @@
-import { Grid3x3, List, Settings, Trash2 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp, Grid3x3, List, Settings, Trash2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -48,11 +48,12 @@ export function KioskList() {
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, _setSortField] = useState<SortField>('slot_time');
-  const [sortOrder, _setSortOrder] = useState<SortOrder>('desc');
+  const [sortField, setSortField] = useState<SortField>('slot_time');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewModeState] = useState<ViewMode>('list');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,13 +77,20 @@ export function KioskList() {
     [updateSettings],
   );
 
+  const formatDateTimeForFilter = useCallback(
+    (s: string | null) =>
+      s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '',
+    [],
+  );
+
   const filteredAndSorted = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
     const filtered = slots.filter((s) => {
       if (!needle) {
         return true;
       }
-      return (s.location ?? '').toLowerCase().includes(needle);
+      const timeStr = formatDateTimeForFilter(s.slot_time ?? null).toLowerCase();
+      return (s.location ?? '').toLowerCase().includes(needle) || timeStr.includes(needle);
     });
     return [...filtered].sort((a, b) => {
       let aVal: string | number;
@@ -111,7 +119,33 @@ export function KioskList() {
       const cmp = String(aVal).localeCompare(String(bVal), undefined, { sensitivity: 'base' });
       return sortOrder === 'asc' ? cmp : -cmp;
     });
-  }, [slots, searchTerm, sortField, sortOrder]);
+  }, [slots, searchTerm, sortField, sortOrder, formatDateTimeForFilter]);
+
+  const visibleSlotIds = useMemo(() => filteredAndSorted.map((s) => s.id), [filteredAndSorted]);
+  const allVisibleSelected = useMemo(
+    () => visibleSlotIds.length > 0 && visibleSlotIds.every((id) => isSelected(id)),
+    [visibleSlotIds, isSelected],
+  );
+  const someVisibleSelected = useMemo(
+    () => visibleSlotIds.some((id) => isSelected(id)),
+    [visibleSlotIds, isSelected],
+  );
+  useEffect(() => {
+    if (!headerCheckboxRef.current) {
+      return;
+    }
+    headerCheckboxRef.current.indeterminate = !allVisibleSelected && someVisibleSelected;
+  }, [allVisibleSelected, someVisibleSelected]);
+  const onToggleAllVisible = useCallback(() => {
+    if (allVisibleSelected) {
+      const set = new Set(visibleSlotIds);
+      const remaining = selectedSlotIds.filter((id) => !set.has(id));
+      selectAllSlots(remaining);
+    } else {
+      const union = Array.from(new Set([...selectedSlotIds, ...visibleSlotIds]));
+      selectAllSlots(union);
+    }
+  }, [allVisibleSelected, visibleSlotIds, selectedSlotIds, selectAllSlots]);
 
   const handleOpenForView = (slot: Slot) => attemptNavigation(() => openSlotForView(slot));
 
@@ -120,7 +154,7 @@ export function KioskList() {
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search by location..."
+        searchPlaceholder="Search by location or time..."
         rightActions={
           <div className="flex gap-2">
             <Button
@@ -203,9 +237,9 @@ export function KioskList() {
         isOpen={showBulkDeleteModal}
         onClose={() => setShowBulkDeleteModal(false)}
         onConfirm={handleBulkDelete}
+        itemCount={selectedCount}
         itemLabel="slots"
-        count={selectedCount}
-        isDeleting={deleting}
+        isLoading={deleting}
       />
 
       {filteredAndSorted.length === 0 ? (
@@ -270,12 +304,81 @@ export function KioskList() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-8"></TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Time</TableHead>
+                <TableHead className="w-12">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    className="h-4 w-4 cursor-pointer"
+                    aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
+                    checked={allVisibleSelected}
+                    onChange={onToggleAllVisible}
+                  />
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => {
+                    if (sortField === 'location') {
+                      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortField('location');
+                      setSortOrder('asc');
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Location</span>
+                    {sortField === 'location' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => {
+                    if (sortField === 'slot_time') {
+                      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortField('slot_time');
+                      setSortOrder('asc');
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Time</span>
+                    {sortField === 'slot_time' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
                 <TableHead>Capacity</TableHead>
                 <TableHead>Visible</TableHead>
-                <TableHead className="text-right">Updated</TableHead>
+                <TableHead
+                  className="text-right cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => {
+                    if (sortField === 'updatedAt') {
+                      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortField('updatedAt');
+                      setSortOrder('asc');
+                    }
+                  }}
+                >
+                  <div className="flex items-center justify-end gap-2">
+                    <span>Updated</span>
+                    {sortField === 'updatedAt' &&
+                      (sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3 w-3 inline" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3 inline" />
+                      ))}
+                  </div>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -299,12 +402,13 @@ export function KioskList() {
                   role="button"
                   aria-label={`Open ${slot.location || 'Slot'} ${formatDateTime(slot.slot_time)}`}
                 >
-                  <TableCell onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={isSelected(slot.id)}
                       onChange={() => toggleSlotSelected(slot.id)}
                       className="cursor-pointer h-4 w-4"
+                      aria-label={isSelected(slot.id) ? 'Unselect slot' : 'Select slot'}
                     />
                   </TableCell>
                   <TableCell>

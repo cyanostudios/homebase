@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Card } from '@/components/ui/card';
@@ -10,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -17,7 +19,7 @@ import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { cn } from '@/lib/utils';
 
 import { useMatches } from '../hooks/useMatches';
-import { type SportType, SPORT_TYPES, getFormatsForSport } from '../types/match';
+import { type MatchMention, type SportType, SPORT_TYPES, getFormatsForSport } from '../types/match';
 
 import { MatchDateTimePicker } from './MatchDateTimePicker';
 import { MatchSettingsForm } from './MatchSettingsForm';
@@ -34,7 +36,7 @@ interface MatchFormState {
 
 interface MatchFormProps {
   currentMatch?: any;
-  onSave: (data: MatchFormState) => Promise<boolean>;
+  onSave: (data: Record<string, unknown>) => Promise<boolean>;
   onCancel: () => void;
   isSubmitting?: boolean;
 }
@@ -58,6 +60,10 @@ export function MatchForm({
   onCancel,
   isSubmitting: _isSubmitting = false,
 }: MatchFormProps) {
+  const { contacts } = useApp();
+  const assignableContacts = contacts.filter(
+    (c: { isAssignable?: boolean }) => c.isAssignable !== false,
+  );
   const { validationErrors, clearValidationErrors, panelMode } = useMatches();
   const {
     isDirty,
@@ -80,6 +86,7 @@ export function MatchForm({
     format: '11vs11',
     total_minutes: '',
   });
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
 
   useEffect(() => {
     const formKey = `match-form-${currentMatch?.id || 'new'}`;
@@ -98,6 +105,7 @@ export function MatchForm({
       format: formats[0] ?? '11vs11',
       total_minutes: '',
     });
+    setSelectedContactIds([]);
     markClean();
   }, [markClean]);
 
@@ -119,6 +127,13 @@ export function MatchForm({
             ? String(currentMatch.total_minutes)
             : '',
       });
+      const fromMentions =
+        currentMatch.mentions?.map((m: MatchMention) => String(m.contactId)).filter(Boolean) ?? [];
+      const fromContactId =
+        currentMatch.contact_id && !fromMentions.includes(String(currentMatch.contact_id))
+          ? [String(currentMatch.contact_id)]
+          : [];
+      setSelectedContactIds(fromMentions.length > 0 ? fromMentions : fromContactId);
       markClean();
     } else if (panelMode !== 'settings') {
       resetForm();
@@ -130,11 +145,24 @@ export function MatchForm({
       onCancel();
       return;
     }
+    const mentions: MatchMention[] = selectedContactIds
+      .map((id) => assignableContacts.find((c: { id: number | string }) => String(c.id) === id))
+      .filter(Boolean)
+      .map((c: { id: number | string; companyName?: string }) => {
+        const name = c.companyName ?? 'Contact';
+        return {
+          contactId: String(c.id),
+          contactName: name,
+          companyName: c.companyName,
+        };
+      });
     const payload = {
       ...formData,
       start_time: formData.start_time ? new Date(formData.start_time).toISOString() : '',
       total_minutes:
         formData.total_minutes.trim() === '' ? null : parseInt(formData.total_minutes, 10),
+      contact_id: selectedContactIds[0] ?? null,
+      mentions,
     };
     const ok = await onSave(payload);
     if (ok) {
@@ -143,7 +171,17 @@ export function MatchForm({
         resetForm();
       }
     }
-  }, [panelMode, formData, onSave, onCancel, markClean, currentMatch, resetForm]);
+  }, [
+    panelMode,
+    formData,
+    selectedContactIds,
+    assignableContacts,
+    onSave,
+    onCancel,
+    markClean,
+    currentMatch,
+    resetForm,
+  ]);
 
   const handleCancel = useCallback(() => {
     attemptAction(() => onCancel());
@@ -267,6 +305,68 @@ export function MatchForm({
                   placeholder="Venue, arena"
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Kontakter (Contacts)</Label>
+              <Select
+                value="__add__"
+                onValueChange={(v) => {
+                  if (v && v !== '__add__' && !selectedContactIds.includes(v)) {
+                    setSelectedContactIds((prev) => [...prev, v]);
+                    markDirty();
+                    clearValidationErrors();
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Lägg till kontakt..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__add__" className="text-muted-foreground">
+                    Lägg till kontakt...
+                  </SelectItem>
+                  {assignableContacts
+                    .filter(
+                      (c: { id: number | string }) => !selectedContactIds.includes(String(c.id)),
+                    )
+                    .map((contact: { id: number | string; companyName?: string }) => (
+                      <SelectItem key={contact.id} value={String(contact.id)}>
+                        {contact.companyName ?? `Contact ${contact.id}`}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {selectedContactIds.length > 0 && (
+                <ul className="flex flex-wrap gap-2 mt-2">
+                  {selectedContactIds.map((id) => {
+                    const contact = assignableContacts.find(
+                      (c: { id: number | string }) => String(c.id) === id,
+                    );
+                    const name =
+                      (contact as { companyName?: string } | undefined)?.companyName ?? id;
+                    return (
+                      <li
+                        key={id}
+                        className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-medium"
+                      >
+                        {name}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedContactIds((prev) => prev.filter((x) => x !== id));
+                            markDirty();
+                            clearValidationErrors();
+                          }}
+                          className="rounded hover:bg-muted-foreground/20 p-0.5"
+                          aria-label={`Ta bort ${name}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
           </div>
         </DetailSection>

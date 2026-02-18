@@ -7,6 +7,14 @@ export const FORMATS_BY_SPORT: Record<SportType, string[]> = {
   handball: ['6vs6', '7vs7'],
 };
 
+export interface MatchMention {
+  contactId: string;
+  contactName: string;
+  companyName?: string;
+  position?: number;
+  length?: number;
+}
+
 export interface Match {
   id: string;
   home_team: string;
@@ -16,6 +24,8 @@ export interface Match {
   sport_type: SportType;
   format: string;
   total_minutes: number | null;
+  contact_id: string | null;
+  mentions: MatchMention[];
   created_at: string;
   updated_at: string;
 }

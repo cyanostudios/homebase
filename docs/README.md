@@ -25,6 +25,8 @@ CSRF Protection - Required on all state-changing operations
 Rate Limiting - Configurable per endpoint
 Audit Logging - Built-in for all operations
 
+Current plugins (sidebar): Contacts, Notes, Tasks, Estimates, Invoices (Business), Files, Matches, Kiosk (Main), Mail (Tools); Settings via TopBar. See pluginRegistry.ts and PLUGIN_OVERVIEW_V2.md.
+
 📚 COMPLETE DOCUMENTATION
 🎯 Core Architecture & Services
 Start here for system understanding:
@@ -150,7 +152,7 @@ Plugin development anti-patterns
 
 CHANGELOG.md
 
-Recent changes since last documentation (validation, panel scroll, discard-flow, tasks quick-edit, green Update buttons)
+Kronologisk översikt över beteendeförändringar och nya funktioner (CORS, kiosk, matches, estimates, tenant/RBAC, m.m.)
 
 🚀 Development & Deployment
 
@@ -177,12 +179,9 @@ Common mistakes and fixes
 
 📋 Migration & Integration
 
-MIGRATION_GUIDE_V1_TO_V2.md (legacy examples)
-
-Migration steps and breaking changes (legacy)
-Current migration flow: REFACTORING_EXISTING_PLUGINS.md
-Service abstraction requirements
-Security enforcement checklist
+REFACTORING_EXISTING_PLUGINS.md – Current migration flow (existing plugins to core services)
+Service abstraction: CORE_SERVICES_ARCHITECTURE.md
+Security enforcement: SECURITY_GUIDELINES.md
 
 🗺️ Documentation Roadmap
 
@@ -380,7 +379,6 @@ For questions or issues:
 Check LESSONS_LEARNED.md - Common mistakes and solutions
 Review relevant guide for specific topic
 Check existing plugins for reference implementation
-Use COLLABORATION_GUIDE.md for AI assistance patterns
 
 ## System Status
 

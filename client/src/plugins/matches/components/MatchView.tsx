@@ -4,6 +4,7 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 
 import type { Match } from '../types/match';
 
@@ -21,6 +22,16 @@ function formatDateTime(s: string | null): string {
 
 export function MatchView({ match: matchProp, item }: MatchViewProps) {
   const match = matchProp ?? item ?? null;
+  const { contacts, openContactForView } = useContacts();
+  const linkedContacts =
+    match?.mentions?.length > 0
+      ? (match.mentions
+          .map((m) =>
+            contacts.find((c: { id: number | string }) => String(c.id) === String(m.contactId)),
+          )
+          .filter(Boolean) as { id: number | string; companyName?: string }[])
+      : [];
+
   if (!match) {
     return null;
   }
@@ -63,6 +74,25 @@ export function MatchView({ match: matchProp, item }: MatchViewProps) {
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Minutes</span>
                       <span className="font-medium">{match.total_minutes} min</span>
+                    </div>
+                  )}
+                  {linkedContacts.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-muted-foreground text-[10px]">Contacts</span>
+                      {linkedContacts.map((contact) => (
+                        <div key={contact.id} className="flex justify-between items-center">
+                          <span className="font-medium truncate max-w-[120px] text-xs">
+                            {contact.companyName ?? 'Contact'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => openContactForView(contact)}
+                            className="text-[10px] font-medium text-primary hover:underline shrink-0"
+                          >
+                            View
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                   <div className="pt-2 mt-2 border-t border-border/50">

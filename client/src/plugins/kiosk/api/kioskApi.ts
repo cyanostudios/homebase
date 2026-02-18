@@ -1,4 +1,36 @@
-import { Slot } from '../types/kiosk';
+import { KioskMention, Slot } from '../types/kiosk';
+
+function parseMentions(row: Record<string, unknown>): KioskMention[] {
+  let raw = row.mentions;
+  if (raw === null || raw === undefined) {
+    return [];
+  }
+  if (typeof raw === 'string') {
+    try {
+      raw = JSON.parse(raw) as KioskMention[];
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(raw) ? (raw as KioskMention[]) : [];
+}
+
+function rowToSlot(row: Record<string, unknown>): Slot {
+  const cap = row.capacity !== undefined && row.capacity !== null ? Number(row.capacity) : 1;
+  return {
+    id: String(row.id),
+    location: (row.location as string) ?? null,
+    slot_time: (row.slot_time as string) ?? '',
+    capacity: Number.isNaN(cap) ? 1 : Math.min(5, Math.max(1, cap)),
+    visible: Boolean(row.visible),
+    notifications_enabled: Boolean(row.notifications_enabled),
+    contact_id:
+      row.contact_id !== null && row.contact_id !== undefined ? String(row.contact_id) : null,
+    mentions: parseMentions(row),
+    created_at: (row.created_at as string) ?? '',
+    updated_at: (row.updated_at as string) ?? '',
+  };
+}
 
 class KioskApi {
   private csrfToken: string | null = null;
@@ -60,33 +92,12 @@ class KioskApi {
 
   async getSlots(): Promise<Slot[]> {
     const rows = await this.request('/kiosk');
-    return (rows || []).map((row: Record<string, unknown>) => {
-      const cap = Number(row.capacity);
-      return {
-        id: String(row.id),
-        location: (row.location as string) ?? null,
-        slot_time: (row.slot_time as string) ?? '',
-        capacity: Number.isNaN(cap) ? 1 : Math.min(5, Math.max(1, cap)),
-        visible: Boolean(row.visible),
-        notifications_enabled: Boolean(row.notifications_enabled),
-        created_at: (row.created_at as string) ?? '',
-        updated_at: (row.updated_at as string) ?? '',
-      };
-    });
+    return (rows || []).map((row: Record<string, unknown>) => rowToSlot(row));
   }
 
   async getSlot(id: string): Promise<Slot> {
     const row = await this.request(`/kiosk/${id}`);
-    return {
-      id: String(row.id),
-      location: (row.location as string) ?? null,
-      slot_time: (row.slot_time as string) ?? '',
-      capacity: row.capacity !== undefined && row.capacity !== null ? Number(row.capacity) : 1,
-      visible: Boolean(row.visible),
-      notifications_enabled: Boolean(row.notifications_enabled),
-      created_at: (row.created_at as string) ?? '',
-      updated_at: (row.updated_at as string) ?? '',
-    };
+    return rowToSlot(row);
   }
 
   async createSlot(data: {
@@ -95,6 +106,8 @@ class KioskApi {
     capacity?: number;
     visible?: boolean;
     notifications_enabled?: boolean;
+    contact_id?: string | null;
+    mentions?: KioskMention[];
   }): Promise<Slot> {
     const body = {
       location: data.location ?? null,
@@ -102,19 +115,11 @@ class KioskApi {
       capacity: data.capacity ?? 1,
       visible: data.visible !== false,
       notifications_enabled: data.notifications_enabled !== false,
+      contact_id: data.contact_id ?? null,
+      mentions: data.mentions ?? [],
     };
     const row = await this.request('/kiosk', { method: 'POST', body: JSON.stringify(body) });
-    const capCreate = Number(row.capacity);
-    return {
-      id: String(row.id),
-      location: (row.location as string) ?? null,
-      slot_time: (row.slot_time as string) ?? '',
-      capacity: Number.isNaN(capCreate) ? 1 : Math.min(5, Math.max(1, capCreate)),
-      visible: Boolean(row.visible),
-      notifications_enabled: Boolean(row.notifications_enabled),
-      created_at: (row.created_at as string) ?? '',
-      updated_at: (row.updated_at as string) ?? '',
-    };
+    return rowToSlot(row);
   }
 
   async updateSlot(id: string, data: Partial<Slot>): Promise<Slot> {
@@ -124,19 +129,11 @@ class KioskApi {
       capacity: data.capacity ?? 1,
       visible: data.visible !== false,
       notifications_enabled: data.notifications_enabled !== false,
+      contact_id: data.contact_id ?? null,
+      mentions: data.mentions ?? [],
     };
     const row = await this.request(`/kiosk/${id}`, { method: 'PUT', body: JSON.stringify(body) });
-    const capUpdate = Number(row.capacity);
-    return {
-      id: String(row.id),
-      location: (row.location as string) ?? null,
-      slot_time: (row.slot_time as string) ?? '',
-      capacity: Number.isNaN(capUpdate) ? 1 : Math.min(5, Math.max(1, capUpdate)),
-      visible: Boolean(row.visible),
-      notifications_enabled: Boolean(row.notifications_enabled),
-      created_at: (row.created_at as string) ?? '',
-      updated_at: (row.updated_at as string) ?? '',
-    };
+    return rowToSlot(row);
   }
 
   async deleteSlot(id: string): Promise<void> {
