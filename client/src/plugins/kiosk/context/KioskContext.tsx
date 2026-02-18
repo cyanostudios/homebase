@@ -15,7 +15,7 @@ import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 
 import { kioskApi } from '../api/kioskApi';
-import { Slot, ValidationError } from '../types/kiosk';
+import { Slot, ValidationError, type KioskMention } from '../types/kiosk';
 
 interface KioskContextType {
   isKioskPanelOpen: boolean;
@@ -59,6 +59,17 @@ interface KioskContextType {
 
   /** Refetch slots from API (e.g. after creating a slot from match in App). */
   refreshSlots: () => Promise<void>;
+
+  // Quick-edit in view mode (contacts/mentions): draft until "Update" is clicked (same UX as task properties / contact tags)
+  displayMentions: KioskMention[];
+  addContactToDraft: (contact: { id: number | string; companyName?: string }) => void;
+  removeContactFromDraft: (contactId: string) => void;
+  hasQuickEditChanges: boolean;
+  onApplyQuickEdit: () => Promise<void>;
+  showDiscardQuickEditDialog: boolean;
+  setShowDiscardQuickEditDialog: (show: boolean) => void;
+  getCloseHandler: (defaultClose: () => void) => () => void;
+  onDiscardQuickEditAndClose: () => void;
 }
 
 const KioskContext = createContext<KioskContextType | undefined>(undefined);
@@ -98,6 +109,9 @@ export function KioskProvider({
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [recentlyDuplicatedSlotId, setRecentlyDuplicatedSlotId] = useState<string | null>(null);
+  const [mentionsDraft, setMentionsDraft] = useState<KioskMention[] | null>(null);
+  const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
+  const pendingCloseRef = useRef<(() => void) | null>(null);
 
   const {
     selectedIds: selectedSlotIds,
@@ -113,6 +127,8 @@ export function KioskProvider({
     setCurrentSlot(null);
     setPanelMode('create');
     setValidationErrors([]);
+    setMentionsDraft(null);
+    setShowDiscardQuickEditDialog(false);
   }, []);
 
   useEffect(() => {
@@ -209,6 +225,63 @@ export function KioskProvider({
     return () => registerKioskNavigation(null);
   }, [registerKioskNavigation, openSlotForViewBridge]);
 
+  // Clear quick-edit draft when slot changes
+  useEffect(() => {
+    setMentionsDraft(null);
+    setShowDiscardQuickEditDialog(false);
+  }, [currentSlot?.id]);
+
+  const displayMentions =
+    currentSlot && mentionsDraft !== null
+      ? mentionsDraft
+      : Array.isArray(currentSlot?.mentions)
+        ? currentSlot.mentions
+        : [];
+
+  const addContactToDraft = useCallback(
+    (contact: { id: number | string; companyName?: string }) => {
+      const id = String(contact.id);
+      const name = contact.companyName ?? 'Contact';
+      setMentionsDraft((prev) => {
+        const base = prev ?? (Array.isArray(currentSlot?.mentions) ? currentSlot.mentions : []);
+        if (base.some((m) => String(m.contactId) === id)) {
+          return prev;
+        }
+        return [...base, { contactId: id, contactName: name, companyName: contact.companyName }];
+      });
+    },
+    [currentSlot?.mentions],
+  );
+
+  const removeContactFromDraft = useCallback(
+    (contactId: string) => {
+      const id = String(contactId);
+      setMentionsDraft((prev) => {
+        if (prev === null) {
+          const base = Array.isArray(currentSlot?.mentions) ? currentSlot.mentions : [];
+          return base.filter((m) => String(m.contactId) !== id);
+        }
+        return prev.filter((m) => String(m.contactId) !== id);
+      });
+    },
+    [currentSlot?.mentions],
+  );
+
+  const hasQuickEditChanges = Boolean(
+    currentSlot &&
+      panelMode === 'view' &&
+      (() => {
+        const saved = Array.isArray(currentSlot.mentions) ? currentSlot.mentions : [];
+        const draft = mentionsDraft ?? saved;
+        if (draft.length !== saved.length) {
+          return true;
+        }
+        const savedIds = [...saved].map((m) => String(m.contactId)).sort();
+        const draftIds = [...draft].map((m) => String(m.contactId)).sort();
+        return savedIds.some((id, i) => draftIds[i] !== id);
+      })(),
+  );
+
   const openSlotSettings = useCallback(() => {
     clearSlotSelectionCore();
     setRecentlyDuplicatedSlotId(null);
@@ -256,6 +329,46 @@ export function KioskProvider({
     },
     [currentSlot, validateSlot, closeSlotPanel],
   );
+
+  const onApplyQuickEdit = useCallback(async () => {
+    if (!currentSlot) {
+      return;
+    }
+    const nextMentions =
+      mentionsDraft ?? (Array.isArray(currentSlot.mentions) ? currentSlot.mentions : []);
+    const payload = {
+      location: currentSlot.location,
+      slot_time: currentSlot.slot_time,
+      capacity: currentSlot.capacity,
+      visible: currentSlot.visible,
+      notifications_enabled: currentSlot.notifications_enabled,
+      contact_id: nextMentions[0]?.contactId ?? null,
+      mentions: nextMentions,
+    };
+    const success = await saveSlot(payload, currentSlot.id);
+    if (success) {
+      setMentionsDraft(null);
+    }
+  }, [currentSlot, mentionsDraft, saveSlot]);
+
+  const getCloseHandler = useCallback(
+    (defaultClose: () => void) => {
+      return () => {
+        if (hasQuickEditChanges) {
+          pendingCloseRef.current = defaultClose;
+          setShowDiscardQuickEditDialog(true);
+        } else {
+          defaultClose();
+        }
+      };
+    },
+    [hasQuickEditChanges],
+  );
+
+  const onDiscardQuickEditAndClose = useCallback(() => {
+    setMentionsDraft(null);
+    setShowDiscardQuickEditDialog(false);
+  }, []);
 
   const deleteSlot = useCallback(
     async (id: string) => {
@@ -402,6 +515,15 @@ export function KioskProvider({
     recentlyDuplicatedSlotId,
     setRecentlyDuplicatedSlotId,
     refreshSlots,
+    displayMentions,
+    addContactToDraft,
+    removeContactFromDraft,
+    hasQuickEditChanges,
+    onApplyQuickEdit,
+    showDiscardQuickEditDialog,
+    setShowDiscardQuickEditDialog,
+    getCloseHandler,
+    onDiscardQuickEditAndClose,
   };
 
   return <KioskContext.Provider value={value}>{children}</KioskContext.Provider>;
