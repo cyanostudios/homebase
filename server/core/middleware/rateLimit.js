@@ -14,8 +14,14 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for health checks and CSRF token endpoint
-    return req.path === '/api/health' || req.path === '/api/csrf-token';
+    // Skip rate limiting for health, CSRF, auth/me (session check), and debug-log
+    // so reload with many parallel requests never returns 429 for auth and breaks "logged in" state
+    return (
+      req.path === '/api/health' ||
+      req.path === '/api/csrf-token' ||
+      req.path === '/api/auth/me' ||
+      req.path === '/api/debug-log'
+    );
   },
 });
 

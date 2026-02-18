@@ -41,25 +41,13 @@ interface NoteProviderProps {
 }
 
 export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: NoteProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, notes, refreshData } = useApp();
 
   // Panel states
   const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-
-  // Data state
-  const [notes, setNotes] = useState<Note[]>([]);
-
-  // Load data when authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadNotes();
-    } else {
-      setNotes([]);
-    }
-  }, [isAuthenticated]);
 
   // Panel registration
   useEffect(() => {
@@ -86,25 +74,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       delete window.cancelNotesForm;
     };
   }, []);
-
-  const loadNotes = async () => {
-    try {
-      const notesData = await notesApi.getNotes();
-
-      const transformedNotes = notesData.map((note: any) => ({
-        ...note,
-        createdAt: new Date(note.createdAt),
-        updatedAt: new Date(note.updatedAt),
-      }));
-
-      setNotes(transformedNotes);
-    } catch (error: any) {
-      console.error('Failed to load notes:', error);
-      // V2: Handle standardized error format
-      const errorMessage = error?.message || error?.error || 'Failed to load notes';
-      setValidationErrors([{ field: 'general', message: errorMessage }]);
-    }
-  };
 
   const validateNote = (noteData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
@@ -179,17 +148,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       if (currentNote) {
         // Update existing note
         savedNote = await notesApi.updateNote(currentNote.id, noteData);
-        setNotes((prev) =>
-          prev.map((note) =>
-            note.id === currentNote.id
-              ? {
-                  ...savedNote,
-                  createdAt: new Date(savedNote.createdAt),
-                  updatedAt: new Date(savedNote.updatedAt),
-                }
-              : note,
-          ),
-        );
         setCurrentNote({
           ...savedNote,
           createdAt: new Date(savedNote.createdAt),
@@ -197,18 +155,12 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         });
         setPanelMode('view');
         setValidationErrors([]);
+        await refreshData();
       } else {
         // Create new note
         savedNote = await notesApi.createNote(noteData);
-        setNotes((prev) => [
-          ...prev,
-          {
-            ...savedNote,
-            createdAt: new Date(savedNote.createdAt),
-            updatedAt: new Date(savedNote.updatedAt),
-          },
-        ]);
         closeNotePanel();
+        await refreshData();
       }
 
       return true;
@@ -246,11 +198,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     console.log('Deleting note with id:', id);
     try {
       await notesApi.deleteNote(id);
-      setNotes((prev) => {
-        const newNotes = prev.filter((note) => note.id !== id);
-        console.log('Notes after delete:', newNotes);
-        return newNotes;
-      });
+      await refreshData();
     } catch (error: any) {
       console.error('Failed to delete note:', error);
       // V2: Handle standardized error format
@@ -267,17 +215,8 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         mentions: originalNote.mentions || [],
       };
 
-      const newNote = await notesApi.createNote(duplicateData);
-
-      setNotes((prev) => [
-        {
-          ...newNote,
-          createdAt: new Date(newNote.createdAt),
-          updatedAt: new Date(newNote.updatedAt),
-        },
-        ...prev,
-      ]);
-
+      await notesApi.createNote(duplicateData);
+      await refreshData();
       console.log('Note duplicated successfully');
     } catch (error: any) {
       console.error('Failed to duplicate note:', error);

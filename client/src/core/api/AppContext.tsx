@@ -58,6 +58,7 @@ type PluginNameUnion = 'contacts' | 'notes' | 'estimates' | 'tasks' | 'invoices'
 interface AppContextType {
   // Auth State
   user: User | null;
+  currentTenantUserId: number | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   signup: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -69,6 +70,7 @@ interface AppContextType {
   // Cross-plugin data (read-only for cross-references)
   contacts: Contact[];
   notes: Note[];
+  tasks: Task[];
 
   // Cross-plugin references
   getNotesForContact: (contactId: string) => Promise<Note[]>;
@@ -237,6 +239,7 @@ const api = {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [currentTenantUserId, setCurrentTenantUserId] = useState<number | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -263,12 +266,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated]);
 
   const checkAuth = async () => {
+    const debugLog = (message: string) => {
+      fetch('/api/debug-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ message }),
+      }).catch(() => {});
+    };
     try {
+      debugLog('CHECK_AUTH: Calling getMe...');
       const response = await api.getMe();
+      debugLog(`CHECK_AUTH: getMe OK userId: ${response?.user?.id ?? '—'}`);
       setUser(response.user);
+      setCurrentTenantUserId(response.currentTenantUserId ?? response.user?.id ?? null);
       setIsAuthenticated(true);
-    } catch {
+    } catch (err: any) {
+      debugLog(`CHECK_AUTH: getMe failed status: ${err?.status ?? '—'} message: ${err?.message ?? '—'} code: ${err?.code ?? '—'}`);
       setUser(null);
+      setCurrentTenantUserId(null);
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
@@ -277,24 +293,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadData = async () => {
     try {
-      const [contactsData, notesData, tasksData] = await Promise.all([
-        api.getContacts(),
-        api.getNotes(),
-        api.getTasks(),
-      ]);
-
+      // Priority 1: contacts (critical for first screen / lists)
+      const contactsData = await api.getContacts();
       const transformedContacts = contactsData.map((contact: any) => ({
         ...contact,
         createdAt: new Date(contact.createdAt),
         updatedAt: new Date(contact.updatedAt),
       }));
+      setContacts(transformedContacts);
 
+      // Priority 2: notes and tasks in background
+      const [notesData, tasksData] = await Promise.all([
+        api.getNotes(),
+        api.getTasks(),
+      ]);
       const transformedNotes = notesData.map((note: any) => ({
         ...note,
         createdAt: new Date(note.createdAt),
         updatedAt: new Date(note.updatedAt),
       }));
-
       const transformedTasks = tasksData.map((task: any) => ({
         ...task,
         assignedTo: task.assigned_to,
@@ -303,8 +320,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createdAt: new Date(task.created_at),
         updatedAt: new Date(task.updated_at),
       }));
-
-      setContacts(transformedContacts);
       setNotes(transformedNotes);
       setTasks(transformedTasks);
     } catch (error) {
@@ -322,6 +337,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const response = await api.login(email, password);
       setUser(response.user);
+      setCurrentTenantUserId(response.user?.id ?? null);
       setIsAuthenticated(true);
       return true;
     } catch (error) {
@@ -338,6 +354,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const response = await api.signup(email, password);
       // Auto-login after successful signup
       setUser(response.user);
+      setCurrentTenantUserId(response.user?.id ?? null);
       setIsAuthenticated(true);
       return { success: true };
     } catch (error: any) {
@@ -362,6 +379,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Logout error:', error);
     } finally {
       setUser(null);
+      setCurrentTenantUserId(null);
       setIsAuthenticated(false);
       setContacts([]);
       setNotes([]);
@@ -479,6 +497,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider
       value={{
         user,
+        currentTenantUserId,
         isAuthenticated,
         login,
         signup,
@@ -487,6 +506,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         contacts,
         notes,
+        tasks,
 
         getNotesForContact,
         getContactsForNote,

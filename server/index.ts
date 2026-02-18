@@ -86,6 +86,18 @@ app.use(
   }),
 );
 
+// DEBUG: Log session state after session is loaded (for troubleshooting logout on reload)
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    const sid = req.sessionID;
+    const sidShort = typeof sid === 'string' ? sid.slice(0, 8) + '...' : '(no id)';
+    const hasUser = !!(req.session && req.session.user);
+    const userId = req.session?.user?.id;
+    console.log('[SESSION]', req.method, req.path, '| sid:', sidShort, '| hasUser:', hasUser, '| userId:', userId ?? '—');
+  }
+  next();
+});
+
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -143,6 +155,22 @@ app.use(async (req, res, next) => {
 // Auth middleware
 function requireAuth(req, res, next) {
   if (!req.session.user) {
+    const poolStats =
+      pool && typeof (pool as any).totalCount === 'number'
+        ? ` pool total: ${(pool as any).totalCount} idle: ${(pool as any).idleCount}`
+        : '';
+    console.log(
+      '[AUTH] 401 Unauthorized',
+      req.method,
+      req.path,
+      '| sessionID:',
+      typeof req.sessionID === 'string' ? req.sessionID.slice(0, 8) + '...' : req.sessionID,
+      '| hasSession:',
+      !!req.session,
+      '| user:',
+      req.session?.user ?? '—',
+      poolStats,
+    );
     return res.status(401).json({ error: 'Authentication required' });
   }
   next();
@@ -172,6 +200,15 @@ const pluginLoader = new PluginLoader(pool, requirePlugin);
 
 // CSRF token endpoint
 app.get('/api/csrf-token', csrfTokenHandler);
+
+// DEBUG: Client can send log lines here so everything appears in the server terminal (dev only)
+if (process.env.NODE_ENV !== 'production') {
+  app.post('/api/debug-log', express.json(), (req, res) => {
+    const msg = req.body?.message ?? req.body?.msg ?? String(req.body);
+    console.log('[CLIENT]', msg);
+    res.status(204).end();
+  });
+}
 
 // Global rate limiting
 app.use('/api', globalLimiter);
@@ -231,6 +268,9 @@ const server = app.listen(PORT, () => {
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
   console.log(`🔌 Loaded ${pluginLoader.getAllPlugins().length} plugins`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`📋 Auth debug logs: [SESSION] [AUTH] [AUTH/ME] [CLIENT] — all appear in this terminal`);
+  }
 });
 
 // Graceful shutdown - wait for server to drain before closing pool

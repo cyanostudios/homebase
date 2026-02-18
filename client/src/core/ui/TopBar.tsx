@@ -121,19 +121,17 @@ export function TopBar({
   detailPanelTitle,
   onDetailPanelClose,
 }: TopBarProps) {
-  const { user, logout, getSettings } = useApp();
+  const { user, currentTenantUserId, logout, getSettings } = useApp();
   const [searchOpen, setSearchOpen] = useState(false);
   const [openPanel, setOpenPanel] = useState<'pomodoro' | 'clock' | null>(null);
   const [profileSettings, setProfileSettings] = useState<{ name?: string; title?: string } | null>(null);
 
   const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [currentTenantUserId, setCurrentTenantUserId] = useState<number | null>(null);
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
   const isAdmin = user?.role === 'superuser';
 
   useEffect(() => {
     if (isAdmin) {
-      loadCurrentTenant();
       loadTenants();
     }
   }, [isAdmin]);
@@ -156,18 +154,6 @@ export function TopBar({
       loadProfileSettings();
     }
   }, [user, getSettings]);
-
-  const loadCurrentTenant = async () => {
-    try {
-      const response = await fetch('/api/auth/me', { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setCurrentTenantUserId(data.currentTenantUserId);
-      }
-    } catch (error) {
-      console.error('Failed to load current tenant:', error);
-    }
-  };
 
   const loadTenants = async () => {
     try {

@@ -111,7 +111,16 @@ const commonRules = {
         }
         return true;
       }),
-  
+
+  requiredArray: (field, max = 500) => [
+    body(field)
+      .isArray()
+      .withMessage(`${field} must be an array`),
+    body(field)
+      .custom((value) => !value || value.length <= max)
+      .withMessage(`${field} must have at most ${max} items`),
+  ],
+
   id: (field = 'id') => param(field).isInt().withMessage(`${field} must be a valid integer`),
   
   queryString: (field, max = 255) =>

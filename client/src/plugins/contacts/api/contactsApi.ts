@@ -100,6 +100,23 @@ class ContactsApi {
   async deleteContact(id: string) {
     return this.request(`/contacts/${id}`, { method: 'DELETE' });
   }
+
+  async getTimeEntries(contactId: string) {
+    return this.request(`/contacts/${contactId}/time-entries`);
+  }
+
+  async createTimeEntry(contactId: string, data: { seconds: number; loggedAt?: string }) {
+    return this.request(`/contacts/${contactId}/time-entries`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTimeEntry(contactId: string, entryId: string) {
+    return this.request(`/contacts/${contactId}/time-entries/${entryId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const contactsApi = new ContactsApi();

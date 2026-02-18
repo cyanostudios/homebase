@@ -320,6 +320,7 @@ router.get(
   '/me',
   (req, res, next) => requireAuth(req, res, next),
   async (req, res) => {
+    console.log('[AUTH/ME] GET /me | hasSession:', !!req.session, 'hasUser:', !!req.session?.user, 'userId:', req.session?.user?.id);
     try {
       const currentTenantUserId = req.session.currentTenantUserId || req.session.user.id;
 
@@ -336,6 +337,7 @@ router.get(
         req.session.user.plugins = plugins;
       }
 
+      console.log('[AUTH/ME] 200 OK currentTenantUserId:', currentTenantUserId);
       res.json({
         user: {
           ...req.session.user,
@@ -345,7 +347,8 @@ router.get(
       });
     } catch (error) {
       const logger = ServiceManager.get('logger');
-      logger.error('Failed to fetch user info', error, { userId: req.session.user.id });
+      console.log('[AUTH/ME] 500', error?.message);
+      logger.error('Failed to fetch user info', error, { userId: req.session?.user?.id });
       res.status(500).json({ error: 'Failed to fetch user info' });
     }
   },

@@ -37,6 +37,10 @@ export default defineConfig({
           }
         },
         onProxyRes: (proxyRes, req, res) => {
+          // DEBUG: Log /api/auth/me responses (for troubleshooting logout on reload)
+          if (req.url?.includes('/api/auth/me')) {
+            console.log('[PROXY] /api/auth/me', proxyRes.statusCode, 'hasSetCookie:', !!proxyRes.headers['set-cookie']);
+          }
           // Forward Set-Cookie headers
           if (proxyRes.headers['set-cookie']) {
             proxyRes.headers['set-cookie'] = proxyRes.headers['set-cookie'].map((cookie: string) => {

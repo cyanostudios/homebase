@@ -2,6 +2,7 @@ import { Building, User } from 'lucide-react';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import { bulkApi } from '@/core/api/bulkApi';
 import { Badge } from '@/components/ui/badge';
 
 import { contactsApi } from '../api/contactsApi';
@@ -24,6 +25,7 @@ interface ContactContextType {
   closeContactPanel: () => void;
   saveContact: (contactData: any) => Promise<boolean>;
   deleteContact: (id: string) => Promise<void>;
+  deleteContacts: (ids: string[]) => Promise<void>;
   clearValidationErrors: () => void;
 
   // Panel Title helpers
@@ -45,25 +47,13 @@ export function ContactProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: ContactProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, contacts, refreshData } = useApp();
 
   // Panel states
   const [isContactPanelOpen, setIsContactPanelOpen] = useState(false);
   const [currentContact, setCurrentContact] = useState<Contact | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-
-  // Data state
-  const [contacts, setContacts] = useState<Contact[]>([]);
-
-  // Load data when authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadContacts();
-    } else {
-      setContacts([]);
-    }
-  }, [isAuthenticated]);
 
   // Register a global close function for this panel once
   useEffect(() => {
@@ -91,20 +81,6 @@ export function ContactProvider({
       delete (window as any).cancelContactsForm;
     };
   }, []);
-
-  const loadContacts = async () => {
-    try {
-      const contactsData = await contactsApi.getContacts();
-      const transformedContacts: Contact[] = contactsData.map((contact: any) => ({
-        ...contact,
-        createdAt: new Date(contact.createdAt),
-        updatedAt: new Date(contact.updatedAt),
-      }));
-      setContacts(transformedContacts);
-    } catch (error) {
-      console.error('Failed to load contacts:', error);
-    }
-  };
 
   // Helper: next contact number
   const generateNextContactNumber = (): string => {
@@ -257,20 +233,15 @@ export function ContactProvider({
           createdAt: new Date(saved.createdAt),
           updatedAt: new Date(saved.updatedAt),
         };
-        setContacts((prev) => prev.map((c) => (c.id === currentContact.id ? normalized : c)));
         setCurrentContact(normalized);
         setPanelMode('view');
         setValidationErrors([]);
+        await refreshData();
       } else {
         // Create
         saved = await contactsApi.createContact(contactData);
-        const normalized: Contact = {
-          ...saved,
-          createdAt: new Date(saved.createdAt),
-          updatedAt: new Date(saved.updatedAt),
-        };
-        setContacts((prev) => [...prev, normalized]);
         closeContactPanel();
+        await refreshData();
       }
 
       return true;
@@ -307,11 +278,26 @@ export function ContactProvider({
   const deleteContact = async (id: string) => {
     try {
       await contactsApi.deleteContact(id);
-      setContacts((prev) => prev.filter((c) => c.id !== id));
+      await refreshData();
     } catch (error: any) {
       console.error('Failed to delete contact:', error);
       // V2: Handle standardized error format
       const errorMessage = error?.message || error?.error || 'Failed to delete contact';
+      alert(errorMessage);
+    }
+  };
+
+  const deleteContacts = async (ids: string[]) => {
+    if (!ids.length) return;
+    try {
+      await bulkApi.bulkDelete('contacts', ids);
+      if (currentContact && ids.includes(currentContact.id)) {
+        closeContactPanel();
+      }
+      await refreshData();
+    } catch (error: any) {
+      console.error('Failed to bulk delete contacts:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to delete contacts';
       alert(errorMessage);
     }
   };
@@ -398,6 +384,7 @@ export function ContactProvider({
     closeContactPanel,
     saveContact,
     deleteContact,
+    deleteContacts,
     clearValidationErrors,
 
     // Panel Title helpers

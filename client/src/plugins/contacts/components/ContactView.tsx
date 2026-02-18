@@ -1,10 +1,13 @@
-import { StickyNote, Calculator, CheckSquare } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import { StickyNote, Calculator, CheckSquare, Clock, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { contactsApi } from '@/plugins/contacts/api/contactsApi';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useEstimates } from '@/plugins/estimates/hooks/useEstimates';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
@@ -44,6 +47,70 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
   const [loadingEstimates, setLoadingEstimates] = useState(false);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [loadingTaskMentions, setLoadingTaskMentions] = useState(false);
+
+  const [timeEntries, setTimeEntries] = useState<any[]>([]);
+  const [loadingTimeEntries, setLoadingTimeEntries] = useState(false);
+  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
+  const [addingTimeEntry, setAddingTimeEntry] = useState(false);
+  const [newTimeMinutes, setNewTimeMinutes] = useState('');
+  const [newTimeDate, setNewTimeDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+
+  const loadTimeEntries = useCallback(async (contactId: string) => {
+    setLoadingTimeEntries(true);
+    try {
+      const entries = await contactsApi.getTimeEntries(contactId);
+      setTimeEntries(entries);
+    } catch (error) {
+      console.error('Failed to load time entries:', error);
+      setTimeEntries([]);
+    } finally {
+      setLoadingTimeEntries(false);
+    }
+  }, []);
+
+  const handleDeleteTimeEntry = useCallback(
+    async (contactId: string, entryId: string) => {
+      setDeletingEntryId(entryId);
+      try {
+        await contactsApi.deleteTimeEntry(contactId, entryId);
+        setTimeEntries((prev) => prev.filter((e) => e.id !== entryId));
+      } catch (error) {
+        console.error('Failed to delete time entry:', error);
+      } finally {
+        setDeletingEntryId(null);
+      }
+    },
+    [],
+  );
+
+  const handleAddTimeEntry = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!contact?.id) return;
+      const minutes = parseInt(newTimeMinutes, 10);
+      if (Number.isNaN(minutes) || minutes < 0) return;
+      setAddingTimeEntry(true);
+      try {
+        const loggedAt = newTimeDate
+          ? new Date(newTimeDate).toISOString()
+          : undefined;
+        const entry = await contactsApi.createTimeEntry(contact.id, {
+          seconds: minutes * 60,
+          loggedAt,
+        });
+        setTimeEntries((prev) => [entry, ...prev]);
+        setNewTimeMinutes('');
+        setNewTimeDate(new Date().toISOString().slice(0, 10));
+      } catch (error) {
+        console.error('Failed to add time entry:', error);
+      } finally {
+        setAddingTimeEntry(false);
+      }
+    },
+    [contact?.id, newTimeMinutes, newTimeDate],
+  );
 
   // Load cross-plugin data when contact changes
   useEffect(() => {
@@ -111,12 +178,14 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     loadEstimates();
     loadTasks();
     loadTaskMentions();
+    loadTimeEntries(contact.id);
   }, [
     contact?.id,
     getNotesForContact,
     getEstimatesForContact,
     getTasksForContact,
     getTasksWithMentionsForContact,
+    loadTimeEntries,
   ]);
 
   if (!contact) {
@@ -302,6 +371,88 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
           </DetailSection>
         </Card>
       )}
+
+      <hr className="border-gray-100 dark:border-gray-800" />
+
+      {/* Time log */}
+      <Card padding="sm" className="shadow-none px-0">
+        <DetailSection title="Time log">
+          {loadingTimeEntries ? (
+            <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
+          ) : timeEntries.length > 0 ? (
+            <div className="space-y-2">
+              {timeEntries.map((entry: any) => {
+                const mins = Math.floor(entry.seconds / 60);
+                const duration =
+                  mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;
+                const dateStr = entry.loggedAt
+                  ? new Date(entry.loggedAt).toLocaleDateString(undefined, { dateStyle: 'short' })
+                  : '';
+                const isDeleting = deletingEntryId === entry.id;
+                return (
+                  <div
+                    key={entry.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {duration}
+                      </span>
+                      {dateStr && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">{dateStr}</span>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={isDeleting}
+                      onClick={() => handleDeleteTimeEntry(contact.id, entry.id)}
+                      className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+          {!loadingTimeEntries && timeEntries.length === 0 ? (
+            <div className="text-sm text-gray-500 dark:text-gray-400">No time entries.</div>
+          ) : null}
+          <form onSubmit={handleAddTimeEntry} className="mt-4 flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="time-minutes" className="text-xs">
+                Minuter
+              </Label>
+              <Input
+                id="time-minutes"
+                type="number"
+                min={0}
+                value={newTimeMinutes}
+                onChange={(e) => setNewTimeMinutes(e.target.value)}
+                placeholder="0"
+                className="w-24"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="time-date" className="text-xs">
+                Datum
+              </Label>
+              <Input
+                id="time-date"
+                type="date"
+                value={newTimeDate}
+                onChange={(e) => setNewTimeDate(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            <Button type="submit" size="sm" disabled={addingTimeEntry}>
+              {addingTimeEntry ? 'Lägger till...' : 'Lägg till'}
+            </Button>
+          </form>
+        </DetailSection>
+      </Card>
 
       <hr className="border-gray-100 dark:border-gray-800" />
 

@@ -1,8 +1,9 @@
-import { Mail, Phone, Building, User, ArrowUp, ArrowDown } from 'lucide-react';
+import { Mail, Phone, Building, User, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -11,6 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -21,9 +24,12 @@ type SortField = 'contactNumber' | 'name' | 'type' | 'email';
 type SortOrder = 'asc' | 'desc';
 
 export const ContactList: React.FC = () => {
-  const { contacts, openContactForView, deleteContact } = useContacts();
+  const { contacts, openContactForView, deleteContact, deleteContacts } = useContacts();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     contactId: string;
@@ -95,6 +101,38 @@ export const ContactList: React.FC = () => {
     setDeleteConfirm({ isOpen: false, contactId: '', contactName: '' });
   };
 
+  const selectedCount = selectedIds.size;
+  const allSelected =
+    sortedContacts.length > 0 &&
+    sortedContacts.every((c) => selectedIds.has(c.id));
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedContacts.map((c) => c.id)));
+    }
+  };
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    const ids = Array.from(selectedIds);
+    setBulkDeleting(true);
+    try {
+      await deleteContacts(ids);
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   // Protected navigation handlers
   const handleOpenForView = (contact: any) => attemptNavigation(() => openContactForView(contact));
   return (
@@ -103,6 +141,19 @@ export const ContactList: React.FC = () => {
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder="Search contacts..."
+      />
+
+      <BulkActionBar
+        selectedCount={selectedCount}
+        onClearSelection={() => setSelectedIds(new Set())}
+        actions={[
+          {
+            label: 'Delete',
+            icon: Trash2,
+            onClick: () => setBulkDeleteOpen(true),
+            variant: 'destructive',
+          },
+        ]}
       />
 
       <Card className="shadow-none">
@@ -116,6 +167,13 @@ export const ContactList: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead className="w-12"></TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-muted/50 select-none"
@@ -191,6 +249,13 @@ export const ContactList: React.FC = () => {
                     handleOpenForView(contact);
                   }}
                 >
+                  <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(contact.id)}
+                      onCheckedChange={() => toggleSelectOne(contact.id)}
+                      aria-label={`Select ${contact.companyName}`}
+                    />
+                  </TableCell>
                   <TableCell className="w-12">
                     {contact.contactType === 'company' ? (
                       <Building className="w-4 h-4 text-blue-500 dark:text-blue-400" />
@@ -257,6 +322,15 @@ export const ContactList: React.FC = () => {
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
         variant="danger"
+      />
+
+      <BulkDeleteModal
+        isOpen={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={handleBulkDeleteConfirm}
+        itemCount={selectedCount}
+        itemLabel="contacts"
+        isLoading={bulkDeleting}
       />
     </div>
   );

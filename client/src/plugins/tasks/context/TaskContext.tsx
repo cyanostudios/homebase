@@ -46,22 +46,12 @@ interface TaskProviderProps {
 }
 
 export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: TaskProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction, contacts } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, contacts, tasks, refreshData } = useApp();
 
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-
-  const [tasks, setTasks] = useState<Task[]>([]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadTasks();
-    } else {
-      setTasks([]);
-    }
-  }, [isAuthenticated]);
 
   const closeTaskPanel = useCallback(() => {
     setIsTaskPanelOpen(false);
@@ -93,24 +83,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       delete window.cancelTasksForm;
     };
   }, []);
-
-  const loadTasks = async () => {
-    try {
-      const tasksData = await tasksApi.getTasks();
-      const transformedTasks = tasksData.map((task: any) => ({
-        ...task,
-        createdAt: new Date(task.createdAt),
-        updatedAt: new Date(task.updatedAt),
-        dueDate: task.dueDate ? new Date(task.dueDate) : null,
-      }));
-      setTasks(transformedTasks);
-    } catch (error: any) {
-      console.error('Failed to load tasks:', error);
-      // V2: Handle standardized error format
-      const errorMessage = error?.message || error?.error || 'Failed to load tasks';
-      setValidationErrors([{ field: 'general', message: errorMessage }]);
-    }
-  };
 
   const validateTask = (taskData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
@@ -204,19 +176,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       if (idToUpdate) {
         console.log('Updating existing task:', idToUpdate);
         savedTask = await tasksApi.updateTask(idToUpdate, taskData);
-        setTasks((prev) =>
-          prev.map((task) =>
-            task.id === idToUpdate
-              ? {
-                  ...savedTask,
-                  createdAt: new Date(savedTask.createdAt),
-                  updatedAt: new Date(savedTask.updatedAt),
-                  dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
-                }
-              : task,
-          ),
-        );
-        // Only update currentTask if it matches the updated task
         if (currentTask && currentTask.id === idToUpdate) {
           setCurrentTask({
             ...savedTask,
@@ -227,20 +186,13 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         }
         setPanelMode('view');
         setValidationErrors([]);
+        await refreshData();
       } else {
         console.log('Creating new task...');
         savedTask = await tasksApi.createTask(taskData);
         console.log('Task created successfully:', savedTask);
-        setTasks((prev) => [
-          ...prev,
-          {
-            ...savedTask,
-            createdAt: new Date(savedTask.createdAt),
-            updatedAt: new Date(savedTask.updatedAt),
-            dueDate: savedTask.dueDate ? new Date(savedTask.dueDate) : null,
-          },
-        ]);
         closeTaskPanel();
+        await refreshData();
       }
 
       console.log('Task saved successfully');
@@ -280,11 +232,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     console.log('Deleting task with id:', id);
     try {
       await tasksApi.deleteTask(id);
-      setTasks((prev) => {
-        const newTasks = prev.filter((task) => task.id !== id);
-        console.log('Tasks after delete:', newTasks);
-        return newTasks;
-      });
+      await refreshData();
     } catch (error: any) {
       console.error('Failed to delete task:', error);
       // V2: Handle standardized error format
@@ -305,17 +253,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         mentions: originalTask.mentions || [],
       };
 
-      const newTask = await tasksApi.createTask(duplicateData);
-      setTasks((prev) => [
-        {
-          ...newTask,
-          createdAt: new Date(newTask.createdAt),
-          updatedAt: new Date(newTask.updatedAt),
-          dueDate: newTask.dueDate ? new Date(newTask.dueDate) : null,
-        },
-        ...prev,
-      ]);
-
+      await tasksApi.createTask(duplicateData);
+      await refreshData();
       console.log('Task duplicated successfully');
     } catch (error: any) {
       console.error('Failed to duplicate task:', error);

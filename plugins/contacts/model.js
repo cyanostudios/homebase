@@ -124,6 +124,19 @@ class ContactModel {
     }
   }
 
+  async bulkDelete(req, idsTextArray) {
+    try {
+      const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+      return await BulkOperationsHelper.bulkDelete(req, 'contacts', idsTextArray);
+    } catch (error) {
+      Logger.error('Failed to bulk delete contacts', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to bulk delete contacts', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async delete(req, contactId) {
     try {
       const db = Database.get(req);
@@ -142,6 +155,97 @@ class ContactModel {
       }
       throw new AppError('Failed to delete contact', 500, AppError.CODES.DATABASE_ERROR);
     }
+  }
+
+  async getTimeEntries(req, contactId) {
+    try {
+      const db = Database.get(req);
+
+      const rows = await db.query(
+        'SELECT * FROM contact_time_entries WHERE contact_id = $1 ORDER BY logged_at DESC',
+        [contactId],
+      );
+
+      return rows.map((row) => this.transformTimeEntryRow(row));
+    } catch (error) {
+      Logger.error('Failed to fetch contact time entries', error, { contactId });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to fetch time entries', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async createTimeEntry(req, contactId, data) {
+    try {
+      const db = Database.get(req);
+
+      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id;
+      if (!userId) {
+        throw new AppError('Unauthorized', 401, AppError.CODES.UNAUTHORIZED);
+      }
+
+      const existing = await db.query('SELECT id FROM contacts WHERE id = $1', [contactId]);
+      if (!existing || existing.length === 0) {
+        throw new AppError('Contact not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      const loggedAt = data.loggedAt
+        ? new Date(data.loggedAt).toISOString()
+        : new Date().toISOString();
+
+      const result = await db.insert('contact_time_entries', {
+        contact_id: parseInt(contactId, 10),
+        user_id: parseInt(userId, 10),
+        seconds: parseInt(data.seconds, 10),
+        logged_at: loggedAt,
+      });
+
+      return this.transformTimeEntryRow(result);
+    } catch (error) {
+      Logger.error('Failed to create time entry', error, { contactId });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to create time entry', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async deleteTimeEntry(req, contactId, entryId) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id;
+      if (!userId) {
+        throw new AppError('Unauthorized', 401, AppError.CODES.UNAUTHORIZED);
+      }
+
+      const rows = await db.query(
+        'DELETE FROM contact_time_entries WHERE id = $1 AND contact_id = $2 AND user_id = $3 RETURNING id',
+        [entryId, contactId, userId],
+      );
+
+      if (!rows || rows.length === 0) {
+        throw new AppError('Time entry not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      return { id: entryId };
+    } catch (error) {
+      Logger.error('Failed to delete time entry', error, { contactId, entryId });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to delete time entry', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  transformTimeEntryRow(row) {
+    return {
+      id: row.id.toString(),
+      contactId: row.contact_id != null ? row.contact_id.toString() : undefined,
+      seconds: row.seconds,
+      loggedAt: row.logged_at,
+      createdAt: row.created_at,
+    };
   }
 
   transformRow(row) {
