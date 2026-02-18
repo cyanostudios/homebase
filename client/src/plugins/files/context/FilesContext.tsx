@@ -7,6 +7,7 @@ import React, {
   useCallback,
   type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
@@ -79,6 +80,7 @@ export function FilesProvider({
   onCloseOtherPanels,
   api = filesApi,
 }: ProviderProps) {
+  const { t } = useTranslation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
 
   const [isFilesPanelOpen, setIsFilesPanelOpen] = useState(false);
@@ -458,7 +460,7 @@ export function FilesProvider({
 
   const getDeleteMessage = (item: FileItem | null): string => {
     const name = item?.name || 'this file';
-    return `Are you sure you want to delete "${name}"? This will also remove the physical file.`;
+    return t('files.deleteConfirmNamedPhysical', { name });
   };
 
   const value: FilesContextType = {

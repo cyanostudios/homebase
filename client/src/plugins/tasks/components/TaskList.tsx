@@ -10,6 +10,7 @@ import {
   Upload,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -54,6 +55,7 @@ const TASK_IMPORT_SCHEMA: ImportSchema = {
 };
 
 export const TaskList: React.FC = () => {
+  const { t } = useTranslation();
   const {
     tasks,
     openTaskForView,
@@ -348,7 +350,7 @@ export const TaskList: React.FC = () => {
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search tasks..."
+        searchPlaceholder={t('tasks.searchPlaceholder')}
         rightActions={
           <div className="flex gap-2">
             <Button
@@ -358,7 +360,7 @@ export const TaskList: React.FC = () => {
               onClick={() => openTaskSettings()}
               className="h-7 text-[10px] px-2"
             >
-              Settings
+              {t('slots.settings')}
             </Button>
             <Button
               variant={viewMode === 'grid' ? 'default' : 'secondary'}
@@ -367,7 +369,7 @@ export const TaskList: React.FC = () => {
               onClick={() => setViewMode('grid')}
               className="h-7 text-[10px] px-2"
             >
-              Grid
+              {t('slots.grid')}
             </Button>
             <Button
               variant={viewMode === 'list' ? 'default' : 'secondary'}
@@ -376,7 +378,7 @@ export const TaskList: React.FC = () => {
               onClick={() => setViewMode('list')}
               className="h-7 text-[10px] px-2"
             >
-              List
+              {t('slots.list')}
             </Button>
             <Button
               variant="secondary"
@@ -392,7 +394,7 @@ export const TaskList: React.FC = () => {
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing, openTaskSettings]);
+  }, [t, searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing, openTaskSettings]);
 
   // Protected navigation handlers
   const handleOpenForView = (task: any) => {
@@ -416,7 +418,7 @@ export const TaskList: React.FC = () => {
           },
           { label: 'Export PDF', icon: FileText, onClick: handleExportPDF, variant: 'default' },
           {
-            label: 'Delete…',
+            label: t('common.delete'),
             icon: Trash2,
             onClick: () => setShowBulkDeleteModal(true),
             variant: 'destructive',
@@ -428,9 +430,7 @@ export const TaskList: React.FC = () => {
         {sortedTasks.length === 0 ? (
           <Card className="shadow-none">
             <div className="p-6 text-center text-muted-foreground">
-              {searchTerm
-                ? 'No tasks found matching your search.'
-                : 'No tasks yet. Click "Add Task" to get started.'}
+              {searchTerm ? t('tasks.noMatch') : t('tasks.noYet')}
             </div>
           </Card>
         ) : viewMode === 'grid' ? (
@@ -768,10 +768,10 @@ export const TaskList: React.FC = () => {
 
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
-        title="Delete Task"
-        message={`Are you sure you want to delete "${deleteConfirm.taskTitle}"? This action cannot undone.`}
-        confirmText="Delete"
-        cancelText="Cancel"
+        title={t('tasks.deleteTitle')}
+        message={`Are you sure you want to delete "${deleteConfirm.taskTitle}"? ${t('bulk.cannotUndo')}`}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
         variant="danger"

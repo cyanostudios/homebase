@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   onCancel,
   isSubmitting: externalIsSubmitting = false,
 }) => {
+  const { t } = useTranslation();
   const { validationErrors, clearValidationErrors, panelMode } = useNotes();
   const {
     isDirty,
@@ -239,7 +241,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
               type="text"
               value={formData.title}
               onChange={(e) => updateField('title', e.target.value)}
-              placeholder="Enter note title..."
+              placeholder={t('notes.titlePlaceholder')}
               className={getFieldError('title') ? 'border-red-500' : ''}
               required
             />
@@ -266,7 +268,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
             <MentionTextarea
               value={formData.content}
               onChange={handleContentChange}
-              placeholder="Write your note here... Type @ to mention contacts"
+              placeholder={t('notes.contentPlaceholder')}
               rows={12}
               className={getFieldError('content') ? 'border-red-500' : ''}
             />
@@ -300,14 +302,10 @@ export const NoteForm: React.FC<NoteFormProps> = ({
       {/* Unsaved Changes Warning Dialog */}
       <ConfirmDialog
         isOpen={showWarning}
-        title="Unsaved Changes"
-        message={
-          currentNote
-            ? 'You have unsaved changes. Do you want to discard your changes and return to view mode?'
-            : 'You have unsaved changes. Do you want to discard your changes and close the form?'
-        }
-        confirmText="Discard Changes"
-        cancelText="Continue Editing"
+        title={t('dialog.unsavedChanges')}
+        message={currentNote ? t('dialog.discardAndReturn') : t('dialog.discardAndClose')}
+        confirmText={t('dialog.discardChanges')}
+        cancelText={t('dialog.continueEditing')}
         onConfirm={handleDiscardChanges}
         onCancel={cancelDiscard}
         variant="warning"

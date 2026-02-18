@@ -7,6 +7,7 @@ import React, {
   useRef,
   ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
@@ -79,6 +80,7 @@ export function ContactProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: ContactProviderProps) {
+  const { t } = useTranslation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData } = useApp();
 
   // Panel states
@@ -547,10 +549,10 @@ export function ContactProvider({
 
   const getDeleteMessage = (item: Contact | null) => {
     if (!item) {
-      return 'Are you sure you want to delete this contact?';
+      return t('contacts.deleteConfirmThis');
     }
     const itemName = item.companyName || 'this contact';
-    return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
+    return `${t('contacts.deleteConfirmNamed', { name: itemName })} ${t('bulk.cannotUndo')}`;
   };
 
   const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];

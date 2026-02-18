@@ -1,5 +1,6 @@
 import { Trash2, FileSpreadsheet, FileText } from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ type SortField = 'invoiceNumber' | 'contactName' | 'total' | 'createdAt' | 'stat
 type SortOrder = 'asc' | 'desc';
 
 export function InvoicesList() {
+  const { t } = useTranslation();
   const {
     invoices,
     openInvoiceForView,
@@ -281,11 +283,11 @@ export function InvoicesList() {
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search invoices..."
+        searchPlaceholder={t('invoices.searchPlaceholder')}
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [searchTerm, setSearchTerm, setHeaderTrailing]);
+  }, [t, searchTerm, setSearchTerm, setHeaderTrailing]);
 
   // Protected navigation handlers
   const handleOpenForView = (invoice: any) => {
@@ -345,14 +347,19 @@ export function InvoicesList() {
         onClearSelection={clearInvoiceSelection}
         actions={[
           {
-            label: 'Export CSV',
+            label: t('common.exportCsv'),
             icon: FileSpreadsheet,
             onClick: handleExportCSV,
             variant: 'default',
           },
-          { label: 'Export PDF', icon: FileText, onClick: handleExportPDF, variant: 'default' },
           {
-            label: 'Delete…',
+            label: t('common.exportPdf'),
+            icon: FileText,
+            onClick: handleExportPDF,
+            variant: 'default',
+          },
+          {
+            label: t('common.delete'),
             icon: Trash2,
             onClick: () => setShowBulkDeleteModal(true),
             variant: 'destructive',
@@ -364,11 +371,7 @@ export function InvoicesList() {
         <GroupedList
           items={sortedInvoices}
           groupConfig={null}
-          emptyMessage={
-            searchTerm
-              ? 'No invoices found matching your search.'
-              : 'No invoices yet. Click "Add Invoice" to get started.'
-          }
+          emptyMessage={searchTerm ? t('invoices.noMatch') : t('invoices.noYet')}
           renderItem={(invoice, idx) => {
             const invoiceIsSelected = isSelected(invoice.id);
             return (
@@ -454,10 +457,10 @@ export function InvoicesList() {
 
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
-        title="Delete Invoice"
-        message={`Are you sure you want to delete invoice "${formatDisplayNumber('invoices', deleteConfirm.invoiceNumber)}"? This action cannot be undone.`}
-        confirmText="Delete"
-        cancelText="Cancel"
+        title={t('invoices.deleteTitle')}
+        message={`Are you sure you want to delete invoice "${formatDisplayNumber('invoices', deleteConfirm.invoiceNumber)}"? ${t('bulk.cannotUndo')}`}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
         variant="danger"

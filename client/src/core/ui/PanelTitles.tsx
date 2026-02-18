@@ -38,13 +38,16 @@ const PLUGIN_CONFIGS: Record<string, any> = {
   },
 };
 
+type TFunction = (key: string, options?: any) => string;
+
 export const createPanelTitles = (
   currentPlugin: any,
   currentMode: string,
   currentItem: any,
   isMobileView: boolean,
   handleEstimateContactClick: (contactId: string) => void,
-  pluginContext?: any, // ADDED: Accept plugin context as parameter
+  pluginContext?: any,
+  t?: TFunction,
 ) => {
   const getPanelTitle = () => {
     if (!currentPlugin) {
@@ -119,17 +122,31 @@ export const createPanelTitles = (
       }
     }
 
-    // Non-view modes: Edit/Create/Settings by plugin name
-    const itemType = currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1);
+    // Non-view modes: Edit/Create/Settings by plugin name (translated)
+    const itemLabel = t
+      ? t(`nav.${currentPlugin.name.slice(0, -1)}`)
+      : currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1);
+    if (t) {
+      switch (currentMode) {
+        case 'edit':
+          return t('panel.editItem', { item: itemLabel });
+        case 'create':
+          return t('panel.createItem', { item: itemLabel });
+        case 'settings':
+          return t('panel.settingsItem', { item: itemLabel });
+        default:
+          return itemLabel;
+      }
+    }
     switch (currentMode) {
       case 'edit':
-        return `Edit ${itemType}`;
+        return `Edit ${itemLabel}`;
       case 'create':
-        return `Create ${itemType}`;
+        return `Create ${itemLabel}`;
       case 'settings':
-        return `${itemType} Settings`;
+        return `${itemLabel} Settings`;
       default:
-        return itemType;
+        return itemLabel;
     }
   };
 
@@ -197,7 +214,7 @@ export const createPanelTitles = (
 
   const getDeleteMessage = () => {
     if (!currentPlugin || !currentItem) {
-      return 'Are you sure you want to delete this item?';
+      return t ? t('panel.deleteConfirmThis') : 'Are you sure you want to delete this item?';
     }
 
     // Check if plugin has its own delete message function
@@ -220,6 +237,9 @@ export const createPanelTitles = (
       (currentItem.id ? formatDisplayNumber(currentPlugin.name, currentItem.id) : undefined) ||
       'this item';
 
+    if (t) {
+      return `${t('panel.deleteConfirmNamed', { name: itemName })} ${t('bulk.cannotUndo')}`;
+    }
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 

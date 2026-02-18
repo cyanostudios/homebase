@@ -8,6 +8,7 @@ import React, {
   useRef,
   ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { useActionRegistry } from '@/core/api/ActionContext';
@@ -98,6 +99,7 @@ interface TaskProviderProps {
 }
 
 export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: TaskProviderProps) {
+  const { t } = useTranslation();
   const {
     registerPanelCloseFunction,
     unregisterPanelCloseFunction,
@@ -743,11 +745,10 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const getDeleteMessage = (item: Task | null) => {
     if (!item) {
-      return 'Are you sure you want to delete this task?';
+      return t('tasks.deleteConfirmThis');
     }
-
     const itemName = item.title || 'this task';
-    return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
+    return `${t('tasks.deleteConfirmNamed', { name: itemName })} ${t('bulk.cannotUndo')}`;
   };
 
   const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];

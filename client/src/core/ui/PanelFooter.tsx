@@ -1,5 +1,6 @@
 import { Check, X, Edit, Trash2, Copy, Download } from 'lucide-react';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 
@@ -18,10 +19,10 @@ interface PanelFooterProps {
   isSubmitting?: boolean;
 }
 
-const EXPORT_FORMAT_LABELS: Record<string, string> = {
-  txt: 'Export TXT',
-  csv: 'Export CSV',
-  pdf: 'Export PDF',
+const EXPORT_FORMAT_KEYS: Record<string, string> = {
+  txt: 'common.exportTxt',
+  csv: 'common.exportCsv',
+  pdf: 'common.exportPdf',
 };
 
 export const PanelFooter: React.FC<PanelFooterProps> = ({
@@ -38,6 +39,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   onCancelClick,
   isSubmitting = false,
 }) => {
+  const { t } = useTranslation();
   const hasBlockingErrors = validationErrors.some(
     (e: any) => !String(e?.message || '').includes('Warning'),
   );
@@ -80,7 +82,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             icon={X}
             className="h-7 text-[10px] px-2"
           >
-            Close
+            {t('common.close')}
           </Button>
         </div>
       );
@@ -96,7 +98,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
           disabled={isSubmitting}
           className="h-7 text-[10px] px-2"
         >
-          Close
+          {t('common.close')}
         </Button>
         <Button
           type="button"
@@ -107,7 +109,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
           disabled={hasBlockingErrors || isSubmitting}
           className="h-7 text-[10px] px-2 bg-green-600 hover:bg-green-700 text-white border-none"
         >
-          {isSubmitting ? 'Saving...' : 'Save'}
+          {isSubmitting ? t('common.saving') : t('common.save')}
         </Button>
       </div>
     );
@@ -125,7 +127,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             icon={Trash2}
             className="h-7 text-[10px] px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/30"
           >
-            Delete
+            {t('common.delete')}
           </Button>
           {Boolean(
             currentPluginContext?.getDuplicateConfig?.(currentItem) ||
@@ -139,7 +141,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
               icon={Copy}
               className="h-7 text-[10px] px-2"
             >
-              Duplicate
+              {t('common.duplicate')}
             </Button>
           )}
           {hasDetailFooterActions &&
@@ -171,7 +173,9 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
                 icon={Download}
                 className="h-7 text-[10px] px-2"
               >
-                {EXPORT_FORMAT_LABELS[format] ?? `Export ${format.toUpperCase()}`}
+                {EXPORT_FORMAT_KEYS[format]
+                  ? t(EXPORT_FORMAT_KEYS[format])
+                  : `Export ${format.toUpperCase()}`}
               </Button>
             ))}
         </div>
@@ -184,7 +188,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             icon={X}
             className="h-7 text-[10px] px-2"
           >
-            Close
+            {t('common.close')}
           </Button>
           <Button
             type="button"
@@ -194,7 +198,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             icon={Edit}
             className="h-7 text-[10px] px-2"
           >
-            Edit
+            {t('common.edit')}
           </Button>
           {(currentPlugin?.name === 'tasks' ||
             currentPlugin?.name === 'estimates' ||
@@ -210,7 +214,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
                 icon={Check}
                 className="h-7 text-[10px] px-2 bg-green-600 hover:bg-green-700 text-white border-none"
               >
-                Update
+                {t('common.update')}
               </Button>
             )}
           {currentPlugin?.name === 'contacts' &&
@@ -224,7 +228,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
                 icon={Check}
                 className="h-7 text-[10px] px-2 bg-green-600 hover:bg-green-700 text-white border-none"
               >
-                Update
+                {t('common.update')}
               </Button>
             )}
         </div>
@@ -243,7 +247,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
         disabled={isSubmitting}
         className="h-7 text-[10px] px-2"
       >
-        Cancel
+        {t('common.cancel')}
       </Button>
       <Button
         type="button"
@@ -254,7 +258,11 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
         disabled={hasBlockingErrors || isSubmitting}
         className="h-7 text-[10px] px-2 bg-green-600 hover:bg-green-700 text-white border-none"
       >
-        {isSubmitting ? 'Saving...' : currentMode === 'edit' ? 'Update' : 'Save'}
+        {isSubmitting
+          ? t('common.saving')
+          : currentMode === 'edit'
+            ? t('common.update')
+            : t('common.save')}
       </Button>
     </div>
   );

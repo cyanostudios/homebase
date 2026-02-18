@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
@@ -12,6 +13,7 @@ interface DashboardProps {
 
 export function Dashboard({ onPageChange }: DashboardProps) {
   const { user } = useApp();
+  const { t } = useTranslation();
 
   const widgets = React.useMemo(
     () => PLUGIN_REGISTRY.filter((p) => user?.plugins?.includes(p.name) && p.dashboardWidget),
@@ -21,7 +23,7 @@ export function Dashboard({ onPageChange }: DashboardProps) {
   if (widgets.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-        <p>Inga widgets tillgängliga. Aktivera plugins för att se widgetar här.</p>
+        <p>{t('dashboard.noWidgets')}</p>
       </div>
     );
   }

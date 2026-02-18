@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ interface ContactViewProps {
 }
 
 export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
+  const { t } = useTranslation();
   const {
     user,
     getNotesForContact,
@@ -777,10 +779,10 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
 
       <ConfirmDialog
         isOpen={showDiscardTagsDialog}
-        title="Unsaved changes"
-        message="You have unsaved changes to tags. Do you want to discard them?"
-        confirmText="Discard changes"
-        cancelText="Continue editing"
+        title={t('dialog.unsavedChanges')}
+        message={t('contacts.discardTagsMessage')}
+        confirmText={t('dialog.discardChanges')}
+        cancelText={t('dialog.continueEditing')}
         onConfirm={onDiscardTagsAndClose}
         onCancel={() => setShowDiscardTagsDialog(false)}
         variant="warning"

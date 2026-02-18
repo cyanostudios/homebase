@@ -1,5 +1,6 @@
 import { Info } from 'lucide-react';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
@@ -19,6 +20,7 @@ interface EstimateViewProps {
 }
 
 export function EstimateView({ estimate }: EstimateViewProps) {
+  const { t } = useTranslation();
   const {
     quickEditDraft,
     setQuickEditField,
@@ -58,7 +60,12 @@ export function EstimateView({ estimate }: EstimateViewProps) {
               padding="none"
               className="overflow-hidden border-none shadow-sm bg-background/50 plugin-estimates"
             >
-              <DetailSection title="Information" icon={Info} iconPlugin="estimates" className="p-4">
+              <DetailSection
+                title={t('estimates.information')}
+                icon={Info}
+                iconPlugin="estimates"
+                className="p-4"
+              >
                 <div className="space-y-4 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Number</span>
@@ -108,7 +115,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
           {/* Internal Notes */}
           {estimate.notes && (
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Notes" iconPlugin="estimates" className="p-6">
+              <DetailSection title={t('estimates.notes')} iconPlugin="estimates" className="p-6">
                 <div className="text-sm text-muted-foreground italic leading-relaxed">
                   "{estimate.notes}"
                 </div>
@@ -119,7 +126,7 @@ export function EstimateView({ estimate }: EstimateViewProps) {
           {/* Line Items */}
           <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
             <DetailSection
-              title={`Line Items (${estimate.lineItems.length})`}
+              title={t('estimates.lineItemsCount', { count: estimate.lineItems.length })}
               iconPlugin="estimates"
               className="p-6"
             >
@@ -171,7 +178,11 @@ export function EstimateView({ estimate }: EstimateViewProps) {
 
           {/* Pricing Summary */}
           <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title="Pricing Summary" iconPlugin="estimates" className="p-6">
+            <DetailSection
+              title={t('estimates.pricingSummary')}
+              iconPlugin="estimates"
+              className="p-6"
+            >
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
@@ -230,10 +241,12 @@ export function EstimateView({ estimate }: EstimateViewProps) {
       {/* Sent Confirmation (when applying quick-edit to sent) */}
       <ConfirmDialog
         isOpen={estimateQuickEditShowSentConfirmation}
-        title="Mark estimate as sent?"
-        message={`Estimate ${formatDisplayNumber('estimates', estimate.estimateNumber)}. This will change the status to "Sent" and indicate that the estimate has been delivered to the customer. You can change it back to "Draft" at any time if needed.`}
-        confirmText="Mark as Sent"
-        cancelText="Cancel"
+        title={t('estimates.markAsSentTitle')}
+        message={t('estimates.markAsSentMessage', {
+          number: formatDisplayNumber('estimates', estimate.estimateNumber),
+        })}
+        confirmText={t('estimates.markAsSent')}
+        cancelText={t('common.cancel')}
         onConfirm={handleEstimateQuickEditSentConfirm}
         onCancel={handleEstimateQuickEditSentCancel}
         variant="warning"
@@ -242,10 +255,10 @@ export function EstimateView({ estimate }: EstimateViewProps) {
       {/* Discard quick-edit changes when closing */}
       <ConfirmDialog
         isOpen={showDiscardQuickEditDialog}
-        title="Unsaved changes"
-        message="You have unsaved status change. Do you want to discard it?"
-        confirmText="Discard"
-        cancelText="Continue editing"
+        title={t('dialog.unsavedChanges')}
+        message={t('estimates.discardQuickEditMessage')}
+        confirmText={t('dialog.discardChanges')}
+        cancelText={t('dialog.continueEditing')}
         onConfirm={onDiscardQuickEditAndClose}
         onCancel={() => setShowDiscardQuickEditDialog(false)}
         variant="warning"

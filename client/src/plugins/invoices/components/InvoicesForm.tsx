@@ -1,6 +1,7 @@
 // client/src/plugins/invoices/components/InvoicesForm.tsx
 import { Plus, Trash2, Copy } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -29,6 +30,7 @@ interface InvoicesFormProps {
 }
 
 export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSave, onCancel }) => {
+  const { t } = useTranslation();
   const { validationErrors, clearValidationErrors } = useInvoices();
   const { contacts } = useApp();
   const safeContacts = contacts || [];
@@ -667,14 +669,10 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
       {/* Unsaved Changes Warning */}
       <ConfirmDialog
         isOpen={showWarning}
-        title="Unsaved Changes"
-        message={
-          currentInvoice
-            ? 'You have unsaved changes. Discard and return to view mode?'
-            : 'You have unsaved changes. Discard and close the form?'
-        }
-        confirmText="Discard Changes"
-        cancelText="Continue Editing"
+        title={t('dialog.unsavedChanges')}
+        message={currentInvoice ? t('dialog.discardAndReturn') : t('dialog.discardAndClose')}
+        confirmText={t('dialog.discardChanges')}
+        cancelText={t('dialog.continueEditing')}
         onConfirm={() => {
           if (!currentInvoice) {
             resetForm();

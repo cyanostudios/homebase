@@ -1,5 +1,6 @@
 import { Info, SlidersHorizontal, User, X } from 'lucide-react';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ function formatDateTime(s: string | null): string {
 }
 
 export function KioskView({ slot: slotProp, item }: KioskViewProps) {
+  const { t } = useTranslation();
   const slot = slotProp ?? item ?? null;
   const { contacts, openContactForView } = useContacts();
   const { contacts: appContacts } = useApp();
@@ -66,7 +68,7 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
           <div className="space-y-6">
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
               <DetailSection
-                title="Slot Properties"
+                title={t('slots.slotProperties')}
                 icon={SlidersHorizontal}
                 iconPlugin="slots"
                 className="p-4"
@@ -74,7 +76,7 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
-                      Contacts
+                      {t('common.contacts')}
                     </div>
                     <Select
                       value="__add_contact__"
@@ -91,7 +93,7 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
                       disabled={addableContacts.length === 0}
                     >
                       <SelectTrigger className="h-7 w-[140px] bg-background border-border/50 hover:bg-accent/50 transition-colors shadow-none rounded-md px-2 text-[10px] font-medium">
-                        <SelectValue placeholder="Lägg till kontakt..." />
+                        <SelectValue placeholder={t('common.addContact')} />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border/50 shadow-xl min-w-[180px]">
                         <SelectItem
@@ -99,8 +101,8 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
                           className="py-2 focus:bg-accent rounded-md text-muted-foreground"
                         >
                           {addableContacts.length === 0
-                            ? 'Inga fler att lägga till'
-                            : 'Lägg till kontakt...'}
+                            ? t('slots.noMoreToAdd')
+                            : t('common.addContact')}
                         </SelectItem>
                         {addableContacts.map(
                           (contact: { id: number | string; companyName?: string }) => (
@@ -139,14 +141,14 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
                                 onClick={() => openContactForView(contact)}
                                 className="h-auto p-0 text-[9px] shrink-0 font-medium text-plugin"
                               >
-                                View
+                                {t('common.view')}
                               </Button>
                             )}
                             <button
                               type="button"
                               className="ml-0.5 rounded hover:bg-muted p-0.5 disabled:opacity-50"
                               onClick={() => removeContactFromDraft(m.contactId)}
-                              aria-label={`Ta bort ${name}`}
+                              aria-label={`${t('common.removeContact')} ${name}`}
                             >
                               <X className="h-3 w-3" />
                             </button>
@@ -160,33 +162,42 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
             </Card>
 
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Information" icon={Info} iconPlugin="slots" className="p-4">
+              <DetailSection
+                title={t('slots.information')}
+                icon={Info}
+                iconPlugin="slots"
+                className="p-4"
+              >
                 <div className="space-y-4 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Location</span>
+                    <span className="text-muted-foreground">{t('common.location')}</span>
                     <span className="font-medium truncate max-w-[150px]">
                       {slot.location || '—'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Time</span>
+                    <span className="text-muted-foreground">{t('common.time')}</span>
                     <span className="font-medium">{formatDateTime(slot.slot_time)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Capacity</span>
+                    <span className="text-muted-foreground">{t('common.capacity')}</span>
                     <span className="font-medium">{slot.capacity}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Visible</span>
-                    <span className="font-medium">{slot.visible ? 'Yes' : 'No'}</span>
+                    <span className="text-muted-foreground">{t('common.visible')}</span>
+                    <span className="font-medium">
+                      {slot.visible ? t('common.yes') : t('common.no')}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Notifications</span>
-                    <span className="font-medium">{slot.notifications_enabled ? 'On' : 'Off'}</span>
+                    <span className="text-muted-foreground">{t('common.notifications')}</span>
+                    <span className="font-medium">
+                      {slot.notifications_enabled ? t('common.on') : t('common.off')}
+                    </span>
                   </div>
                   <div className="pt-2 mt-2 border-t border-border/50">
                     <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Created</span>
+                      <span className="text-muted-foreground">{t('slots.created')}</span>
                       <span className="font-mono text-[10px] opacity-70">
                         {slot.created_at
                           ? new Date(slot.created_at).toLocaleDateString('sv-SE')
@@ -194,7 +205,7 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
                       </span>
                     </div>
                     <div className="flex justify-between items-center mt-1">
-                      <span className="text-muted-foreground">Updated</span>
+                      <span className="text-muted-foreground">{t('common.updated')}</span>
                       <span className="font-mono text-[10px] opacity-70">
                         {slot.updated_at
                           ? new Date(slot.updated_at).toLocaleDateString('sv-SE')
@@ -210,24 +221,25 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
       >
         <div className="space-y-6">
           <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title="Slot" iconPlugin="slots" className="p-6">
+            <DetailSection title={t('slots.sectionTitle')} iconPlugin="slots" className="p-6">
               <div className="text-lg font-semibold">{slot.location || '—'}</div>
               <div className="mt-2 text-sm text-muted-foreground">
                 {formatDateTime(slot.slot_time)}
               </div>
               <div className="mt-2 flex gap-2 flex-wrap items-center">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Capacity: {slot.capacity}{' '}
+                  {t('common.capacity')}: {slot.capacity}{' '}
                   <CapacityAssignedDots
                     capacity={slot.capacity}
                     assignedCount={slot.mentions?.length ?? 0}
                   />
                 </span>
                 <span className="text-xs font-medium text-muted-foreground">
-                  · {slot.visible ? 'Visible' : 'Hidden'}
+                  · {slot.visible ? t('common.visible') : t('common.hidden')}
                 </span>
                 <span className="text-xs font-medium text-muted-foreground">
-                  · Notifications {slot.notifications_enabled ? 'on' : 'off'}
+                  · {t('common.notifications')}{' '}
+                  {slot.notifications_enabled ? t('common.on') : t('common.off')}
                 </span>
               </div>
             </DetailSection>
@@ -236,10 +248,10 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
       </DetailLayout>
       <ConfirmDialog
         isOpen={showDiscardQuickEditDialog}
-        title="Unsaved changes"
-        message="You have unsaved changes to contacts. Do you want to discard them?"
-        confirmText="Discard changes"
-        cancelText="Continue editing"
+        title={t('dialog.unsavedChanges')}
+        message={t('dialog.discardQuickEditMessage')}
+        confirmText={t('common.discardChanges')}
+        cancelText={t('common.continueEditing')}
         onConfirm={onDiscardQuickEditAndClose}
         onCancel={() => setShowDiscardQuickEditDialog(false)}
         variant="warning"

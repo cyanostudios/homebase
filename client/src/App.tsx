@@ -9,6 +9,7 @@
 
 import { Home, Plus } from 'lucide-react';
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { ActionProvider } from '@/core/api/ActionContext';
 import { AppProvider, useApp } from '@/core/api/AppContext';
@@ -114,6 +115,7 @@ function findCurrentPlugin(pluginContexts: any[]): any {
 
 // Main App Content
 function AppContent() {
+  const { t } = useTranslation();
   const {
     isAuthenticated,
     isLoading,
@@ -367,6 +369,7 @@ function AppContent() {
     isMobileView,
     handlers.handleEstimateContactClick,
     currentPluginContext,
+    t,
   );
 
   // Footer with delete handler
@@ -426,14 +429,12 @@ function AppContent() {
 
       <ConfirmDialog
         isOpen={showDeleteConfirm}
-        title={`Delete ${
-          currentPlugin
-            ? currentPlugin.name.charAt(0).toUpperCase() + currentPlugin.name.slice(1, -1)
-            : 'Item'
-        }`}
+        title={t('dialog.deleteItem', {
+          label: currentPlugin ? t(`nav.${currentPlugin.name.slice(0, -1)}`) : t('dialog.item'),
+        })}
         message={panelTitles.getDeleteMessage()}
-        confirmText="Delete"
-        cancelText="Cancel"
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         onConfirm={() => handlers.confirmDelete(setShowDeleteConfirm)}
         onCancel={() => setShowDeleteConfirm(false)}
         variant="danger"
@@ -442,10 +443,10 @@ function AppContent() {
       {/* Global Unsaved Changes Warning */}
       <ConfirmDialog
         isOpen={showWarning}
-        title="Unsaved Changes"
+        title={t('dialog.unsavedChanges')}
         message={warningMessage}
-        confirmText="Discard Changes"
-        cancelText="Continue Editing"
+        confirmText={t('dialog.discardChanges')}
+        cancelText={t('dialog.continueEditing')}
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
         variant="warning"
@@ -556,9 +557,9 @@ function AppContent() {
       {/* Create task from note – cross-plugin infrastructure (notes → tasks); kept in App by design */}
       <DuplicateDialog
         isOpen={showToTaskDialog}
-        title="Create task from note"
-        nameLabel="Task title"
-        confirmText="Create"
+        title={t('app.createTaskFromNote')}
+        nameLabel={t('app.taskTitle')}
+        confirmText={t('app.create')}
         defaultName={noteForTask?.title ?? ''}
         onConfirm={(newName) => {
           if (!noteForTask) {
@@ -621,9 +622,9 @@ function AppContent() {
       {/* Create slot from match – cross-plugin (matches → slots) */}
       <DuplicateDialog
         isOpen={showToSlotDialog}
-        title="Create slot from match"
+        title={t('app.createSlotFromMatch')}
         nameLabel=""
-        confirmText="Create slot"
+        confirmText={t('app.createSlot')}
         defaultName=""
         confirmOnly={true}
         onConfirm={() => {

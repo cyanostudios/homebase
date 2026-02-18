@@ -10,6 +10,7 @@ import {
   StickyNote,
 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -33,6 +34,7 @@ interface EstimateFormProps {
 }
 
 export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateFormProps) {
+  const { t } = useTranslation();
   const { validationErrors, clearValidationErrors } = useEstimates();
   const { contacts } = useApp(); // Cross-plugin data access
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
@@ -333,7 +335,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
         {/* Customer Selection */}
         <Card padding="sm" className="shadow-none px-0">
-          <DetailSection title="Customer Information" icon={User} iconPlugin="estimates">
+          <DetailSection title={t('estimates.customerInfo')} icon={User} iconPlugin="estimates">
             <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
               <div>
                 <Label htmlFor="estimate-contact" className="mb-1">
@@ -383,7 +385,11 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
         {/* Estimate Details */}
         <Card padding="sm" className="shadow-none px-0">
-          <DetailSection title="Estimate Details" icon={FileText} iconPlugin="estimates">
+          <DetailSection
+            title={t('estimates.estimateDetails')}
+            icon={FileText}
+            iconPlugin="estimates"
+          >
             <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
               <div>
                 <Label htmlFor="estimate-valid-to" className="mb-1">
@@ -419,7 +425,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
         {/* Line Items */}
         <Card padding="sm" className="shadow-none px-0">
-          <DetailSection title="Line Items" icon={ListOrdered} iconPlugin="estimates">
+          <DetailSection title={t('estimates.lineItems')} icon={ListOrdered} iconPlugin="estimates">
             <div className="flex items-center justify-end mb-3">
               <Button
                 type="button"
@@ -583,7 +589,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         {/* Estimate Discount - After line items, before totals */}
         {formData.lineItems.length > 0 && (
           <Card padding="sm" className="shadow-none px-0">
-            <DetailSection title="Estimate Discount" icon={Percent} iconPlugin="estimates">
+            <DetailSection title={t('estimates.discount')} icon={Percent} iconPlugin="estimates">
               <div className="flex items-center gap-4 mb-2">
                 <Label
                   htmlFor="estimate-discount"
@@ -617,7 +623,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         {/* Totals Summary */}
         {formData.lineItems.length > 0 && (
           <Card padding="sm" className="shadow-none px-0">
-            <DetailSection title="Summary" icon={Calculator} iconPlugin="estimates">
+            <DetailSection title={t('estimates.summary')} icon={Calculator} iconPlugin="estimates">
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal:</span>
@@ -681,7 +687,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
         {/* Notes */}
         <Card padding="sm" className="shadow-none px-0">
-          <DetailSection title="Notes" icon={StickyNote} iconPlugin="estimates">
+          <DetailSection title={t('estimates.notes')} icon={StickyNote} iconPlugin="estimates">
             <div>
               <Label htmlFor="estimate-notes" className="mb-1">
                 Additional Notes
@@ -702,14 +708,10 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
       {/* Unsaved Changes Warning */}
       <ConfirmDialog
         isOpen={showWarning}
-        title="Unsaved Changes"
-        message={
-          currentEstimate
-            ? 'You have unsaved changes. Do you want to discard your changes and return to view mode?'
-            : 'You have unsaved changes. Do you want to discard your changes and close the form?'
-        }
-        confirmText="Discard Changes"
-        cancelText="Continue Editing"
+        title={t('dialog.unsavedChanges')}
+        message={currentEstimate ? t('dialog.discardAndReturn') : t('dialog.discardAndClose')}
+        confirmText={t('dialog.discardChanges')}
+        cancelText={t('dialog.continueEditing')}
         onConfirm={handleDiscardChanges}
         onCancel={cancelDiscard}
         variant="warning"

@@ -2,6 +2,7 @@
 // Generic bulk delete confirmation modal
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 
@@ -30,6 +31,7 @@ export function BulkDeleteModal({
   isLoading = false,
   warningMessage,
 }: BulkDeleteModalProps) {
+  const { t } = useTranslation();
   if (!isOpen) {
     return null;
   }
@@ -38,13 +40,14 @@ export function BulkDeleteModal({
     try {
       await onConfirm();
     } catch (error) {
-      // Error handling should be done in parent component
       console.error('Bulk delete failed:', error);
     }
   };
 
-  const singularLabel = itemLabel.endsWith('s') ? itemLabel.slice(0, -1) : itemLabel;
-  const pluralLabel = itemLabel;
+  const itemsLabel =
+    (t(`nav.${itemLabel}` as 'nav.slots') as string) !== `nav.${itemLabel}`
+      ? t(`nav.${itemLabel}` as 'nav.slots')
+      : itemLabel;
 
   return (
     <div className="fixed inset-0 z-50">
@@ -53,25 +56,24 @@ export function BulkDeleteModal({
         <div className="bg-white rounded-xl shadow-xl border">
           <div className="p-4 border-b">
             <Heading level={3} className="mb-0">
-              Delete selected {pluralLabel}
+              {t('bulk.deleteSelectedTitle', { items: itemsLabel })}
             </Heading>
             <div className="text-xs text-gray-500">
-              {itemCount} {itemCount === 1 ? singularLabel : pluralLabel} selected
+              {t('bulk.selectedCount', { count: itemCount, items: itemsLabel })}
             </div>
           </div>
           <div className="p-4">
             <p className="text-sm text-gray-700">
-              Are you sure you want to delete {itemCount}{' '}
-              {itemCount === 1 ? singularLabel : pluralLabel}?
+              {t('bulk.confirmMessage', { count: itemCount, items: itemsLabel })}
               {warningMessage && (
                 <span className="block mt-2 text-red-600 font-medium">{warningMessage}</span>
               )}
-              This action cannot be undone.
+              {t('bulk.cannotUndo')}
             </p>
           </div>
           <div className="p-4 border-t flex items-center justify-end gap-2">
             <Button variant="outline" size="sm" onClick={onClose} disabled={isLoading}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -79,7 +81,7 @@ export function BulkDeleteModal({
               onClick={handleConfirm}
               disabled={isLoading || itemCount === 0}
             >
-              {isLoading ? 'Deleting…' : 'Delete'}
+              {isLoading ? t('common.deleting') : t('common.delete')}
             </Button>
           </div>
         </div>

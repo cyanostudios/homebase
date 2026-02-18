@@ -9,6 +9,7 @@ import React, {
   useMemo,
   ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -128,6 +129,7 @@ export function EstimateProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: EstimateProviderProps) {
+  const { t } = useTranslation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction, registerEstimatesNavigation } =
     useApp();
 
@@ -799,7 +801,9 @@ export function EstimateProvider({
             @{contactName}
           </Button>
         ) : (
-          <span className="text-gray-600 dark:text-gray-400">@{contactName || 'Contact'}</span>
+          <span className="text-gray-600 dark:text-gray-400">
+            @{contactName || t('nav.contact')}
+          </span>
         );
 
       if (isMobileView) {
@@ -829,6 +833,16 @@ export function EstimateProvider({
       );
     }
 
+    if (t) {
+      switch (mode) {
+        case 'edit':
+          return t('panel.editItem', { item: t('nav.estimate') });
+        case 'create':
+          return t('panel.createItem', { item: t('nav.estimate') });
+        default:
+          return t('nav.estimate');
+      }
+    }
     switch (mode) {
       case 'edit':
         return 'Edit Estimate';
@@ -851,7 +865,9 @@ export function EstimateProvider({
 
       const badgeColor = statusColors[item.status] || statusColors.draft;
       const badgeText = item.status?.charAt(0).toUpperCase() + item.status?.slice(1).toLowerCase();
-      const validToText = `valid to ${new Date(item.validTo).toLocaleDateString()}`;
+      const validToText = t('estimates.validTo', {
+        date: new Date(item.validTo).toLocaleDateString(),
+      });
 
       return (
         <div className="flex items-center gap-2">
@@ -865,9 +881,9 @@ export function EstimateProvider({
 
     switch (mode) {
       case 'edit':
-        return 'Update estimate information';
+        return t('estimates.subtitleEdit');
       case 'create':
-        return 'Enter new estimate details';
+        return t('estimates.subtitleCreate');
       default:
         return '';
     }
@@ -875,10 +891,10 @@ export function EstimateProvider({
 
   const getDeleteMessage = (item: Estimate | null) => {
     if (!item) {
-      return 'Are you sure you want to delete this estimate?';
+      return t('estimates.deleteConfirmThis');
     }
     const itemName = formatDisplayNumber('estimates', item.estimateNumber || item.id);
-    return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
+    return `${t('estimates.deleteConfirmNamed', { name: itemName })} ${t('bulk.cannotUndo')}`;
   };
 
   const value: EstimateContextType = {

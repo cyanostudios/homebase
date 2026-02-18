@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useApp } from '@/core/api/AppContext';
 
@@ -58,6 +59,7 @@ interface MailProviderProps {
 }
 
 export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: MailProviderProps) {
+  const { t } = useTranslation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
 
   const [isMailPanelOpen, setIsMailPanelOpen] = useState(false);
@@ -193,7 +195,7 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     await loadSettings();
   };
 
-  const getPanelTitle = () => 'SMTP-inställningar';
+  const getPanelTitle = () => t('mail.panelTitle');
   const getPanelSubtitle = () => '';
   const getDeleteMessage = () => '';
 

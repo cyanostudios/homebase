@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, Grid3x3, List, Settings, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -30,6 +31,7 @@ type SortField = 'slot_time' | 'location' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
 export function KioskList() {
+  const { t } = useTranslation();
   const {
     slots,
     openSlotPanel,
@@ -156,7 +158,7 @@ export function KioskList() {
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search by location or time..."
+        searchPlaceholder={t('slots.searchPlaceholder')}
         rightActions={
           <div className="flex gap-2">
             <Button
@@ -165,9 +167,9 @@ export function KioskList() {
               icon={Settings}
               onClick={() => openSlotSettings()}
               className="h-7 text-[10px] px-2"
-              title="Settings"
+              title={t('slots.settings')}
             >
-              Settings
+              {t('slots.settings')}
             </Button>
             <Button
               variant={viewMode === 'grid' ? 'default' : 'secondary'}
@@ -176,7 +178,7 @@ export function KioskList() {
               onClick={() => setViewMode('grid')}
               className="h-7 text-[10px] px-2"
             >
-              Grid
+              {t('slots.grid')}
             </Button>
             <Button
               variant={viewMode === 'list' ? 'default' : 'secondary'}
@@ -185,7 +187,7 @@ export function KioskList() {
               onClick={() => setViewMode('list')}
               className="h-7 text-[10px] px-2"
             >
-              List
+              {t('slots.list')}
             </Button>
           </div>
         }
@@ -193,6 +195,7 @@ export function KioskList() {
     );
     return () => setHeaderTrailing(null);
   }, [
+    t,
     searchTerm,
     setSearchTerm,
     viewMode,
@@ -226,7 +229,7 @@ export function KioskList() {
           actions={[
             {
               id: 'bulk-delete',
-              label: 'Delete',
+              label: t('common.delete'),
               icon: Trash2,
               onClick: () => setShowBulkDeleteModal(true),
               variant: 'destructive',
@@ -246,9 +249,7 @@ export function KioskList() {
 
       {filteredAndSorted.length === 0 ? (
         <Card className="shadow-none p-6 text-center text-muted-foreground">
-          {searchTerm
-            ? 'No slots match your search.'
-            : 'No slots yet. Click "Add Slot" to add one.'}
+          {searchTerm ? t('slots.noSlotsMatch') : t('slots.noSlotsYet')}
         </Card>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -283,20 +284,21 @@ export function KioskList() {
                     onChange={() => toggleSlotSelected(slot.id)}
                     onClick={(e) => e.stopPropagation()}
                     className="cursor-pointer h-4 w-4"
-                    aria-label={selected ? 'Deselect' : 'Select'}
+                    aria-label={selected ? t('common.deselect') : t('common.select')}
                   />
                 </div>
                 <h3 className="font-semibold text-sm">{slot.location || '—'}</h3>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {formatDateTime(slot.slot_time)} · Capacity {slot.capacity}{' '}
+                  {formatDateTime(slot.slot_time)} · {t('common.capacity')} {slot.capacity}{' '}
                   <CapacityAssignedDots
                     capacity={slot.capacity}
                     assignedCount={slot.mentions?.length ?? 0}
                   />
                 </div>
                 <div className="text-[10px] text-muted-foreground mt-1">
-                  {slot.visible ? 'Visible' : 'Hidden'} · Notifications{' '}
-                  {slot.notifications_enabled ? 'on' : 'off'}
+                  {slot.visible ? t('common.visible') : t('common.hidden')} ·{' '}
+                  {t('common.notifications')}{' '}
+                  {slot.notifications_enabled ? t('common.on') : t('common.off')}
                 </div>
                 <div className="text-[10px] text-muted-foreground mt-auto pt-2">
                   {slot.updated_at ? new Date(slot.updated_at).toLocaleDateString('sv-SE') : '—'}
@@ -315,7 +317,9 @@ export function KioskList() {
                     ref={headerCheckboxRef}
                     type="checkbox"
                     className="h-4 w-4 cursor-pointer"
-                    aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
+                    aria-label={
+                      allVisibleSelected ? t('common.unselectAll') : t('common.selectAll')
+                    }
                     checked={allVisibleSelected}
                     onChange={onToggleAllVisible}
                   />
@@ -332,7 +336,7 @@ export function KioskList() {
                   }}
                 >
                   <div className="flex items-center gap-2">
-                    <span>Location</span>
+                    <span>{t('common.location')}</span>
                     {sortField === 'location' &&
                       (sortOrder === 'asc' ? (
                         <ArrowUp className="h-3 w-3 inline" />
@@ -353,7 +357,7 @@ export function KioskList() {
                   }}
                 >
                   <div className="flex items-center gap-2">
-                    <span>Time</span>
+                    <span>{t('common.time')}</span>
                     {sortField === 'slot_time' &&
                       (sortOrder === 'asc' ? (
                         <ArrowUp className="h-3 w-3 inline" />
@@ -362,8 +366,8 @@ export function KioskList() {
                       ))}
                   </div>
                 </TableHead>
-                <TableHead>Capacity</TableHead>
-                <TableHead>Visible</TableHead>
+                <TableHead>{t('common.capacity')}</TableHead>
+                <TableHead>{t('common.visible')}</TableHead>
                 <TableHead
                   className="text-right cursor-pointer hover:bg-muted/50 select-none"
                   onClick={() => {
@@ -376,7 +380,7 @@ export function KioskList() {
                   }}
                 >
                   <div className="flex items-center justify-end gap-2">
-                    <span>Updated</span>
+                    <span>{t('common.updated')}</span>
                     {sortField === 'updatedAt' &&
                       (sortOrder === 'asc' ? (
                         <ArrowUp className="h-3 w-3 inline" />
@@ -414,7 +418,9 @@ export function KioskList() {
                       checked={isSelected(slot.id)}
                       onChange={() => toggleSlotSelected(slot.id)}
                       className="cursor-pointer h-4 w-4"
-                      aria-label={isSelected(slot.id) ? 'Unselect slot' : 'Select slot'}
+                      aria-label={
+                        isSelected(slot.id) ? t('common.unselectSlot') : t('common.selectSlot')
+                      }
                     />
                   </TableCell>
                   <TableCell>
@@ -433,7 +439,7 @@ export function KioskList() {
                     </span>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {slot.visible ? 'Yes' : 'No'}
+                    {slot.visible ? t('common.yes') : t('common.no')}
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground text-xs">
                     {slot.updated_at ? new Date(slot.updated_at).toLocaleDateString('sv-SE') : '—'}

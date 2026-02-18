@@ -41,6 +41,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
+import i18n from '@/i18n';
 import { Contact } from '@/plugins/contacts/types/contacts';
 import { Estimate } from '@/plugins/estimates/types/estimate';
 import { Slot } from '@/plugins/kiosk/types/kiosk';
@@ -586,14 +587,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateSettings = async (category: string, settings: any) => {
     try {
       const response = await api.updateSettings(category, settings);
-      // Trigger re-render of components listening to settings
       setSettingsVersion((prev) => prev + 1);
+      if (category === 'preferences' && settings?.language) {
+        i18n.changeLanguage(settings.language);
+      }
       return response.settings;
     } catch (error) {
       console.error('Failed to update settings:', error);
       throw error;
     }
   };
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+    getSettings('preferences')
+      .then((prefs: { language?: string } | undefined) => {
+        if (prefs?.language) {
+          i18n.changeLanguage(prefs.language);
+        }
+      })
+      .catch(() => {});
+  }, [isAuthenticated]);
 
   return (
     <AppContext.Provider

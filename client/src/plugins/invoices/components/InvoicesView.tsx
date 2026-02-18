@@ -1,5 +1,6 @@
 import { Info, Zap } from 'lucide-react';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
 import { DetailLayout } from '@/core/ui/DetailLayout';
@@ -17,6 +18,7 @@ interface InvoiceViewProps {
 }
 
 export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
+  const { t } = useTranslation();
   const actualItem = invoice || item;
 
   if (!actualItem) {
@@ -47,7 +49,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
               padding="none"
               className="overflow-hidden border-none shadow-sm bg-background/50 plugin-invoices"
             >
-              <DetailSection title="Information" icon={Info} className="p-4">
+              <DetailSection title={t('invoices.information')} icon={Info} className="p-4">
                 <div className="space-y-4 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Number</span>
@@ -98,7 +100,12 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
             </Card>
 
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Quick Actions" icon={Zap} iconPlugin="invoices" className="p-4">
+              <DetailSection
+                title={t('invoices.quickActions')}
+                icon={Zap}
+                iconPlugin="invoices"
+                className="p-4"
+              >
                 <InvoiceActions invoice={actualItem} />
               </DetailSection>
             </Card>
@@ -109,7 +116,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
           {/* Internal Notes & Terms */}
           {(actualItem.notes || actualItem.paymentTerms) && (
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Notes & Terms" className="p-6">
+              <DetailSection title={t('invoices.notesAndTerms')} className="p-6">
                 {actualItem.notes && (
                   <div className="text-sm text-muted-foreground italic leading-relaxed mb-4">
                     "{actualItem.notes}"
@@ -135,7 +142,10 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
           {/* Line Items */}
           {actualItem.lineItems && actualItem.lineItems.length > 0 && (
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title={`Line Items (${actualItem.lineItems.length})`} className="p-6">
+              <DetailSection
+                title={t('invoices.lineItemsCount', { count: actualItem.lineItems.length })}
+                className="p-6"
+              >
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -191,7 +201,7 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
 
           {/* Totals */}
           <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title="Pricing Summary" className="p-6">
+            <DetailSection title={t('invoices.pricingSummary')} className="p-6">
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>

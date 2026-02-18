@@ -1,5 +1,6 @@
 import { AtSign, Calendar, AlertCircle, Info, SlidersHorizontal } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -25,6 +26,7 @@ interface TaskViewProps {
 }
 
 export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
+  const { t } = useTranslation();
   const { openContactForView } = useContacts();
   const {
     closeTaskPanel,
@@ -225,7 +227,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
           <div className="space-y-6">
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
               <DetailSection
-                title="Task Properties"
+                title={t('tasks.taskProperties')}
                 icon={SlidersHorizontal}
                 iconPlugin="tasks"
                 className="p-4"
@@ -257,7 +259,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
                 className="overflow-hidden border-none shadow-sm bg-background/50"
               >
                 <DetailSection
-                  title="Mentioned Contacts"
+                  title={t('tasks.mentionedContacts')}
                   icon={AtSign}
                   iconPlugin="contacts"
                   className="p-4"
@@ -316,7 +318,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
             )}
 
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Information" icon={Info} className="p-4">
+              <DetailSection title={t('tasks.information')} icon={Info} className="p-4">
                 <div className="space-y-4 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">ID</span>
@@ -361,7 +363,7 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
       >
         <div className="space-y-6">
           <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title="Task Content" className="p-6">
+            <DetailSection title={t('tasks.taskContent')} className="p-6">
               <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
                 <MentionContent
                   content={task.content}
@@ -375,10 +377,10 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
       </DetailLayout>
       <ConfirmDialog
         isOpen={showDiscardQuickEditDialog}
-        title="Unsaved changes"
-        message="You have unsaved changes to status, priority, due date or assignee. Do you want to discard them?"
-        confirmText="Discard changes"
-        cancelText="Continue editing"
+        title={t('dialog.unsavedChanges')}
+        message={t('tasks.quickEditDiscardMessage')}
+        confirmText={t('dialog.discardChanges')}
+        cancelText={t('dialog.continueEditing')}
         onConfirm={onDiscardQuickEditAndClose}
         onCancel={() => setShowDiscardQuickEditDialog(false)}
         variant="warning"

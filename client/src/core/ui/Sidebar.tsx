@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight, Home } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,31 +46,31 @@ export function Sidebar({
   onMobileOpenChange,
 }: SidebarProps) {
   const { user } = useApp();
+  const { t } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
   const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set());
 
   const navCategories = useMemo(() => {
     const categoriesMap = new Map<string, any[]>();
-    // Dashboard längst upp i Main (order 0) – alltid tillgänglig för inloggade
     categoriesMap.set('Main', [
-      { label: 'Dashboard', icon: Home, page: 'dashboard' as NavPage, order: 0 },
+      { label: t('nav.dashboard'), icon: Home, page: 'dashboard' as NavPage, order: 0 },
     ]);
 
     PLUGIN_REGISTRY.forEach((plugin) => {
       const isEnabled = plugin.name === 'settings' || (user?.plugins ?? []).includes(plugin.name);
       if (isEnabled && plugin.navigation) {
-        const { category, label, icon, order, submenu, badge } = plugin.navigation;
+        const { category, icon, order, submenu, badge } = plugin.navigation;
         if (!categoriesMap.has(category)) {
           categoriesMap.set(category, []);
         }
         categoriesMap.get(category)!.push({
-          label,
+          label: t(`nav.${plugin.name}` as 'nav.slots'),
           icon,
           page: plugin.name as NavPage,
           order,
           badge,
           submenu: submenu?.map((item) => ({
-            label: item.label,
+            label: t(`nav.${item.page}` as 'nav.slots'),
             icon: item.icon,
             page: item.page as NavPage,
             order: item.order,
@@ -82,13 +83,20 @@ export function Sidebar({
       items.sort((a, b) => a.order - b.order);
     });
 
+    const categoryToKey: Record<string, string> = {
+      Main: 'main',
+      Business: 'business',
+      'E-commerce': 'ecommerce',
+      Tools: 'tools',
+      Account: 'account',
+    };
     return categoryOrder
       .filter((category) => categoriesMap.has(category))
       .map((category) => ({
-        title: category,
+        title: t(`nav.${categoryToKey[category] || category.toLowerCase()}` as 'nav.main'),
         items: categoriesMap.get(category)!,
       }));
-  }, [user]);
+  }, [user, t]);
 
   // Auto-open submenu if current page is a submenu item
   useEffect(() => {
@@ -272,7 +280,7 @@ export function Sidebar({
       <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
         <SheetContent side="left" className="w-72 p-0">
           <SheetHeader className="px-4 pt-4">
-            <SheetTitle>Navigation</SheetTitle>
+            <SheetTitle>{t('nav.navigation')}</SheetTitle>
           </SheetHeader>
           <div className="px-2 pb-6">
             <SidebarContent />

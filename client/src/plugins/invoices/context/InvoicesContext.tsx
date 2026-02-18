@@ -1,5 +1,6 @@
 import { Receipt } from 'lucide-react';
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
@@ -80,6 +81,7 @@ export function InvoicesProvider({
   onCloseOtherPanels,
   api = invoicesApi,
 }: ProviderProps) {
+  const { t } = useTranslation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
 
   // Panel
@@ -360,9 +362,9 @@ export function InvoicesProvider({
 
     switch (mode) {
       case 'edit':
-        return 'Update invoice information';
+        return t('invoices.subtitleEdit');
       case 'create':
-        return 'Enter new invoice details';
+        return t('invoices.subtitleCreate');
       default:
         return '';
     }
@@ -370,10 +372,10 @@ export function InvoicesProvider({
 
   const getDeleteMessage = (item: Invoice | null) => {
     if (!item) {
-      return 'Are you sure you want to delete this invoice?';
+      return t('invoices.deleteConfirmThis');
     }
     const itemName = formatDisplayNumber('invoices', item.invoiceNumber || item.id);
-    return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
+    return `${t('invoices.deleteConfirmNamed', { name: itemName })} ${t('bulk.cannotUndo')}`;
   };
 
   const value: InvoicesContextType = {

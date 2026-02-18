@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -86,6 +87,7 @@ export function KioskForm({
   onCancel,
   isSubmitting: _isSubmitting = false,
 }: KioskFormProps) {
+  const { t } = useTranslation();
   const { contacts } = useApp();
   const { validationErrors, clearValidationErrors, panelMode } = useKiosk();
   const assignableContacts = contacts.filter(
@@ -282,7 +284,7 @@ export function KioskForm({
       >
         {hasBlockingErrors && (
           <Card className="shadow-none border-destructive/50 bg-destructive/5 p-4">
-            <div className="text-sm text-destructive font-medium">Cannot save</div>
+            <div className="text-sm text-destructive font-medium">{t('common.cannotSave')}</div>
             <ul className="list-disc list-inside mt-2 text-sm text-destructive/90">
               {validationErrors
                 .filter((e) => !e.message?.toLowerCase().includes('warning'))
@@ -296,10 +298,8 @@ export function KioskForm({
         {!currentSlot && onSaveSlots && (
           <div className="flex items-center justify-between rounded-lg border border-border p-4">
             <div className="space-y-0.5">
-              <Label className="text-sm font-medium">Generate series</Label>
-              <p className="text-[11px] text-muted-foreground">
-                Create multiple slots from start time, duration and gap
-              </p>
+              <Label className="text-sm font-medium">{t('slots.generateSeries')}</Label>
+              <p className="text-[11px] text-muted-foreground">{t('slots.generateSeriesHelp')}</p>
             </div>
             <Switch checked={isSeries} onCheckedChange={setIsSeries} />
           </div>
@@ -309,7 +309,7 @@ export function KioskForm({
           <Card className="p-4 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="series-count">Number of slots</Label>
+                <Label htmlFor="series-count">{t('slots.numberOfSlots')}</Label>
                 <Input
                   id="series-count"
                   type="number"
@@ -325,7 +325,7 @@ export function KioskForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="series-duration">Duration per slot</Label>
+                <Label htmlFor="series-duration">{t('slots.durationPerSlot')}</Label>
                 <Select
                   value={String(durationMinutes)}
                   onValueChange={(v) => setDurationMinutes(parseInt(v, 10))}
@@ -343,7 +343,7 @@ export function KioskForm({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="series-gap">Gap between slots</Label>
+                <Label htmlFor="series-gap">{t('slots.gapBetweenSlots')}</Label>
                 <Select
                   value={String(gapMinutes)}
                   onValueChange={(v) => setGapMinutes(parseInt(v, 10))}
@@ -363,7 +363,7 @@ export function KioskForm({
             </div>
             {generatedTimes.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-sm">Preview</Label>
+                <Label className="text-sm">{t('slots.preview')}</Label>
                 <ul className="text-sm text-muted-foreground border rounded-md divide-y divide-border max-h-40 overflow-y-auto">
                   {generatedTimes.map((d) => (
                     <li key={d.toISOString()} className="px-3 py-2">
@@ -379,20 +379,20 @@ export function KioskForm({
           </Card>
         )}
 
-        <DetailSection title="Slot" iconPlugin="slots" className="p-4">
+        <DetailSection title={t('slots.sectionTitle')} iconPlugin="slots" className="p-4">
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="slots-location">Plats (Location)</Label>
+                <Label htmlFor="slots-location">{t('slots.locationLabel')}</Label>
                 <Input
                   id="slots-location"
                   value={formData.location}
                   onChange={(e) => updateField('location', e.target.value)}
-                  placeholder="e.g. Main entrance"
+                  placeholder={t('slots.locationPlaceholder')}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="slots-time">Tid (Time)</Label>
+                <Label htmlFor="slots-time">{t('slots.timeLabel')}</Label>
                 <MatchDateTimePicker
                   value={formData.slot_time}
                   onChange={(v) => updateField('slot_time', v)}
@@ -404,7 +404,7 @@ export function KioskForm({
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Kontakter (Contacts)</Label>
+              <Label>{t('common.contacts')}</Label>
               <div className="flex gap-2">
                 <Select
                   value="__add__"
@@ -417,11 +417,11 @@ export function KioskForm({
                   }}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Lägg till kontakt..." />
+                    <SelectValue placeholder={t('common.addContact')} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__add__" className="text-muted-foreground">
-                      Lägg till kontakt...
+                      {t('common.addContact')}
                     </SelectItem>
                     {assignableContacts
                       .filter(
@@ -457,7 +457,7 @@ export function KioskForm({
                             clearValidationErrors();
                           }}
                           className="rounded hover:bg-muted-foreground/20 p-0.5"
-                          aria-label={`Ta bort ${name}`}
+                          aria-label={`${t('common.removeContact')} ${name}`}
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -468,7 +468,7 @@ export function KioskForm({
               )}
             </div>
             <div className="space-y-2">
-              <Label>Capacity (1–5)</Label>
+              <Label>{t('slots.capacityLabel')}</Label>
               <Select
                 value={String(formData.capacity)}
                 onValueChange={(v) => updateField('capacity', parseInt(v, 10))}
@@ -490,8 +490,8 @@ export function KioskForm({
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-4">
               <div className="space-y-0.5">
-                <Label className="text-sm font-medium">Visible</Label>
-                <p className="text-[11px] text-muted-foreground">Show this slot in the list</p>
+                <Label className="text-sm font-medium">{t('slots.visibleLabel')}</Label>
+                <p className="text-[11px] text-muted-foreground">{t('slots.visibleHelp')}</p>
               </div>
               <Switch
                 checked={formData.visible}
@@ -500,10 +500,8 @@ export function KioskForm({
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-4">
               <div className="space-y-0.5">
-                <Label className="text-sm font-medium">Notifications</Label>
-                <p className="text-[11px] text-muted-foreground">
-                  Enable notifications for this slot
-                </p>
+                <Label className="text-sm font-medium">{t('slots.notificationsLabel')}</Label>
+                <p className="text-[11px] text-muted-foreground">{t('slots.notificationsHelp')}</p>
               </div>
               <Switch
                 checked={formData.notifications_enabled}
@@ -516,14 +514,10 @@ export function KioskForm({
 
       <ConfirmDialog
         isOpen={showWarning}
-        title="Unsaved changes"
-        message={
-          currentSlot
-            ? 'Discard changes and return to view?'
-            : 'Discard changes and close the form?'
-        }
-        confirmText="Discard"
-        cancelText="Continue editing"
+        title={t('dialog.unsavedChanges')}
+        message={currentSlot ? t('dialog.discardAndReturn') : t('dialog.discardAndClose')}
+        confirmText={t('common.discard')}
+        cancelText={t('common.continueEditing')}
         onConfirm={() => {
           if (!currentSlot) {
             resetForm();

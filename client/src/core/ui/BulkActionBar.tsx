@@ -3,6 +3,7 @@
 
 import { XCircle, type LucideIcon } from 'lucide-react';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 
@@ -30,6 +31,7 @@ export function BulkActionBar({
   actions,
   className = '',
 }: BulkActionBarProps) {
+  const { t } = useTranslation();
   if (selectedCount === 0) {
     return null;
   }
@@ -38,7 +40,7 @@ export function BulkActionBar({
     <div className={`mt-2 flex flex-col sm:flex-row sm:items-center gap-2 ${className}`}>
       <div className="flex items-center gap-2 flex-wrap">
         <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-          {selectedCount} selected
+          {t('bulk.selected', { count: selectedCount })}
         </span>
         <Button
           variant="ghost"
@@ -48,7 +50,7 @@ export function BulkActionBar({
           onClick={onClearSelection}
           type="button"
         >
-          Clear selection
+          {t('common.clearSelection')}
         </Button>
       </div>
       <div className="flex flex-wrap items-center gap-2">

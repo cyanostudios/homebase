@@ -8,6 +8,7 @@ import {
   Settings,
 } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -66,6 +67,7 @@ function getFileIcon(mimeType?: string | null) {
 }
 
 export const FileList: React.FC = () => {
+  const { t } = useTranslation();
   const {
     files,
     openFileForView,
@@ -188,7 +190,7 @@ export const FileList: React.FC = () => {
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search by name, id, or type..."
+        searchPlaceholder={t('files.searchPlaceholder')}
         rightActions={
           <div className="flex gap-2">
             <Button
@@ -196,37 +198,37 @@ export const FileList: React.FC = () => {
               size="sm"
               onClick={() => openFileSettings()}
               className="h-7 text-[10px] px-2"
-              title="Files settings"
+              title={t('files.settingsTitle')}
             >
               <Settings className="w-4 h-4 mr-1" />
-              Settings
+              {t('slots.settings')}
             </Button>
             <Button
               variant={viewMode === 'grid' ? 'default' : 'secondary'}
               size="sm"
               onClick={() => setViewMode('grid')}
               className="h-7 text-[10px] px-2"
-              title="Grid view"
+              title={t('files.gridView')}
             >
               <Grid3x3 className="w-4 h-4 mr-1" />
-              Grid
+              {t('slots.grid')}
             </Button>
             <Button
               variant={viewMode === 'list' ? 'default' : 'secondary'}
               size="sm"
               onClick={() => setViewMode('list')}
               className="h-7 text-[10px] px-2"
-              title="List view"
+              title={t('files.listView')}
             >
               <ListIcon className="w-4 h-4 mr-1" />
-              List
+              {t('slots.list')}
             </Button>
           </div>
         }
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing, openFileSettings]);
+  }, [t, searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing, openFileSettings]);
 
   const handleOpenForView = (item: any) => attemptNavigation(() => openFileForView(item));
 
@@ -254,7 +256,7 @@ export const FileList: React.FC = () => {
         onClearSelection={clearFileSelection}
         actions={[
           {
-            label: 'Delete…',
+            label: t('common.delete'),
             icon: Trash2,
             onClick: () => setShowDeleteModal(true),
             variant: 'destructive',
@@ -267,9 +269,7 @@ export const FileList: React.FC = () => {
           filteredAndSorted.length === 0 ? (
             <Card className="shadow-none">
               <div className="p-6 text-center text-muted-foreground">
-                {searchTerm
-                  ? 'No files found matching your search.'
-                  : 'No files yet. Click "Add File" to get started.'}
+                {searchTerm ? t('files.noMatch') : t('files.noYet')}
               </div>
             </Card>
           ) : (
@@ -387,9 +387,7 @@ export const FileList: React.FC = () => {
                 {filteredAndSorted.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
-                      {searchTerm
-                        ? 'No files found matching your search.'
-                        : 'No files yet. Click "Add File" to get started.'}
+                      {searchTerm ? t('files.noMatch') : t('files.noYet')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -450,7 +448,7 @@ export const FileList: React.FC = () => {
         itemCount={selectedCount}
         itemLabel="files"
         isLoading={deleting}
-        warningMessage="This will also remove the physical files."
+        warningMessage={t('files.bulkDeleteWarning')}
       />
     </div>
   );

@@ -7,6 +7,7 @@ import React, {
   useRef,
   ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { usePluginActions } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
@@ -82,6 +83,7 @@ interface NoteProviderProps {
 }
 
 export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: NoteProviderProps) {
+  const { t } = useTranslation();
   const {
     registerPanelCloseFunction,
     unregisterPanelCloseFunction,
@@ -484,11 +486,10 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const getDeleteMessage = (item: Note | null) => {
     if (!item) {
-      return 'Are you sure you want to delete this note?';
+      return t('notes.deleteConfirmThis');
     }
-
     const itemName = item.title || 'this note';
-    return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
+    return `${t('notes.deleteConfirmNamed', { name: itemName })} ${t('bulk.cannotUndo')}`;
   };
 
   const value: NoteContextType = {

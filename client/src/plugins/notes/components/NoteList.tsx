@@ -10,6 +10,7 @@ import {
   Upload,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -42,14 +43,15 @@ type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
 
-const NOTE_IMPORT_SCHEMA: ImportSchema = {
+const getNoteImportSchema = (t: (key: string) => string): ImportSchema => ({
   fields: [
-    { key: 'title', label: 'Title', required: true },
-    { key: 'content', label: 'Content', required: true },
+    { key: 'title', label: t('notes.title'), required: true },
+    { key: 'content', label: t('notes.content'), required: true },
   ],
-};
+});
 
 export const NoteList: React.FC = () => {
+  const { t } = useTranslation();
   const {
     notes,
     openNoteForView,
@@ -294,7 +296,7 @@ export const NoteList: React.FC = () => {
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search notes..."
+        searchPlaceholder={t('notes.searchPlaceholder')}
         rightActions={
           <div className="flex gap-2">
             <Button
@@ -304,7 +306,7 @@ export const NoteList: React.FC = () => {
               onClick={() => openNoteSettings()}
               className="h-7 text-[10px] px-2"
             >
-              Settings
+              {t('slots.settings')}
             </Button>
             <Button
               variant={viewMode === 'grid' ? 'default' : 'secondary'}
@@ -313,7 +315,7 @@ export const NoteList: React.FC = () => {
               onClick={() => setViewMode('grid')}
               className="h-7 text-[10px] px-2"
             >
-              Grid
+              {t('slots.grid')}
             </Button>
             <Button
               variant={viewMode === 'list' ? 'default' : 'secondary'}
@@ -322,7 +324,7 @@ export const NoteList: React.FC = () => {
               onClick={() => setViewMode('list')}
               className="h-7 text-[10px] px-2"
             >
-              List
+              {t('slots.list')}
             </Button>
             <Button
               variant="secondary"
@@ -331,14 +333,14 @@ export const NoteList: React.FC = () => {
               onClick={() => setIsImportWizardOpen(true)}
               className="h-7 text-[10px] px-2"
             >
-              Import
+              {t('common.import')}
             </Button>
           </div>
         }
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing, openNoteSettings]);
+  }, [t, searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing, openNoteSettings]);
 
   // Protected navigation handlers
   const handleOpenForView = (note: any) => {
@@ -354,14 +356,19 @@ export const NoteList: React.FC = () => {
         onClearSelection={clearNoteSelection}
         actions={[
           {
-            label: 'Export CSV',
+            label: t('common.exportCsv'),
             icon: FileSpreadsheet,
             onClick: handleExportCSV,
             variant: 'default',
           },
-          { label: 'Export PDF', icon: FileText, onClick: handleExportPDF, variant: 'default' },
           {
-            label: 'Delete…',
+            label: t('common.exportPdf'),
+            icon: FileText,
+            onClick: handleExportPDF,
+            variant: 'default',
+          },
+          {
+            label: t('common.delete'),
             icon: Trash2,
             onClick: () => setShowBulkDeleteModal(true),
             variant: 'destructive',
@@ -373,9 +380,7 @@ export const NoteList: React.FC = () => {
         {sortedNotes.length === 0 ? (
           <Card className="shadow-none">
             <div className="p-6 text-center text-muted-foreground">
-              {searchTerm
-                ? 'No notes found matching your search.'
-                : 'No notes yet. Click "Add Note" to get started.'}
+              {searchTerm ? t('notes.noMatch') : t('notes.noYet')}
             </div>
           </Card>
         ) : viewMode === 'grid' ? (
@@ -413,7 +418,9 @@ export const NoteList: React.FC = () => {
                         onChange={() => toggleNoteSelected(note.id)}
                         onClick={(e) => e.stopPropagation()}
                         className="cursor-pointer h-4 w-4"
-                        aria-label={noteIsSelected ? 'Unselect note' : 'Select note'}
+                        aria-label={
+                          noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')
+                        }
                       />
                       <h3 className="font-semibold text-base line-clamp-1">{note.title}</h3>
                     </div>
@@ -430,13 +437,17 @@ export const NoteList: React.FC = () => {
                             {note.mentions.length > 1 && ` +${note.mentions.length - 1}`}
                           </span>
                         ) : (
-                          <span>No mentions</span>
+                          <span>{t('notes.noMentions')}</span>
                         )}
                       </div>
                     </div>
                     <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
-                      <div>Updated: {new Date(note.updatedAt).toLocaleDateString()}</div>
-                      <div>Created: {new Date(note.createdAt).toLocaleDateString()}</div>
+                      <div>
+                        {t('common.updated')}: {new Date(note.updatedAt).toLocaleDateString()}
+                      </div>
+                      <div>
+                        {t('slots.created')}: {new Date(note.createdAt).toLocaleDateString()}
+                      </div>
                     </div>
                   </div>
                 </Card>
@@ -474,7 +485,9 @@ export const NoteList: React.FC = () => {
                             onChange={() => toggleNoteSelected(note.id)}
                             onClick={(e) => e.stopPropagation()}
                             className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
-                            aria-label={noteIsSelected ? 'Unselect note' : 'Select note'}
+                            aria-label={
+                              noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')
+                            }
                           />
                           <h3 className="font-semibold text-base truncate">{note.title}</h3>
                         </div>
@@ -491,7 +504,9 @@ export const NoteList: React.FC = () => {
                             <span>—</span>
                           )}
                           <span>•</span>
-                          <span>Updated {new Date(note.updatedAt).toLocaleDateString()}</span>
+                          <span>
+                            {t('common.updated')} {new Date(note.updatedAt).toLocaleDateString()}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -511,7 +526,9 @@ export const NoteList: React.FC = () => {
                       ref={headerCheckboxRef}
                       type="checkbox"
                       className="h-4 w-4 cursor-pointer"
-                      aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
+                      aria-label={
+                        allVisibleSelected ? t('common.unselectAll') : t('common.selectAll')
+                      }
                       checked={allVisibleSelected}
                       onChange={onToggleAllVisible}
                     />
@@ -521,7 +538,7 @@ export const NoteList: React.FC = () => {
                     onClick={() => handleSort('title')}
                   >
                     <div className="flex items-center gap-2">
-                      <span>Title</span>
+                      <span>{t('notes.title')}</span>
                       {sortField === 'title' &&
                         (sortOrder === 'asc' ? (
                           <ArrowUp className="h-3 w-3 inline" />
@@ -530,14 +547,14 @@ export const NoteList: React.FC = () => {
                         ))}
                     </div>
                   </TableHead>
-                  <TableHead>Content</TableHead>
-                  <TableHead>Mentions</TableHead>
+                  <TableHead>{t('notes.content')}</TableHead>
+                  <TableHead>{t('notes.mentions')}</TableHead>
                   <TableHead
                     className="cursor-pointer hover:bg-muted/50 select-none"
                     onClick={() => handleSort('updatedAt')}
                   >
                     <div className="flex items-center gap-2">
-                      <span>Updated</span>
+                      <span>{t('common.updated')}</span>
                       {sortField === 'updatedAt' &&
                         (sortOrder === 'asc' ? (
                           <ArrowUp className="h-3 w-3 inline" />
@@ -551,7 +568,7 @@ export const NoteList: React.FC = () => {
                     onClick={() => handleSort('createdAt')}
                   >
                     <div className="flex items-center gap-2">
-                      <span>Created</span>
+                      <span>{t('slots.created')}</span>
                       {sortField === 'createdAt' &&
                         (sortOrder === 'asc' ? (
                           <ArrowUp className="h-3 w-3 inline" />
@@ -589,7 +606,9 @@ export const NoteList: React.FC = () => {
                           className="h-4 w-4 cursor-pointer"
                           checked={noteIsSelected}
                           onChange={() => toggleNoteSelected(note.id)}
-                          aria-label={noteIsSelected ? 'Unselect note' : 'Select note'}
+                          aria-label={
+                            noteIsSelected ? t('notes.unselectNote') : t('notes.selectNote')
+                          }
                         />
                       </TableCell>
                       <TableCell className="font-semibold">{note.title}</TableCell>
@@ -627,10 +646,10 @@ export const NoteList: React.FC = () => {
 
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
-        title="Delete Note"
-        message={`Are you sure you want to delete "${deleteConfirm.noteTitle}"? This action cannot be undone.`}
-        confirmText="Delete"
-        cancelText="Cancel"
+        title={t('notes.deleteTitle')}
+        message={`Are you sure you want to delete "${deleteConfirm.noteTitle}"? ${t('bulk.cannotUndo')}`}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
         variant="danger"
@@ -650,8 +669,8 @@ export const NoteList: React.FC = () => {
         isOpen={isImportWizardOpen}
         onClose={() => setIsImportWizardOpen(false)}
         onImport={importNotes}
-        schema={NOTE_IMPORT_SCHEMA}
-        title="Import Notes"
+        schema={getNoteImportSchema(t)}
+        title={t('notes.importTitle')}
       />
     </div>
   );

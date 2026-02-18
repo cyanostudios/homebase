@@ -8,6 +8,7 @@ import React, {
   useState,
   ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useActionRegistry } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
@@ -86,6 +87,7 @@ export function KioskProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: KioskProviderProps) {
+  const { t } = useTranslation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction, registerKioskNavigation } =
     useApp();
   const { registerAction } = useActionRegistry();
@@ -447,50 +449,59 @@ export function KioskProvider({
     [currentSlot, closeSlotPanel, clearSlotSelectionCore],
   );
 
-  const getPanelTitle = useCallback((mode: string, item: Slot | null) => {
-    if (mode === 'view' && item) {
-      return item.location
-        ? `${item.location} · ${new Date(item.slot_time).toLocaleString('sv-SE')}`
-        : new Date(item.slot_time).toLocaleString('sv-SE');
-    }
-    if (mode === 'edit') {
-      return 'Edit slot';
-    }
-    if (mode === 'create') {
-      return 'New slot';
-    }
-    if (mode === 'settings') {
-      return 'Settings – Slots';
-    }
-    return 'Slot';
-  }, []);
+  const getPanelTitle = useCallback(
+    (mode: string, item: Slot | null) => {
+      if (mode === 'view' && item) {
+        return item.location
+          ? `${item.location} · ${new Date(item.slot_time).toLocaleString('sv-SE')}`
+          : new Date(item.slot_time).toLocaleString('sv-SE');
+      }
+      if (mode === 'edit') {
+        return t('slots.editSlot');
+      }
+      if (mode === 'create') {
+        return t('slots.newSlot');
+      }
+      if (mode === 'settings') {
+        return t('slots.settingsSlots');
+      }
+      return t('slots.slot');
+    },
+    [t],
+  );
 
-  const getPanelSubtitle = useCallback((mode: string, item: Slot | null) => {
-    if (mode === 'view' && item) {
-      const d = item.slot_time ? new Date(item.slot_time) : null;
-      return (
-        <span className="text-xs text-muted-foreground">
-          {item.location || '—'}
-          {d ? ` · ${d.toLocaleString('sv-SE')}` : ''}
-        </span>
-      );
-    }
-    if (mode === 'edit') {
-      return 'Edit slot details';
-    }
-    if (mode === 'create') {
-      return 'Add a new slot';
-    }
-    return '';
-  }, []);
+  const getPanelSubtitle = useCallback(
+    (mode: string, item: Slot | null) => {
+      if (mode === 'view' && item) {
+        const d = item.slot_time ? new Date(item.slot_time) : null;
+        return (
+          <span className="text-xs text-muted-foreground">
+            {item.location || '—'}
+            {d ? ` · ${d.toLocaleString('sv-SE')}` : ''}
+          </span>
+        );
+      }
+      if (mode === 'edit') {
+        return t('slots.editSlotDetails');
+      }
+      if (mode === 'create') {
+        return t('slots.addNewSlot');
+      }
+      return '';
+    },
+    [t],
+  );
 
-  const getDeleteMessage = useCallback((item: Slot | null) => {
-    if (!item) {
-      return 'Are you sure you want to delete this slot?';
-    }
-    const loc = item.location || 'this slot';
-    return `Are you sure you want to delete the slot ${loc}?`;
-  }, []);
+  const getDeleteMessage = useCallback(
+    (item: Slot | null) => {
+      if (!item) {
+        return t('slots.deleteSlotConfirm');
+      }
+      const loc = item.location || t('slots.slot');
+      return t('slots.deleteSlotConfirmNamed', { location: loc });
+    },
+    [t],
+  );
 
   const getDuplicateConfig = useCallback((item: Slot | null) => {
     if (!item) {

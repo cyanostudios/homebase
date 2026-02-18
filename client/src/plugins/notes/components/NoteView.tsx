@@ -1,5 +1,6 @@
 import { Info, Users } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -17,6 +18,7 @@ interface NoteViewProps {
 }
 
 export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
+  const { t } = useTranslation();
   const { openContactForView } = useContacts();
   const { closeNotePanel } = useNotes();
   const { refreshData } = useApp();
@@ -87,7 +89,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                 className="overflow-hidden border-none shadow-sm bg-background/50"
               >
                 <DetailSection
-                  title="Mentioned Contacts"
+                  title={t('notes.mentionedContacts')}
                   icon={Users}
                   iconPlugin="contacts"
                   className="p-4"
@@ -157,7 +159,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
             )}
 
             <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Information" icon={Info} className="p-4">
+              <DetailSection title={t('notes.information')} icon={Info} className="p-4">
                 <div className="space-y-4 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">ID</span>
@@ -185,7 +187,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
       >
         <div className="space-y-6">
           <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title="Note Content" className="p-6">
+            <DetailSection title={t('notes.noteContent')} className="p-6">
               <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
                 <MentionContent
                   content={note.content}

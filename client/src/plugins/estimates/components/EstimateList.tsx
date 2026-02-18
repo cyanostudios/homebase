@@ -8,6 +8,7 @@ import {
   List as ListIcon,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
 
 export function EstimateList() {
+  const { t } = useTranslation();
   const {
     estimates,
     openEstimateForView,
@@ -309,7 +311,7 @@ export function EstimateList() {
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search estimates..."
+        searchPlaceholder={t('estimates.searchPlaceholder')}
         rightActions={
           <div className="flex gap-2">
             <Button
@@ -319,7 +321,7 @@ export function EstimateList() {
               onClick={() => setViewMode('grid')}
               className="h-7 text-[10px] px-2"
             >
-              Grid
+              {t('slots.grid')}
             </Button>
             <Button
               variant={viewMode === 'list' ? 'default' : 'secondary'}
@@ -328,14 +330,14 @@ export function EstimateList() {
               onClick={() => setViewMode('list')}
               className="h-7 text-[10px] px-2"
             >
-              List
+              {t('slots.list')}
             </Button>
           </div>
         }
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing]);
+  }, [t, searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing]);
 
   // Protected navigation handlers
   const handleOpenForView = (estimate: any) => {
@@ -352,14 +354,19 @@ export function EstimateList() {
         onClearSelection={clearEstimateSelection}
         actions={[
           {
-            label: 'Export CSV',
+            label: t('common.exportCsv'),
             icon: FileSpreadsheet,
             onClick: handleExportCSV,
             variant: 'default',
           },
-          { label: 'Export PDF', icon: FileText, onClick: handleExportPDF, variant: 'default' },
           {
-            label: 'Delete…',
+            label: t('common.exportPdf'),
+            icon: FileText,
+            onClick: handleExportPDF,
+            variant: 'default',
+          },
+          {
+            label: t('common.delete'),
             icon: Trash2,
             onClick: () => setShowBulkDeleteModal(true),
             variant: 'destructive',
@@ -371,9 +378,7 @@ export function EstimateList() {
         {sortedEstimates.length === 0 ? (
           <Card className="shadow-none">
             <div className="p-6 text-center text-muted-foreground">
-              {searchTerm
-                ? 'No estimates found matching your search.'
-                : 'No estimates yet. Click "Add Estimate" to get started.'}
+              {searchTerm ? t('estimates.noMatch') : t('estimates.noYet')}
             </div>
           </Card>
         ) : viewMode === 'grid' ? (
@@ -694,10 +699,10 @@ export function EstimateList() {
 
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
-        title="Delete Estimate"
-        message={`Are you sure you want to delete estimate "${formatDisplayNumber('estimates', deleteConfirm.estimateNumber)}"? This action cannot be undone.`}
-        confirmText="Delete"
-        cancelText="Cancel"
+        title={t('estimates.deleteTitle')}
+        message={`Are you sure you want to delete estimate "${formatDisplayNumber('estimates', deleteConfirm.estimateNumber)}"? ${t('bulk.cannotUndo')}`}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
         variant="danger"

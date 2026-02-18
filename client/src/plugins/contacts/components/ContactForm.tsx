@@ -1,5 +1,6 @@
 import { Building, User, Plus, Trash2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +50,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({
   onCancel,
   isSubmitting: externalIsSubmitting = false,
 }) => {
+  const { t } = useTranslation();
   const { validationErrors, clearValidationErrors, panelMode } = useContacts();
   const {
     isDirty,
@@ -1087,14 +1089,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
       {/* Unsaved Changes Warning Dialog */}
       <ConfirmDialog
         isOpen={showWarning}
-        title="Unsaved Changes"
-        message={
-          currentContact
-            ? 'You have unsaved changes. Do you want to discard your changes and return to view mode?'
-            : 'You have unsaved changes. Do you want to discard your changes and close the form?'
-        }
-        confirmText="Discard Changes"
-        cancelText="Continue Editing"
+        title={t('dialog.unsavedChanges')}
+        message={currentContact ? t('dialog.discardAndReturn') : t('dialog.discardAndClose')}
+        confirmText={t('dialog.discardChanges')}
+        cancelText={t('dialog.continueEditing')}
         onConfirm={handleDiscardChanges}
         onCancel={cancelDiscard}
         variant="warning"

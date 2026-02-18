@@ -3,6 +3,7 @@
 
 import { Moon, Sun } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -11,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { useTheme } from '@/hooks/useTheme';
+import i18n from '@/i18n';
 import { useSettingsContext } from '@/plugins/settings/context/SettingsContext';
 
 interface PreferencesSettingsFormProps {
@@ -25,12 +27,8 @@ const timezones = [
   { value: 'Asia/Tokyo', label: 'Asia/Tokyo (JST)' },
 ];
 
-const languages = [
-  { value: 'en', label: 'English' },
-  { value: 'sv', label: 'Svenska' },
-];
-
 export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormProps) {
+  const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
   const { theme, toggleTheme } = useTheme();
   const { registerSaveHandler, setIsSaving } = useSettingsContext();
@@ -73,6 +71,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
         pomodoroClockEnabled: formData.pomodoroClockEnabled,
         timeTrackingEnabled: formData.timeTrackingEnabled,
       });
+      i18n.changeLanguage(formData.language);
       onCancel();
     } catch (error) {
       console.error('Failed to save preferences settings:', error);
@@ -94,14 +93,19 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
     return () => registerSaveHandler(null);
   }, [registerSaveHandler, handleSave]);
 
+  const languages = [
+    { value: 'en', label: t('preferences.languageEnglish') },
+    { value: 'sv', label: t('preferences.languageSvenska') },
+  ];
+
   if (isLoading) {
-    return <div className="p-6">Loading...</div>;
+    return <div className="p-6">{t('common.loading')}</div>;
   }
 
   return (
     <div className="space-y-6">
       <Card padding="sm" className="shadow-none px-0">
-        <DetailSection title="Preferences">
+        <DetailSection title={t('preferences.title')}>
           <div className="space-y-3">
             <div className="flex flex-wrap items-start gap-6">
               <div className="flex flex-col gap-1.5">
@@ -109,7 +113,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
                   htmlFor="preferences-theme"
                   className="text-xs font-medium text-muted-foreground"
                 >
-                  Theme
+                  {t('preferences.theme')}
                 </Label>
                 <div className="flex items-center gap-2">
                   <Sun className="w-4 h-4 text-muted-foreground" />
@@ -117,11 +121,11 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
                     id="preferences-theme"
                     checked={theme === 'dark'}
                     onCheckedChange={toggleTheme}
-                    aria-label="Toggle dark mode"
+                    aria-label={t('preferences.toggleDarkMode')}
                   />
                   <Moon className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">
-                    {theme === 'dark' ? 'Dark' : 'Light'}
+                    {theme === 'dark' ? t('preferences.dark') : t('preferences.light')}
                   </span>
                 </div>
               </div>
@@ -130,7 +134,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
                   htmlFor="preferences-time-tracking"
                   className="text-xs font-medium text-muted-foreground"
                 >
-                  Time tracking
+                  {t('preferences.timeTracking')}
                 </Label>
                 <div className="flex items-center gap-2">
                   <Switch
@@ -139,10 +143,10 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
                     onCheckedChange={(checked) =>
                       setFormData({ ...formData, timeTrackingEnabled: checked })
                     }
-                    aria-label="Show Time tracking in top bar"
+                    aria-label={t('preferences.showTimeTracking')}
                   />
                   <span className="text-sm text-muted-foreground">
-                    {formData.timeTrackingEnabled ? 'On' : 'Off'}
+                    {formData.timeTrackingEnabled ? t('common.on') : t('common.off')}
                   </span>
                 </div>
               </div>
@@ -151,7 +155,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
                   htmlFor="preferences-pomodoro-clock"
                   className="text-xs font-medium text-muted-foreground"
                 >
-                  Pomodoro
+                  {t('preferences.pomodoro')}
                 </Label>
                 <div className="flex items-center gap-2">
                   <Switch
@@ -160,17 +164,17 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
                     onCheckedChange={(checked) =>
                       setFormData({ ...formData, pomodoroClockEnabled: checked })
                     }
-                    aria-label="Show Pomodoro clock in top bar"
+                    aria-label={t('preferences.showPomodoro')}
                   />
                   <span className="text-sm text-muted-foreground">
-                    {formData.pomodoroClockEnabled ? 'On' : 'Off'}
+                    {formData.pomodoroClockEnabled ? t('common.on') : t('common.off')}
                   </span>
                 </div>
               </div>
             </div>
             <div>
               <Label htmlFor="preferences-timezone" className="mb-1">
-                Timezone
+                {t('preferences.timezone')}
               </Label>
               <NativeSelect
                 id="preferences-timezone"
@@ -186,7 +190,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
             </div>
             <div>
               <Label htmlFor="preferences-language" className="mb-1">
-                Language
+                {t('preferences.language')}
               </Label>
               <NativeSelect
                 id="preferences-language"
