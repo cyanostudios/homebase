@@ -118,6 +118,10 @@ export class InvoicesApi {
     return this.request(`/${id}`, { method: 'DELETE' });
   }
 
+  bulkDelete(ids: string[]): Promise<{ ok: boolean; requested: number; deleted: number; deletedIds: string[] }> {
+    return this.request('/batch', { method: 'DELETE', body: JSON.stringify({ ids }) });
+  }
+
   // === Numbering ===
   getNextNumber() {
     return this.request('/number/next');

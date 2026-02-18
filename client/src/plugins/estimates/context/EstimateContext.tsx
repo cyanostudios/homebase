@@ -25,6 +25,7 @@ interface EstimateContextType {
   closeEstimatePanel: () => void;
   saveEstimate: (estimateData: any) => Promise<boolean>;
   deleteEstimate: (id: string) => Promise<void>;
+  deleteEstimates: (ids: string[]) => Promise<void>;
   duplicateEstimate: (estimate: Estimate) => Promise<void>;
   clearValidationErrors: () => void;
 
@@ -52,7 +53,7 @@ export function EstimateProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: EstimateProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData } = useApp();
 
   // Panel state
   const [isEstimatePanelOpen, setIsEstimatePanelOpen] = useState(false);
@@ -224,6 +225,7 @@ export function EstimateProvider({
         });
         setPanelMode('view');
         setValidationErrors([]);
+        await refreshData();
       } else {
         saved = await estimatesApi.createEstimate(estimateData);
         setEstimates((prev) => [
@@ -236,6 +238,7 @@ export function EstimateProvider({
           },
         ]);
         closeEstimatePanel();
+        await refreshData();
       }
 
       return true;
@@ -272,13 +275,25 @@ export function EstimateProvider({
   const deleteEstimate = async (id: string) => {
     try {
       await estimatesApi.deleteEstimate(id);
+      setEstimates((prev) => prev.filter((e) => e.id !== id));
+      await refreshData();
     } catch (error: any) {
       console.error('Failed to delete estimate:', error);
-      // V2: Handle standardized error format
       const errorMessage = error?.message || error?.error || 'Failed to delete estimate';
       alert(errorMessage);
-    } finally {
-      setEstimates((prev) => prev.filter((e) => e.id !== id));
+    }
+  };
+
+  const deleteEstimates = async (ids: string[]) => {
+    if (!ids.length) return;
+    try {
+      await estimatesApi.bulkDelete(ids);
+      await loadEstimates();
+      await refreshData();
+    } catch (error: any) {
+      console.error('Failed to bulk delete estimates:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to delete estimates';
+      alert(errorMessage);
     }
   };
 
@@ -311,6 +326,7 @@ export function EstimateProvider({
           updatedAt: new Date(saved.updatedAt),
         },
       ]);
+      await refreshData();
     } catch (error: any) {
       console.error('Failed to duplicate estimate:', error);
       // V2: Handle standardized error format
@@ -436,6 +452,7 @@ export function EstimateProvider({
     closeEstimatePanel,
     saveEstimate,
     deleteEstimate,
+    deleteEstimates,
     duplicateEstimate,
     clearValidationErrors,
 

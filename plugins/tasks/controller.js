@@ -62,6 +62,48 @@ class TaskController {
     }
   }
 
+  async bulkDelete(req, res) {
+    try {
+      const idsRaw = req.body?.ids;
+      if (!Array.isArray(idsRaw)) {
+        return res
+          .status(400)
+          .json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
+      }
+
+      const ids = Array.from(new Set(idsRaw.map((x) => String(x).trim()).filter(Boolean)));
+      if (!ids.length) {
+        return res.json({ ok: true, requested: 0, deleted: 0 });
+      }
+      if (ids.length > 500) {
+        return res
+          .status(400)
+          .json({ error: 'Too many ids (max 500 per request)', code: 'VALIDATION_ERROR' });
+      }
+
+      const result = await this.model.bulkDelete(req, ids);
+      const deleted =
+        typeof result?.deletedCount === 'number'
+          ? result.deletedCount
+          : Array.isArray(result?.deletedIds)
+            ? result.deletedIds.length
+            : 0;
+
+      return res.json({
+        ok: true,
+        requested: ids.length,
+        deleted,
+        deletedIds: result?.deletedIds || [],
+      });
+    } catch (error) {
+      Logger.error('Bulk delete tasks failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Bulk delete failed' });
+    }
+  }
+
   async delete(req, res) {
     try {
       await this.model.delete(req, req.params.id);

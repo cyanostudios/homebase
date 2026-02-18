@@ -1,8 +1,9 @@
-import { Calculator, ArrowUp, ArrowDown } from 'lucide-react';
+import { Calculator, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -11,6 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -22,12 +25,15 @@ type SortField = 'estimateNumber' | 'contactName' | 'total' | 'createdAt';
 type SortOrder = 'asc' | 'desc';
 
 export function EstimateList() {
-  const { estimates, openEstimateForView, deleteEstimate } = useEstimates();
+  const { estimates, openEstimateForView, deleteEstimate, deleteEstimates } = useEstimates();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -100,6 +106,36 @@ export function EstimateList() {
     });
   };
 
+  const selectedCount = selectedIds.size;
+  const allSelected =
+    sortedEstimates.length > 0 && sortedEstimates.every((e) => selectedIds.has(e.id));
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedEstimates.map((e) => e.id)));
+    }
+  };
+  const toggleSelectOne = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const handleBulkDeleteConfirm = async () => {
+    setBulkDeleting(true);
+    try {
+      await deleteEstimates(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusColors = {
       draft: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
@@ -128,6 +164,21 @@ export function EstimateList() {
         searchPlaceholder="Search estimates..."
       />
 
+      {selectedCount > 0 && (
+        <BulkActionBar
+          selectedCount={selectedCount}
+          onClearSelection={() => setSelectedIds(new Set())}
+          actions={[
+            {
+              label: 'Delete',
+              icon: Trash2,
+              onClick: () => setBulkDeleteOpen(true),
+              variant: 'destructive',
+            },
+          ]}
+        />
+      )}
+
       <Card className="shadow-none">
         {sortedEstimates.length === 0 ? (
           <div className="p-6 text-center text-muted-foreground">
@@ -139,7 +190,13 @@ export function EstimateList() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-muted/50 select-none"
                   onClick={() => handleSort('estimateNumber')}
@@ -221,8 +278,13 @@ export function EstimateList() {
                       handleOpenForView(estimate);
                     }}
                   >
-                    <TableCell className="w-12">
-                      <Calculator className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                    <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedIds.has(estimate.id)}
+                        onCheckedChange={() => {}}
+                        onClick={(e) => toggleSelectOne(estimate.id, e)}
+                        aria-label={`Select ${estimate.estimateNumber}`}
+                      />
                     </TableCell>
                     <TableCell className="font-semibold">{estimate.estimateNumber}</TableCell>
                     <TableCell>
@@ -270,6 +332,15 @@ export function EstimateList() {
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
         variant="danger"
+      />
+
+      <BulkDeleteModal
+        isOpen={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={handleBulkDeleteConfirm}
+        itemCount={selectedCount}
+        itemLabel="estimates"
+        isLoading={bulkDeleting}
       />
     </div>
   );

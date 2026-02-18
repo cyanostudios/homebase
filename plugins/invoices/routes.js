@@ -29,6 +29,15 @@ function createInvoiceRoutes(controller, context) {
   // Public (NO auth) — keep before /:id to avoid conflicts
   router.get('/public/:token', (req, res) => controller.getPublicInvoice(req, res));
 
+  // DELETE /api/invoices/batch - Bulk delete (MUST be before '/:id' route)
+  router.delete(
+    '/batch',
+    gate,
+    ...commonRules.requiredArray('ids', 500),
+    validateRequest,
+    (req, res) => controller.bulkDelete(req, res),
+  );
+
   // Item operations (auth required)
   router.put('/:id',
     gate,

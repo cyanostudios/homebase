@@ -81,6 +81,19 @@ class NoteModel {
     }
   }
 
+  async bulkDelete(req, idsTextArray) {
+    try {
+      const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+      return await BulkOperationsHelper.bulkDelete(req, 'notes', idsTextArray);
+    } catch (error) {
+      Logger.error('Failed to bulk delete notes', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to bulk delete notes', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async delete(req, noteId) {
     try {
       const db = Database.get(req);

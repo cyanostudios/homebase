@@ -40,6 +40,15 @@ function createNoteRoutes(controller, context) {
     }
   );
 
+  // DELETE /api/notes/batch - Bulk delete (MUST be before '/:id' route)
+  router.delete(
+    '/batch',
+    requirePlugin('notes'),
+    ...commonRules.requiredArray('ids', 500),
+    validateRequest,
+    (req, res) => controller.bulkDelete(req, res),
+  );
+
   // DELETE /api/notes/:id - Delete note
   router.delete('/:id',
     requirePlugin('notes'),

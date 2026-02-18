@@ -28,6 +28,7 @@ interface TaskContextType {
   closeTaskPanel: () => void;
   saveTask: (taskData: any, taskId?: string) => Promise<boolean>;
   deleteTask: (id: string) => Promise<void>;
+  deleteTasks: (ids: string[]) => Promise<void>;
   duplicateTask: (task: Task) => Promise<void>;
   clearValidationErrors: () => void;
 
@@ -229,14 +230,24 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   };
 
   const deleteTask = async (id: string) => {
-    console.log('Deleting task with id:', id);
     try {
       await tasksApi.deleteTask(id);
       await refreshData();
     } catch (error: any) {
       console.error('Failed to delete task:', error);
-      // V2: Handle standardized error format
       const errorMessage = error?.message || error?.error || 'Failed to delete task';
+      alert(errorMessage);
+    }
+  };
+
+  const deleteTasks = async (ids: string[]) => {
+    if (!ids.length) return;
+    try {
+      await tasksApi.bulkDelete(ids);
+      await refreshData();
+    } catch (error: any) {
+      console.error('Failed to bulk delete tasks:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to delete tasks';
       alert(errorMessage);
     }
   };
@@ -392,6 +403,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     closeTaskPanel,
     saveTask,
     deleteTask,
+    deleteTasks,
     duplicateTask,
     clearValidationErrors,
 

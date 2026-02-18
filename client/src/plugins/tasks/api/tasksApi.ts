@@ -204,6 +204,13 @@ class TasksApi {
       method: 'DELETE',
     });
   }
+
+  async bulkDelete(ids: string[]): Promise<{ ok: boolean; requested: number; deleted: number; deletedIds: string[] }> {
+    return this.request('/tasks/batch', {
+      method: 'DELETE',
+      body: JSON.stringify({ ids }),
+    });
+  }
 }
 
 export const tasksApi = new TasksApi();

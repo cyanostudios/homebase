@@ -330,6 +330,19 @@ class EstimateModel {
     }
   }
 
+  async bulkDelete(req, idsTextArray) {
+    try {
+      const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+      return await BulkOperationsHelper.bulkDelete(req, 'estimates', idsTextArray);
+    } catch (error) {
+      Logger.error('Failed to bulk delete estimates', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to bulk delete estimates', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   // Delete estimate
   async delete(req, estimateId) {
     try {

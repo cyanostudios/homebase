@@ -46,6 +46,7 @@ interface InvoicesContextType {
   closeInvoicePanel: () => void; // ⬅️ singular alias for UniversalPanel handlers
   saveInvoice: (data: any) => Promise<boolean>;
   deleteInvoice: (id: string) => Promise<void>;
+  deleteInvoices: (ids: string[]) => Promise<void>;
   clearValidationErrors: () => void;
 
   // Panel Title Functions
@@ -69,7 +70,7 @@ export function InvoicesProvider({
   onCloseOtherPanels,
   api = invoicesApi,
 }: ProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData } = useApp();
 
   // Panel
   const [isInvoicesPanelOpen, setIsInvoicesPanelOpen] = useState(false);
@@ -200,6 +201,7 @@ export function InvoicesProvider({
         setCurrentInvoice(normalized as any);
         setPanelMode('view');
         setValidationErrors([]);
+        await refreshData();
       } else {
         const saved = await api.createItem(formattedData);
         const normalized = {
@@ -211,6 +213,7 @@ export function InvoicesProvider({
         };
         setInvoices((prev) => [...prev, normalized]);
         closeInvoicesPanel();
+        await refreshData();
       }
       return true;
     } catch (err: any) {
@@ -251,10 +254,23 @@ export function InvoicesProvider({
     try {
       await api.deleteItem(id);
       setInvoices((prev) => prev.filter((i) => i.id !== id));
+      await refreshData();
     } catch (err: any) {
       console.error('Failed to delete invoice:', err);
-      // V2: Handle standardized error format
       const errorMessage = err?.message || err?.error || 'Failed to delete invoice';
+      alert(errorMessage);
+    }
+  };
+
+  const deleteInvoices = async (ids: string[]) => {
+    if (!ids.length) return;
+    try {
+      await api.bulkDelete(ids);
+      await loadInvoices();
+      await refreshData();
+    } catch (err: any) {
+      console.error('Failed to bulk delete invoices:', err);
+      const errorMessage = err?.message || err?.error || 'Failed to delete invoices';
       alert(errorMessage);
     }
   };
@@ -363,6 +379,7 @@ export function InvoicesProvider({
     closeInvoicePanel, // ⬅️ include alias in context value
     saveInvoice,
     deleteInvoice,
+    deleteInvoices,
     clearValidationErrors,
     getPanelTitle,
     getPanelSubtitle,

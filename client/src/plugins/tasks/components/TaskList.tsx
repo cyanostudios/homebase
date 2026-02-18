@@ -1,8 +1,9 @@
-import { CheckSquare, ArrowUp, ArrowDown } from 'lucide-react';
+import { CheckSquare, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -12,6 +13,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useApp } from '@/core/api/AppContext';
+import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -23,10 +26,13 @@ type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'up
 type SortOrder = 'asc' | 'desc';
 
 export const TaskList: React.FC = () => {
-  const { tasks, openTaskForView, deleteTask } = useTasks();
+  const { tasks, openTaskForView, deleteTask, deleteTasks } = useTasks();
   const { contacts } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     taskId: string;
@@ -151,6 +157,37 @@ export const TaskList: React.FC = () => {
     });
   };
 
+  const selectedCount = selectedIds.size;
+  const allSelected =
+    sortedTasks.length > 0 && sortedTasks.every((t) => selectedIds.has(t.id));
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedTasks.map((t) => t.id)));
+    }
+  };
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    const ids = Array.from(selectedIds);
+    setBulkDeleting(true);
+    try {
+      await deleteTasks(ids);
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const formatDueDate = (dueDate: Date | null) => {
     if (!dueDate) {
       return null;
@@ -189,6 +226,19 @@ export const TaskList: React.FC = () => {
         searchPlaceholder="Search tasks..."
       />
 
+      <BulkActionBar
+        selectedCount={selectedCount}
+        onClearSelection={() => setSelectedIds(new Set())}
+        actions={[
+          {
+            label: 'Delete',
+            icon: Trash2,
+            onClick: () => setBulkDeleteOpen(true),
+            variant: 'destructive',
+          },
+        ]}
+      />
+
       <Card className="shadow-none">
         {sortedTasks.length === 0 ? (
           <div className="p-6 text-center text-muted-foreground">
@@ -200,6 +250,13 @@ export const TaskList: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead className="w-12"></TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-muted/50 select-none"
@@ -289,6 +346,13 @@ export const TaskList: React.FC = () => {
                     handleOpenForView(task);
                   }}
                 >
+                  <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(task.id)}
+                      onCheckedChange={() => toggleSelectOne(task.id)}
+                      aria-label={`Select ${task.title}`}
+                    />
+                  </TableCell>
                   <TableCell className="w-12">
                     <CheckSquare className="w-4 h-4 text-purple-500 dark:text-purple-400" />
                   </TableCell>
@@ -343,12 +407,21 @@ export const TaskList: React.FC = () => {
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         title="Delete Task"
-        message={`Are you sure you want to delete "${deleteConfirm.taskTitle}"? This action cannot undone.`}
+        message={`Are you sure you want to delete "${deleteConfirm.taskTitle}"? This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
         variant="danger"
+      />
+
+      <BulkDeleteModal
+        isOpen={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={handleBulkDeleteConfirm}
+        itemCount={selectedCount}
+        itemLabel="tasks"
+        isLoading={bulkDeleting}
       />
     </div>
   );

@@ -516,6 +516,36 @@ class InvoiceModel {
     }
   }
 
+  async bulkDelete(req, idsTextArray) {
+    try {
+      const context = this._getContext(req);
+      const pool = context.pool;
+      const ids = Array.isArray(idsTextArray)
+        ? idsTextArray.map((x) => String(x).trim()).filter(Boolean)
+        : [];
+      if (ids.length > 0) {
+        const integerIds = ids.map((id) => {
+          const parsed = parseInt(id, 10);
+          if (Number.isNaN(parsed)) {
+            throw new AppError(`Invalid ID format: ${id}`, 400, AppError.CODES.VALIDATION_ERROR);
+          }
+          return parsed;
+        });
+        await pool.query('DELETE FROM invoice_shares WHERE invoice_id = ANY($1::int[])', [
+          integerIds,
+        ]);
+      }
+      const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
+      return await BulkOperationsHelper.bulkDelete(req, 'invoices', idsTextArray);
+    } catch (error) {
+      Logger.error('Failed to bulk delete invoices', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to bulk delete invoices', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   // Delete invoice
   async delete(req, invoiceId) {
     try {

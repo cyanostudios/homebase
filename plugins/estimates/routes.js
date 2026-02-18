@@ -29,7 +29,16 @@ function createEstimateRoutes(controller, context) {
   
   // Public routes (no authentication required) - MOVED BEFORE /:id to prevent conflicts
   router.get('/public/:token', (req, res) => controller.getPublicEstimate(req, res));
-  
+
+  // DELETE /api/estimates/batch - Bulk delete (MUST be before '/:id' route)
+  router.delete(
+    '/batch',
+    requirePlugin('estimates'),
+    ...commonRules.requiredArray('ids', 500),
+    validateRequest,
+    (req, res) => controller.bulkDelete(req, res),
+  );
+
   router.get('/:id', requirePlugin('estimates'), (req, res) => controller.getEstimate(req, res));
   
   router.put('/:id',

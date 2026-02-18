@@ -133,6 +133,13 @@ class EstimatesApi {
     });
   }
 
+  async bulkDelete(ids: string[]): Promise<{ ok: boolean; requested: number; deleted: number; deletedIds: string[] }> {
+    return this.request('/estimates/batch', {
+      method: 'DELETE',
+      body: JSON.stringify({ ids }),
+    });
+  }
+
   async getNextEstimateNumber(): Promise<string> {
     const result = await this.request('/estimates/number/next');
     return result.estimateNumber;

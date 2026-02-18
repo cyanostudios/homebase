@@ -1,7 +1,8 @@
-import { StickyNote, ArrowUp, ArrowDown } from 'lucide-react';
+import { StickyNote, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -10,6 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -20,9 +23,12 @@ type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
 export const NoteList: React.FC = () => {
-  const { notes, openNoteForView, deleteNote } = useNotes();
+  const { notes, openNoteForView, deleteNote, deleteNotes } = useNotes();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     noteId: string;
@@ -112,6 +118,37 @@ export const NoteList: React.FC = () => {
     });
   };
 
+  const selectedCount = selectedIds.size;
+  const allSelected =
+    sortedNotes.length > 0 && sortedNotes.every((n) => selectedIds.has(n.id));
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedNotes.map((n) => n.id)));
+    }
+  };
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    const ids = Array.from(selectedIds);
+    setBulkDeleting(true);
+    try {
+      await deleteNotes(ids);
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const truncateContent = (content: string, maxLength: number = 100) => {
     if (content.length <= maxLength) {
       return content;
@@ -134,6 +171,19 @@ export const NoteList: React.FC = () => {
         searchPlaceholder="Search notes..."
       />
 
+      <BulkActionBar
+        selectedCount={selectedCount}
+        onClearSelection={() => setSelectedIds(new Set())}
+        actions={[
+          {
+            label: 'Delete',
+            icon: Trash2,
+            onClick: () => setBulkDeleteOpen(true),
+            variant: 'destructive',
+          },
+        ]}
+      />
+
       <Card className="shadow-none">
         {sortedNotes.length === 0 ? (
           <div className="p-6 text-center text-muted-foreground">
@@ -145,6 +195,13 @@ export const NoteList: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead className="w-12"></TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-muted/50 select-none"
@@ -207,6 +264,13 @@ export const NoteList: React.FC = () => {
                     handleOpenForView(note);
                   }}
                 >
+                  <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(note.id)}
+                      onCheckedChange={() => toggleSelectOne(note.id)}
+                      aria-label={`Select ${note.title}`}
+                    />
+                  </TableCell>
                   <TableCell className="w-12">
                     <StickyNote className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
                   </TableCell>
@@ -250,6 +314,15 @@ export const NoteList: React.FC = () => {
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
         variant="danger"
+      />
+
+      <BulkDeleteModal
+        isOpen={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={handleBulkDeleteConfirm}
+        itemCount={selectedCount}
+        itemLabel="notes"
+        isLoading={bulkDeleting}
       />
     </div>
   );

@@ -104,6 +104,13 @@ class NotesApi {
       method: 'DELETE',
     });
   }
+
+  async bulkDelete(ids: string[]): Promise<{ ok: boolean; requested: number; deleted: number; deletedIds: string[] }> {
+    return this.request('/notes/batch', {
+      method: 'DELETE',
+      body: JSON.stringify({ ids }),
+    });
+  }
 }
 
 export const notesApi = new NotesApi();

@@ -46,6 +46,15 @@ function createTaskRoutes(controller, context) {
     }
   );
 
+  // DELETE /api/tasks/batch - Bulk delete (MUST be before '/:id' route)
+  router.delete(
+    '/batch',
+    requirePlugin('tasks'),
+    ...commonRules.requiredArray('ids', 500),
+    validateRequest,
+    (req, res) => controller.bulkDelete(req, res),
+  );
+
   // DELETE /api/tasks/:id - Delete task
   router.delete('/:id',
     requirePlugin('tasks'),

@@ -1,9 +1,12 @@
-import { Receipt } from 'lucide-react';
+import { Receipt, Trash2 } from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { GroupedList } from '@/core/ui/GroupedList';
@@ -17,11 +20,14 @@ type SortField = 'invoiceNumber' | 'contactName' | 'total' | 'createdAt' | 'stat
 type SortOrder = 'asc' | 'desc';
 
 export function InvoicesList() {
-  const { invoices, openInvoiceForView, deleteInvoice } = useInvoices();
+  const { invoices, openInvoiceForView, deleteInvoice, deleteInvoices } = useInvoices();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [currentPage, setCurrentPage] = useState<string>('invoices');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Read currentPage from localStorage (same as App.tsx does)
   useEffect(() => {
@@ -112,6 +118,36 @@ export function InvoicesList() {
       invoiceId: '',
       invoiceNumber: '',
     });
+  };
+
+  const selectedCount = selectedIds.size;
+  const allSelected =
+    sortedInvoices.length > 0 && sortedInvoices.every((i) => selectedIds.has(i.id));
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedInvoices.map((i) => i.id)));
+    }
+  };
+  const toggleSelectOne = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const handleBulkDeleteConfirm = async () => {
+    setBulkDeleting(true);
+    try {
+      await deleteInvoices(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    } finally {
+      setBulkDeleting(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -208,7 +244,32 @@ export function InvoicesList() {
         searchPlaceholder="Search invoices..."
       />
 
+      {selectedCount > 0 && (
+        <BulkActionBar
+          selectedCount={selectedCount}
+          onClearSelection={() => setSelectedIds(new Set())}
+          actions={[
+            {
+              label: 'Delete',
+              icon: Trash2,
+              onClick: () => setBulkDeleteOpen(true),
+              variant: 'destructive',
+            },
+          ]}
+        />
+      )}
+
       <Card className="shadow-none">
+        {sortedInvoices.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2 border-b">
+            <Checkbox
+              checked={allSelected}
+              onCheckedChange={toggleSelectAll}
+              aria-label="Select all"
+            />
+            <span className="text-sm text-muted-foreground">Select all</span>
+          </div>
+        )}
         <GroupedList
           items={sortedInvoices}
           groupConfig={null}
@@ -220,7 +281,7 @@ export function InvoicesList() {
           renderItem={(invoice, idx) => (
             <div
               key={invoice.id}
-              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3`}
+              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3 flex items-start gap-2`}
               tabIndex={0}
               data-list-item={JSON.stringify(invoice)}
               data-plugin-name="invoices"
@@ -231,6 +292,18 @@ export function InvoicesList() {
                 handleOpenForView(invoice);
               }}
             >
+              <div
+                className="flex-shrink-0 pt-0.5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Checkbox
+                  checked={selectedIds.has(invoice.id)}
+                  onCheckedChange={() => {}}
+                  onClick={(e) => toggleSelectOne(invoice.id, e)}
+                  aria-label={`Select ${invoice.invoiceNumber || invoice.id}`}
+                />
+              </div>
+              <div className="flex-1 min-w-0">
               {/* Rad 1: Icon + Invoice Number + Badges */}
               <div className="flex items-center gap-2 mb-1.5">
                 <Receipt className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
@@ -267,10 +340,20 @@ export function InvoicesList() {
                   VAT: {(invoice.totalVat || 0).toFixed(2)} {invoice.currency || 'SEK'}
                 </div>
               )}
+              </div>
             </div>
           )}
         />
       </Card>
+
+      <BulkDeleteModal
+        isOpen={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={handleBulkDeleteConfirm}
+        itemCount={selectedCount}
+        itemLabel="invoices"
+        isLoading={bulkDeleting}
+      />
 
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}

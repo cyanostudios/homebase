@@ -23,6 +23,7 @@ interface NoteContextType {
   closeNotePanel: () => void;
   saveNote: (noteData: any) => Promise<boolean>;
   deleteNote: (id: string) => Promise<void>;
+  deleteNotes: (ids: string[]) => Promise<void>;
   duplicateNote: (note: Note) => Promise<void>;
   clearValidationErrors: () => void;
 
@@ -195,14 +196,24 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   };
 
   const deleteNote = async (id: string) => {
-    console.log('Deleting note with id:', id);
     try {
       await notesApi.deleteNote(id);
       await refreshData();
     } catch (error: any) {
       console.error('Failed to delete note:', error);
-      // V2: Handle standardized error format
       const errorMessage = error?.message || error?.error || 'Failed to delete note';
+      alert(errorMessage);
+    }
+  };
+
+  const deleteNotes = async (ids: string[]) => {
+    if (!ids.length) return;
+    try {
+      await notesApi.bulkDelete(ids);
+      await refreshData();
+    } catch (error: any) {
+      console.error('Failed to bulk delete notes:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to delete notes';
       alert(errorMessage);
     }
   };
@@ -294,6 +305,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     closeNotePanel,
     saveNote,
     deleteNote,
+    deleteNotes,
     duplicateNote,
     clearValidationErrors,
 
