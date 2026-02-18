@@ -196,7 +196,6 @@ class ContactModel {
 
       const result = await db.insert('contact_time_entries', {
         contact_id: parseInt(contactId, 10),
-        user_id: parseInt(userId, 10),
         seconds: parseInt(data.seconds, 10),
         logged_at: loggedAt,
       });

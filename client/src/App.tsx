@@ -7,7 +7,7 @@
  * Last Modified: August 2025 - Global Navigation Guard Integration
  */
 
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 
 import { AppProvider, useApp } from '@/core/api/AppContext';
 import { createPanelHandlers } from '@/core/handlers/panelHandlers';
@@ -139,6 +139,7 @@ function AppContent() {
   });
 
   const [settingsCategory, setSettingsCategory] = useState<string | null>(null);
+  const previousPageBeforeSettings = useRef<NavPage>('dashboard');
 
   // Save currentPage to localStorage whenever it changes
   useEffect(() => {
@@ -340,6 +341,9 @@ function AppContent() {
   // Protected page change: one guard, one callback — set page first then close panel (best practice, no workarounds)
   const handlePageChange = (page: NavPage) => {
     attemptNavigation(() => {
+      if (page === 'settings' && currentPage !== 'settings') {
+        previousPageBeforeSettings.current = currentPage;
+      }
       setCurrentPage(page);
       handlers.closePanelDirectly();
     });
@@ -351,8 +355,12 @@ function AppContent() {
         currentPage={currentPage}
         onPageChange={handlePageChange}
         contentTitle={contentTitle}
-        contentActionLabel={primaryAction?.label}
-        onContentAction={primaryAction?.onClick}
+        contentActionLabel={currentPage === 'settings' ? 'Close' : primaryAction?.label}
+        onContentAction={
+          currentPage === 'settings'
+            ? () => handlePageChange(previousPageBeforeSettings.current || 'dashboard')
+            : primaryAction?.onClick
+        }
         detailPanelOpen={detailPanelOpen}
         detailPanelTitle={detailPanelTitle}
         detailPanelSubtitle={detailPanelSubtitle}

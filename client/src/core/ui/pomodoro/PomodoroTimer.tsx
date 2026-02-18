@@ -2,7 +2,7 @@ import { Play, Pause, RotateCcw, SkipForward, Timer, X, Settings } from 'lucide-
 import React, { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Heading, Text } from '../Typography';
 
@@ -29,7 +29,6 @@ export function PomodoroTimer({
 
   // Använd extern state om onToggle finns, annars intern
   const expanded = onToggle ? isExpanded : internalExpanded;
-  const handleToggle = onToggle || (() => setInternalExpanded((v) => !v));
   const handleClose = onClose || (() => setInternalExpanded(false));
 
   const {
@@ -360,13 +359,18 @@ export function PomodoroTimer({
       <Popover
         open={expanded}
         onOpenChange={(open) => {
-          if (!open) handleClose();
+          if (open) {
+            if (onToggle) onToggle();
+            else setInternalExpanded(true);
+          } else {
+            handleClose();
+          }
         }}
       >
-        <PopoverAnchor asChild>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <PopoverTrigger asChild>
             <button
-              onClick={handleToggle}
+              type="button"
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors hover:bg-opacity-75 relative overflow-hidden ${timerButtonColors.bg} ${timerButtonColors.border} ${timerButtonColors.text}`}
               aria-label="Toggle Pomodoro panel"
               title="Toggle Pomodoro panel"
@@ -395,7 +399,8 @@ export function PomodoroTimer({
                 </>
               )}
             </button>
-            {state === 'idle' || state === 'paused' ? (
+          </PopoverTrigger>
+          {state === 'idle' || state === 'paused' ? (
               <Button
                 onClick={start}
                 variant="ghost"
@@ -416,8 +421,7 @@ export function PomodoroTimer({
                 title="Pause timer"
               />
             )}
-          </div>
-        </PopoverAnchor>
+        </div>
         <PopoverContent side="bottom" align="end" className="bg-card border-border p-4">
           {panelContent}
         </PopoverContent>

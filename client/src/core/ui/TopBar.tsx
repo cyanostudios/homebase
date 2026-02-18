@@ -1,4 +1,4 @@
-import { Bell, Filter, Menu, Search, Settings, X } from 'lucide-react';
+import { Bell, Filter, Menu, Moon, Search, Settings, Sun, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import {
@@ -31,11 +31,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Switch } from '@/components/ui/switch';
 import { useApp } from '@/core/api/AppContext';
+import { useTheme } from '@/hooks/useTheme';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
+import { getTopBarWidgets } from '@/core/widgets';
 
-import { ClockDisplay } from './clock/ClockDisplay';
-import { PomodoroTimer } from './pomodoro/PomodoroTimer';
 import type { NavPage } from './Sidebar';
 
 interface TopBarProps {
@@ -122,9 +123,12 @@ export function TopBar({
   onDetailPanelClose,
 }: TopBarProps) {
   const { user, currentTenantUserId, logout, getSettings } = useApp();
+  const { theme, toggleTheme } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
-  const [openPanel, setOpenPanel] = useState<'pomodoro' | 'clock' | null>(null);
+  const [openWidgetId, setOpenWidgetId] = useState<string | null>(null);
   const [profileSettings, setProfileSettings] = useState<{ name?: string; title?: string } | null>(null);
+  const [pomodoroClockEnabled, setPomodoroClockEnabled] = useState(true);
+  const [timeTrackingEnabled, setTimeTrackingEnabled] = useState(true);
 
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
@@ -135,6 +139,22 @@ export function TopBar({
       loadTenants();
     }
   }, [isAdmin]);
+
+  // Load preferences (Pomodoro & clock, Time tracking on/off)
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        const prefs = await getSettings('preferences');
+        setPomodoroClockEnabled(prefs?.pomodoroClockEnabled !== false);
+        setTimeTrackingEnabled(prefs?.timeTrackingEnabled !== false);
+      } catch (error) {
+        console.error('Failed to load preferences:', error);
+      }
+    };
+    if (user) {
+      loadPreferences();
+    }
+  }, [user, getSettings]);
 
   // Load profile settings for name and title
   useEffect(() => {
@@ -231,13 +251,23 @@ export function TopBar({
     setSearchOpen(false);
   };
 
-  const handlePanelToggle = (panel: 'pomodoro' | 'clock') => {
-    setOpenPanel(openPanel === panel ? null : panel);
+  const handleWidgetToggle = (widgetId: string) => {
+    setOpenWidgetId(openWidgetId === widgetId ? null : widgetId);
   };
 
-  const handleClosePanel = () => {
-    setOpenPanel(null);
+  const handleCloseWidgetPanel = () => {
+    setOpenWidgetId(null);
   };
+
+  const topBarWidgets = useMemo(
+    () =>
+      getTopBarWidgets().filter((w) => {
+        if (w.id === 'pomodoro') return pomodoroClockEnabled;
+        if (w.id === 'time-tracking') return timeTrackingEnabled;
+        return true;
+      }),
+    [pomodoroClockEnabled, timeTrackingEnabled],
+  );
 
   return (
     <header className="fixed left-0 right-0 top-0 h-14 bg-background border-b border-border z-20">
@@ -334,19 +364,18 @@ export function TopBar({
             <Bell className="h-4 w-4" />
           </Button>
 
-          <PomodoroTimer
-            compact={true}
-            isExpanded={openPanel === 'pomodoro'}
-            onToggle={() => handlePanelToggle('pomodoro')}
-            onClose={handleClosePanel}
-          />
-
-          <ClockDisplay
-            compact={true}
-            isExpanded={openPanel === 'clock'}
-            onToggle={() => handlePanelToggle('clock')}
-            onClose={handleClosePanel}
-          />
+          {topBarWidgets.map((widget) => {
+            const WidgetComponent = widget.component;
+            return (
+              <WidgetComponent
+                key={widget.id}
+                compact={true}
+                isExpanded={openWidgetId === widget.id}
+                onToggle={() => handleWidgetToggle(widget.id)}
+                onClose={handleCloseWidgetPanel}
+              />
+            );
+          })}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -401,6 +430,19 @@ export function TopBar({
                 </DropdownMenuSub>
               )}
               <DropdownMenuItem onClick={() => onPageChange('settings')}>Settings</DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                }}
+                className="flex items-center justify-between cursor-default"
+              >
+                <div className="flex items-center gap-2">
+                  <Sun className="h-4 w-4 text-muted-foreground" />
+                  <span>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</span>
+                  <Moon className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <Switch checked={theme === 'dark'} onCheckedChange={toggleTheme} />
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout} className="text-destructive">
                 Log out

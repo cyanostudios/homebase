@@ -38,6 +38,8 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
   const [formData, setFormData] = useState({
     timezone: 'Europe/Stockholm',
     language: 'en',
+    pomodoroClockEnabled: true,
+    timeTrackingEnabled: true,
   });
 
   useEffect(() => {
@@ -52,6 +54,8 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
       setFormData({
         timezone: settings?.timezone || 'Europe/Stockholm',
         language: settings?.language || 'en',
+        pomodoroClockEnabled: settings?.pomodoroClockEnabled !== false,
+        timeTrackingEnabled: settings?.timeTrackingEnabled !== false,
       });
     } catch (error) {
       console.error('Failed to load preferences settings:', error);
@@ -66,6 +70,8 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
       await updateSettings('preferences', {
         timezone: formData.timezone,
         language: formData.language,
+        pomodoroClockEnabled: formData.pomodoroClockEnabled,
+        timeTrackingEnabled: formData.timeTrackingEnabled,
       });
       onCancel();
     } catch (error) {
@@ -100,6 +106,42 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
                 <Moon className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground ml-2">
                   {theme === 'dark' ? 'Dark mode' : 'Light mode'}
+                </span>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="preferences-pomodoro-clock" className="mb-1">
+                Pomodoro & clock in TopBar
+              </Label>
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="preferences-pomodoro-clock"
+                  checked={formData.pomodoroClockEnabled}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, pomodoroClockEnabled: checked })
+                  }
+                  aria-label="Toggle Pomodoro and clock widgets in TopBar"
+                />
+                <span className="text-sm text-muted-foreground">
+                  {formData.pomodoroClockEnabled ? 'On' : 'Off'}
+                </span>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="preferences-time-tracking" className="mb-1">
+                Time tracking in TopBar
+              </Label>
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="preferences-time-tracking"
+                  checked={formData.timeTrackingEnabled}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, timeTrackingEnabled: checked })
+                  }
+                  aria-label="Toggle time tracking widget in TopBar"
+                />
+                <span className="text-sm text-muted-foreground">
+                  {formData.timeTrackingEnabled ? 'On' : 'Off'}
                 </span>
               </div>
             </div>
