@@ -47,10 +47,17 @@ class AuthService {
     }
 
     // Permanent fallback for local: ensure tenant schema exists and build context (e.g. after DB reset or first login)
-    if ((!tenantContext || !tenantContext.tenantConnectionString) && process.env.TENANT_PROVIDER === 'local') {
+    const isLocalTenant =
+      process.env.TENANT_PROVIDER === 'local' ||
+      (process.env.DATABASE_URL && !process.env.NEON_API_KEY);
+    if ((!tenantContext || !tenantContext.tenantConnectionString) && isLocalTenant) {
       try {
         const tenantService = this.tenantService;
-        if (tenantService && typeof tenantService.tenantExists === 'function' && typeof tenantService.getTenantConnection === 'function') {
+        if (
+          tenantService &&
+          typeof tenantService.tenantExists === 'function' &&
+          typeof tenantService.getTenantConnection === 'function'
+        ) {
           const exists = await tenantService.tenantExists(user.id);
           if (!exists) {
             this.logger.info('AuthService fallback: creating local tenant', { userId: user.id });
@@ -58,7 +65,9 @@ class AuthService {
             try {
               await tenantService.createTenant(user.id, email);
             } catch (createErr) {
-              this.logger.warn('AuthService fallback createTenant failed', { message: createErr.message });
+              this.logger.warn('AuthService fallback createTenant failed', {
+                message: createErr.message,
+              });
             }
           }
           const connectionString = await tenantService.getTenantConnection(user.id);
@@ -73,7 +82,10 @@ class AuthService {
           }
         }
       } catch (fallbackErr) {
-        this.logger.warn('AuthService local fallback failed', { userId: user.id, message: fallbackErr.message });
+        this.logger.warn('AuthService local fallback failed', {
+          userId: user.id,
+          message: fallbackErr.message,
+        });
       }
     }
 

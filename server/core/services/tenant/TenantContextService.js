@@ -95,7 +95,9 @@ class TenantContextService {
     }
 
     // 4) Local provider: no row in tenants (e.g. admin from setup-database). Create schema on first login if needed.
-    const tenantProvider = process.env.TENANT_PROVIDER || 'neon';
+    // Default to local when no NEON_API_KEY so login works without setting TENANT_PROVIDER
+    const tenantProvider =
+      process.env.TENANT_PROVIDER || (process.env.NEON_API_KEY ? 'neon' : 'local');
     if (tenantProvider === 'local') {
       try {
         const tenantService = ServiceManager.get('tenant');

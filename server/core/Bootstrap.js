@@ -26,7 +26,10 @@ class Bootstrap {
     ServiceManager.initialize();
 
     console.log('✅ ServiceManager initialized');
-    console.log('   - TenantService: ' + (process.env.TENANT_PROVIDER || 'neon'));
+    console.log(
+      '   - TenantService: ' +
+        (process.env.TENANT_PROVIDER || (process.env.NEON_API_KEY ? 'neon' : 'local')),
+    );
     console.log('   - ConnectionPoolService: ' + (process.env.POOL_PROVIDER || 'postgres'));
   }
 

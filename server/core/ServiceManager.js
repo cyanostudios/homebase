@@ -65,7 +65,11 @@ class ServiceManager {
    * Initialize tenant service
    */
   _initTenantService() {
-    const provider = this.config.tenant?.provider || process.env.TENANT_PROVIDER || 'neon';
+    // Default to local when no Neon API key (so local dev works without setting TENANT_PROVIDER)
+    const provider =
+      this.config.tenant?.provider ||
+      process.env.TENANT_PROVIDER ||
+      (process.env.NEON_API_KEY ? 'neon' : 'local');
     const logger = this.services.logger || new ConsoleAdapter();
 
     try {
