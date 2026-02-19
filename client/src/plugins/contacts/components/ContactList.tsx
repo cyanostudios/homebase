@@ -1,5 +1,6 @@
 import {
   Mail,
+  MessageSquare,
   Phone,
   ArrowUp,
   ArrowDown,
@@ -28,6 +29,7 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
@@ -88,6 +90,7 @@ export const ContactList: React.FC = () => {
     contactName: '',
   });
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
@@ -287,7 +290,7 @@ export const ContactList: React.FC = () => {
       title: 'Contacts Export',
     });
     if (result && typeof (result as Promise<void>).then === 'function') {
-      await (result as Promise<void>).catch((err) => {
+      await (result as Promise<void>).catch((err: unknown) => {
         console.error('PDF export failed:', err);
         alert('Export failed. Please try again.');
       });
@@ -349,6 +352,18 @@ export const ContactList: React.FC = () => {
   // Protected navigation handlers
   const handleOpenForView = (contact: any) => attemptNavigation(() => openContactForView(contact));
 
+  const bulkMessageRecipients = useMemo(
+    () =>
+      contacts
+        .filter((c) => selectedContactIds.includes(String(c.id)))
+        .map((c) => ({
+          id: String(c.id),
+          name: c.companyName ?? '',
+          phone: (c.phone && c.phone.trim()) || (c.phone2 && c.phone2.trim()) || '',
+        })),
+    [contacts, selectedContactIds],
+  );
+
   return (
     <div className="space-y-4">
       {/* Bulk Action Bar */}
@@ -356,6 +371,11 @@ export const ContactList: React.FC = () => {
         selectedCount={selectedCount}
         onClearSelection={clearContactSelection}
         actions={[
+          {
+            label: t('bulk.sendMessageTitle'),
+            icon: MessageSquare,
+            onClick: () => setShowBulkMessageDialog(true),
+          },
           {
             label: 'Export CSV',
             icon: FileSpreadsheet,
@@ -375,6 +395,13 @@ export const ContactList: React.FC = () => {
             variant: 'destructive',
           },
         ]}
+      />
+
+      <BulkMessageDialog
+        isOpen={showBulkMessageDialog}
+        onClose={() => setShowBulkMessageDialog(false)}
+        recipients={bulkMessageRecipients}
+        pluginSource="contacts"
       />
 
       <Card className="shadow-none border-none bg-transparent">

@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Grid3x3, List, Settings, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, FileSpreadsheet, Grid3x3, List, MessageSquare, Settings, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -15,13 +15,17 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
+import { exportItems } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { cn } from '@/lib/utils';
 
 import { useKiosk } from '../hooks/useKiosk';
 import type { Slot } from '../types/kiosk';
+import { resolveSlotsToContacts } from '../utils/slotContactUtils';
 
 import { CapacityAssignedDots } from './CapacityAssignedDots';
 
@@ -47,7 +51,9 @@ export function KioskList() {
     isSelected,
     recentlyDuplicatedSlotId,
   } = useKiosk();
-  const { getSettings, updateSettings, settingsVersion } = useApp();
+  const { getSettings, updateSettings, settingsVersion, contacts: appContacts } = useApp();
+  const { contacts: hookContacts } = useContacts();
+  const contacts = appContacts ?? hookContacts ?? [];
   const { setHeaderTrailing } = useContentLayout();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
@@ -56,6 +62,7 @@ export function KioskList() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewModeState] = useState<ViewMode>('list');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
@@ -219,16 +226,55 @@ export function KioskList() {
   const formatDateTime = (s: string | null) =>
     s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 
+  const bulkMessageRecipients = useMemo(
+    () =>
+      resolveSlotsToContacts(selectedSlotIds, slots, contacts as Array<{ id: string | number; companyName?: string; phone?: string; phone2?: string }>),
+    [selectedSlotIds, slots, contacts],
+  );
+
+  const handleBulkExportCSV = useCallback(() => {
+    const selectedSlots = slots.filter((s) => selectedSlotIds.includes(s.id));
+    exportItems({
+      items: selectedSlots,
+      format: 'csv',
+      filename: `slots-export-${new Date().toISOString().split('T')[0]}`,
+      config: {
+        csv: {
+          headers: ['id', 'location', 'slot_time', 'capacity', 'visible', 'notifications_enabled', 'mention_count', 'created_at', 'updated_at'],
+          mapItemToRow: (s: Slot) => ({
+            id: s.id,
+            location: s.location ?? '',
+            slot_time: s.slot_time ? new Date(s.slot_time).toLocaleString('sv-SE') : '',
+            capacity: s.capacity,
+            visible: s.visible ? t('common.yes') : t('common.no'),
+            notifications_enabled: s.notifications_enabled ? t('common.on') : t('common.off'),
+            mention_count: (s.mentions?.length ?? 0),
+            created_at: s.created_at ? new Date(s.created_at).toLocaleDateString('sv-SE') : '',
+            updated_at: s.updated_at ? new Date(s.updated_at).toLocaleDateString('sv-SE') : '',
+          }),
+        },
+      },
+    });
+  }, [slots, selectedSlotIds, t]);
+
   return (
     <div className="space-y-4 plugin-slots">
       {selectedCount > 0 && (
         <BulkActionBar
           selectedCount={selectedCount}
-          onSelectAll={() => selectAllSlots(slots.map((s) => s.id))}
           onClearSelection={clearSlotSelection}
           actions={[
             {
-              id: 'bulk-delete',
+              label: t('bulk.sendMessageTitle'),
+              icon: MessageSquare,
+              onClick: () => setShowBulkMessageDialog(true),
+            },
+            {
+              label: t('common.exportCsv'),
+              icon: FileSpreadsheet,
+              onClick: handleBulkExportCSV,
+            },
+            {
               label: t('common.delete'),
               icon: Trash2,
               onClick: () => setShowBulkDeleteModal(true),
@@ -237,6 +283,13 @@ export function KioskList() {
           ]}
         />
       )}
+
+      <BulkMessageDialog
+        isOpen={showBulkMessageDialog}
+        onClose={() => setShowBulkMessageDialog(false)}
+        recipients={bulkMessageRecipients}
+        pluginSource="slots"
+      />
 
       <BulkDeleteModal
         isOpen={showBulkDeleteModal}

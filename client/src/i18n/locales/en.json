@@ -142,7 +142,17 @@
     "deleteSelectedTitle": "Delete selected {{items}}",
     "selectedCount": "{{count}} {{items}} selected",
     "confirmMessage": "Are you sure you want to delete {{count}} {{items}}?",
-    "cannotUndo": "This action cannot be undone."
+    "cannotUndo": "This action cannot be undone.",
+    "sendMessageTitle": "Send message",
+    "sendMessageRecipients": "{{withPhone}} of {{total}} recipients have a phone number.",
+    "sendMessageNoPhone": "{{count}} recipient(s) have no phone number and will be skipped.",
+    "sendMessageBodyLabel": "Message",
+    "sendMessageBodyPlaceholder": "Enter your message…",
+    "sendMessageSend": "Send",
+    "sendMessageSendingShort": "Sending…",
+    "sendMessageSending": "Sending… {{sent}} / {{total}}",
+    "sendMessageDone": "Done",
+    "sendMessageResult": "{{sent}} sent, {{failed}} failed."
   },
   "panel": {
     "close": "Close",

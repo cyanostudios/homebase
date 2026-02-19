@@ -142,7 +142,17 @@
     "deleteSelectedTitle": "Ta bort valda {{items}}",
     "selectedCount": "{{count}} {{items}} valda",
     "confirmMessage": "Är du säker på att du vill ta bort {{count}} {{items}}?",
-    "cannotUndo": "Åtgärden kan inte ångras."
+    "cannotUndo": "Åtgärden kan inte ångras.",
+    "sendMessageTitle": "Skicka meddelande",
+    "sendMessageRecipients": "{{withPhone}} av {{total}} mottagare har ett telefonnummer.",
+    "sendMessageNoPhone": "{{count}} mottagare saknar telefonnummer och hoppas över.",
+    "sendMessageBodyLabel": "Meddelande",
+    "sendMessageBodyPlaceholder": "Skriv ditt meddelande…",
+    "sendMessageSend": "Skicka",
+    "sendMessageSendingShort": "Skickar…",
+    "sendMessageSending": "Skickar… {{sent}} / {{total}}",
+    "sendMessageDone": "Klart",
+    "sendMessageResult": "{{sent}} skickade, {{failed}} misslyckades."
   },
   "panel": {
     "close": "Stäng",

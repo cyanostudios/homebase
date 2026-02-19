@@ -4,6 +4,23 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-02 – Lokal inloggning permanent fix; Bulk message & export
+
+### Lokal inloggning (permanent fix)
+
+- **TenantContextService:** I local-steg 4: om `createTenant` kastar (t.ex. migreringsfel) försöker vi ändå `getTenantConnection(userId)` så att befintligt schema används och inloggning lyckas.
+- **AuthService:** När `getTenantContextByUserId` returnerar null och `TENANT_PROVIDER=local` används fallback: tenant-servicen anropas direkt (tenantExists → createTenant vid behov → getTenantConnection) och kontext byggs så att inloggning fungerar.
+- **.env.example:** `TENANT_PROVIDER=local` tillagd med kommentar så att lokal utveckling får rätt inställning och inloggning fungerar efter setup-database.
+
+### Bulk message & export
+
+- **BulkMessageDialog:** Ny komponent i `client/src/core/ui/BulkMessageDialog.tsx` – modal för att skriva meddelande och skicka SMS till valda mottagare via Pulses (`pulseApi.send`). Visar antal mottagare, varning för de utan telefon, progress och resultat (X skickade / Y misslyckade).
+- **Slots:** I KioskList – bulk-actions "Skicka meddelande" (samlar unika kontakter från valda slots’ mentions via `resolveSlotsToContacts`) och "Export CSV" (valda slots till CSV). Ny util `client/src/plugins/kiosk/utils/slotContactUtils.ts`.
+- **Contacts:** I ContactList – bulk-action "Skicka meddelande" (valda kontakter som mottagare). Export CSV/PDF fanns redan.
+- **i18n:** Nya nycklar under `bulk.*` för send message (title, recipients, body, send, result).
+
+---
+
 ## 2026-02 – Slots: UX, "To slot från match", Source Match, detail-redesign
 
 ### Informationsruta (sidopanel)
@@ -28,9 +45,14 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 - **Ordning:** Slot Nbr (t.ex. SLT-123) först som rubrik; sedan Match (länk om från match), Matchnummer (t.ex. MAT-5), Location, Capacity (med CapacityAssignedDots), Time, Visible, Notifications. Varje fält har liten uppercase-etikett ovanför och större värde (`text-base`).
 - **i18n:** Nya nycklar `slots.slotNbr`, `slots.match`, `slots.matchNumber`, `slots.deletedMatch` (en/sv).
 
+### Previous / Next i detail-vy
+
+- **ItemNavigation:** Knappar för att gå till föregående/nästa objekt direkt från detail-vyn (utan att stänga panelen). Visas i panelens header när plugin kontexten har stöd för det och det finns fler än ett objekt.
+- **Plugins som stöder prev/next:** Tasks, Notes, Contacts, Invoices, Estimates, Files. Varje kontext exponerar `navigateToPrevItem`, `navigateToNextItem`, `hasPrevItem`, `hasNextItem`, `currentItemIndex`, `totalItems`; `DetailLayout`/panel-renderer använder dessa för att visa `ItemNavigation` (t.ex. "2 / 14" med pil-upp/pil-ner).
+- **Komponent:** `client/src/core/ui/ItemNavigation.tsx`.
+
 ### Övriga ändringar i samma commit
 
-- **ItemNavigation:** Prev/next-navigering i detail-vy (Task, Note, Contact, Invoice, Estimate, File); kontexter utökade med navigateToPrevItem/Next, hasPrev/Next, currentItemIndex, totalItems.
 - **Tenant:** Local-fallback i `TenantContextService.getTenantContextByUserId()` så att inloggning fungerar för lokala användare utan tenant-rad (skapande av tenant-schema vid behov).
 - **Pulses-plugin:** Nytt plugin (SMS), migration 033, script och frontend-stöd.
 - **Mail m.m.:** Diverse uppdateringar i mail-plugin och konfiguration.

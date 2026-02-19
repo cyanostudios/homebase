@@ -104,7 +104,15 @@ class TenantContextService {
           this.logger.info('Creating local tenant schema on first login', { userId });
           const userRow = await db.query('SELECT email FROM users WHERE id = $1 LIMIT 1', [userId]);
           const email = this._rows(userRow)[0]?.email || '';
-          await tenantService.createTenant(userId, email);
+          try {
+            await tenantService.createTenant(userId, email);
+          } catch (createErr) {
+            this.logger.warn('createTenant failed, will try getTenantConnection anyway', {
+              userId,
+              message: createErr.message,
+            });
+            // Schema might already exist (e.g. from setup-database or previous partial run)
+          }
         }
         const connectionString = await tenantService.getTenantConnection(userId);
         if (connectionString) {
