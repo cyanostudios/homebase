@@ -42,6 +42,9 @@ app.set('trust proxy', 1);
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
+pool.on('error', (err) => {
+  console.error('[POOL] Database pool error (connection will be removed):', err.message);
+});
 
 // Dedicated session pool – avoids competing with app queries under load (fixes logout on rapid F5)
 const sessionPool = new Pool({
@@ -49,6 +52,9 @@ const sessionPool = new Pool({
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
+});
+sessionPool.on('error', (err) => {
+  console.error('[SESSION_POOL] Database session pool error (connection will be removed):', err.message);
 });
 
 // Security middleware

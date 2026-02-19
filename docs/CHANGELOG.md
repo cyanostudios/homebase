@@ -6,6 +6,20 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ## 2026-02 – Homebase 3.1.5 (snapshot before migrating from 3.X)
 
+### Orders sync – inga felmeddelanden och fix för fastnad lock
+
+- **Pool error handlers**
+  - Lagt till `pool.on('error', ...)` på huvudpoolen och `sessionPool` i server/index.ts. Vid tillfälliga DB-avbrott (t.ex. Neon timeout) kraschar inte servern längre; felaktiga connections tas bort och poolen fortsätter fungera.
+  - Samma error-hantering för tenant-pools i [server/core/services/connection-pool/providers/PostgresPoolProvider.js](server/core/services/connection-pool/providers/PostgresPoolProvider.js).
+- **Frontend**
+  - Sync-status-pollningen ignorerar fel vid tillfälliga DB/network-avbrott; användaren ser inga felmeddelanden.
+- **Stale lock-fix (Orders-synken hängde sig)**
+  - Om en sync kraschade (t.ex. serveromstart) sparades aldrig `running_since = NULL`; backend trodde att sync redan körde och returnerade `{ started: false, reason: "locked" }`, så ingen ny sync kunde starta och laddningsindikatorn visades aldrig.
+  - Lagt till `STALE_RUNNING_MINUTES = 15`: om `running_since` är äldre än 15 minuter betraktas den som föråldrad (kraschad sync) och ignoreras.
+  - `isBusyForUser`: räknar nu bara som "upptagen" om `running_since` är nyare än 15 minuter.
+  - `trySetRunning`: kan nu ta över en slot när `running_since` är NULL eller äldre än 15 minuter.
+  - Fil: [plugins/orders/orderSyncState.js](plugins/orders/orderSyncState.js).
+
 ### Session-stabilitet och städning
 
 - **checkAuth guard**

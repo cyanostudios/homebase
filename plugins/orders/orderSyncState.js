@@ -6,6 +6,7 @@ const { AppError } = require('../../server/core/errors/AppError');
 
 const TABLE = 'order_sync_state';
 const FRESH_THRESHOLD_MINUTES = 2;
+const STALE_RUNNING_MINUTES = 15; // Treat running_since older than this as orphaned (crashed sync)
 
 function getUserId(req) {
   return req?.session?.user?.id;
@@ -40,6 +41,7 @@ async function getState(req, channel, channelInstanceId = null) {
 
 /**
  * Try to claim this slot for sync (set running_since). Returns true if we claimed it, false if already running.
+ * Allows claiming when running_since is NULL or stale (older than STALE_RUNNING_MINUTES).
  */
 async function trySetRunning(req, channel, channelInstanceId = null) {
   const db = Database.get(req);
@@ -51,11 +53,12 @@ async function trySetRunning(req, channel, channelInstanceId = null) {
   const updated = await db.query(
     `UPDATE ${TABLE}
      SET last_run_at = NOW(), last_status = 'running', running_since = NOW(), updated_at = NOW()
-     WHERE user_id = $1 AND channel = $2 AND channel_instance_id = $3 AND running_since IS NULL
+     WHERE user_id = $1 AND channel = $2 AND channel_instance_id = $3
+       AND (running_since IS NULL OR running_since < NOW() - INTERVAL '1 minute' * $4)
      RETURNING user_id`,
-    [userId, String(channel), instId],
+    [userId, String(channel), instId, STALE_RUNNING_MINUTES],
   );
-  return updated.length > 0;
+  return (updated.rows || updated).length > 0;
 }
 
 /**
@@ -132,7 +135,8 @@ async function ensureRow(req, channel, channelInstanceId = null) {
 }
 
 /**
- * True if any sync for this user is currently running (running_since IS NOT NULL).
+ * True if any sync for this user is currently running (running_since IS NOT NULL and recent).
+ * Stale running_since (older than STALE_RUNNING_MINUTES) is treated as orphaned/crashed and ignored.
  */
 async function isBusyForUser(req) {
   const db = Database.get(req);
@@ -140,10 +144,13 @@ async function isBusyForUser(req) {
   if (!userId) return false;
 
   const res = await db.query(
-    `SELECT 1 FROM ${TABLE} WHERE user_id = $1 AND running_since IS NOT NULL LIMIT 1`,
-    [userId],
+    `SELECT 1 FROM ${TABLE}
+     WHERE user_id = $1 AND running_since IS NOT NULL
+       AND running_since > NOW() - INTERVAL '1 minute' * $2
+     LIMIT 1`,
+    [userId, STALE_RUNNING_MINUTES],
   );
-  return res.length > 0;
+  return (res.rows || res).length > 0;
 }
 
 /**

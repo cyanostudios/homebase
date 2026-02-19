@@ -44,14 +44,17 @@ class PostgresPoolProvider extends ConnectionPoolService {
 
     if (!this.tenantPools.has(connectionString)) {
       console.log(`🔌 Creating new tenant pool for: ${this._maskConnectionString(connectionString)}`);
-      
+
       const pool = new Pool({
         connectionString,
         ...this.poolConfig,
       });
+      pool.on('error', (err) => {
+        console.error(`[TENANT_POOL] Database pool error (connection will be removed): ${err.message}`);
+      });
 
-      this.tenantPools.set(connectionString, { 
-        pool, 
+      this.tenantPools.set(connectionString, {
+        pool,
         lastAccessed: now,
         createdAt: now,
       });
