@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -65,6 +66,9 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     showDiscardTagsDialog,
     setShowDiscardTagsDialog,
     onDiscardTagsAndClose,
+    showSendMessageDialog,
+    sendMessageRecipients,
+    closeSendMessageDialog,
   } = useContacts();
 
   // State for cross-plugin data
@@ -786,6 +790,13 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
         onConfirm={onDiscardTagsAndClose}
         onCancel={() => setShowDiscardTagsDialog(false)}
         variant="warning"
+      />
+
+      <BulkMessageDialog
+        isOpen={showSendMessageDialog}
+        onClose={closeSendMessageDialog}
+        recipients={sendMessageRecipients}
+        pluginSource="contacts"
       />
     </div>
   );

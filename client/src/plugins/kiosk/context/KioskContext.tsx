@@ -1,9 +1,10 @@
-import { Store } from 'lucide-react';
+import { MessageCircle, Store } from 'lucide-react';
 import React, {
   createContext,
   useContext,
   useEffect,
   useCallback,
+  useMemo,
   useRef,
   useState,
   ReactNode,
@@ -14,9 +15,11 @@ import { useActionRegistry } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 
 import { kioskApi } from '../api/kioskApi';
 import { Slot, ValidationError, type KioskMention } from '../types/kiosk';
+import { resolveSlotsToContacts } from '../utils/slotContactUtils';
 
 interface KioskContextType {
   isKioskPanelOpen: boolean;
@@ -79,6 +82,19 @@ interface KioskContextType {
   hasNextItem: boolean;
   currentItemIndex: number;
   totalItems: number;
+
+  // Single-item "Send message" from detail footer (same dialog as bulk)
+  detailFooterActions?: Array<{
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    onClick: (item: Slot) => void;
+    className?: string;
+    disabled?: boolean;
+  }>;
+  showSendMessageDialog: boolean;
+  sendMessageRecipients: BulkMessageRecipient[];
+  closeSendMessageDialog: () => void;
 }
 
 const KioskContext = createContext<KioskContextType | undefined>(undefined);
@@ -95,8 +111,12 @@ export function KioskProvider({
   onCloseOtherPanels,
 }: KioskProviderProps) {
   const { t } = useTranslation();
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction, registerKioskNavigation } =
-    useApp();
+  const {
+    registerPanelCloseFunction,
+    unregisterPanelCloseFunction,
+    registerKioskNavigation,
+    contacts: appContacts = [],
+  } = useApp();
   const { registerAction } = useActionRegistry();
 
   // Register "To Kiosk" action on match entity (MatchContext wires openToSlotDialog when showing footer)
@@ -121,7 +141,39 @@ export function KioskProvider({
   const [recentlyDuplicatedSlotId, setRecentlyDuplicatedSlotId] = useState<string | null>(null);
   const [mentionsDraft, setMentionsDraft] = useState<KioskMention[] | null>(null);
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
+  const [showSendMessageDialog, setShowSendMessageDialog] = useState(false);
+  const [sendMessageRecipients, setSendMessageRecipients] = useState<BulkMessageRecipient[]>([]);
   const pendingCloseRef = useRef<(() => void) | null>(null);
+
+  const closeSendMessageDialog = useCallback(() => {
+    setShowSendMessageDialog(false);
+    setSendMessageRecipients([]);
+  }, []);
+
+  const detailFooterActions = useMemo(() => {
+    return [
+      {
+        id: 'send-message',
+        label: t('bulk.sendMessageTitle'),
+        icon: MessageCircle,
+        onClick: (item: Slot) => {
+          const recipients = resolveSlotsToContacts(
+            [item.id],
+            slots,
+            appContacts as Array<{
+              id: string | number;
+              companyName?: string;
+              phone?: string;
+              phone2?: string;
+            }>,
+          );
+          setSendMessageRecipients(recipients);
+          setShowSendMessageDialog(true);
+        },
+        className: 'h-7 text-[10px] px-2',
+      },
+    ];
+  }, [t, slots, appContacts]);
 
   const {
     selectedIds: selectedSlotIds,
@@ -235,23 +287,29 @@ export function KioskProvider({
     return () => registerKioskNavigation(null);
   }, [registerKioskNavigation, openSlotForViewBridge]);
 
-  const currentItemIndex = currentSlot
-    ? slots.findIndex((s) => s.id === currentSlot.id)
-    : -1;
+  const currentItemIndex = currentSlot ? slots.findIndex((s) => s.id === currentSlot.id) : -1;
   const totalItems = slots.length;
   const hasPrevItem = currentItemIndex > 0;
   const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
 
   const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) return;
+    if (!hasPrevItem || currentItemIndex <= 0) {
+      return;
+    }
     const prev = slots[currentItemIndex - 1];
-    if (prev) openSlotForView(prev);
+    if (prev) {
+      openSlotForView(prev);
+    }
   }, [hasPrevItem, currentItemIndex, slots, openSlotForView]);
 
   const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= slots.length - 1) return;
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= slots.length - 1) {
+      return;
+    }
     const next = slots[currentItemIndex + 1];
-    if (next) openSlotForView(next);
+    if (next) {
+      openSlotForView(next);
+    }
   }, [hasNextItem, currentItemIndex, slots, openSlotForView]);
 
   // Clear quick-edit draft when slot changes
@@ -603,6 +661,11 @@ export function KioskProvider({
     hasNextItem,
     currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
     totalItems,
+
+    detailFooterActions,
+    showSendMessageDialog,
+    sendMessageRecipients,
+    closeSendMessageDialog,
   };
 
   return <KioskContext.Provider value={value}>{children}</KioskContext.Provider>;

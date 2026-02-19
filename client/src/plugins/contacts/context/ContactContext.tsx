@@ -1,7 +1,9 @@
+import { MessageCircle } from 'lucide-react';
 import React, {
   createContext,
   useCallback,
   useContext,
+  useMemo,
   useState,
   useEffect,
   useRef,
@@ -13,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { cn } from '@/lib/utils';
 
@@ -72,6 +75,19 @@ interface ContactContextType {
   hasNextItem: boolean;
   currentItemIndex: number;
   totalItems: number;
+
+  // Single-item "Send message" from detail footer (same dialog as bulk)
+  detailFooterActions?: Array<{
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    onClick: (item: Contact) => void;
+    className?: string;
+    disabled?: boolean;
+  }>;
+  showSendMessageDialog: boolean;
+  sendMessageRecipients: BulkMessageRecipient[];
+  closeSendMessageDialog: () => void;
 }
 
 const ContactContext = createContext<ContactContextType | undefined>(undefined);
@@ -101,7 +117,39 @@ export function ContactProvider({
   const [tagsDraft, setTagsDraft] = useState<string[] | null>(null);
   const [showDiscardTagsDialog, setShowDiscardTagsDialog] = useState(false);
   const [tagError, setTagError] = useState<string | null>(null);
+  const [showSendMessageDialog, setShowSendMessageDialog] = useState(false);
+  const [sendMessageRecipients, setSendMessageRecipients] = useState<BulkMessageRecipient[]>([]);
   const pendingCloseRef = useRef<(() => void) | null>(null);
+
+  const closeSendMessageDialog = useCallback(() => {
+    setShowSendMessageDialog(false);
+    setSendMessageRecipients([]);
+  }, []);
+
+  const detailFooterActions = useMemo(() => {
+    return [
+      {
+        id: 'send-message',
+        label: t('bulk.sendMessageTitle'),
+        icon: MessageCircle,
+        onClick: (item: Contact) => {
+          const phone =
+            (item.phone && String(item.phone).trim()) ||
+            (item.phone2 && String(item.phone2).trim()) ||
+            '';
+          setSendMessageRecipients([
+            {
+              id: String(item.id),
+              name: item.companyName || '',
+              phone,
+            },
+          ]);
+          setShowSendMessageDialog(true);
+        },
+        className: 'h-7 text-[10px] px-2',
+      },
+    ];
+  }, [t]);
 
   // Use core bulk selection hook
   const {
@@ -266,13 +314,16 @@ export function ContactProvider({
     onCloseOtherPanels();
   };
 
-  const openContactForView = (contact: Contact) => {
-    setCurrentContact(contact);
-    setPanelMode('view');
-    setIsContactPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  };
+  const openContactForView = useCallback(
+    (contact: Contact) => {
+      setCurrentContact(contact);
+      setPanelMode('view');
+      setIsContactPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
   const openContactSettings = useCallback(() => {
     clearContactSelectionCore();
@@ -300,16 +351,24 @@ export function ContactProvider({
   const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
 
   const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) return;
+    if (!hasPrevItem || currentItemIndex <= 0) {
+      return;
+    }
     const prev = contacts[currentItemIndex - 1];
-    if (prev) openContactForView(prev);
-  }, [hasPrevItem, currentItemIndex, contacts]);
+    if (prev) {
+      openContactForView(prev);
+    }
+  }, [hasPrevItem, currentItemIndex, contacts, openContactForView]);
 
   const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= contacts.length - 1) return;
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= contacts.length - 1) {
+      return;
+    }
     const next = contacts[currentItemIndex + 1];
-    if (next) openContactForView(next);
-  }, [hasNextItem, currentItemIndex, contacts]);
+    if (next) {
+      openContactForView(next);
+    }
+  }, [hasNextItem, currentItemIndex, contacts, openContactForView]);
 
   const clearValidationErrors = () => {
     setValidationErrors([]);
@@ -673,6 +732,11 @@ export function ContactProvider({
     hasNextItem,
     currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
     totalItems,
+
+    detailFooterActions,
+    showSendMessageDialog,
+    sendMessageRecipients,
+    closeSendMessageDialog,
   };
 
   return <ContactContext.Provider value={value}>{children}</ContactContext.Provider>;

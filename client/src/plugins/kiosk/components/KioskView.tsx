@@ -13,15 +13,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
-import { useMatches } from '@/plugins/matches/hooks/useMatches';
-
 import { matchesApi } from '@/plugins/matches/api/matchesApi';
+import { useMatches } from '@/plugins/matches/hooks/useMatches';
 import type { Match } from '@/plugins/matches/types/match';
+
 import { useKioskContext } from '../context/KioskContext';
 import type { Slot } from '../types/kiosk';
 
@@ -55,6 +56,9 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
     showDiscardQuickEditDialog,
     setShowDiscardQuickEditDialog,
     onDiscardQuickEditAndClose,
+    showSendMessageDialog,
+    sendMessageRecipients,
+    closeSendMessageDialog,
   } = useKioskContext();
 
   const [sourceMatch, setSourceMatch] = useState<Match | null>(null);
@@ -90,7 +94,9 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
   }, [slot?.match_id, matches]);
 
   const handleMatchClick = () => {
-    if (sourceMatch) openMatchForView(sourceMatch);
+    if (sourceMatch) {
+      openMatchForView(sourceMatch);
+    }
   };
 
   const addableContacts = assignableContacts.filter(
@@ -219,36 +225,35 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Created</span>
                     <span className="font-medium">
-                      {slot.created_at
-                        ? new Date(slot.created_at).toLocaleDateString()
-                        : '—'}
+                      {slot.created_at ? new Date(slot.created_at).toLocaleDateString() : '—'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Updated</span>
                     <span className="font-medium">
-                      {slot.updated_at
-                        ? new Date(slot.updated_at).toLocaleDateString()
-                        : '—'}
+                      {slot.updated_at ? new Date(slot.updated_at).toLocaleDateString() : '—'}
                     </span>
                   </div>
-                  {slot.match_id !== null && slot.match_id !== undefined && slot.match_id !== '' && matchLoaded && (
-                    <div className="flex justify-between items-center pt-2 border-t border-border/50">
-                      <span className="text-muted-foreground">Source Match</span>
-                      {sourceMatch ? (
-                        <Button
-                          variant="link"
-                          size="sm"
-                          onClick={handleMatchClick}
-                          className="h-auto p-0 text-[10px] plugin-matches text-plugin truncate max-w-[150px]"
-                        >
-                          {`${sourceMatch.home_team} – ${sourceMatch.away_team}`}
-                        </Button>
-                      ) : (
-                        <span className="text-muted-foreground italic">Deleted Match</span>
-                      )}
-                    </div>
-                  )}
+                  {slot.match_id !== null &&
+                    slot.match_id !== undefined &&
+                    slot.match_id !== '' &&
+                    matchLoaded && (
+                      <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                        <span className="text-muted-foreground">Source Match</span>
+                        {sourceMatch ? (
+                          <Button
+                            variant="link"
+                            size="sm"
+                            onClick={handleMatchClick}
+                            className="h-auto p-0 text-[10px] plugin-matches text-plugin truncate max-w-[150px]"
+                          >
+                            {`${sourceMatch.home_team} – ${sourceMatch.away_team}`}
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground italic">Deleted Match</span>
+                        )}
+                      </div>
+                    )}
                 </div>
               </DetailSection>
             </Card>
@@ -272,27 +277,32 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
               </div>
 
               {/* Match (if from match) – one row */}
-              {slot.match_id !== null && slot.match_id !== undefined && slot.match_id !== '' && matchLoaded && (
-                <div>
-                  <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
-                    {t('slots.match')}
+              {slot.match_id !== null &&
+                slot.match_id !== undefined &&
+                slot.match_id !== '' &&
+                matchLoaded && (
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
+                      {t('slots.match')}
+                    </div>
+                    <div className="text-base">
+                      {sourceMatch ? (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={handleMatchClick}
+                          className="h-auto p-0 text-base font-medium plugin-matches text-plugin hover:underline"
+                        >
+                          {`${sourceMatch.home_team} – ${sourceMatch.away_team}`}
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground italic">
+                          {t('slots.deletedMatch')}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-base">
-                    {sourceMatch ? (
-                      <Button
-                        variant="link"
-                        size="sm"
-                        onClick={handleMatchClick}
-                        className="h-auto p-0 text-base font-medium plugin-matches text-plugin hover:underline"
-                      >
-                        {`${sourceMatch.home_team} – ${sourceMatch.away_team}`}
-                      </Button>
-                    ) : (
-                      <span className="text-muted-foreground italic">{t('slots.deletedMatch')}</span>
-                    )}
-                  </div>
-                </div>
-              )}
+                )}
 
               {/* Matchnummer (if match) – one row */}
               {sourceMatch && (
@@ -311,9 +321,7 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
                 <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
                   {t('common.location')}
                 </div>
-                <div className="text-base font-medium">
-                  {slot.location || '—'}
-                </div>
+                <div className="text-base font-medium">{slot.location || '—'}</div>
               </div>
 
               {/* Capacity – one row with dots */}
@@ -335,9 +343,7 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
                 <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
                   {t('common.time')}
                 </div>
-                <div className="text-base font-medium">
-                  {formatDateTime(slot.slot_time)}
-                </div>
+                <div className="text-base font-medium">{formatDateTime(slot.slot_time)}</div>
               </div>
 
               {/* Visible – one row */}
@@ -372,6 +378,13 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
         onConfirm={onDiscardQuickEditAndClose}
         onCancel={() => setShowDiscardQuickEditDialog(false)}
         variant="warning"
+      />
+
+      <BulkMessageDialog
+        isOpen={showSendMessageDialog}
+        onClose={closeSendMessageDialog}
+        recipients={sendMessageRecipients}
+        pluginSource="slots"
       />
     </div>
   );
