@@ -11,7 +11,7 @@ class CloudStorageModel {
   async getSettings(req, service) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -42,7 +42,7 @@ class CloudStorageModel {
   async upsertSettings(req, service, data) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -93,7 +93,7 @@ class CloudStorageModel {
   async disconnect(req, service) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -129,7 +129,7 @@ class CloudStorageModel {
   async upsertOAuthCredentials(req, service, clientId, clientSecret) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);

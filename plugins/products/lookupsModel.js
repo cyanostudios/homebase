@@ -5,7 +5,7 @@ const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 function getUserId(req) {
-  return req.session?.user?.id || req.session?.user?.uuid;
+  return req.session?.user?.id;
 }
 
 async function getAll(req, table) {

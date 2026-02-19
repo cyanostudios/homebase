@@ -1,4 +1,4 @@
-import { Check, X, Edit, Trash2 } from 'lucide-react';
+import { Check, X, Edit, Trash2, Copy, Download } from 'lucide-react';
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -7,9 +7,10 @@ interface PanelFooterProps {
   currentMode: string;
   currentItem: any;
   currentPluginContext: any;
+  currentPlugin?: { name: string } | null;
   validationErrors: any[];
-  pluginName?: string;
   onDeleteItem: () => void;
+  onDuplicateItem: () => void;
   onClosePanel: () => void;
   onEditItem: () => void;
   onSaveClick: () => void;
@@ -17,13 +18,22 @@ interface PanelFooterProps {
   isSubmitting?: boolean;
 }
 
+const EXPORT_FORMAT_LABELS: Record<string, string> = {
+  txt: 'Export TXT',
+  csv: 'Export CSV',
+  pdf: 'Export PDF',
+};
+
+const BTN_XS = 'sm' as const;
+
 export const PanelFooter: React.FC<PanelFooterProps> = ({
   currentMode,
   currentItem,
   currentPluginContext,
+  currentPlugin,
   validationErrors,
-  pluginName,
   onDeleteItem,
+  onDuplicateItem,
   onClosePanel,
   onEditItem,
   onSaveClick,
@@ -34,31 +44,178 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
     (e: any) => !String(e?.message || '').includes('Warning'),
   );
 
+  const exportFormats = currentPluginContext?.exportFormats as string[] | undefined;
+  const onExportItem = currentPluginContext?.onExportItem as
+    | ((format: string, item: any) => void)
+    | undefined;
+  const hasExport = Boolean(
+    currentItem &&
+      Array.isArray(exportFormats) &&
+      exportFormats.length > 0 &&
+      typeof onExportItem === 'function',
+  );
+
+  const detailFooterActions = currentPluginContext?.detailFooterActions as
+    | Array<{
+        id: string;
+        label: string;
+        icon: React.ComponentType<{ className?: string }>;
+        onClick: (item: any) => void;
+        className?: string;
+      }>
+    | undefined;
+  const hasDetailFooterActions = Boolean(
+    currentItem && Array.isArray(detailFooterActions) && detailFooterActions.length > 0,
+  );
+
+  const showDuplicate =
+    currentPluginContext?.getDuplicateConfig?.(currentItem) ||
+    (currentItem && currentPlugin && currentPlugin.name !== 'contacts');
+
   // Channels (CDON/Fyndiq detail): show Cancel/Update instead of Close/Edit
-  if (currentMode === 'view' && pluginName !== 'channels') {
+  if (currentMode === 'view' && currentPlugin?.name === 'channels') {
+    return (
+      <div className="flex justify-end w-full">
+        <Button
+          type="button"
+          onClick={onClosePanel}
+          variant="secondary"
+          size={BTN_XS}
+          icon={X}
+        >
+          Close
+        </Button>
+        <Button
+          type="button"
+          onClick={onSaveClick}
+          variant="primary"
+          size={BTN_XS}
+          icon={Check}
+          disabled={isSubmitting}
+          className="bg-green-600 hover:bg-green-700 text-white border-none"
+        >
+          Update
+        </Button>
+      </div>
+    );
+  }
+
+  if (currentMode === 'view') {
     return (
       <div className="flex items-center justify-between w-full">
-        <Button type="button" onClick={onDeleteItem} variant="danger" icon={Trash2}>
-          Delete
-        </Button>
-        <div className="flex items-center gap-3">
-          <Button type="button" onClick={onClosePanel} variant="secondary" icon={X}>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            onClick={onDeleteItem}
+            variant="ghost"
+            size={BTN_XS}
+            icon={Trash2}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/30"
+          >
+            Delete
+          </Button>
+          {showDuplicate && (
+            <Button
+              type="button"
+              onClick={onDuplicateItem}
+              variant="ghost"
+              size={BTN_XS}
+              icon={Copy}
+            >
+              Duplicate
+            </Button>
+          )}
+          {hasDetailFooterActions &&
+            detailFooterActions!.map((action) => {
+              const Icon = action.icon;
+              return (
+                <Button
+                  key={action.id}
+                  type="button"
+                  onClick={() => action.onClick(currentItem)}
+                  variant="ghost"
+                  size={BTN_XS}
+                  icon={Icon}
+                  className={action.className}
+                >
+                  {action.label}
+                </Button>
+              );
+            })}
+          {hasExport &&
+            exportFormats!.map((format: string) => (
+              <Button
+                key={format}
+                type="button"
+                onClick={() => onExportItem!(format, currentItem)}
+                variant="ghost"
+                size={BTN_XS}
+                icon={Download}
+              >
+                {EXPORT_FORMAT_LABELS[format] ?? `Export ${format.toUpperCase()}`}
+              </Button>
+            ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            onClick={onClosePanel}
+            variant="secondary"
+            size={BTN_XS}
+            icon={X}
+          >
             Close
           </Button>
-          <Button type="button" onClick={onEditItem} variant="primary" icon={Edit}>
+          <Button
+            type="button"
+            onClick={onEditItem}
+            variant="primary"
+            size={BTN_XS}
+            icon={Edit}
+          >
             Edit
           </Button>
+          {currentPlugin?.name === 'tasks' &&
+            typeof (currentPluginContext as any)?.hasQuickEditChanges === 'boolean' &&
+            (currentPluginContext as any).hasQuickEditChanges && (
+              <Button
+                type="button"
+                onClick={() => (currentPluginContext as any)?.onApplyQuickEdit?.()}
+                variant="primary"
+                size={BTN_XS}
+                icon={Check}
+                className="bg-green-600 hover:bg-green-700 text-white border-none"
+              >
+                Update
+              </Button>
+            )}
+          {currentPlugin?.name === 'contacts' &&
+            typeof (currentPluginContext as any)?.hasTagsChanges === 'boolean' &&
+            (currentPluginContext as any).hasTagsChanges && (
+              <Button
+                type="button"
+                onClick={() => (currentPluginContext as any)?.onApplyTagsEdit?.()}
+                variant="primary"
+                size={BTN_XS}
+                icon={Check}
+                className="bg-green-600 hover:bg-green-700 text-white border-none"
+              >
+                Update
+              </Button>
+            )}
         </div>
       </div>
     );
   }
 
+  // create / edit mode
   return (
-    <div className="flex justify-end space-x-3">
+    <div className="flex justify-end space-x-2">
       <Button
         type="button"
         onClick={onCancelClick}
-        variant="danger"
+        variant="secondary"
+        size={BTN_XS}
         icon={X}
         disabled={isSubmitting}
       >
@@ -68,8 +225,10 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
         type="button"
         onClick={onSaveClick}
         variant="primary"
+        size={BTN_XS}
         icon={Check}
         disabled={hasBlockingErrors || isSubmitting}
+        className="bg-green-600 hover:bg-green-700 text-white border-none"
       >
         {isSubmitting ? 'Saving...' : currentMode === 'edit' ? 'Update' : 'Save'}
       </Button>
@@ -80,70 +239,81 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
 // ---- Helpers ----
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-/**
- * Hyphen-safe opener resolver.
- * Examples:
- *  - 'products' + 'edit' -> context.openProductForEdit
- *  - 'notes' + 'view' -> context.openNoteForView
- */
 function findOpenFunction(context: any, mode: 'edit' | 'view', pluginName?: string): any {
-  if (!context || !pluginName) {
-    return null;
-  }
-
-  // Generic: convert kebab to camel, singularize trailing 's'
-  const camel = pluginName.replace(/-([a-z])/g, (_, c) => c.toUpperCase()); // e.g., woocommerceProducts
-  const singular = camel.endsWith('s') ? camel.slice(0, -1) : camel; // products -> product
-  const fnName = `open${cap(singular)}For${cap(mode)}`; // openProductForEdit
+  if (!context || !pluginName) return null;
+  const camel = pluginName.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+  const singular = camel.endsWith('s') ? camel.slice(0, -1) : camel;
+  const fnName = `open${cap(singular)}For${cap(mode)}`;
   const fn = context[fnName];
   return typeof fn === 'function' ? fn : null;
 }
 
 export const createPanelFooter = (
-  currentMode: 'create' | 'edit' | 'view',
+  currentMode: 'create' | 'edit' | 'view' | 'settings',
   currentItem: any,
   currentPluginContext: any,
   validationErrors: any[],
   handlers: {
     currentPlugin: { name: string } | null;
     handleDeleteItem: () => void;
+    handleDuplicateItem: () => void;
     getCloseHandler: () => () => void;
-    handleSaveClick: () => void; // generic (non-Woo) submit
-    handleCancelClick: () => void; // generic (non-Woo) cancel
+    handleSaveClick: () => void;
+    handleCancelClick: () => void;
+    isSubmitting?: boolean;
   },
 ) => {
+  const handleSave = () => handlers.handleSaveClick();
+  const handleCancel = () => handlers.handleCancelClick();
+
+  const baseClose = handlers.getCloseHandler();
+  const onClosePanel =
+    typeof currentPluginContext?.getCloseHandler === 'function' &&
+    (handlers.currentPlugin?.name === 'tasks' || handlers.currentPlugin?.name === 'contacts')
+      ? currentPluginContext.getCloseHandler(baseClose)
+      : baseClose;
+
+  // Channels: Cancel and Update both close the panel
   const pluginName = handlers.currentPlugin?.name;
+  if (pluginName === 'channels') {
+    return (
+      <PanelFooter
+        currentMode={currentMode}
+        currentItem={currentItem}
+        currentPluginContext={currentPluginContext}
+        currentPlugin={handlers.currentPlugin}
+        validationErrors={validationErrors}
+        onDeleteItem={() => {}}
+        onDuplicateItem={() => {}}
+        onClosePanel={baseClose}
+        onEditItem={() => {}}
+        onSaveClick={baseClose}
+        onCancelClick={baseClose}
+        isSubmitting={handlers.isSubmitting ?? false}
+      />
+    );
+  }
 
-  // Route EDIT to the correct opener (hyphen-safe + Woo override)
   const handleEditItem = () => {
-    if (!currentPluginContext || !currentItem || !pluginName) {
-      return;
-    }
+    if (!currentPluginContext || !currentItem || !pluginName) return;
     const editFn = findOpenFunction(currentPluginContext, 'edit', pluginName);
-    if (editFn) {
-      editFn(currentItem);
-    } else {
-      console.warn(`Edit function not found for plugin: ${pluginName}`);
-    }
+    if (editFn) editFn(currentItem);
   };
-
-  // Channels: no form; Cancel and Update both close the panel directly
-  const closePanel = handlers.getCloseHandler();
-  const handleSave = pluginName === 'channels' ? closePanel : () => handlers.handleSaveClick();
-  const handleCancel = pluginName === 'channels' ? closePanel : () => handlers.handleCancelClick();
 
   return (
     <PanelFooter
       currentMode={currentMode}
       currentItem={currentItem}
       currentPluginContext={currentPluginContext}
+      currentPlugin={handlers.currentPlugin}
       validationErrors={validationErrors}
-      pluginName={pluginName}
       onDeleteItem={handlers.handleDeleteItem}
-      onClosePanel={closePanel}
+      onDuplicateItem={handlers.handleDuplicateItem}
+      onClosePanel={onClosePanel}
       onEditItem={handleEditItem}
       onSaveClick={handleSave}
       onCancelClick={handleCancel}
+      isSubmitting={handlers.isSubmitting ?? false}
     />
   );
 };

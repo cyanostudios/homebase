@@ -71,7 +71,7 @@ export const ChannelsList: React.FC = () => {
                   <TableRow
                     key={item.id}
                     onClick={() => onRowClick(item)}
-                    className="cursor-pointer"
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50"
                   >
                     <TableCell>
                       <div className="flex items-center gap-2">

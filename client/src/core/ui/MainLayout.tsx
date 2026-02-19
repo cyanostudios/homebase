@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 import { ContentHeader } from './ContentHeader';
+import { ContentLayoutProvider } from './ContentLayoutContext';
 import { ContentSurface } from './ContentSurface';
 import { DetailPanel } from './DetailPanel';
 import { Sidebar } from './Sidebar';
@@ -12,7 +13,9 @@ interface MainLayoutProps {
   currentPage: NavPage;
   onPageChange: (page: NavPage) => void;
   contentTitle: string;
+  contentIcon?: React.ComponentType<{ className?: string }>;
   contentActionLabel?: string;
+  contentActionIcon?: React.ComponentType<{ className?: string }>;
   onContentAction?: () => void;
   // DetailPanel props
   detailPanelOpen: boolean;
@@ -28,7 +31,9 @@ export function MainLayout({
   currentPage,
   onPageChange,
   contentTitle,
+  contentIcon,
   contentActionLabel,
+  contentActionIcon,
   onContentAction,
   detailPanelOpen,
   detailPanelTitle,
@@ -38,6 +43,7 @@ export function MainLayout({
   onDetailPanelClose,
 }: MainLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [headerTrailing, setHeaderTrailing] = useState<React.ReactNode>(null);
 
   // Navigation: only trigger App's handlePageChange (guard + close panel handled there)
   const handlePageChange = (page: NavPage) => {
@@ -76,16 +82,21 @@ export function MainLayout({
           </ContentSurface>
         ) : (
           <ContentSurface>
-            <div className="flex h-full flex-col gap-4">
-              <ContentHeader
-                title={contentTitle}
-                actionLabel={contentActionLabel}
-                onAction={onContentAction}
-              />
-              <div className="flex flex-1 flex-col overflow-hidden">
-                <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+            <ContentLayoutProvider onTrailingChange={setHeaderTrailing}>
+              <div className="flex h-full flex-col gap-4">
+                <ContentHeader
+                  title={contentTitle}
+                  icon={contentIcon}
+                  actionLabel={contentActionLabel}
+                  actionIcon={contentActionIcon}
+                  onAction={onContentAction}
+                  trailing={headerTrailing}
+                />
+                <div className="flex flex-1 flex-col overflow-hidden">
+                  <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
+                </div>
               </div>
-            </div>
+            </ContentLayoutProvider>
           </ContentSurface>
         )}
       </main>

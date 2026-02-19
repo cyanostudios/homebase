@@ -1,19 +1,21 @@
-import { Receipt, Trash2 } from 'lucide-react';
-import React, { useState, useMemo, useEffect } from 'react';
+import { Receipt, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { GroupedList } from '@/core/ui/GroupedList';
+import { exportItems } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useInvoices } from '../hooks/useInvoices';
+import { invoiceExportConfig } from '../utils/invoiceExportConfig';
 import { invoicesNavigation } from '../navigation';
 
 type SortField = 'invoiceNumber' | 'contactName' | 'total' | 'createdAt' | 'status';
@@ -21,6 +23,7 @@ type SortOrder = 'asc' | 'desc';
 
 export function InvoicesList() {
   const { invoices, openInvoiceForView, deleteInvoice, deleteInvoices } = useInvoices();
+  const { setHeaderTrailing } = useContentLayout();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [currentPage, setCurrentPage] = useState<string>('invoices');
@@ -130,8 +133,7 @@ export function InvoicesList() {
       setSelectedIds(new Set(sortedInvoices.map((i) => i.id)));
     }
   };
-  const toggleSelectOne = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const toggleSelectOne = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -149,6 +151,55 @@ export function InvoicesList() {
       setBulkDeleting(false);
     }
   };
+
+  const handleExportCSV = useCallback(() => {
+    if (selectedIds.size === 0) {
+      alert('Please select invoices to export');
+      return;
+    }
+    const selected = invoices.filter((i) => selectedIds.has(i.id));
+    const filename = `invoices-export-${new Date().toISOString().split('T')[0]}`;
+    exportItems({
+      items: selected,
+      format: 'csv',
+      config: invoiceExportConfig,
+      filename,
+      title: 'Invoices Export',
+    });
+  }, [invoices, selectedIds]);
+
+  const handleExportPDF = useCallback(async () => {
+    if (selectedIds.size === 0) {
+      alert('Please select invoices to export');
+      return;
+    }
+    const selected = invoices.filter((i) => selectedIds.has(i.id));
+    const filename = `invoices-export-${new Date().toISOString().split('T')[0]}`;
+    const result = exportItems({
+      items: selected,
+      format: 'pdf',
+      config: invoiceExportConfig,
+      filename,
+      title: 'Invoices Export',
+    });
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      await (result as Promise<void>).catch((err) => {
+        console.error('PDF export failed:', err);
+        alert('Export failed. Please try again.');
+      });
+    }
+  }, [invoices, selectedIds]);
+
+  useEffect(() => {
+    setHeaderTrailing(
+      <ContentToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search invoices..."
+      />,
+    );
+    return () => setHeaderTrailing(null);
+  }, [searchTerm, setSearchTerm, setHeaderTrailing]);
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
@@ -238,19 +289,15 @@ export function InvoicesList() {
         </div>
       )}
 
-      <ContentToolbar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search invoices..."
-      />
-
       {selectedCount > 0 && (
         <BulkActionBar
           selectedCount={selectedCount}
           onClearSelection={() => setSelectedIds(new Set())}
           actions={[
+            { label: 'Export CSV', icon: FileSpreadsheet, onClick: handleExportCSV, variant: 'default' },
+            { label: 'Export PDF', icon: FileText, onClick: handleExportPDF, variant: 'default' },
             {
-              label: 'Delete',
+              label: 'Delete…',
               icon: Trash2,
               onClick: () => setBulkDeleteOpen(true),
               variant: 'destructive',
@@ -262,10 +309,12 @@ export function InvoicesList() {
       <Card className="shadow-none">
         {sortedInvoices.length > 0 && (
           <div className="flex items-center gap-2 px-4 py-2 border-b">
-            <Checkbox
+            <input
+              type="checkbox"
               checked={allSelected}
-              onCheckedChange={toggleSelectAll}
-              aria-label="Select all"
+              onChange={toggleSelectAll}
+              className="h-4 w-4 cursor-pointer"
+              aria-label={allSelected ? 'Deselect all invoices' : 'Select all invoices'}
             />
             <span className="text-sm text-muted-foreground">Select all</span>
           </div>
@@ -281,7 +330,7 @@ export function InvoicesList() {
           renderItem={(invoice, idx) => (
             <div
               key={invoice.id}
-              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3 flex items-start gap-2`}
+              className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-gray-50 dark:hover:bg-gray-900/50 focus:bg-gray-50 dark:focus:bg-gray-900/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset cursor-pointer transition-colors px-4 py-3 flex items-start gap-2`}
               tabIndex={0}
               data-list-item={JSON.stringify(invoice)}
               data-plugin-name="invoices"
@@ -296,10 +345,12 @@ export function InvoicesList() {
                 className="flex-shrink-0 pt-0.5"
                 onClick={(e) => e.stopPropagation()}
               >
-                <Checkbox
+                <input
+                  type="checkbox"
                   checked={selectedIds.has(invoice.id)}
-                  onCheckedChange={() => {}}
-                  onClick={(e) => toggleSelectOne(invoice.id, e)}
+                  onChange={() => toggleSelectOne(invoice.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="h-4 w-4 cursor-pointer"
                   aria-label={`Select ${invoice.invoiceNumber || invoice.id}`}
                 />
               </div>

@@ -8,6 +8,39 @@ class ContactModel {
     // No pool needed - SDK provides database interface
   }
 
+  async getById(req, contactId) {
+    try {
+      const db = Database.get(req);
+      const rows = await db.query('SELECT * FROM contacts WHERE id = $1', [contactId]);
+      if (!rows || rows.length === 0) return null;
+      return this.transformRow(rows[0]);
+    } catch (error) {
+      Logger.error('Failed to fetch contact', error, { contactId });
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to fetch contact', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async getByIds(req, contactIds) {
+    try {
+      if (!Array.isArray(contactIds) || contactIds.length === 0) return [];
+      const db = Database.get(req);
+      const ids = contactIds.map((id) => parseInt(String(id), 10)).filter((n) => !isNaN(n));
+      if (ids.length === 0) return [];
+      const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+      const rows = await db.query(`SELECT * FROM contacts WHERE id IN (${placeholders})`, ids);
+      const byId = {};
+      rows.forEach((r) => {
+        byId[r.id] = this.transformRow(r);
+      });
+      return ids.map((id) => byId[id]).filter(Boolean);
+    } catch (error) {
+      Logger.error('Failed to fetch contacts by ids', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to fetch contacts', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async getAll(req) {
     try {
       const db = Database.get(req);

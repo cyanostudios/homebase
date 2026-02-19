@@ -226,25 +226,23 @@ export const InvoicesView: React.FC<InvoiceViewProps> = ({ invoice, item }) => {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div>
               <div className="text-xs text-muted-foreground">System ID</div>
-              <div className="text-sm font-mono text-foreground">
-                {String(actualItem.id ?? '—')}
-              </div>
+              <div className="text-sm font-medium font-mono">{String(actualItem.id ?? '—')}</div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Created</div>
-              <div className="text-sm text-foreground">
+              <div className="text-sm font-medium">
                 {created ? created.toLocaleDateString() : '—'}
               </div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Last Updated</div>
-              <div className="text-sm text-foreground">
+              <div className="text-sm font-medium">
                 {updated ? updated.toLocaleDateString() : '—'}
               </div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Paid At</div>
-              <div className="text-sm text-foreground">
+              <div className="text-sm font-medium">
                 {paidAt ? paidAt.toLocaleDateString() : '—'}
               </div>
             </div>

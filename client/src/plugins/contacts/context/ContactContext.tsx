@@ -1,12 +1,14 @@
 import { Building, User } from 'lucide-react';
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { Badge } from '@/components/ui/badge';
+import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 
 import { contactsApi } from '../api/contactsApi';
 import { Contact, ValidationError } from '../types/contacts';
+import { contactExportConfig, getContactExportBaseFilename } from '../utils/contactExportConfig';
 
 interface ContactContextType {
   // Contact Panel State
@@ -26,12 +28,17 @@ interface ContactContextType {
   saveContact: (contactData: any) => Promise<boolean>;
   deleteContact: (id: string) => Promise<void>;
   deleteContacts: (ids: string[]) => Promise<void>;
+  importContacts: (data: any[]) => Promise<void>;
   clearValidationErrors: () => void;
 
   // Panel Title helpers
   getPanelTitle: (mode: string, item: Contact | null, isMobileView: boolean) => any;
   getPanelSubtitle: (mode: string, item: Contact | null) => any;
   getDeleteMessage: (item: Contact | null) => string;
+
+  // Detail footer export (Export TXT, CSV, PDF)
+  exportFormats: ExportFormat[];
+  onExportItem: (format: ExportFormat, item: Contact) => void;
 }
 
 const ContactContext = createContext<ContactContextType | undefined>(undefined);
@@ -302,6 +309,24 @@ export function ContactProvider({
     }
   };
 
+  const importContacts = useCallback(async (data: any[]) => {
+    for (const row of data) {
+      try {
+        const payload = {
+          companyName: row.companyName ?? row.name ?? '',
+          contactType: row.contactType ?? row.type ?? 'company',
+          email: row.email ?? '',
+          phone: row.phone ?? '',
+          notes: row.notes ?? '',
+        };
+        await contactsApi.createContact(payload);
+      } catch (error) {
+        console.error('Failed to import contact', row, error);
+      }
+    }
+    await refreshData();
+  }, [refreshData]);
+
   // Panel title helpers
   const getPanelTitle = (mode: string, item: Contact | null, isMobileView: boolean) => {
     if (mode === 'view' && item) {
@@ -367,6 +392,24 @@ export function ContactProvider({
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 
+  const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
+
+  const onExportItem = useCallback((format: ExportFormat, item: Contact) => {
+    const result = exportItems({
+      items: [item],
+      format,
+      config: contactExportConfig,
+      filename: getContactExportBaseFilename(item),
+      title: 'Contacts Export',
+    });
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      (result as Promise<void>).catch((err) => {
+        console.error('Export failed:', err);
+        alert('Export failed. Please try again.');
+      });
+    }
+  }, []);
+
   const value: ContactContextType = {
     // Contact Panel State
     isContactPanelOpen,
@@ -385,12 +428,17 @@ export function ContactProvider({
     saveContact,
     deleteContact,
     deleteContacts,
+    importContacts,
     clearValidationErrors,
 
     // Panel Title helpers
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
+
+    // Detail footer export
+    exportFormats,
+    onExportItem,
   };
 
   return <ContactContext.Provider value={value}>{children}</ContactContext.Provider>;

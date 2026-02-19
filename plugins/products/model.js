@@ -13,7 +13,7 @@ class ProductModel {
   async getAll(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -86,7 +86,7 @@ class ProductModel {
   async getById(req, productId) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
       const id = parseInt(String(productId), 10);
       if (!Number.isFinite(id)) return null;
@@ -155,7 +155,7 @@ class ProductModel {
   async getBySku(req, sku) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -232,7 +232,7 @@ class ProductModel {
   async create(req, productData) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -378,7 +378,7 @@ class ProductModel {
   async update(req, productId, productData) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -523,7 +523,7 @@ class ProductModel {
   async getProductStats(req, productId, range = '30d') {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -619,7 +619,7 @@ class ProductModel {
   async delete(req, productId) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -662,7 +662,7 @@ class ProductModel {
   async bulkDelete(req, idsTextArray) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -716,7 +716,7 @@ class ProductModel {
   async batchUpdate(req, idsTextArray, updates = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -923,7 +923,7 @@ class ProductModel {
 
   async setProductList(req, productId, listId) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    const userId = req.session?.user?.id;
     if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
     const product = await this.getById(req, productId);

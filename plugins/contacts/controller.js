@@ -169,6 +169,98 @@ class ContactController {
       return res.status(500).json({ error: 'Failed to delete time entry' });
     }
   }
+
+  // Contact lists (namespace 'contacts')
+  async getLists(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      const lists = await listsModel.getLists(req, 'contacts');
+      res.json(lists);
+    } catch (error) {
+      Logger.error('Get contact lists failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to fetch contact lists' });
+    }
+  }
+
+  async createList(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      const list = await listsModel.createList(req, 'contacts', req.body?.name);
+      res.status(201).json(list);
+    } catch (error) {
+      Logger.error('Create contact list failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to create contact list' });
+    }
+  }
+
+  async renameList(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      const list = await listsModel.renameList(req, 'contacts', req.params.id, req.body?.name);
+      res.json(list);
+    } catch (error) {
+      Logger.error('Rename contact list failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to rename contact list' });
+    }
+  }
+
+  async deleteList(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      await listsModel.deleteList(req, 'contacts', req.params.id);
+      res.json({ message: 'List deleted' });
+    } catch (error) {
+      Logger.error('Delete contact list failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to delete contact list' });
+    }
+  }
+
+  async getListContacts(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      const contactIds = await listsModel.getContactListItems(req, req.params.id);
+      const contacts = await this.model.getByIds(req, contactIds);
+      res.json(contacts);
+    } catch (error) {
+      Logger.error('Get list contacts failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to fetch list contacts' });
+    }
+  }
+
+  async addContactsToList(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      const contactIds = Array.isArray(req.body?.contactIds) ? req.body.contactIds : [];
+      const result = await listsModel.addContactsToList(req, 'contacts', req.params.id, contactIds);
+      res.json(result);
+    } catch (error) {
+      Logger.error('Add contacts to list failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to add contacts to list' });
+    }
+  }
+
+  async removeContactFromList(req, res) {
+    try {
+      const listsModel = require('../../server/core/lists/listsModel');
+      const result = await listsModel.removeContactFromList(
+        req,
+        'contacts',
+        req.params.id,
+        req.params.contactId
+      );
+      res.json(result);
+    } catch (error) {
+      Logger.error('Remove contact from list failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to remove contact from list' });
+    }
+  }
 }
 
 module.exports = ContactController;

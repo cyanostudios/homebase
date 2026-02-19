@@ -86,7 +86,7 @@ class WooCommerceController {
   }
 
   async getWooOverrideCategoriesByProduct(req, { productIds, channelInstanceId }) {
-    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    const userId = req.session?.user?.id;
     if (!userId || !Array.isArray(productIds) || productIds.length === 0) return new Map();
 
     const db = Database.get(req);
@@ -566,7 +566,7 @@ class WooCommerceController {
    * lastCursor: ISO date of newest order's date_created for next run (with 1–2 min overlap).
    */
   async syncOpenOrdersForInstance(req, instance, after = null) {
-    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    const userId = req.session?.user?.id;
     const db = Database.get(req);
     const credentials = instance.credentials || {};
     const storeUrl = credentials.storeUrl || credentials.store_url;
@@ -716,7 +716,7 @@ class WooCommerceController {
       const perPage = req.body?.perPage != null ? Math.min(Math.max(Number(req.body.perPage) || 20, 1), 100) : 20;
       const after = req.body?.after ? String(req.body.after) : null;
 
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       const db = Database.get(req);
 
       const allResults = [];
@@ -1004,7 +1004,7 @@ class WooCommerceController {
   // Source channel is Woo, so we only update platform inventory and (optionally) other channels.
   async applyInventoryFromOrderId(req, orderId) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    const userId = req.session?.user?.id;
     if (!userId) return;
 
     const items = await db.query(

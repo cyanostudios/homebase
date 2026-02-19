@@ -15,6 +15,48 @@ function createContactRoutes(controller, context) {
     context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin(config.name);
 
+  // Contact lists (must be before /:id routes)
+  const listsRouter = express.Router();
+  listsRouter.get('/', gate, (req, res) => controller.getLists(req, res));
+  listsRouter.post(
+    '/',
+    gate,
+    commonRules.string('name', 1, 255),
+    validateRequest,
+    (req, res) => controller.createList(req, res)
+  );
+  listsRouter.get('/:id/contacts', gate, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.getListContacts(req, res)
+  );
+  listsRouter.post(
+    '/:id/contacts',
+    gate,
+    commonRules.id('id'),
+    body('contactIds').isArray().withMessage('contactIds must be an array'),
+    validateRequest,
+    (req, res) => controller.addContactsToList(req, res)
+  );
+  listsRouter.delete(
+    '/:id/contacts/:contactId',
+    gate,
+    commonRules.id('id'),
+    commonRules.id('contactId'),
+    validateRequest,
+    (req, res) => controller.removeContactFromList(req, res)
+  );
+  listsRouter.put(
+    '/:id',
+    gate,
+    commonRules.id('id'),
+    commonRules.string('name', 1, 255),
+    validateRequest,
+    (req, res) => controller.renameList(req, res)
+  );
+  listsRouter.delete('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.deleteList(req, res)
+  );
+  router.use('/lists', listsRouter);
+
   router.get('/', gate, (req, res) => {
     controller.getAll(req, res);
   });

@@ -10,15 +10,18 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 
 import { AppProvider, useApp } from '@/core/api/AppContext';
+import type { Note } from '@/plugins/notes/types/notes';
 import { createPanelHandlers } from '@/core/handlers/panelHandlers';
 import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { createPanelRenderers } from '@/core/rendering/panelRendering';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Dashboard } from '@/core/ui/Dashboard';
+import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { LoginComponent } from '@/core/ui/LoginComponent';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { createPanelFooter } from '@/core/ui/PanelFooter';
+import { SettingsFooter } from '@/core/ui/SettingsFooter';
 import { createPanelTitles } from '@/core/ui/PanelTitles';
 import { ActivityLogForm } from '@/core/ui/SettingsForms/ActivityLogForm';
 import { PreferencesSettingsForm } from '@/core/ui/SettingsForms/PreferencesSettingsForm';
@@ -115,7 +118,7 @@ function findCurrentPlugin(pluginContexts: any[]): any {
 
 // Main App Content
 function AppContent() {
-  const { isAuthenticated, isLoading } = useApp();
+  const { isAuthenticated, isLoading, registerOpenToTaskDialog } = useApp();
   const { attemptNavigation, showWarning, confirmDiscard, cancelDiscard, warningMessage } =
     useGlobalNavigationGuard();
 
@@ -131,6 +134,13 @@ function AppContent() {
   // State
   const [isMobileView, setIsMobileView] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [showToTaskDialog, setShowToTaskDialog] = useState(false);
+  const [noteForTask, setNoteForTask] = useState<Note | null>(null);
+  const [settingsFormState, setSettingsFormState] = useState<{
+    submit: (() => Promise<void>) | null;
+    isSaving: boolean;
+  }>({ submit: null, isSaving: false });
 
   // Initialize currentPage from localStorage, fallback to 'contacts'
   const [currentPage, setCurrentPage] = useState<NavPage>(() => {
@@ -182,6 +192,15 @@ function AppContent() {
     document.addEventListener('keydown', keyboardHandler);
     return () => document.removeEventListener('keydown', keyboardHandler);
   }, [pluginContexts, attemptNavigation]);
+
+  // Register To Task dialog opener (Notes → Tasks)
+  useEffect(() => {
+    registerOpenToTaskDialog((note) => {
+      setNoteForTask(note);
+      setShowToTaskDialog(true);
+    });
+    return () => registerOpenToTaskDialog(null);
+  }, [registerOpenToTaskDialog]);
 
   // All hooks must be before early returns
   const currentPagePlugin = useMemo(() => {
@@ -237,9 +256,27 @@ function AppContent() {
 
     return {
       label: `Add ${singular(currentPagePlugin.navigation?.label || '')}`,
+      icon: currentPagePlugin.navigation?.icon,
       onClick: () => attemptNavigation(() => (openPanel as (item: any) => void)(null)),
     };
   }, [currentPage, currentPagePlugin, pluginContexts, attemptNavigation]);
+
+  // Settings callbacks - must be before early returns (hooks rules)
+  const handleSettingsClose = useCallback(() => setSettingsCategory(null), []);
+  const settingsFormSubmitRef = useRef<(() => Promise<void>) | null>(null);
+  const handleSettingsRegisterSave = useCallback(
+    (submit: () => Promise<void>, isSaving: boolean) => {
+      settingsFormSubmitRef.current = submit;
+      setSettingsFormState({ submit, isSaving });
+    },
+    [],
+  );
+  const handleSettingsSave = useCallback(async () => {
+    const fn = settingsFormSubmitRef.current;
+    if (typeof fn === 'function') {
+      await fn();
+    }
+  }, []);
 
   if (isLoading) {
     return (
@@ -282,7 +319,16 @@ function AppContent() {
     currentPluginContext,
   );
 
-  // Footer with delete handler
+  // Footer with delete and duplicate handlers
+  const handleDuplicateItem = () => {
+    const config = currentPluginContext?.getDuplicateConfig?.(currentItem);
+    const useFallback =
+      currentItem && currentPlugin && currentPlugin.name !== 'contacts' && !config;
+    if (config || useFallback) {
+      setShowDuplicateDialog(true);
+    }
+  };
+
   const panelFooter = createPanelFooter(
     currentMode,
     currentItem,
@@ -292,6 +338,11 @@ function AppContent() {
       ...handlers,
       currentPlugin,
       handleDeleteItem: () => handlers.handleDeleteItem(setShowDeleteConfirm),
+      handleDuplicateItem,
+      getCloseHandler: handlers.getCloseHandler,
+      handleSaveClick: handlers.handleSaveClick,
+      handleCancelClick: handlers.handleCancelClick,
+      isSubmitting: currentPluginContext?.isSaving ?? false,
     },
   );
 
@@ -309,21 +360,29 @@ function AppContent() {
   const settingsPanelContent =
     settingsCategory === 'profile' ? (
       <ProfileSettingsForm
-        onCancel={() => {
-          setSettingsCategory(null);
-        }}
+        onCancel={handleSettingsClose}
+        onRegisterSave={handleSettingsRegisterSave}
       />
     ) : settingsCategory === 'preferences' ? (
       <PreferencesSettingsForm
-        onCancel={() => {
-          setSettingsCategory(null);
-        }}
+        onCancel={handleSettingsClose}
+        onRegisterSave={handleSettingsRegisterSave}
       />
     ) : settingsCategory === 'activity-log' ? (
-      <ActivityLogForm
-        onCancel={() => {
-          setSettingsCategory(null);
-        }}
+      <ActivityLogForm onCancel={handleSettingsClose} />
+    ) : null;
+
+  const settingsPanelFooter =
+    currentPage === 'settings' && settingsCategory ? (
+      <SettingsFooter
+        category={settingsCategory as 'profile' | 'preferences' | 'activity-log'}
+        onClose={handleSettingsClose}
+        onSave={
+          settingsCategory === 'profile' || settingsCategory === 'preferences'
+            ? handleSettingsSave
+            : undefined
+        }
+        isSaving={settingsFormState.isSaving}
       />
     ) : null;
 
@@ -334,7 +393,8 @@ function AppContent() {
   const detailPanelSubtitle = currentPage === 'settings' ? null : panelTitles.getPanelSubtitle();
   const detailPanelContent =
     currentPage === 'settings' ? settingsPanelContent : renderers.renderPanelContent();
-  const detailPanelFooter = currentPage === 'settings' ? null : panelFooter;
+  const detailPanelFooter =
+    currentPage === 'settings' ? settingsPanelFooter : panelFooter;
   const onDetailPanelClose =
     currentPage === 'settings' ? () => setSettingsCategory(null) : handlers.getCloseHandler();
 
@@ -355,7 +415,9 @@ function AppContent() {
         currentPage={currentPage}
         onPageChange={handlePageChange}
         contentTitle={contentTitle}
+        contentIcon={currentPage === 'settings' ? undefined : currentPagePlugin?.navigation?.icon}
         contentActionLabel={currentPage === 'settings' ? 'Close' : primaryAction?.label}
+        contentActionIcon={currentPage === 'settings' ? undefined : primaryAction?.icon}
         onContentAction={
           currentPage === 'settings'
             ? () => handlePageChange(previousPageBeforeSettings.current || 'dashboard')
@@ -406,6 +468,133 @@ function AppContent() {
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
         variant="warning"
+      />
+
+      {/* Duplicate Dialog – plugin getDuplicateConfig/executeDuplicate or naming-convention for estimates/invoices */}
+      <DuplicateDialog
+        isOpen={showDuplicateDialog}
+        onConfirm={(newName) => {
+          if (!currentPluginContext || !currentItem) {
+            setShowDuplicateDialog(false);
+            return;
+          }
+          const executeDuplicate = currentPluginContext.executeDuplicate;
+          if (typeof executeDuplicate === 'function') {
+            executeDuplicate(currentItem, newName)
+              .then(({ closePanel }) => {
+                closePanel();
+                setShowDuplicateDialog(false);
+              })
+              .catch((err: unknown) => {
+                setShowDuplicateDialog(false);
+                alert(
+                  (err as { message?: string; error?: string })?.message ??
+                    (err as { message?: string; error?: string })?.error ??
+                    'Failed to duplicate.',
+                );
+              });
+            return;
+          }
+          // Generic fallback: create copy and close
+          const itemCopy = { ...currentItem };
+          delete itemCopy.id;
+          delete itemCopy.createdAt;
+          delete itemCopy.updatedAt;
+          if (currentPlugin) {
+            const pluginNameSingular = currentPlugin.name.endsWith('s')
+              ? currentPlugin.name.slice(0, -1)
+              : currentPlugin.name;
+            const createFnName = `create${pluginNameSingular.charAt(0).toUpperCase() + pluginNameSingular.slice(1)}`;
+            const closeFnName = `close${pluginNameSingular.charAt(0).toUpperCase() + pluginNameSingular.slice(1)}Panel`;
+            const createFn = currentPluginContext[createFnName];
+            const closeFn = currentPluginContext[closeFnName];
+            if (createFn && closeFn) {
+              createFn({ ...itemCopy, title: newName })
+                .then(() => {
+                  closeFn();
+                  setShowDuplicateDialog(false);
+                })
+                .catch((err: unknown) => {
+                  setShowDuplicateDialog(false);
+                  alert(
+                    (err as { message?: string; error?: string })?.message ??
+                      (err as { message?: string; error?: string })?.error ??
+                      'Failed to duplicate.',
+                  );
+                });
+            } else {
+              setShowDuplicateDialog(false);
+            }
+          } else {
+            setShowDuplicateDialog(false);
+          }
+        }}
+        onCancel={() => setShowDuplicateDialog(false)}
+        defaultName={currentPluginContext?.getDuplicateConfig?.(currentItem)?.defaultName ?? ''}
+        nameLabel={currentPluginContext?.getDuplicateConfig?.(currentItem)?.nameLabel ?? 'Name'}
+        confirmOnly={
+          currentPluginContext?.getDuplicateConfig?.(currentItem)?.confirmOnly ??
+          (currentPlugin?.name === 'estimates' || currentPlugin?.name === 'invoices')
+        }
+      />
+
+      {/* Create task from note – cross-plugin (Notes → Tasks) */}
+      <DuplicateDialog
+        isOpen={showToTaskDialog}
+        title="Create task from note"
+        nameLabel="Task title"
+        confirmText="Create"
+        defaultName={noteForTask?.title ?? ''}
+        onConfirm={(newName) => {
+          if (!noteForTask) {
+            setShowToTaskDialog(false);
+            setNoteForTask(null);
+            return;
+          }
+          const taskEntry = pluginContexts.find(({ plugin }) => plugin.name === 'tasks');
+          const noteEntry = pluginContexts.find(({ plugin }) => plugin.name === 'notes');
+          const taskContext = taskEntry?.context;
+          const noteContext = noteEntry?.context;
+          const saveTask = taskContext?.saveTask;
+          const closeNotePanel = noteContext?.closeNotePanel;
+          if (typeof saveTask !== 'function' || typeof closeNotePanel !== 'function') {
+            setShowToTaskDialog(false);
+            setNoteForTask(null);
+            return;
+          }
+          const payload = {
+            title: newName.trim() || 'Untitled',
+            content: noteForTask.content ?? '',
+            mentions: noteForTask.mentions ?? [],
+            status: 'not started',
+            priority: 'Medium',
+            dueDate: null,
+            assignedTo: null,
+            createdFromNote: noteForTask.id,
+          };
+          saveTask(payload)
+            .then((success) => {
+              if (success) {
+                closeNotePanel();
+                attemptNavigation(() => setCurrentPage('tasks'));
+              }
+              setShowToTaskDialog(false);
+              setNoteForTask(null);
+            })
+            .catch((err: unknown) => {
+              setShowToTaskDialog(false);
+              setNoteForTask(null);
+              alert(
+                (err as { message?: string; error?: string })?.message ??
+                  (err as { message?: string; error?: string })?.error ??
+                  'Failed to create task from note.',
+              );
+            });
+        }}
+        onCancel={() => {
+          setShowToTaskDialog(false);
+          setNoteForTask(null);
+        }}
       />
     </>
   );

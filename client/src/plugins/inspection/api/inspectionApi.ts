@@ -88,6 +88,7 @@ class InspectionApi {
     includeAdminNotes?: boolean;
     fileIds?: string[];
     listIds?: string[];
+    contactListIds?: string[];
   }) {
     return this.request(`/projects/${projectId}/send`, {
       method: 'POST',

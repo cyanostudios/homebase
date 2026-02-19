@@ -1,7 +1,10 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { Receipt } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
+
 import { InvoicesApi, invoicesApi } from '../api/invoicesApi';
+import { invoiceExportConfig, getInvoiceExportBaseFilename } from '../utils/invoiceExportConfig';
 import { useApp } from '@/core/api/AppContext';
 
 export type ValidationError = { field: string; message: string };
@@ -53,6 +56,10 @@ interface InvoicesContextType {
   getPanelTitle: (mode: string, item: Invoice | null, isMobileView: boolean) => any;
   getPanelSubtitle: (mode: string, item: Invoice | null) => any;
   getDeleteMessage: (item: Invoice | null) => string;
+
+  // Detail footer export
+  exportFormats: ExportFormat[];
+  onExportItem: (format: ExportFormat, item: Invoice) => void;
 }
 
 const InvoicesContext = createContext<InvoicesContextType | undefined>(undefined);
@@ -366,6 +373,24 @@ export function InvoicesProvider({
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 
+  const exportFormats: ExportFormat[] = ['csv', 'pdf'];
+
+  const onExportItem = useCallback((format: ExportFormat, item: Invoice) => {
+    const result = exportItems({
+      items: [item],
+      format,
+      config: invoiceExportConfig,
+      filename: getInvoiceExportBaseFilename(item),
+      title: 'Invoices Export',
+    });
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      (result as Promise<void>).catch((err) => {
+        console.error('Export failed:', err);
+        alert('Export failed. Please try again.');
+      });
+    }
+  }, []);
+
   const value: InvoicesContextType = {
     isInvoicesPanelOpen,
     currentInvoice,
@@ -384,6 +409,9 @@ export function InvoicesProvider({
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
+
+    exportFormats,
+    onExportItem,
   };
 
   return <InvoicesContext.Provider value={value}>{children}</InvoicesContext.Provider>;

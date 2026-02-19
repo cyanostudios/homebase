@@ -191,7 +191,7 @@ class ProductController {
   async upsertChannelOverride(req, { productId, channel, instance, active, priceAmount, currency, vatRate, category }) {
     const { Database } = require('@homebase/core');
     const db = Database.get(req);
-    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    const userId = req.session?.user?.id;
     if (!userId) return;
 
     const channelKey = String(channel).toLowerCase();

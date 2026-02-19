@@ -39,7 +39,7 @@
  * Last Modified: August 2025 - Critical Rules Added
  */
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 
 import { Contact } from '@/plugins/contacts/types/contacts';
 import { Estimate } from '@/plugins/estimates/types/estimate';
@@ -85,6 +85,10 @@ interface AppContextType {
   // Registry for plugin close functions
   registerPanelCloseFunction: (pluginName: string, closeFunction: () => void) => void;
   unregisterPanelCloseFunction: (pluginName: string) => void;
+
+  // Cross-plugin: open "Create task from note" dialog (Notes → Tasks)
+  openToTaskDialog: ((note: Note) => void) | null;
+  registerOpenToTaskDialog: (fn: ((note: Note) => void) | null) => void;
 
   // Data refresh
   refreshData: () => Promise<void>;
@@ -251,6 +255,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     new Map(),
   );
 
+  // Prevents parallel checkAuth calls (e.g. rapid F5) from racing and overwriting auth state
+  const isCheckingAuth = useRef(false);
+
+  const [openToTaskDialog, setOpenToTaskDialog] = useState<((note: Note) => void) | null>(null);
+  const registerOpenToTaskDialog = useCallback((fn: ((note: Note) => void) | null) => {
+    queueMicrotask(() => setOpenToTaskDialog(() => fn));
+  }, []);
+
   useEffect(() => {
     checkAuth();
   }, []);
@@ -266,13 +278,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated]);
 
   const checkAuth = async () => {
+    // Guard: if a check is already in flight, ignore this call
+    if (isCheckingAuth.current) return;
+    isCheckingAuth.current = true;
+
     const debugLog = (message: string) => {
       fetch('/api/debug-log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ message }),
-      }).catch(() => {});
+      }).catch(() => { });
     };
     try {
       debugLog('CHECK_AUTH: Calling getMe...');
@@ -288,6 +304,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
+      isCheckingAuth.current = false;
     }
   };
 
@@ -517,6 +534,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         closeOtherPanels,
         registerPanelCloseFunction,
         unregisterPanelCloseFunction,
+
+        openToTaskDialog,
+        registerOpenToTaskDialog,
 
         refreshData,
 

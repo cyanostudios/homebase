@@ -634,7 +634,7 @@ export const ProductList: React.FC = () => {
                   <input
                     ref={headerCheckboxRef}
                     type="checkbox"
-                    className="rounded border-input"
+                    className="h-4 w-4 cursor-pointer rounded border-input"
                     aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
                     checked={allVisibleSelected}
                     onChange={onToggleAllVisible}
@@ -699,7 +699,7 @@ export const ProductList: React.FC = () => {
                   return (
                     <TableRow
                       key={p.id}
-                      className="cursor-pointer"
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50"
                       tabIndex={0}
                       data-list-item={JSON.stringify(raw)}
                       data-plugin-name="products"
@@ -710,10 +710,10 @@ export const ProductList: React.FC = () => {
                         handleOpenProduct(raw);
                       }}
                     >
-                      <TableCell onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          className="rounded border-input"
+                          className="h-4 w-4 cursor-pointer rounded border-input"
                           checked={isSelected}
                           onClick={(e) => e.stopPropagation()}
                           onChange={() => toggleProductSelected(p.id)}

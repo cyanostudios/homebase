@@ -7,7 +7,7 @@ const { AppError } = require('../errors/AppError');
 const TABLE = 'lists';
 
 function getUserId(req) {
-  const userId = req.session?.user?.id ?? req.session?.user?.uuid;
+  const userId = req.session?.user?.id;
   if (!userId) {
     throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
   }
@@ -188,6 +188,7 @@ async function getListById(req, namespace, listId) {
 }
 
 const FILE_LIST_ITEMS_TABLE = 'file_list_items';
+const CONTACT_LIST_ITEMS_TABLE = 'contact_list_items';
 
 /**
  * Get file ids in a list (files namespace). Returns [] if list not found or not in files namespace.
@@ -211,6 +212,87 @@ async function getFileListItems(req, listId) {
   }
 }
 
+/**
+ * Get contact ids in a list (contacts namespace). Returns [] if list not found or not in contacts namespace.
+ */
+async function getContactListItems(req, listId) {
+  try {
+    const list = await getListById(req, 'contacts', listId);
+    if (!list) return [];
+    const db = Database.get(req);
+    const userId = getUserId(req);
+    const rows = await db.query(
+      `SELECT contact_id FROM ${CONTACT_LIST_ITEMS_TABLE}
+       WHERE list_id = $1 AND user_id = $2 ORDER BY created_at ASC`,
+      [listId, userId]
+    );
+    return (rows || []).map((r) => String(r.contact_id));
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    Logger.error('listsModel.getContactListItems failed', error);
+    throw new AppError('Failed to fetch contact list items', 500, AppError.CODES.DATABASE_ERROR);
+  }
+}
+
+/**
+ * Add contacts to a list (contacts namespace).
+ */
+async function addContactsToList(req, namespace, listId, contactIds) {
+  try {
+    const list = await getListById(req, namespace, listId);
+    if (!list) throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
+    if (namespace !== 'contacts') throw new AppError('Namespace must be contacts', 400, AppError.CODES.VALIDATION_ERROR);
+
+    const db = Database.get(req);
+    const userId = getUserId(req);
+    const ids = Array.isArray(contactIds) ? contactIds : [contactIds];
+    let added = 0;
+    for (const contactId of ids) {
+      if (!contactId) continue;
+      try {
+        await db.insert(CONTACT_LIST_ITEMS_TABLE, {
+          list_id: parseInt(listId, 10),
+          contact_id: parseInt(String(contactId), 10),
+        });
+        added += 1;
+      } catch (e) {
+        if (e?.details?.code === '23505' || e?.code === '23505') continue;
+        throw e;
+      }
+    }
+    return { added };
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    Logger.error('listsModel.addContactsToList failed', error);
+    throw new AppError('Failed to add contacts to list', 500, AppError.CODES.DATABASE_ERROR);
+  }
+}
+
+/**
+ * Remove a contact from a list (contacts namespace).
+ */
+async function removeContactFromList(req, namespace, listId, contactId) {
+  try {
+    const list = await getListById(req, namespace, listId);
+    if (!list) throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
+    if (namespace !== 'contacts') throw new AppError('Namespace must be contacts', 400, AppError.CODES.VALIDATION_ERROR);
+
+    const db = Database.get(req);
+    const userId = getUserId(req);
+    const result = await db.query(
+      `DELETE FROM ${CONTACT_LIST_ITEMS_TABLE}
+       WHERE list_id = $1 AND contact_id = $2 AND user_id = $3
+       RETURNING contact_id`,
+      [listId, contactId, userId]
+    );
+    return { removed: result && result.length > 0 };
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    Logger.error('listsModel.removeContactFromList failed', error);
+    throw new AppError('Failed to remove contact from list', 500, AppError.CODES.DATABASE_ERROR);
+  }
+}
+
 module.exports = {
   getLists,
   createList,
@@ -218,5 +300,8 @@ module.exports = {
   deleteList,
   getListById,
   getFileListItems,
+  getContactListItems,
+  addContactsToList,
+  removeContactFromList,
   getUserId,
 };

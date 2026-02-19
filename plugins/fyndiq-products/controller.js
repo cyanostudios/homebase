@@ -292,7 +292,7 @@ class FyndiqProductsController {
         if (normalized.length) marketsFilter = normalized;
       }
 
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) return res.status(401).json({ error: 'User not authenticated' });
 
       // Load per-instance overrides (Selloklon): active/price/currency/category per market instance.
@@ -472,7 +472,7 @@ class FyndiqProductsController {
 
       // Resolve SKU for each productId
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) return res.status(401).json({ error: 'User not authenticated' });
 
       const rows = await db.query(
@@ -713,7 +713,7 @@ class FyndiqProductsController {
       ? Number(totalPrice.amount) + Number(totalPrice.vat_amount)
       : (Number.isFinite(unitPriceInclVat) && qty > 0 ? unitPriceInclVat * qty : null);
 
-    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    const userId = req.session?.user?.id;
     const db = Database.get(req);
     const sku = o.article_sku != null ? String(o.article_sku).trim() : null;
     let platformProductId = null;
@@ -830,7 +830,7 @@ class FyndiqProductsController {
 
   async applyInventoryFromOrderId(req, orderId) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    const userId = req.session?.user?.id;
     if (!userId) return;
 
     const items = await db.query(

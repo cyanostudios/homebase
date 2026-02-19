@@ -747,18 +747,18 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
         <DetailSection title="Contact Information">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">System ID</div>
-              <div className="text-sm font-mono text-gray-900 dark:text-gray-100">{contact.id}</div>
+              <div className="text-xs text-muted-foreground">System ID</div>
+              <div className="text-sm font-medium font-mono">{contact.id}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
-              <div className="text-sm text-gray-900 dark:text-gray-100">
+              <div className="text-xs text-muted-foreground">Created</div>
+              <div className="text-sm font-medium">
                 {new Date(contact.createdAt).toLocaleDateString()}
               </div>
             </div>
             <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Last Updated</div>
-              <div className="text-sm text-gray-900 dark:text-gray-100">
+              <div className="text-xs text-muted-foreground">Last Updated</div>
+              <div className="text-sm font-medium">
                 {new Date(contact.updatedAt).toLocaleDateString()}
               </div>
             </div>

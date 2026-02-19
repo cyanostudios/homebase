@@ -1,8 +1,9 @@
-import { User, Copy, Calendar, AlertCircle } from 'lucide-react';
+import { User, Calendar, AlertCircle } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useApp } from '@/core/api/AppContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
@@ -20,7 +21,16 @@ interface TaskViewProps {
 
 export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
   const { openContactForView } = useContacts();
-  const { closeTaskPanel, duplicateTask, saveTask } = useTasks();
+  const {
+    closeTaskPanel,
+    saveTask,
+    quickEditDraft,
+    setQuickEditField,
+    showDiscardQuickEditDialog,
+    setShowDiscardQuickEditDialog,
+    onDiscardQuickEditAndClose,
+    onConfirmDiscardQuickEditAndClose,
+  } = useTasks();
   const { openNoteForView } = useNotes();
   const { contacts } = useApp();
 
@@ -117,16 +127,6 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     openNoteForView(sourceNote);
   };
 
-  const handleDuplicateTask = async () => {
-    try {
-      await duplicateTask(task);
-      closeTaskPanel();
-    } catch (error) {
-      console.error('Failed to duplicate task:', error);
-      alert('Failed to duplicate task. Please try again.');
-    }
-  };
-
   const formatDueDate = (dueDate: any) => {
     if (!dueDate) {
       return null;
@@ -188,57 +188,18 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
     };
   };
 
-  const handleStatusChange = async (newStatus: string) => {
-    if (newStatus === task.status) {
-      return;
-    }
-
-    try {
-      const updatedData = {
-        title: task.title,
-        content: task.content,
-        mentions: task.mentions,
-        status: newStatus,
-        priority: task.priority,
-        dueDate: task.dueDate,
-        assignedTo: task.assignedTo,
-      };
-
-      const success = await saveTask(updatedData, task.id);
-      if (!success) {
-        alert('Failed to update status. Please try again.');
-      }
-    } catch (error) {
-      console.error('Failed to update status:', error);
-      alert('Failed to update status. Please try again.');
-    }
+  const handleStatusChange = (newStatus: string) => {
+    setQuickEditField('status', newStatus);
   };
 
-  const handlePriorityChange = async (newPriority: string) => {
-    if (newPriority === task.priority) {
-      return;
-    }
-
-    try {
-      const updatedData = {
-        title: task.title,
-        content: task.content,
-        mentions: task.mentions,
-        status: task.status,
-        priority: newPriority,
-        dueDate: task.dueDate,
-        assignedTo: task.assignedTo,
-      };
-
-      const success = await saveTask(updatedData, task.id);
-      if (!success) {
-        alert('Failed to update priority. Please try again.');
-      }
-    } catch (error) {
-      console.error('Failed to update priority:', error);
-      alert('Failed to update priority. Please try igen.');
-    }
+  const handlePriorityChange = (newPriority: string) => {
+    setQuickEditField('priority', newPriority);
   };
+
+  const displayTask = React.useMemo(
+    () => (task ? { ...task, ...(quickEditDraft || {}) } : null),
+    [task, quickEditDraft],
+  );
 
   const assignedContact = getAssignedContact();
   const dueDateInfo = formatDueDate(task?.dueDate);
@@ -353,20 +314,9 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
 
       <Card padding="sm" className="shadow-none px-0">
         <DetailSection title="Quick Actions">
-          <TaskStatusButtons task={task} onStatusChange={handleStatusChange} />
+          <TaskStatusButtons task={displayTask ?? task} onStatusChange={handleStatusChange} />
 
-          <TaskPriorityButtons task={task} onPriorityChange={handlePriorityChange} />
-
-          <div className="mb-4">
-            <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Task Actions
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" size="sm" icon={Copy} onClick={handleDuplicateTask}>
-                Duplicate Task
-              </Button>
-            </div>
-          </div>
+          <TaskPriorityButtons task={displayTask ?? task} onPriorityChange={handlePriorityChange} />
         </DetailSection>
       </Card>
 
@@ -376,24 +326,24 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         <DetailSection title="Task Information">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">System ID</div>
-              <div className="text-sm font-mono text-gray-900 dark:text-gray-100">{task.id}</div>
+              <div className="text-xs text-muted-foreground">System ID</div>
+              <div className="text-sm font-medium font-mono">{task.id}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
-              <div className="text-sm text-gray-900 dark:text-gray-100">
+              <div className="text-xs text-muted-foreground">Created</div>
+              <div className="text-sm font-medium">
                 {new Date(task.createdAt).toLocaleDateString()}
               </div>
             </div>
             <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Last Updated</div>
-              <div className="text-sm text-gray-900 dark:text-gray-100">
+              <div className="text-xs text-muted-foreground">Last Updated</div>
+              <div className="text-sm font-medium">
                 {new Date(task.updatedAt).toLocaleDateString()}
               </div>
             </div>
             {task.createdFromNote && noteLoaded && (
               <div className="sm:col-span-3">
-                <div className="text-xs text-gray-500 dark:text-gray-400">Created from Note</div>
+                <div className="text-xs text-muted-foreground">Created from Note</div>
                 {sourceNote ? (
                   <button
                     onClick={handleNoteClick}
@@ -411,6 +361,17 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
           </div>
         </DetailSection>
       </Card>
+
+      <ConfirmDialog
+        isOpen={showDiscardQuickEditDialog}
+        title="Discard changes?"
+        message="You have unsaved changes to status, priority, or other quick-edit fields. Discard them?"
+        confirmText="Discard"
+        cancelText="Keep Editing"
+        onConfirm={onConfirmDiscardQuickEditAndClose}
+        onCancel={() => setShowDiscardQuickEditDialog(false)}
+        variant="warning"
+      />
     </div>
   );
 };

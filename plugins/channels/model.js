@@ -20,7 +20,7 @@ class ChannelsModel {
   async getAll(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -132,7 +132,7 @@ class ChannelsModel {
   async getProductChannelTargets(req, productId) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -166,7 +166,7 @@ class ChannelsModel {
   async getProductMapRow(req, productId, channel, channelInstanceId = null) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -213,7 +213,7 @@ class ChannelsModel {
   async setProductEnabled(req, { productId, channel, enabled, channelInstanceId }) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -295,7 +295,7 @@ class ChannelsModel {
   async getErrors(req, { channel, limit = 50 } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -335,7 +335,7 @@ class ChannelsModel {
   async listInstances(req, { channel, includeDisabled } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const ch = channel ? this.sanitizeChannelKey(channel) : null;
@@ -379,7 +379,7 @@ class ChannelsModel {
   async upsertInstance(req, { channel, instanceKey, market, label, credentials } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const ch = this.sanitizeChannelKey(channel);
@@ -430,7 +430,7 @@ class ChannelsModel {
   async updateInstance(req, id, { market, label, credentials, enabled } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const instanceId = Number(id);
@@ -504,7 +504,7 @@ class ChannelsModel {
   async listProductOverrides(req, { productId, channel } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const pid = String(productId || '').trim();
@@ -569,7 +569,7 @@ class ChannelsModel {
   async upsertProductOverride(req, { productId, channelInstanceId, active, priceAmount, currency, vatRate, category } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const pid = String(productId || '').trim();
@@ -633,7 +633,7 @@ class ChannelsModel {
   async upsertProductOverridesBulk(req, { productId, items } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const pid = String(productId || '').trim();

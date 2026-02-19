@@ -789,7 +789,7 @@ class CdonProductsController {
 
       // Pull per-market overrides (SE/DK/FI) from channel_product_overrides
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       const productIds = normalized.map((p) => String(p.productId));
       const overridesByProductId = new Map();
 
@@ -1073,7 +1073,7 @@ class CdonProductsController {
     if (o == null || o.id == null) return null;
     const channelOrderId = String(o.id);
     const db = Database.get(req);
-    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    const userId = req.session?.user?.id;
 
     let placedAt = o.created_at != null ? String(o.created_at).trim() : null;
     if (placedAt && !placedAt.endsWith('Z') && !placedAt.includes('+') && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(placedAt)) {
@@ -1156,7 +1156,7 @@ class CdonProductsController {
 
   async applyInventoryFromOrderId(req, orderId) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    const userId = req.session?.user?.id;
     if (!userId) return;
 
     const items = await db.query(

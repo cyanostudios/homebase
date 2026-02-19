@@ -2,9 +2,8 @@
 // Preferences settings form component
 
 import { Moon, Sun } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
@@ -15,6 +14,8 @@ import { useTheme } from '@/hooks/useTheme';
 
 interface PreferencesSettingsFormProps {
   onCancel: () => void;
+  /** Register save handler and isSaving for panel footer */
+  onRegisterSave?: (submit: () => Promise<void>, isSaving: boolean) => void;
 }
 
 const timezones = [
@@ -30,7 +31,7 @@ const languages = [
   { value: 'sv', label: 'Svenska' },
 ];
 
-export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormProps) {
+export function PreferencesSettingsForm({ onCancel, onRegisterSave }: PreferencesSettingsFormProps) {
   const { getSettings, updateSettings } = useApp();
   const { theme, toggleTheme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
@@ -64,7 +65,7 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
       await updateSettings('preferences', {
@@ -79,7 +80,18 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [
+    formData.timezone,
+    formData.language,
+    formData.pomodoroClockEnabled,
+    formData.timeTrackingEnabled,
+    onCancel,
+    updateSettings,
+  ]);
+
+  useEffect(() => {
+    onRegisterSave?.(handleSave, isSaving);
+  }, [handleSave, isSaving, onRegisterSave]);
 
   if (isLoading) {
     return <div className="p-6">Loading...</div>;
@@ -180,16 +192,6 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
           </div>
         </DetailSection>
       </Card>
-
-      {/* Actions */}
-      <div className="flex justify-end gap-3">
-        <Button variant="ghost" onClick={onCancel} disabled={isSaving}>
-          Cancel
-        </Button>
-        <Button onClick={handleSave} disabled={isSaving}>
-          {isSaving ? 'Saving...' : 'Save'}
-        </Button>
-      </div>
     </div>
   );
 }

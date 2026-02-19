@@ -1,10 +1,12 @@
-import { StickyNote } from 'lucide-react';
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { StickyNote, CheckSquare } from 'lucide-react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 
 import { notesApi } from '../api/notesApi';
 import { Note, ValidationError } from '../types/notes';
+import { getNoteExportBaseFilename, notesExportConfig } from '../utils/noteExportConfig';
 
 interface NoteContextType {
   // Note Panel State
@@ -25,12 +27,27 @@ interface NoteContextType {
   deleteNote: (id: string) => Promise<void>;
   deleteNotes: (ids: string[]) => Promise<void>;
   duplicateNote: (note: Note) => Promise<void>;
+  getDuplicateConfig: (item: Note | null) => { defaultName: string; nameLabel: string; confirmOnly: boolean } | null;
+  executeDuplicate: (item: Note, newName: string) => Promise<{ closePanel: () => void; highlightId?: string }>;
   clearValidationErrors: () => void;
 
-  // NEW: Panel Title Functions
+  // Panel Title Functions
   getPanelTitle: (mode: string, item: Note | null, isMobileView: boolean) => any;
   getPanelSubtitle: (mode: string, item: Note | null) => any;
   getDeleteMessage: (item: Note | null) => string;
+
+  // Footer: Export and To Task
+  exportFormats: ExportFormat[];
+  onExportItem: (format: ExportFormat, item: Note) => void;
+  importNotes: (data: any[]) => Promise<void>;
+
+  detailFooterActions?: Array<{
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    onClick: (item: Note) => void;
+    className?: string;
+  }>;
 }
 
 const NoteContext = createContext<NoteContextType | undefined>(undefined);
@@ -42,7 +59,15 @@ interface NoteProviderProps {
 }
 
 export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: NoteProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction, notes, refreshData } = useApp();
+  const {
+    registerPanelCloseFunction,
+    unregisterPanelCloseFunction,
+    notes,
+    refreshData,
+    user,
+    openToTaskDialog,
+  } = useApp();
+  const hasTasksPlugin = Boolean(user?.plugins?.includes('tasks'));
 
   // Panel states
   const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
@@ -231,13 +256,35 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       console.log('Note duplicated successfully');
     } catch (error: any) {
       console.error('Failed to duplicate note:', error);
-      // V2: Handle standardized error format
       const errorMessage = error?.message || error?.error || 'Failed to duplicate note. Please try again.';
       alert(errorMessage);
     }
   };
 
-  // NEW: Panel Title Functions (moved from PanelTitles.tsx)
+  const getDuplicateConfig = (item: Note | null) => {
+    if (!item) return null;
+    return {
+      defaultName: `Copy of ${item.title}`,
+      nameLabel: 'Title',
+      confirmOnly: false,
+    };
+  };
+
+  const executeDuplicate = async (
+    item: Note,
+    newName: string,
+  ): Promise<{ closePanel: () => void; highlightId?: string }> => {
+    const duplicateData = {
+      title: newName,
+      content: item.content,
+      mentions: item.mentions || [],
+    };
+    const created = await notesApi.createNote(duplicateData);
+    await refreshData();
+    return { closePanel: closeNotePanel, highlightId: created?.id };
+  };
+
+  // Panel Title Functions (moved from PanelTitles.tsx)
   const getPanelTitle = (mode: string, item: Note | null, isMobileView: boolean) => {
     // View mode with item
     if (mode === 'view' && item) {
@@ -288,6 +335,54 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 
+  const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
+
+  const onExportItem = useCallback((format: ExportFormat, item: Note) => {
+    const result = exportItems({
+      items: [item],
+      format,
+      config: notesExportConfig,
+      filename: getNoteExportBaseFilename(item),
+      title: 'Notes Export',
+    });
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      (result as Promise<void>).catch((err) => {
+        console.error('Export failed:', err);
+        alert('Export failed. Please try again.');
+      });
+    }
+  }, []);
+
+  const detailFooterActions = hasTasksPlugin && openToTaskDialog
+    ? [
+        {
+          id: 'create-task-from-note',
+          label: 'To Task',
+          icon: CheckSquare,
+          onClick: (note: Note) => openToTaskDialog(note),
+          className: 'text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30',
+        },
+      ]
+    : undefined;
+
+  const importNotes = useCallback(
+    async (data: any[]) => {
+      for (const row of data) {
+        try {
+          await notesApi.createNote({
+            title: row.title ?? '',
+            content: row.content ?? '',
+            mentions: row.mentions ?? [],
+          });
+        } catch (error) {
+          console.error('Failed to import note', row, error);
+        }
+      }
+      await refreshData();
+    },
+    [refreshData],
+  );
+
   const value: NoteContextType = {
     // Panel State
     isNotePanelOpen,
@@ -307,12 +402,19 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     deleteNote,
     deleteNotes,
     duplicateNote,
+    getDuplicateConfig,
+    executeDuplicate,
     clearValidationErrors,
 
-    // NEW: Panel Title Functions
+    // Panel Title Functions
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
+
+    exportFormats,
+    onExportItem,
+    importNotes,
+    detailFooterActions,
   };
 
   return <NoteContext.Provider value={value}>{children}</NoteContext.Provider>;

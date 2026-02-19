@@ -6,6 +6,20 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ## 2026-02 – Homebase 3.1.5 (snapshot before migrating from 3.X)
 
+### Session-stabilitet och städning
+
+- **checkAuth guard**
+  - AppContext använder `isCheckingAuth` ref så att endast ett checkAuth-anrop körs åt gången. Undviker race där parallella anrop kan få olika svar (t.ex. 200 vs 401) och skriva över auth-state.
+  - Fil: [client/src/core/api/AppContext.tsx](client/src/core/api/AppContext.tsx).
+
+- **Session pool**
+  - Session-poolen ökad till max 10 connections. Lagt till `idleTimeoutMillis: 30000` och `connectionTimeoutMillis: 5000` för stabilare session-hantering.
+  - Fil: [server/index.ts](server/index.ts).
+
+- **Borttagning av uuid-referenser**
+  - `req.session.user.uuid` var aldrig satt (users-tabellen har ingen uuid-kolumn). Alla fallbacks `req.session?.user?.id ?? req.session?.user?.uuid` ersatta med `req.session?.user?.id` i server, plugins och types.
+  - Filer: server/index.ts, server/types/express.d.ts, server/core/lists/listsModel.js, plugins (channels, products, orders, cdon-products, fyndiq-products, woocommerce-products, files, inspection), plugins/orders/orderSyncState.js.
+
 ### Dedupe och prioritering (auth och data)
 
 - **En enda getMe**

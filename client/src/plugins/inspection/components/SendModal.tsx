@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, File, Mail, Send } from 'lucide-react';
+import { ChevronDown, ChevronRight, File, Mail, Send, UserPlus } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ContactListPicker } from './ContactListPicker';
 import { inspectionApi } from '../api/inspectionApi';
 import type { InspectionProject, InspectionFileList } from '../types/inspection';
 
@@ -43,6 +44,11 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
   const [error, setError] = useState<string | null>(null);
   const [expandedListIds, setExpandedListIds] = useState<Set<string>>(new Set());
   const [fileIdToName, setFileIdToName] = useState<Record<string, string>>({});
+  const [selectedContactListIds, setSelectedContactListIds] = useState<string[]>([]);
+  const [selectedContactLists, setSelectedContactLists] = useState<{ id: string; name: string }[]>(
+    []
+  );
+  const [showContactListPicker, setShowContactListPicker] = useState(false);
 
   const toggleListExpanded = useCallback((id: string) => {
     setExpandedListIds((prev) => {
@@ -107,8 +113,9 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
   };
 
   const handleSend = async () => {
-    if (recipients.length === 0) {
-      setError('Lägg till minst en mottagare');
+    const hasRecipients = recipients.length > 0 || selectedContactListIds.length > 0;
+    if (!hasRecipients) {
+      setError('Lägg till minst en mottagare eller välj en kontaktlista');
       return;
     }
     setError(null);
@@ -120,6 +127,8 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
         includeAdminNotes,
         listIds: selectedListIds.length > 0 ? selectedListIds : undefined,
         fileIds: selectedFileIds.length > 0 ? selectedFileIds : undefined,
+        contactListIds:
+          selectedContactListIds.length > 0 ? selectedContactListIds : undefined,
       });
       if (res?.logEntry) {
         window.dispatchEvent(new CustomEvent('mailSent', { detail: res.logEntry }));
@@ -184,6 +193,34 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
                 Lägg till
               </Button>
             </div>
+            <div className="flex gap-2 mt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                icon={UserPlus}
+                onClick={() => setShowContactListPicker(true)}
+              >
+                Lägg till från lista
+              </Button>
+            </div>
+            {selectedContactLists.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {selectedContactLists.map((list) => (
+                  <Badge
+                    key={list.id}
+                    variant="secondary"
+                    className="cursor-pointer"
+                    onClick={() => {
+                      setSelectedContactListIds((prev) => prev.filter((id) => id !== list.id));
+                      setSelectedContactLists((prev) => prev.filter((l) => l.id !== list.id));
+                    }}
+                  >
+                    {list.name} ×
+                  </Badge>
+                ))}
+              </div>
+            )}
             <ScrollArea className="h-24 mt-2 border rounded-md">
               <div className="p-2 space-y-1">
                 {contactsWithEmail.map((c) => (
@@ -312,6 +349,30 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
             </div>
           </div>
         </div>
+
+        {showContactListPicker && (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+            <div className="bg-background rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-hidden">
+              <div className="p-4 border-b">
+                <h3 className="font-semibold">Välj kontaktlistor</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Kontakter med e-post från valda listor läggs till som mottagare.
+                </p>
+              </div>
+              <div className="p-4">
+                <ContactListPicker
+                  selectedIds={selectedContactListIds}
+                  onSelect={(ids, lists) => {
+                    setSelectedContactListIds(ids);
+                    setSelectedContactLists(lists || []);
+                    setShowContactListPicker(false);
+                  }}
+                  onClose={() => setShowContactListPicker(false)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="text-sm text-destructive">{error}</div>

@@ -3,6 +3,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -99,32 +100,34 @@ export const InspectionList: React.FC = () => {
         }
       />
 
-      {projectsLoading ? (
-        <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-blue-600" />
-          <span>Loading…</span>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <ClipboardList className="h-12 w-12 mb-4 opacity-50" />
-          <p className="mb-4">
-            {searchTerm
-              ? 'Inga projekt matchar sökningen'
-              : 'Inga besiktningsprojekt ännu. Skapa ett nytt projekt för att börja.'}
-          </p>
-          {!searchTerm && (
-            <Button onClick={() => openInspectionPanel(null)} icon={Plus}>
-              Skapa projekt
-            </Button>
-          )}
-        </div>
-      ) : (
-        <Table>
+      <Card className="shadow-none">
+        {projectsLoading ? (
+          <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-blue-600" />
+            <span>Loading…</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <ClipboardList className="h-12 w-12 mb-4 opacity-50" />
+            <p className="mb-4">
+              {searchTerm
+                ? 'Inga projekt matchar sökningen'
+                : 'Inga besiktningsprojekt ännu. Skapa ett nytt projekt för att börja.'}
+            </p>
+            {!searchTerm && (
+              <Button onClick={() => openInspectionPanel(null)} icon={Plus}>
+                Skapa projekt
+              </Button>
+            )}
+          </div>
+        ) : (
+          <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10">
+              <TableHead className="w-12">
                 <input
                   type="checkbox"
+                  className="h-4 w-4 cursor-pointer"
                   aria-label="Välj alla"
                   checked={allSelected}
                   onChange={toggleAllInspections}
@@ -140,12 +143,13 @@ export const InspectionList: React.FC = () => {
             {filtered.map((project) => (
               <TableRow
                 key={project.id}
-                className="cursor-pointer hover:bg-muted/50"
+                className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50"
                 onClick={() => openInspectionForEdit(project)}
               >
-                <TableCell onClick={(e) => toggleInspectionSelection(String(project.id), e)}>
+                <TableCell className="w-12" onClick={(e) => toggleInspectionSelection(String(project.id), e)}>
                   <input
                     type="checkbox"
+                    className="h-4 w-4 cursor-pointer"
                     aria-label={`Välj ${project.name || 'projekt'}`}
                     checked={selectedInspectionProjectIds.has(String(project.id))}
                     onChange={() => {}}
@@ -165,7 +169,8 @@ export const InspectionList: React.FC = () => {
             ))}
           </TableBody>
         </Table>
-      )}
+        )}
+      </Card>
     </div>
   );
 };

@@ -271,7 +271,7 @@ class InspectionModel {
   async bulkDelete(req, idsRaw) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id ?? req.session?.user?.uuid;
+      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const idList = (Array.isArray(idsRaw) ? idsRaw : [])

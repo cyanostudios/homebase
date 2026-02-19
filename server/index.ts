@@ -1,6 +1,10 @@
 // server/index.ts
 // Minimal server entry point - all logic moved to core modules
 
+/// <reference path="./types/express.d.ts" />
+
+import type { Request, Response, NextFunction } from 'express';
+
 const { execSync } = require('child_process');
 const path = require('path');
 
@@ -34,9 +38,17 @@ const PORT = process.env.PORT || 3002;
 // Trust Railway proxy
 app.set('trust proxy', 1);
 
-// Main database pool (for auth and tenant mapping)
+// Main database pool (for auth, tenant mapping, and app queries)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+});
+
+// Dedicated session pool – avoids competing with app queries under load (fixes logout on rapid F5)
+const sessionPool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
 // Security middleware
@@ -67,11 +79,11 @@ app.use(
   }),
 );
 
-// Session
+// Session (dedicated pool so session load/save never competes with app queries)
 app.use(
   session({
     store: new (pgSession(session))({
-      pool: pool,
+      pool: sessionPool,
       tableName: 'sessions',
     }),
     secret: process.env.SESSION_SECRET || 'homebase-dev-secret-change-in-production',
@@ -87,7 +99,7 @@ app.use(
 );
 
 // DEBUG: Log session state after session is loaded (for troubleshooting logout on reload)
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.path.startsWith('/api')) {
     const sid = req.sessionID;
     const sidShort = typeof sid === 'string' ? sid.slice(0, 8) + '...' : '(no id)';
@@ -109,11 +121,11 @@ app.use(express.urlencoded({ extended: true }));
 //   IMPORTANT: Neon pooler does NOT support setting search_path via startup "options".
 //   For local provider we therefore rely on PostgreSQLAdapter's per-query `SET search_path TO tenant_<userId>, public`
 //   and DO NOT create a separate tenant pool based on a connection string with search_path options.
-app.use(async (req, res, next) => {
-  const userId = req.session?.user?.id ?? req.session?.user?.uuid;
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.session?.user?.id;
 
   // Always keep currentTenantUserId in sync when logged in (used by DB adapter)
-  if (req.session?.user && req.session.currentTenantUserId == null) {
+  if (req.session?.user && req.session.currentTenantUserId == null && userId != null) {
     req.session.currentTenantUserId = userId;
   }
 
@@ -153,7 +165,7 @@ app.use(async (req, res, next) => {
 });
 
 // Auth middleware
-function requireAuth(req, res, next) {
+function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!req.session.user) {
     const poolStats =
       pool && typeof (pool as any).totalCount === 'number'
@@ -176,8 +188,8 @@ function requireAuth(req, res, next) {
   next();
 }
 
-function requirePlugin(pluginName) {
-  return async (req, res, next) => {
+function requirePlugin(pluginName: string) {
+  return async (req: Request, res: Response, next: NextFunction) => {
     if (!req.session || !req.session.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
@@ -203,7 +215,7 @@ app.get('/api/csrf-token', csrfTokenHandler);
 
 // DEBUG: Client can send log lines here so everything appears in the server terminal (dev only)
 if (process.env.NODE_ENV !== 'production') {
-  app.post('/api/debug-log', express.json(), (req, res) => {
+  app.post('/api/debug-log', express.json(), (req: Request, res: Response) => {
     const msg = req.body?.message ?? req.body?.msg ?? String(req.body);
     console.log('[CLIENT]', msg);
     res.status(204).end();
@@ -214,7 +226,7 @@ if (process.env.NODE_ENV !== 'production') {
 app.use('/api', globalLimiter);
 
 // Prevent browser/proxy from caching API responses (avoids stale Channels, Products, etc. on refresh)
-app.use('/api', (_req, res, next) => {
+app.use('/api', (_req: Request, res: Response, next: NextFunction) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.set('Pragma', 'no-cache');
   res.set('Expires', '0');
@@ -231,7 +243,7 @@ setupCoreRoutes(app, { pool, authLimiter, requireAuth, pluginLoader });
 if (process.env.NODE_ENV === 'production') {
   const buildPath = path.join(__dirname, 'public');
   app.use(express.static(buildPath));
-  app.get('*', (req, res, next) => {
+  app.get('*', (req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith('/api')) {
       return next();
     }
@@ -243,7 +255,7 @@ if (process.env.NODE_ENV === 'production') {
 pluginLoader.loadPlugins(app);
 
 // Plugin info endpoint
-app.get('/api/plugins', requireAuth, (req, res) => {
+app.get('/api/plugins', requireAuth, (req: Request, res: Response) => {
   const plugins = pluginLoader.getAllPlugins();
   res.json(plugins);
 });
@@ -292,7 +304,7 @@ async function gracefulShutdown() {
     setTimeout(done, 10000);
   });
   await Bootstrap.shutdown();
-  await pool.end();
+  await Promise.all([pool.end(), sessionPool.end()]);
   process.exit(0);
 }
 

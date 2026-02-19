@@ -1,12 +1,17 @@
 import { Calculator } from 'lucide-react';
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
 import { Badge } from '@/components/ui/badge';
+import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 
 import { estimatesApi } from '../api/estimatesApi';
 import { PublicRouteHandler } from '../components/PublicRouteHandler';
 import { Estimate, ValidationError, calculateEstimateTotals } from '../types/estimate';
+import {
+  estimateExportConfig,
+  getEstimateExportBaseFilename,
+} from '../utils/estimateExportConfig';
 
 interface EstimateContextType {
   // Panel State
@@ -38,6 +43,10 @@ interface EstimateContextType {
   ) => any;
   getPanelSubtitle: (mode: string, item: Estimate | null) => any;
   getDeleteMessage: (item: Estimate | null) => string;
+
+  // Detail footer export
+  exportFormats: ExportFormat[];
+  onExportItem: (format: ExportFormat, item: Estimate) => void;
 }
 
 const EstimateContext = createContext<EstimateContextType | undefined>(undefined);
@@ -438,6 +447,24 @@ export function EstimateProvider({
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 
+  const exportFormats: ExportFormat[] = ['csv', 'pdf'];
+
+  const onExportItem = useCallback((format: ExportFormat, item: Estimate) => {
+    const result = exportItems({
+      items: [item],
+      format,
+      config: estimateExportConfig,
+      filename: getEstimateExportBaseFilename(item),
+      title: 'Estimates Export',
+    });
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      (result as Promise<void>).catch((err) => {
+        console.error('Export failed:', err);
+        alert('Export failed. Please try again.');
+      });
+    }
+  }, []);
+
   const value: EstimateContextType = {
     isEstimatePanelOpen,
     currentEstimate,
@@ -459,6 +486,9 @@ export function EstimateProvider({
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
+
+    exportFormats,
+    onExportItem,
   };
 
   return (

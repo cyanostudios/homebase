@@ -1,0 +1,123 @@
+import { X } from 'lucide-react';
+import React, { useState } from 'react';
+
+import { Button } from '@/components/ui/button';
+
+import { ACCEPTANCE_REASONS, REJECTION_REASONS } from '../types/estimate';
+
+interface StatusReasonModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (reasons: string[]) => void;
+  status: 'accepted' | 'rejected';
+  estimateNumber: string;
+}
+
+export function StatusReasonModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  status,
+  estimateNumber,
+}: StatusReasonModalProps) {
+  const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const reasons = status === 'accepted' ? ACCEPTANCE_REASONS : REJECTION_REASONS;
+  const title =
+    status === 'accepted' ? 'Why was this estimate accepted?' : 'Why was this estimate rejected?';
+  const subtitle =
+    status === 'accepted'
+      ? 'Select all factors that contributed to the acceptance:'
+      : 'Select all factors that led to the rejection:';
+
+  const handleReasonToggle = (reasonId: string) => {
+    setSelectedReasons((prev) =>
+      prev.includes(reasonId) ? prev.filter((id) => id !== reasonId) : [...prev, reasonId],
+    );
+  };
+
+  const handleConfirm = () => {
+    onConfirm(selectedReasons);
+    setSelectedReasons([]); // Reset for next time
+  };
+
+  const handleCancel = () => {
+    setSelectedReasons([]); // Reset selections
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Estimate {estimateNumber}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleCancel}
+            className="h-8 w-8 text-gray-400 hover:text-gray-600"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Content */}
+        <div className="p-4">
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">{subtitle}</p>
+
+          <div className="space-y-2">
+            {reasons.map((reason) => (
+              <label
+                key={reason.id}
+                className="flex items-start space-x-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-900/50 rounded-md cursor-pointer transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedReasons.includes(reason.id)}
+                  onChange={() => handleReasonToggle(reason.id)}
+                  className="mt-0.5 h-4 w-4 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                />
+                <div className="flex-1">
+                  <span className="text-sm text-gray-900 dark:text-gray-100">{reason.label}</span>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          {/* FIX: Always show help message - removed condition */}
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-4 italic">
+            You can proceed without selecting any reasons, but it helps with statistics.
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end space-x-3 p-4 border-t border-gray-100 dark:border-gray-700">
+          <Button variant="secondary" size="sm" onClick={handleCancel}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleConfirm}
+            className={
+              status === 'accepted'
+                ? 'bg-green-600 dark:bg-green-700 hover:bg-green-700 dark:hover:bg-green-800'
+                : 'bg-red-600 dark:bg-red-700 hover:bg-red-700 dark:hover:bg-red-800'
+            }
+          >
+            {status === 'accepted' ? 'Mark as Accepted' : 'Mark as Rejected'}
+            {selectedReasons.length > 0 && ` (${selectedReasons.length})`}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

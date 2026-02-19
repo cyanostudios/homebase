@@ -550,7 +550,7 @@ class OrdersController {
 
   async applyInventoryFromOrder(req, orderId, sourceChannel) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    const userId = req.session?.user?.id;
     if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
     const items = await db.query(
@@ -635,7 +635,7 @@ class OrdersController {
 
   async pushStockToChannels(req, { productId, sku, quantity, sourceChannel }) {
     const db = Database.get(req);
-    const userId = req.session?.user?.id || req.session?.user?.uuid;
+    const userId = req.session?.user?.id;
     if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
     const rows = await db.query(
@@ -933,7 +933,7 @@ class OrdersController {
 
       // CDON: for Delivered on orders >= 299 SEK, require trackingNumber (either provided, or already on each order).
       if (status === 'delivered') {
-        const userId = req.session?.user?.id || req.session?.user?.uuid;
+        const userId = req.session?.user?.id;
         if (!userId) return res.status(401).json({ error: 'User not authenticated' });
 
         const validIds = idsRaw

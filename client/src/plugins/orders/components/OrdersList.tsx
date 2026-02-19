@@ -632,7 +632,8 @@ export const OrdersList: React.FC = () => {
                     checked={filtered.length > 0 && selectedIds.size === filtered.length}
                     onChange={handleSelectAll}
                     onClick={(e) => e.stopPropagation()}
-                    className="rounded border-input"
+                    className="h-4 w-4 cursor-pointer rounded border-input"
+                    aria-label={filtered.length > 0 && selectedIds.size === filtered.length ? 'Unselect all' : 'Select all'}
                   />
                 </TableHead>
                 <TableHead>Channel</TableHead>
@@ -669,10 +670,9 @@ export const OrdersList: React.FC = () => {
                           void toggleExpand(o);
                         }
                       }}
-                      className={`cursor-pointer ${isExpanded ? 'bg-muted/50' : isSelected ? 'bg-muted/30' : ''
-                        }`}
+                      className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50 ${isExpanded ? 'bg-muted/50' : ''} ${isSelected ? 'bg-muted/30' : ''}`}
                     >
-                      <TableCell onClick={(e) => handleToggleSelect(id, e)}>
+                      <TableCell className="w-12" onClick={(e) => handleToggleSelect(id, e)}>
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -685,7 +685,8 @@ export const OrdersList: React.FC = () => {
                             })
                           }
                           onClick={(e) => e.stopPropagation()}
-                          className="rounded border-input"
+                          className="h-4 w-4 cursor-pointer rounded border-input"
+                          aria-label={isSelected ? 'Unselect order' : 'Select order'}
                         />
                       </TableCell>
                       <TableCell>

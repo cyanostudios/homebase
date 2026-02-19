@@ -117,6 +117,45 @@ class ContactsApi {
       method: 'DELETE',
     });
   }
+
+  async getLists(): Promise<{ id: string; name: string }[]> {
+    return this.request('/contacts/lists');
+  }
+
+  async createList(name: string): Promise<{ id: string; name: string }> {
+    return this.request('/contacts/lists', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  async renameList(id: string, name: string): Promise<{ id: string; name: string }> {
+    return this.request(`/contacts/lists/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  async deleteList(id: string): Promise<void> {
+    return this.request(`/contacts/lists/${id}`, { method: 'DELETE' });
+  }
+
+  async getListContacts(listId: string): Promise<any[]> {
+    return this.request(`/contacts/lists/${listId}/contacts`);
+  }
+
+  async addContactsToList(listId: string, contactIds: string[]): Promise<{ added: number }> {
+    return this.request(`/contacts/lists/${listId}/contacts`, {
+      method: 'POST',
+      body: JSON.stringify({ contactIds }),
+    });
+  }
+
+  async removeContactFromList(listId: string, contactId: string): Promise<{ removed: boolean }> {
+    return this.request(`/contacts/lists/${listId}/contacts/${contactId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const contactsApi = new ContactsApi();

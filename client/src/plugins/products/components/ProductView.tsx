@@ -487,18 +487,18 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
         </Heading>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <div className="text-xs text-gray-500">System ID</div>
-            <div className="text-sm font-mono text-gray-900">{productData.id || '—'}</div>
+            <div className="text-xs text-muted-foreground">System ID</div>
+            <div className="text-sm font-medium font-mono">{productData.id || '—'}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">Created</div>
-            <div className="text-sm text-gray-900">
+            <div className="text-xs text-muted-foreground">Created</div>
+            <div className="text-sm font-medium">
               {productData.createdAt ? new Date(productData.createdAt).toLocaleDateString() : '—'}
             </div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">Last Updated</div>
-            <div className="text-sm text-gray-900">
+            <div className="text-xs text-muted-foreground">Last Updated</div>
+            <div className="text-sm font-medium">
               {productData.updatedAt ? new Date(productData.updatedAt).toLocaleDateString() : '—'}
             </div>
           </div>

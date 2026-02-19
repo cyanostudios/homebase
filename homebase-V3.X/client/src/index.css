@@ -1,0 +1,209 @@
+@import './core/styles/poppins.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Bootstrap Color Scheme - Light Mode */
+
+    /* Background: gray-100 (#F5F8FA) */
+    --background: 210 30% 98%;
+    /* Foreground: gray-800 (#3F4254) - body text, darker for better contrast */
+    --foreground: 220 25% 25%;
+
+    /* Card: white */
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 25%;
+
+    /* Popover: same as card */
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 25%;
+
+    /* Primary: Bootstrap primary (#009EF7) */
+    --primary: 200 100% 48%;
+    --primary-foreground: 0 0% 98%;
+
+    /* Secondary: gray-300 (#E4E6EF) */
+    --secondary: 220 15% 90%;
+    --secondary-foreground: 220 25% 25%;
+
+    /* Muted: gray-200 (#EFF2F5) */
+    --muted: 210 15% 95%;
+    /* Muted foreground: gray-900 (#181C32) - darker for sidebar nav items */
+    --muted-foreground: 220 35% 15%;
+
+    /* Accent: gray-200 (#EFF2F5) */
+    --accent: 210 15% 95%;
+    --accent-foreground: 220 25% 25%;
+
+    /* Destructive: Bootstrap danger (#F1416C) */
+    --destructive: 348 86% 56%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Border: gray-300 (#E4E6EF) */
+    --border: 220 15% 90%;
+    --input: 220 15% 90%;
+    --ring: 200 100% 48%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar: gray-200 (#EFF2F5) - matching main background */
+    --sidebar-background: 210 15% 95%;
+    /* Sidebar foreground: gray-800 (#3F4254) - darker for better contrast */
+    --sidebar-foreground: 220 25% 25%;
+
+    /* Sidebar primary: Bootstrap primary (#009EF7) */
+    --sidebar-primary: 200 100% 48%;
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    /* Sidebar accent: gray-300 (#E4E6EF) */
+    --sidebar-accent: 220 15% 90%;
+    --sidebar-accent-foreground: 220 25% 25%;
+
+    /* Sidebar border: gray-300 (#E4E6EF) */
+    --sidebar-border: 220 15% 90%;
+    --sidebar-ring: 200 100% 48%;
+
+    /* Plugin Semantic Colors (Light) */
+    --plugin-notes: 45 93% 47%;
+    /* Amber */
+    --plugin-contacts: 217 91% 60%;
+    /* Blue */
+    --plugin-tasks: 271 91% 65%;
+    /* Purple */
+    --plugin-estimates: 199 89% 48%;
+    /* Cyan/Sky */
+    --plugin-invoices: 142 71% 45%;
+    /* Green/Emerald */
+    --plugin-files: 215 16% 47%;
+    /* Slate */
+    --plugin-mail: 346 84% 61%;
+    /* Rose */
+  }
+
+  .dark {
+    --background: 215 28% 7%;
+    --foreground: 213 12% 84%;
+
+    --card: 215 21% 11%;
+    --card-foreground: 213 12% 84%;
+
+    --popover: 215 21% 11%;
+    --popover-foreground: 213 12% 84%;
+
+    --primary: 212 92% 68%;
+    --primary-foreground: 215 28% 7%;
+
+    --secondary: 215 16% 15%;
+    --secondary-foreground: 213 12% 84%;
+
+    --muted: 215 14% 21%;
+    --muted-foreground: 217 10% 58%;
+
+    --accent: 212 92% 61%;
+    --accent-foreground: 213 12% 84%;
+
+    --destructive: 4 81% 64%;
+    --destructive-foreground: 213 12% 84%;
+
+    --border: 215 14% 21%;
+    --input: 215 14% 21%;
+    --ring: 212 92% 68%;
+
+    --sidebar-background: 215 28% 7%;
+    --sidebar-foreground: 213 12% 84%;
+    --sidebar-primary: 212 92% 68%;
+    --sidebar-primary-foreground: 215 28% 7%;
+    --sidebar-accent: 215 14% 21%;
+    --sidebar-accent-foreground: 213 12% 84%;
+    --sidebar-border: 215 14% 21%;
+    --sidebar-ring: 212 92% 68%;
+
+    /* Plugin Semantic Colors (Dark) */
+    --plugin-notes: 45 93% 47%;
+    --plugin-contacts: 217 91% 60%;
+    --plugin-tasks: 271 91% 65%;
+    --plugin-estimates: 199 89% 48%;
+    --plugin-invoices: 142 71% 45%;
+    --plugin-files: 215 16% 47%;
+    --plugin-mail: 346 84% 61%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings:
+      'liga' 1,
+      'calt' 1;
+    font-variant-ligatures: contextual;
+  }
+
+  /* Placeholders as gray (muted) text across forms */
+  input::placeholder,
+  textarea::placeholder {
+    @apply text-muted-foreground;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Plugin-specific assignments */
+  .plugin-notes {
+    --plugin-color: var(--plugin-notes);
+  }
+
+  .plugin-contacts {
+    --plugin-color: var(--plugin-contacts);
+  }
+
+  .plugin-tasks {
+    --plugin-color: var(--plugin-tasks);
+  }
+
+  .plugin-estimates {
+    --plugin-color: var(--plugin-estimates);
+  }
+
+  .plugin-invoices {
+    --plugin-color: var(--plugin-invoices);
+  }
+
+  .plugin-files {
+    --plugin-color: var(--plugin-files);
+  }
+
+  .plugin-mail {
+    --plugin-color: var(--plugin-mail);
+  }
+
+  /* Utility classes using the assigned variable */
+  .bg-plugin-subtle {
+    background-color: hsla(var(--plugin-color), 0.08);
+  }
+
+  .dark .bg-plugin-subtle {
+    background-color: hsla(var(--plugin-color), 0.15);
+  }
+
+  .border-plugin-subtle {
+    border-color: hsla(var(--plugin-color), 0.2);
+  }
+
+  .text-plugin {
+    color: hsl(var(--plugin-color));
+  }
+
+  .text-plugin-muted {
+    color: hsla(var(--plugin-color), 0.7);
+  }
+}

@@ -728,9 +728,9 @@ export const FileList: React.FC = () => {
                         return (
                           <div
                             key={row.id}
-                            className={`relative border rounded-lg p-3 cursor-pointer transition-all ${isSelected
-                              ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500'
-                              : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+                            className={`plugin-files relative rounded-lg border p-3 cursor-pointer transition-all ${isSelected
+                              ? 'bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
+                              : 'border-border hover:border-plugin-subtle hover:shadow-md'
                               }`}
                             onClick={(e) => {
                               e.preventDefault();
@@ -740,7 +740,7 @@ export const FileList: React.FC = () => {
                             <div className="absolute top-2 left-2">
                               <input
                                 type="checkbox"
-                                className="h-4 w-4"
+                                className="h-4 w-4 cursor-pointer"
                                 checked={isSelected}
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={() => toggleFileSelected(row.id)}
@@ -758,15 +758,17 @@ export const FileList: React.FC = () => {
                                   }}
                                 />
                               ) : (
-                                <div className="w-full h-24 flex items-center justify-center bg-gray-100 rounded mb-2">
-                                  <FileIcon className="w-8 h-8 text-gray-400" />
+                                <div className="w-full h-24 flex items-center justify-center bg-muted rounded mb-2">
+                                  <FileIcon className="w-8 h-8 text-muted-foreground" />
                                 </div>
                               )}
-                              <div className="text-xs font-medium text-gray-900 truncate w-full" title={row.name}>
+                              <div className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate w-full" title={row.name}>
                                 {row.name || '—'}
                               </div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                {humanSize(row.size)}
+                              <div className="text-sm text-muted-foreground mt-0.5">{humanSize(row.size)}</div>
+                              <div className="mt-2 flex items-center justify-between w-full text-[10px] text-muted-foreground pt-2 border-t border-gray-100 dark:border-gray-800">
+                                <span>{row.updatedAt ? row.updatedAt.toLocaleDateString() : '—'}</span>
+                                <span className="font-mono">#{row.id}</span>
                               </div>
                             </div>
                           </div>
@@ -783,7 +785,7 @@ export const FileList: React.FC = () => {
                         <input
                           ref={headerCheckboxRef}
                           type="checkbox"
-                          className="rounded border-input"
+                          className="h-4 w-4 cursor-pointer rounded border-input"
                           aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
                           checked={allVisibleSelected}
                           onChange={onToggleAllVisible}
@@ -826,7 +828,7 @@ export const FileList: React.FC = () => {
                         return (
                           <TableRow
                             key={row.id}
-                            className="cursor-pointer"
+                            className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50"
                             tabIndex={0}
                             data-list-item={JSON.stringify(row.raw)}
                             data-plugin-name="files"
@@ -837,10 +839,10 @@ export const FileList: React.FC = () => {
                               handleOpenForView(row.raw);
                             }}
                           >
-                            <TableCell onClick={(e) => e.stopPropagation()}>
+                            <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
                               <input
                                 type="checkbox"
-                                className="rounded border-input"
+                                className="h-4 w-4 cursor-pointer rounded border-input"
                                 checked={isSelected}
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={() => toggleFileSelected(row.id)}
@@ -905,9 +907,9 @@ export const FileList: React.FC = () => {
                   return (
                     <div
                       key={row.id}
-                      className={`relative border rounded-lg p-3 cursor-pointer transition-all ${isSelected
-                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500'
-                        : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+                      className={`plugin-files relative rounded-lg border p-3 cursor-pointer transition-all ${isSelected
+                        ? 'bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
+                        : 'border-border hover:border-plugin-subtle hover:shadow-md'
                         }`}
                       onClick={(e) => {
                         e.preventDefault();
@@ -917,7 +919,7 @@ export const FileList: React.FC = () => {
                       <div className="absolute top-2 left-2">
                         <input
                           type="checkbox"
-                          className="h-4 w-4"
+                          className="h-4 w-4 cursor-pointer"
                           checked={isSelected}
                           onClick={(e) => e.stopPropagation()}
                           onChange={() => toggleFileSelected(row.id)}
@@ -935,15 +937,17 @@ export const FileList: React.FC = () => {
                             }}
                           />
                         ) : (
-                          <div className="w-full h-24 flex items-center justify-center bg-gray-100 rounded mb-2">
-                            <FileIcon className="w-8 h-8 text-gray-400" />
+                          <div className="w-full h-24 flex items-center justify-center bg-muted rounded mb-2">
+                            <FileIcon className="w-8 h-8 text-muted-foreground" />
                           </div>
                         )}
-                        <div className="text-xs font-medium text-gray-900 truncate w-full" title={row.name}>
+                        <div className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate w-full" title={row.name}>
                           {row.name || '—'}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {humanSize(row.size)}
+                        <div className="text-sm text-muted-foreground mt-0.5">{humanSize(row.size)}</div>
+                        <div className="mt-2 flex items-center justify-between w-full text-[10px] text-muted-foreground pt-2 border-t border-gray-100 dark:border-gray-800">
+                          <span>{row.updatedAt ? row.updatedAt.toLocaleDateString() : '—'}</span>
+                          <span className="font-mono">#{row.id}</span>
                         </div>
                       </div>
                     </div>
@@ -960,7 +964,7 @@ export const FileList: React.FC = () => {
                   <input
                     ref={headerCheckboxRef}
                     type="checkbox"
-                    className="rounded border-input"
+                    className="h-4 w-4 cursor-pointer rounded border-input"
                     aria-label={allVisibleSelected ? 'Unselect all' : 'Select all'}
                     checked={allVisibleSelected}
                     onChange={onToggleAllVisible}
@@ -1003,7 +1007,7 @@ export const FileList: React.FC = () => {
                   return (
                     <TableRow
                       key={row.id}
-                      className="cursor-pointer"
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50"
                       tabIndex={0}
                       data-list-item={JSON.stringify(row.raw)}
                       data-plugin-name="files"
@@ -1014,10 +1018,10 @@ export const FileList: React.FC = () => {
                         handleOpenForView(row.raw);
                       }}
                     >
-                      <TableCell onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          className="rounded border-input"
+                          className="h-4 w-4 cursor-pointer rounded border-input"
                           checked={isSelected}
                           onClick={(e) => e.stopPropagation()}
                           onChange={() => toggleFileSelected(row.id)}

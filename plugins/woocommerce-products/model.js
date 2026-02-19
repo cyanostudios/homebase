@@ -19,7 +19,7 @@ class WooCommerceModel {
   async getInstanceByKey(req, instanceKey) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -55,7 +55,7 @@ class WooCommerceModel {
   async getInstanceById(req, instanceId) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -96,7 +96,7 @@ class WooCommerceModel {
   async listInstances(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -140,7 +140,7 @@ class WooCommerceModel {
   async upsertInstance(req, { instanceKey, label, credentials } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -190,7 +190,7 @@ class WooCommerceModel {
   async deleteInstance(req, instanceId) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -232,7 +232,7 @@ class WooCommerceModel {
   async upsertChannelMap(req, { productId, channel, channelInstanceId, externalId, status, error }) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -282,7 +282,7 @@ class WooCommerceModel {
   async getChannelMapForProducts(req, channel, productIds, instanceId = null) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -327,7 +327,7 @@ class WooCommerceModel {
     try {
       const db = Database.get(req);
       const pool = db.getPool();
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
@@ -424,7 +424,7 @@ class WooCommerceModel {
   async clearChannelMapByExternalId(req, { channel, channelInstanceId, externalId, status, error }) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
 
       if (!userId) {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);

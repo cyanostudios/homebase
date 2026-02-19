@@ -13,7 +13,7 @@ class OrdersModel {
   async list(req, { status, channel, from, to, limit = 50, offset = 0 } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const clauses = ['user_id = $1'];
@@ -82,7 +82,7 @@ class OrdersModel {
   async getById(req, id) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const orderRes = await db.query(
@@ -114,7 +114,7 @@ class OrdersModel {
   async updateStatus(req, id, { status, carrier, trackingNumber } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const res = await db.query(
@@ -146,7 +146,7 @@ class OrdersModel {
   async batchUpdateStatus(req, ids, { status, carrier, trackingNumber } = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       if (!Array.isArray(ids) || ids.length === 0) {
@@ -210,7 +210,7 @@ class OrdersModel {
   async allocateNextOrderNumber(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const res = await db.query(
@@ -241,7 +241,7 @@ class OrdersModel {
   async ingest(req, order) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const channel = String(order?.channel || '').trim().toLowerCase();
@@ -414,7 +414,7 @@ class OrdersModel {
   async deleteAll(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       // Count in current schema first (search_path = tenant_X, public)
@@ -471,7 +471,7 @@ class OrdersModel {
   async deleteByIds(req, ids) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const idList = ids
@@ -517,7 +517,7 @@ class OrdersModel {
   async renumberOrderNumbersByPlacedAt(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       await db.query('DROP INDEX IF EXISTS ux_orders_user_order_number');

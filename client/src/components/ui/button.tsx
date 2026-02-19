@@ -23,6 +23,7 @@ const buttonVariants = cva(
       size: {
         default: "h-10 px-4 py-2",
         sm: "h-9 px-3 rounded-md",
+        xs: "h-7 px-2 py-1 text-[10px] gap-1 rounded", // 3.X compact footer style
         md: "h-10 px-4 py-2", // Alias for default
         lg: "h-11 px-8 rounded-md",
         icon: "h-10 w-10",
@@ -51,9 +52,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       variant;
     
     // Map old size names to new ones
-    const mappedSize = 
-      size === 'md' ? 'default' :
-      size;
+    const mappedSize = size === 'md' ? 'default' : size;
 
     const Comp = asChild ? Slot : "button";
     return (

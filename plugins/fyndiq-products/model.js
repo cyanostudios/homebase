@@ -14,7 +14,7 @@ class FyndiqProductsModel {
   async getSettings(req) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const res = await db.query(
@@ -32,7 +32,7 @@ class FyndiqProductsModel {
   async upsertSettings(req, data) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const apiKey = String(data.apiKey || '').trim();
@@ -75,7 +75,7 @@ class FyndiqProductsModel {
   async upsertChannelMap(req, { productId, channel, enabled, externalId, status, error }) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const sql = `
@@ -112,7 +112,7 @@ class FyndiqProductsModel {
     try {
       const db = Database.get(req);
       const pool = db.getPool();
-      const userId = req.session?.user?.id || req.session?.user?.uuid;
+      const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
       const rawQuery = async (sql, params = []) => {

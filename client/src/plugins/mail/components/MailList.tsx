@@ -87,7 +87,7 @@ export const MailList: React.FC = () => {
       </Card>
 
       {/* History table */}
-      <Card>
+      <Card className="shadow-none">
         <div className="p-4 border-b border-border flex items-center gap-2">
           <Mail className="h-5 w-5 text-muted-foreground" />
           <span className="font-medium">Sent mail history</span>
@@ -111,7 +111,7 @@ export const MailList: React.FC = () => {
             </TableHeader>
             <TableBody>
               {filtered.map((entry) => (
-                <TableRow key={entry.id}>
+                <TableRow key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
                   <TableCell className="text-muted-foreground text-sm">
                     {entry.sentAt ? format(new Date(entry.sentAt), 'yyyy-MM-dd HH:mm') : '—'}
                   </TableCell>

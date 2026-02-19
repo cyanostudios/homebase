@@ -1,4 +1,4 @@
-import { CheckSquare, Copy, Download } from 'lucide-react';
+import { CheckSquare, Download } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ interface NoteViewProps {
 
 export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   const { openContactForView } = useContacts();
-  const { closeNotePanel, duplicateNote } = useNotes();
+  const { closeNotePanel } = useNotes();
   const { saveTask } = useTasks();
   const { refreshData } = useApp();
 
@@ -94,16 +94,6 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     } catch (error) {
       console.error('Failed to convert note to task:', error);
       alert('Failed to convert note to task. Please try again.');
-    }
-  };
-
-  const handleDuplicateNote = async () => {
-    try {
-      await duplicateNote(note); // creates the copy (keeps list behavior unchanged)
-      closeNotePanel(); // close panel when duplicating from View
-    } catch (error) {
-      console.error('Failed to duplicate note:', error);
-      alert('Failed to duplicate note. Please try again.');
     }
   };
 
@@ -208,10 +198,6 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                 Export as Text
               </Button>
 
-              <Button variant="secondary" size="sm" icon={Copy} onClick={handleDuplicateNote}>
-                Duplicate Note
-              </Button>
-
               <Button
                 variant="primary"
                 size="sm"
@@ -232,18 +218,18 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         <DetailSection title="Note Information">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">System ID</div>
-              <div className="text-sm font-mono text-gray-900 dark:text-gray-100">{note.id}</div>
+              <div className="text-xs text-muted-foreground">System ID</div>
+              <div className="text-sm font-medium font-mono">{note.id}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
-              <div className="text-sm text-gray-900 dark:text-gray-100">
+              <div className="text-xs text-muted-foreground">Created</div>
+              <div className="text-sm font-medium">
                 {new Date(note.createdAt).toLocaleDateString()}
               </div>
             </div>
             <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Last Updated</div>
-              <div className="text-sm text-gray-900 dark:text-gray-100">
+              <div className="text-xs text-muted-foreground">Last Updated</div>
+              <div className="text-sm font-medium">
                 {new Date(note.updatedAt).toLocaleDateString()}
               </div>
             </div>

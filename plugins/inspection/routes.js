@@ -95,11 +95,12 @@ function createInspectionRoutes(context) {
     gate,
     commonRules.id('id'),
     [
-      body('recipients').isArray().notEmpty().withMessage('recipients array is required'),
+      body('recipients').optional().isArray(),
       body('includeDescription').optional().isBoolean(),
       body('includeAdminNotes').optional().isBoolean(),
       body('fileIds').optional().isArray(),
       body('listIds').optional().isArray(),
+      body('contactListIds').optional().isArray(),
     ],
     validateRequest,
     (req, res) => controller.send(req, res)

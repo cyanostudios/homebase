@@ -8,7 +8,7 @@ const TABLE = 'order_sync_state';
 const FRESH_THRESHOLD_MINUTES = 2;
 
 function getUserId(req) {
-  return req?.session?.user?.id ?? req?.session?.user?.uuid;
+  return req?.session?.user?.id;
 }
 
 /** DB uses 0 for single-instance channels (CDON/Fyndiq). */

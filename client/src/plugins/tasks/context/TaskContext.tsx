@@ -5,14 +5,17 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
   ReactNode,
 } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
+import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 
 import { tasksApi } from '../api/tasksApi';
 import { Task, ValidationError } from '../types/tasks';
+import { getTaskExportBaseFilename, getTasksExportConfig } from '../utils/taskExportConfig';
 
 interface TaskContextType {
   isTaskPanelOpen: boolean;
@@ -30,12 +33,40 @@ interface TaskContextType {
   deleteTask: (id: string) => Promise<void>;
   deleteTasks: (ids: string[]) => Promise<void>;
   duplicateTask: (task: Task) => Promise<void>;
+  getDuplicateConfig: (item: Task | null) => { defaultName: string; nameLabel: string; confirmOnly: boolean } | null;
+  executeDuplicate: (item: Task, newName: string) => Promise<{ closePanel: () => void; highlightId?: string }>;
   clearValidationErrors: () => void;
 
-  // NEW: Panel Title Functions
+  // Quick-edit (view mode status/priority/dueDate/assignee)
+  quickEditDraft: Partial<{
+    status: string;
+    priority: string;
+    dueDate: Date | null;
+    assignedTo: string | null;
+  }> | null;
+  setQuickEditField: (
+    field: 'status' | 'priority' | 'dueDate' | 'assignedTo',
+    value: string | Date | null,
+  ) => void;
+  hasQuickEditChanges: boolean;
+  onApplyQuickEdit: () => Promise<void>;
+  getCloseHandler: (defaultClose: () => void) => () => void;
+  showDiscardQuickEditDialog: boolean;
+  setShowDiscardQuickEditDialog: (show: boolean) => void;
+  onDiscardQuickEditAndClose: () => void;
+  onConfirmDiscardQuickEditAndClose: () => void;
+
+  // Panel Title Functions
   getPanelTitle: (mode: string, item: Task | null, isMobileView: boolean) => any;
   getPanelSubtitle: (mode: string, item: Task | null) => any;
   getDeleteMessage: (item: Task | null) => string;
+
+  // Detail footer export
+  exportFormats: ExportFormat[];
+  onExportItem: (format: ExportFormat, item: Task) => void;
+
+  // Import
+  importTasks: (data: any[]) => Promise<void>;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -54,12 +85,28 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
 
+  const [quickEditDraft, setQuickEditDraftState] = useState<Partial<{
+    status: string;
+    priority: string;
+    dueDate: Date | null;
+    assignedTo: string | null;
+  }> | null>(null);
+  const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
+  const pendingCloseRef = useRef<(() => void) | null>(null);
+
   const closeTaskPanel = useCallback(() => {
     setIsTaskPanelOpen(false);
     setCurrentTask(null);
     setPanelMode('create');
     setValidationErrors([]);
+    setQuickEditDraftState(null);
+    setShowDiscardQuickEditDialog(false);
+    pendingCloseRef.current = null;
   }, []);
+
+  useEffect(() => {
+    setQuickEditDraftState(null);
+  }, [currentTask?.id]);
 
   useEffect(() => {
     registerPanelCloseFunction('tasks', closeTaskPanel);
@@ -229,6 +276,98 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   };
 
+  const setQuickEditField = useCallback(
+    (field: 'status' | 'priority' | 'dueDate' | 'assignedTo', value: string | Date | null) => {
+      setQuickEditDraftState((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+    },
+    [],
+  );
+
+  const hasQuickEditChanges = Boolean(
+    currentTask &&
+      quickEditDraft &&
+      Object.keys(quickEditDraft).length > 0 &&
+      (() => {
+        const merged = {
+          status: (quickEditDraft.status ?? currentTask.status) as string,
+          priority: (quickEditDraft.priority ?? currentTask.priority) as string,
+          dueDate:
+            quickEditDraft.dueDate !== undefined ? quickEditDraft.dueDate : currentTask.dueDate,
+          assignedTo:
+            quickEditDraft.assignedTo !== undefined
+              ? quickEditDraft.assignedTo
+              : currentTask.assignedTo,
+        };
+        const sameStatus = merged.status === currentTask.status;
+        const samePriority = merged.priority === currentTask.priority;
+        const sameDue =
+          ((merged.dueDate === null || merged.dueDate === undefined) &&
+            (currentTask.dueDate === null || currentTask.dueDate === undefined)) ||
+          (merged.dueDate !== null &&
+            merged.dueDate !== undefined &&
+            currentTask.dueDate !== null &&
+            currentTask.dueDate !== undefined &&
+            new Date(merged.dueDate).getTime() === new Date(currentTask.dueDate).getTime());
+        const sameAssignee =
+          String(merged.assignedTo ?? '') === String(currentTask.assignedTo ?? '');
+        return !sameStatus || !samePriority || !sameDue || !sameAssignee;
+      })(),
+  );
+
+  const onApplyQuickEdit = useCallback(async () => {
+    if (!currentTask || !quickEditDraft || Object.keys(quickEditDraft).length === 0) {
+      return;
+    }
+    const merged = {
+      title: currentTask.title,
+      content: currentTask.content,
+      mentions: currentTask.mentions ?? [],
+      status: quickEditDraft.status ?? currentTask.status,
+      priority: quickEditDraft.priority ?? currentTask.priority,
+      dueDate: quickEditDraft.dueDate !== undefined ? quickEditDraft.dueDate : currentTask.dueDate,
+      assignedTo:
+        quickEditDraft.assignedTo !== undefined
+          ? quickEditDraft.assignedTo
+          : currentTask.assignedTo,
+    };
+    const success = await saveTask(merged, currentTask.id);
+    if (success) {
+      setQuickEditDraftState(null);
+    }
+  }, [currentTask, quickEditDraft, saveTask]);
+
+  const getCloseHandler = useCallback(
+    (defaultClose: () => void) => {
+      return () => {
+        if (hasQuickEditChanges) {
+          pendingCloseRef.current = defaultClose;
+          setShowDiscardQuickEditDialog(true);
+        } else {
+          defaultClose();
+        }
+      };
+    },
+    [hasQuickEditChanges],
+  );
+
+  const onDiscardQuickEditAndClose = useCallback(() => {
+    setQuickEditDraftState(null);
+    setShowDiscardQuickEditDialog(false);
+  }, []);
+
+  const onConfirmDiscardQuickEditAndClose = useCallback(() => {
+    setQuickEditDraftState(null);
+    setShowDiscardQuickEditDialog(false);
+    const fn = pendingCloseRef.current;
+    pendingCloseRef.current = null;
+    if (typeof fn === 'function') {
+      fn();
+    }
+  }, []);
+
   const deleteTask = async (id: string) => {
     try {
       await tasksApi.deleteTask(id);
@@ -269,14 +408,40 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       console.log('Task duplicated successfully');
     } catch (error: any) {
       console.error('Failed to duplicate task:', error);
-      // V2: Handle standardized error format
       const errorMessage =
         error?.message || error?.error || 'Failed to duplicate task. Please try again.';
       alert(errorMessage);
     }
   };
 
-  // NEW: Panel Title Functions (moved from PanelTitles.tsx)
+  const getDuplicateConfig = (item: Task | null) => {
+    if (!item) return null;
+    return {
+      defaultName: `Copy of ${item.title}`,
+      nameLabel: 'Title',
+      confirmOnly: false,
+    };
+  };
+
+  const executeDuplicate = async (
+    item: Task,
+    newName: string,
+  ): Promise<{ closePanel: () => void; highlightId?: string }> => {
+    const duplicateData = {
+      title: newName,
+      content: item.content,
+      status: 'not started' as const,
+      priority: item.priority,
+      dueDate: item.dueDate,
+      assignedTo: item.assignedTo,
+      mentions: item.mentions || [],
+    };
+    const created = await tasksApi.createTask(duplicateData);
+    await refreshData();
+    return { closePanel: closeTaskPanel, highlightId: created?.id };
+  };
+
+  // Panel Title Functions (moved from PanelTitles.tsx)
   const getPanelTitle = (mode: string, item: Task | null, isMobileView: boolean) => {
     // View mode with item
     if (mode === 'view' && item) {
@@ -389,6 +554,47 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 
+  const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
+
+  const onExportItem = useCallback(
+    (format: ExportFormat, item: Task) => {
+      const config = getTasksExportConfig(contacts ?? []);
+      const result = exportItems({
+        items: [item],
+        format,
+        config,
+        filename: getTaskExportBaseFilename(item),
+        title: 'Tasks Export',
+      });
+      if (result && typeof (result as Promise<void>).then === 'function') {
+        (result as Promise<void>).catch((err) => {
+          console.error('Export failed:', err);
+          alert('Export failed. Please try again.');
+        });
+      }
+    },
+    [contacts],
+  );
+
+  const importTasks = useCallback(
+    async (data: any[]) => {
+      for (const row of data) {
+        try {
+          await tasksApi.createTask({
+            title: row.title ?? '',
+            content: row.content ?? '',
+            status: row.status ?? 'not started',
+            priority: row.priority ?? 'Medium',
+          });
+        } catch (error) {
+          console.error('Failed to import task', row, error);
+        }
+      }
+      await refreshData();
+    },
+    [refreshData],
+  );
+
   const value: TaskContextType = {
     isTaskPanelOpen,
     currentTask,
@@ -405,12 +611,28 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     deleteTask,
     deleteTasks,
     duplicateTask,
+    getDuplicateConfig,
+    executeDuplicate,
     clearValidationErrors,
 
-    // NEW: Panel Title Functions
+    quickEditDraft,
+    setQuickEditField,
+    hasQuickEditChanges,
+    onApplyQuickEdit,
+    getCloseHandler,
+    showDiscardQuickEditDialog,
+    setShowDiscardQuickEditDialog,
+    onDiscardQuickEditAndClose,
+    onConfirmDiscardQuickEditAndClose,
+
+    // Panel Title Functions
     getPanelTitle,
     getPanelSubtitle,
     getDeleteMessage,
+
+    exportFormats,
+    onExportItem,
+    importTasks,
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;

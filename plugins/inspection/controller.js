@@ -191,19 +191,43 @@ class InspectionController {
 
   async send(req, res) {
     try {
-      const { recipients, includeDescription, includeAdminNotes, fileIds, listIds } = req.body;
+      const {
+        recipients,
+        includeDescription,
+        includeAdminNotes,
+        fileIds,
+        listIds,
+        contactListIds,
+      } = req.body;
       const projectId = req.params.id;
-
-      if (!recipients || (Array.isArray(recipients) && recipients.length === 0)) {
-        return res.status(400).json({ error: 'At least one recipient is required' });
-      }
 
       const project = await model.getById(req, projectId);
       if (!project) return res.status(404).json({ error: 'Project not found' });
 
-      const emailList = await resolveRecipients(req, Array.isArray(recipients) ? recipients : [recipients]);
+      let emailList = await resolveRecipients(
+        req,
+        Array.isArray(recipients) ? recipients : recipients ? [recipients] : []
+      );
+
+      if (Array.isArray(contactListIds) && contactListIds.length > 0) {
+        const listsModel = require('../../server/core/lists/listsModel');
+        const allContacts = await contactsModel.getAll(req);
+        const contactMap = new Map(allContacts.map((c) => [String(c.id), c]));
+        const emailsFromLists = new Set();
+        for (const listId of contactListIds) {
+          const contactIds = await listsModel.getContactListItems(req, listId);
+          for (const cid of contactIds) {
+            const c = contactMap.get(String(cid));
+            if (c?.email) emailsFromLists.add(c.email);
+          }
+        }
+        emailList = [...new Set([...emailList, ...emailsFromLists])];
+      }
+
       if (emailList.length === 0) {
-        return res.status(400).json({ error: 'No valid email addresses found for recipients' });
+        return res.status(400).json({
+          error: 'Lägg till minst en mottagare eller välj en kontaktlista med kontakter som har e-post.',
+        });
       }
 
       const parts = [];
