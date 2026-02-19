@@ -10,6 +10,7 @@ import {
   FileText,
   Grid3x3,
   List as ListIcon,
+  ListPlus,
   Upload,
   FolderPlus,
   ChevronRight,
@@ -24,9 +25,17 @@ import { Card } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -111,6 +120,12 @@ export const ContactList: React.FC = () => {
   const [newListName, setNewListName] = useState('');
   const [editingListId, setEditingListId] = useState<string | null>(null);
   const [editingListName, setEditingListName] = useState('');
+  // Add to list dropdown (from contact list view)
+  const [addToListLists, setAddToListLists] = useState<Array<{ id: string; name: string }>>([]);
+  const [addToListLoading, setAddToListLoading] = useState(false);
+  const [showCreateListDialog, setShowCreateListDialog] = useState(false);
+  const [createListDialogName, setCreateListDialogName] = useState('');
+  const [createListDialogSaving, setCreateListDialogSaving] = useState(false);
 
   useEffect(() => {
     if (activeContentView !== 'lists') return;
@@ -172,13 +187,66 @@ export const ContactList: React.FC = () => {
   };
 
   const handleAddContactsToList = (contactIds: string[]) => {
-    if (!selectedListId || contactIds.length === 0) return;
-    contactsApi
-      .addContactsToList(selectedListId, contactIds)
+    if (!selectedListId) return;
+    const currentIds = listContacts.map((c: any) => String(c.id));
+    const toAdd = contactIds.filter((id) => !currentIds.includes(id));
+    const toRemove = currentIds.filter((id) => !contactIds.includes(id));
+    const promises: Promise<any>[] = [];
+    if (toAdd.length > 0) {
+      promises.push(contactsApi.addContactsToList(selectedListId, toAdd));
+    }
+    toRemove.forEach((id) => promises.push(contactsApi.removeContactFromList(selectedListId, id)));
+    Promise.all(promises)
       .then(() => contactsApi.getListContacts(selectedListId))
       .then((data) => setListContacts(Array.isArray(data) ? data : []))
-      .catch((err) => console.error('Add contacts to list failed:', err));
+      .catch((err) => console.error('Sync list contacts failed:', err));
     setShowContactPicker(false);
+  };
+
+  const fetchListsForAddToList = () => {
+    setAddToListLoading(true);
+    contactsApi
+      .getLists()
+      .then((data) => setAddToListLists(data || []))
+      .catch((err) => console.error('Failed to load lists:', err))
+      .finally(() => setAddToListLoading(false));
+  };
+
+  const handleAddSelectedToList = (listId: string) => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    contactsApi
+      .addContactsToList(listId, ids)
+      .then(() => setSelectedIds(new Set()))
+      .catch((err) => console.error('Add contacts to list failed:', err));
+  };
+
+  const openCreateListDialog = () => {
+    setCreateListDialogName('');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setShowCreateListDialog(true));
+    });
+  };
+
+  const handleCreateListDialogSubmit = () => {
+    const name = createListDialogName.trim();
+    if (!name || selectedIds.size === 0) return;
+    setCreateListDialogSaving(true);
+    contactsApi
+      .createList(name)
+      .then((list) => {
+        return contactsApi.addContactsToList(list.id, Array.from(selectedIds)).then(() => list);
+      })
+      .then((list) => {
+        setLists((prev) =>
+          [...prev, { id: String(list.id), name: list.name }].sort((a, b) => a.name.localeCompare(b.name))
+        );
+        setSelectedIds(new Set());
+        setShowCreateListDialog(false);
+        setCreateListDialogName('');
+      })
+      .catch((err) => console.error('Create list / add contacts failed:', err))
+      .finally(() => setCreateListDialogSaving(false));
   };
 
   const handleRemoveContactFromList = (contactId: string) => {
@@ -392,30 +460,70 @@ export const ContactList: React.FC = () => {
   return (
     <div className="space-y-4">
       {activeContentView === 'all' && (
-        <BulkActionBar
-          selectedCount={selectedCount}
-          onClearSelection={() => setSelectedIds(new Set())}
-          actions={[
-            {
-              label: 'Export CSV',
-              icon: FileSpreadsheet,
-              onClick: handleExportCSV,
-              variant: 'default',
-            },
-            {
-              label: 'Export PDF',
-              icon: FileText,
-              onClick: handleExportPDF,
-              variant: 'default',
-            },
-            {
-              label: 'Delete…',
-              icon: Trash2,
-              onClick: () => setBulkDeleteOpen(true),
-              variant: 'destructive',
-            },
-          ]}
-        />
+        <div className="flex flex-col gap-2">
+          <BulkActionBar
+            selectedCount={selectedCount}
+            onClearSelection={() => setSelectedIds(new Set())}
+            actions={[
+              {
+                label: 'Export CSV',
+                icon: FileSpreadsheet,
+                onClick: handleExportCSV,
+                variant: 'default',
+              },
+              {
+                label: 'Export PDF',
+                icon: FileText,
+                onClick: handleExportPDF,
+                variant: 'default',
+              },
+              {
+                label: 'Delete…',
+                icon: Trash2,
+                onClick: () => setBulkDeleteOpen(true),
+                variant: 'destructive',
+              },
+            ]}
+          />
+          {selectedCount > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <DropdownMenu onOpenChange={(open) => open && fetchListsForAddToList()}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" title="Lägg till i lista">
+                    <ListPlus className="w-4 h-4 mr-1" />
+                    Add to list ({selectedCount})
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[12rem]">
+                  {addToListLoading ? (
+                    <div className="px-2 py-3 text-sm text-muted-foreground">Laddar listor...</div>
+                  ) : (
+                    <>
+                      {addToListLists.length === 0 ? (
+                        <div className="px-2 py-3 text-sm text-muted-foreground">Inga listor</div>
+                      ) : (
+                        addToListLists.map((list) => (
+                          <DropdownMenuItem
+                            key={list.id}
+                            onSelect={() => handleAddSelectedToList(list.id)}
+                          >
+                            <FolderPlus className="w-4 h-4 mr-2" />
+                            {list.name}
+                          </DropdownMenuItem>
+                        ))
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => openCreateListDialog()}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Skapa ny
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+        </div>
       )}
 
       {activeContentView === 'lists' ? (
@@ -511,8 +619,8 @@ export const ContactList: React.FC = () => {
                       {selectedListId ? lists.find((l) => l.id === selectedListId)?.name ?? 'Kontakter' : 'Välj en lista'}
                     </span>
                     {selectedListId && (
-                      <Button size="sm" icon={Plus} variant="outline" onClick={() => setShowContactPicker(true)}>
-                        Lägg till kontakter
+                      <Button size="sm" icon={Pencil} variant="outline" onClick={() => setShowContactPicker(true)}>
+                        Redigera kontakter
                       </Button>
                     )}
                   </h3>
@@ -522,7 +630,7 @@ export const ContactList: React.FC = () => {
                         <div className="p-4 text-sm text-muted-foreground">Laddar kontakter...</div>
                       ) : listContacts.length === 0 ? (
                         <div className="p-4 text-sm text-muted-foreground">
-                          Inga kontakter i listan. Klicka &quot;Lägg till kontakter&quot;.
+                          Inga kontakter i listan. Klicka &quot;Redigera kontakter&quot; för att lägga till.
                         </div>
                       ) : (
                         <div className="divide-y">
@@ -784,16 +892,55 @@ export const ContactList: React.FC = () => {
         <Dialog open onOpenChange={() => setShowContactPicker(false)}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Lägg till kontakter</DialogTitle>
+              <DialogTitle>Redigera lista</DialogTitle>
             </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Välj eller avvälj kontakter. Ändringarna sparas när du klickar på Uppdatera.
+            </p>
             <ContactPicker
               selectedIds={listContacts.map((c: any) => String(c.id))}
               onSelect={handleAddContactsToList}
               onClose={() => setShowContactPicker(false)}
+              confirmLabel="Uppdatera lista"
             />
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Create new list (from Add to list) */}
+      <Dialog open={showCreateListDialog} onOpenChange={setShowCreateListDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Skapa ny lista</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {selectedCount} kontakt{selectedCount !== 1 ? 'er' : ''} läggs i den nya listan.
+          </p>
+          <Input
+            placeholder="Listans namn"
+            value={createListDialogName}
+            onChange={(e) => setCreateListDialogName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreateListDialogSubmit()}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateListDialog(false)}
+              disabled={createListDialogSaving}
+            >
+              Avbryt
+            </Button>
+            <Button
+              onClick={handleCreateListDialogSubmit}
+              disabled={!createListDialogName.trim() || createListDialogSaving}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              {createListDialogSaving ? 'Skapar…' : 'Skapa'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ImportWizard
         isOpen={showImportWizard}

@@ -256,7 +256,8 @@ async function addContactsToList(req, namespace, listId, contactIds) {
         });
         added += 1;
       } catch (e) {
-        if (e?.details?.code === '23505' || e?.code === '23505') continue;
+        const pgCode = e?.details?.errorCode ?? e?.code;
+        if (pgCode === '23505') continue; // duplicate key – contact already in list
         throw e;
       }
     }

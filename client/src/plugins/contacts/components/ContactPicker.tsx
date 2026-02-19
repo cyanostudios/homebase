@@ -10,9 +10,16 @@ export interface ContactPickerProps {
   selectedIds: string[];
   onSelect: (contactIds: string[]) => void;
   onClose: () => void;
+  /** Optional label for confirm button (default: "Lägg till valda") */
+  confirmLabel?: string;
 }
 
-export const ContactPicker: React.FC<ContactPickerProps> = ({ selectedIds, onSelect, onClose }) => {
+export const ContactPicker: React.FC<ContactPickerProps> = ({
+  selectedIds,
+  onSelect,
+  onClose,
+  confirmLabel = 'Lägg till valda',
+}) => {
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -103,7 +110,9 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({ selectedIds, onSel
         <Button variant="outline" onClick={onClose}>
           Avbryt
         </Button>
-        <Button onClick={handleConfirm}>Lägg till valda ({selected.size})</Button>
+        <Button onClick={handleConfirm}>
+          {confirmLabel} ({selected.size})
+        </Button>
       </div>
     </div>
   );
