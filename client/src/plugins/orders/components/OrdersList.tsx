@@ -40,6 +40,25 @@ function fmtMoney(amount: any, currency?: string | null) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'SEK' }).format(n);
 }
 
+/** Group key for CDON/Fyndiq orders that belong together (same customer, same minute). Returns null if no grouping. */
+function getOrderGroupKey(o: OrderListItem): string | null {
+  const ch = (o.channel || '').toLowerCase();
+  if (ch !== 'cdon' && ch !== 'fyndiq') return null;
+
+  const cust = o.customer as { firstName?: string; lastName?: string } | undefined;
+  const addr = o.shippingAddress as { first_name?: string; last_name?: string } | undefined;
+  const firstName = (cust?.firstName ?? addr?.first_name ?? '').toString().trim();
+  const lastName = (cust?.lastName ?? addr?.last_name ?? '').toString().trim();
+  if (!firstName && !lastName) return null;
+
+  const placedAt = o.placedAt ? new Date(o.placedAt).getTime() : 0;
+  if (!Number.isFinite(placedAt)) return null;
+  const minuteBucket = Math.floor(placedAt / 60000);
+  const market = (o.raw?.market ?? '').toString().trim().toUpperCase();
+
+  return `${ch}:${market}:${firstName}:${lastName}:${minuteBucket}`;
+}
+
 function normalizeDetails(raw: any): OrderDetails {
   return {
     ...raw,
@@ -217,6 +236,35 @@ export const OrdersList: React.FC = () => {
       return hay.includes(q);
     });
   }, [orders, search]);
+
+  /** Orders grouped by (customer + minute) for CDON/Fyndiq. Only groups with >1 order. */
+  const orderGroups = useMemo(() => {
+    const map = new Map<string, OrderListItem[]>();
+    for (const o of filtered) {
+      const key = getOrderGroupKey(o);
+      if (key) {
+        const arr = map.get(key) ?? [];
+        arr.push(o);
+        map.set(key, arr);
+      }
+    }
+    for (const [k, v] of map.entries()) {
+      if (v.length < 2) map.delete(k);
+    }
+    return map;
+  }, [filtered]);
+
+  const getGroupInfo = useCallback(
+    (o: OrderListItem) => {
+      const key = getOrderGroupKey(o);
+      if (!key || !orderGroups.has(key)) return null;
+      const arr = orderGroups.get(key)!;
+      const idx = arr.findIndex((x) => String(x.id) === String(o.id));
+      if (idx < 0) return null;
+      return { key, index: idx, total: arr.length, isFirst: idx === 0, isLast: idx === arr.length - 1 };
+    },
+    [orderGroups],
+  );
 
   const onChangeFilter = (key: string, value: string) => {
     const next: any = { ...filters };
@@ -626,6 +674,7 @@ export const OrdersList: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-5 p-0" aria-hidden />
                 <TableHead className="w-12">
                   <input
                     type="checkbox"
@@ -652,6 +701,7 @@ export const OrdersList: React.FC = () => {
                 const loading = detailLoading === id;
                 const orderNum = o.orderNumber != null ? o.orderNumber : null;
                 const isSelected = selectedIds.has(id);
+                const groupInfo = getGroupInfo(o);
 
                 return (
                   <React.Fragment key={o.id}>
@@ -672,7 +722,11 @@ export const OrdersList: React.FC = () => {
                       }}
                       className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50 ${isExpanded ? 'bg-muted/50' : ''} ${isSelected ? 'bg-muted/30' : ''}`}
                     >
-                      <TableCell className="w-12" onClick={(e) => handleToggleSelect(id, e)}>
+                      <TableCell
+                        className={`w-5 p-0 align-top ${groupInfo ? 'border-l-2 border-muted' : ''}`}
+                        aria-hidden
+                      />
+                      <TableCell className={`w-12 ${groupInfo ? 'pl-3' : ''}`} onClick={(e) => handleToggleSelect(id, e)}>
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -689,7 +743,7 @@ export const OrdersList: React.FC = () => {
                           aria-label={isSelected ? 'Unselect order' : 'Select order'}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className={groupInfo ? 'pl-3' : ''}>
                         <span className="inline-flex items-center gap-1">
                           {isExpanded ? (
                             <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -699,13 +753,13 @@ export const OrdersList: React.FC = () => {
                           {formatChannelName(o)}
                         </span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className={groupInfo ? 'pl-3' : ''}>
                         <div className="font-medium">{orderNum ?? '—'}</div>
                         <div className="text-xs text-muted-foreground">
                           {o.platformOrderNumber || o.channelOrderId || '—'}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className={groupInfo ? 'pl-3' : ''}>
                         <div className="font-medium text-sm">
                           {(() => {
                             const s = o.shippingAddress as any;
@@ -718,13 +772,19 @@ export const OrdersList: React.FC = () => {
                           })()}
                         </div>
                       </TableCell>
-                      <TableCell>{fmtDate(o.placedAt)}</TableCell>
-                      <TableCell>{fmtMoney(o.totalAmount, o.currency)}</TableCell>
-                      <TableCell>{statusDisplayLabel(o.status)}</TableCell>
+                      <TableCell className={groupInfo ? 'pl-3' : ''}>{fmtDate(o.placedAt)}</TableCell>
+                      <TableCell className={groupInfo ? 'pl-3' : ''}>{fmtMoney(o.totalAmount, o.currency)}</TableCell>
+                      <TableCell className={groupInfo ? 'pl-3' : ''}>{statusDisplayLabel(o.status)}</TableCell>
                     </TableRow>
                     {isExpanded && (
                       <TableRow>
-                        <TableCell colSpan={7} className="p-0 align-top">
+                        {groupInfo ? (
+                          <TableCell className="w-5 p-0 border-l-2 border-muted align-top" aria-hidden />
+                        ) : null}
+                        <TableCell
+                          colSpan={groupInfo ? 7 : 8}
+                          className={`p-0 align-top ${groupInfo ? 'pl-3' : ''}`}
+                        >
                           {loading ? (
                             <div className="px-4 py-8 text-center text-sm text-muted-foreground">Loading…</div>
                           ) : detail ? (

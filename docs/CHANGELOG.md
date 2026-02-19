@@ -13,6 +13,10 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
   - Samma error-hantering för tenant-pools i [server/core/services/connection-pool/providers/PostgresPoolProvider.js](server/core/services/connection-pool/providers/PostgresPoolProvider.js).
 - **Frontend**
   - Sync-status-pollningen ignorerar fel vid tillfälliga DB/network-avbrott; användaren ser inga felmeddelanden.
+- **Orders – visuell gruppering av CDON/Fyndiq-order**
+  - CDON och Fyndiq returnerar en order per artikel; samma köp visas därför som flera order. UI grupperar nu visuellt ordrar som hör ihop (samma kund + samma minut): indrag och vertikal klammerlinje till vänster. Ingen backend-ändring – enbart frontend.
+  - Gruppnyckel: first_name + last_name + placed_at (minut). Endast för CDON och Fyndiq.
+  - Fil: [client/src/plugins/orders/components/OrdersList.tsx](client/src/plugins/orders/components/OrdersList.tsx).
 - **Stale lock-fix (Orders-synken hängde sig)**
   - Om en sync kraschade (t.ex. serveromstart) sparades aldrig `running_since = NULL`; backend trodde att sync redan körde och returnerade `{ started: false, reason: "locked" }`, så ingen ny sync kunde starta och laddningsindikatorn visades aldrig.
   - Lagt till `STALE_RUNNING_MINUTES = 15`: om `running_since` är äldre än 15 minuter betraktas den som föråldrad (kraschad sync) och ignoreras.
