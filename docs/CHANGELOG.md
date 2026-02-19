@@ -4,6 +4,39 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-02 – Slots: UX, "To slot från match", Source Match, detail-redesign
+
+### Informationsruta (sidopanel)
+
+- **Samma layout som notes/tasks:** Informationsblocket i slot-sidopanelen använder samma typsnitt och radlayout som notes/tasks (ID med `formatDisplayNumber('slots', id)`, Created, Updated, `space-y-4 text-xs`, etiketter `text-muted-foreground`, värden `font-mono`/`font-medium`).
+- **Endast metadata:** Innehållet begränsat till system-ID, Created, Updated och (när slot skapats från match) Source Match – ingen plats/tid/kapacitet/synlighet/notiser i informationsrutan (de finns i huvudinnehållet).
+
+### "To slot från match"
+
+- **Fix:** I `App.tsx` användes `slotsContext` utan att den sattes – nu sätts `slotsContext = slotsEntry?.context` så att `refreshSlots` och `setRecentlyDuplicatedSlotId` anropas efter skapande. "To slot från match" fungerar igen efter namnbyte kiosk → slots.
+- **Match kopplas till slot:** Vid skapande av slot från match skickas `match_id` till API. Backend: migration `034-kiosk-slots-add-match-id.sql` (kolumn `match_id` på `kiosk_slots`, FK till `matches(id)`), `plugins/slots/model.js` (create/transformRow inkl. `match_id`). Migreringsscript: `scripts/run-kiosk-slots-match-id-migration.js`, körs med `npm run migrate:kiosk-slots-match-id`.
+
+### Source Match (som Tasks "Source Note")
+
+- **Visning:** I slot-information visas raden "Source Match" med klickbar länk (hemmalag – bortalag) eller "Deleted Match" om matchen inte finns. Samma mönster som Tasks "Source Note".
+- **Data:** Matchen hämtas först från `useMatches().matches`, annars via `matchesApi.getMatch(slot.match_id)`. Länktext endast hemmalag – bortalag (ingen plats).
+- **AppContext/App:** Match-objektet till `openToSlotDialog` inkluderar `id`; vid create skickas `match_id: matchForSlot.id` till `kioskApi.createSlot`.
+
+### Slot detail view – innehållsdesign
+
+- **Tydligare och annorlunda:** Huvudinnehållet i slot-detail (main content) har större typsnitt och en rad per information för bättre läsbarhet.
+- **Ordning:** Slot Nbr (t.ex. SLT-123) först som rubrik; sedan Match (länk om från match), Matchnummer (t.ex. MAT-5), Location, Capacity (med CapacityAssignedDots), Time, Visible, Notifications. Varje fält har liten uppercase-etikett ovanför och större värde (`text-base`).
+- **i18n:** Nya nycklar `slots.slotNbr`, `slots.match`, `slots.matchNumber`, `slots.deletedMatch` (en/sv).
+
+### Övriga ändringar i samma commit
+
+- **ItemNavigation:** Prev/next-navigering i detail-vy (Task, Note, Contact, Invoice, Estimate, File); kontexter utökade med navigateToPrevItem/Next, hasPrev/Next, currentItemIndex, totalItems.
+- **Tenant:** Local-fallback i `TenantContextService.getTenantContextByUserId()` så att inloggning fungerar för lokala användare utan tenant-rad (skapande av tenant-schema vid behov).
+- **Pulses-plugin:** Nytt plugin (SMS), migration 033, script och frontend-stöd.
+- **Mail m.m.:** Diverse uppdateringar i mail-plugin och konfiguration.
+
+---
+
 ## 2026-02 – CORS och inloggning i production
 
 - **Problem:** När frontend och API ligger på olika domäner (t.ex. Vercel + Railway) blockerade webbläsaren svar pga saknad `Access-Control-Allow-Origin`; inloggning/cookies fungerade inte.

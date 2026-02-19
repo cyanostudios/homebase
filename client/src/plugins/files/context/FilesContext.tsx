@@ -63,6 +63,13 @@ interface FilesContextType {
   // Bulk selection from core hook (for compatibility)
   selectedCount: number;
   isSelected: (id: string) => boolean;
+
+  navigateToPrevItem: () => void;
+  navigateToNextItem: () => void;
+  hasPrevItem: boolean;
+  hasNextItem: boolean;
+  currentItemIndex: number;
+  totalItems: number;
 }
 
 const FilesContext = createContext<FilesContextType | undefined>(undefined);
@@ -201,6 +208,24 @@ export function FilesProvider({
     setValidationErrors([]);
   };
   const closeFilePanel = () => closeFilesPanel();
+
+  const currentItemIndex = currentFile ? files.findIndex((f) => f.id === currentFile.id) : -1;
+  const totalItems = files.length;
+  const hasPrevItem = currentItemIndex > 0;
+  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
+
+  const navigateToPrevItem = useCallback(() => {
+    if (!hasPrevItem || currentItemIndex <= 0) return;
+    const prev = files[currentItemIndex - 1];
+    if (prev) openFileForView(prev);
+  }, [hasPrevItem, currentItemIndex, files]);
+
+  const navigateToNextItem = useCallback(() => {
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= files.length - 1) return;
+    const next = files[currentItemIndex + 1];
+    if (next) openFileForView(next);
+  }, [hasNextItem, currentItemIndex, files]);
+
   const clearValidationErrors = () => setValidationErrors([]);
 
   const saveFile = async (raw: any): Promise<boolean> => {
@@ -493,6 +518,13 @@ export function FilesProvider({
     clearValidationErrors,
     getPanelSubtitle,
     getDeleteMessage,
+
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    totalItems,
   };
 
   return <FilesContext.Provider value={value}>{children}</FilesContext.Provider>;

@@ -72,6 +72,13 @@ interface MatchContextType {
   setShowDiscardQuickEditDialog: (show: boolean) => void;
   getCloseHandler: (defaultClose: () => void) => () => void;
   onDiscardQuickEditAndClose: () => void;
+
+  navigateToPrevItem: () => void;
+  navigateToNextItem: () => void;
+  hasPrevItem: boolean;
+  hasNextItem: boolean;
+  currentItemIndex: number;
+  totalItems: number;
 }
 
 const MatchContext = createContext<MatchContextType | undefined>(undefined);
@@ -218,6 +225,25 @@ export function MatchProvider({
     registerMatchesNavigation(openMatchForViewBridge);
     return () => registerMatchesNavigation(null);
   }, [registerMatchesNavigation, openMatchForViewBridge]);
+
+  const currentItemIndex = currentMatch
+    ? matches.findIndex((m) => m.id === currentMatch.id)
+    : -1;
+  const totalItems = matches.length;
+  const hasPrevItem = currentItemIndex > 0;
+  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
+
+  const navigateToPrevItem = useCallback(() => {
+    if (!hasPrevItem || currentItemIndex <= 0) return;
+    const prev = matches[currentItemIndex - 1];
+    if (prev) openMatchForView(prev);
+  }, [hasPrevItem, currentItemIndex, matches, openMatchForView]);
+
+  const navigateToNextItem = useCallback(() => {
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= matches.length - 1) return;
+    const next = matches[currentItemIndex + 1];
+    if (next) openMatchForView(next);
+  }, [hasNextItem, currentItemIndex, matches, openMatchForView]);
 
   useEffect(() => {
     setMentionsDraft(null);
@@ -523,6 +549,13 @@ export function MatchProvider({
     setShowDiscardQuickEditDialog,
     getCloseHandler,
     onDiscardQuickEditAndClose,
+
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    totalItems,
   };
 
   return <MatchContext.Provider value={value}>{children}</MatchContext.Provider>;

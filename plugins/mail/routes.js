@@ -1,6 +1,7 @@
 // plugins/mail/routes.js
 const express = require('express');
 const { body } = require('express-validator');
+const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { validateRequest } = require('../../server/core/middleware/validation');
 const controller = require('./controller');
 const config = require('./plugin.config');
@@ -14,6 +15,7 @@ function createMailRoutes(context) {
   router.post(
     '/send',
     gate,
+    csrfProtection,
     [
       body('subject').trim().notEmpty().withMessage('Subject is required'),
       body('to').custom((val) => {
@@ -33,6 +35,7 @@ function createMailRoutes(context) {
   router.post(
     '/test',
     gate,
+    csrfProtection,
     [
       body('testTo')
         .trim()
@@ -58,6 +61,7 @@ function createMailRoutes(context) {
   router.post(
     '/settings',
     gate,
+    csrfProtection,
     [
       body('provider').optional().isIn(['smtp', 'resend']),
       body('host').optional().trim(),

@@ -1,5 +1,12 @@
 import { Receipt } from 'lucide-react';
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +71,13 @@ interface InvoicesContextType {
 
   getPanelSubtitle: (mode: string, item: Invoice | null) => any;
   getDeleteMessage: (item: Invoice | null) => string;
+
+  navigateToPrevItem: () => void;
+  navigateToNextItem: () => void;
+  hasPrevItem: boolean;
+  hasNextItem: boolean;
+  currentItemIndex: number;
+  totalItems: number;
 }
 
 const InvoicesContext = createContext<InvoicesContextType | undefined>(undefined);
@@ -195,6 +209,25 @@ export function InvoicesProvider({
 
   // ⬇️ singular alias to satisfy UniversalPanel handler name inference (close + Singular + Panel)
   const closeInvoicePanel = () => closeInvoicesPanel();
+
+  const currentItemIndex = currentInvoice
+    ? invoices.findIndex((i) => i.id === currentInvoice.id)
+    : -1;
+  const totalItems = invoices.length;
+  const hasPrevItem = currentItemIndex > 0;
+  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
+
+  const navigateToPrevItem = useCallback(() => {
+    if (!hasPrevItem || currentItemIndex <= 0) return;
+    const prev = invoices[currentItemIndex - 1];
+    if (prev) openInvoiceForView(prev);
+  }, [hasPrevItem, currentItemIndex, invoices]);
+
+  const navigateToNextItem = useCallback(() => {
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= invoices.length - 1) return;
+    const next = invoices[currentItemIndex + 1];
+    if (next) openInvoiceForView(next);
+  }, [hasNextItem, currentItemIndex, invoices]);
 
   const clearValidationErrors = () => setValidationErrors([]);
 
@@ -402,6 +435,13 @@ export function InvoicesProvider({
     isSelected,
     getPanelSubtitle,
     getDeleteMessage,
+
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    totalItems,
   };
 
   return <InvoicesContext.Provider value={value}>{children}</InvoicesContext.Provider>;

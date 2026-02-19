@@ -88,6 +88,14 @@ interface TaskContextType {
   setShowDiscardQuickEditDialog: (show: boolean) => void;
   getCloseHandler: (defaultClose: () => void) => () => void;
   onDiscardQuickEditAndClose: () => void;
+
+  // Previous/next navigation in detail view
+  navigateToPrevItem: () => void;
+  navigateToNextItem: () => void;
+  hasPrevItem: boolean;
+  hasNextItem: boolean;
+  currentItemIndex: number;
+  totalItems: number;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -298,6 +306,25 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     registerTasksNavigation(openTaskForViewBridge);
     return () => registerTasksNavigation(null);
   }, [registerTasksNavigation, openTaskForViewBridge]);
+
+  const currentItemIndex = currentTask
+    ? tasks.findIndex((t) => t.id === currentTask.id)
+    : -1;
+  const totalItems = tasks.length;
+  const hasPrevItem = currentItemIndex > 0;
+  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
+
+  const navigateToPrevItem = useCallback(() => {
+    if (!hasPrevItem || currentItemIndex <= 0) return;
+    const prev = tasks[currentItemIndex - 1];
+    if (prev) openTaskForView(prev);
+  }, [hasPrevItem, currentItemIndex, tasks, openTaskForView]);
+
+  const navigateToNextItem = useCallback(() => {
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= tasks.length - 1) return;
+    const next = tasks[currentItemIndex + 1];
+    if (next) openTaskForView(next);
+  }, [hasNextItem, currentItemIndex, tasks, openTaskForView]);
 
   const clearValidationErrors = useCallback(() => {
     setValidationErrors([]);
@@ -844,6 +871,13 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setShowDiscardQuickEditDialog,
     getCloseHandler,
     onDiscardQuickEditAndClose,
+
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    totalItems,
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;

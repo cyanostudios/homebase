@@ -29,6 +29,8 @@ function rowToSlot(row: Record<string, unknown>): Slot {
     mentions: parseMentions(row),
     created_at: (row.created_at as string) ?? '',
     updated_at: (row.updated_at as string) ?? '',
+    match_id:
+      row.match_id !== null && row.match_id !== undefined ? String(row.match_id) : undefined,
   };
 }
 
@@ -108,6 +110,7 @@ class KioskApi {
     notifications_enabled?: boolean;
     contact_id?: string | null;
     mentions?: KioskMention[];
+    match_id?: string | null;
   }): Promise<Slot> {
     const body = {
       location: data.location ?? null,
@@ -117,6 +120,7 @@ class KioskApi {
       notifications_enabled: data.notifications_enabled !== false,
       contact_id: data.contact_id ?? null,
       mentions: data.mentions ?? [],
+      match_id: data.match_id ?? null,
     };
     const row = await this.request('/slots', { method: 'POST', body: JSON.stringify(body) });
     return rowToSlot(row);

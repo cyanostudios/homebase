@@ -1,5 +1,19 @@
 # Migrations
 
+## 033-pulses-plugin.sql
+
+Skapar tabellerna `pulse_settings` och `pulse_log` för Pulse (SMS)-pluginet.
+
+**Kör på alla tenants:**
+
+```bash
+npm run migrate:pulses
+```
+
+Kräver `DATABASE_URL`. Vid lokalt schema-per-tenant: `TENANT_PROVIDER=local`. Idempotent (`CREATE TABLE IF NOT EXISTS`).
+
+---
+
 ## 027-contact-time-entries.sql
 
 Skapar tabellen `contact_time_entries` (time tracking mot contacts).

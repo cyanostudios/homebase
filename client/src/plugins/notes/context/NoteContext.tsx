@@ -72,6 +72,13 @@ interface NoteContextType {
     onClick: (item: Note) => void;
     className?: string;
   }>;
+
+  navigateToPrevItem: () => void;
+  navigateToNextItem: () => void;
+  hasPrevItem: boolean;
+  hasNextItem: boolean;
+  currentItemIndex: number;
+  totalItems: number;
 }
 
 const NoteContext = createContext<NoteContextType | undefined>(undefined);
@@ -256,6 +263,23 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     registerNotesNavigation(openNoteForViewBridge);
     return () => registerNotesNavigation(null);
   }, [registerNotesNavigation, openNoteForViewBridge]);
+
+  const currentItemIndex = currentNote ? notes.findIndex((n) => n.id === currentNote.id) : -1;
+  const totalItems = notes.length;
+  const hasPrevItem = currentItemIndex > 0;
+  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
+
+  const navigateToPrevItem = useCallback(() => {
+    if (!hasPrevItem || currentItemIndex <= 0) return;
+    const prev = notes[currentItemIndex - 1];
+    if (prev) openNoteForView(prev);
+  }, [hasPrevItem, currentItemIndex, notes, openNoteForView]);
+
+  const navigateToNextItem = useCallback(() => {
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= notes.length - 1) return;
+    const next = notes[currentItemIndex + 1];
+    if (next) openNoteForView(next);
+  }, [hasNextItem, currentItemIndex, notes, openNoteForView]);
 
   const clearValidationErrors = useCallback(() => {
     setValidationErrors([]);
@@ -560,6 +584,13 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
             ? 'h-7 text-[10px] px-2 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30'
             : 'h-7 text-[10px] px-2',
       })),
+
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    totalItems,
   };
 
   return <NoteContext.Provider value={value}>{children}</NoteContext.Provider>;

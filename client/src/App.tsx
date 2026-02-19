@@ -22,6 +22,7 @@ import type { ExecuteDuplicateResult } from '@/core/types/pluginContract';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Dashboard } from '@/core/ui/Dashboard';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
+import { ItemNavigation } from '@/core/ui/ItemNavigation';
 import { LoginComponent } from '@/core/ui/LoginComponent';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { createPanelFooter } from '@/core/ui/PanelFooter';
@@ -150,6 +151,7 @@ function AppContent() {
   } | null>(null);
   const [showToSlotDialog, setShowToSlotDialog] = useState(false);
   const [matchForSlot, setMatchForSlot] = useState<{
+    id: string;
     home_team: string;
     away_team: string;
     location?: string | null;
@@ -402,6 +404,21 @@ function AppContent() {
   const detailPanelFooter = panelFooter;
   const onDetailPanelClose = handlers.getCloseHandler();
 
+  const detailPanelHeaderRight =
+    currentMode === 'view' &&
+    currentPluginContext &&
+    typeof currentPluginContext.navigateToPrevItem === 'function' &&
+    typeof currentPluginContext.navigateToNextItem === 'function' &&
+    currentPluginContext.totalItems > 1
+      ? React.createElement(ItemNavigation, {
+          onPrev: currentPluginContext.navigateToPrevItem,
+          onNext: currentPluginContext.navigateToNextItem,
+          hasPrev: currentPluginContext.hasPrevItem,
+          hasNext: currentPluginContext.hasNextItem,
+          label: `${currentPluginContext.currentItemIndex} / ${currentPluginContext.totalItems}`,
+        })
+      : undefined;
+
   return (
     <>
       <MainLayout
@@ -417,6 +434,7 @@ function AppContent() {
         detailPanelSubtitle={detailPanelSubtitle}
         detailPanelContent={detailPanelContent}
         detailPanelFooter={detailPanelFooter}
+        detailPanelHeaderRight={detailPanelHeaderRight}
         onDetailPanelClose={onDetailPanelClose}
         detailPanelPluginName={currentPlugin?.name}
       >
@@ -634,8 +652,9 @@ function AppContent() {
             return;
           }
           const matchEntry = pluginContexts.find(({ plugin }) => plugin.name === 'matches');
-          const _slotsEntry = pluginContexts.find(({ plugin }) => plugin.name === 'slots');
+          const slotsEntry = pluginContexts.find(({ plugin }) => plugin.name === 'slots');
           const matchContext = matchEntry?.context;
+          const slotsContext = slotsEntry?.context;
           const closeMatchPanel = matchContext?.closeMatchPanel;
           const setRecentlyDuplicatedSlotId = slotsContext?.setRecentlyDuplicatedSlotId;
           const locationStr = `${matchForSlot.home_team} – ${matchForSlot.away_team}${matchForSlot.location ? ` · ${matchForSlot.location}` : ''}`;
@@ -646,6 +665,7 @@ function AppContent() {
               capacity: 1,
               visible: true,
               notifications_enabled: true,
+              match_id: matchForSlot.id,
             })
             .then(async (newSlot) => {
               if (typeof closeMatchPanel === 'function') {

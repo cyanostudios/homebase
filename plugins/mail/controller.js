@@ -1,8 +1,8 @@
 // plugins/mail/controller.js
-const ServiceManager = require('../../server/core/ServiceManager');
 const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const model = require('./model');
+const { getEmailServiceForUser } = require('./sendService');
 const SmtpAdapter = require('../../server/core/services/email/adapters/SmtpAdapter');
 const ResendAdapter = require('../../server/core/services/email/adapters/ResendAdapter');
 
@@ -40,35 +40,7 @@ class MailController {
         }
       }
 
-      // Use per-user settings from plugin if configured, else fallback to global
-      const userSettings = await model.getSettings(req, { needsPassword: true });
-      let emailService;
-      if (userSettings?.provider === 'resend' && userSettings?.resendApiKeyRaw) {
-        emailService = new ResendAdapter({
-          resend: {
-            apiKey: userSettings.resendApiKeyRaw,
-            from:
-              userSettings.resendFromAddress || userSettings.fromAddress || 'onboarding@resend.dev',
-          },
-        });
-      } else if (userSettings?.host) {
-        const smtpConfig = {
-          smtp: {
-            host: userSettings.host,
-            port: userSettings.port,
-            secure: userSettings.secure,
-            from: userSettings.fromAddress,
-            auth:
-              userSettings.authUser && userSettings.authPass
-                ? { user: userSettings.authUser, pass: userSettings.authPass }
-                : undefined,
-          },
-        };
-        emailService = new SmtpAdapter(smtpConfig);
-      } else {
-        emailService = ServiceManager.get('email');
-      }
-
+      const emailService = await getEmailServiceForUser(req);
       await emailService.send({
         to: normalizedRecipients,
         subject: String(subject).trim(),

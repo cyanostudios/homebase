@@ -1,5 +1,5 @@
 import { Info, SlidersHorizontal, User, X } from 'lucide-react';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
@@ -16,8 +16,12 @@ import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
+import { useMatches } from '@/plugins/matches/hooks/useMatches';
 
+import { matchesApi } from '@/plugins/matches/api/matchesApi';
+import type { Match } from '@/plugins/matches/types/match';
 import { useKioskContext } from '../context/KioskContext';
 import type { Slot } from '../types/kiosk';
 
@@ -40,6 +44,7 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
   const slot = slotProp ?? item ?? null;
   const { contacts, openContactForView } = useContacts();
   const { contacts: appContacts } = useApp();
+  const { openMatchForView, matches } = useMatches();
   const assignableContacts = (appContacts ?? contacts).filter(
     (c: { isAssignable?: boolean }) => c.isAssignable !== false,
   );
@@ -51,6 +56,42 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
     setShowDiscardQuickEditDialog,
     onDiscardQuickEditAndClose,
   } = useKioskContext();
+
+  const [sourceMatch, setSourceMatch] = useState<Match | null>(null);
+  const [matchLoaded, setMatchLoaded] = useState(false);
+
+  useEffect(() => {
+    const loadSourceMatch = async () => {
+      const matchId =
+        slot?.match_id !== null && slot?.match_id !== undefined && slot.match_id !== ''
+          ? String(slot.match_id)
+          : null;
+      if (!matchId) {
+        setSourceMatch(null);
+        setMatchLoaded(true);
+        return;
+      }
+      // Prefer match from list (same as TaskView with notes), then fetch by id
+      const fromList = matches.find((m) => String(m.id) === matchId);
+      if (fromList) {
+        setSourceMatch(fromList);
+        setMatchLoaded(true);
+        return;
+      }
+      try {
+        const match = await matchesApi.getMatch(matchId);
+        setSourceMatch(match);
+      } catch {
+        setSourceMatch(null);
+      }
+      setMatchLoaded(true);
+    };
+    loadSourceMatch();
+  }, [slot?.match_id, matches]);
+
+  const handleMatchClick = () => {
+    if (sourceMatch) openMatchForView(sourceMatch);
+  };
 
   const addableContacts = assignableContacts.filter(
     (c: { id: number | string }) =>
@@ -170,79 +211,155 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
               >
                 <div className="space-y-4 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">{t('common.location')}</span>
-                    <span className="font-medium truncate max-w-[150px]">
-                      {slot.location || '—'}
+                    <span className="text-muted-foreground">ID</span>
+                    <span className="font-mono font-medium">
+                      {formatDisplayNumber('slots', slot.id)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">{t('common.time')}</span>
-                    <span className="font-medium">{formatDateTime(slot.slot_time)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">{t('common.capacity')}</span>
-                    <span className="font-medium">{slot.capacity}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">{t('common.visible')}</span>
+                    <span className="text-muted-foreground">Created</span>
                     <span className="font-medium">
-                      {slot.visible ? t('common.yes') : t('common.no')}
+                      {slot.created_at
+                        ? new Date(slot.created_at).toLocaleDateString()
+                        : '—'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">{t('common.notifications')}</span>
+                    <span className="text-muted-foreground">Updated</span>
                     <span className="font-medium">
-                      {slot.notifications_enabled ? t('common.on') : t('common.off')}
+                      {slot.updated_at
+                        ? new Date(slot.updated_at).toLocaleDateString()
+                        : '—'}
                     </span>
                   </div>
-                  <div className="pt-2 mt-2 border-t border-border/50">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">{t('slots.created')}</span>
-                      <span className="font-mono text-[10px] opacity-70">
-                        {slot.created_at
-                          ? new Date(slot.created_at).toLocaleDateString('sv-SE')
-                          : '—'}
-                      </span>
+                  {slot.match_id !== null && slot.match_id !== undefined && slot.match_id !== '' && matchLoaded && (
+                    <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                      <span className="text-muted-foreground">Source Match</span>
+                      {sourceMatch ? (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={handleMatchClick}
+                          className="h-auto p-0 text-[10px] plugin-matches text-plugin truncate max-w-[150px]"
+                        >
+                          {`${sourceMatch.home_team} – ${sourceMatch.away_team}`}
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground italic">Deleted Match</span>
+                      )}
                     </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-muted-foreground">{t('common.updated')}</span>
-                      <span className="font-mono text-[10px] opacity-70">
-                        {slot.updated_at
-                          ? new Date(slot.updated_at).toLocaleDateString('sv-SE')
-                          : '—'}
-                      </span>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </DetailSection>
             </Card>
           </div>
         }
       >
-        <div className="space-y-6">
-          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title={t('slots.sectionTitle')} iconPlugin="slots" className="p-6">
-              <div className="text-lg font-semibold">{slot.location || '—'}</div>
-              <div className="mt-2 text-sm text-muted-foreground">
-                {formatDateTime(slot.slot_time)}
+        <div className="space-y-0">
+          <Card
+            padding="none"
+            className="overflow-hidden border-none shadow-sm bg-background/50 plugin-slots ring-1 ring-border/40"
+          >
+            <div className="p-8 space-y-6">
+              {/* Slot Nbr – primary heading, larger and prominent */}
+              <div>
+                <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
+                  {t('slots.slotNbr')}
+                </div>
+                <div className="text-2xl font-semibold text-foreground tabular-nums">
+                  {formatDisplayNumber('slots', slot.id)}
+                </div>
               </div>
-              <div className="mt-2 flex gap-2 flex-wrap items-center">
-                <span className="text-xs font-medium text-muted-foreground">
-                  {t('common.capacity')}: {slot.capacity}{' '}
+
+              {/* Match (if from match) – one row */}
+              {slot.match_id !== null && slot.match_id !== undefined && slot.match_id !== '' && matchLoaded && (
+                <div>
+                  <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
+                    {t('slots.match')}
+                  </div>
+                  <div className="text-base">
+                    {sourceMatch ? (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        onClick={handleMatchClick}
+                        className="h-auto p-0 text-base font-medium plugin-matches text-plugin hover:underline"
+                      >
+                        {`${sourceMatch.home_team} – ${sourceMatch.away_team}`}
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground italic">{t('slots.deletedMatch')}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Matchnummer (if match) – one row */}
+              {sourceMatch && (
+                <div>
+                  <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
+                    {t('slots.matchNumber')}
+                  </div>
+                  <div className="text-base font-medium tabular-nums">
+                    {formatDisplayNumber('matches', sourceMatch.id)}
+                  </div>
+                </div>
+              )}
+
+              {/* Location – one row */}
+              <div>
+                <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
+                  {t('common.location')}
+                </div>
+                <div className="text-base font-medium">
+                  {slot.location || '—'}
+                </div>
+              </div>
+
+              {/* Capacity – one row with dots */}
+              <div>
+                <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
+                  {t('common.capacity')}
+                </div>
+                <div className="text-base font-medium flex items-center gap-2">
+                  <span className="tabular-nums">{slot.capacity}</span>
                   <CapacityAssignedDots
                     capacity={slot.capacity}
                     assignedCount={slot.mentions?.length ?? 0}
                   />
-                </span>
-                <span className="text-xs font-medium text-muted-foreground">
-                  · {slot.visible ? t('common.visible') : t('common.hidden')}
-                </span>
-                <span className="text-xs font-medium text-muted-foreground">
-                  · {t('common.notifications')}{' '}
-                  {slot.notifications_enabled ? t('common.on') : t('common.off')}
-                </span>
+                </div>
               </div>
-            </DetailSection>
+
+              {/* Time – one row */}
+              <div>
+                <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
+                  {t('common.time')}
+                </div>
+                <div className="text-base font-medium">
+                  {formatDateTime(slot.slot_time)}
+                </div>
+              </div>
+
+              {/* Visible – one row */}
+              <div>
+                <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
+                  {t('common.visible')}
+                </div>
+                <div className="text-base font-medium">
+                  {slot.visible ? t('common.yes') : t('common.no')}
+                </div>
+              </div>
+
+              {/* Notifications – one row */}
+              <div>
+                <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
+                  {t('common.notifications')}
+                </div>
+                <div className="text-base font-medium">
+                  {slot.notifications_enabled ? t('common.on') : t('common.off')}
+                </div>
+              </div>
+            </div>
           </Card>
         </div>
       </DetailLayout>

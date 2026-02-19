@@ -11,6 +11,8 @@ interface DetailPanelProps {
   subtitle?: string | React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  /** Rendered between title and close (X) button, e.g. prev/next navigation */
+  headerRight?: React.ReactNode;
   mode?: 'view' | 'create' | 'edit';
   isMobile?: boolean;
 }
@@ -22,6 +24,7 @@ export function DetailPanel({
   subtitle,
   children,
   footer,
+  headerRight,
   mode: _mode = 'view',
   isMobile = false,
 }: DetailPanelProps) {
@@ -77,13 +80,27 @@ export function DetailPanel({
           side="right"
           className="w-full sm:w-[90%] sm:max-w-lg p-0 flex flex-col min-h-0 h-full"
         >
-          <SheetHeader className="px-6 pt-6 pb-4 flex-shrink-0">
-            <SheetTitle className="text-left">{title}</SheetTitle>
-            {subtitle && (
-              <div className="text-sm text-muted-foreground text-left mt-2">
-                {typeof subtitle === 'string' ? <p>{subtitle}</p> : subtitle}
-              </div>
-            )}
+          <SheetHeader className="px-6 pt-6 pb-4 flex-shrink-0 flex flex-row items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <SheetTitle className="text-left">{title}</SheetTitle>
+              {subtitle && (
+                <div className="text-sm text-muted-foreground text-left mt-2">
+                  {typeof subtitle === 'string' ? <p>{subtitle}</p> : subtitle}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {headerRight}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className="h-8 w-8"
+                aria-label="Close panel"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </SheetHeader>
 
           {/* Scrollable Content */}
@@ -128,15 +145,18 @@ export function DetailPanel({
             </div>
           )}
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          className="h-8 w-8 flex-shrink-0"
-          aria-label="Close panel"
-        >
-          <X className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {headerRight}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8 flex-shrink-0"
+            aria-label="Close panel"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Scrollable Content */}

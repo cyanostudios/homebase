@@ -17,6 +17,8 @@ export interface Slot {
   mentions: KioskMention[];
   created_at: string;
   updated_at: string;
+  /** Set when slot was created via "To slot" from a match. */
+  match_id?: string | null;
 }
 
 export interface ValidationError {

@@ -8,12 +8,16 @@ import type { MailLogEntry, MailSettings } from '../types/mail';
 
 interface MailContextType {
   isMailPanelOpen: boolean;
+  panelMode: 'create' | 'edit' | 'view' | 'settings';
+  currentMail: MailLogEntry | null;
   mailHistory: MailLogEntry[];
   totalCount: number;
   settings: MailSettings | null;
   loading: boolean;
   openMailPanel: () => void;
   closeMailPanel: () => void;
+  openMailForView: (item: MailLogEntry) => void;
+  openMailsSettings: () => void;
   loadHistory: (params?: {
     limit?: number;
     offset?: number;
@@ -63,6 +67,8 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
 
   const [isMailPanelOpen, setIsMailPanelOpen] = useState(false);
+  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('settings');
+  const [currentMail, setCurrentMail] = useState<MailLogEntry | null>(null);
   const [mailHistory, setMailHistory] = useState<MailLogEntry[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [settings, setSettings] = useState<MailSettings | null>(null);
@@ -151,11 +157,25 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const openMailPanel = () => {
     onCloseOtherPanels();
+    setPanelMode('settings');
     setIsMailPanelOpen(true);
   };
 
   const closeMailPanel = () => {
     setIsMailPanelOpen(false);
+  };
+
+  const openMailForView = (item: MailLogEntry) => {
+    onCloseOtherPanels();
+    setCurrentMail(item);
+    setPanelMode('view');
+    setIsMailPanelOpen(true);
+  };
+
+  const openMailsSettings = () => {
+    onCloseOtherPanels();
+    setPanelMode('settings');
+    setIsMailPanelOpen(true);
   };
 
   const testSettings = async (data: {
@@ -201,12 +221,16 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const value: MailContextType = {
     isMailPanelOpen,
+    panelMode,
+    currentMail,
     mailHistory,
     totalCount,
     settings,
     loading,
     openMailPanel,
     closeMailPanel,
+    openMailForView,
+    openMailsSettings,
     loadHistory,
     pushMailEntry,
     loadSettings,

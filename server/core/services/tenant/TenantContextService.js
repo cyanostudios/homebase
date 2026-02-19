@@ -94,6 +94,32 @@ class TenantContextService {
       // owner_user_id column may not exist
     }
 
+    // 4) Local provider: no row in tenants (e.g. admin from setup-database). Create schema on first login if needed.
+    const tenantProvider = process.env.TENANT_PROVIDER || 'neon';
+    if (tenantProvider === 'local') {
+      try {
+        const tenantService = ServiceManager.get('tenant');
+        const exists = await tenantService.tenantExists(userId);
+        if (!exists) {
+          this.logger.info('Creating local tenant schema on first login', { userId });
+          const userRow = await db.query('SELECT email FROM users WHERE id = $1 LIMIT 1', [userId]);
+          const email = this._rows(userRow)[0]?.email || '';
+          await tenantService.createTenant(userId, email);
+        }
+        const connectionString = await tenantService.getTenantConnection(userId);
+        if (connectionString) {
+          return {
+            tenantId: userId,
+            tenantRole: 'admin',
+            tenantConnectionString: connectionString,
+            tenantOwnerUserId: userId,
+          };
+        }
+      } catch (e) {
+        this.logger.warn('Local tenant resolve failed', { userId, message: e.message });
+      }
+    }
+
     return null;
   }
 

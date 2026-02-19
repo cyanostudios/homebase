@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { Mail, Settings, RefreshCw } from 'lucide-react';
+import { Smartphone, Settings, RefreshCw } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -18,20 +18,20 @@ import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { cn } from '@/lib/utils';
 
-import { useMail } from '../hooks/useMail';
+import { usePulses } from '../hooks/usePulses';
 
-export const MailList: React.FC = () => {
+export const PulseList: React.FC = () => {
   const { t } = useTranslation();
-  const { mailHistory, totalCount, settings, loading, loadHistory, openMailPanel } = useMail();
+  const { pulseHistory, totalCount, settings, loading, loadHistory, openPulsePanel } = usePulses();
   const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
   const [pluginFilter, setPluginFilter] = useState<string>('');
 
-  const filtered = mailHistory.filter((entry) => {
+  const filtered = pulseHistory.filter((entry) => {
     const matchSearch =
       !searchTerm ||
-      entry.to.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      entry.subject.toLowerCase().includes(searchTerm.toLowerCase());
+      entry.recipient.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (entry.body || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchPlugin = !pluginFilter || entry.pluginSource === pluginFilter;
     return matchSearch && matchPlugin;
   });
@@ -39,9 +39,9 @@ export const MailList: React.FC = () => {
   const pluginSources = useMemo(
     () =>
       Array.from(
-        new Set(mailHistory.map((e) => e.pluginSource).filter((ps): ps is string => !!ps)),
+        new Set(pulseHistory.map((e) => e.pluginSource).filter((ps): ps is string => !!ps)),
       ),
-    [mailHistory],
+    [pulseHistory],
   );
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export const MailList: React.FC = () => {
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder={t('mail.searchPlaceholder')}
+        searchPlaceholder={t('pulses.searchPlaceholder')}
         rightActions={
           <div className="flex items-center gap-2">
             {pluginSources.length > 0 && (
@@ -58,7 +58,7 @@ export const MailList: React.FC = () => {
                 onChange={(e) => setPluginFilter(e.target.value)}
                 className="h-7 rounded-md border border-input bg-background px-2 py-1 text-[10px]"
               >
-                <option value="">{t('mail.allPlugins')}</option>
+                <option value="">{t('pulses.allPlugins')}</option>
                 {pluginSources.map((ps: string) => (
                   <option key={ps} value={ps}>
                     {ps}
@@ -67,30 +67,30 @@ export const MailList: React.FC = () => {
               </select>
             )}
             <div className="flex items-center gap-2">
-              {settings?.configured?.smtp || settings?.configured?.resend ? (
+              {settings?.configured?.twilio ? (
                 <Badge
                   variant="outline"
-                  className="plugin-mail bg-plugin-subtle text-plugin border-plugin-subtle font-medium text-[10px]"
+                  className="plugin-pulses bg-plugin-subtle text-plugin border-plugin-subtle font-medium text-[10px]"
                 >
-                  {t('mail.configured')}
+                  {t('pulses.configured')}
                 </Badge>
               ) : (
                 <Badge
                   variant="secondary"
                   className="bg-secondary/50 text-secondary-foreground border-transparent font-medium text-[10px]"
                 >
-                  {t('mail.notConfigured')}
+                  {t('pulses.notConfigured')}
                 </Badge>
               )}
               <Button
                 variant="secondary"
                 size="sm"
                 icon={Settings}
-                onClick={() => openMailPanel()}
-                title={t('mail.settingsButton')}
+                onClick={() => openPulsePanel()}
+                title={t('pulses.settingsButton')}
                 className="h-7 text-[10px] px-2"
               >
-                {t('mail.settingsButton')}
+                {t('pulses.settingsButton')}
               </Button>
             </div>
             <Button
@@ -101,7 +101,7 @@ export const MailList: React.FC = () => {
               className="h-7 text-[10px] px-2"
             >
               <RefreshCw className={cn('h-4 w-4 mr-1', loading && 'animate-spin')} />
-              {t('mail.refresh')}
+              {t('pulses.refresh')}
             </Button>
           </div>
         }
@@ -116,55 +116,61 @@ export const MailList: React.FC = () => {
     setHeaderTrailing,
     loadHistory,
     settings,
-    openMailPanel,
+    openPulsePanel,
     t,
   ]);
 
   return (
     <div className="space-y-4">
-      <Card className="shadow-none plugin-mail">
+      <Card className="shadow-none plugin-pulses">
         <div className="p-4 border-b border-border flex items-center gap-2">
-          <Mail className="h-5 w-5 text-plugin" />
-          <span className="font-medium text-sm">{t('mail.historyTitle')}</span>
+          <Smartphone className="h-5 w-5 text-plugin" />
+          <span className="font-medium text-sm">{t('pulses.historyTitle')}</span>
           <Badge
             variant="secondary"
             className="bg-secondary/50 text-secondary-foreground border-transparent font-medium text-[10px]"
           >
-            {totalCount} {t('mail.total')}
+            {totalCount} {t('pulses.total')}
           </Badge>
         </div>
-        {loading && mailHistory.length === 0 ? (
+        {loading && pulseHistory.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground text-sm">
             {t('common.loading')}
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground text-sm">
-            {t('mail.emptyHistory')}
+            {t('pulses.emptyHistory')}
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t('mail.date')}</TableHead>
-                <TableHead>{t('mail.to')}</TableHead>
-                <TableHead>{t('mail.subject')}</TableHead>
-                <TableHead>{t('mail.source')}</TableHead>
+                <TableHead>{t('pulses.date')}</TableHead>
+                <TableHead>{t('pulses.recipient')}</TableHead>
+                <TableHead>{t('pulses.body')}</TableHead>
+                <TableHead>{t('pulses.status')}</TableHead>
+                <TableHead>{t('pulses.source')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((entry) => (
                 <TableRow
                   key={entry.id}
-                  className="hover:bg-muted/50 plugin-mail hover:bg-plugin-subtle/50 transition-colors"
+                  className="hover:bg-muted/50 plugin-pulses hover:bg-plugin-subtle/50 transition-colors"
                 >
                   <TableCell className="text-muted-foreground text-sm">
                     {entry.sentAt ? format(new Date(entry.sentAt), 'yyyy-MM-dd HH:mm') : '—'}
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate font-medium" title={entry.to}>
-                    {entry.to}
+                  <TableCell className="max-w-[180px] truncate font-medium" title={entry.recipient}>
+                    {entry.recipient}
                   </TableCell>
-                  <TableCell className="max-w-[280px] truncate text-sm" title={entry.subject}>
-                    {entry.subject || '—'}
+                  <TableCell className="max-w-[240px] truncate text-sm" title={entry.body || ''}>
+                    {entry.body || '—'}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-[10px] font-medium">
+                      {entry.status || '—'}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     {entry.pluginSource ? (

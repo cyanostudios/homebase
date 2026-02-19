@@ -1,4 +1,5 @@
 import {
+  Bell,
   Users,
   StickyNote,
   CheckSquare,
@@ -95,6 +96,10 @@ import { MailList } from '@/plugins/mail/components/MailList';
 import { MailSettingsForm } from '@/plugins/mail/components/MailSettingsForm';
 import { MailProvider } from '@/plugins/mail/context/MailContext';
 import { useMail } from '@/plugins/mail/hooks/useMail';
+import { PulseList } from '@/plugins/pulses/components/PulseList';
+import { PulseSettingsForm } from '@/plugins/pulses/components/PulseSettingsForm';
+import { PulseProvider } from '@/plugins/pulses/context/PulseContext';
+import { usePulses } from '@/plugins/pulses/hooks/usePulses';
 import { MatchForm } from '@/plugins/matches/components/MatchForm';
 import { MatchList } from '@/plugins/matches/components/MatchList';
 import { MatchView } from '@/plugins/matches/components/MatchView';
@@ -283,6 +288,23 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       order: 1,
     },
     displayPrefix: 'MAIL',
+  },
+  {
+    name: 'pulses',
+    Provider: PulseProvider,
+    hook: usePulses,
+    panelKey: 'isPulsesPanelOpen',
+    components: {
+      List: PulseList,
+      Form: PulseSettingsForm,
+    },
+    navigation: {
+      category: 'Tools',
+      label: 'Pulse',
+      icon: Bell,
+      order: 2,
+    },
+    displayPrefix: 'PULSE',
   },
   {
     name: 'settings',

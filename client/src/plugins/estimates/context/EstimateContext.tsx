@@ -114,6 +114,13 @@ interface EstimateContextType {
   handleEstimateQuickEditSentCancel: () => void;
   handleEstimateQuickEditModalConfirm: (reasons: string[]) => void;
   handleEstimateQuickEditModalCancel: () => void;
+
+  navigateToPrevItem: () => void;
+  navigateToNextItem: () => void;
+  hasPrevItem: boolean;
+  hasNextItem: boolean;
+  currentItemIndex: number;
+  totalItems: number;
 }
 
 const EstimateContext = createContext<EstimateContextType | undefined>(undefined);
@@ -311,6 +318,25 @@ export function EstimateProvider({
     registerEstimatesNavigation(openEstimateForViewBridge);
     return () => registerEstimatesNavigation(null);
   }, [registerEstimatesNavigation, openEstimateForViewBridge]);
+
+  const currentItemIndex = currentEstimate
+    ? estimates.findIndex((e) => e.id === currentEstimate.id)
+    : -1;
+  const totalItems = estimates.length;
+  const hasPrevItem = currentItemIndex > 0;
+  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
+
+  const navigateToPrevItem = useCallback(() => {
+    if (!hasPrevItem || currentItemIndex <= 0) return;
+    const prev = estimates[currentItemIndex - 1];
+    if (prev) openEstimateForView(prev);
+  }, [hasPrevItem, currentItemIndex, estimates, openEstimateForView]);
+
+  const navigateToNextItem = useCallback(() => {
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= estimates.length - 1) return;
+    const next = estimates[currentItemIndex + 1];
+    if (next) openEstimateForView(next);
+  }, [hasNextItem, currentItemIndex, estimates, openEstimateForView]);
 
   const closeEstimatePanel = useCallback(() => {
     setIsEstimatePanelOpen(false);
@@ -957,6 +983,13 @@ export function EstimateProvider({
     handleEstimateQuickEditSentCancel,
     handleEstimateQuickEditModalConfirm,
     handleEstimateQuickEditModalCancel,
+
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    totalItems,
   };
 
   return (

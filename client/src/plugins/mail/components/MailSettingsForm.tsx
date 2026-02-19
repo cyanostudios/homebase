@@ -1,5 +1,6 @@
 import { Mail, Send } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -30,6 +31,7 @@ const smtpDefaults: SmtpSettings = {
 };
 
 export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) => {
+  const { t } = useTranslation();
   const { settings, loadSettings, saveSettings, testSettings, closeMailPanel } = useMail();
   const userHasSelectedProvider = useRef(false);
   const [provider, setProvider] = useState<Provider>('smtp');
@@ -96,7 +98,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
       });
       closeMailPanel();
     } catch (err: any) {
-      setError(err?.message || 'Kunde inte spara inställningar');
+      setError(err?.message || t('mail.saveError'));
     } finally {
       setSaving(false);
     }
@@ -112,6 +114,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
     resendFromAddress,
     saveSettings,
     closeMailPanel,
+    t,
   ]);
 
   useEffect(() => {
@@ -130,7 +133,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
     setTestSuccess(null);
     const email = testTo.trim();
     if (!email || !email.includes('@')) {
-      setError('Ange en giltig e-postadress att skicka testmail till');
+      setError(t('mail.testEmailRequired'));
       return;
     }
     setTesting(true);
@@ -153,9 +156,9 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
         payload.fromAddress = fromAddress.trim() || smtpDefaults.fromAddress;
       }
       await testSettings(payload as any);
-      setTestSuccess('Testmail skickat! Kontrollera din inkorg.');
+      setTestSuccess(t('mail.testSent'));
     } catch (err: any) {
-      setError(err?.message || 'Kunde inte skicka testmail');
+      setError(err?.message || t('mail.testError'));
     } finally {
       setTesting(false);
     }
@@ -164,15 +167,13 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
   return (
     <div className="p-6 space-y-6">
       <Card className="shadow-none plugin-mail p-6">
-        <DetailSection title="E-postinställningar" icon={Mail}>
+        <DetailSection title={t('mail.settingsTitle')} icon={Mail}>
           <p className="text-sm text-muted-foreground mb-4">
-            Välj leverantör och konfigurera för att skicka e-post från pluginet (t.ex.
-            Besiktningar). Resend rekommenderas – säkrare och enklare med API-nyckel.
+            {t('mail.settingsDescription')}
           </p>
 
-          {/* Provider selector */}
           <div className="mb-4">
-            <Label className="text-sm">Leverantör</Label>
+            <Label className="text-sm">{t('mail.provider')}</Label>
             <div className="flex flex-wrap items-center gap-2 mt-2">
               <Button
                 type="button"
@@ -207,7 +208,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
                           : 'bg-muted text-muted-foreground',
                       )}
                     >
-                      Resend{settings.provider === 'resend' ? ' • Aktiv' : ''}
+                      Resend{settings.provider === 'resend' ? ` • ${t('mail.active')}` : ''}
                     </span>
                   )}
                   {settings.configured?.smtp && (
@@ -219,12 +220,14 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
                           : 'bg-muted text-muted-foreground',
                       )}
                     >
-                      SMTP{settings.provider === 'smtp' ? ' • Aktiv' : ''}
+                      SMTP{settings.provider === 'smtp' ? ` • ${t('mail.active')}` : ''}
                     </span>
                   )}
                   {!settings.configured?.resend && !settings.configured?.smtp && (
                     <span className="text-amber-600 dark:text-amber-400">
-                      Aktiv: {settings.provider === 'resend' ? 'Resend' : 'SMTP'} (ej konfigurerad)
+                      {t('mail.activeNotConfigured', {
+                        provider: settings.provider === 'resend' ? 'Resend' : 'SMTP',
+                      })}
                     </span>
                   )}
                 </div>
@@ -232,11 +235,10 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
             </div>
           </div>
 
-          {/* Resend config */}
           {provider === 'resend' && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Hämta API-nyckel från{' '}
+                {t('mail.resendHint')}{' '}
                 <a
                   href="https://resend.com/api-keys"
                   target="_blank"
@@ -247,7 +249,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
                 </a>
               </p>
               <div>
-                <Label htmlFor="resend-api-key">API-nyckel</Label>
+                <Label htmlFor="resend-api-key">{t('mail.apiKey')}</Label>
                 <Input
                   id="resend-api-key"
                   type="password"
@@ -258,26 +260,25 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
                 />
               </div>
               <div>
-                <Label htmlFor="resend-from">Avsändaradress (From)</Label>
+                <Label htmlFor="resend-from">{t('mail.fromAddress')}</Label>
                 <Input
                   id="resend-from"
                   type="email"
                   value={resendFromAddress}
                   onChange={(e) => setResendFromAddress(e.target.value)}
-                  placeholder="onboarding@resend.dev eller din verifierade domän"
+                  placeholder={t('mail.resendFromPlaceholder')}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Resend kräver verifierad domän. Testa med onboarding@resend.dev.
+                  {t('mail.resendDomainHint')}
                 </p>
               </div>
             </div>
           )}
 
-          {/* SMTP config */}
           {provider === 'smtp' && (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="smtp-host">Server (host)</Label>
+                <Label htmlFor="smtp-host">{t('mail.host')}</Label>
                 <Input
                   id="smtp-host"
                   value={host}
@@ -286,7 +287,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
                 />
               </div>
               <div>
-                <Label htmlFor="smtp-port">Port</Label>
+                <Label htmlFor="smtp-port">{t('mail.port')}</Label>
                 <Input
                   id="smtp-port"
                   type="number"
@@ -297,10 +298,10 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
               </div>
               <div className="flex items-center gap-2">
                 <Switch id="smtp-secure" checked={secure} onCheckedChange={setSecure} />
-                <Label htmlFor="smtp-secure">Använd SSL/TLS (port 465)</Label>
+                <Label htmlFor="smtp-secure">{t('mail.secure')}</Label>
               </div>
               <div>
-                <Label htmlFor="smtp-user">Användarnamn</Label>
+                <Label htmlFor="smtp-user">{t('mail.authUser')}</Label>
                 <Input
                   id="smtp-user"
                   type="text"
@@ -310,20 +311,20 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
                 />
               </div>
               <div>
-                <Label htmlFor="smtp-pass">Lösenord</Label>
+                <Label htmlFor="smtp-pass">{t('mail.password')}</Label>
                 <Input
                   id="smtp-pass"
                   type="password"
                   value={authPass}
                   onChange={(e) => setAuthPass(e.target.value)}
                   placeholder={
-                    settings?.smtp?.hasPassword ? 'Lämna tomt för att behålla befintligt' : ''
+                    settings?.smtp?.hasPassword ? t('mail.passwordPlaceholder') : ''
                   }
                   autoComplete="new-password"
                 />
               </div>
               <div>
-                <Label htmlFor="smtp-from">Avsändaradress (From)</Label>
+                <Label htmlFor="smtp-from">{t('mail.fromAddress')}</Label>
                 <Input
                   id="smtp-from"
                   type="email"
@@ -340,14 +341,14 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
             <p className="text-sm text-green-600 dark:text-green-400 mt-2">{testSuccess}</p>
           )}
 
-          <DetailSection title="Testa inställningar" className="pt-4 mt-4 border-t border-border">
+          <DetailSection title={t('mail.testTitle')} className="pt-4 mt-4 border-t border-border">
             <p className="text-xs text-muted-foreground mb-3">
-              Testa med fälten du fyllt i (spara behövs inte först).
+              {t('mail.testHint')}
             </p>
             <div className="flex gap-2 items-end flex-wrap">
               <div className="flex-1 min-w-[200px]">
                 <Label htmlFor="test-to" className="text-sm">
-                  Skicka testmail till
+                  {t('mail.sendTestTo')}
                 </Label>
                 <Input
                   id="test-to"
@@ -366,7 +367,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
                 icon={Send}
                 className="h-9"
               >
-                {testing ? 'Skickar...' : 'Skicka testmail'}
+                {testing ? t('mail.sending') : t('mail.sendTest')}
               </Button>
             </div>
           </DetailSection>

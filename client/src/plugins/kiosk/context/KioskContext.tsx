@@ -72,6 +72,13 @@ interface KioskContextType {
   setShowDiscardQuickEditDialog: (show: boolean) => void;
   getCloseHandler: (defaultClose: () => void) => () => void;
   onDiscardQuickEditAndClose: () => void;
+
+  navigateToPrevItem: () => void;
+  navigateToNextItem: () => void;
+  hasPrevItem: boolean;
+  hasNextItem: boolean;
+  currentItemIndex: number;
+  totalItems: number;
 }
 
 const KioskContext = createContext<KioskContextType | undefined>(undefined);
@@ -227,6 +234,25 @@ export function KioskProvider({
     registerKioskNavigation(openSlotForViewBridge);
     return () => registerKioskNavigation(null);
   }, [registerKioskNavigation, openSlotForViewBridge]);
+
+  const currentItemIndex = currentSlot
+    ? slots.findIndex((s) => s.id === currentSlot.id)
+    : -1;
+  const totalItems = slots.length;
+  const hasPrevItem = currentItemIndex > 0;
+  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
+
+  const navigateToPrevItem = useCallback(() => {
+    if (!hasPrevItem || currentItemIndex <= 0) return;
+    const prev = slots[currentItemIndex - 1];
+    if (prev) openSlotForView(prev);
+  }, [hasPrevItem, currentItemIndex, slots, openSlotForView]);
+
+  const navigateToNextItem = useCallback(() => {
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= slots.length - 1) return;
+    const next = slots[currentItemIndex + 1];
+    if (next) openSlotForView(next);
+  }, [hasNextItem, currentItemIndex, slots, openSlotForView]);
 
   // Clear quick-edit draft when slot changes
   useEffect(() => {
@@ -570,6 +596,13 @@ export function KioskProvider({
     setShowDiscardQuickEditDialog,
     getCloseHandler,
     onDiscardQuickEditAndClose,
+
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    totalItems,
   };
 
   return <KioskContext.Provider value={value}>{children}</KioskContext.Provider>;

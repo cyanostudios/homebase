@@ -44,6 +44,7 @@ class KioskModel {
         notifications_enabled,
         contact_id,
         mentions,
+        match_id,
       } = slotData;
       const cap = validateCapacity(capacity);
 
@@ -55,6 +56,7 @@ class KioskModel {
         notifications_enabled: notifications_enabled !== false && notifications_enabled !== 'false',
         contact_id: contact_id || null,
         mentions: JSON.stringify(Array.isArray(mentions) ? mentions : []),
+        match_id: match_id != null && match_id !== '' ? parseInt(match_id, 10) : null,
       });
 
       Logger.info('Kiosk slot created', { slotId: result.id });
@@ -241,6 +243,7 @@ class KioskModel {
       mentions,
       created_at: row.created_at,
       updated_at: row.updated_at,
+      match_id: row.match_id != null ? row.match_id.toString() : null,
     };
   }
 }

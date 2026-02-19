@@ -1,5 +1,5 @@
 // plugins/mail/model.js
-const { Logger, Database } = require('@homebase/core');
+const { Logger, Database, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 const TABLE = 'mail_log';
@@ -36,7 +36,7 @@ class MailModel {
   async getHistory(req, options = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id;
+      const userId = Context.getTenantUserId(req);
       if (!userId) {
         return [];
       }
@@ -81,7 +81,7 @@ class MailModel {
   async getHistoryCount(req, options = {}) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id;
+      const userId = Context.getTenantUserId(req);
       if (!userId) {
         return 0;
       }
@@ -112,7 +112,7 @@ class MailModel {
   async getSettings(req, options = { needsPassword: false }) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id;
+      const userId = Context.getTenantUserId(req);
       if (!userId) {
         return null;
       }
@@ -159,7 +159,7 @@ class MailModel {
   async saveSettings(req, data) {
     try {
       const db = Database.get(req);
-      const userId = req.session?.currentTenantUserId ?? req.session?.user?.id;
+      const userId = Context.getTenantUserId(req);
       if (!userId) {
         throw new AppError('Unauthorized', 401, AppError.CODES.UNAUTHORIZED);
       }

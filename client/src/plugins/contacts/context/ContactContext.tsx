@@ -65,6 +65,13 @@ interface ContactContextType {
   getCloseHandler: (defaultClose: () => void) => () => void;
   onDiscardTagsAndClose: () => void;
   tagError: string | null;
+
+  navigateToPrevItem: () => void;
+  navigateToNextItem: () => void;
+  hasPrevItem: boolean;
+  hasNextItem: boolean;
+  currentItemIndex: number;
+  totalItems: number;
 }
 
 const ContactContext = createContext<ContactContextType | undefined>(undefined);
@@ -284,6 +291,25 @@ export function ContactProvider({
     setTagsDraft(null);
     setTagError(null);
   }, []);
+
+  const currentItemIndex = currentContact
+    ? contacts.findIndex((c) => c.id === currentContact.id)
+    : -1;
+  const totalItems = contacts.length;
+  const hasPrevItem = currentItemIndex > 0;
+  const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
+
+  const navigateToPrevItem = useCallback(() => {
+    if (!hasPrevItem || currentItemIndex <= 0) return;
+    const prev = contacts[currentItemIndex - 1];
+    if (prev) openContactForView(prev);
+  }, [hasPrevItem, currentItemIndex, contacts]);
+
+  const navigateToNextItem = useCallback(() => {
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= contacts.length - 1) return;
+    const next = contacts[currentItemIndex + 1];
+    if (next) openContactForView(next);
+  }, [hasNextItem, currentItemIndex, contacts]);
 
   const clearValidationErrors = () => {
     setValidationErrors([]);
@@ -640,6 +666,13 @@ export function ContactProvider({
     getCloseHandler,
     onDiscardTagsAndClose,
     tagError,
+
+    navigateToPrevItem,
+    navigateToNextItem,
+    hasPrevItem,
+    hasNextItem,
+    currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
+    totalItems,
   };
 
   return <ContactContext.Provider value={value}>{children}</ContactContext.Provider>;

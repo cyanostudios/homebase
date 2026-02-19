@@ -273,6 +273,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [openToSlotDialog, setOpenToSlotDialog] = useState<
     | ((match: {
+        id: string;
         home_team: string;
         away_team: string;
         location?: string | null;
@@ -284,6 +285,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (
       fn:
         | ((match: {
+            id: string;
             home_team: string;
             away_team: string;
             location?: string | null;
