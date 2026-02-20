@@ -6,6 +6,7 @@ const config = require('./plugin.config');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { sanitizeFolderPath } = require('./pathUtils');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
 const { uploadLimiter } = require('../../server/core/middleware/rateLimit');
@@ -44,8 +45,11 @@ function createFilesRoutes(controller, context) {
   ]);
 
   const storage = multer.diskStorage({
-    destination: function (_req, _file, cb) {
-      cb(null, uploadRoot);
+    destination: function (req, _file, cb) {
+      const fp = sanitizeFolderPath(req?.query?.folderPath ?? req?.body?.folderPath);
+      const dir = fp ? path.join(uploadRoot, fp) : uploadRoot;
+      ensureDirSync(dir);
+      cb(null, dir);
     },
     filename: function (_req, file, cb) {
       // ✅ Store ASCII-safe filenames only (robust URLs/FS), preserve original for download suggestion
@@ -165,7 +169,8 @@ function createFilesRoutes(controller, context) {
     gate,
     /* csrfProtection, */ // Temporarily disabled
     [
-      commonRules.array('ids', 500),
+      commonRules.array('ids', 500).optional(),
+      commonRules.array('folderPaths', 200).optional(),
     ],
     validateRequest,
     (req, res) => controller.bulkDelete(req, res)
@@ -188,9 +193,28 @@ function createFilesRoutes(controller, context) {
     (req, res) => controller.upload(req, res, { uploadRoot })
   );
 
-  // ---- RAW file serving by stored filename (behind auth gate) ----
-  router.get('/raw/:filename', gate, (req, res) =>
-    controller.raw(req, res, { uploadRoot })
+  // ---- RAW file serving (supports folders: /raw/Mapp A/file.pdf or /raw/file.pdf) ----
+  router.get(/^\/raw\/(.+)$/, gate, (req, res) => {
+    req.params.path = req.params[0];
+    controller.raw(req, res, { uploadRoot });
+  });
+
+  // ---- Folders ----
+  router.get('/folders', gate, (req, res) => controller.getFolders(req, res));
+  router.post('/folders',
+    gate,
+    [body('path').optional(), body('name').optional()],
+    validateRequest,
+    (req, res) => controller.createFolder(req, res)
+  );
+
+  // ---- Move file to folder ----
+  router.post('/:id/move',
+    gate,
+    commonRules.id('id'),
+    [body('folderPath').optional({ values: 'null' })],
+    validateRequest,
+    (req, res) => controller.move(req, res)
   );
 
   // ---- Cloud Storage Integration ----

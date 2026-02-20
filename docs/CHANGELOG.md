@@ -6,6 +6,19 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ## 2026-02 – Homebase 3.1.5 (snapshot before migrating from 3.X)
 
+### CF7 intake och filvalidering
+
+- **Intake-webhook för besiktningsförfrågningar**
+  - Ny route `POST /api/intake/inspection-request` för CF7-formulär. Validerar `x-webhook-secret`, skapar projekt och mapp, hämtar filer från WordPress, kopplar filer till projekt.
+  - Fältmappning: beteckning, namn, e-post, företag, ämne, meddelande, typ, bilaga-1..bilaga-6.
+  - Dokumentation: [.cursor/contact_form_to_homebase.md](.cursor/contact_form_to_homebase.md).
+- **Magic-byte MIME-validering**
+  - `wordpressFileFetcher.js` använder `file-type` för att detektera filtyp från innehåll istället för HTTP-header. Blockar spoofade filer.
+  - Tillåtna typer inkluderar PDF, bilder, Office, text, CSV och **ZIP**.
+- **Filuppladdning med mappar**
+  - Stöd för `folder_path` i user_files. Migrering 052-files-folder-path.sql.
+  - Multer och pathUtils stöder mappstruktur. Files-plugin tillåter ZIP.
+
 ### Orders sync – inga felmeddelanden och fix för fastnad lock
 
 - **Pool error handlers**

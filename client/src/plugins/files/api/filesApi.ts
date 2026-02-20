@@ -108,8 +108,10 @@ export class FilesApi {
   }
 
   // JSON CRUD
-  getItems() {
-    return this.request('/');
+  getItems(folderPath?: string | null) {
+    if (folderPath === undefined) return this.request('/');
+    const q = '?folderPath=' + encodeURIComponent(folderPath === null ? '' : folderPath);
+    return this.request('/' + q);
   }
   
   createItem(data: any) {
@@ -134,23 +136,46 @@ export class FilesApi {
 
   // ---- Bulk delete ----
   // DELETE /api/files/batch
-  // body: { ids: string[] }
-  async deleteFilesBulk(ids: string[]): Promise<{ ok: true; requested: number; deleted: number; deletedIds: string[] }> {
+  // body: { ids?: string[], folderPaths?: string[] }
+  async deleteFilesBulk(ids: string[] = [], folderPaths: string[] = []): Promise<{ ok: true; requested: number; deleted: number; deletedIds: string[] }> {
     return this.request('/batch', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids }),
+      body: JSON.stringify({ ids, folderPaths }),
     });
   }
 
   // MULTIPART upload (returns array of created items)
-  async uploadFiles(files: File[]): Promise<any[]> {
+  async uploadFiles(files: File[], folderPath?: string | null): Promise<any[]> {
     const fd = new FormData();
     for (const f of files) fd.append('files', f, f.name);
+    if (folderPath !== undefined && folderPath !== null && folderPath !== '') {
+      fd.append('folderPath', folderPath);
+    }
     return this.request('/upload', {
       method: 'POST',
       body: fd,
       // NOTE: let browser set the correct multipart boundary → no manual Content-Type
+    });
+  }
+
+  getFolders(): Promise<string[]> {
+    return this.request('/folders');
+  }
+
+  createFolder(path: string): Promise<{ path: string; created: boolean }> {
+    return this.request('/folders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    });
+  }
+
+  moveFile(id: string, folderPath: string | null): Promise<any> {
+    return this.request(`/${encodeURIComponent(id)}/move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folderPath }),
     });
   }
 

@@ -4,6 +4,7 @@
 const authRoutes = require('./auth');
 const adminRoutes = require('./admin');
 const healthRoutes = require('./health');
+const intakeRoutes = require('./intake');
 const settingsRoutes = require('./settings');
 const activityLogRoutes = require('./activityLog');
 const fxRoutes = require('./fx');
@@ -26,6 +27,9 @@ function setupCoreRoutes(app, dependencies) {
 
   // Health check (no auth required)
   app.use('/api', healthRoutes);
+
+  // Intake webhooks (no auth; validated by x-webhook-secret / body.webhook_secret)
+  app.use('/api/intake', intakeRoutes);
 
   // Auth routes (login, signup, logout)
   app.use('/api/auth', authRoutes);

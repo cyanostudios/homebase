@@ -1,7 +1,7 @@
 // plugins/files/model.js
 // Files model - V3 with @homebase/core SDK
 // Note: Binary upload handled elsewhere, this only manages metadata
-const { Logger, Database } = require('@homebase/core');
+const { Logger, Database, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 class FilesModel {
@@ -13,18 +13,26 @@ class FilesModel {
   static TABLE = 'user_files';
   static ORDER_BY = 'updated_at DESC, id DESC';
 
-  async getAll(req) {
+  async getAll(req, opts = {}) {
     try {
       const db = Database.get(req);
+      const { folderPath } = opts;
 
-      // Tenant isolation automatic
-      const rows = await db.query(
-        `SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
-         FROM ${FilesModel.TABLE}
-         ORDER BY ${FilesModel.ORDER_BY}`,
-        [],
-      );
+      let sql = `SELECT id, user_id, name, size, mime_type, url, folder_path, created_at, updated_at
+         FROM ${FilesModel.TABLE}`;
+      const params = [];
 
+      if (folderPath !== undefined) {
+        if (folderPath === null || folderPath === '') {
+          sql += ` WHERE folder_path IS NULL`;
+        } else {
+          sql += ` WHERE folder_path = $1`;
+          params.push(folderPath);
+        }
+      }
+      sql += ` ORDER BY ${FilesModel.ORDER_BY}`;
+
+      const rows = await db.query(sql, params);
       return rows.map(this.transformRow);
     } catch (error) {
       Logger.error('Failed to fetch files', error);
@@ -37,7 +45,7 @@ class FilesModel {
       const db = Database.get(req);
 
       const result = await db.query(
-        `SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
+        `SELECT id, user_id, name, size, mime_type, url, folder_path, created_at, updated_at
          FROM ${FilesModel.TABLE}
          WHERE id = $1
          LIMIT 1`,
@@ -55,25 +63,43 @@ class FilesModel {
     }
   }
 
-  // Find by stored filename in url (/api/files/raw/<filename>)
-  async getByStoredFilename(req, filename) {
+  // Find by full url (matches /api/files/raw/<path>/<filename> or /api/files/raw/<filename>)
+  async getByUrl(req, url) {
     try {
       const db = Database.get(req);
 
-      const like = `%/api/files/raw/${filename}`;
       const result = await db.query(
-        `SELECT id, user_id, name, size, mime_type, url, created_at, updated_at
+        `SELECT id, user_id, name, size, mime_type, url, folder_path, created_at, updated_at
          FROM ${FilesModel.TABLE}
-         WHERE url LIKE $1
+         WHERE url = $1
          ORDER BY id DESC
          LIMIT 1`,
-        [like]
+        [url]
       );
 
-      if (result.length === 0) {
-        return null;
-      }
+      if (result.length === 0) return null;
+      return this.transformRow(result[0]);
+    } catch (error) {
+      Logger.error('Failed to get file by url', error, { url });
+      throw new AppError('Failed to get file by url', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
 
+  // Find by stored filename (legacy: matches url ending with filename, for root or folder)
+  async getByStoredFilename(req, filename) {
+    try {
+      const db = Database.get(req);
+      const escaped = filename.replace(/[%_\\]/g, '\\$&');
+      const likeFolder = `%/api/files/raw/%/${escaped}`;
+      const likeRoot = `%/api/files/raw/${escaped}`;
+      const result = await db.query(
+        `SELECT id, user_id, name, size, mime_type, url, folder_path, created_at, updated_at
+         FROM ${FilesModel.TABLE}
+         WHERE url LIKE $1 ESCAPE '\\' OR url LIKE $2 ESCAPE '\\'
+         ORDER BY id DESC LIMIT 1`,
+        [likeFolder, likeRoot]
+      );
+      if (result.length === 0) return null;
       return this.transformRow(result[0]);
     } catch (error) {
       Logger.error('Failed to get file by stored filename', error, { filename });
@@ -89,13 +115,16 @@ class FilesModel {
     try {
       const db = Database.get(req);
 
-      // Use database.insert for automatic tenant isolation
-      const result = await db.insert(FilesModel.TABLE, {
+      const insertData = {
         name: String(data?.name ?? '').trim(),
         size: data?.size ?? null,
         mime_type: data?.mimeType ?? null,
         url: data?.url ?? null,
-      });
+      };
+      if (Object.prototype.hasOwnProperty.call(data, 'folderPath')) {
+        insertData.folder_path = data.folderPath === '' || data.folderPath == null ? null : data.folderPath;
+      }
+      const result = await db.insert(FilesModel.TABLE, insertData);
 
       Logger.info('File metadata created', { fileId: result.id });
 
@@ -134,6 +163,14 @@ class FilesModel {
       if (Object.prototype.hasOwnProperty.call(data, 'url')) {
         updateData.url = data.url ?? null;
       }
+      if (Object.prototype.hasOwnProperty.call(data, 'folderPath')) {
+        updateData.folder_path = data.folderPath === '' || data.folderPath == null ? null : data.folderPath;
+      }
+      // Preserve updated_at when caller passes it (e.g. move should not change "Updated" date)
+      if (Object.prototype.hasOwnProperty.call(data, 'updatedAt') || Object.prototype.hasOwnProperty.call(data, 'updated_at')) {
+        const val = data.updated_at ?? data.updatedAt;
+        if (val != null) updateData.updated_at = val;
+      }
 
       // Use database.update for automatic tenant isolation
       const result = await db.update(FilesModel.TABLE, itemId, updateData);
@@ -168,6 +205,41 @@ class FilesModel {
         throw error;
       }
       throw new AppError('Failed to delete file metadata', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  // Get all file IDs in a folder (and subfolders) for batch delete
+  async getFileIdsInFolder(req, folderPath) {
+    if (!folderPath || typeof folderPath !== 'string') return [];
+    try {
+      const db = Database.get(req);
+      const sql = `
+        SELECT id FROM ${FilesModel.TABLE}
+        WHERE (folder_path = $1 OR folder_path LIKE $2)
+      `;
+      const prefix = folderPath.replace(/'/g, "''") + '/';
+      const rows = await db.query(sql, [folderPath, prefix + '%']);
+      return rows.map((r) => String(r.id));
+    } catch (error) {
+      Logger.error('Failed to get file IDs in folder', error, { folderPath });
+      return [];
+    }
+  }
+
+  // Get all distinct folder paths (for folder tree)
+  async getFolderPaths(req) {
+    try {
+      const db = Database.get(req);
+      const rows = await db.query(
+        `SELECT DISTINCT folder_path FROM ${FilesModel.TABLE}
+         WHERE folder_path IS NOT NULL AND folder_path != ''
+         ORDER BY folder_path`,
+        []
+      );
+      return rows.map((r) => r.folder_path);
+    } catch (error) {
+      Logger.error('Failed to get folder paths', error);
+      throw new AppError('Failed to get folder paths', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
@@ -227,6 +299,7 @@ class FilesModel {
   async bulkDelete(req, idsTextArray) {
     try {
       const db = Database.get(req);
+      const userId = Context.getUserId(req);
 
       const ids = Array.isArray(idsTextArray)
         ? idsTextArray.map((x) => String(x).trim()).filter(Boolean)
@@ -238,11 +311,11 @@ class FilesModel {
 
       const sql = `
         DELETE FROM ${FilesModel.TABLE}
-        WHERE id::text = ANY($1::text[])
+        WHERE id::text = ANY($1::text[]) AND user_id = $2
         RETURNING id::text AS id
       `;
 
-      const rows = await db.query(sql, [ids]);
+      const rows = await db.query(sql, [ids, userId]);
 
       Logger.info('Files bulk deleted', { count: rows.length });
       return {
@@ -266,6 +339,7 @@ class FilesModel {
       size: row.size != null ? Number(row.size) : null,
       mimeType: row.mime_type ?? null,
       url: row.url ?? null,
+      folderPath: row.folder_path ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

@@ -12,6 +12,7 @@ const mailModel = require('../mail/model');
 const contactsModel = new ContactsModel();
 const filesModel = new FilesModel();
 const UPLOAD_ROOT = path.join(process.cwd(), 'server', 'uploads', 'files');
+const { resolvePhysicalPath } = require('../files/pathUtils');
 
 function isEmail(str) {
   if (typeof str !== 'string' || !str.trim()) return false;

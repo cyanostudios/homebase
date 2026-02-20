@@ -11,7 +11,15 @@ interface FilesContextType {
   panelMode: 'create' | 'edit' | 'view';
   validationErrors: ValidationError[];
   files: FileItem[];
-  refetchFiles: () => Promise<void>;
+  refetchFiles: (folderPath?: string | null) => Promise<void>;
+
+  // Folder navigation
+  currentFolderPath: string | null;
+  setCurrentFolderPath: (path: string | null) => void;
+  folders: string[];
+  loadFolders: () => Promise<void>;
+  createFolder: (path: string) => Promise<void>;
+  moveFile: (id: string, folderPath: string | null) => Promise<void>;
 
   openFilesPanel: (item: FileItem | null) => void;
   openFilePanel: (item: FileItem | null) => void; // Alias for App.tsx primaryAction
@@ -25,10 +33,13 @@ interface FilesContextType {
 
   // Selection & bulk actions
   selectedFileIds: string[];
+  selectedFolderPaths: string[];
   toggleFileSelected: (id: string) => void;
+  toggleFolderSelected: (path: string) => void;
   selectAllFiles: (ids: string[]) => void;
+  selectAllVisible: (fileIds: string[], folderPaths: string[]) => void;
   clearFileSelection: () => void;
-  deleteFiles: (ids: string[]) => Promise<void>;
+  deleteFiles: (ids: string[], folderPaths?: string[]) => Promise<void>;
 
   // Cloud storage
   cloudStorageSettings: { googledrive: CloudStorageSettings | null };
@@ -66,6 +77,9 @@ export function FilesProvider({
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+  const [selectedFolderPaths, setSelectedFolderPaths] = useState<string[]>([]);
+  const [currentFolderPath, setCurrentFolderPathState] = useState<string | null>(null);
+  const [folders, setFolders] = useState<string[]>([]);
   const [cloudStorageSettings, setCloudStorageSettings] = useState<{
     googledrive: CloudStorageSettings | null;
   }>({
@@ -75,11 +89,19 @@ export function FilesProvider({
   useEffect(() => {
     if (isAuthenticated) {
       void loadItems();
+      void loadFolders();
       void loadCloudStorageSettings();
     } else {
       setFiles([]);
+      setFolders([]);
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      void loadItems();
+    }
+  }, [currentFolderPath, isAuthenticated]);
 
   useEffect(() => {
     registerPanelCloseFunction('files', closeFilePanel);
@@ -106,9 +128,10 @@ export function FilesProvider({
     updatedAt: it?.updatedAt ? new Date(it.updatedAt) : null,
   });
 
-  async function loadItems() {
+  async function loadItems(folderPathOverride?: string | null) {
     try {
-      const items: any[] = await api.getItems();
+      const path = folderPathOverride !== undefined ? (folderPathOverride ?? '') : (currentFolderPath ?? '');
+      const items: any[] = await api.getItems(path);
       setFiles(items.map(normalize));
     } catch (e: any) {
       console.warn('[files] getItems failed:', e);
@@ -168,9 +191,10 @@ export function FilesProvider({
     // MULTIPART CREATE (en eller flera filer)
     if (!currentFile && batch.length >= 1) {
       try {
-        const created = await api.uploadFiles(batch); // returns array
+        const created = await api.uploadFiles(batch, currentFolderPath ?? undefined); // returns array
         const normalized = (created as any[]).map(normalize);
         setFiles((prev) => [...prev, ...normalized]);
+        void loadFolders();
         closeFilesPanel();
         return true;
       } catch (err: any) {
@@ -277,14 +301,18 @@ export function FilesProvider({
   };
 
   // Bulk delete
-  const deleteFiles = async (ids: string[]) => {
+  const deleteFiles = async (ids: string[], folderPaths?: string[]) => {
     const uniqueIds = Array.from(new Set((ids || []).map(String))).filter(Boolean);
-    if (!uniqueIds.length) return;
+    const uniquePaths = Array.from(new Set((folderPaths || []).filter(Boolean)));
+    if (!uniqueIds.length && !uniquePaths.length) return;
 
     try {
-      await api.deleteFilesBulk(uniqueIds);
+      await api.deleteFilesBulk(uniqueIds, uniquePaths);
       setFiles((prev) => prev.filter((f) => !uniqueIds.includes(String(f.id))));
       setSelectedFileIds((prev) => prev.filter((id) => !uniqueIds.includes(id)));
+      setSelectedFolderPaths((prev) => prev.filter((p) => !uniquePaths.includes(p)));
+      await loadItems();
+      await loadFolders();
     } catch (error: any) {
       console.error('Bulk delete failed:', error);
       const errorMessage = error?.message || error?.error || 'Failed to delete files';
@@ -300,13 +328,25 @@ export function FilesProvider({
     );
   };
 
+  const toggleFolderSelected = (folderPath: string) => {
+    setSelectedFolderPaths((prev) =>
+      prev.includes(folderPath) ? prev.filter((x) => x !== folderPath) : [...prev, folderPath],
+    );
+  };
+
   const selectAllFiles = (ids: string[]) => {
     const norm = Array.isArray(ids) ? ids.map(String) : [];
     setSelectedFileIds(norm);
   };
 
+  const selectAllVisible = (fileIds: string[], folderPaths: string[]) => {
+    setSelectedFileIds(Array.from(new Set(fileIds.map(String))));
+    setSelectedFolderPaths(Array.from(new Set(folderPaths)));
+  };
+
   const clearFileSelection = () => {
     setSelectedFileIds([]);
+    setSelectedFolderPaths([]);
   };
 
   // Cloud storage functions
@@ -380,8 +420,34 @@ export function FilesProvider({
     return `Are you sure you want to delete "${name}"? This will also remove the physical file.`;
   };
 
-  const refetchFiles = async () => {
+  const refetchFiles = async (folderPath?: string | null) => {
+    await loadItems(folderPath);
+    await loadFolders();
+  };
+
+  const setCurrentFolderPath = (path: string | null) => {
+    setCurrentFolderPathState(path);
+  };
+
+  async function loadFolders() {
+    try {
+      const list = await api.getFolders();
+      setFolders(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.warn('[files] getFolders failed:', e);
+      setFolders([]);
+    }
+  }
+
+  const createFolder = async (folderPath: string) => {
+    await api.createFolder(folderPath);
+    await loadFolders();
+  };
+
+  const moveFile = async (id: string, folderPath: string | null) => {
+    await api.moveFile(id, folderPath);
     await loadItems();
+    await loadFolders();
   };
 
   const value: FilesContextType = {
@@ -391,14 +457,23 @@ export function FilesProvider({
     validationErrors,
     files,
     refetchFiles,
+    currentFolderPath,
+    setCurrentFolderPath,
+    folders,
+    loadFolders,
+    createFolder,
+    moveFile,
     cloudStorageSettings,
     loadCloudStorageSettings,
     connectCloudStorage,
     disconnectCloudStorage,
     getCloudStorageEmbedUrl,
     selectedFileIds,
+    selectedFolderPaths,
     toggleFileSelected,
+    toggleFolderSelected,
     selectAllFiles,
+    selectAllVisible,
     clearFileSelection,
     openFilesPanel,
     openFilePanel: openFilesPanel, // Alias for App.tsx primaryAction (singular)

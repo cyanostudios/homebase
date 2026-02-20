@@ -1,4 +1,4 @@
-import { File, Trash2, Grid3x3, List, ChevronUp, ChevronDown, Cloud, Settings, X, FolderOpen, Image, FolderPlus, ListPlus, Plus, Pencil, ChevronRight } from 'lucide-react';
+import { File, Trash2, Grid3x3, List, ChevronUp, ChevronDown, Cloud, Settings, X, FolderOpen, Image, FolderPlus, ListPlus, Plus, Pencil, ChevronRight, ChevronLeft, Folder, Move } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 
 
@@ -69,10 +69,20 @@ export const FileList: React.FC = () => {
     openFileForView,
     cloudStorageSettings,
     getCloudStorageEmbedUrl,
+    currentFolderPath,
+    setCurrentFolderPath,
+    folders,
+    loadFolders,
+    createFolder,
+    moveFile,
+    refetchFiles,
     // Selection API
     selectedFileIds,
+    selectedFolderPaths,
     toggleFileSelected,
+    toggleFolderSelected,
     selectAllFiles,
+    selectAllVisible,
     clearFileSelection,
     // Bulk delete
     deleteFiles,
@@ -106,6 +116,14 @@ export const FileList: React.FC = () => {
   const [showCreateListDialog, setShowCreateListDialog] = useState(false);
   const [createListDialogName, setCreateListDialogName] = useState('');
   const [createListDialogSaving, setCreateListDialogSaving] = useState(false);
+  // Move to folder
+  const [moveTargetFolder, setMoveTargetFolder] = useState<string | null>(null);
+  const [moving, setMoving] = useState(false);
+  // Create folder
+  const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
+  const [createFolderName, setCreateFolderName] = useState('');
+  const [createFolderSaving, setCreateFolderSaving] = useState(false);
+  const [createFolderAndMove, setCreateFolderAndMove] = useState(false);
 
   // Clean up OAuth callback query params
   useEffect(() => {
@@ -251,6 +269,84 @@ export const FileList: React.FC = () => {
     raw: it,
   });
 
+  // Subfolders of current path (immediate children)
+  const subfolders = useMemo(() => {
+    const base = currentFolderPath ?? '';
+    return folders.filter((f) => {
+      if (base === '') return f.indexOf('/') === -1;
+      const prefix = base + '/';
+      if (!f.startsWith(prefix)) return false;
+      return f.slice(prefix.length).indexOf('/') === -1;
+    });
+  }, [folders, currentFolderPath]);
+
+  const breadcrumbs = useMemo(() => {
+    if (!currentFolderPath) return [{ path: null, label: 'Root' }];
+    const parts = currentFolderPath.split('/').filter(Boolean);
+    const result = [{ path: null, label: 'Root' }];
+    let acc = '';
+    for (const p of parts) {
+      acc = acc ? `${acc}/${p}` : p;
+      result.push({ path: acc, label: p });
+    }
+    return result;
+  }, [currentFolderPath]);
+
+  const handleCreateFolder = async () => {
+    const name = createFolderName.trim();
+    if (!name) return;
+    const shouldMove = createFolderAndMove && selectedFileIds.length > 0;
+    setCreateFolderSaving(true);
+    try {
+      const base = currentFolderPath ?? '';
+      const fullPath = base ? `${base}/${name}` : name;
+      await createFolder(fullPath);
+      setShowCreateFolderDialog(false);
+      setCreateFolderName('');
+      setCreateFolderAndMove(false);
+      if (shouldMove) {
+        await handleMoveSelected(fullPath);
+      }
+      setCurrentFolderPath(fullPath);
+      if (shouldMove) {
+        await refetchFiles(fullPath);
+      }
+    } catch (err) {
+      console.error('Create folder failed:', err);
+    } finally {
+      setCreateFolderSaving(false);
+    }
+  };
+
+  const openCreateFolderDialog = (andMoveSelected = false) => {
+    setCreateFolderName('');
+    setCreateFolderAndMove(andMoveSelected);
+    // Defer when from dropdown so it can close and remove overlay first; avoids invisible overlay blocking clicks
+    if (andMoveSelected) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setShowCreateFolderDialog(true));
+      });
+    } else {
+      setShowCreateFolderDialog(true);
+    }
+  };
+
+  const handleMoveSelected = async (targetPath: string | null) => {
+    if (selectedFileIds.length === 0) return;
+    setMoving(true);
+    try {
+      for (const id of selectedFileIds) {
+        await moveFile(id, targetPath);
+      }
+      clearFileSelection();
+      setMoveTargetFolder(null);
+    } catch (err) {
+      console.error('Move failed:', err);
+    } finally {
+      setMoving(false);
+    }
+  };
+
   const filteredAndSorted = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
     const filtered = files.map(normalized).filter((it) => {
@@ -295,24 +391,44 @@ export const FileList: React.FC = () => {
     return filtered.sort(cmp);
   }, [files, searchTerm, sortField, sortOrder]);
 
+  // Combined list: folders first (explorer-style), then files
+  const listItems = useMemo(() => {
+    const folderItems = subfolders.map((f) => ({
+      type: 'folder' as const,
+      path: f,
+      label: currentFolderPath ? f.slice(currentFolderPath.length + 1) : f,
+    })).sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+    const fileItems = filteredAndSorted.map((f) => ({ type: 'file' as const, ...f }));
+    return [...folderItems, ...fileItems];
+  }, [subfolders, currentFolderPath, filteredAndSorted]);
+
   // Selected files (actual objects)
   const selectedFiles = useMemo(() => {
     const set = new Set(selectedFileIds.map(String));
     return files.filter((f: any) => set.has(String(f?.id)));
   }, [files, selectedFileIds]);
 
-  // Selection helpers
-  const visibleIds = useMemo(
-    () => filteredAndSorted.map((f: any) => String(f.id)),
-    [filteredAndSorted],
+  // Selection helpers (files + folders)
+  const visibleFileIds = useMemo(
+    () => listItems.filter((item: any) => item.type === 'file').map((item: any) => String(item.id)),
+    [listItems],
+  );
+  const visibleFolderPaths = useMemo(
+    () => listItems.filter((item: any) => item.type === 'folder').map((item: any) => item.path),
+    [listItems],
   );
   const allVisibleSelected = useMemo(
-    () => visibleIds.length > 0 && visibleIds.every((id) => selectedFileIds.includes(id)),
-    [visibleIds, selectedFileIds],
+    () =>
+      (visibleFileIds.length > 0 || visibleFolderPaths.length > 0) &&
+      visibleFileIds.every((id) => selectedFileIds.includes(id)) &&
+      visibleFolderPaths.every((p) => selectedFolderPaths.includes(p)),
+    [visibleFileIds, visibleFolderPaths, selectedFileIds, selectedFolderPaths],
   );
   const someVisibleSelected = useMemo(
-    () => visibleIds.some((id) => selectedFileIds.includes(id)),
-    [visibleIds, selectedFileIds],
+    () =>
+      visibleFileIds.some((id) => selectedFileIds.includes(id)) ||
+      visibleFolderPaths.some((p) => selectedFolderPaths.includes(p)),
+    [visibleFileIds, visibleFolderPaths, selectedFileIds, selectedFolderPaths],
   );
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -322,12 +438,15 @@ export const FileList: React.FC = () => {
 
   const onToggleAllVisible = () => {
     if (allVisibleSelected) {
-      const set = new Set(visibleIds);
-      const remaining = selectedFileIds.filter((id: string) => !set.has(id));
-      selectAllFiles(remaining);
+      selectAllVisible(
+        selectedFileIds.filter((id) => !visibleFileIds.includes(id)),
+        selectedFolderPaths.filter((p) => !visibleFolderPaths.includes(p)),
+      );
     } else {
-      const union = Array.from(new Set([...selectedFileIds, ...visibleIds]));
-      selectAllFiles(union);
+      selectAllVisible(
+        Array.from(new Set([...selectedFileIds, ...visibleFileIds])),
+        Array.from(new Set([...selectedFolderPaths, ...visibleFolderPaths])),
+      );
     }
   };
 
@@ -352,10 +471,10 @@ export const FileList: React.FC = () => {
   const handleOpenForView = (item: any) => attemptNavigation(() => openFileForView(item));
 
   const runDeleteFlow = async () => {
-    if (selectedFileIds.length === 0) return;
+    if (selectedFileIds.length === 0 && selectedFolderPaths.length === 0) return;
     setDeleting(true);
     try {
-      await deleteFiles(selectedFileIds);
+      await deleteFiles(selectedFileIds, selectedFolderPaths);
       setShowDeleteModal(false);
       clearFileSelection();
     } catch (err: any) {
@@ -405,18 +524,34 @@ export const FileList: React.FC = () => {
         onClick={() => setViewMode('list')}
         title="List view"
       />
+      <Button
+        variant="outline"
+        size="sm"
+        icon={FolderPlus}
+        onClick={() => openCreateFolderDialog(false)}
+        title="Skapa mapp"
+      >
+        Skapa mapp
+      </Button>
     </>
   );
 
   const toolbarActions = (
     <div className="flex items-center gap-2">
       {viewToggleActions}
-      {selectedFileIds.length > 0 && (
+      {(selectedFileIds.length > 0 || selectedFolderPaths.length > 0) && (
         <>
-          <DropdownMenu onOpenChange={(open) => open && fetchListsForAddToList()}>
+          <DropdownMenu
+            onOpenChange={(open) => {
+              if (open) {
+                fetchListsForAddToList();
+                loadFolders();
+              }
+            }}
+          >
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" icon={ListPlus} title="Lägg till i lista">
-                Add to list ({selectedFileIds.length})
+              <Button variant="outline" size="sm" icon={ListPlus} title="Lägg till i lista" disabled={selectedFileIds.length === 0}>
+                Add to list{selectedFileIds.length > 0 ? ` (${selectedFileIds.length})` : ''}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[12rem]">
@@ -446,13 +581,42 @@ export const FileList: React.FC = () => {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+          <DropdownMenu
+            onOpenChange={(open) => open && loadFolders()}
+          >
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" icon={Move} title="Flytta till mapp" disabled={moving || selectedFileIds.length === 0}>
+                {moving ? 'Flyttar…' : 'Flytta till mapp'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[12rem] max-h-[280px] overflow-y-auto">
+              <DropdownMenuItem onSelect={() => openCreateFolderDialog(true)}>
+                <FolderPlus className="w-4 h-4 mr-2" />
+                Ny mapp…
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => handleMoveSelected(null)}>
+                <Folder className="w-4 h-4 mr-2" />
+                Root
+              </DropdownMenuItem>
+              {folders.map((f) => (
+                <DropdownMenuItem key={f} onSelect={() => handleMoveSelected(f)}>
+                  <Folder className="w-4 h-4 mr-2" />
+                  <span className="truncate">{f}</span>
+                </DropdownMenuItem>
+              ))}
+              {folders.length === 0 && (
+                <div className="px-2 py-3 text-sm text-muted-foreground">Inga mappar</div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="destructive"
             size="sm"
             icon={Trash2}
             onClick={() => setShowDeleteModal(true)}
           >
-            Delete {selectedFileIds.length}
+            Delete {selectedFileIds.length + selectedFolderPaths.length}
           </Button>
         </>
       )}
@@ -532,9 +696,9 @@ export const FileList: React.FC = () => {
               </Button>
             )}
           </div>
-          {selectedFileIds.length > 0 && (
+          {(selectedFileIds.length > 0 || selectedFolderPaths.length > 0) && (
             <div className="mt-2 text-sm flex items-center flex-wrap gap-2">
-              <Badge variant="secondary">{selectedFileIds.length} selected</Badge>
+              <Badge variant="secondary">{selectedFileIds.length + selectedFolderPaths.length} selected</Badge>
               <Button
                 variant="ghost"
                 size="sm"
@@ -548,12 +712,30 @@ export const FileList: React.FC = () => {
       </div>
 
       {activeStorageView === 'local' && (
-        <ContentToolbar
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="Search by name, id, or type..."
-          rightActions={toolbarActions}
-        />
+        <>
+          <div className="px-4 pt-4 pb-2 flex flex-col gap-2">
+            <div className="flex items-center gap-1 flex-wrap text-sm">
+              {breadcrumbs.map((b, i) => (
+                <span key={b.path ?? 'root'} className="flex items-center gap-1">
+                  {i > 0 && <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                  <button
+                    type="button"
+                    className={`hover:underline ${i === breadcrumbs.length - 1 ? 'font-medium' : 'text-muted-foreground hover:text-foreground'}`}
+                    onClick={() => setCurrentFolderPath(b.path)}
+                  >
+                    {b.label}
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+          <ContentToolbar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search by name, id, or type..."
+            rightActions={toolbarActions}
+          />
+        </>
       )}
 
       <Card className="shadow-none">
@@ -699,11 +881,25 @@ export const FileList: React.FC = () => {
           <div className="space-y-6">
             {/* Local Files Section */}
             <div>
-              <div className="px-4 pt-4 pb-2">
+              <div className="px-4 pt-4 pb-2 flex flex-col gap-2">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <FolderOpen className="w-4 h-4" />
                   My Files ({filtered} {filtered === 1 ? 'file' : 'files'})
                 </h3>
+                <div className="flex items-center gap-1 flex-wrap text-sm">
+                  {breadcrumbs.map((b, i) => (
+                    <span key={b.path ?? 'root'} className="flex items-center gap-1">
+                      {i > 0 && <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                      <button
+                        type="button"
+                        className={`hover:underline ${i === breadcrumbs.length - 1 ? 'font-medium' : 'text-muted-foreground hover:text-foreground'}`}
+                        onClick={() => setCurrentFolderPath(b.path)}
+                      >
+                        {b.label}
+                      </button>
+                    </span>
+                  ))}
+                </div>
               </div>
               <ContentToolbar
                 searchValue={searchTerm}
@@ -713,7 +909,7 @@ export const FileList: React.FC = () => {
               />
               {viewMode === 'grid' ? (
                 <div className="p-4">
-                  {filteredAndSorted.length === 0 ? (
+                  {listItems.length === 0 ? (
                     <div className="p-12 text-center text-muted-foreground">
                       {searchTerm
                         ? 'No files found matching your search.'
@@ -721,7 +917,44 @@ export const FileList: React.FC = () => {
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                      {filteredAndSorted.map((row: any) => {
+                      {listItems.map((item: any) => {
+                        if (item.type === 'folder') {
+                          const isFolderSelected = selectedFolderPaths.includes(item.path);
+                          return (
+                            <div
+                              key={`folder-${item.path}`}
+                              className={`plugin-files relative rounded-lg border p-3 cursor-pointer transition-all ${
+                                isFolderSelected ? 'bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50' : 'border-border hover:border-plugin-subtle hover:shadow-md'
+                              }`}
+                              onClick={(e) => {
+                                if ((e.target as HTMLElement).closest('input[type="checkbox"]')) return;
+                                e.preventDefault();
+                                setCurrentFolderPath(item.path);
+                              }}
+                            >
+                              <div className="absolute top-2 left-2">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 cursor-pointer"
+                                  checked={isFolderSelected}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={() => toggleFolderSelected(item.path)}
+                                  aria-label={isFolderSelected ? 'Avmarkera mapp' : 'Markera mapp'}
+                                />
+                              </div>
+                              <div className="mt-6 flex flex-col items-center text-center">
+                                <div className="w-full h-24 flex items-center justify-center bg-muted rounded mb-2">
+                                  <Folder className="w-8 h-8 text-muted-foreground" />
+                                </div>
+                                <div className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate w-full" title={item.label}>
+                                  {item.label}
+                                </div>
+                                <div className="text-sm text-muted-foreground mt-0.5">Mapp</div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        const row = item;
                         const isSelected = selectedFileIds.includes(row.id);
                         const FileIcon = getFileIcon(row.mimeType);
                         const isImage = row.mimeType?.startsWith('image/');
@@ -814,7 +1047,7 @@ export const FileList: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredAndSorted.length === 0 ? (
+                    {listItems.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="p-6 text-center text-muted-foreground">
                           {searchTerm
@@ -823,7 +1056,46 @@ export const FileList: React.FC = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredAndSorted.map((row: any) => {
+                      listItems.map((item: any) => {
+                        if (item.type === 'folder') {
+                          const isFolderSelected = selectedFolderPaths.includes(item.path);
+                          return (
+                            <TableRow
+                              key={`folder-${item.path}`}
+                              className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50 ${isFolderSelected ? 'bg-plugin-subtle' : ''}`}
+                              tabIndex={0}
+                              role="button"
+                              aria-label={`Open folder ${item.label}`}
+                              onClick={(e) => {
+                                if ((e.target as HTMLElement).closest('input[type="checkbox"]')) return;
+                                e.preventDefault();
+                                setCurrentFolderPath(item.path);
+                              }}
+                            >
+                              <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 cursor-pointer rounded border-input"
+                                  checked={isFolderSelected}
+                                  onChange={() => toggleFolderSelected(item.path)}
+                                  aria-label={isFolderSelected ? 'Avmarkera mapp' : 'Markera mapp'}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Folder className="w-4 h-4 text-muted-foreground" />
+                                  <div className="font-medium">{item.label}</div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-sm text-muted-foreground">Mapp</div>
+                              </TableCell>
+                              <TableCell />
+                              <TableCell />
+                            </TableRow>
+                          );
+                        }
+                        const row = item;
                         const isSelected = selectedFileIds.includes(row.id);
                         return (
                           <TableRow
@@ -892,7 +1164,7 @@ export const FileList: React.FC = () => {
           </div>
         ) : viewMode === 'grid' ? (
           <div className="p-4">
-            {filteredAndSorted.length === 0 ? (
+            {listItems.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground">
                 {searchTerm
                   ? 'No files found matching your search.'
@@ -900,7 +1172,44 @@ export const FileList: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {filteredAndSorted.map((row: any) => {
+                {listItems.map((item: any) => {
+                  if (item.type === 'folder') {
+                    const isFolderSelected = selectedFolderPaths.includes(item.path);
+                    return (
+                      <div
+                        key={`folder-${item.path}`}
+                        className={`plugin-files relative rounded-lg border p-3 cursor-pointer transition-all ${
+                          isFolderSelected ? 'bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50' : 'border-border hover:border-plugin-subtle hover:shadow-md'
+                        }`}
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest('input[type="checkbox"]')) return;
+                          e.preventDefault();
+                          setCurrentFolderPath(item.path);
+                        }}
+                      >
+                        <div className="absolute top-2 left-2">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 cursor-pointer"
+                            checked={isFolderSelected}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={() => toggleFolderSelected(item.path)}
+                            aria-label={isFolderSelected ? 'Avmarkera mapp' : 'Markera mapp'}
+                          />
+                        </div>
+                        <div className="mt-6 flex flex-col items-center text-center">
+                          <div className="w-full h-24 flex items-center justify-center bg-muted rounded mb-2">
+                            <Folder className="w-8 h-8 text-muted-foreground" />
+                          </div>
+                          <div className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate w-full" title={item.label}>
+                            {item.label}
+                          </div>
+                          <div className="text-sm text-muted-foreground mt-0.5">Mapp</div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  const row = item;
                   const isSelected = selectedFileIds.includes(row.id);
                   const FileIcon = getFileIcon(row.mimeType);
                   const isImage = row.mimeType?.startsWith('image/');
@@ -993,7 +1302,7 @@ export const FileList: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAndSorted.length === 0 ? (
+              {listItems.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="p-6 text-center text-muted-foreground">
                     {searchTerm
@@ -1002,7 +1311,46 @@ export const FileList: React.FC = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredAndSorted.map((row: any) => {
+                listItems.map((item: any) => {
+                  if (item.type === 'folder') {
+                    const isFolderSelected = selectedFolderPaths.includes(item.path);
+                    return (
+                      <TableRow
+                        key={`folder-${item.path}`}
+                        className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50 ${isFolderSelected ? 'bg-plugin-subtle' : ''}`}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`Open folder ${item.label}`}
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest('input[type="checkbox"]')) return;
+                          e.preventDefault();
+                          setCurrentFolderPath(item.path);
+                        }}
+                      >
+                        <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 cursor-pointer rounded border-input"
+                            checked={isFolderSelected}
+                            onChange={() => toggleFolderSelected(item.path)}
+                            aria-label={isFolderSelected ? 'Avmarkera mapp' : 'Markera mapp'}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Folder className="w-4 h-4 text-muted-foreground" />
+                            <div className="font-medium">{item.label}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm text-muted-foreground">Mapp</div>
+                        </TableCell>
+                        <TableCell />
+                        <TableCell />
+                      </TableRow>
+                    );
+                  }
+                  const row = item;
                   const isSelected = selectedFileIds.includes(row.id);
                   return (
                     <TableRow
@@ -1061,15 +1409,20 @@ export const FileList: React.FC = () => {
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-xl">
             <Card className="p-6">
               <div className="mb-4">
-                <h3 className="text-lg font-semibold">Delete selected files</h3>
+                <h3 className="text-lg font-semibold">Delete selected</h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {selectedFiles.length} files selected
+                  {[
+                    selectedFileIds.length > 0 && `${selectedFileIds.length} file${selectedFileIds.length !== 1 ? 's' : ''}`,
+                    selectedFolderPaths.length > 0 && `${selectedFolderPaths.length} folder${selectedFolderPaths.length !== 1 ? 's' : ''}`,
+                  ].filter(Boolean).join(', ')}
                 </p>
               </div>
               <div className="mb-6">
                 <p className="text-sm text-muted-foreground">
-                  Are you sure you want to delete {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}?
-                  This will also remove the physical files. This action cannot be undone.
+                  {selectedFolderPaths.length > 0
+                    ? 'Deleting folders will remove all files inside them.'
+                    : 'This will also remove the physical files.'}{' '}
+                  This action cannot be undone.
                 </p>
               </div>
               <div className="flex items-center justify-end gap-2">
@@ -1082,7 +1435,7 @@ export const FileList: React.FC = () => {
                 </Button>
                 <Button
                   variant="destructive"
-                  disabled={deleting || selectedFiles.length === 0}
+                  disabled={deleting || (selectedFileIds.length === 0 && selectedFolderPaths.length === 0)}
                   onClick={runDeleteFlow}
                 >
                   {deleting ? 'Deleting…' : 'Delete'}
@@ -1092,6 +1445,37 @@ export const FileList: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Create folder */}
+      <Dialog open={showCreateFolderDialog} onOpenChange={setShowCreateFolderDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Skapa mapp</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {currentFolderPath ? `Mappen skapas i: ${currentFolderPath}` : 'Mappen skapas i root'}
+          </p>
+          <Input
+            placeholder="Mappens namn"
+            value={createFolderName}
+            onChange={(e) => setCreateFolderName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateFolderDialog(false)} disabled={createFolderSaving}>
+              Avbryt
+            </Button>
+            <Button
+              onClick={handleCreateFolder}
+              disabled={!createFolderName.trim() || createFolderSaving}
+              icon={FolderPlus}
+            >
+              {createFolderSaving ? 'Skapar…' : createFolderAndMove ? 'Skapa och flytta' : 'Skapa'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create new list (from Add to list) */}
       <Dialog open={showCreateListDialog} onOpenChange={setShowCreateListDialog}>
