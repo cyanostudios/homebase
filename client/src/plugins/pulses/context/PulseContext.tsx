@@ -1,10 +1,4 @@
-import React, {
-  createContext,
-  useState,
-  useEffect,
-  useCallback,
-  ReactNode,
-} from 'react';
+import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useApp } from '@/core/api/AppContext';
@@ -48,6 +42,13 @@ interface PulseContextType {
     twilioAuthToken?: string;
     twilioFromNumber?: string;
   }) => Promise<void>;
+  selectedIds: string[];
+  selectedCount: number;
+  isSelected: (id: string) => boolean;
+  toggleSelected: (id: string) => void;
+  selectAll: () => void;
+  clearSelection: () => void;
+  deleteHistory: (ids: string[]) => Promise<void>;
 }
 
 const PulseContext = createContext<PulseContextType | undefined>(undefined);
@@ -72,11 +73,16 @@ export function PulseProvider({
   const [totalCount, setTotalCount] = useState(0);
   const [settings, setSettings] = useState<PulseSettings | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const closePulsePanel = useCallback(() => {
+    setIsPulsesPanelOpen(false);
+  }, []);
 
   useEffect(() => {
     registerPanelCloseFunction('pulses', closePulsePanel);
     return () => unregisterPanelCloseFunction('pulses');
-  }, []);
+  }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closePulsePanel]);
 
   useEffect(() => {
     const submitFn = () => window.dispatchEvent(new CustomEvent('submitPulseForm'));
@@ -94,12 +100,10 @@ export function PulseProvider({
   }, []);
 
   const loadHistory = useCallback(
-    async (params?: {
-      limit?: number;
-      offset?: number;
-      pluginSource?: string;
-    }) => {
-      if (!isAuthenticated) return;
+    async (params?: { limit?: number; offset?: number; pluginSource?: string }) => {
+      if (!isAuthenticated) {
+        return;
+      }
       setLoading(true);
       try {
         const res = await pulseApi.getHistory({ limit: 50, offset: 0, ...params });
@@ -122,7 +126,9 @@ export function PulseProvider({
   }, []);
 
   const loadSettings = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      return;
+    }
     try {
       const s = await pulseApi.getSettings();
       setSettings(s);
@@ -160,10 +166,6 @@ export function PulseProvider({
     setIsPulsesPanelOpen(true);
   };
 
-  const closePulsePanel = () => {
-    setIsPulsesPanelOpen(false);
-  };
-
   const openPulseForView = () => {
     onCloseOtherPanels();
     setPanelMode('view');
@@ -184,7 +186,9 @@ export function PulseProvider({
     twilioAuthToken?: string;
     twilioFromNumber?: string;
   }) => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      return;
+    }
     await pulseApi.testSettings(data);
   };
 
@@ -194,10 +198,41 @@ export function PulseProvider({
     twilioAuthToken?: string;
     twilioFromNumber?: string;
   }) => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      return;
+    }
     await pulseApi.saveSettings(data);
     await loadSettings();
   };
+
+  const selectedCount = selectedIds.length;
+
+  const isSelected = useCallback((id: string) => selectedIds.includes(id), [selectedIds]);
+
+  const toggleSelected = useCallback((id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(pulseHistory.map((e) => e.id));
+  }, [pulseHistory]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds([]);
+  }, []);
+
+  const deleteHistory = useCallback(
+    async (ids: string[]) => {
+      if (!isAuthenticated || ids.length === 0) {
+        return;
+      }
+      await pulseApi.deleteHistory(ids);
+      setPulseHistory((prev) => prev.filter((e) => !ids.includes(e.id)));
+      setTotalCount((prev) => Math.max(0, prev - ids.length));
+      setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+    },
+    [isAuthenticated],
+  );
 
   const getPanelTitle = () => t('pulses.panelTitle');
   const getPanelSubtitle = () => '';
@@ -223,11 +258,16 @@ export function PulseProvider({
     getPanelSubtitle,
     getDeleteMessage,
     saveSettings,
+    selectedIds,
+    selectedCount,
+    isSelected,
+    toggleSelected,
+    selectAll,
+    clearSelection,
+    deleteHistory,
   };
 
-  return (
-    <PulseContext.Provider value={value}>{children}</PulseContext.Provider>
-  );
+  return <PulseContext.Provider value={value}>{children}</PulseContext.Provider>;
 }
 
 export { PulseContext };

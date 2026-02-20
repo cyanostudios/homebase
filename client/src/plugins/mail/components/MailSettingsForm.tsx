@@ -1,9 +1,8 @@
-import { Mail, Send } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Check, Key, Mail, Send } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -33,9 +32,8 @@ const smtpDefaults: SmtpSettings = {
 export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) => {
   const { t } = useTranslation();
   const { settings, loadSettings, saveSettings, testSettings, closeMailPanel } = useMail();
-  const userHasSelectedProvider = useRef(false);
   const [provider, setProvider] = useState<Provider>('smtp');
-  const [_saving, setSaving] = useState(false);
+  const [, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testSuccess, setTestSuccess] = useState<string | null>(null);
   const [testTo, setTestTo] = useState('');
@@ -164,215 +162,192 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
     }
   };
 
-  return (
-    <div className="p-6 space-y-6">
-      <Card className="shadow-none plugin-mail p-6">
-        <DetailSection title={t('mail.settingsTitle')} icon={Mail}>
-          <p className="text-sm text-muted-foreground mb-4">
-            {t('mail.settingsDescription')}
-          </p>
+  const isResendConfigured = settings?.configured?.resend === true;
+  const isSmtpConfigured = settings?.configured?.smtp === true;
 
-          <div className="mb-4">
-            <Label className="text-sm">{t('mail.provider')}</Label>
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              <Button
+  return (
+    <div className="plugin-mail space-y-6 p-4">
+      {/* Provider Section */}
+      <DetailSection title={t('mail.provider')} icon={Mail}>
+        <p className="text-sm text-muted-foreground mb-4">{t('mail.settingsDescription')}</p>
+        <div className="flex gap-2">
+          {(['resend', 'smtp'] as const).map((p) => {
+            const isConfigured = p === 'resend' ? isResendConfigured : isSmtpConfigured;
+            const isActive = provider === p;
+            return (
+              <button
+                key={p}
                 type="button"
-                variant={provider === 'resend' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  userHasSelectedProvider.current = true;
-                  setProvider('resend');
-                }}
+                onClick={() => setProvider(p)}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-md border text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background border-border hover:bg-muted',
+                )}
               >
-                Resend
-              </Button>
-              <Button
-                type="button"
-                variant={provider === 'smtp' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  userHasSelectedProvider.current = true;
-                  setProvider('smtp');
-                }}
-              >
-                SMTP
-              </Button>
-              {settings && (
-                <div className="flex flex-wrap items-center gap-2 ml-2 text-sm border-l border-border pl-3">
-                  {settings.configured?.resend && (
-                    <span
-                      className={cn(
-                        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                        settings.provider === 'resend'
-                          ? 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle'
-                          : 'bg-muted text-muted-foreground',
-                      )}
-                    >
-                      Resend{settings.provider === 'resend' ? ` • ${t('mail.active')}` : ''}
-                    </span>
+                <span
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    isConfigured ? 'bg-green-500' : 'bg-red-500',
                   )}
-                  {settings.configured?.smtp && (
-                    <span
-                      className={cn(
-                        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                        settings.provider === 'smtp'
-                          ? 'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle'
-                          : 'bg-muted text-muted-foreground',
-                      )}
-                    >
-                      SMTP{settings.provider === 'smtp' ? ` • ${t('mail.active')}` : ''}
-                    </span>
-                  )}
-                  {!settings.configured?.resend && !settings.configured?.smtp && (
-                    <span className="text-amber-600 dark:text-amber-400">
-                      {t('mail.activeNotConfigured', {
-                        provider: settings.provider === 'resend' ? 'Resend' : 'SMTP',
-                      })}
-                    </span>
-                  )}
-                </div>
-              )}
+                />
+                {p === 'resend' ? 'Resend' : 'SMTP'}
+                {isActive && <Check className="h-3.5 w-3.5" />}
+              </button>
+            );
+          })}
+        </div>
+      </DetailSection>
+
+      {/* Credentials Section - Resend */}
+      {provider === 'resend' && (
+        <DetailSection
+          title={t('mail.credentials')}
+          icon={Key}
+          className="border-t border-border pt-6"
+        >
+          <p className="text-sm text-muted-foreground mb-4">
+            {t('mail.resendHint')}{' '}
+            <a
+              href="https://resend.com/api-keys"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline"
+            >
+              resend.com
+            </a>
+          </p>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="resend-api-key">{t('mail.apiKey')}</Label>
+              <Input
+                id="resend-api-key"
+                type="password"
+                value={resendApiKey}
+                onChange={(e) => setResendApiKey(e.target.value)}
+                placeholder="re_xxxxxxxxxxxx"
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <Label htmlFor="resend-from">{t('mail.fromAddress')}</Label>
+              <Input
+                id="resend-from"
+                type="email"
+                value={resendFromAddress}
+                onChange={(e) => setResendFromAddress(e.target.value)}
+                placeholder={t('mail.resendFromPlaceholder')}
+              />
+              <p className="text-xs text-muted-foreground mt-1">{t('mail.resendDomainHint')}</p>
             </div>
           </div>
-
-          {provider === 'resend' && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                {t('mail.resendHint')}{' '}
-                <a
-                  href="https://resend.com/api-keys"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline"
-                >
-                  resend.com
-                </a>
-              </p>
-              <div>
-                <Label htmlFor="resend-api-key">{t('mail.apiKey')}</Label>
-                <Input
-                  id="resend-api-key"
-                  type="password"
-                  value={resendApiKey}
-                  onChange={(e) => setResendApiKey(e.target.value)}
-                  placeholder="re_xxxxxxxxxxxx"
-                  autoComplete="off"
-                />
-              </div>
-              <div>
-                <Label htmlFor="resend-from">{t('mail.fromAddress')}</Label>
-                <Input
-                  id="resend-from"
-                  type="email"
-                  value={resendFromAddress}
-                  onChange={(e) => setResendFromAddress(e.target.value)}
-                  placeholder={t('mail.resendFromPlaceholder')}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t('mail.resendDomainHint')}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {provider === 'smtp' && (
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="smtp-host">{t('mail.host')}</Label>
-                <Input
-                  id="smtp-host"
-                  value={host}
-                  onChange={(e) => setHost(e.target.value)}
-                  placeholder="smtp.gmail.com"
-                />
-              </div>
-              <div>
-                <Label htmlFor="smtp-port">{t('mail.port')}</Label>
-                <Input
-                  id="smtp-port"
-                  type="number"
-                  value={port}
-                  onChange={(e) => setPort(parseInt(e.target.value, 10) || 587)}
-                  placeholder="587"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch id="smtp-secure" checked={secure} onCheckedChange={setSecure} />
-                <Label htmlFor="smtp-secure">{t('mail.secure')}</Label>
-              </div>
-              <div>
-                <Label htmlFor="smtp-user">{t('mail.authUser')}</Label>
-                <Input
-                  id="smtp-user"
-                  type="text"
-                  value={authUser}
-                  onChange={(e) => setAuthUser(e.target.value)}
-                  placeholder="din@email.com"
-                />
-              </div>
-              <div>
-                <Label htmlFor="smtp-pass">{t('mail.password')}</Label>
-                <Input
-                  id="smtp-pass"
-                  type="password"
-                  value={authPass}
-                  onChange={(e) => setAuthPass(e.target.value)}
-                  placeholder={
-                    settings?.smtp?.hasPassword ? t('mail.passwordPlaceholder') : ''
-                  }
-                  autoComplete="new-password"
-                />
-              </div>
-              <div>
-                <Label htmlFor="smtp-from">{t('mail.fromAddress')}</Label>
-                <Input
-                  id="smtp-from"
-                  type="email"
-                  value={fromAddress}
-                  onChange={(e) => setFromAddress(e.target.value)}
-                  placeholder="noreply@homebase.se"
-                />
-              </div>
-            </div>
-          )}
-
-          {error && <p className="text-sm text-destructive mt-2">{error}</p>}
-          {testSuccess && (
-            <p className="text-sm text-green-600 dark:text-green-400 mt-2">{testSuccess}</p>
-          )}
-
-          <DetailSection title={t('mail.testTitle')} className="pt-4 mt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground mb-3">
-              {t('mail.testHint')}
-            </p>
-            <div className="flex gap-2 items-end flex-wrap">
-              <div className="flex-1 min-w-[200px]">
-                <Label htmlFor="test-to" className="text-sm">
-                  {t('mail.sendTestTo')}
-                </Label>
-                <Input
-                  id="test-to"
-                  type="email"
-                  value={testTo}
-                  onChange={(e) => setTestTo(e.target.value)}
-                  placeholder="din@email.com"
-                  className="mt-1"
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleTest}
-                disabled={testing}
-                icon={Send}
-                className="h-9"
-              >
-                {testing ? t('mail.sending') : t('mail.sendTest')}
-              </Button>
-            </div>
-          </DetailSection>
         </DetailSection>
-      </Card>
+      )}
+
+      {/* Credentials Section - SMTP */}
+      {provider === 'smtp' && (
+        <DetailSection
+          title={t('mail.credentials')}
+          icon={Key}
+          className="border-t border-border pt-6"
+        >
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="smtp-host">{t('mail.host')}</Label>
+              <Input
+                id="smtp-host"
+                value={host}
+                onChange={(e) => setHost(e.target.value)}
+                placeholder="smtp.gmail.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="smtp-port">{t('mail.port')}</Label>
+              <Input
+                id="smtp-port"
+                type="number"
+                value={port}
+                onChange={(e) => setPort(parseInt(e.target.value, 10) || 587)}
+                placeholder="587"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch id="smtp-secure" checked={secure} onCheckedChange={setSecure} />
+              <Label htmlFor="smtp-secure">{t('mail.secure')}</Label>
+            </div>
+            <div>
+              <Label htmlFor="smtp-user">{t('mail.authUser')}</Label>
+              <Input
+                id="smtp-user"
+                type="text"
+                value={authUser}
+                onChange={(e) => setAuthUser(e.target.value)}
+                placeholder="din@email.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="smtp-pass">{t('mail.password')}</Label>
+              <Input
+                id="smtp-pass"
+                type="password"
+                value={authPass}
+                onChange={(e) => setAuthPass(e.target.value)}
+                placeholder={settings?.smtp?.hasPassword ? t('mail.passwordPlaceholder') : ''}
+                autoComplete="new-password"
+              />
+            </div>
+            <div>
+              <Label htmlFor="smtp-from">{t('mail.fromAddress')}</Label>
+              <Input
+                id="smtp-from"
+                type="email"
+                value={fromAddress}
+                onChange={(e) => setFromAddress(e.target.value)}
+                placeholder="noreply@homebase.se"
+              />
+            </div>
+          </div>
+        </DetailSection>
+      )}
+
+      {/* Test Section */}
+      <DetailSection
+        title={t('mail.testTitle')}
+        icon={Send}
+        className="border-t border-border pt-6"
+      >
+        <p className="text-xs text-muted-foreground mb-3">{t('mail.testHint')}</p>
+        <div className="flex gap-2 items-end flex-wrap">
+          <div className="flex-1 min-w-[200px]">
+            <Label htmlFor="test-to" className="text-sm">
+              {t('mail.sendTestTo')}
+            </Label>
+            <Input
+              id="test-to"
+              type="email"
+              value={testTo}
+              onChange={(e) => setTestTo(e.target.value)}
+              placeholder="din@email.com"
+              className="mt-1"
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleTest}
+            disabled={testing}
+            icon={Send}
+            className="h-9"
+          >
+            {testing ? t('mail.sending') : t('mail.sendTest')}
+          </Button>
+        </div>
+        {error && <p className="text-sm text-destructive mt-3">{error}</p>}
+        {testSuccess && (
+          <p className="text-sm text-green-600 dark:text-green-400 mt-3">{testSuccess}</p>
+        )}
+      </DetailSection>
     </div>
   );
 };

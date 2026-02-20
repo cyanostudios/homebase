@@ -55,6 +55,14 @@ function createPulseRoutes(context) {
     (req, res) => controller.saveSettings(req, res),
   );
 
+  router.post(
+    '/history/delete',
+    gate,
+    [body('ids').isArray({ min: 1 }).withMessage('At least one ID is required')],
+    validateRequest,
+    (req, res) => controller.deleteHistory(req, res),
+  );
+
   return router;
 }
 

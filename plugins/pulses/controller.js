@@ -66,7 +66,7 @@ class PulseController {
         });
       }
       res.json({
-        activeProvider: 'twilio',
+        activeProvider: 'mock',
         configured: { twilio: false, mock: true },
         twilio: { hasAccountSid: false, hasAuthToken: false, fromNumber: '' },
       });
@@ -78,8 +78,14 @@ class PulseController {
 
   async testSettings(req, res) {
     try {
-      const { testTo, useSaved, activeProvider, twilioAccountSid, twilioAuthToken, twilioFromNumber } =
-        req.body;
+      const {
+        testTo,
+        useSaved,
+        activeProvider,
+        twilioAccountSid,
+        twilioAuthToken,
+        twilioFromNumber,
+      } = req.body;
       const to = testTo ? String(testTo).trim() : '';
       if (!to) {
         return res.status(400).json({ error: 'A phone number is required to send a test SMS' });
@@ -102,7 +108,8 @@ class PulseController {
         provider = pair.provider;
         if (activeProvider === 'twilio' && provider === 'mock') {
           return res.status(400).json({
-            error: 'Saved Twilio settings are incomplete. Enter Account SID, Auth Token and From number and save, then try again.',
+            error:
+              'Saved Twilio settings are incomplete. Enter Account SID, Auth Token and From number and save, then try again.',
           });
         }
       }
@@ -119,7 +126,9 @@ class PulseController {
           if (!sid || !token || !from) {
             return res
               .status(400)
-              .json({ error: 'Account SID, Auth Token and From number are required to test Twilio' });
+              .json({
+                error: 'Account SID, Auth Token and From number are required to test Twilio',
+              });
           }
           const TwilioAdapter = require('./adapters/TwilioAdapter');
           adapter = new TwilioAdapter({ accountSid: sid, authToken: token, fromNumber: from });
@@ -162,13 +171,37 @@ class PulseController {
       const msg = error?.message || '';
       if (msg.includes('relation') && msg.includes('does not exist')) {
         return res.status(500).json({
-          error: 'Pulse database tables are missing. Run migration 033-pulses-plugin.sql on your tenant database.',
+          error:
+            'Pulse database tables are missing. Run migration 033-pulses-plugin.sql on your tenant database.',
         });
       }
-      if (msg.includes('User context required') || msg.includes('Unauthorized')) {
-        return res.status(401).json({ error: 'Session may have expired. Try logging in again.' });
+      if (
+        msg.includes('User context required') ||
+        msg.includes('Unauthorized') ||
+        msg.includes('Tenant pool not found')
+      ) {
+        return res.status(401).json({
+          error: 'Session may have expired. Log out and log in again, then try saving.',
+        });
       }
       res.status(500).json({ error: msg || 'Failed to save pulse settings' });
+    }
+  }
+
+  async deleteHistory(req, res) {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'No IDs provided' });
+      }
+      const result = await model.deleteHistory(req, ids);
+      res.json({ ok: true, deleted: result.deleted });
+    } catch (error) {
+      Logger.error('Delete pulse history failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({ error: 'Failed to delete pulse history' });
     }
   }
 }

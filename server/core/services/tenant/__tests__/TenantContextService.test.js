@@ -10,13 +10,23 @@ const TenantContextService = require('../TenantContextService');
 describe('TenantContextService', () => {
   let service;
   let mockPool;
+  let originalEnv;
 
   beforeEach(() => {
+    originalEnv = { ...process.env };
+    // These tests cover the Neon/DB-backed resolution paths (legacy/membership/owner).
+    // Force provider to neon so the local schema-per-tenant branch does not run.
+    process.env.TENANT_PROVIDER = 'neon';
+
     mockPool = {
       query: jest.fn(),
     };
     service = new TenantContextService();
     service._getPool = () => mockPool;
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
   });
 
   describe('getTenantContextByUserId', () => {

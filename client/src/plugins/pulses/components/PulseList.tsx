@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { Smartphone, Settings, RefreshCw } from 'lucide-react';
+import { Smartphone, Settings, RefreshCw, Trash2 } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -14,6 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { cn } from '@/lib/utils';
@@ -22,10 +24,25 @@ import { usePulses } from '../hooks/usePulses';
 
 export const PulseList: React.FC = () => {
   const { t } = useTranslation();
-  const { pulseHistory, totalCount, settings, loading, loadHistory, openPulsePanel } = usePulses();
+  const {
+    pulseHistory,
+    totalCount,
+    settings,
+    loading,
+    loadHistory,
+    openPulsePanel,
+    selectedIds,
+    selectedCount,
+    isSelected,
+    toggleSelected,
+    clearSelection,
+    deleteHistory,
+  } = usePulses();
   const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
   const [pluginFilter, setPluginFilter] = useState<string>('');
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const filtered = pulseHistory.filter((entry) => {
     const matchSearch =
@@ -43,6 +60,20 @@ export const PulseList: React.FC = () => {
       ),
     [pulseHistory],
   );
+
+  const statusBadge = useMemo(() => {
+    if (!settings) {
+      return { label: t('pulses.notConfigured'), isOk: false };
+    }
+    const provider = settings.activeProvider;
+    if (provider === 'mock') {
+      return { label: 'Mock', isOk: true };
+    }
+    if (provider === 'twilio' && settings.configured?.twilio) {
+      return { label: 'Twilio', isOk: true };
+    }
+    return { label: 'Twilio', isOk: false };
+  }, [settings, t]);
 
   useEffect(() => {
     setHeaderTrailing(
@@ -66,33 +97,27 @@ export const PulseList: React.FC = () => {
                 ))}
               </select>
             )}
-            <div className="flex items-center gap-2">
-              {settings?.configured?.twilio ? (
-                <Badge
-                  variant="outline"
-                  className="plugin-pulses bg-plugin-subtle text-plugin border-plugin-subtle font-medium text-[10px]"
-                >
-                  {t('pulses.configured')}
-                </Badge>
-              ) : (
-                <Badge
-                  variant="secondary"
-                  className="bg-secondary/50 text-secondary-foreground border-transparent font-medium text-[10px]"
-                >
-                  {t('pulses.notConfigured')}
-                </Badge>
+            <Badge
+              variant="outline"
+              className={cn(
+                'font-medium text-[10px]',
+                statusBadge.isOk
+                  ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800'
+                  : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800',
               )}
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={Settings}
-                onClick={() => openPulsePanel()}
-                title={t('pulses.settingsButton')}
-                className="h-7 text-[10px] px-2"
-              >
-                {t('pulses.settingsButton')}
-              </Button>
-            </div>
+            >
+              {statusBadge.label}
+            </Badge>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Settings}
+              onClick={() => openPulsePanel()}
+              title={t('pulses.settingsButton')}
+              className="h-7 text-[10px] px-2"
+            >
+              {t('pulses.settingsButton')}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -112,16 +137,58 @@ export const PulseList: React.FC = () => {
     searchTerm,
     pluginFilter,
     pluginSources,
+    statusBadge,
     loading,
     setHeaderTrailing,
     loadHistory,
-    settings,
     openPulsePanel,
     t,
   ]);
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await deleteHistory(selectedIds);
+      setShowBulkDeleteModal(false);
+    } catch (err) {
+      console.error('Failed to delete pulse history:', err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const allFilteredSelected =
+    filtered.length > 0 && filtered.every((e) => selectedIds.includes(e.id));
+
+  const handleSelectAllFiltered = () => {
+    if (allFilteredSelected) {
+      clearSelection();
+    } else {
+      filtered.forEach((e) => {
+        if (!selectedIds.includes(e.id)) {
+          toggleSelected(e.id);
+        }
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
+      <BulkActionBar
+        selectedCount={selectedCount}
+        onClearSelection={clearSelection}
+        actions={[
+          {
+            label: t('common.delete'),
+            icon: Trash2,
+            onClick: () => setShowBulkDeleteModal(true),
+            variant: 'destructive',
+          },
+        ]}
+      />
       <Card className="shadow-none plugin-pulses">
         <div className="p-4 border-b border-border flex items-center gap-2">
           <Smartphone className="h-5 w-5 text-plugin" />
@@ -134,9 +201,7 @@ export const PulseList: React.FC = () => {
           </Badge>
         </div>
         {loading && pulseHistory.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground text-sm">
-            {t('common.loading')}
-          </div>
+          <div className="p-8 text-center text-muted-foreground text-sm">{t('common.loading')}</div>
         ) : filtered.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground text-sm">
             {t('pulses.emptyHistory')}
@@ -145,6 +210,14 @@ export const PulseList: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 cursor-pointer"
+                    checked={allFilteredSelected}
+                    onChange={handleSelectAllFiltered}
+                  />
+                </TableHead>
                 <TableHead>{t('pulses.date')}</TableHead>
                 <TableHead>{t('pulses.recipient')}</TableHead>
                 <TableHead>{t('pulses.body')}</TableHead>
@@ -156,8 +229,19 @@ export const PulseList: React.FC = () => {
               {filtered.map((entry) => (
                 <TableRow
                   key={entry.id}
-                  className="hover:bg-muted/50 plugin-pulses hover:bg-plugin-subtle/50 transition-colors"
+                  className={cn(
+                    'hover:bg-muted/50 plugin-pulses hover:bg-plugin-subtle/50 transition-colors',
+                    isSelected(entry.id) && 'bg-blue-50 dark:bg-blue-950/30',
+                  )}
                 >
+                  <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 cursor-pointer"
+                      checked={isSelected(entry.id)}
+                      onChange={() => toggleSelected(entry.id)}
+                    />
+                  </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {entry.sentAt ? format(new Date(entry.sentAt), 'yyyy-MM-dd HH:mm') : '—'}
                   </TableCell>
@@ -204,6 +288,15 @@ export const PulseList: React.FC = () => {
           </Table>
         )}
       </Card>
+
+      <BulkDeleteModal
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        onConfirm={handleBulkDelete}
+        selectedCount={selectedCount}
+        itemLabel={t('pulses.historyTitle')}
+        isDeleting={deleting}
+      />
     </div>
   );
 };

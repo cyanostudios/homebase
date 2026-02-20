@@ -5,17 +5,20 @@
 const model = require('./model');
 const TwilioAdapter = require('./adapters/TwilioAdapter');
 const MockAdapter = require('./adapters/MockAdapter');
+const { AppError } = require('../../server/core/errors/AppError');
 
 async function getSmsAdapterForUser(req) {
   const userSettings = await model.getSettings(req, { needsPassword: true });
-  const provider = userSettings?.activeProvider || 'twilio';
+  // Default to mock when no settings exist (safe/dev-friendly).
+  const provider = userSettings?.activeProvider || 'mock';
   if (provider === 'mock') {
     return { adapter: new MockAdapter(), provider: 'mock' };
   }
   if (
     userSettings?.twilioAccountSidRaw &&
     userSettings?.twilioAuthTokenRaw &&
-    userSettings?.twilioFromNumber
+    userSettings?.twilioFromNumber &&
+    String(userSettings.twilioFromNumber).trim()
   ) {
     return {
       adapter: new TwilioAdapter({
@@ -26,7 +29,13 @@ async function getSmsAdapterForUser(req) {
       provider: 'twilio',
     };
   }
-  return { adapter: new MockAdapter(), provider: 'mock' };
+  // Do not silently fall back to mock when user has selected Twilio.
+  // This avoids "fake success" from other plugins (contacts/slots) when Twilio isn't configured.
+  throw new AppError(
+    'Twilio settings are incomplete. Open Pulse settings and save Account SID, Auth Token and From number (or switch provider to Mock).',
+    400,
+    AppError.CODES.BAD_REQUEST,
+  );
 }
 
 async function sendSmsWithUserSettings(req, payload, logOpts = {}) {

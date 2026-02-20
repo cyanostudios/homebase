@@ -35,29 +35,48 @@ export function BulkMessageDialog({
   const [phase, setPhase] = useState<SendPhase>('idle');
   const [sentCount, setSentCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const withPhone = recipients.filter((r) => r.phone && r.phone.trim());
   const withoutPhone = recipients.length - withPhone.length;
 
   const handleSend = useCallback(async () => {
-    if (withPhone.length === 0) return;
+    if (withPhone.length === 0) {
+      return;
+    }
     setPhase('sending');
+    setErrorMessage(null);
     let sent = 0;
     let failed = 0;
+    let firstError: string | null = null;
     for (const r of withPhone) {
       try {
-        await pulseApi.send({
+        const res = await pulseApi.send({
           to: r.phone.trim(),
           body,
           pluginSource,
           referenceId: r.id,
         });
+        if (res?.logEntry) {
+          window.dispatchEvent(new CustomEvent('pulseSent', { detail: res.logEntry }));
+        }
         sent += 1;
-      } catch {
+      } catch (e: any) {
         failed += 1;
+        if (!firstError) {
+          firstError = e?.message || 'Failed to send message';
+        }
+        // If the error is due to configuration/auth/access, abort remaining sends to avoid noise.
+        const status = e?.status;
+        if (status === 400 || status === 401 || status === 403) {
+          break;
+        }
       }
       setSentCount(sent);
       setFailedCount(failed);
+    }
+    if (firstError) {
+      setErrorMessage(firstError);
     }
     setPhase('done');
   }, [body, withPhone, pluginSource]);
@@ -67,10 +86,13 @@ export function BulkMessageDialog({
     setPhase('idle');
     setSentCount(0);
     setFailedCount(0);
+    setErrorMessage(null);
     onClose();
   }, [onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50">
@@ -127,6 +149,7 @@ export function BulkMessageDialog({
                 <p className="text-muted-foreground">
                   {t('bulk.sendMessageResult', { sent: sentCount, failed: failedCount })}
                 </p>
+                {errorMessage && <p className="text-destructive">{errorMessage}</p>}
               </div>
             )}
           </div>
@@ -138,7 +161,12 @@ export function BulkMessageDialog({
               </Button>
             ) : (
               <>
-                <Button variant="outline" size="sm" onClick={handleClose} disabled={phase === 'sending'}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClose}
+                  disabled={phase === 'sending'}
+                >
                   {t('common.cancel')}
                 </Button>
                 <Button

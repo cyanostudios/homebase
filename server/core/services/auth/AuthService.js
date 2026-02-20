@@ -46,51 +46,25 @@ class AuthService {
       tenantContext = null;
     }
 
-    // Permanent fallback for local: ensure tenant schema exists and build context (e.g. after DB reset or first login)
-    const isLocalTenant =
-      process.env.TENANT_PROVIDER === 'local' ||
-      (process.env.DATABASE_URL && !process.env.NEON_API_KEY);
-    if ((!tenantContext || !tenantContext.tenantConnectionString) && isLocalTenant) {
-      try {
-        const tenantService = this.tenantService;
-        if (
-          tenantService &&
-          typeof tenantService.tenantExists === 'function' &&
-          typeof tenantService.getTenantConnection === 'function'
-        ) {
-          const exists = await tenantService.tenantExists(user.id);
-          if (!exists) {
-            this.logger.info('AuthService fallback: creating local tenant', { userId: user.id });
-            const email = user.email || '';
-            try {
-              await tenantService.createTenant(user.id, email);
-            } catch (createErr) {
-              this.logger.warn('AuthService fallback createTenant failed', {
-                message: createErr.message,
-              });
-            }
-          }
-          const connectionString = await tenantService.getTenantConnection(user.id);
-          if (connectionString) {
-            tenantContext = {
-              tenantId: user.id,
-              tenantRole: 'admin',
-              tenantConnectionString: connectionString,
-              tenantOwnerUserId: user.id,
-            };
-            this.logger.info('AuthService fallback: tenant context restored', { userId: user.id });
-          }
-        }
-      } catch (fallbackErr) {
-        this.logger.warn('AuthService local fallback failed', {
-          userId: user.id,
-          message: fallbackErr.message,
-        });
-      }
-    }
+    // NOTE: Local/Neon tenant resolution is handled in TenantContextService.
+    // AuthService should not duplicate tenant provisioning logic.
 
     if (!tenantContext || !tenantContext.tenantConnectionString) {
-      this.logger.error('No tenant database found', null, { userId: user.id, email: user.email });
+      const isLocal =
+        process.env.TENANT_PROVIDER === 'local' ||
+        (process.env.DATABASE_URL && !process.env.NEON_API_KEY);
+      this.logger.error('No tenant database found', null, {
+        userId: user.id,
+        email: user.email,
+        hasTenantContext: !!tenantContext,
+        isLocalTenant: isLocal,
+        hasTenantService: !!(
+          this.tenantService && typeof this.tenantService.tenantExists === 'function'
+        ),
+        DATABASE_URL_set: !!process.env.DATABASE_URL,
+        TENANT_PROVIDER: process.env.TENANT_PROVIDER || '(unset)',
+        NEON_API_KEY_set: !!process.env.NEON_API_KEY,
+      });
       throw new Error('Tenant database not configured');
     }
 

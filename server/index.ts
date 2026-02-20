@@ -12,6 +12,8 @@ const session = require('express-session');
 const helmet = require('helmet');
 const { Pool } = require('pg');
 
+// Load .env first, then .env.local so both work and local overrides
+require('dotenv').config();
 require('dotenv').config({ path: '.env.local' });
 
 const PluginLoader = require('../plugin-loader');
@@ -27,6 +29,13 @@ const ServiceManager = require('./core/ServiceManager');
 
 // Initialize Bootstrap (loads all service providers)
 Bootstrap.initializeServices();
+
+if (!process.env.DATABASE_URL) {
+  console.error(
+    '❌ DATABASE_URL is not set. Add it to .env or .env.local (e.g. DATABASE_URL=postgresql://user:pass@localhost:5432/dbname)',
+  );
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3002;

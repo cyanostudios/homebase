@@ -150,7 +150,7 @@ class NeonTenantProvider extends TenantService {
 
     const result = await this.mainPool.query(
       'SELECT 1 FROM tenants WHERE user_id = $1 OR owner_user_id = $1',
-      [userId, userId],
+      [userId],
     );
 
     return result.rows.length > 0;
@@ -166,7 +166,7 @@ class NeonTenantProvider extends TenantService {
 
     const result = await this.mainPool.query(
       'SELECT neon_project_id, neon_database_name, neon_connection_string FROM tenants WHERE user_id = $1 OR owner_user_id = $1',
-      [userId, userId],
+      [userId],
     );
 
     if (result.rows.length === 0) {

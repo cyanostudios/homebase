@@ -1,4 +1,13 @@
-import { ArrowDown, ArrowUp, FileSpreadsheet, Grid3x3, List, MessageSquare, Settings, Trash2 } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  FileSpreadsheet,
+  Grid3x3,
+  List,
+  MessageSquare,
+  Settings,
+  Trash2,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -20,8 +29,8 @@ import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { exportItems } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
-import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { cn } from '@/lib/utils';
+import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 
 import { useKiosk } from '../hooks/useKiosk';
 import type { Slot } from '../types/kiosk';
@@ -51,11 +60,13 @@ export function KioskList() {
     isSelected,
     recentlyDuplicatedSlotId,
   } = useKiosk();
-  const { getSettings, updateSettings, settingsVersion, contacts: appContacts } = useApp();
+  const { getSettings, updateSettings, settingsVersion, contacts: appContacts, user } = useApp();
   const { contacts: hookContacts } = useContacts();
-  const contacts = appContacts ?? hookContacts ?? [];
+  const contacts = useMemo(() => appContacts ?? hookContacts ?? [], [appContacts, hookContacts]);
   const { setHeaderTrailing } = useContentLayout();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const canSendMessages =
+    user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('slot_time');
@@ -228,7 +239,16 @@ export function KioskList() {
 
   const bulkMessageRecipients = useMemo(
     () =>
-      resolveSlotsToContacts(selectedSlotIds, slots, contacts as Array<{ id: string | number; companyName?: string; phone?: string; phone2?: string }>),
+      resolveSlotsToContacts(
+        selectedSlotIds,
+        slots,
+        contacts as Array<{
+          id: string | number;
+          companyName?: string;
+          phone?: string;
+          phone2?: string;
+        }>,
+      ),
     [selectedSlotIds, slots, contacts],
   );
 
@@ -240,7 +260,17 @@ export function KioskList() {
       filename: `slots-export-${new Date().toISOString().split('T')[0]}`,
       config: {
         csv: {
-          headers: ['id', 'location', 'slot_time', 'capacity', 'visible', 'notifications_enabled', 'mention_count', 'created_at', 'updated_at'],
+          headers: [
+            'id',
+            'location',
+            'slot_time',
+            'capacity',
+            'visible',
+            'notifications_enabled',
+            'mention_count',
+            'created_at',
+            'updated_at',
+          ],
           mapItemToRow: (s: Slot) => ({
             id: s.id,
             location: s.location ?? '',
@@ -248,7 +278,7 @@ export function KioskList() {
             capacity: s.capacity,
             visible: s.visible ? t('common.yes') : t('common.no'),
             notifications_enabled: s.notifications_enabled ? t('common.on') : t('common.off'),
-            mention_count: (s.mentions?.length ?? 0),
+            mention_count: s.mentions?.length ?? 0,
             created_at: s.created_at ? new Date(s.created_at).toLocaleDateString('sv-SE') : '',
             updated_at: s.updated_at ? new Date(s.updated_at).toLocaleDateString('sv-SE') : '',
           }),
@@ -264,11 +294,15 @@ export function KioskList() {
           selectedCount={selectedCount}
           onClearSelection={clearSlotSelection}
           actions={[
-            {
-              label: t('bulk.sendMessageTitle'),
-              icon: MessageSquare,
-              onClick: () => setShowBulkMessageDialog(true),
-            },
+            ...(canSendMessages
+              ? [
+                  {
+                    label: t('bulk.sendMessageTitle'),
+                    icon: MessageSquare,
+                    onClick: () => setShowBulkMessageDialog(true),
+                  },
+                ]
+              : []),
             {
               label: t('common.exportCsv'),
               icon: FileSpreadsheet,

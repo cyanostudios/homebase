@@ -314,7 +314,8 @@
     "saveError": "Kunde inte spara inställningar",
     "resendFromPlaceholder": "onboarding@resend.dev eller din verifierade domän",
     "resendDomainHint": "Resend kräver verifierad domän. Testa med onboarding@resend.dev.",
-    "activeNotConfigured": "Aktiv: {{provider}} (ej konfigurerad)"
+    "activeNotConfigured": "Aktiv: {{provider}} (ej konfigurerad)",
+    "credentials": "Inloggningsuppgifter"
   },
   "pulses": {
     "panelTitle": "Pulse-inställningar",
@@ -349,7 +350,11 @@
     "testSent": "Test-SMS skickat.",
     "testError": "Kunde inte skicka test-SMS",
     "testNumberRequired": "Ange ett telefonnummer för att skicka test-SMS",
-    "saveError": "Kunde inte spara inställningar"
+    "saveError": "Kunde inte spara inställningar",
+    "credentials": "Inloggningsuppgifter",
+    "pluginSources": "Plugin-källor",
+    "pluginSourcesHint": "Plugins som har skickat meddelanden via Pulse.",
+    "noPluginSources": "Inga plugins har skickat meddelanden ännu."
   },
   "dashboard": {
     "noWidgets": "Inga widgets tillgängliga. Aktivera plugins för att se widgetar här."

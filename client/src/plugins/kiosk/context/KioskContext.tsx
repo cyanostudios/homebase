@@ -116,8 +116,11 @@ export function KioskProvider({
     unregisterPanelCloseFunction,
     registerKioskNavigation,
     contacts: appContacts = [],
+    user,
   } = useApp();
   const { registerAction } = useActionRegistry();
+  const canSendMessages =
+    user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
 
   // Register "To Kiosk" action on match entity (MatchContext wires openToSlotDialog when showing footer)
   useEffect(() => {
@@ -151,6 +154,9 @@ export function KioskProvider({
   }, []);
 
   const detailFooterActions = useMemo(() => {
+    if (!canSendMessages) {
+      return [];
+    }
     return [
       {
         id: 'send-message',
@@ -173,7 +179,7 @@ export function KioskProvider({
         className: 'h-7 text-[10px] px-2',
       },
     ];
-  }, [t, slots, appContacts]);
+  }, [t, slots, appContacts, canSendMessages]);
 
   const {
     selectedIds: selectedSlotIds,

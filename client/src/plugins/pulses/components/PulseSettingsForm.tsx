@@ -1,9 +1,9 @@
-import { Smartphone, Send } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Check, Key, Send, Smartphone, Zap } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -19,8 +19,8 @@ interface PulseSettingsFormProps {
 
 export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({ onCancel }) => {
   const { t } = useTranslation();
-  const { settings, loadSettings, saveSettings, testSettings, closePulsePanel } = usePulses();
-  const userHasSelectedProvider = useRef(false);
+  const { settings, loadSettings, saveSettings, testSettings, closePulsePanel, pulseHistory } =
+    usePulses();
   const [provider, setProvider] = useState<Provider>('twilio');
   const [, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -31,6 +31,14 @@ export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({ onCancel }
   const [twilioAccountSid, setTwilioAccountSid] = useState('');
   const [twilioAuthToken, setTwilioAuthToken] = useState('');
   const [twilioFromNumber, setTwilioFromNumber] = useState('');
+
+  const pluginSources = useMemo(
+    () =>
+      Array.from(
+        new Set(pulseHistory.map((e) => e.pluginSource).filter((ps): ps is string => !!ps)),
+      ),
+    [pulseHistory],
+  );
 
   useEffect(() => {
     loadSettings();
@@ -54,13 +62,9 @@ export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({ onCancel }
     setSaving(true);
     try {
       const sid =
-        twilioAccountSid && !twilioAccountSid.startsWith('••••')
-          ? twilioAccountSid.trim()
-          : '';
+        twilioAccountSid && !twilioAccountSid.startsWith('••••') ? twilioAccountSid.trim() : '';
       const token =
-        twilioAuthToken && !twilioAuthToken.startsWith('••••')
-          ? twilioAuthToken.trim()
-          : '';
+        twilioAuthToken && !twilioAuthToken.startsWith('••••') ? twilioAuthToken.trim() : '';
       await saveSettings({
         activeProvider: provider,
         twilioAccountSid: sid || undefined,
@@ -107,7 +111,8 @@ export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({ onCancel }
       const twilioConfigured = settings?.configured?.twilio === true;
       const useSavedCredentials =
         twilioConfigured ||
-        (provider === 'twilio' && (twilioAccountSid.startsWith('••••') || twilioAuthToken.startsWith('••••')));
+        (provider === 'twilio' &&
+          (twilioAccountSid.startsWith('••••') || twilioAuthToken.startsWith('••••')));
       const payload: Record<string, unknown> = {
         testTo: to,
         activeProvider: provider,
@@ -131,156 +136,182 @@ export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({ onCancel }
     }
   };
 
-  return (
-    <div className="p-6 space-y-6">
-      <Card className="shadow-none plugin-pulses p-6">
-        <DetailSection title={t('pulses.settingsTitle')} icon={Smartphone}>
-          <p className="text-sm text-muted-foreground mb-4">{t('pulses.settingsDescription')}</p>
+  const isTwilioConfigured = settings?.configured?.twilio === true;
 
-          <div className="mb-4">
-            <Label className="text-sm">{t('pulses.provider')}</Label>
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              <Button
+  return (
+    <div className="plugin-pulses space-y-6 p-4">
+      {/* Provider Section */}
+      <DetailSection title={t('pulses.provider')} icon={Smartphone}>
+        <p className="text-sm text-muted-foreground mb-4">{t('pulses.settingsDescription')}</p>
+        <div className="flex gap-2">
+          {(['twilio', 'mock'] as const).map((p) => {
+            const isConfigured = p === 'mock' || isTwilioConfigured;
+            const isActive = provider === p;
+            return (
+              <button
+                key={p}
                 type="button"
-                variant={provider === 'twilio' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  userHasSelectedProvider.current = true;
-                  setProvider('twilio');
-                }}
+                onClick={() => setProvider(p)}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-md border text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background border-border hover:bg-muted',
+                )}
               >
-                Twilio
-              </Button>
-              <Button
-                type="button"
-                variant={provider === 'mock' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  userHasSelectedProvider.current = true;
-                  setProvider('mock');
-                }}
-              >
-                Mock
-              </Button>
-              {settings && (
-                <div className="flex flex-wrap items-center gap-2 ml-2 text-sm border-l border-border pl-3">
-                  {settings.configured?.twilio && (
-                    <span
-                      className={cn(
-                        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                        settings.activeProvider === 'twilio'
-                          ? 'plugin-pulses bg-plugin-subtle text-plugin border-plugin-subtle'
-                          : 'bg-muted text-muted-foreground',
-                      )}
-                    >
-                      Twilio{settings.activeProvider === 'twilio' ? ` • ${t('pulses.active')}` : ''}
-                    </span>
+                <span
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    isConfigured ? 'bg-green-500' : 'bg-red-500',
                   )}
-                  <span
-                    className={cn(
-                      'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                      settings.activeProvider === 'mock'
-                        ? 'plugin-pulses bg-plugin-subtle text-plugin border-plugin-subtle'
-                        : 'bg-muted text-muted-foreground',
-                    )}
-                  >
-                    Mock{settings.activeProvider === 'mock' ? ` • ${t('pulses.active')}` : ''}
-                  </span>
-                </div>
-              )}
+                />
+                {p === 'twilio' ? 'Twilio' : 'Mock'}
+                {isActive && <Check className="h-3.5 w-3.5" />}
+              </button>
+            );
+          })}
+        </div>
+      </DetailSection>
+
+      {/* Credentials Section - only for Twilio */}
+      {provider === 'twilio' && (
+        <DetailSection
+          title={t('pulses.credentials')}
+          icon={Key}
+          className="border-t border-border pt-6"
+        >
+          <p className="text-sm text-muted-foreground mb-4">
+            {t('pulses.twilioHint')}{' '}
+            <a
+              href="https://www.twilio.com/console"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline"
+            >
+              twilio.com/console
+            </a>
+          </p>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="pulse-account-sid">{t('pulses.accountSid')}</Label>
+              <Input
+                id="pulse-account-sid"
+                type="password"
+                value={twilioAccountSid}
+                onChange={(e) => setTwilioAccountSid(e.target.value)}
+                placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <Label htmlFor="pulse-auth-token">{t('pulses.authToken')}</Label>
+              <Input
+                id="pulse-auth-token"
+                type="password"
+                value={twilioAuthToken}
+                onChange={(e) => setTwilioAuthToken(e.target.value)}
+                placeholder={settings?.twilio?.hasAuthToken ? '••••••••' : ''}
+                autoComplete="new-password"
+              />
+            </div>
+            <div>
+              <Label htmlFor="pulse-from-number">{t('pulses.fromNumber')}</Label>
+              <Input
+                id="pulse-from-number"
+                type="tel"
+                value={twilioFromNumber}
+                onChange={(e) => setTwilioFromNumber(e.target.value)}
+                placeholder="+46701234567"
+              />
             </div>
           </div>
-
-          {provider === 'twilio' && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                {t('pulses.twilioHint')}{' '}
-                <a
-                  href="https://www.twilio.com/console"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline"
-                >
-                  twilio.com/console
-                </a>
-              </p>
-              <div>
-                <Label htmlFor="pulse-account-sid">{t('pulses.accountSid')}</Label>
-                <Input
-                  id="pulse-account-sid"
-                  type="password"
-                  value={twilioAccountSid}
-                  onChange={(e) => setTwilioAccountSid(e.target.value)}
-                  placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  autoComplete="off"
-                />
-              </div>
-              <div>
-                <Label htmlFor="pulse-auth-token">{t('pulses.authToken')}</Label>
-                <Input
-                  id="pulse-auth-token"
-                  type="password"
-                  value={twilioAuthToken}
-                  onChange={(e) => setTwilioAuthToken(e.target.value)}
-                  placeholder={settings?.twilio?.hasAuthToken ? '••••••••' : ''}
-                  autoComplete="new-password"
-                />
-              </div>
-              <div>
-                <Label htmlFor="pulse-from-number">{t('pulses.fromNumber')}</Label>
-                <Input
-                  id="pulse-from-number"
-                  type="tel"
-                  value={twilioFromNumber}
-                  onChange={(e) => setTwilioFromNumber(e.target.value)}
-                  placeholder="+46701234567"
-                />
-              </div>
-            </div>
-          )}
-
-          {provider === 'mock' && (
-            <p className="text-sm text-muted-foreground">{t('pulses.mockDescription')}</p>
-          )}
-
-          {error && <p className="text-sm text-destructive mt-2">{error}</p>}
-          {testSuccess && (
-            <p className="text-sm text-green-600 dark:text-green-400 mt-2">{testSuccess}</p>
-          )}
-
-          <DetailSection
-            title={t('pulses.testTitle')}
-            className="pt-4 mt-4 border-t border-border"
-          >
-            <p className="text-xs text-muted-foreground mb-3">{t('pulses.testHint')}</p>
-            <div className="flex gap-2 items-end flex-wrap">
-              <div className="flex-1 min-w-[200px]">
-                <Label htmlFor="pulse-test-to" className="text-sm">
-                  {t('pulses.sendTestTo')}
-                </Label>
-                <Input
-                  id="pulse-test-to"
-                  type="tel"
-                  value={testTo}
-                  onChange={(e) => setTestTo(e.target.value)}
-                  placeholder="+46701234567"
-                  className="mt-1"
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleTest}
-                disabled={testing}
-                icon={Send}
-                className="h-9"
-              >
-                {testing ? t('pulses.sending') : t('pulses.sendTest')}
-              </Button>
-            </div>
-          </DetailSection>
         </DetailSection>
-      </Card>
+      )}
+
+      {/* Mock description */}
+      {provider === 'mock' && (
+        <div className="border-t border-border pt-6">
+          <p className="text-sm text-muted-foreground">{t('pulses.mockDescription')}</p>
+        </div>
+      )}
+
+      {/* Plugin Sources Section */}
+      <DetailSection
+        title={t('pulses.pluginSources')}
+        icon={Zap}
+        className="border-t border-border pt-6"
+      >
+        <p className="text-xs text-muted-foreground mb-3">{t('pulses.pluginSourcesHint')}</p>
+        {pluginSources.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {pluginSources.map((ps) => (
+              <Badge
+                key={ps}
+                variant="outline"
+                className={cn(
+                  'capitalize font-medium text-[10px]',
+                  ps === 'contacts' &&
+                    'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle',
+                  ps === 'slots' &&
+                    'plugin-kiosk bg-plugin-subtle text-plugin border-plugin-subtle',
+                  ps === 'notes' &&
+                    'plugin-notes bg-plugin-subtle text-plugin border-plugin-subtle',
+                  ps === 'tasks' &&
+                    'plugin-tasks bg-plugin-subtle text-plugin border-plugin-subtle',
+                  ps === 'estimates' &&
+                    'plugin-estimates bg-plugin-subtle text-plugin border-plugin-subtle',
+                  ps === 'invoices' &&
+                    'plugin-invoices bg-plugin-subtle text-plugin border-plugin-subtle',
+                  ps === 'files' &&
+                    'plugin-files bg-plugin-subtle text-plugin border-plugin-subtle',
+                )}
+              >
+                {ps}
+              </Badge>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">{t('pulses.noPluginSources')}</p>
+        )}
+      </DetailSection>
+
+      {/* Test Section */}
+      <DetailSection
+        title={t('pulses.testTitle')}
+        icon={Send}
+        className="border-t border-border pt-6"
+      >
+        <p className="text-xs text-muted-foreground mb-3">{t('pulses.testHint')}</p>
+        <div className="flex gap-2 items-end flex-wrap">
+          <div className="flex-1 min-w-[200px]">
+            <Label htmlFor="pulse-test-to" className="text-sm">
+              {t('pulses.sendTestTo')}
+            </Label>
+            <Input
+              id="pulse-test-to"
+              type="tel"
+              value={testTo}
+              onChange={(e) => setTestTo(e.target.value)}
+              placeholder="+46701234567"
+              className="mt-1"
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleTest}
+            disabled={testing}
+            icon={Send}
+            className="h-9"
+          >
+            {testing ? t('pulses.sending') : t('pulses.sendTest')}
+          </Button>
+        </div>
+        {error && <p className="text-sm text-destructive mt-3">{error}</p>}
+        {testSuccess && (
+          <p className="text-sm text-green-600 dark:text-green-400 mt-3">{testSuccess}</p>
+        )}
+      </DetailSection>
     </div>
   );
 };

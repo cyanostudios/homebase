@@ -303,6 +303,23 @@ class MailController {
       res.status(500).json({ error: 'Failed to save mail settings' });
     }
   }
+
+  async deleteHistory(req, res) {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'No IDs provided' });
+      }
+      const result = await model.deleteHistory(req, ids);
+      res.json({ ok: true, deleted: result.deleted });
+    } catch (error) {
+      Logger.error('Delete mail history failed', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      res.status(500).json({ error: 'Failed to delete mail history' });
+    }
+  }
 }
 
 module.exports = new MailController();

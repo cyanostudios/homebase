@@ -104,7 +104,9 @@ export function ContactProvider({
   onCloseOtherPanels,
 }: ContactProviderProps) {
   const { t } = useTranslation();
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData, user } = useApp();
+  const canSendMessages =
+    user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
 
   // Panel states
   const [isContactPanelOpen, setIsContactPanelOpen] = useState(false);
@@ -127,6 +129,9 @@ export function ContactProvider({
   }, []);
 
   const detailFooterActions = useMemo(() => {
+    if (!canSendMessages) {
+      return [];
+    }
     return [
       {
         id: 'send-message',
@@ -149,7 +154,7 @@ export function ContactProvider({
         className: 'h-7 text-[10px] px-2',
       },
     ];
-  }, [t]);
+  }, [t, canSendMessages]);
 
   // Use core bulk selection hook
   const {

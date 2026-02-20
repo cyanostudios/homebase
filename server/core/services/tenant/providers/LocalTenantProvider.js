@@ -168,8 +168,14 @@ class LocalTenantProvider extends TenantService {
    */
   async _runMigrations(client, schemaName) {
     try {
-      // Get all migration files
-      const migrationsDir = path.join(__dirname, '../../../../migrations');
+      // Get all tenant migration files.
+      // IMPORTANT: Do not run main-db migrations (e.g. user_plugin_access renames) inside tenant schemas.
+      // Prefer a dedicated tenant migrations directory if present.
+      const tenantMigrationsDir = path.join(__dirname, '../../../../migrations/tenant');
+      const legacyMigrationsDir = path.join(__dirname, '../../../../migrations');
+      const migrationsDir = fs.existsSync(tenantMigrationsDir)
+        ? tenantMigrationsDir
+        : legacyMigrationsDir;
 
       // Skip if migrations folder doesn't exist
       if (!fs.existsSync(migrationsDir)) {
@@ -182,10 +188,31 @@ class LocalTenantProvider extends TenantService {
         .filter((f) => f.endsWith('.sql'))
         .sort();
 
-      console.log(`   Running ${migrationFiles.length} migrations in ${schemaName}...`);
+      const shouldRunInTenantSchema = (sql, filename) => {
+        // Allow an explicit marker to keep tenant creation safe even if directories are mixed.
+        // Currently used by 032-rename-kiosk-plugin-to-slots.sql and future main-db-only migrations.
+        if (sql.includes('Run this on the main application database')) return false;
+        if (sql.includes('MAIN_DB_ONLY')) return false;
+        // Extra safety: anything that mutates plugin access tables belongs to main DB.
+        if (/\buser_plugin_access\b/i.test(sql)) return false;
+        if (/\btenant_plugin_access\b/i.test(sql)) return false;
+        return true;
+      };
 
+      const runnable = [];
+      const skipped = [];
       for (const file of migrationFiles) {
         const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+        if (shouldRunInTenantSchema(sql, file)) runnable.push({ file, sql });
+        else skipped.push(file);
+      }
+
+      console.log(
+        `   Running ${runnable.length} tenant migration(s) in ${schemaName}...` +
+          (skipped.length ? ` (skipping ${skipped.length} main-db migration(s))` : ''),
+      );
+
+      for (const { file, sql } of runnable) {
         console.log(`   Executing migration: ${file}`);
 
         // Execute in the tenant schema

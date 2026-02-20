@@ -28,6 +28,47 @@ class TenantContextService {
     const db = this._getPool();
     if (!db || !db.query) return null;
 
+    // Provider-specific resolution.
+    // Local provider uses schema-per-tenant and should not depend on a stored Neon connection string.
+    const tenantProvider =
+      process.env.TENANT_PROVIDER || (process.env.NEON_API_KEY ? 'neon' : 'local');
+    if (tenantProvider === 'local') {
+      try {
+        const tenantService = ServiceManager.get('tenant');
+        const exists = await tenantService.tenantExists(userId);
+        if (!exists) {
+          this.logger.info('Creating local tenant schema on first login', { userId });
+          const userRow = await db.query('SELECT email FROM users WHERE id = $1 LIMIT 1', [userId]);
+          const email = this._rows(userRow)[0]?.email || '';
+          await tenantService.createTenant(userId, email);
+        }
+        const connectionString = await tenantService.getTenantConnection(userId);
+        if (!connectionString) return null;
+
+        // Prefer a real tenant id (for plugin access tables) if present; otherwise fall back to userId.
+        let tenantId = userId;
+        try {
+          const trow = await db.query('SELECT id FROM tenants WHERE user_id = $1 LIMIT 1', [
+            userId,
+          ]);
+          const id = this._rows(trow)[0]?.id;
+          if (id !== null && id !== undefined) tenantId = id;
+        } catch {
+          // tenants table might not exist in very early/legacy setups
+        }
+
+        return {
+          tenantId,
+          tenantRole: 'admin',
+          tenantConnectionString: connectionString,
+          tenantOwnerUserId: userId,
+        };
+      } catch (e) {
+        this.logger.warn('Local tenant resolve failed', { userId, message: e.message });
+        return null;
+      }
+    }
+
     // 1) Legacy first: tenants by user_id only (no tenant_memberships / owner_user_id required)
     try {
       const legacy = await db.query(
@@ -92,42 +133,6 @@ class TenantContextService {
       }
     } catch {
       // owner_user_id column may not exist
-    }
-
-    // 4) Local provider: no row in tenants (e.g. admin from setup-database). Create schema on first login if needed.
-    // Default to local when no NEON_API_KEY so login works without setting TENANT_PROVIDER
-    const tenantProvider =
-      process.env.TENANT_PROVIDER || (process.env.NEON_API_KEY ? 'neon' : 'local');
-    if (tenantProvider === 'local') {
-      try {
-        const tenantService = ServiceManager.get('tenant');
-        const exists = await tenantService.tenantExists(userId);
-        if (!exists) {
-          this.logger.info('Creating local tenant schema on first login', { userId });
-          const userRow = await db.query('SELECT email FROM users WHERE id = $1 LIMIT 1', [userId]);
-          const email = this._rows(userRow)[0]?.email || '';
-          try {
-            await tenantService.createTenant(userId, email);
-          } catch (createErr) {
-            this.logger.warn('createTenant failed, will try getTenantConnection anyway', {
-              userId,
-              message: createErr.message,
-            });
-            // Schema might already exist (e.g. from setup-database or previous partial run)
-          }
-        }
-        const connectionString = await tenantService.getTenantConnection(userId);
-        if (connectionString) {
-          return {
-            tenantId: userId,
-            tenantRole: 'admin',
-            tenantConnectionString: connectionString,
-            tenantOwnerUserId: userId,
-          };
-        }
-      } catch (e) {
-        this.logger.warn('Local tenant resolve failed', { userId, message: e.message });
-      }
     }
 
     return null;

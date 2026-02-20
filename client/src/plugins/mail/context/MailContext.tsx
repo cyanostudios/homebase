@@ -52,6 +52,13 @@ interface MailContextType {
     resendApiKey?: string;
     resendFromAddress?: string;
   }) => Promise<void>;
+  selectedIds: string[];
+  selectedCount: number;
+  isSelected: (id: string) => boolean;
+  toggleSelected: (id: string) => void;
+  selectAll: () => void;
+  clearSelection: () => void;
+  deleteHistory: (ids: string[]) => Promise<void>;
 }
 
 const MailContext = createContext<MailContextType | undefined>(undefined);
@@ -73,6 +80,7 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const [totalCount, setTotalCount] = useState(0);
   const [settings, setSettings] = useState<MailSettings | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
     registerPanelCloseFunction('mail', closeMailPanel);
@@ -219,6 +227,35 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const getPanelSubtitle = () => '';
   const getDeleteMessage = () => '';
 
+  const selectedCount = selectedIds.length;
+
+  const isSelected = useCallback((id: string) => selectedIds.includes(id), [selectedIds]);
+
+  const toggleSelected = useCallback((id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(mailHistory.map((e) => e.id));
+  }, [mailHistory]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds([]);
+  }, []);
+
+  const deleteHistory = useCallback(
+    async (ids: string[]) => {
+      if (!isAuthenticated || ids.length === 0) {
+        return;
+      }
+      await mailApi.deleteHistory(ids);
+      setMailHistory((prev) => prev.filter((e) => !ids.includes(e.id)));
+      setTotalCount((prev) => Math.max(0, prev - ids.length));
+      setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+    },
+    [isAuthenticated],
+  );
+
   const value: MailContextType = {
     isMailPanelOpen,
     panelMode,
@@ -239,6 +276,13 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     getPanelSubtitle,
     getDeleteMessage,
     saveSettings,
+    selectedIds,
+    selectedCount,
+    isSelected,
+    toggleSelected,
+    selectAll,
+    clearSelection,
+    deleteHistory,
   };
 
   return <MailContext.Provider value={value}>{children}</MailContext.Provider>;

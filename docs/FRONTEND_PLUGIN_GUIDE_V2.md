@@ -306,8 +306,12 @@ export const MyPluginList: React.FC = () => {
   };
 
   return (
-    <div>
-      {/* Bulk Action Bar */}
+    <div className="space-y-4">
+      {/*
+        IMPORTANT: BulkActionBar must be ABOVE the list, OUTSIDE the Card.
+        This follows UX best practices (Fitts' Law, proximity principle).
+        See UI_AND_UX_STANDARDS_V3.md for details.
+      */}
       <BulkActionBar
         selectedCount={selectedCount}
         onClearSelection={clearSelection}
@@ -321,7 +325,8 @@ export const MyPluginList: React.FC = () => {
         ]}
       />
 
-      {/* List with checkboxes */}
+      {/* List with checkboxes - inside Card */}
+      <Card>
       <table>
         <thead>
           <tr>

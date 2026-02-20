@@ -219,9 +219,7 @@ class ServiceManager {
 
 // Create singleton instance
 const serviceManager = new ServiceManager({
-  database: {
-    provider: process.env.DATABASE_PROVIDER || 'postgres',
-  },
+  database: {},
   logger: {
     provider: process.env.LOGGER_PROVIDER || 'console',
     console: {
@@ -230,7 +228,6 @@ const serviceManager = new ServiceManager({
     },
   },
   tenant: {
-    provider: process.env.TENANT_PROVIDER || 'neon',
     neon: {
       apiKey: process.env.NEON_API_KEY,
       region: process.env.NEON_REGION || 'aws-eu-central-1',
@@ -240,7 +237,6 @@ const serviceManager = new ServiceManager({
     },
   },
   connectionPool: {
-    provider: process.env.POOL_PROVIDER || 'postgres',
     postgres: {
       max: parseInt(process.env.POOL_MAX_SIZE || '10'),
       idleTimeoutMillis: parseInt(process.env.POOL_IDLE_TIMEOUT || '30000'),

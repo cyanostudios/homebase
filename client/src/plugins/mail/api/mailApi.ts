@@ -92,6 +92,13 @@ class MailApi {
       body: JSON.stringify(data),
     });
   }
+
+  async deleteHistory(ids: string[]): Promise<{ ok: boolean; deleted: number }> {
+    return this.request('/history/delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    });
+  }
 }
 
 export const mailApi = new MailApi();

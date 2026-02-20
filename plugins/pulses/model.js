@@ -112,6 +112,30 @@ class PulseModel {
     }
   }
 
+  async deleteHistory(req, ids) {
+    try {
+      const db = Database.get(req);
+      const userId = Context.getTenantUserId(req);
+      if (!userId) {
+        throw new AppError('Unauthorized', 401, AppError.CODES.UNAUTHORIZED);
+      }
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return { deleted: 0 };
+      }
+      const placeholders = ids.map((_, i) => `$${i + 2}`).join(', ');
+      const sql = `DELETE FROM ${TABLE} WHERE user_id = $1 AND id IN (${placeholders})`;
+      const params = [userId, ...ids];
+      const result = await db.query(sql, params);
+      const deleted = result?.rowCount ?? ids.length;
+      Logger.info('Pulse history deleted', { count: deleted, userId });
+      return { deleted };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to delete pulse history', error);
+      throw new AppError('Failed to delete pulse history', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async getSettings(req, options = { needsPassword: false }) {
     try {
       const db = Database.get(req);
@@ -176,7 +200,11 @@ class PulseModel {
           active_provider: activeProvider,
           twilio_from_number: twilioFromNumber ?? null,
         };
-        if (twilioAccountSid != null && twilioAccountSid !== '' && !String(twilioAccountSid).startsWith('••••')) {
+        if (
+          twilioAccountSid != null &&
+          twilioAccountSid !== '' &&
+          !String(twilioAccountSid).startsWith('••••')
+        ) {
           updateData.twilio_account_sid = twilioAccountSid;
         }
         if (twilioAuthToken != null && twilioAuthToken !== '') {

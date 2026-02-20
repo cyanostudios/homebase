@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { Mail, Settings, RefreshCw } from 'lucide-react';
+import { Mail, Settings, RefreshCw, Trash2 } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -14,6 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { BulkActionBar } from '@/core/ui/BulkActionBar';
+import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { cn } from '@/lib/utils';
@@ -22,10 +24,25 @@ import { useMail } from '../hooks/useMail';
 
 export const MailList: React.FC = () => {
   const { t } = useTranslation();
-  const { mailHistory, totalCount, settings, loading, loadHistory, openMailPanel } = useMail();
+  const {
+    mailHistory,
+    totalCount,
+    settings,
+    loading,
+    loadHistory,
+    openMailPanel,
+    selectedIds,
+    selectedCount,
+    isSelected,
+    toggleSelected,
+    clearSelection,
+    deleteHistory,
+  } = useMail();
   const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
   const [pluginFilter, setPluginFilter] = useState<string>('');
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const filtered = mailHistory.filter((entry) => {
     const matchSearch =
@@ -43,6 +60,20 @@ export const MailList: React.FC = () => {
       ),
     [mailHistory],
   );
+
+  const statusBadge = useMemo(() => {
+    if (!settings) {
+      return { label: t('mail.notConfigured'), isOk: false };
+    }
+    const provider = settings.provider;
+    if (provider === 'resend' && settings.configured?.resend) {
+      return { label: 'Resend', isOk: true };
+    }
+    if (provider === 'smtp' && settings.configured?.smtp) {
+      return { label: 'SMTP', isOk: true };
+    }
+    return { label: provider === 'resend' ? 'Resend' : 'SMTP', isOk: false };
+  }, [settings, t]);
 
   useEffect(() => {
     setHeaderTrailing(
@@ -66,33 +97,27 @@ export const MailList: React.FC = () => {
                 ))}
               </select>
             )}
-            <div className="flex items-center gap-2">
-              {settings?.configured?.smtp || settings?.configured?.resend ? (
-                <Badge
-                  variant="outline"
-                  className="plugin-mail bg-plugin-subtle text-plugin border-plugin-subtle font-medium text-[10px]"
-                >
-                  {t('mail.configured')}
-                </Badge>
-              ) : (
-                <Badge
-                  variant="secondary"
-                  className="bg-secondary/50 text-secondary-foreground border-transparent font-medium text-[10px]"
-                >
-                  {t('mail.notConfigured')}
-                </Badge>
+            <Badge
+              variant="outline"
+              className={cn(
+                'font-medium text-[10px]',
+                statusBadge.isOk
+                  ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800'
+                  : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800',
               )}
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={Settings}
-                onClick={() => openMailPanel()}
-                title={t('mail.settingsButton')}
-                className="h-7 text-[10px] px-2"
-              >
-                {t('mail.settingsButton')}
-              </Button>
-            </div>
+            >
+              {statusBadge.label}
+            </Badge>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Settings}
+              onClick={() => openMailPanel()}
+              title={t('mail.settingsButton')}
+              className="h-7 text-[10px] px-2"
+            >
+              {t('mail.settingsButton')}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -112,16 +137,58 @@ export const MailList: React.FC = () => {
     searchTerm,
     pluginFilter,
     pluginSources,
+    statusBadge,
     loading,
     setHeaderTrailing,
     loadHistory,
-    settings,
     openMailPanel,
     t,
   ]);
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await deleteHistory(selectedIds);
+      setShowBulkDeleteModal(false);
+    } catch (err) {
+      console.error('Failed to delete mail history:', err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const allFilteredSelected =
+    filtered.length > 0 && filtered.every((e) => selectedIds.includes(e.id));
+
+  const handleSelectAllFiltered = () => {
+    if (allFilteredSelected) {
+      clearSelection();
+    } else {
+      filtered.forEach((e) => {
+        if (!selectedIds.includes(e.id)) {
+          toggleSelected(e.id);
+        }
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
+      <BulkActionBar
+        selectedCount={selectedCount}
+        onClearSelection={clearSelection}
+        actions={[
+          {
+            label: t('common.delete'),
+            icon: Trash2,
+            onClick: () => setShowBulkDeleteModal(true),
+            variant: 'destructive',
+          },
+        ]}
+      />
       <Card className="shadow-none plugin-mail">
         <div className="p-4 border-b border-border flex items-center gap-2">
           <Mail className="h-5 w-5 text-plugin" />
@@ -134,9 +201,7 @@ export const MailList: React.FC = () => {
           </Badge>
         </div>
         {loading && mailHistory.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground text-sm">
-            {t('common.loading')}
-          </div>
+          <div className="p-8 text-center text-muted-foreground text-sm">{t('common.loading')}</div>
         ) : filtered.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground text-sm">
             {t('mail.emptyHistory')}
@@ -145,6 +210,14 @@ export const MailList: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 cursor-pointer"
+                    checked={allFilteredSelected}
+                    onChange={handleSelectAllFiltered}
+                  />
+                </TableHead>
                 <TableHead>{t('mail.date')}</TableHead>
                 <TableHead>{t('mail.to')}</TableHead>
                 <TableHead>{t('mail.subject')}</TableHead>
@@ -155,8 +228,19 @@ export const MailList: React.FC = () => {
               {filtered.map((entry) => (
                 <TableRow
                   key={entry.id}
-                  className="hover:bg-muted/50 plugin-mail hover:bg-plugin-subtle/50 transition-colors"
+                  className={cn(
+                    'hover:bg-muted/50 plugin-mail hover:bg-plugin-subtle/50 transition-colors',
+                    isSelected(entry.id) && 'bg-blue-50 dark:bg-blue-950/30',
+                  )}
                 >
+                  <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 cursor-pointer"
+                      checked={isSelected(entry.id)}
+                      onChange={() => toggleSelected(entry.id)}
+                    />
+                  </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {entry.sentAt ? format(new Date(entry.sentAt), 'yyyy-MM-dd HH:mm') : '—'}
                   </TableCell>
@@ -198,6 +282,15 @@ export const MailList: React.FC = () => {
           </Table>
         )}
       </Card>
+
+      <BulkDeleteModal
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        onConfirm={handleBulkDelete}
+        selectedCount={selectedCount}
+        itemLabel={t('mail.historyTitle')}
+        isDeleting={deleting}
+      />
     </div>
   );
 };

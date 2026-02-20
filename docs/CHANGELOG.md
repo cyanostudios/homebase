@@ -4,6 +4,50 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-02 – Pulse & Mail: UI/UX redesign, bulk delete, BulkActionBar placement
+
+### Pulse & Mail Settings: Provider Cards
+
+- **Provider-val med cards:** Ersatt provider dropdown/knappar med klickbara kort (Twilio/Mock för Pulse, Resend/SMTP för Mail). Varje kort visar:
+  - Grön/röd statusindikator (configured/not configured)
+  - Provider-namn och aktiv markering
+- **Credentials-sektion:** Separerad `DetailSection` för credentials som bara visas när aktuell provider är vald.
+- **Plugin sources (Pulse):** Ny sektion som visar vilka plugins som har skickat meddelanden via Pulse (badges).
+
+### Pulse & Mail List: Status Badge
+
+- **Dynamisk status-badge:** I `ContentToolbar` visas nu aktivt provider-namn ("Twilio", "Resend" etc.) med grön färg om konfigurerad, röd om inte.
+- **Plugin-filter återställd (Pulse):** Dropdown för att filtrera på plugin-källa (contacts, tasks etc.) återställd bredvid sökfältet.
+
+### Bulk Delete för Pulse & Mail
+
+- **Frontend:**
+  - `PulseContext` / `MailContext`: Nya state och funktioner för selection (`selectedIds`, `selectedCount`, `isSelected`, `toggleSelected`, `selectAll`, `clearSelection`, `deleteHistory`).
+  - `PulseList` / `MailList`: Checkboxar per rad, "select all filtered", `BulkActionBar` med Delete-action, `BulkDeleteModal` för bekräftelse.
+- **Backend:**
+  - `plugins/pulses/model.js` / `plugins/mail/model.js`: Ny metod `deleteHistory(req, ids)`.
+  - `plugins/pulses/controller.js` / `plugins/mail/controller.js`: Ny `deleteHistory` endpoint.
+  - `plugins/pulses/routes.js` / `plugins/mail/routes.js`: `POST /history/delete` route med validering.
+- **API:** `pulseApi.deleteHistory(ids)` / `mailApi.deleteHistory(ids)`.
+
+### BulkActionBar Placement (UX Best Practice)
+
+- **Ovanför listan:** `BulkActionBar` flyttad från under tabellen (inuti Card) till ovanför (utanför Card) i Pulse och Mail. Detta följer UX best practices:
+  - Fitts' Law: Närmare checkboxar minskar musrörelse.
+  - Proximity Principle: Aktioner nära relaterade kontroller.
+  - Industry standard: Gmail, Outlook, Salesforce etc. placerar bulk actions ovanför.
+  - Sticky toolbar pattern: Möjliggör synlighet vid scroll.
+
+### Auth: Default tenant provider
+
+- **TENANT_PROVIDER fallback:** Om `NEON_API_KEY` saknas används automatiskt `local` som tenant provider (förhindrar inloggningsproblem i lokal utveckling).
+
+### i18n
+
+- **Nya nycklar:** `pulses.credentials`, `pulses.pluginSources`, `pulses.pluginSourcesHint`, `pulses.noPluginSources`, `mail.credentials` (en/sv).
+
+---
+
 ## 2026-02 – Lokal inloggning permanent fix; Bulk message & export
 
 ### Lokal inloggning (permanent fix)

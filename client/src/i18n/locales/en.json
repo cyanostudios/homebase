@@ -314,7 +314,8 @@
     "saveError": "Could not save settings",
     "resendFromPlaceholder": "onboarding@resend.dev or your verified domain",
     "resendDomainHint": "Resend requires a verified domain. You can test with onboarding@resend.dev.",
-    "activeNotConfigured": "Active: {{provider}} (not configured)"
+    "activeNotConfigured": "Active: {{provider}} (not configured)",
+    "credentials": "Credentials"
   },
   "pulses": {
     "panelTitle": "Pulse settings",
@@ -349,7 +350,11 @@
     "testSent": "Test SMS sent.",
     "testError": "Could not send test SMS",
     "testNumberRequired": "Enter a phone number to send a test SMS",
-    "saveError": "Could not save settings"
+    "saveError": "Could not save settings",
+    "credentials": "Credentials",
+    "pluginSources": "Plugin sources",
+    "pluginSourcesHint": "Plugins that have sent messages via Pulse.",
+    "noPluginSources": "No plugins have sent messages yet."
   },
   "dashboard": {
     "noWidgets": "No widgets available. Enable plugins to see widgets here."

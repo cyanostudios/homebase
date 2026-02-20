@@ -76,8 +76,10 @@ export const ContactList: React.FC = () => {
     selectedCount,
     isSelected,
   } = useContacts();
-  const { getSettings, updateSettings, settingsVersion } = useApp();
+  const { getSettings, updateSettings, settingsVersion, user } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
+  const canSendMessages =
+    user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
   const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -371,11 +373,15 @@ export const ContactList: React.FC = () => {
         selectedCount={selectedCount}
         onClearSelection={clearContactSelection}
         actions={[
-          {
-            label: t('bulk.sendMessageTitle'),
-            icon: MessageSquare,
-            onClick: () => setShowBulkMessageDialog(true),
-          },
+          ...(canSendMessages
+            ? [
+                {
+                  label: t('bulk.sendMessageTitle'),
+                  icon: MessageSquare,
+                  onClick: () => setShowBulkMessageDialog(true),
+                },
+              ]
+            : []),
           {
             label: 'Export CSV',
             icon: FileSpreadsheet,

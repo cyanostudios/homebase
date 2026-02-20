@@ -102,11 +102,15 @@ export const createPanelHandlers = (
       return;
     }
     // Settings plugin: submitSettingsForm is registered by SettingsForm and calls context.submitSave
-    // Generic pattern: submit + PluginName + Form
+    // Generic pattern: submit + PluginName + Form (e.g. submitPulsesForm for plugin "pulses")
     const pluginNameCapitalized = toCamel(currentPlugin.name);
     const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
     const functionName = `submit${cap}Form`;
-    const submitFunction = (window as any)[functionName];
+    let submitFunction = (window as any)[functionName];
+    // Pulse plugin registers submitPulsesForm; fallback to singular submitPulseForm if missing
+    if (!submitFunction && currentPlugin.name === 'pulses') {
+      submitFunction = (window as any).submitPulseForm;
+    }
     if (submitFunction) {
       submitFunction();
     } else {

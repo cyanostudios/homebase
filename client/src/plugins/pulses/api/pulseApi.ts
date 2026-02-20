@@ -31,9 +31,15 @@ class PulseApi {
     pluginSource?: string;
   }): Promise<PulseHistoryResponse> {
     const search = new URLSearchParams();
-    if (params?.limit) search.set('limit', String(params.limit));
-    if (params?.offset) search.set('offset', String(params.offset));
-    if (params?.pluginSource) search.set('pluginSource', params.pluginSource);
+    if (params?.limit) {
+      search.set('limit', String(params.limit));
+    }
+    if (params?.offset) {
+      search.set('offset', String(params.offset));
+    }
+    if (params?.pluginSource) {
+      search.set('pluginSource', params.pluginSource);
+    }
     const qs = search.toString();
     return this.request(`/history${qs ? `?${qs}` : ''}`);
   }
@@ -68,15 +74,17 @@ class PulseApi {
     });
   }
 
-  async send(data: {
-    to: string;
-    body: string;
-    pluginSource?: string;
-    referenceId?: string;
-  }) {
+  async send(data: { to: string; body: string; pluginSource?: string; referenceId?: string }) {
     return this.request('/send', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  }
+
+  async deleteHistory(ids: string[]): Promise<{ ok: boolean; deleted: number }> {
+    return this.request('/history/delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
     });
   }
 }

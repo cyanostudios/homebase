@@ -33,6 +33,44 @@ To prevent layout shifts when switching tabs, all list views must follow these e
 - **Click Target:** Entire row should be clickable (except checkbox/actions).
 - **Cursor:** `cursor-pointer` on row.
 
+### Bulk Action Bar Placement (Strict)
+
+The `BulkActionBar` component must **always** be placed **above** the list/table, outside the Card container. This is based on UX research and industry best practices:
+
+- **Fitts' Law:** Placing actions near the selection controls (checkboxes in table header) reduces mouse movement.
+- **Proximity Principle:** Related controls should be visually grouped together.
+- **Industry Standard:** Gmail, Outlook, Salesforce, and most enterprise applications use this pattern.
+- **Sticky Toolbar:** Enables the action bar to remain visible when scrolling long lists.
+
+**Correct Pattern:**
+
+```tsx
+<div className="space-y-4">
+  {/* BulkActionBar OUTSIDE and ABOVE the Card */}
+  <BulkActionBar
+    selectedCount={selectedCount}
+    onClearSelection={clearSelection}
+    actions={[...]}
+  />
+
+  <Card>
+    <Table>...</Table>
+  </Card>
+</div>
+```
+
+**Incorrect Pattern (DO NOT USE):**
+
+```tsx
+<Card>
+  <Table>...</Table>
+  {/* ❌ WRONG: BulkActionBar inside Card, below table */}
+  <div className="p-4 border-t">
+    <BulkActionBar ... />
+  </div>
+</Card>
+```
+
 ## 2. Grid Views (Cards)
 
 ### Card Layout
