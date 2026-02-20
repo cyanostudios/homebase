@@ -40,23 +40,16 @@ function fmtMoney(amount: any, currency?: string | null) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'SEK' }).format(n);
 }
 
-/** Group key for CDON/Fyndiq orders that belong together (same customer, same minute). Returns null if no grouping. */
+/** Group key based strictly on full_name + exact placedAt timestamp. */
 function getOrderGroupKey(o: OrderListItem): string | null {
-  const ch = (o.channel || '').toLowerCase();
-  if (ch !== 'cdon' && ch !== 'fyndiq') return null;
+  const addr = o.shippingAddress as { full_name?: string } | undefined;
+  const namePart = (addr?.full_name ?? '').toString().trim();
+  if (!namePart) return null;
 
-  const cust = o.customer as { firstName?: string; lastName?: string } | undefined;
-  const addr = o.shippingAddress as { first_name?: string; last_name?: string } | undefined;
-  const firstName = (cust?.firstName ?? addr?.first_name ?? '').toString().trim();
-  const lastName = (cust?.lastName ?? addr?.last_name ?? '').toString().trim();
-  if (!firstName && !lastName) return null;
-
-  const placedAt = o.placedAt ? new Date(o.placedAt).getTime() : 0;
+  const placedAt = o.placedAt ? new Date(o.placedAt).getTime() : NaN;
   if (!Number.isFinite(placedAt)) return null;
-  const minuteBucket = Math.floor(placedAt / 60000);
-  const market = (o.raw?.market ?? '').toString().trim().toUpperCase();
 
-  return `${ch}:${market}:${firstName}:${lastName}:${minuteBucket}`;
+  return `${namePart}:${placedAt}`;
 }
 
 function normalizeDetails(raw: any): OrderDetails {
@@ -720,10 +713,10 @@ export const OrdersList: React.FC = () => {
                           void toggleExpand(o);
                         }
                       }}
-                      className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50 ${isExpanded ? 'bg-muted/50' : ''} ${isSelected ? 'bg-muted/30' : ''}`}
+                      className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50 ${isExpanded ? 'bg-muted/50' : ''} ${isSelected ? 'bg-muted/30' : ''} ${groupInfo ? 'bg-blue-50/40 dark:bg-blue-900/10' : ''}`}
                     >
                       <TableCell
-                        className={`w-5 p-0 align-top ${groupInfo ? 'border-l-2 border-muted' : ''}`}
+                        className={`w-5 p-0 align-top ${groupInfo ? 'border-l-2 border-blue-500' : ''}`}
                         aria-hidden
                       />
                       <TableCell className={`w-12 ${groupInfo ? 'pl-3' : ''}`} onClick={(e) => handleToggleSelect(id, e)}>
@@ -779,7 +772,7 @@ export const OrdersList: React.FC = () => {
                     {isExpanded && (
                       <TableRow>
                         {groupInfo ? (
-                          <TableCell className="w-5 p-0 border-l-2 border-muted align-top" aria-hidden />
+                          <TableCell className="w-5 p-0 border-l-2 border-blue-500 align-top" aria-hidden />
                         ) : null}
                         <TableCell
                           colSpan={groupInfo ? 7 : 8}

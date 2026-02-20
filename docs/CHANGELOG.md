@@ -14,9 +14,13 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 - **Frontend**
   - Sync-status-pollningen ignorerar fel vid tillfälliga DB/network-avbrott; användaren ser inga felmeddelanden.
 - **Orders – visuell gruppering av CDON/Fyndiq-order**
-  - CDON och Fyndiq returnerar en order per artikel; samma köp visas därför som flera order. UI grupperar nu visuellt ordrar som hör ihop (samma kund + samma minut): indrag och vertikal klammerlinje till vänster. Ingen backend-ändring – enbart frontend.
-  - Gruppnyckel: first_name + last_name + placed_at (minut). Endast för CDON och Fyndiq.
+  - CDON och Fyndiq returnerar en order per artikel; samma köp visas därför som flera order. UI grupperar nu visuellt ordrar som hör ihop (samma kund + samma tidpunkt): indrag, vertikal blå linje till vänster och subtil blå bakgrund. Ingen backend-ändring – enbart frontend.
+  - **Gruppnyckel** (fix): Använder endast `shipping_address.full_name` + exakt `placedAt`. Ingen kanal, market eller fallbacks – matchar API-dokumentation och databas (full_name finns alltid i CDON/Fyndiq).
+  - **Visuell markering** (fix): Grupperingen fungerade men var svår att se (border-muted). Nu: `border-blue-500` och `bg-blue-50/40` för grupperade rader.
   - Fil: [client/src/plugins/orders/components/OrdersList.tsx](client/src/plugins/orders/components/OrdersList.tsx).
+- **WooCommerce-order synkas inte (identifierat, ingen fix)**
+  - Om en WooCommerce-order (t.ex. Mobilhallen) inte kommer med kan det bero på: (1) `getSlotsToSync` får tom lista från `listInstances` pga session/tenant-bug, (2) `shouldRunQuickSync` returnerar false om CDON/Fyndiq redan är "färska", (3) `last_cursor_placed_at` gör att WooCommerce endast hämtar order nyare än senaste sync. Avvaktar om nästa order kommer in.
+
 - **Stale lock-fix (Orders-synken hängde sig)**
   - Om en sync kraschade (t.ex. serveromstart) sparades aldrig `running_since = NULL`; backend trodde att sync redan körde och returnerade `{ started: false, reason: "locked" }`, så ingen ny sync kunde starta och laddningsindikatorn visades aldrig.
   - Lagt till `STALE_RUNNING_MINUTES = 15`: om `running_since` är äldre än 15 minuter betraktas den som föråldrad (kraschad sync) och ignoreras.
