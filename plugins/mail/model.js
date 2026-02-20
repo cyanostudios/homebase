@@ -187,6 +187,7 @@ class MailModel {
       if (!userId) {
         throw new AppError('Unauthorized', 401, AppError.CODES.UNAUTHORIZED);
       }
+
       const provider = (data.provider || 'smtp') === 'resend' ? 'resend' : 'smtp';
       const host = String(data.host || 'smtp.gmail.com').trim();
       const port = parseInt(String(data.port || '587'), 10) || 587;

@@ -136,23 +136,46 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
     }
     setTesting(true);
     try {
-      // Always use form values – no need to save before testing
       const payload: Record<string, unknown> = {
         testTo: email,
         provider,
-        useSaved: false,
       };
+
       if (provider === 'resend') {
-        payload.resendApiKey = resendApiKey.startsWith('••••') ? undefined : resendApiKey;
-        payload.resendFromAddress = resendFromAddress.trim() || undefined;
+        const hasNewKey = resendApiKey && !resendApiKey.startsWith('••••');
+        if (hasNewKey) {
+          payload.useSaved = false;
+          payload.resendApiKey = resendApiKey.trim();
+          payload.resendFromAddress = resendFromAddress.trim() || undefined;
+        } else if (isResendConfigured) {
+          payload.useSaved = true;
+        } else {
+          setError(t('mail.apiKeyRequired'));
+          setTesting(false);
+          return;
+        }
       } else {
-        payload.host = host.trim() || smtpDefaults.host;
-        payload.port = port || 587;
-        payload.secure = secure;
-        payload.authUser = authUser.trim();
-        payload.authPass = authPass.trim() || undefined;
-        payload.fromAddress = fromAddress.trim() || smtpDefaults.fromAddress;
+        const hasNewPassword = authPass && authPass.trim() !== '';
+        if (hasNewPassword || !settings?.smtp?.hasPassword) {
+          payload.useSaved = false;
+          payload.host = host.trim() || smtpDefaults.host;
+          payload.port = port || 587;
+          payload.secure = secure;
+          payload.authUser = authUser.trim();
+          payload.authPass = authPass.trim() || undefined;
+          payload.fromAddress = fromAddress.trim() || smtpDefaults.fromAddress;
+        } else if (isSmtpConfigured) {
+          payload.useSaved = true;
+        } else {
+          payload.useSaved = false;
+          payload.host = host.trim() || smtpDefaults.host;
+          payload.port = port || 587;
+          payload.secure = secure;
+          payload.authUser = authUser.trim();
+          payload.fromAddress = fromAddress.trim() || smtpDefaults.fromAddress;
+        }
       }
+
       await testSettings(payload as any);
       setTestSuccess(t('mail.testSent'));
     } catch (err: any) {

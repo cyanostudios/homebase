@@ -152,7 +152,19 @@
     "sendMessageSendingShort": "Skickar…",
     "sendMessageSending": "Skickar… {{sent}} / {{total}}",
     "sendMessageDone": "Klart",
-    "sendMessageResult": "{{sent}} skickade, {{failed}} misslyckades."
+    "sendMessageResult": "{{sent}} skickade, {{failed}} misslyckades.",
+    "sendEmailTitle": "Skicka e-post",
+    "sendEmailRecipients": "{{withEmail}} av {{total}} mottagare har en e-postadress.",
+    "sendEmailNoEmail": "{{count}} mottagare saknar e-post och hoppas över.",
+    "sendEmailSubjectLabel": "Ämne",
+    "sendEmailSubjectPlaceholder": "Ange ämne…",
+    "sendEmailBodyLabel": "Meddelande",
+    "sendEmailBodyPlaceholder": "Skriv ditt meddelande…",
+    "sendEmailSend": "Skicka",
+    "sendEmailSendingShort": "Skickar…",
+    "sendEmailSending": "Skickar… {{sent}} / {{total}}",
+    "sendEmailDone": "Klart",
+    "sendEmailResult": "{{sent}} skickade, {{failed}} misslyckades."
   },
   "panel": {
     "close": "Stäng",
@@ -311,6 +323,7 @@
     "testSent": "Testmail skickat! Kontrollera din inkorg.",
     "testError": "Kunde inte skicka testmail",
     "testEmailRequired": "Ange en giltig e-postadress att skicka testmail till",
+    "apiKeyRequired": "Ange din Resend API-nyckel för att testa",
     "saveError": "Kunde inte spara inställningar",
     "resendFromPlaceholder": "onboarding@resend.dev eller din verifierade domän",
     "resendDomainHint": "Resend kräver verifierad domän. Testa med onboarding@resend.dev.",

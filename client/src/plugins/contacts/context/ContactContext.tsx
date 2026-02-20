@@ -1,4 +1,4 @@
-import { MessageCircle } from 'lucide-react';
+import { Mail, MessageCircle } from 'lucide-react';
 import React, {
   createContext,
   useCallback,
@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import type { BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { cn } from '@/lib/utils';
@@ -88,6 +89,9 @@ interface ContactContextType {
   showSendMessageDialog: boolean;
   sendMessageRecipients: BulkMessageRecipient[];
   closeSendMessageDialog: () => void;
+  showSendEmailDialog: boolean;
+  sendEmailRecipients: BulkEmailRecipient[];
+  closeSendEmailDialog: () => void;
 }
 
 const ContactContext = createContext<ContactContextType | undefined>(undefined);
@@ -107,6 +111,8 @@ export function ContactProvider({
   const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData, user } = useApp();
   const canSendMessages =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
+  const canSendEmail =
+    user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('mail'));
 
   // Panel states
   const [isContactPanelOpen, setIsContactPanelOpen] = useState(false);
@@ -121,6 +127,8 @@ export function ContactProvider({
   const [tagError, setTagError] = useState<string | null>(null);
   const [showSendMessageDialog, setShowSendMessageDialog] = useState(false);
   const [sendMessageRecipients, setSendMessageRecipients] = useState<BulkMessageRecipient[]>([]);
+  const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
+  const [sendEmailRecipients, setSendEmailRecipients] = useState<BulkEmailRecipient[]>([]);
   const pendingCloseRef = useRef<(() => void) | null>(null);
 
   const closeSendMessageDialog = useCallback(() => {
@@ -128,12 +136,22 @@ export function ContactProvider({
     setSendMessageRecipients([]);
   }, []);
 
+  const closeSendEmailDialog = useCallback(() => {
+    setShowSendEmailDialog(false);
+    setSendEmailRecipients([]);
+  }, []);
+
   const detailFooterActions = useMemo(() => {
-    if (!canSendMessages) {
-      return [];
-    }
-    return [
-      {
+    const actions: Array<{
+      id: string;
+      label: string;
+      icon: React.ComponentType<{ className?: string }>;
+      onClick: (item: Contact) => void;
+      className?: string;
+    }> = [];
+
+    if (canSendMessages) {
+      actions.push({
         id: 'send-message',
         label: t('bulk.sendMessageTitle'),
         icon: MessageCircle,
@@ -152,9 +170,31 @@ export function ContactProvider({
           setShowSendMessageDialog(true);
         },
         className: 'h-7 text-[10px] px-2',
-      },
-    ];
-  }, [t, canSendMessages]);
+      });
+    }
+
+    if (canSendEmail) {
+      actions.push({
+        id: 'send-email',
+        label: t('bulk.sendEmailTitle'),
+        icon: Mail,
+        onClick: (item: Contact) => {
+          const email = item.email ? String(item.email).trim() : '';
+          setSendEmailRecipients([
+            {
+              id: String(item.id),
+              name: item.companyName || '',
+              email,
+            },
+          ]);
+          setShowSendEmailDialog(true);
+        },
+        className: 'h-7 text-[10px] px-2',
+      });
+    }
+
+    return actions;
+  }, [t, canSendMessages, canSendEmail]);
 
   // Use core bulk selection hook
   const {
@@ -742,6 +782,9 @@ export function ContactProvider({
     showSendMessageDialog,
     sendMessageRecipients,
     closeSendMessageDialog,
+    showSendEmailDialog,
+    sendEmailRecipients,
+    closeSendEmailDialog,
   };
 
   return <ContactContext.Provider value={value}>{children}</ContactContext.Provider>;

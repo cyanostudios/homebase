@@ -152,7 +152,19 @@
     "sendMessageSendingShort": "Sending…",
     "sendMessageSending": "Sending… {{sent}} / {{total}}",
     "sendMessageDone": "Done",
-    "sendMessageResult": "{{sent}} sent, {{failed}} failed."
+    "sendMessageResult": "{{sent}} sent, {{failed}} failed.",
+    "sendEmailTitle": "Send email",
+    "sendEmailRecipients": "{{withEmail}} of {{total}} recipients have an email address.",
+    "sendEmailNoEmail": "{{count}} recipient(s) have no email and will be skipped.",
+    "sendEmailSubjectLabel": "Subject",
+    "sendEmailSubjectPlaceholder": "Enter subject…",
+    "sendEmailBodyLabel": "Message",
+    "sendEmailBodyPlaceholder": "Enter your message…",
+    "sendEmailSend": "Send",
+    "sendEmailSendingShort": "Sending…",
+    "sendEmailSending": "Sending… {{sent}} / {{total}}",
+    "sendEmailDone": "Done",
+    "sendEmailResult": "{{sent}} sent, {{failed}} failed."
   },
   "panel": {
     "close": "Close",
@@ -311,6 +323,7 @@
     "testSent": "Test email sent. Check your inbox.",
     "testError": "Could not send test email",
     "testEmailRequired": "Enter a valid email address to send a test email to",
+    "apiKeyRequired": "Enter your Resend API key to test",
     "saveError": "Could not save settings",
     "resendFromPlaceholder": "onboarding@resend.dev or your verified domain",
     "resendDomainHint": "Resend requires a verified domain. You can test with onboarding@resend.dev.",
