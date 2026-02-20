@@ -19,6 +19,13 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
   - Stöd för `folder_path` i user_files. Migrering 052-files-folder-path.sql.
   - Multer och pathUtils stöder mappstruktur. Files-plugin tillåter ZIP.
 
+### Besiktningar – visa och förhandsgranska filer
+
+- **Ladda ner och förhandsgranskning i projektvy**
+  - I "Bifogade filer" kan användaren nu ladda ner filer via nedladdningsknapp.
+  - Förhandsgranskningsmodal för PDF och bilder (png, jpeg, gif, webp, etc.). Övriga filtyper visar meddelande + ladda ner-länk.
+  - Fil: [client/src/plugins/inspection/components/InspectionView.tsx](client/src/plugins/inspection/components/InspectionView.tsx).
+
 ### Orders sync – inga felmeddelanden och fix för fastnad lock
 
 - **Pool error handlers**

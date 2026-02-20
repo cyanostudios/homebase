@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ChevronDown, ChevronRight, File, Mail, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, Eye, File, Mail, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -10,6 +10,12 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { filesApi } from '@/plugins/files/api/filesApi';
 import { useInspections } from '../hooks/useInspections';
 import { inspectionApi, type SendHistoryEntry } from '../api/inspectionApi';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { FilePicker } from './FilePicker';
 import { ListPicker } from './ListPicker';
 import { SendModal } from './SendModal';
@@ -64,6 +70,7 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
   const [sendHistory, setSendHistory] = useState<SendHistoryEntry[]>([]);
   const [sendHistoryLoading, setSendHistoryLoading] = useState(false);
   const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<string>>(new Set());
+  const [previewFile, setPreviewFile] = useState<InspectionFile | null>(null);
 
   const lastLoadedProjectIdRef = useRef<string | null>(null);
   const loadSeqRef = useRef(0);
@@ -417,8 +424,8 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
                 markDirty();
               }}
               placeholder="Egna anteckningar..."
-              rows={3}
-              className="mt-1"
+              rows={10}
+              className="mt-1 min-h-[200px]"
             />
           </div>
 
@@ -690,20 +697,54 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
               ) : (
                 <ul className="space-y-2">
                   {projectFiles.map((f) => (
-                    <li key={f.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                      <div className="flex items-center gap-2 min-w-0">
+                    <li key={f.id} className="flex items-center justify-between gap-2 py-2 border-b last:border-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
                         <File className="h-4 w-4 flex-shrink-0" />
                         <span className="truncate">{f.name || 'Namnlös'}</span>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="flex-shrink-0"
-                        onClick={() => handleRemoveFile(f.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        {f.url && (
+                          <>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => setPreviewFile(f)}
+                              title="Förhandsgranska"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              title="Ladda ner"
+                              asChild
+                            >
+                              <a
+                                href={`${f.url}?download=1`}
+                                download={f.name || undefined}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Download className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          </>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleRemoveFile(f.id)}
+                          title="Ta bort"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -749,6 +790,46 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
           }}
         />
       )}
+
+      <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{previewFile?.name || 'Förhandsgranskning'}</DialogTitle>
+          </DialogHeader>
+          {previewFile?.url && (
+            <div className="flex-1 min-h-0 overflow-auto">
+              {previewFile.mimeType === 'application/pdf' ? (
+                <iframe
+                  src={previewFile.url}
+                  title={previewFile.name || 'PDF'}
+                  className="w-full h-[70vh] min-h-[400px] border rounded"
+                />
+              ) : (previewFile.mimeType?.startsWith('image/') ?? false) ? (
+                <img
+                  src={previewFile.url}
+                  alt={previewFile.name || 'Bild'}
+                  className="max-w-full max-h-[70vh] object-contain mx-auto block"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-4 py-12 text-muted-foreground">
+                  <p>Filtypen kan inte förhandsgranskas.</p>
+                  <Button asChild variant="outline" size="sm">
+                    <a
+                      href={`${previewFile.url}?download=1`}
+                      download={previewFile.name || undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Ladda ner
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
