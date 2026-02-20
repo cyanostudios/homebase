@@ -24,13 +24,13 @@ import { matchesApi } from '@/plugins/matches/api/matchesApi';
 import { useMatches } from '@/plugins/matches/hooks/useMatches';
 import type { Match } from '@/plugins/matches/types/match';
 
-import { useKioskContext } from '../context/KioskContext';
-import type { Slot } from '../types/kiosk';
+import { useSlotsContext } from '../context/SlotsContext';
+import type { Slot } from '../types/slots';
 import { formatSlotInfoText, formatSlotInfoHtml } from '../utils/slotContactUtils';
 
 import { CapacityAssignedDots } from './CapacityAssignedDots';
 
-interface KioskViewProps {
+interface SlotViewProps {
   slot?: Slot;
   item?: Slot;
 }
@@ -42,7 +42,7 @@ function formatDateTime(s: string | null): string {
   return new Date(s).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-export function KioskView({ slot: slotProp, item }: KioskViewProps) {
+export function SlotView({ slot: slotProp, item }: SlotViewProps) {
   const { t } = useTranslation();
   const slot = slotProp ?? item ?? null;
   const { contacts, openContactForView } = useContacts();
@@ -65,7 +65,7 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
     sendEmailRecipients,
     sendEmailSlot,
     closeSendEmailDialog,
-  } = useKioskContext();
+  } = useSlotsContext();
 
   const [sourceMatch, setSourceMatch] = useState<Match | null>(null);
   const [matchLoaded, setMatchLoaded] = useState(false);

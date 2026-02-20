@@ -1,14 +1,14 @@
-// plugins/kiosk/index.js
+// plugins/slots/index.js
 // V3: Uses PluginSDK context
-const KioskModel = require('./model');
-const KioskController = require('./controller');
-const createKioskRoutes = require('./routes');
+const SlotsModel = require('./model');
+const SlotsController = require('./controller');
+const createSlotsRoutes = require('./routes');
 const config = require('./plugin.config');
 
-function initializeKioskPlugin(context) {
-  const model = new KioskModel();
-  const controller = new KioskController(model);
-  const router = createKioskRoutes(controller, context);
+function initializeSlotsPlugin(context) {
+  const model = new SlotsModel();
+  const controller = new SlotsController(model);
+  const router = createSlotsRoutes(controller, context);
 
   return {
     config,
@@ -18,4 +18,4 @@ function initializeKioskPlugin(context) {
   };
 }
 
-module.exports = initializeKioskPlugin;
+module.exports = initializeSlotsPlugin;

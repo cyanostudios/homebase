@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// scripts/run-kiosk-migration.js
-// Run kiosk migration (029-kiosk.sql) on all existing tenant databases
+// scripts/run-slots-migration.js
+// Run slots migration (029-kiosk.sql) on all existing tenant databases
 
 const { Pool } = require('pg');
 const fs = require('fs');

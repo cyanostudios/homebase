@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// scripts/run-kiosk-slots-match-id-migration.js
-// Run migration 034 (add match_id to kiosk_slots) on all existing tenant databases
+// scripts/run-slots-match-id-migration.js
+// Run migration 034 (add match_id to slots) on all existing tenant databases
 
 const { Pool } = require('pg');
 const fs = require('fs');
@@ -10,7 +10,10 @@ const dotenv = require('dotenv');
 dotenv.config({ path: '.env.local' });
 dotenv.config({ path: '.env' });
 
-const MIGRATION_FILE = path.join(__dirname, '../server/migrations/034-kiosk-slots-add-match-id.sql');
+const MIGRATION_FILE = path.join(
+  __dirname,
+  '../server/migrations/034-kiosk-slots-add-match-id.sql',
+);
 
 async function runMigrationOnTenant(connectionString, tenantInfo) {
   const pool = new Pool({ connectionString });

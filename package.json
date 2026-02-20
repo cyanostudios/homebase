@@ -32,7 +32,9 @@
     "migrate:tenant-memberships": "node scripts/run-tenant-memberships-migration.js",
     "migrate:matches": "node scripts/run-matches-migration.js",
     "migrate:pulses": "node scripts/run-pulses-migration.js",
-    "migrate:kiosk-slots-match-id": "node scripts/run-kiosk-slots-match-id-migration.js",
+    "migrate:slots-match-id": "node scripts/run-slots-match-id-migration.js",
+    "migrate:rename-slots-plugin": "node scripts/run-rename-slots-plugin-migration.js",
+    "migrate:rename-slots-table": "node scripts/run-rename-slots-table-migration.js",
     "twilio": "npm install twilio"
   },
   "dependencies": {

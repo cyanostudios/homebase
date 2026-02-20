@@ -25,7 +25,7 @@ CSRF Protection - Required on all state-changing operations
 Rate Limiting - Configurable per endpoint
 Audit Logging - Built-in for all operations
 
-Current plugins (sidebar): Contacts, Notes, Tasks, Estimates, Invoices (Business), Files, Matches, Kiosk (Main), Mail (Tools); Settings via TopBar. See pluginRegistry.ts and PLUGIN_OVERVIEW_V2.md.
+Current plugins (sidebar): Contacts, Notes, Tasks, Estimates, Invoices (Business), Files, Matches, Slots (Main), Mail (Tools); Settings via TopBar. See pluginRegistry.ts and PLUGIN_OVERVIEW_V2.md.
 
 📚 COMPLETE DOCUMENTATION
 🎯 Core Architecture & Services
@@ -152,7 +152,7 @@ Plugin development anti-patterns
 
 CHANGELOG.md
 
-Kronologisk översikt över beteendeförändringar och nya funktioner (CORS, kiosk, matches, estimates, tenant/RBAC, m.m.)
+Kronologisk översikt över beteendeförändringar och nya funktioner (CORS, slots, matches, estimates, tenant/RBAC, m.m.)
 
 🚀 Development & Deployment
 

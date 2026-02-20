@@ -1,4 +1,4 @@
-// plugins/kiosk/model.js
+// plugins/slots/model.js
 // V3 with @homebase/core SDK
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
@@ -18,18 +18,18 @@ function validateCapacity(capacity) {
   return n;
 }
 
-class KioskModel {
+class SlotsModel {
   async getAll(req) {
     try {
       const db = Database.get(req);
       const rows = await db.query(
-        'SELECT * FROM kiosk_slots ORDER BY slot_time DESC, created_at DESC',
+        'SELECT * FROM slots ORDER BY slot_time DESC, created_at DESC',
         [],
       );
       return rows.map(this.transformRow);
     } catch (error) {
-      Logger.error('Failed to fetch kiosk slots', error);
-      throw new AppError('Failed to fetch kiosk slots', 500, AppError.CODES.DATABASE_ERROR);
+      Logger.error('Failed to fetch slots', error);
+      throw new AppError('Failed to fetch slots', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
@@ -48,7 +48,7 @@ class KioskModel {
       } = slotData;
       const cap = validateCapacity(capacity);
 
-      const result = await db.insert('kiosk_slots', {
+      const result = await db.insert('slots', {
         location: (location || '').trim() || null,
         slot_time: slot_time || null,
         capacity: cap,
@@ -59,14 +59,14 @@ class KioskModel {
         match_id: match_id != null && match_id !== '' ? parseInt(match_id, 10) : null,
       });
 
-      Logger.info('Kiosk slot created', { slotId: result.id });
+      Logger.info('Slot created', { slotId: result.id });
       return this.transformRow(result);
     } catch (error) {
-      Logger.error('Failed to create kiosk slot', error, {
+      Logger.error('Failed to create slot', error, {
         slotData: { location: slotData?.location },
       });
       if (error instanceof AppError) throw error;
-      throw new AppError('Failed to create kiosk slot', 500, AppError.CODES.DATABASE_ERROR);
+      throw new AppError('Failed to create slot', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
@@ -78,9 +78,9 @@ class KioskModel {
         throw new AppError('User context required for update', 401, AppError.CODES.UNAUTHORIZED);
       }
 
-      const existing = await db.query('SELECT * FROM kiosk_slots WHERE id = $1', [slotId]);
+      const existing = await db.query('SELECT * FROM slots WHERE id = $1', [slotId]);
       if (!existing || existing.length === 0) {
-        throw new AppError('Kiosk slot not found', 404, AppError.CODES.NOT_FOUND);
+        throw new AppError('Slot not found', 404, AppError.CODES.NOT_FOUND);
       }
 
       const {
@@ -94,7 +94,7 @@ class KioskModel {
       } = slotData;
       const cap = capacity != null ? validateCapacity(capacity) : existing[0].capacity;
 
-      const result = await db.update('kiosk_slots', slotId, {
+      const result = await db.update('slots', slotId, {
         location: (location || '').trim() || null,
         slot_time: slot_time || null,
         capacity: cap,
@@ -107,13 +107,13 @@ class KioskModel {
             : existing[0].mentions,
       });
 
-      Logger.info('Kiosk slot updated', { slotId });
+      Logger.info('Slot updated', { slotId });
       return this.transformRow(result);
     } catch (error) {
-      Logger.error('Failed to update kiosk slot', error, { slotId });
+      Logger.error('Failed to update slot', error, { slotId });
       if (error instanceof AppError) throw error;
       throw new AppError(
-        `Failed to update kiosk slot: ${error.message || 'Unknown error'}`,
+        `Failed to update slot: ${error.message || 'Unknown error'}`,
         500,
         AppError.CODES.DATABASE_ERROR,
       );
@@ -123,13 +123,13 @@ class KioskModel {
   async delete(req, slotId) {
     try {
       const db = Database.get(req);
-      await db.deleteRecord('kiosk_slots', slotId);
-      Logger.info('Kiosk slot deleted', { slotId });
+      await db.deleteRecord('slots', slotId);
+      Logger.info('Slot deleted', { slotId });
       return { id: slotId };
     } catch (error) {
-      Logger.error('Failed to delete kiosk slot', error, { slotId });
+      Logger.error('Failed to delete slot', error, { slotId });
       if (error instanceof AppError) throw error;
-      throw new AppError('Failed to delete kiosk slot', 500, AppError.CODES.DATABASE_ERROR);
+      throw new AppError('Failed to delete slot', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
@@ -180,7 +180,7 @@ class KioskModel {
             Array.isArray(slotData.mentions) ? slotData.mentions : [],
           );
 
-          const sql = `INSERT INTO kiosk_slots (location, slot_time, capacity, visible, notifications_enabled, contact_id, mentions, user_id)
+          const sql = `INSERT INTO slots (location, slot_time, capacity, visible, notifications_enabled, contact_id, mentions, user_id)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`;
           const params = [
             location,
@@ -200,23 +200,23 @@ class KioskModel {
         return inserted;
       });
 
-      Logger.info('Kiosk slots batch created', { count: rows.length });
+      Logger.info('Slots batch created', { count: rows.length });
       return rows.map((row) => this.transformRow(row));
     } catch (error) {
-      Logger.error('Failed to batch create kiosk slots', error);
+      Logger.error('Failed to batch create slots', error);
       if (error instanceof AppError) throw error;
-      throw new AppError('Failed to batch create kiosk slots', 500, AppError.CODES.DATABASE_ERROR);
+      throw new AppError('Failed to batch create slots', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
   async bulkDelete(req, idsTextArray) {
     try {
       const BulkOperationsHelper = require('../../server/core/helpers/BulkOperationsHelper');
-      return await BulkOperationsHelper.bulkDelete(req, 'kiosk_slots', idsTextArray);
+      return await BulkOperationsHelper.bulkDelete(req, 'slots', idsTextArray);
     } catch (error) {
-      Logger.error('Failed to bulk delete kiosk slots', error);
+      Logger.error('Failed to bulk delete slots', error);
       if (error instanceof AppError) throw error;
-      throw new AppError('Failed to bulk delete kiosk slots', 500, AppError.CODES.DATABASE_ERROR);
+      throw new AppError('Failed to bulk delete slots', 500, AppError.CODES.DATABASE_ERROR);
     }
   }
 
@@ -248,4 +248,4 @@ class KioskModel {
   }
 }
 
-module.exports = KioskModel;
+module.exports = SlotsModel;

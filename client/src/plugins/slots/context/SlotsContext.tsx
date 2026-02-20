@@ -18,12 +18,12 @@ import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import type { BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 
-import { kioskApi } from '../api/kioskApi';
-import { Slot, ValidationError, type KioskMention } from '../types/kiosk';
+import { slotsApi } from '../api/slotsApi';
+import { Slot, ValidationError, type SlotMention } from '../types/slots';
 import { resolveSlotsToContacts, resolveSlotsToEmailContacts } from '../utils/slotContactUtils';
 
-interface KioskContextType {
-  isKioskPanelOpen: boolean;
+interface SlotsContextType {
+  isSlotsPanelOpen: boolean;
   currentSlot: Slot | null;
   panelMode: 'create' | 'edit' | 'view' | 'settings';
   validationErrors: ValidationError[];
@@ -67,7 +67,7 @@ interface KioskContextType {
   refreshSlots: () => Promise<void>;
 
   // Quick-edit in view mode (contacts/mentions): draft until "Update" is clicked (same UX as task properties / contact tags)
-  displayMentions: KioskMention[];
+  displayMentions: SlotMention[];
   addContactToDraft: (contact: { id: number | string; companyName?: string }) => void;
   removeContactFromDraft: (contactId: string) => void;
   hasQuickEditChanges: boolean;
@@ -104,24 +104,24 @@ interface KioskContextType {
   closeSendEmailDialog: () => void;
 }
 
-const KioskContext = createContext<KioskContextType | undefined>(undefined);
+const SlotsContext = createContext<SlotsContextType | undefined>(undefined);
 
-interface KioskProviderProps {
+interface SlotsProviderProps {
   children: ReactNode;
   isAuthenticated: boolean;
   onCloseOtherPanels: () => void;
 }
 
-export function KioskProvider({
+export function SlotsProvider({
   children,
   isAuthenticated,
   onCloseOtherPanels,
-}: KioskProviderProps) {
+}: SlotsProviderProps) {
   const { t } = useTranslation();
   const {
     registerPanelCloseFunction,
     unregisterPanelCloseFunction,
-    registerKioskNavigation,
+    registerSlotsNavigation,
     contacts: appContacts = [],
     user,
   } = useApp();
@@ -131,7 +131,7 @@ export function KioskProvider({
   const canSendEmail =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('mail'));
 
-  // Register "To Kiosk" action on match entity (MatchContext wires openToSlotDialog when showing footer)
+  // Register "To Slot" action on match entity (MatchContext wires openToSlotDialog when showing footer)
   useEffect(() => {
     const unregister = registerAction('match', {
       id: 'create-slot-from-match',
@@ -145,13 +145,13 @@ export function KioskProvider({
     return () => unregister?.();
   }, [registerAction]);
 
-  const [isKioskPanelOpen, setIsKioskPanelOpen] = useState(false);
+  const [isSlotsPanelOpen, setIsSlotsPanelOpen] = useState(false);
   const [currentSlot, setCurrentSlot] = useState<Slot | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [recentlyDuplicatedSlotId, setRecentlyDuplicatedSlotId] = useState<string | null>(null);
-  const [mentionsDraft, setMentionsDraft] = useState<KioskMention[] | null>(null);
+  const [mentionsDraft, setMentionsDraft] = useState<SlotMention[] | null>(null);
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
   const [showSendMessageDialog, setShowSendMessageDialog] = useState(false);
   const [sendMessageRecipients, setSendMessageRecipients] = useState<BulkMessageRecipient[]>([]);
@@ -239,7 +239,7 @@ export function KioskProvider({
   } = useBulkSelection();
 
   const closeSlotPanel = useCallback(() => {
-    setIsKioskPanelOpen(false);
+    setIsSlotsPanelOpen(false);
     setCurrentSlot(null);
     setPanelMode('create');
     setValidationErrors([]);
@@ -254,7 +254,7 @@ export function KioskProvider({
 
   const loadSlots = useCallback(async () => {
     try {
-      const data = await kioskApi.getSlots();
+      const data = await slotsApi.getSlots();
       setSlots(data);
     } catch (error: unknown) {
       console.error('Failed to load slots:', error);
@@ -296,7 +296,7 @@ export function KioskProvider({
       setRecentlyDuplicatedSlotId(null);
       setCurrentSlot(slot);
       setPanelMode(slot ? 'edit' : 'create');
-      setIsKioskPanelOpen(true);
+      setIsSlotsPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
     },
@@ -309,7 +309,7 @@ export function KioskProvider({
       setRecentlyDuplicatedSlotId(null);
       setCurrentSlot(slot);
       setPanelMode('edit');
-      setIsKioskPanelOpen(true);
+      setIsSlotsPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
     },
@@ -321,7 +321,7 @@ export function KioskProvider({
       setRecentlyDuplicatedSlotId(null);
       setCurrentSlot(slot);
       setPanelMode('view');
-      setIsKioskPanelOpen(true);
+      setIsSlotsPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
     },
@@ -337,9 +337,9 @@ export function KioskProvider({
   }, []);
 
   useEffect(() => {
-    registerKioskNavigation(openSlotForViewBridge);
-    return () => registerKioskNavigation(null);
-  }, [registerKioskNavigation, openSlotForViewBridge]);
+    registerSlotsNavigation(openSlotForViewBridge);
+    return () => registerSlotsNavigation(null);
+  }, [registerSlotsNavigation, openSlotForViewBridge]);
 
   const currentItemIndex = currentSlot ? slots.findIndex((s) => s.id === currentSlot.id) : -1;
   const totalItems = slots.length;
@@ -428,7 +428,7 @@ export function KioskProvider({
     setRecentlyDuplicatedSlotId(null);
     setCurrentSlot(null);
     setPanelMode('settings');
-    setIsKioskPanelOpen(true);
+    setIsSlotsPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
   }, [onCloseOtherPanels, clearSlotSelectionCore]);
@@ -446,13 +446,13 @@ export function KioskProvider({
       try {
         if (slotId ?? currentSlot?.id) {
           const id = slotId ?? currentSlot!.id;
-          const saved = await kioskApi.updateSlot(id, data as Partial<Slot>);
+          const saved = await slotsApi.updateSlot(id, data as Partial<Slot>);
           setSlots((prev) => prev.map((s) => (s.id === id ? saved : s)));
           setCurrentSlot(saved);
           setPanelMode('view');
         } else {
-          const saved = await kioskApi.createSlot(
-            data as Parameters<typeof kioskApi.createSlot>[0],
+          const saved = await slotsApi.createSlot(
+            data as Parameters<typeof slotsApi.createSlot>[0],
           );
           setSlots((prev) => [saved, ...prev]);
           closeSlotPanel();
@@ -485,8 +485,8 @@ export function KioskProvider({
         return false;
       }
       try {
-        const created = await kioskApi.createBatchSlots(
-          dataArray as Parameters<typeof kioskApi.createBatchSlots>[0],
+        const created = await slotsApi.createBatchSlots(
+          dataArray as Parameters<typeof slotsApi.createBatchSlots>[0],
         );
         setSlots((prev) => [...created, ...prev]);
         setValidationErrors([]);
@@ -547,7 +547,7 @@ export function KioskProvider({
   const deleteSlot = useCallback(
     async (id: string) => {
       try {
-        await kioskApi.deleteSlot(id);
+        await slotsApi.deleteSlot(id);
         setSlots((prev) => prev.filter((s) => s.id !== id));
         if (currentSlot?.id === id) {
           closeSlotPanel();
@@ -660,7 +660,7 @@ export function KioskProvider({
         visible: item.visible,
         notifications_enabled: item.notifications_enabled,
       };
-      const newSlot = await kioskApi.createSlot(copy);
+      const newSlot = await slotsApi.createSlot(copy);
       setSlots((prev) => [newSlot, ...prev]);
       const highlightId =
         newSlot?.id !== null && newSlot?.id !== undefined ? String(newSlot.id) : undefined;
@@ -669,8 +669,8 @@ export function KioskProvider({
     [closeSlotPanel],
   );
 
-  const value: KioskContextType = {
-    isKioskPanelOpen,
+  const value: SlotsContextType = {
+    isSlotsPanelOpen,
     currentSlot,
     panelMode,
     validationErrors,
@@ -727,13 +727,13 @@ export function KioskProvider({
     closeSendEmailDialog,
   };
 
-  return <KioskContext.Provider value={value}>{children}</KioskContext.Provider>;
+  return <SlotsContext.Provider value={value}>{children}</SlotsContext.Provider>;
 }
 
-export function useKioskContext() {
-  const ctx = useContext(KioskContext);
+export function useSlotsContext() {
+  const ctx = useContext(SlotsContext);
   if (ctx === undefined) {
-    throw new Error('useKioskContext must be used within KioskProvider');
+    throw new Error('useSlotsContext must be used within SlotsProvider');
   }
   return ctx;
 }

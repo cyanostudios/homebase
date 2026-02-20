@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// scripts/run-kiosk-contact-migration.js
-// Run kiosk contact migration (030-kiosk-add-contact.sql) on all existing tenant databases
+// scripts/run-slots-contact-migration.js
+// Run slots contact migration (030-kiosk-add-contact.sql) on all existing tenant databases
 
 const { Pool } = require('pg');
 const fs = require('fs');

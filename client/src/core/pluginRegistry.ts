@@ -87,19 +87,10 @@ import { InvoicesProvider } from '@/plugins/invoices/context/InvoicesContext';
 import { useInvoices } from '@/plugins/invoices/hooks/useInvoices';
 import { invoicesNavigation } from '@/plugins/invoices/navigation';
 // Notes
-import { KioskForm } from '@/plugins/kiosk/components/KioskForm';
-import { KioskList } from '@/plugins/kiosk/components/KioskList';
-import { KioskView } from '@/plugins/kiosk/components/KioskView';
-import { KioskProvider } from '@/plugins/kiosk/context/KioskContext';
-import { useKiosk } from '@/plugins/kiosk/hooks/useKiosk';
 import { MailList } from '@/plugins/mail/components/MailList';
 import { MailSettingsForm } from '@/plugins/mail/components/MailSettingsForm';
 import { MailProvider } from '@/plugins/mail/context/MailContext';
 import { useMail } from '@/plugins/mail/hooks/useMail';
-import { PulseList } from '@/plugins/pulses/components/PulseList';
-import { PulseSettingsForm } from '@/plugins/pulses/components/PulseSettingsForm';
-import { PulseProvider } from '@/plugins/pulses/context/PulseContext';
-import { usePulses } from '@/plugins/pulses/hooks/usePulses';
 import { MatchForm } from '@/plugins/matches/components/MatchForm';
 import { MatchList } from '@/plugins/matches/components/MatchList';
 import { MatchView } from '@/plugins/matches/components/MatchView';
@@ -111,11 +102,20 @@ import { NotesDashboardWidget } from '@/plugins/notes/components/NotesDashboardW
 import { NoteView } from '@/plugins/notes/components/NoteView';
 import { NoteProvider } from '@/plugins/notes/context/NoteContext';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
+import { PulseList } from '@/plugins/pulses/components/PulseList';
+import { PulseSettingsForm } from '@/plugins/pulses/components/PulseSettingsForm';
+import { PulseProvider } from '@/plugins/pulses/context/PulseContext';
+import { usePulses } from '@/plugins/pulses/hooks/usePulses';
 // Tasks
 import { SettingsForm } from '@/plugins/settings/components/SettingsForm';
 import { SettingsList } from '@/plugins/settings/components/SettingsList';
 import { SettingsProvider } from '@/plugins/settings/context/SettingsContext';
 import { useSettings } from '@/plugins/settings/hooks/useSettings';
+import { SlotForm } from '@/plugins/slots/components/SlotForm';
+import { SlotsList } from '@/plugins/slots/components/SlotsList';
+import { SlotView } from '@/plugins/slots/components/SlotView';
+import { SlotsProvider } from '@/plugins/slots/context/SlotsContext';
+import { useSlots } from '@/plugins/slots/hooks/useSlots';
 import { TaskForm } from '@/plugins/tasks/components/TaskForm';
 import { TaskList } from '@/plugins/tasks/components/TaskList';
 import { TasksDashboardWidget } from '@/plugins/tasks/components/TasksDashboardWidget';
@@ -256,13 +256,13 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
   },
   {
     name: 'slots',
-    Provider: KioskProvider,
-    hook: useKiosk,
-    panelKey: 'isKioskPanelOpen',
+    Provider: SlotsProvider,
+    hook: useSlots,
+    panelKey: 'isSlotsPanelOpen',
     components: {
-      List: KioskList,
-      Form: KioskForm,
-      View: KioskView,
+      List: SlotsList,
+      Form: SlotForm,
+      View: SlotView,
     },
     navigation: {
       category: 'Main',

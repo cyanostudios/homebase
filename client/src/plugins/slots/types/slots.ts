@@ -1,4 +1,4 @@
-export interface KioskMention {
+export interface SlotMention {
   contactId: string;
   contactName: string;
   companyName?: string;
@@ -14,7 +14,7 @@ export interface Slot {
   visible: boolean;
   notifications_enabled: boolean;
   contact_id: string | null;
-  mentions: KioskMention[];
+  mentions: SlotMention[];
   created_at: string;
   updated_at: string;
   /** Set when slot was created via "To slot" from a match. */

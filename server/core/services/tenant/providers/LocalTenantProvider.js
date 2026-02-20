@@ -190,7 +190,7 @@ class LocalTenantProvider extends TenantService {
 
       const shouldRunInTenantSchema = (sql, filename) => {
         // Allow an explicit marker to keep tenant creation safe even if directories are mixed.
-        // Currently used by 032-rename-kiosk-plugin-to-slots.sql and future main-db-only migrations.
+        // Currently used by 032-rename-kiosk-plugin-to-slots.sql (historical) and future main-db-only migrations.
         if (sql.includes('Run this on the main application database')) return false;
         if (sql.includes('MAIN_DB_ONLY')) return false;
         // Extra safety: anything that mutates plugin access tables belongs to main DB.

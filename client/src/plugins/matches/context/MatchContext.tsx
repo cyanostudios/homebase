@@ -62,7 +62,7 @@ interface MatchContextType {
     className?: string;
   }>;
 
-  // Quick-edit in view mode (contacts/mentions): draft until "Update" is clicked (same UX as kiosk/task)
+  // Quick-edit in view mode (contacts/mentions): draft until "Update" is clicked (same UX as slots/task)
   displayMentions: MatchMention[];
   addContactToDraft: (contact: { id: number | string; companyName?: string }) => void;
   removeContactFromDraft: (contactId: string) => void;
@@ -226,23 +226,29 @@ export function MatchProvider({
     return () => registerMatchesNavigation(null);
   }, [registerMatchesNavigation, openMatchForViewBridge]);
 
-  const currentItemIndex = currentMatch
-    ? matches.findIndex((m) => m.id === currentMatch.id)
-    : -1;
+  const currentItemIndex = currentMatch ? matches.findIndex((m) => m.id === currentMatch.id) : -1;
   const totalItems = matches.length;
   const hasPrevItem = currentItemIndex > 0;
   const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
 
   const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) return;
+    if (!hasPrevItem || currentItemIndex <= 0) {
+      return;
+    }
     const prev = matches[currentItemIndex - 1];
-    if (prev) openMatchForView(prev);
+    if (prev) {
+      openMatchForView(prev);
+    }
   }, [hasPrevItem, currentItemIndex, matches, openMatchForView]);
 
   const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= matches.length - 1) return;
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= matches.length - 1) {
+      return;
+    }
     const next = matches[currentItemIndex + 1];
-    if (next) openMatchForView(next);
+    if (next) {
+      openMatchForView(next);
+    }
   }, [hasNextItem, currentItemIndex, matches, openMatchForView]);
 
   useEffect(() => {

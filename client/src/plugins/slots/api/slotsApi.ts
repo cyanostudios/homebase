@@ -1,18 +1,18 @@
-import { KioskMention, Slot } from '../types/kiosk';
+import { Slot, SlotMention } from '../types/slots';
 
-function parseMentions(row: Record<string, unknown>): KioskMention[] {
+function parseMentions(row: Record<string, unknown>): SlotMention[] {
   let raw = row.mentions;
   if (raw === null || raw === undefined) {
     return [];
   }
   if (typeof raw === 'string') {
     try {
-      raw = JSON.parse(raw) as KioskMention[];
+      raw = JSON.parse(raw) as SlotMention[];
     } catch {
       return [];
     }
   }
-  return Array.isArray(raw) ? (raw as KioskMention[]) : [];
+  return Array.isArray(raw) ? (raw as SlotMention[]) : [];
 }
 
 function rowToSlot(row: Record<string, unknown>): Slot {
@@ -34,7 +34,7 @@ function rowToSlot(row: Record<string, unknown>): Slot {
   };
 }
 
-class KioskApi {
+class SlotsApi {
   private csrfToken: string | null = null;
 
   async getCsrfToken(): Promise<string> {
@@ -109,7 +109,7 @@ class KioskApi {
     visible?: boolean;
     notifications_enabled?: boolean;
     contact_id?: string | null;
-    mentions?: KioskMention[];
+    mentions?: SlotMention[];
     match_id?: string | null;
   }): Promise<Slot> {
     const body = {
@@ -134,7 +134,7 @@ class KioskApi {
       visible?: boolean;
       notifications_enabled?: boolean;
       contact_id?: string | null;
-      mentions?: KioskMention[];
+      mentions?: SlotMention[];
     }>,
   ): Promise<Slot[]> {
     const body = { slots };
@@ -164,4 +164,4 @@ class KioskApi {
   }
 }
 
-export const kioskApi = new KioskApi();
+export const slotsApi = new SlotsApi();

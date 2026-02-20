@@ -44,9 +44,9 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import i18n from '@/i18n';
 import { Contact } from '@/plugins/contacts/types/contacts';
 import { Estimate } from '@/plugins/estimates/types/estimate';
-import { Slot } from '@/plugins/kiosk/types/kiosk';
 import { Match } from '@/plugins/matches/types/match';
 import { Note } from '@/plugins/notes/types/notes';
+import { Slot } from '@/plugins/slots/types/slots';
 import { Task } from '@/plugins/tasks/types/tasks';
 
 interface User {
@@ -79,7 +79,7 @@ interface AppContextType {
   getEstimatesForContact: (contactId: string) => Promise<Estimate[]>;
   getTasksForContact: (contactId: string) => Promise<Task[]>;
   getTasksWithMentionsForContact: (contactId: string) => Promise<Task[]>;
-  getKioskSlotsForContact: (contactId: string) => Promise<Slot[]>;
+  getSlotsForContact: (contactId: string) => Promise<Slot[]>;
   getMatchesForContact: (contactId: string) => Promise<Match[]>;
 
   // Optional plugin navigation (set by plugins when mounted; used by e.g. ContactView)
@@ -91,7 +91,7 @@ interface AppContextType {
   registerNotesNavigation: (fn: ((note: Note) => void) | null) => void;
   registerTasksNavigation: (fn: ((task: Task) => void) | null) => void;
   registerEstimatesNavigation: (fn: ((estimate: Estimate) => void) | null) => void;
-  registerKioskNavigation: (fn: ((slot: Slot) => void) | null) => void;
+  registerSlotsNavigation: (fn: ((slot: Slot) => void) | null) => void;
   registerMatchesNavigation: (fn: ((match: Match) => void) | null) => void;
 
   /** Open "Create task from note" dialog (set by AppContent so note detail footer can trigger it). */
@@ -259,7 +259,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const registerEstimatesNavigation = useCallback((fn: ((estimate: Estimate) => void) | null) => {
     queueMicrotask(() => setOpenEstimateForView(() => fn ?? undefined));
   }, []);
-  const registerKioskNavigation = useCallback((fn: ((slot: Slot) => void) | null) => {
+  const registerSlotsNavigation = useCallback((fn: ((slot: Slot) => void) | null) => {
     queueMicrotask(() => setOpenSlotForView(() => fn ?? undefined));
   }, []);
   const registerMatchesNavigation = useCallback((fn: ((match: Match) => void) | null) => {
@@ -515,7 +515,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [user?.plugins, tasks],
   );
 
-  const getKioskSlotsForContact = useCallback(
+  const getSlotsForContact = useCallback(
     async (contactId: string): Promise<Slot[]> => {
       if (!user?.plugins?.includes('slots')) {
         return [];
@@ -631,7 +631,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getEstimatesForContact,
         getTasksForContact,
         getTasksWithMentionsForContact,
-        getKioskSlotsForContact,
+        getSlotsForContact,
         getMatchesForContact,
 
         openNoteForView,
@@ -642,7 +642,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         registerNotesNavigation,
         registerTasksNavigation,
         registerEstimatesNavigation,
-        registerKioskNavigation,
+        registerSlotsNavigation,
         registerMatchesNavigation,
 
         openToTaskDialog,

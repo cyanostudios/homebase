@@ -1,8 +1,8 @@
-// plugins/kiosk/controller.js
+// plugins/slots/controller.js
 const { Logger, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
-class KioskController {
+class SlotsController {
   constructor(model) {
     this.model = model;
   }
@@ -12,9 +12,9 @@ class KioskController {
       const slots = await this.model.getAll(req);
       res.json(slots);
     } catch (error) {
-      Logger.error('Get kiosk slots failed', error, { userId: Context.getUserId(req) });
+      Logger.error('Get slots failed', error, { userId: Context.getUserId(req) });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to fetch kiosk slots' });
+      res.status(500).json({ error: 'Failed to fetch slots' });
     }
   }
 
@@ -23,9 +23,9 @@ class KioskController {
       const slot = await this.model.create(req, req.body);
       res.json(slot);
     } catch (error) {
-      Logger.error('Create kiosk slot failed', error, { userId: Context.getUserId(req) });
+      Logger.error('Create slot failed', error, { userId: Context.getUserId(req) });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to create kiosk slot' });
+      res.status(500).json({ error: 'Failed to create slot' });
     }
   }
 
@@ -47,7 +47,7 @@ class KioskController {
       const created = await this.model.batchCreate(req, slots);
       res.json(created);
     } catch (error) {
-      Logger.error('Batch create kiosk slots failed', error, { userId: Context.getUserId(req) });
+      Logger.error('Batch create slots failed', error, { userId: Context.getUserId(req) });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       res.status(500).json({ error: 'Failed to batch create slots' });
     }
@@ -58,28 +58,28 @@ class KioskController {
       const slot = await this.model.update(req, req.params.id, req.body);
       res.json(slot);
     } catch (error) {
-      Logger.error('Update kiosk slot failed', error, {
+      Logger.error('Update slot failed', error, {
         slotId: req.params.id,
         userId: Context.getUserId(req),
       });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       res
         .status(500)
-        .json({ error: 'Failed to update kiosk slot', message: error.message || 'Unknown error' });
+        .json({ error: 'Failed to update slot', message: error.message || 'Unknown error' });
     }
   }
 
   async delete(req, res) {
     try {
       await this.model.delete(req, req.params.id);
-      res.json({ message: 'Kiosk slot deleted successfully' });
+      res.json({ message: 'Slot deleted successfully' });
     } catch (error) {
-      Logger.error('Delete kiosk slot failed', error, {
+      Logger.error('Delete slot failed', error, {
         slotId: req.params.id,
         userId: Context.getUserId(req),
       });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
-      res.status(500).json({ error: 'Failed to delete kiosk slot' });
+      res.status(500).json({ error: 'Failed to delete slot' });
     }
   }
 
@@ -110,11 +110,11 @@ class KioskController {
         deletedIds: result?.deletedIds || [],
       });
     } catch (error) {
-      Logger.error('Bulk delete kiosk slots failed', error, { userId: Context.getUserId(req) });
+      Logger.error('Bulk delete slots failed', error, { userId: Context.getUserId(req) });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       res.status(500).json({ error: 'Bulk delete failed' });
     }
   }
 }
 
-module.exports = KioskController;
+module.exports = SlotsController;

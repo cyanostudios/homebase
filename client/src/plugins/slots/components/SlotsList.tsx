@@ -34,8 +34,8 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 
-import { useKiosk } from '../hooks/useKiosk';
-import type { Slot } from '../types/kiosk';
+import { useSlots } from '../hooks/useSlots';
+import type { Slot } from '../types/slots';
 import { resolveSlotsToContacts, resolveSlotsToEmailContacts } from '../utils/slotContactUtils';
 
 import { CapacityAssignedDots } from './CapacityAssignedDots';
@@ -45,7 +45,7 @@ type ViewMode = 'grid' | 'list';
 type SortField = 'slot_time' | 'location' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
-export function KioskList() {
+export function SlotsList() {
   const { t } = useTranslation();
   const {
     slots,
@@ -61,7 +61,7 @@ export function KioskList() {
     selectedCount,
     isSelected,
     recentlyDuplicatedSlotId,
-  } = useKiosk();
+  } = useSlots();
   const { getSettings, updateSettings, settingsVersion, contacts: appContacts, user } = useApp();
   const { contacts: hookContacts } = useContacts();
   const contacts = useMemo(() => appContacts ?? hookContacts ?? [], [appContacts, hookContacts]);

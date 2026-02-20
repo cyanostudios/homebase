@@ -7,17 +7,17 @@ import { useApp } from '@/core/api/AppContext';
 import { DetailCard } from '@/core/ui/DetailCard';
 import { DetailSection } from '@/core/ui/DetailSection';
 
-export type KioskViewMode = 'grid' | 'list';
+export type SlotsViewMode = 'grid' | 'list';
 
-export interface KioskSettingsFormProps {
+export interface SlotsSettingsFormProps {
   onCancel: () => void;
 }
 
 const SLOTS_SETTINGS_KEY = 'slots';
 
-export function KioskSettingsForm({ onCancel }: KioskSettingsFormProps) {
+export function SlotsSettingsForm({ onCancel }: SlotsSettingsFormProps) {
   const { getSettings, updateSettings } = useApp();
-  const [viewMode, setViewMode] = useState<KioskViewMode>('list');
+  const [viewMode, setViewMode] = useState<SlotsViewMode>('list');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export function KioskSettingsForm({ onCancel }: KioskSettingsFormProps) {
           setViewMode('grid');
         }
       } catch (error) {
-        console.error('Failed to load kiosk settings:', error);
+        console.error('Failed to load slots settings:', error);
       } finally {
         setIsLoading(false);
       }
@@ -44,7 +44,7 @@ export function KioskSettingsForm({ onCancel }: KioskSettingsFormProps) {
       await updateSettings(SLOTS_SETTINGS_KEY, { viewMode });
       onCancel();
     } catch (error) {
-      console.error('Failed to save kiosk settings:', error);
+      console.error('Failed to save slots settings:', error);
     }
   }, [viewMode, updateSettings, onCancel]);
 

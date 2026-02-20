@@ -47,7 +47,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     getEstimatesForContact,
     getTasksForContact,
     getTasksWithMentionsForContact,
-    getKioskSlotsForContact,
+    getSlotsForContact,
     getMatchesForContact,
     getSettings,
     settingsVersion,
@@ -80,7 +80,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
   const [relatedEstimates, setRelatedEstimates] = useState<any[]>([]);
   const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
   const [mentionedInTasks, setMentionedInTasks] = useState<any[]>([]);
-  const [kioskSlots, setKioskSlots] = useState<any[]>([]);
+  const [slots, setSlots] = useState<any[]>([]);
   const [matchMatches, setMatchMatches] = useState<any[]>([]);
   const [_loadingNotes, setLoadingNotes] = useState(false);
   const [_loadingEstimates, setLoadingEstimates] = useState(false);
@@ -228,14 +228,14 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
       }
     };
 
-    // Load kiosk slots linked to this contact
-    const loadKioskSlots = async () => {
+    // Load slots linked to this contact
+    const loadSlots = async () => {
       try {
-        const slots = await getKioskSlotsForContact(contact.id);
-        setKioskSlots(slots);
+        const linkedSlots = await getSlotsForContact(contact.id);
+        setSlots(linkedSlots);
       } catch (error) {
-        console.error('Failed to load kiosk slots for contact:', error);
-        setKioskSlots([]);
+        console.error('Failed to load slots for contact:', error);
+        setSlots([]);
       }
     };
 
@@ -253,7 +253,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     loadEstimates();
     loadTasks();
     loadTaskMentions();
-    loadKioskSlots();
+    loadSlots();
     loadMatches();
   }, [
     contact?.id,
@@ -261,7 +261,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     getEstimatesForContact,
     getTasksForContact,
     getTasksWithMentionsForContact,
-    getKioskSlotsForContact,
+    getSlotsForContact,
     getMatchesForContact,
   ]);
 
@@ -505,14 +505,14 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
               </Card>
             )}
 
-            {user?.plugins?.includes('slots') && openSlotForView && kioskSlots.length > 0 && (
+            {user?.plugins?.includes('slots') && openSlotForView && slots.length > 0 && (
               <Card
                 padding="none"
                 className="overflow-hidden border-none shadow-sm bg-background/50"
               >
                 <DetailSection title="Slots" icon={Store} iconPlugin="slots" className="p-4">
                   <div className="space-y-2">
-                    {kioskSlots.map((slot: any) => (
+                    {slots.map((slot: any) => (
                       <div
                         key={slot.id}
                         className="flex justify-between items-center text-[11px] plugin-slots bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"

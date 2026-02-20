@@ -1,10 +1,10 @@
-// plugins/kiosk/routes.js
+// plugins/slots/routes.js
 const express = require('express');
 const router = express.Router();
 const config = require('./plugin.config');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
 
-function createKioskRoutes(controller, context) {
+function createSlotsRoutes(controller, context) {
   const requirePlugin =
     context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin(config.name);
@@ -70,4 +70,4 @@ function createKioskRoutes(controller, context) {
   return router;
 }
 
-module.exports = createKioskRoutes;
+module.exports = createSlotsRoutes;

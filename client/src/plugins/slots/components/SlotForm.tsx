@@ -20,12 +20,12 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { MatchDateTimePicker } from '@/plugins/matches/components/MatchDateTimePicker';
 
-import { useKiosk } from '../hooks/useKiosk';
-import { CAPACITY_OPTIONS, type KioskMention } from '../types/kiosk';
+import { useSlots } from '../hooks/useSlots';
+import { CAPACITY_OPTIONS, type SlotMention } from '../types/slots';
 
-import { KioskSettingsForm } from './KioskSettingsForm';
+import { SlotsSettingsForm } from './SlotsSettingsForm';
 
-interface KioskFormState {
+interface SlotFormState {
   location: string;
   slot_time: string;
   capacity: number;
@@ -50,7 +50,7 @@ const GAP_OPTIONS = [
   { value: 60, label: '1 hr' },
 ];
 
-interface KioskFormProps {
+interface SlotFormProps {
   currentSlot?: {
     id: string;
     slot_time: string;
@@ -59,7 +59,7 @@ interface KioskFormProps {
     visible: boolean;
     notifications_enabled: boolean;
     contact_id?: string | null;
-    mentions?: KioskMention[];
+    mentions?: SlotMention[];
   } | null;
   onSave: (data: Record<string, unknown>) => Promise<boolean>;
   onSaveSlots?: (dataArray: Record<string, unknown>[]) => Promise<boolean>;
@@ -80,16 +80,16 @@ function toDatetimeLocal(iso: string | null): string {
   return `${y}-${m}-${day}T${h}:${min}`;
 }
 
-export function KioskForm({
+export function SlotForm({
   currentSlot,
   onSave,
   onSaveSlots,
   onCancel,
   isSubmitting: _isSubmitting = false,
-}: KioskFormProps) {
+}: SlotFormProps) {
   const { t } = useTranslation();
   const { contacts } = useApp();
-  const { validationErrors, clearValidationErrors, panelMode } = useKiosk();
+  const { validationErrors, clearValidationErrors, panelMode } = useSlots();
   const assignableContacts = contacts.filter(
     (c: { isAssignable?: boolean }) => c.isAssignable !== false,
   );
@@ -105,7 +105,7 @@ export function KioskForm({
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
     useGlobalNavigationGuard();
 
-  const [formData, setFormData] = useState<KioskFormState>({
+  const [formData, setFormData] = useState<SlotFormState>({
     location: '',
     slot_time: '',
     capacity: 1,
@@ -121,7 +121,7 @@ export function KioskForm({
   const [gapMinutes, setGapMinutes] = useState(30);
 
   useEffect(() => {
-    const formKey = `kiosk-form-${currentSlot?.id || 'new'}`;
+    const formKey = `slot-form-${currentSlot?.id || 'new'}`;
     registerUnsavedChangesChecker(formKey, () => isDirty);
     return () => unregisterUnsavedChangesChecker(formKey);
   }, [isDirty, currentSlot, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
@@ -178,7 +178,7 @@ export function KioskForm({
       onCancel();
       return;
     }
-    const mentions: KioskMention[] = selectedContactIds
+    const mentions: SlotMention[] = selectedContactIds
       .map((id) => assignableContacts.find((c: { id: number | string }) => String(c.id) === id))
       .filter(Boolean)
       .map((c: { id: number | string; companyName?: string }) => ({
@@ -258,10 +258,10 @@ export function KioskForm({
   }, [panelMode]);
 
   if (panelMode === 'settings') {
-    return <KioskSettingsForm onCancel={onCancel} />;
+    return <SlotsSettingsForm onCancel={onCancel} />;
   }
 
-  const updateField = <K extends keyof KioskFormState>(field: K, value: KioskFormState[K]) => {
+  const updateField = <K extends keyof SlotFormState>(field: K, value: SlotFormState[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     markDirty();
     clearValidationErrors();

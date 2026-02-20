@@ -59,7 +59,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 ### Bulk message & export
 
 - **BulkMessageDialog:** Ny komponent i `client/src/core/ui/BulkMessageDialog.tsx` – modal för att skriva meddelande och skicka SMS till valda mottagare via Pulses (`pulseApi.send`). Visar antal mottagare, varning för de utan telefon, progress och resultat (X skickade / Y misslyckade).
-- **Slots:** I KioskList – bulk-actions "Skicka meddelande" (samlar unika kontakter från valda slots’ mentions via `resolveSlotsToContacts`) och "Export CSV" (valda slots till CSV). Ny util `client/src/plugins/kiosk/utils/slotContactUtils.ts`.
+- **Slots:** I SlotsList – bulk-actions "Skicka meddelande" (samlar unika kontakter från valda slots’ mentions via `resolveSlotsToContacts`) och "Export CSV" (valda slots till CSV). Ny util `client/src/plugins/slots/utils/slotContactUtils.ts`.
 - **Contacts:** I ContactList – bulk-action "Skicka meddelande" (valda kontakter som mottagare). Export CSV/PDF fanns redan.
 - **i18n:** Nya nycklar under `bulk.*` för send message (title, recipients, body, send, result).
 
@@ -75,13 +75,13 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 ### "To slot från match"
 
 - **Fix:** I `App.tsx` användes `slotsContext` utan att den sattes – nu sätts `slotsContext = slotsEntry?.context` så att `refreshSlots` och `setRecentlyDuplicatedSlotId` anropas efter skapande. "To slot från match" fungerar igen efter namnbyte kiosk → slots.
-- **Match kopplas till slot:** Vid skapande av slot från match skickas `match_id` till API. Backend: migration `034-kiosk-slots-add-match-id.sql` (kolumn `match_id` på `kiosk_slots`, FK till `matches(id)`), `plugins/slots/model.js` (create/transformRow inkl. `match_id`). Migreringsscript: `scripts/run-kiosk-slots-match-id-migration.js`, körs med `npm run migrate:kiosk-slots-match-id`.
+- **Match kopplas till slot:** Vid skapande av slot från match skickas `match_id` till API. Backend: migration `034-kiosk-slots-add-match-id.sql` (kolumn `match_id` på `slots`, FK till `matches(id)`), `plugins/slots/model.js` (create/transformRow inkl. `match_id`). Migreringsscript: `scripts/run-slots-match-id-migration.js`, körs med `npm run migrate:slots-match-id`.
 
 ### Source Match (som Tasks "Source Note")
 
 - **Visning:** I slot-information visas raden "Source Match" med klickbar länk (hemmalag – bortalag) eller "Deleted Match" om matchen inte finns. Samma mönster som Tasks "Source Note".
 - **Data:** Matchen hämtas först från `useMatches().matches`, annars via `matchesApi.getMatch(slot.match_id)`. Länktext endast hemmalag – bortalag (ingen plats).
-- **AppContext/App:** Match-objektet till `openToSlotDialog` inkluderar `id`; vid create skickas `match_id: matchForSlot.id` till `kioskApi.createSlot`.
+- **AppContext/App:** Match-objektet till `openToSlotDialog` inkluderar `id`; vid create skickas `match_id: matchForSlot.id` till `slotsApi.createSlot`.
 
 ### Slot detail view – innehållsdesign
 
@@ -111,12 +111,12 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
-## 2026-02 – Kiosk-plugin
+## 2026-02 – Slots-plugin
 
-- **Nytt plugin:** Kiosk – slots med plats, tid, kapacitet (1–5), synlighet och notiser.
-- **Backend:** `plugins/kiosk/` (model, controller, routes), migration `029-kiosk.sql`, tabell `kiosk_slots`.
-- **Frontend:** `client/src/plugins/kiosk/` (KioskList, KioskForm, KioskView, KioskContext, kioskApi).
-- **Koppling till Matches:** I match-detail kan användaren skapa slot från match via "To Kiosk" (AppContext `openToSlotDialog` / `registerOpenToSlotDialog`, KioskContext registrerar action `create-slot-from-match`).
+- **Nytt plugin:** Slots – slots med plats, tid, kapacitet (1–5), synlighet och notiser.
+- **Backend:** `plugins/slots/` (model, controller, routes), migration `029-kiosk.sql`, tabell `slots` (historiskt `kiosk_slots`, omdöpt i migration 035).
+- **Frontend:** `client/src/plugins/slots/` (SlotsList, SlotForm, SlotView, SlotsContext, slotsApi).
+- **Koppling till Matches:** I match-detail kan användaren skapa slot från match via "To Slot" (AppContext `openToSlotDialog` / `registerOpenToSlotDialog`, SlotsContext registrerar action `create-slot-from-match`).
 
 ---
 

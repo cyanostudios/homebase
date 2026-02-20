@@ -1,7 +1,7 @@
-// client/src/plugins/kiosk/utils/slotContactUtils.ts
+// client/src/plugins/slots/utils/slotContactUtils.ts
 // Resolve selected slots to unique contacts (for bulk message / export)
 
-import type { Slot } from '../types/kiosk';
+import type { Slot } from '../types/slots';
 
 export interface ResolvedContact {
   id: string;

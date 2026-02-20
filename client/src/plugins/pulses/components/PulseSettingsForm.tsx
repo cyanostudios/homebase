@@ -253,7 +253,7 @@ export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({ onCancel }
                   ps === 'contacts' &&
                     'plugin-contacts bg-plugin-subtle text-plugin border-plugin-subtle',
                   ps === 'slots' &&
-                    'plugin-kiosk bg-plugin-subtle text-plugin border-plugin-subtle',
+                    'plugin-slots bg-plugin-subtle text-plugin border-plugin-subtle',
                   ps === 'notes' &&
                     'plugin-notes bg-plugin-subtle text-plugin border-plugin-subtle',
                   ps === 'tasks' &&

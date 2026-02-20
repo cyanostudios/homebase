@@ -32,7 +32,7 @@ import {
   GlobalNavigationGuardProvider,
   useGlobalNavigationGuard,
 } from '@/hooks/useGlobalNavigationGuard';
-import { kioskApi } from '@/plugins/kiosk/api/kioskApi';
+import { slotsApi } from '@/plugins/slots/api/slotsApi';
 
 // Dynamic Plugin Providers - scales infinitely without App.tsx changes
 function PluginProviders({ children }: { children: React.ReactNode }) {
@@ -161,9 +161,7 @@ function AppContent() {
   // Initialize currentPage from localStorage, default 'dashboard'
   const [currentPage, setCurrentPage] = useState<NavPage>(() => {
     const saved = localStorage.getItem('homebase:currentPage');
-    // Migrate legacy plugin name kiosk -> slots
-    const page = (saved === 'kiosk' ? 'slots' : saved) as NavPage;
-    return page || 'dashboard';
+    return (saved as NavPage) || 'dashboard';
   });
 
   // Save currentPage to localStorage whenever it changes
@@ -658,7 +656,7 @@ function AppContent() {
           const closeMatchPanel = matchContext?.closeMatchPanel;
           const setRecentlyDuplicatedSlotId = slotsContext?.setRecentlyDuplicatedSlotId;
           const locationStr = `${matchForSlot.home_team} – ${matchForSlot.away_team}${matchForSlot.location ? ` · ${matchForSlot.location}` : ''}`;
-          kioskApi
+          slotsApi
             .createSlot({
               location: locationStr,
               slot_time: matchForSlot.start_time,

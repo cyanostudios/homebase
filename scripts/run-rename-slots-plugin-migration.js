@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// scripts/run-rename-kiosk-to-slots-migration.js
+// scripts/run-rename-slots-plugin-migration.js
 // Run migration 032 (rename plugin kiosk -> slots) on the main database.
 // Updates user_plugin_access and tenant_plugin_access. Run once.
 
