@@ -224,24 +224,6 @@ export function ContactProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Global functions for form submission (dispatch events)
-  useEffect(() => {
-    (window as any).submitContactsForm = () => {
-      const event = new CustomEvent('submitContactForm');
-      window.dispatchEvent(event);
-    };
-
-    (window as any).cancelContactsForm = () => {
-      const event = new CustomEvent('cancelContactForm');
-      window.dispatchEvent(event);
-    };
-
-    return () => {
-      delete (window as any).submitContactsForm;
-      delete (window as any).cancelContactsForm;
-    };
-  }, []);
-
   const loadContacts = async () => {
     try {
       const contactsData = await contactsApi.getContacts();
