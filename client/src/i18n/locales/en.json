@@ -164,7 +164,8 @@
     "sendEmailSendingShort": "Sending…",
     "sendEmailSending": "Sending… {{sent}} / {{total}}",
     "sendEmailDone": "Done",
-    "sendEmailResult": "{{sent}} sent, {{failed}} failed."
+    "sendEmailResult": "{{sent}} sent, {{failed}} failed.",
+    "sendEmailAttachmentPreview": "The following information will be attached:"
   },
   "panel": {
     "close": "Close",

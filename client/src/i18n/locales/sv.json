@@ -164,7 +164,8 @@
     "sendEmailSendingShort": "Skickar…",
     "sendEmailSending": "Skickar… {{sent}} / {{total}}",
     "sendEmailDone": "Klart",
-    "sendEmailResult": "{{sent}} skickade, {{failed}} misslyckades."
+    "sendEmailResult": "{{sent}} skickade, {{failed}} misslyckades.",
+    "sendEmailAttachmentPreview": "Följande information bifogas:"
   },
   "panel": {
     "close": "Stäng",

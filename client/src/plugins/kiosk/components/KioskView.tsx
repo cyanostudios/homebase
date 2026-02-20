@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
+import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
@@ -25,6 +26,7 @@ import type { Match } from '@/plugins/matches/types/match';
 
 import { useKioskContext } from '../context/KioskContext';
 import type { Slot } from '../types/kiosk';
+import { formatSlotInfoText, formatSlotInfoHtml } from '../utils/slotContactUtils';
 
 import { CapacityAssignedDots } from './CapacityAssignedDots';
 
@@ -59,6 +61,10 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
     showSendMessageDialog,
     sendMessageRecipients,
     closeSendMessageDialog,
+    showSendEmailDialog,
+    sendEmailRecipients,
+    sendEmailSlot,
+    closeSendEmailDialog,
   } = useKioskContext();
 
   const [sourceMatch, setSourceMatch] = useState<Match | null>(null);
@@ -385,6 +391,40 @@ export function KioskView({ slot: slotProp, item }: KioskViewProps) {
         onClose={closeSendMessageDialog}
         recipients={sendMessageRecipients}
         pluginSource="slots"
+      />
+
+      <BulkEmailDialog
+        isOpen={showSendEmailDialog}
+        onClose={closeSendEmailDialog}
+        recipients={sendEmailRecipients}
+        pluginSource="slots"
+        additionalText={sendEmailSlot ? formatSlotInfoText(sendEmailSlot) : undefined}
+        additionalHtml={sendEmailSlot ? formatSlotInfoHtml(sendEmailSlot) : undefined}
+        additionalPreview={
+          sendEmailSlot ? (
+            <div className="text-xs text-muted-foreground space-y-1">
+              {sendEmailSlot.location && (
+                <div>
+                  <span className="font-medium">{t('common.location')}:</span>{' '}
+                  {sendEmailSlot.location}
+                </div>
+              )}
+              {sendEmailSlot.slot_time && (
+                <div>
+                  <span className="font-medium">{t('common.time')}:</span>{' '}
+                  {new Date(sendEmailSlot.slot_time).toLocaleString('sv-SE', {
+                    dateStyle: 'long',
+                    timeStyle: 'short',
+                  })}
+                </div>
+              )}
+              <div>
+                <span className="font-medium">{t('common.capacity')}:</span>{' '}
+                {sendEmailSlot.capacity}
+              </div>
+            </div>
+          ) : undefined
+        }
       />
     </div>
   );

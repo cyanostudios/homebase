@@ -21,6 +21,12 @@ export interface BulkEmailDialogProps {
   onClose: () => void;
   recipients: BulkEmailRecipient[];
   pluginSource: string;
+  /** Optional additional text appended to the email body (plain text) */
+  additionalText?: string;
+  /** Optional additional HTML appended to the email body */
+  additionalHtml?: string;
+  /** Optional preview of additional content shown in the dialog */
+  additionalPreview?: React.ReactNode;
 }
 
 type SendPhase = 'idle' | 'sending' | 'done';
@@ -30,6 +36,9 @@ export function BulkEmailDialog({
   onClose,
   recipients,
   pluginSource,
+  additionalText,
+  additionalHtml,
+  additionalPreview,
 }: BulkEmailDialogProps) {
   const { t } = useTranslation();
   const [subject, setSubject] = useState('');
@@ -54,11 +63,16 @@ export function BulkEmailDialog({
 
     for (const r of withEmail) {
       try {
+        const fullText = additionalText ? `${body}\n\n${additionalText}` : body;
+        const fullHtml = additionalHtml
+          ? `<p>${body.replace(/\n/g, '<br>')}</p>${additionalHtml}`
+          : `<p>${body.replace(/\n/g, '<br>')}</p>`;
+
         const res = await mailApi.send({
           to: [r.email.trim()],
           subject,
-          text: body,
-          html: `<p>${body.replace(/\n/g, '<br>')}</p>`,
+          text: fullText,
+          html: fullHtml,
           pluginSource,
           referenceId: r.id,
         });
@@ -83,7 +97,7 @@ export function BulkEmailDialog({
       setErrorMessage(firstError);
     }
     setPhase('done');
-  }, [subject, body, withEmail, pluginSource]);
+  }, [subject, body, withEmail, pluginSource, additionalText, additionalHtml]);
 
   const handleClose = useCallback(() => {
     setSubject('');
@@ -152,6 +166,14 @@ export function BulkEmailDialog({
                     disabled={withEmail.length === 0}
                   />
                 </div>
+                {additionalPreview && (
+                  <div className="mt-2 p-3 bg-muted/50 rounded-md border border-border/50">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">
+                      {t('bulk.sendEmailAttachmentPreview')}
+                    </p>
+                    {additionalPreview}
+                  </div>
+                )}
               </>
             )}
             {phase === 'sending' && (

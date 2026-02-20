@@ -1,4 +1,4 @@
-import { MessageCircle, Store } from 'lucide-react';
+import { Mail, MessageCircle, Store } from 'lucide-react';
 import React, {
   createContext,
   useContext,
@@ -15,11 +15,12 @@ import { useActionRegistry } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import type { BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 
 import { kioskApi } from '../api/kioskApi';
 import { Slot, ValidationError, type KioskMention } from '../types/kiosk';
-import { resolveSlotsToContacts } from '../utils/slotContactUtils';
+import { resolveSlotsToContacts, resolveSlotsToEmailContacts } from '../utils/slotContactUtils';
 
 interface KioskContextType {
   isKioskPanelOpen: boolean;
@@ -95,6 +96,12 @@ interface KioskContextType {
   showSendMessageDialog: boolean;
   sendMessageRecipients: BulkMessageRecipient[];
   closeSendMessageDialog: () => void;
+
+  // Single-item "Send email" from detail footer
+  showSendEmailDialog: boolean;
+  sendEmailRecipients: BulkEmailRecipient[];
+  sendEmailSlot: Slot | null;
+  closeSendEmailDialog: () => void;
 }
 
 const KioskContext = createContext<KioskContextType | undefined>(undefined);
@@ -121,6 +128,8 @@ export function KioskProvider({
   const { registerAction } = useActionRegistry();
   const canSendMessages =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
+  const canSendEmail =
+    user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('mail'));
 
   // Register "To Kiosk" action on match entity (MatchContext wires openToSlotDialog when showing footer)
   useEffect(() => {
@@ -146,6 +155,9 @@ export function KioskProvider({
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
   const [showSendMessageDialog, setShowSendMessageDialog] = useState(false);
   const [sendMessageRecipients, setSendMessageRecipients] = useState<BulkMessageRecipient[]>([]);
+  const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
+  const [sendEmailRecipients, setSendEmailRecipients] = useState<BulkEmailRecipient[]>([]);
+  const [sendEmailSlot, setSendEmailSlot] = useState<Slot | null>(null);
   const pendingCloseRef = useRef<(() => void) | null>(null);
 
   const closeSendMessageDialog = useCallback(() => {
@@ -153,12 +165,23 @@ export function KioskProvider({
     setSendMessageRecipients([]);
   }, []);
 
+  const closeSendEmailDialog = useCallback(() => {
+    setShowSendEmailDialog(false);
+    setSendEmailRecipients([]);
+    setSendEmailSlot(null);
+  }, []);
+
   const detailFooterActions = useMemo(() => {
-    if (!canSendMessages) {
-      return [];
-    }
-    return [
-      {
+    const actions: Array<{
+      id: string;
+      label: string;
+      icon: React.ComponentType<{ className?: string }>;
+      onClick: (item: Slot) => void;
+      className?: string;
+    }> = [];
+
+    if (canSendMessages) {
+      actions.push({
         id: 'send-message',
         label: t('bulk.sendMessageTitle'),
         icon: MessageCircle,
@@ -177,9 +200,34 @@ export function KioskProvider({
           setShowSendMessageDialog(true);
         },
         className: 'h-7 text-[10px] px-2',
-      },
-    ];
-  }, [t, slots, appContacts, canSendMessages]);
+      });
+    }
+
+    if (canSendEmail) {
+      actions.push({
+        id: 'send-email',
+        label: t('bulk.sendEmailTitle'),
+        icon: Mail,
+        onClick: (item: Slot) => {
+          const recipients = resolveSlotsToEmailContacts(
+            [item.id],
+            slots,
+            appContacts as Array<{
+              id: string | number;
+              companyName?: string;
+              email?: string;
+            }>,
+          );
+          setSendEmailRecipients(recipients);
+          setSendEmailSlot(item);
+          setShowSendEmailDialog(true);
+        },
+        className: 'h-7 text-[10px] px-2',
+      });
+    }
+
+    return actions;
+  }, [t, slots, appContacts, canSendMessages, canSendEmail]);
 
   const {
     selectedIds: selectedSlotIds,
@@ -672,6 +720,11 @@ export function KioskProvider({
     showSendMessageDialog,
     sendMessageRecipients,
     closeSendMessageDialog,
+
+    showSendEmailDialog,
+    sendEmailRecipients,
+    sendEmailSlot,
+    closeSendEmailDialog,
   };
 
   return <KioskContext.Provider value={value}>{children}</KioskContext.Provider>;

@@ -29,6 +29,7 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
@@ -80,6 +81,8 @@ export const ContactList: React.FC = () => {
   const { attemptNavigation } = useGlobalNavigationGuard();
   const canSendMessages =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
+  const canSendEmail =
+    user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('mail'));
   const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -93,6 +96,7 @@ export const ContactList: React.FC = () => {
   });
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
+  const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
@@ -366,6 +370,18 @@ export const ContactList: React.FC = () => {
     [contacts, selectedContactIds],
   );
 
+  const bulkEmailRecipients = useMemo(
+    () =>
+      contacts
+        .filter((c) => selectedContactIds.includes(String(c.id)))
+        .map((c) => ({
+          id: String(c.id),
+          name: c.companyName ?? '',
+          email: c.email ? c.email.trim() : '',
+        })),
+    [contacts, selectedContactIds],
+  );
+
   return (
     <div className="space-y-4">
       {/* Bulk Action Bar */}
@@ -379,6 +395,15 @@ export const ContactList: React.FC = () => {
                   label: t('bulk.sendMessageTitle'),
                   icon: MessageSquare,
                   onClick: () => setShowBulkMessageDialog(true),
+                },
+              ]
+            : []),
+          ...(canSendEmail
+            ? [
+                {
+                  label: t('bulk.sendEmailTitle'),
+                  icon: Mail,
+                  onClick: () => setShowBulkEmailDialog(true),
                 },
               ]
             : []),
@@ -407,6 +432,13 @@ export const ContactList: React.FC = () => {
         isOpen={showBulkMessageDialog}
         onClose={() => setShowBulkMessageDialog(false)}
         recipients={bulkMessageRecipients}
+        pluginSource="contacts"
+      />
+
+      <BulkEmailDialog
+        isOpen={showBulkEmailDialog}
+        onClose={() => setShowBulkEmailDialog(false)}
+        recipients={bulkEmailRecipients}
         pluginSource="contacts"
       />
 

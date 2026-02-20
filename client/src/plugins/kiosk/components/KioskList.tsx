@@ -4,6 +4,7 @@ import {
   FileSpreadsheet,
   Grid3x3,
   List,
+  Mail,
   MessageSquare,
   Settings,
   Trash2,
@@ -24,6 +25,7 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
+import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
@@ -34,7 +36,7 @@ import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 
 import { useKiosk } from '../hooks/useKiosk';
 import type { Slot } from '../types/kiosk';
-import { resolveSlotsToContacts } from '../utils/slotContactUtils';
+import { resolveSlotsToContacts, resolveSlotsToEmailContacts } from '../utils/slotContactUtils';
 
 import { CapacityAssignedDots } from './CapacityAssignedDots';
 
@@ -67,6 +69,8 @@ export function KioskList() {
   const { attemptNavigation } = useGlobalNavigationGuard();
   const canSendMessages =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
+  const canSendEmail =
+    user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('mail'));
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('slot_time');
@@ -74,6 +78,7 @@ export function KioskList() {
   const [viewMode, setViewModeState] = useState<ViewMode>('list');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
+  const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
@@ -252,6 +257,20 @@ export function KioskList() {
     [selectedSlotIds, slots, contacts],
   );
 
+  const bulkEmailRecipients = useMemo(
+    () =>
+      resolveSlotsToEmailContacts(
+        selectedSlotIds,
+        slots,
+        contacts as Array<{
+          id: string | number;
+          companyName?: string;
+          email?: string;
+        }>,
+      ),
+    [selectedSlotIds, slots, contacts],
+  );
+
   const handleBulkExportCSV = useCallback(() => {
     const selectedSlots = slots.filter((s) => selectedSlotIds.includes(s.id));
     exportItems({
@@ -303,6 +322,15 @@ export function KioskList() {
                   },
                 ]
               : []),
+            ...(canSendEmail
+              ? [
+                  {
+                    label: t('bulk.sendEmailTitle'),
+                    icon: Mail,
+                    onClick: () => setShowBulkEmailDialog(true),
+                  },
+                ]
+              : []),
             {
               label: t('common.exportCsv'),
               icon: FileSpreadsheet,
@@ -322,6 +350,13 @@ export function KioskList() {
         isOpen={showBulkMessageDialog}
         onClose={() => setShowBulkMessageDialog(false)}
         recipients={bulkMessageRecipients}
+        pluginSource="slots"
+      />
+
+      <BulkEmailDialog
+        isOpen={showBulkEmailDialog}
+        onClose={() => setShowBulkEmailDialog(false)}
+        recipients={bulkEmailRecipients}
         pluginSource="slots"
       />
 
