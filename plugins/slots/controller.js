@@ -115,6 +115,34 @@ class SlotsController {
       res.status(500).json({ error: 'Bulk delete failed' });
     }
   }
+
+  async getBookings(req, res) {
+    try {
+      const bookings = await this.model.getBookings(req, req.params.id);
+      res.json(bookings);
+    } catch (error) {
+      Logger.error('Get slot bookings failed', error, {
+        slotId: req.params.id,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch bookings' });
+    }
+  }
+
+  async deleteBooking(req, res) {
+    try {
+      await this.model.deleteBooking(req, req.params.bookingId);
+      res.json({ message: 'Booking deleted successfully' });
+    } catch (error) {
+      Logger.error('Delete booking failed', error, {
+        bookingId: req.params.bookingId,
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to delete booking' });
+    }
+  }
 }
 
 module.exports = SlotsController;

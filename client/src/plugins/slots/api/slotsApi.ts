@@ -1,4 +1,4 @@
-import { Slot, SlotMention } from '../types/slots';
+import { Slot, SlotMention, SlotBooking } from '../types/slots';
 
 function parseMentions(row: Record<string, unknown>): SlotMention[] {
   let raw = row.mentions;
@@ -17,6 +17,8 @@ function parseMentions(row: Record<string, unknown>): SlotMention[] {
 
 function rowToSlot(row: Record<string, unknown>): Slot {
   const cap = row.capacity !== undefined && row.capacity !== null ? Number(row.capacity) : 1;
+  const bookedCount =
+    row.booked_count !== undefined && row.booked_count !== null ? Number(row.booked_count) : 0;
   return {
     id: String(row.id),
     location: (row.location as string) ?? null,
@@ -31,6 +33,7 @@ function rowToSlot(row: Record<string, unknown>): Slot {
     updated_at: (row.updated_at as string) ?? '',
     match_id:
       row.match_id !== null && row.match_id !== undefined ? String(row.match_id) : undefined,
+    booked_count: Number.isNaN(bookedCount) ? 0 : bookedCount,
   };
 }
 
@@ -161,6 +164,23 @@ class SlotsApi {
 
   async deleteSlot(id: string): Promise<void> {
     await this.request(`/slots/${id}`, { method: 'DELETE' });
+  }
+
+  async getBookings(slotId: string): Promise<SlotBooking[]> {
+    const rows = await this.request(`/slots/${slotId}/bookings`);
+    return (rows || []).map((row: Record<string, unknown>) => ({
+      id: String(row.id),
+      slot_id: String(row.slot_id),
+      name: (row.name as string) ?? '',
+      email: (row.email as string) ?? null,
+      phone: (row.phone as string) ?? null,
+      message: (row.message as string) ?? null,
+      created_at: (row.created_at as string) ?? '',
+    }));
+  }
+
+  async deleteBooking(bookingId: string): Promise<void> {
+    await this.request(`/slots/bookings/${bookingId}`, { method: 'DELETE' });
   }
 }
 

@@ -19,6 +19,18 @@ export interface Slot {
   updated_at: string;
   /** Set when slot was created via "To slot" from a match. */
   match_id?: string | null;
+  /** Count of public bookings for this slot. */
+  booked_count?: number;
+}
+
+export interface SlotBooking {
+  id: string;
+  slot_id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  message: string | null;
+  created_at: string;
 }
 
 export interface ValidationError {

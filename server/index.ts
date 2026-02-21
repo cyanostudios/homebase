@@ -63,12 +63,32 @@ app.use(
 );
 app.use(compression());
 // CORS: allow frontend origin so login/session work when frontend and API are on different hosts
+// Also allows PUBLIC_BOOKING_URL for the public booking app
+const allowedOrigins: (string | boolean)[] = [];
+if (process.env.NODE_ENV === 'production') {
+  if (process.env.FRONTEND_URL) {
+    allowedOrigins.push(process.env.FRONTEND_URL);
+  }
+  if (process.env.PUBLIC_BOOKING_URL) {
+    allowedOrigins.push(process.env.PUBLIC_BOOKING_URL);
+  }
+} else {
+  allowedOrigins.push(process.env.FRONTEND_URL || 'http://localhost:3001');
+  if (process.env.PUBLIC_BOOKING_URL) {
+    allowedOrigins.push(process.env.PUBLIC_BOOKING_URL);
+  }
+  allowedOrigins.push('http://localhost:3002');
+}
+
 app.use(
   cors({
-    origin:
-      process.env.NODE_ENV === 'production'
-        ? process.env.FRONTEND_URL || false
-        : process.env.FRONTEND_URL || 'http://localhost:3001',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     credentials: true,
   }),
 );

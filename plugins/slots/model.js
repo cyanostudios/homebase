@@ -1,6 +1,6 @@
 // plugins/slots/model.js
 // V3 with @homebase/core SDK
-const { Logger, Database } = require('@homebase/core');
+const { Logger, Database, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 const CAPACITY_MIN = 1;
@@ -23,7 +23,14 @@ class SlotsModel {
     try {
       const db = Database.get(req);
       const rows = await db.query(
-        'SELECT * FROM slots ORDER BY slot_time DESC, created_at DESC',
+        `SELECT s.*, COALESCE(sb.booked_count, 0)::int AS booked_count
+         FROM slots s
+         LEFT JOIN (
+           SELECT slot_id, COUNT(*)::int AS booked_count
+           FROM slot_bookings
+           GROUP BY slot_id
+         ) sb ON s.id = sb.slot_id
+         ORDER BY s.slot_time DESC, s.created_at DESC`,
         [],
       );
       return rows.map(this.transformRow);
@@ -220,6 +227,67 @@ class SlotsModel {
     }
   }
 
+  async getBookings(req, slotId) {
+    try {
+      const db = Database.get(req);
+      const userId = Context.getUserId(req);
+      const rows = await db.query(
+        `SELECT sb.id, sb.slot_id, sb.name, sb.email, sb.phone, sb.message, sb.created_at
+         FROM slot_bookings sb
+         INNER JOIN slots s ON sb.slot_id = s.id AND s.user_id = $2
+         WHERE sb.slot_id = $1
+         ORDER BY sb.created_at DESC`,
+        [slotId, userId],
+      );
+      return rows.map((row) => ({
+        id: row.id.toString(),
+        slot_id: row.slot_id.toString(),
+        name: row.name,
+        email: row.email,
+        phone: row.phone,
+        message: row.message,
+        created_at: row.created_at,
+      }));
+    } catch (error) {
+      Logger.error('Failed to fetch slot bookings', error, { slotId });
+      throw new AppError('Failed to fetch slot bookings', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async deleteBooking(req, bookingId) {
+    try {
+      const db = Database.get(req);
+      const userId = Context.getUserId(req);
+
+      // Verify the booking belongs to a slot owned by this user
+      const existing = await db.query(
+        `SELECT sb.id FROM slot_bookings sb
+         INNER JOIN slots s ON sb.slot_id = s.id AND s.user_id = $2
+         WHERE sb.id = $1`,
+        [bookingId, userId],
+      );
+
+      if (!existing || existing.length === 0) {
+        throw new AppError('Booking not found', 404, AppError.CODES.NOT_FOUND);
+      }
+
+      // Delete using subquery so adapter does not add user_id to slot_bookings (table has no user_id column)
+      await db.query(
+        `DELETE FROM slot_bookings
+         WHERE id = $1
+         AND slot_id IN (SELECT id FROM slots WHERE user_id = $2)`,
+        [bookingId, userId],
+      );
+
+      Logger.info('Booking deleted', { bookingId });
+      return { success: true };
+    } catch (error) {
+      Logger.error('Failed to delete booking', error, { bookingId });
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to delete booking', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   transformRow(row) {
     let mentions = row.mentions;
     if (typeof mentions === 'string') {
@@ -244,6 +312,7 @@ class SlotsModel {
       created_at: row.created_at,
       updated_at: row.updated_at,
       match_id: row.match_id != null ? row.match_id.toString() : null,
+      booked_count: row.booked_count ?? 0,
     };
   }
 }

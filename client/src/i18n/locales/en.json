@@ -132,7 +132,10 @@
     "slotNbr": "Slot Nbr",
     "match": "Match",
     "matchNumber": "Match number",
-    "deletedMatch": "Deleted Match"
+    "deletedMatch": "Deleted Match",
+    "publicBookings": "Public Bookings",
+    "deleteBooking": "Delete Booking",
+    "deleteBookingConfirm": "Are you sure you want to delete this booking?"
   },
   "bulk": {
     "selected": "{{count}} selected",

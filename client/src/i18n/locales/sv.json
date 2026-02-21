@@ -132,7 +132,10 @@
     "slotNbr": "Slotnr",
     "match": "Match",
     "matchNumber": "Matchnummer",
-    "deletedMatch": "Borttagen match"
+    "deletedMatch": "Borttagen match",
+    "publicBookings": "Publika bokningar",
+    "deleteBooking": "Ta bort bokning",
+    "deleteBookingConfirm": "Är du säker på att du vill ta bort denna bokning?"
   },
   "bulk": {
     "selected": "{{count}} valda",

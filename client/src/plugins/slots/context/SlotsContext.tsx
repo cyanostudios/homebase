@@ -278,6 +278,19 @@ export function SlotsProvider({
     }
   }, [isAuthenticated, loadSlots]);
 
+  // Auto-refresh slots every 30 seconds to catch public bookings
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      loadSlots();
+    }, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [isAuthenticated, loadSlots]);
+
   const validateSlot = useCallback((data: Record<string, unknown>): ValidationError[] => {
     const errors: ValidationError[] = [];
     if (!data.slot_time) {

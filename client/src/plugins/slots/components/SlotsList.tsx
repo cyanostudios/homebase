@@ -414,7 +414,7 @@ export function SlotsList() {
                   {formatDateTime(slot.slot_time)} · {t('common.capacity')} {slot.capacity}{' '}
                   <CapacityAssignedDots
                     capacity={slot.capacity}
-                    assignedCount={slot.mentions?.length ?? 0}
+                    assignedCount={(slot.mentions?.length ?? 0) + (slot.booked_count ?? 0)}
                   />
                 </div>
                 <div className="text-[10px] text-muted-foreground mt-1">
@@ -556,7 +556,7 @@ export function SlotsList() {
                       {slot.capacity}
                       <CapacityAssignedDots
                         capacity={slot.capacity}
-                        assignedCount={slot.mentions?.length ?? 0}
+                        assignedCount={(slot.mentions?.length ?? 0) + (slot.booked_count ?? 0)}
                       />
                     </span>
                   </TableCell>

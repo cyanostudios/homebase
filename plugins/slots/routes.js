@@ -67,6 +67,18 @@ function createSlotsRoutes(controller, context) {
     controller.delete(req, res),
   );
 
+  router.get('/:id/bookings', gate, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.getBookings(req, res),
+  );
+
+  router.delete(
+    '/bookings/:bookingId',
+    gate,
+    commonRules.id('bookingId'),
+    validateRequest,
+    (req, res) => controller.deleteBooking(req, res),
+  );
+
   return router;
 }
 
