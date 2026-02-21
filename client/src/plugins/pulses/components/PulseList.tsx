@@ -22,6 +22,8 @@ import { cn } from '@/lib/utils';
 
 import { usePulses } from '../hooks/usePulses';
 
+import { PulseSettingsView } from './PulseSettingsView';
+
 export const PulseList: React.FC = () => {
   const { t } = useTranslation();
   const {
@@ -30,7 +32,8 @@ export const PulseList: React.FC = () => {
     settings,
     loading,
     loadHistory,
-    openPulsePanel,
+    openPulsesSettings,
+    pulsesContentView,
     selectedIds,
     selectedCount,
     isSelected,
@@ -38,7 +41,7 @@ export const PulseList: React.FC = () => {
     clearSelection,
     deleteHistory,
   } = usePulses();
-  const { setHeaderTrailing } = useContentLayout();
+  const { setHeaderTrailing, setHeaderTitleSuffix } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
   const [pluginFilter, setPluginFilter] = useState<string>('');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -76,6 +79,31 @@ export const PulseList: React.FC = () => {
   }, [settings, t]);
 
   useEffect(() => {
+    if (pulsesContentView !== 'list') {
+      setHeaderTitleSuffix(null);
+      return () => setHeaderTitleSuffix(null);
+    }
+    setHeaderTitleSuffix(
+      <Badge
+        variant="outline"
+        className={cn(
+          'font-medium text-[10px]',
+          statusBadge.isOk
+            ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800'
+            : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800',
+        )}
+      >
+        {statusBadge.label}
+      </Badge>,
+    );
+    return () => setHeaderTitleSuffix(null);
+  }, [pulsesContentView, statusBadge, setHeaderTitleSuffix]);
+
+  useEffect(() => {
+    if (pulsesContentView !== 'list') {
+      setHeaderTrailing(null);
+      return () => setHeaderTrailing(null);
+    }
     setHeaderTrailing(
       <ContentToolbar
         searchValue={searchTerm}
@@ -97,35 +125,24 @@ export const PulseList: React.FC = () => {
                 ))}
               </select>
             )}
-            <Badge
-              variant="outline"
-              className={cn(
-                'font-medium text-[10px]',
-                statusBadge.isOk
-                  ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800'
-                  : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800',
-              )}
-            >
-              {statusBadge.label}
-            </Badge>
             <Button
-              variant="secondary"
+              variant="ghost"
               size="sm"
               icon={Settings}
-              onClick={() => openPulsePanel()}
-              title={t('pulses.settingsButton')}
-              className="h-7 text-[10px] px-2"
+              onClick={() => openPulsesSettings()}
+              title={t('common.settings')}
+              className="h-9 text-xs px-3"
             >
-              {t('pulses.settingsButton')}
+              {t('common.settings')}
             </Button>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
+              icon={RefreshCw}
               onClick={() => loadHistory()}
               disabled={loading}
-              className="h-7 text-[10px] px-2"
+              className={cn('h-9 text-xs px-3', loading && '[&>svg]:animate-spin')}
             >
-              <RefreshCw className={cn('h-4 w-4 mr-1', loading && 'animate-spin')} />
               {t('pulses.refresh')}
             </Button>
           </div>
@@ -137,11 +154,11 @@ export const PulseList: React.FC = () => {
     searchTerm,
     pluginFilter,
     pluginSources,
-    statusBadge,
     loading,
     setHeaderTrailing,
     loadHistory,
-    openPulsePanel,
+    openPulsesSettings,
+    pulsesContentView,
     t,
   ]);
 
@@ -174,6 +191,10 @@ export const PulseList: React.FC = () => {
       });
     }
   };
+
+  if (pulsesContentView === 'settings') {
+    return <PulseSettingsView />;
+  }
 
   return (
     <div className="space-y-4">

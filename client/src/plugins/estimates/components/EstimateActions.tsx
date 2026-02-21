@@ -67,7 +67,7 @@ export function EstimateShareBlock({ estimate }: { estimate: Estimate }) {
                   size="sm"
                   icon={copied ? Check : Copy}
                   onClick={handleCopy}
-                  className={`h-7 text-[10px] px-2 ${
+                  className={`h-9 text-xs px-3 ${
                     copied
                       ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300'
                       : ''
@@ -80,7 +80,7 @@ export function EstimateShareBlock({ estimate }: { estimate: Estimate }) {
                   size="sm"
                   icon={ExternalLink}
                   onClick={() => shareUrl && window.open(shareUrl, '_blank', 'noopener,noreferrer')}
-                  className="h-7 text-[10px] px-2"
+                  className="h-9 text-xs px-3"
                 >
                   View
                 </Button>

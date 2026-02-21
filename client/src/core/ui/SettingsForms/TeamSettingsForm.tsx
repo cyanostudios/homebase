@@ -4,7 +4,6 @@ import { Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
@@ -170,21 +169,21 @@ export function TeamSettingsForm({ onCancel: _onCancel }: TeamSettingsFormProps)
   return (
     <div className="space-y-4">
       {!isAdmin && (
-        <Card className="p-3 bg-muted/50 border-muted-foreground/20">
+        <div className="rounded-md border border-muted-foreground/20 bg-muted/50 px-3 py-2">
           <p className="text-sm text-muted-foreground">
             Read-only. Only admins can add or change members.
           </p>
-        </Card>
+        </div>
       )}
 
       {error && (
-        <Card className="p-3 border-destructive/50 bg-destructive/5">
+        <div className="rounded-md border border-destructive/50 bg-destructive/5 px-3 py-2">
           <p className="text-sm text-destructive">{error}</p>
-        </Card>
+        </div>
       )}
 
       {isAdmin && (
-        <Card className="p-4">
+        <div>
           <h4 className="text-sm font-semibold mb-3">Add member</h4>
           <form onSubmit={handleAdd} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -231,73 +230,75 @@ export function TeamSettingsForm({ onCancel: _onCancel }: TeamSettingsFormProps)
               </Button>
             </div>
           </form>
-        </Card>
+        </div>
       )}
 
-      <Card className="shadow-none">
-        <h4 className="text-sm font-semibold p-4 pb-2">Members</h4>
-        {isLoading ? (
-          <div className="p-6 text-center text-muted-foreground">Loading...</div>
-        ) : members.length === 0 ? (
-          <div className="p-6 text-center text-muted-foreground">No members yet.</div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                {isAdmin && <TableHead className="w-[120px]">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell>{member.email}</TableCell>
-                  <TableCell>
-                    {isAdmin ? (
-                      <NativeSelect
-                        value={member.role}
-                        onChange={(e) =>
-                          openRoleChangeConfirm(
-                            member,
-                            e.target.value as 'user' | 'editor' | 'admin',
-                          )
-                        }
-                        disabled={updatingUserId === member.id}
-                        className="w-28"
-                      >
-                        {ROLES.map((r) => (
-                          <option key={r} value={r}>
-                            {r.charAt(0).toUpperCase() + r.slice(1)}
-                          </option>
-                        ))}
-                      </NativeSelect>
-                    ) : (
-                      member.role
-                    )}
-                  </TableCell>
-                  <TableCell>{member.status}</TableCell>
-                  {isAdmin && (
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        icon={Trash2}
-                        className="h-7 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400"
-                        onClick={() => openRemoveConfirm(member)}
-                      >
-                        Remove
-                      </Button>
-                    </TableCell>
-                  )}
+      <div>
+        <h4 className="text-sm font-semibold mb-2">Members</h4>
+        <div className="rounded-md border overflow-hidden">
+          {isLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">Loading...</div>
+          ) : members.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">No members yet.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  {isAdmin && <TableHead className="w-[120px]">Actions</TableHead>}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {members.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell>{member.email}</TableCell>
+                    <TableCell>
+                      {isAdmin ? (
+                        <NativeSelect
+                          value={member.role}
+                          onChange={(e) =>
+                            openRoleChangeConfirm(
+                              member,
+                              e.target.value as 'user' | 'editor' | 'admin',
+                            )
+                          }
+                          disabled={updatingUserId === member.id}
+                          className="w-28"
+                        >
+                          {ROLES.map((r) => (
+                            <option key={r} value={r}>
+                              {r.charAt(0).toUpperCase() + r.slice(1)}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                      ) : (
+                        member.role
+                      )}
+                    </TableCell>
+                    <TableCell>{member.status}</TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          icon={Trash2}
+                          className="h-7 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400"
+                          onClick={() => openRemoveConfirm(member)}
+                        >
+                          Remove
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </div>
 
       <ConfirmDialog
         isOpen={removeConfirm.isOpen}

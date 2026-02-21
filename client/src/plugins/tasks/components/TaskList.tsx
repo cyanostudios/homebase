@@ -7,7 +7,6 @@ import {
   Grid3x3,
   List as ListIcon,
   Settings,
-  Upload,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -29,9 +28,7 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
-import { ImportWizard } from '@/core/ui/ImportWizard';
 import { exportItems } from '@/core/utils/exportUtils';
-import { ImportSchema } from '@/core/utils/importUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -39,28 +36,21 @@ import { useTasks } from '../hooks/useTasks';
 import { TASK_STATUS_COLORS, TASK_PRIORITY_COLORS, formatStatusForDisplay } from '../types/tasks';
 import { getTasksExportConfig } from '../utils/taskExportConfig';
 
+import { TaskSettingsView } from './TaskSettingsView';
+
 type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
 
 const TASKS_SETTINGS_KEY = 'tasks';
 
-const TASK_IMPORT_SCHEMA: ImportSchema = {
-  fields: [
-    { key: 'title', label: 'Title', required: true },
-    { key: 'content', label: 'Content', required: false },
-    { key: 'status', label: 'Status', required: false },
-    { key: 'priority', label: 'Priority', required: false },
-  ],
-};
-
 export const TaskList: React.FC = () => {
   const { t } = useTranslation();
   const {
     tasks,
+    tasksContentView,
     openTaskForView,
     openTaskSettings,
-    importTasks,
     deleteTask,
     deleteTasks,
     selectedTaskIds,
@@ -87,7 +77,6 @@ export const TaskList: React.FC = () => {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -344,64 +333,68 @@ export const TaskList: React.FC = () => {
     }
   };
 
-  // Set header trailing (search + view mode toggle) in ContentHeader
   useEffect(() => {
+    if (tasksContentView !== 'list') {
+      setHeaderTrailing(null);
+      return () => setHeaderTrailing(null);
+    }
     setHeaderTrailing(
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder={t('tasks.searchPlaceholder')}
         rightActions={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
-              variant="secondary"
+              variant="ghost"
               size="sm"
               icon={Settings}
               onClick={() => openTaskSettings()}
-              className="h-7 text-[10px] px-2"
+              className="h-9 text-xs px-3"
             >
-              {t('slots.settings')}
+              {t('common.settings')}
             </Button>
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'secondary'}
+              variant="ghost"
               size="sm"
               icon={Grid3x3}
               onClick={() => setViewMode('grid')}
-              className="h-7 text-[10px] px-2"
+              className={cn('h-9 text-xs px-3', viewMode === 'grid' && 'text-primary')}
             >
               {t('slots.grid')}
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'default' : 'secondary'}
+              variant="ghost"
               size="sm"
               icon={ListIcon}
               onClick={() => setViewMode('list')}
-              className="h-7 text-[10px] px-2"
+              className={cn('h-9 text-xs px-3', viewMode === 'list' && 'text-primary')}
             >
               {t('slots.list')}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={Upload}
-              onClick={() => setIsImportWizardOpen(true)}
-              className="h-7 text-[10px] px-2"
-            >
-              Import
             </Button>
           </div>
         }
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [t, searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing, openTaskSettings]);
+  }, [
+    t,
+    searchTerm,
+    setSearchTerm,
+    viewMode,
+    setViewMode,
+    setHeaderTrailing,
+    openTaskSettings,
+    tasksContentView,
+  ]);
 
-  // Protected navigation handlers
   const handleOpenForView = (task: any) => {
-    attemptNavigation(() => {
-      openTaskForView(task);
-    });
+    attemptNavigation(() => openTaskForView(task));
   };
+
+  if (tasksContentView === 'settings') {
+    return <TaskSettingsView />;
+  }
 
   return (
     <div className="space-y-4">
@@ -756,14 +749,6 @@ export const TaskList: React.FC = () => {
         itemCount={selectedCount}
         itemLabel="tasks"
         isLoading={deleting}
-      />
-
-      <ImportWizard
-        isOpen={isImportWizardOpen}
-        onClose={() => setIsImportWizardOpen(false)}
-        onImport={importTasks}
-        schema={TASK_IMPORT_SCHEMA}
-        title="Import Tasks"
       />
 
       <ConfirmDialog

@@ -34,7 +34,10 @@ interface NoteContextType {
   openNoteForEdit: (note: Note) => void;
   openNoteForView: (note: Note) => void;
   openNoteSettings: () => void;
+  closeNoteSettingsView: () => void;
   closeNotePanel: () => void;
+  /** When 'settings', main content shows NotesSettingsView instead of list. */
+  notesContentView: 'list' | 'settings';
   saveNote: (noteData: any) => Promise<boolean>;
   createNote: (noteData: { title: string; content?: string; mentions?: any[] }) => Promise<Note>;
   deleteNote: (id: string) => Promise<void>;
@@ -110,6 +113,9 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   // Data state
   const [notes, setNotes] = useState<Note[]>([]);
   const [recentlyDuplicatedNoteId, setRecentlyDuplicatedNoteId] = useState<string | null>(null);
+
+  // Content view: list (default) or settings (full-page settings like Core Settings)
+  const [notesContentView, setNotesContentView] = useState<'list' | 'settings'>('list');
 
   // Use core bulk selection hook
   const {
@@ -243,12 +249,13 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const openNoteSettings = useCallback(() => {
     clearNoteSelectionCore();
-    setCurrentNote(null);
-    setPanelMode('settings');
-    setIsNotePanelOpen(true);
-    setValidationErrors([]);
+    setNotesContentView('settings');
     onCloseOtherPanels();
   }, [onCloseOtherPanels, clearNoteSelectionCore]);
+
+  const closeNoteSettingsView = useCallback(() => {
+    setNotesContentView('list');
+  }, []);
 
   const openNoteForViewRef = useRef(openNoteForView);
   useEffect(() => {
@@ -270,15 +277,23 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
 
   const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) return;
+    if (!hasPrevItem || currentItemIndex <= 0) {
+      return;
+    }
     const prev = notes[currentItemIndex - 1];
-    if (prev) openNoteForView(prev);
+    if (prev) {
+      openNoteForView(prev);
+    }
   }, [hasPrevItem, currentItemIndex, notes, openNoteForView]);
 
   const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= notes.length - 1) return;
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= notes.length - 1) {
+      return;
+    }
     const next = notes[currentItemIndex + 1];
-    if (next) openNoteForView(next);
+    if (next) {
+      openNoteForView(next);
+    }
   }, [hasNextItem, currentItemIndex, notes, openNoteForView]);
 
   const clearValidationErrors = useCallback(() => {
@@ -531,7 +546,9 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     openNoteForEdit,
     openNoteForView,
     openNoteSettings,
+    closeNoteSettingsView,
     closeNotePanel,
+    notesContentView,
     saveNote,
     createNote,
     deleteNote,
@@ -581,8 +598,8 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
             : action.onClick,
         className:
           action.id === 'create-task-from-note'
-            ? 'h-7 text-[10px] px-2 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30'
-            : 'h-7 text-[10px] px-2',
+            ? 'h-9 text-xs px-3 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30'
+            : 'h-9 text-xs px-3',
       })),
 
     navigateToPrevItem,

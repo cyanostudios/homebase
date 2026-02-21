@@ -27,7 +27,9 @@ interface MatchContextType {
   openMatchForEdit: (match: Match) => void;
   openMatchForView: (match: Match) => void;
   openMatchSettings: () => void;
+  closeMatchSettingsView: () => void;
   closeMatchPanel: () => void;
+  matchesContentView: 'list' | 'settings';
   saveMatch: (data: any, matchId?: string) => Promise<boolean>;
   deleteMatch: (id: string) => Promise<void>;
   deleteMatches: (ids: string[]) => Promise<void>;
@@ -109,6 +111,7 @@ export function MatchProvider({
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [matchesContentView, setMatchesContentView] = useState<'list' | 'settings'>('list');
   const [recentlyDuplicatedMatchId, setRecentlyDuplicatedMatchId] = useState<string | null>(null);
   const [mentionsDraft, setMentionsDraft] = useState<MatchMention[] | null>(null);
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
@@ -310,12 +313,13 @@ export function MatchProvider({
   const openMatchSettings = useCallback(() => {
     clearMatchSelectionCore();
     setRecentlyDuplicatedMatchId(null);
-    setCurrentMatch(null);
-    setPanelMode('settings');
-    setIsMatchPanelOpen(true);
-    setValidationErrors([]);
+    setMatchesContentView('settings');
     onCloseOtherPanels();
   }, [onCloseOtherPanels, clearMatchSelectionCore]);
+
+  const closeMatchSettingsView = useCallback(() => {
+    setMatchesContentView('list');
+  }, []);
 
   const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
 
@@ -513,8 +517,8 @@ export function MatchProvider({
           : (action.onClick as (match: Match) => void),
       className:
         action.id === 'create-slot-from-match'
-          ? 'h-7 text-[10px] px-2 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30'
-          : 'h-7 text-[10px] px-2',
+          ? 'h-9 text-xs px-3 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30'
+          : 'h-9 text-xs px-3',
     }));
 
   const value: MatchContextType = {
@@ -527,7 +531,9 @@ export function MatchProvider({
     openMatchForEdit,
     openMatchForView,
     openMatchSettings,
+    closeMatchSettingsView,
     closeMatchPanel,
+    matchesContentView,
     saveMatch,
     deleteMatch,
     deleteMatches,

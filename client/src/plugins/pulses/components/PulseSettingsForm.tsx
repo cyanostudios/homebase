@@ -15,9 +15,14 @@ type Provider = 'twilio' | 'mock';
 
 interface PulseSettingsFormProps {
   onCancel?: () => void;
+  /** When provided (e.g. from full-page settings), called after successful save instead of closePulsePanel */
+  onSaveSuccess?: () => void;
 }
 
-export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({ onCancel }) => {
+export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({
+  onCancel,
+  onSaveSuccess,
+}) => {
   const { t } = useTranslation();
   const { settings, loadSettings, saveSettings, testSettings, closePulsePanel, pulseHistory } =
     usePulses();
@@ -71,7 +76,11 @@ export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({ onCancel }
         twilioAuthToken: token || undefined,
         twilioFromNumber: (twilioFromNumber || '').trim() || undefined,
       });
-      closePulsePanel();
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      } else {
+        closePulsePanel();
+      }
     } catch (err: unknown) {
       setError((err as Error)?.message || t('pulses.saveError'));
     } finally {
@@ -84,6 +93,7 @@ export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({ onCancel }
     twilioFromNumber,
     saveSettings,
     closePulsePanel,
+    onSaveSuccess,
     t,
   ]);
 

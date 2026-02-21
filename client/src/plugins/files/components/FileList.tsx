@@ -29,6 +29,8 @@ import { cn } from '@/lib/utils';
 
 import { useFiles } from '../hooks/useFiles';
 
+import { FileSettingsView } from './FileSettingsView';
+
 type SortField = 'name' | 'updatedAt' | 'id';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
@@ -70,6 +72,7 @@ export const FileList: React.FC = () => {
   const { t } = useTranslation();
   const {
     files,
+    filesContentView,
     openFileForView,
     openFileSettings,
     selectedFileIds,
@@ -184,43 +187,44 @@ export const FileList: React.FC = () => {
     }
   };
 
-  // Set header trailing (search + view mode toggle) in ContentHeader
   useEffect(() => {
+    if (filesContentView !== 'list') {
+      setHeaderTrailing(null);
+      return () => setHeaderTrailing(null);
+    }
     setHeaderTrailing(
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder={t('files.searchPlaceholder')}
         rightActions={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
-              variant="secondary"
+              variant="ghost"
               size="sm"
+              icon={Settings}
               onClick={() => openFileSettings()}
-              className="h-7 text-[10px] px-2"
-              title={t('files.settingsTitle')}
+              className="h-9 text-xs px-3"
+              title={t('common.settings')}
             >
-              <Settings className="w-4 h-4 mr-1" />
-              {t('slots.settings')}
+              {t('common.settings')}
             </Button>
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'secondary'}
+              variant="ghost"
               size="sm"
+              icon={Grid3x3}
               onClick={() => setViewMode('grid')}
-              className="h-7 text-[10px] px-2"
-              title={t('files.gridView')}
+              className={cn('h-9 text-xs px-3', viewMode === 'grid' && 'text-primary')}
             >
-              <Grid3x3 className="w-4 h-4 mr-1" />
               {t('slots.grid')}
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'default' : 'secondary'}
+              variant="ghost"
               size="sm"
+              icon={ListIcon}
               onClick={() => setViewMode('list')}
-              className="h-7 text-[10px] px-2"
-              title={t('files.listView')}
+              className={cn('h-9 text-xs px-3', viewMode === 'list' && 'text-primary')}
             >
-              <ListIcon className="w-4 h-4 mr-1" />
               {t('slots.list')}
             </Button>
           </div>
@@ -228,9 +232,22 @@ export const FileList: React.FC = () => {
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [t, searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing, openFileSettings]);
+  }, [
+    t,
+    searchTerm,
+    setSearchTerm,
+    viewMode,
+    setViewMode,
+    setHeaderTrailing,
+    openFileSettings,
+    filesContentView,
+  ]);
 
   const handleOpenForView = (item: any) => attemptNavigation(() => openFileForView(item));
+
+  if (filesContentView === 'settings') {
+    return <FileSettingsView />;
+  }
 
   const runDeleteFlow = async () => {
     if (selectedFileIds.length === 0) {

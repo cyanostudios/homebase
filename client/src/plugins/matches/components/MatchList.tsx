@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, Grid3x3, List, Settings, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -22,15 +23,19 @@ import { cn } from '@/lib/utils';
 import { useMatches } from '../hooks/useMatches';
 import type { Match } from '../types/match';
 
+import { MatchSettingsView } from './MatchSettingsView';
+
 const MATCHES_SETTINGS_KEY = 'matches';
 type ViewMode = 'grid' | 'list';
 type SortField = 'start_time' | 'home_team' | 'location' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
 export function MatchList() {
+  const { t } = useTranslation();
   const {
     matches,
-    openMatchPanel,
+    matchesContentView,
+    openMatchPanel: _openMatchPanel,
     openMatchForView,
     openMatchSettings,
     deleteMatch: _deleteMatch,
@@ -160,38 +165,42 @@ export function MatchList() {
   const handleOpenForView = (match: Match) => attemptNavigation(() => openMatchForView(match));
 
   useEffect(() => {
+    if (matchesContentView !== 'list') {
+      setHeaderTrailing(null);
+      return () => setHeaderTrailing(null);
+    }
     setHeaderTrailing(
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search by name, location, time..."
+        searchPlaceholder={t('matches.searchPlaceholder')}
         rightActions={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
-              variant="secondary"
+              variant="ghost"
               size="sm"
               icon={Settings}
               onClick={() => openMatchSettings()}
-              className="h-7 text-[10px] px-2"
-              title="Settings"
+              className="h-9 text-xs px-3"
+              title={t('common.settings')}
             >
-              Settings
+              {t('common.settings')}
             </Button>
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'secondary'}
+              variant="ghost"
               size="sm"
               icon={Grid3x3}
               onClick={() => setViewMode('grid')}
-              className="h-7 text-[10px] px-2"
+              className={cn('h-9 text-xs px-3', viewMode === 'grid' && 'text-primary')}
             >
               Grid
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'default' : 'secondary'}
+              variant="ghost"
               size="sm"
               icon={List}
               onClick={() => setViewMode('list')}
-              className="h-7 text-[10px] px-2"
+              className={cn('h-9 text-xs px-3', viewMode === 'list' && 'text-primary')}
             >
               List
             </Button>
@@ -201,14 +210,14 @@ export function MatchList() {
     );
     return () => setHeaderTrailing(null);
   }, [
+    t,
     searchTerm,
     setSearchTerm,
     viewMode,
     setViewMode,
     setHeaderTrailing,
     openMatchSettings,
-    openMatchPanel,
-    attemptNavigation,
+    matchesContentView,
   ]);
 
   const handleBulkDelete = useCallback(async () => {
@@ -223,6 +232,10 @@ export function MatchList() {
 
   const formatDateTime = (s: string | null) =>
     s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+
+  if (matchesContentView === 'settings') {
+    return <MatchSettingsView />;
+  }
 
   return (
     <div className="space-y-4 plugin-matches">

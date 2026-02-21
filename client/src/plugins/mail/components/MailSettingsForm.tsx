@@ -16,6 +16,8 @@ interface MailSettingsFormProps {
   currentItem?: any;
   onSave?: () => void;
   onCancel?: () => void;
+  /** When provided (e.g. from full-page settings), called after successful save instead of closeMailPanel */
+  onSaveSuccess?: () => void;
 }
 
 type Provider = 'smtp' | 'resend';
@@ -29,7 +31,7 @@ const smtpDefaults: SmtpSettings = {
   hasPassword: false,
 };
 
-export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) => {
+export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel, onSaveSuccess }) => {
   const { t } = useTranslation();
   const { settings, loadSettings, saveSettings, testSettings, closeMailPanel } = useMail();
   const [provider, setProvider] = useState<Provider>('smtp');
@@ -94,7 +96,11 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
           : resendApiKey.trim() || undefined,
         resendFromAddress: resendFromAddress.trim() || undefined,
       });
-      closeMailPanel();
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      } else {
+        closeMailPanel();
+      }
     } catch (err: any) {
       setError(err?.message || t('mail.saveError'));
     } finally {
@@ -112,6 +118,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
     resendFromAddress,
     saveSettings,
     closeMailPanel,
+    onSaveSuccess,
     t,
   ]);
 

@@ -1,14 +1,18 @@
-// Settings list (categories). Uses plugin context to open panel on category click.
+// Core Settings: invoices-style tab row + content card. First tab (Profile) open by default.
 
-import { User, Globe, History, Users } from 'lucide-react';
-import React, { useState, useMemo, useEffect } from 'react';
+import { Check, User, Globe, History, Users } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { SettingsCategory as SettingsCategoryType } from '@/core/settings/types';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
-import { ContentToolbar } from '@/core/ui/ContentToolbar';
+import { cn } from '@/lib/utils';
 
 import { useSettingsContext } from '../context/SettingsContext';
+
+import { SettingsForm } from './SettingsForm';
 
 interface SettingsCategory {
   id: string;
@@ -20,13 +24,6 @@ interface SettingsCategory {
 
 const settingsCategories: SettingsCategory[] = [
   {
-    id: 'profile',
-    label: 'User Profile',
-    icon: User,
-    category: 'profile',
-    description: 'Manage your profile information',
-  },
-  {
     id: 'preferences',
     label: 'Preferences',
     icon: Globe,
@@ -34,11 +31,11 @@ const settingsCategories: SettingsCategory[] = [
     description: 'Configure your preferences',
   },
   {
-    id: 'activity-log',
-    label: 'Activity Log',
-    icon: History,
-    category: 'activity-log',
-    description: 'View your activity history',
+    id: 'profile',
+    label: 'User Profile',
+    icon: User,
+    category: 'profile',
+    description: 'Manage your profile information',
   },
   {
     id: 'team',
@@ -47,76 +44,78 @@ const settingsCategories: SettingsCategory[] = [
     category: 'team',
     description: 'Manage members and roles for your account',
   },
+  {
+    id: 'activity-log',
+    label: 'Activity Log',
+    icon: History,
+    category: 'activity-log',
+    description: 'View your activity history',
+  },
 ];
 
 export function SettingsList() {
-  const [searchTerm, setSearchTerm] = useState('');
+  const { t } = useTranslation();
   const { setHeaderTrailing } = useContentLayout();
-  const { openSettingsPanel } = useSettingsContext();
+  const { submitSave, isSaving, hasChanges } = useSettingsContext();
 
-  const filteredCategories = useMemo(() => {
-    return settingsCategories.filter(
-      (category) =>
-        category.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        category.description.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
-  }, [searchTerm]);
+  // First tab (Preferences) is selected by default when opening Core Settings
+  const [selectedCategory, setSelectedCategory] = useState<string>(settingsCategories[0].id);
 
+  // Tabs on same row as title – set as header trailing
   useEffect(() => {
     setHeaderTrailing(
-      <ContentToolbar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search settings..."
-      />,
+      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        {settingsCategories.map((category) => {
+          const Icon = category.icon;
+          const isActive = selectedCategory === category.id;
+          return (
+            <Button
+              key={category.id}
+              variant="ghost"
+              onClick={() => !isActive && setSelectedCategory(category.id)}
+              className={cn(
+                'h-9 text-xs px-3 rounded-lg font-medium transition-colors',
+                'flex items-center gap-1.5 sm:gap-2',
+                isActive
+                  ? 'bg-primary/10 text-primary border border-primary hover:bg-primary/15'
+                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+              )}
+            >
+              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>{category.label}</span>
+            </Button>
+          );
+        })}
+      </div>,
     );
     return () => setHeaderTrailing(null);
-  }, [searchTerm, setSearchTerm, setHeaderTrailing]);
+  }, [setHeaderTrailing, selectedCategory]);
+
+  const isReadOnlyCategory = selectedCategory === 'activity-log' || selectedCategory === 'team';
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {filteredCategories.length === 0 ? (
-        <div className="col-span-full flex h-32 items-center justify-center rounded-lg border border-dashed text-muted-foreground bg-background/50">
-          <p>
-            {searchTerm
-              ? 'No settings categories found matching your search.'
-              : 'No settings categories available.'}
-          </p>
+    <div className="space-y-4">
+      <Card
+        padding="md"
+        className="overflow-hidden border border-border/60 bg-background/50 shadow-sm"
+      >
+        <SettingsForm currentItem={{ category: selectedCategory }} onCancel={() => {}} />
+      </Card>
+
+      {!isReadOnlyCategory && hasChanges && (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            onClick={() => submitSave()}
+            variant="primary"
+            size="sm"
+            icon={Check}
+            disabled={isSaving}
+            className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
+          >
+            {isSaving ? t('common.saving') : t('common.save')}
+          </Button>
         </div>
-      ) : (
-        filteredCategories.map((category) => {
-          const Icon = category.icon;
-          return (
-            <Card
-              key={category.id}
-              className="cursor-pointer transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              tabIndex={0}
-              role="button"
-              onClick={(e) => {
-                e.preventDefault();
-                openSettingsPanel(category.id);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  openSettingsPanel(category.id);
-                }
-              }}
-            >
-              <div className="p-6 flex flex-col items-center text-center gap-3">
-                <div className="p-3 rounded-full bg-primary/5 text-primary">
-                  <Icon className="w-8 h-8" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-foreground mb-1">{category.label}</h3>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {category.description}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          );
-        })
       )}
     </div>
   );

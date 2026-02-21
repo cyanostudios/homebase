@@ -152,9 +152,9 @@ export function TimeTrackingWidget({
   }
 
   const timeDisplay = formatTime(elapsedSeconds);
-  const timerButtonColors = isRunning
-    ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400'
-    : 'bg-blue-50/70 dark:bg-blue-950/20 border-blue-100 dark:border-blue-800/50 text-blue-700 dark:text-blue-300';
+  const timerTextColor = isRunning
+    ? 'text-blue-600 dark:text-blue-400'
+    : 'text-blue-600/80 dark:text-blue-400/80';
 
   return (
     <div className="flex items-center gap-2 relative">
@@ -162,20 +162,16 @@ export function TimeTrackingWidget({
         variant="ghost"
         size="sm"
         onClick={onToggle}
-        className={`flex items-center gap-2 h-9 border transition-colors hover:bg-opacity-75 relative overflow-hidden ${timerButtonColors}`}
+        className={cn('flex items-center gap-1 h-9 text-xs px-3', timerTextColor)}
         aria-label="Toggle time tracking panel"
         title="Time tracking"
       >
         {settings.compactMode ? (
-          <div className="relative z-10 flex items-center">
-            <Timer className="w-4 h-4" />
-          </div>
+          <Timer className="w-4 h-4 flex-shrink-0" />
         ) : (
           <>
             <Timer className="w-4 h-4 flex-shrink-0" />
-            <span className="text-sm font-medium tabular-nums min-w-[5ch] text-right">
-              {timeDisplay}
-            </span>
+            <span className="font-medium tabular-nums min-w-[5ch] text-right">{timeDisplay}</span>
           </>
         )}
       </Button>
@@ -184,9 +180,9 @@ export function TimeTrackingWidget({
         <Button
           onClick={handleStart}
           variant="ghost"
-          size="md"
+          size="sm"
           icon={Play}
-          className="!bg-green-50 dark:!bg-green-950/30 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50"
+          className="h-9 text-xs px-3 text-green-600 dark:text-green-400"
           aria-label="Start timer"
           title="Start timer"
         />
@@ -194,9 +190,9 @@ export function TimeTrackingWidget({
         <Button
           onClick={handleStop}
           variant="ghost"
-          size="md"
+          size="sm"
           icon={Square}
-          className="!bg-orange-50 dark:!bg-orange-950/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50"
+          className="h-9 text-xs px-3 text-orange-600 dark:text-orange-400"
           aria-label="Stop timer"
           title="Stop timer"
         />

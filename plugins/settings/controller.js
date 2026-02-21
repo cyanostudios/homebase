@@ -97,6 +97,18 @@ class SettingsController {
       res.status(500).json({ error: 'Failed to fetch activity logs' });
     }
   }
+
+  async deleteActivityLogs(req, res) {
+    try {
+      const activityLogService = new ActivityLogService();
+      const result = await activityLogService.deleteActivityLogs(req);
+      res.json({ deleted: result.deleted });
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('Failed to delete activity logs', error, { userId: req.session?.user?.id });
+      res.status(500).json({ error: error.message || 'Failed to delete activity logs' });
+    }
+  }
 }
 
 module.exports = SettingsController;

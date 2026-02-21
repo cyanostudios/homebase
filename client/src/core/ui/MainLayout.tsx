@@ -17,6 +17,7 @@ interface MainLayoutProps {
   contentIcon?: LucideIcon;
   contentActionLabel?: string;
   contentActionIcon?: LucideIcon;
+  contentActionVariant?: 'primary' | 'secondary';
   onContentAction?: () => void;
   // DetailPanel props
   detailPanelOpen: boolean;
@@ -37,6 +38,7 @@ export function MainLayout({
   contentIcon,
   contentActionLabel,
   contentActionIcon,
+  contentActionVariant,
   onContentAction,
   detailPanelOpen,
   detailPanelTitle,
@@ -49,6 +51,7 @@ export function MainLayout({
 }: MainLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [headerTrailing, setHeaderTrailing] = useState<React.ReactNode>(null);
+  const [headerTitleSuffix, setHeaderTitleSuffix] = useState<React.ReactNode>(null);
   const [isMobile, setIsMobile] = useState(false);
 
   // Detect mobile screen size
@@ -59,9 +62,10 @@ export function MainLayout({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Clear trailing when page changes
+  // Clear trailing and title suffix when page changes
   useEffect(() => {
     setHeaderTrailing(null);
+    setHeaderTitleSuffix(null);
   }, [currentPage]);
 
   // Navigation (including close behavior) is handled upstream in App.tsx.
@@ -95,13 +99,18 @@ export function MainLayout({
             {/* Mobile: Always show list view when DetailPanel is closed */}
             {!detailPanelOpen && (
               <ContentSurface>
-                <ContentLayoutProvider onTrailingChange={setHeaderTrailing}>
+                <ContentLayoutProvider
+                  onTrailingChange={setHeaderTrailing}
+                  onTitleSuffixChange={setHeaderTitleSuffix}
+                >
                   <div className="flex h-full flex-col gap-4">
                     <ContentHeader
                       title={contentTitle}
                       icon={contentIcon}
+                      titleSuffix={headerTitleSuffix}
                       actionLabel={contentActionLabel}
                       actionIcon={contentActionIcon}
+                      actionVariant={contentActionVariant}
                       onAction={onContentAction}
                       trailing={headerTrailing}
                     />
@@ -144,13 +153,18 @@ export function MainLayout({
               </ContentSurface>
             ) : (
               <ContentSurface>
-                <ContentLayoutProvider onTrailingChange={setHeaderTrailing}>
+                <ContentLayoutProvider
+                  onTrailingChange={setHeaderTrailing}
+                  onTitleSuffixChange={setHeaderTitleSuffix}
+                >
                   <div className="flex h-full flex-col gap-4">
                     <ContentHeader
                       title={contentTitle}
                       icon={contentIcon}
+                      titleSuffix={headerTitleSuffix}
                       actionLabel={contentActionLabel}
                       actionIcon={contentActionIcon}
+                      actionVariant={contentActionVariant}
                       onAction={onContentAction}
                       trailing={headerTrailing}
                     />

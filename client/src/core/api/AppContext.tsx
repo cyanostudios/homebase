@@ -62,7 +62,7 @@ interface AppContextType {
   // Auth State
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 
@@ -373,13 +373,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [isAuthenticated, loadData]);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (
+    email: string,
+    password: string,
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
       await api.login(email, password);
       const me = await api.getMe();
       setUser(me.user);
       setIsAuthenticated(true);
-      return true;
+      return { success: true };
     } catch (error: any) {
       console.error('Login failed:', {
         message: error.message,
@@ -388,7 +391,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         details: error.details,
         fullError: error,
       });
-      return false;
+      const errorMessage =
+        error?.message || (error?.status === 401 ? 'Invalid email or password' : 'Login failed');
+      return { success: false, error: errorMessage };
     }
   };
 

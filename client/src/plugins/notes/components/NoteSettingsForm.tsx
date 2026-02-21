@@ -1,11 +1,11 @@
-import { Eye, LayoutGrid, List } from 'lucide-react';
+import { LayoutGrid, List } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
-import { DetailCard } from '@/core/ui/DetailCard';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { cn } from '@/lib/utils';
 
 export type NoteViewMode = 'grid' | 'list';
 
@@ -14,6 +14,15 @@ export interface NoteSettingsFormProps {
 }
 
 const NOTES_SETTINGS_KEY = 'notes';
+
+const viewModes: {
+  id: NoteViewMode;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { id: 'grid', label: 'Grid', icon: LayoutGrid },
+  { id: 'list', label: 'List', icon: List },
+];
 
 export const NoteSettingsForm: React.FC<NoteSettingsFormProps> = ({ onCancel }) => {
   const { getSettings, updateSettings } = useApp();
@@ -58,56 +67,47 @@ export const NoteSettingsForm: React.FC<NoteSettingsFormProps> = ({ onCancel }) 
   }, [handleSave, onCancel]);
 
   if (isLoading) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading...</div>;
+    return <div className="text-sm text-muted-foreground">Loading...</div>;
   }
 
   return (
-    <div className="space-y-6">
-      <DetailSection
-        title={
-          <div className="flex items-center gap-2">
-            <Eye className="w-3.5 h-3.5" />
-            <span>Default view</span>
-          </div>
-        }
+    <div className="space-y-4">
+      {/* Tab row – same style as Core Settings (Preferences / Profile / Activity Log / Team) */}
+      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        {viewModes.map((mode) => {
+          const Icon = mode.icon;
+          const isActive = viewMode === mode.id;
+          return (
+            <Button
+              key={mode.id}
+              variant="ghost"
+              onClick={() => !isActive && setViewMode(mode.id)}
+              className={cn(
+                'h-9 text-xs px-3 rounded-lg font-medium transition-colors',
+                'flex items-center gap-1.5 sm:gap-2',
+                isActive
+                  ? 'bg-primary/10 text-primary border border-primary hover:bg-primary/15'
+                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+              )}
+            >
+              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>{mode.label}</span>
+            </Button>
+          );
+        })}
+      </div>
+
+      {/* Content – single card, same as Core Settings */}
+      <Card
+        padding="md"
+        className="overflow-hidden border border-border/60 bg-background/50 shadow-sm"
       >
-        <DetailCard className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-semibold">View mode</Label>
-              <p className="text-[11px] text-gray-500">How your notes are displayed by default</p>
-            </div>
-            <div className="flex bg-white dark:bg-gray-800 p-1 rounded-lg border border-gray-100 dark:border-gray-700">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                size="sm"
-                className={
-                  viewMode === 'grid'
-                    ? 'h-8 px-3 text-[10px] uppercase font-bold tracking-tight'
-                    : 'h-8 px-3 text-[10px] uppercase font-bold tracking-tight text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
-                }
-                onClick={() => setViewMode('grid')}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                Grid
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                className={
-                  viewMode === 'list'
-                    ? 'h-8 px-3 text-[10px] uppercase font-bold tracking-tight'
-                    : 'h-8 px-3 text-[10px] uppercase font-bold tracking-tight text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
-                }
-                onClick={() => setViewMode('list')}
-              >
-                <List className="w-3.5 h-3.5" />
-                List
-              </Button>
-            </div>
-          </div>
-        </DetailCard>
-      </DetailSection>
+        <DetailSection title="Default view" className="pt-0">
+          <p className="text-sm text-muted-foreground">
+            Notes will be displayed in the selected layout by default.
+          </p>
+        </DetailSection>
+      </Card>
     </div>
   );
 };

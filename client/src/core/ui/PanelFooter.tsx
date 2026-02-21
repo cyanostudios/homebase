@@ -80,7 +80,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             variant="secondary"
             size="sm"
             icon={X}
-            className="h-7 text-[10px] px-2"
+            className="h-9 text-xs px-3"
           >
             {t('common.close')}
           </Button>
@@ -96,7 +96,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
           size="sm"
           icon={X}
           disabled={isSubmitting}
-          className="h-7 text-[10px] px-2"
+          className="h-9 text-xs px-3"
         >
           {t('common.close')}
         </Button>
@@ -107,9 +107,27 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
           size="sm"
           icon={Check}
           disabled={hasBlockingErrors || isSubmitting}
-          className="h-7 text-[10px] px-2 bg-green-600 hover:bg-green-700 text-white border-none"
+          className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
         >
           {isSubmitting ? t('common.saving') : t('common.save')}
+        </Button>
+      </div>
+    );
+  }
+
+  // Task (and other plugin) settings: form shows its own Save when dirty; footer only Close
+  if (currentMode === 'settings' && currentPlugin?.name === 'tasks') {
+    return (
+      <div className="flex justify-end w-full">
+        <Button
+          type="button"
+          onClick={onClosePanel}
+          variant="secondary"
+          size="sm"
+          icon={X}
+          className="h-9 text-xs px-3"
+        >
+          {t('common.close')}
         </Button>
       </div>
     );
@@ -125,7 +143,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             variant="ghost"
             size="sm"
             icon={Trash2}
-            className="h-7 text-[10px] px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/30"
+            className="h-9 text-xs px-3 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/30"
           >
             {t('common.delete')}
           </Button>
@@ -139,7 +157,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
               variant="ghost"
               size="sm"
               icon={Copy}
-              className="h-7 text-[10px] px-2"
+              className="h-9 text-xs px-3"
             >
               {t('common.duplicate')}
             </Button>
@@ -156,7 +174,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
                   size="sm"
                   icon={Icon}
                   disabled={action.disabled}
-                  className={action.className ?? 'h-7 text-[10px] px-2'}
+                  className={action.className ?? 'h-9 text-xs px-3'}
                 >
                   {action.label}
                 </Button>
@@ -171,7 +189,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
                 variant="ghost"
                 size="sm"
                 icon={Download}
-                className="h-7 text-[10px] px-2"
+                className="h-9 text-xs px-3"
               >
                 {EXPORT_FORMAT_KEYS[format]
                   ? t(EXPORT_FORMAT_KEYS[format])
@@ -186,7 +204,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             variant="secondary"
             size="sm"
             icon={X}
-            className="h-7 text-[10px] px-2"
+            className="h-9 text-xs px-3"
           >
             {t('common.close')}
           </Button>
@@ -196,7 +214,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             variant="primary"
             size="sm"
             icon={Edit}
-            className="h-7 text-[10px] px-2"
+            className="h-9 text-xs px-3"
           >
             {t('common.edit')}
           </Button>
@@ -212,7 +230,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
                 variant="primary"
                 size="sm"
                 icon={Check}
-                className="h-7 text-[10px] px-2 bg-green-600 hover:bg-green-700 text-white border-none"
+                className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
               >
                 {t('common.update')}
               </Button>
@@ -226,7 +244,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
                 variant="primary"
                 size="sm"
                 icon={Check}
-                className="h-7 text-[10px] px-2 bg-green-600 hover:bg-green-700 text-white border-none"
+                className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
               >
                 {t('common.update')}
               </Button>
@@ -245,7 +263,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
         size="sm"
         icon={X}
         disabled={isSubmitting}
-        className="h-7 text-[10px] px-2"
+        className="h-9 text-xs px-3"
       >
         {t('common.cancel')}
       </Button>
@@ -256,7 +274,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
         size="sm"
         icon={Check}
         disabled={hasBlockingErrors || isSubmitting}
-        className="h-7 text-[10px] px-2 bg-green-600 hover:bg-green-700 text-white border-none"
+        className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
       >
         {isSubmitting
           ? t('common.saving')

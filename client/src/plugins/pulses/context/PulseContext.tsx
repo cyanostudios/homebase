@@ -18,6 +18,8 @@ interface PulseContextType {
   closePulsePanel: () => void;
   openPulseForView: (_item: unknown) => void;
   openPulsesSettings: () => void;
+  closePulseSettingsView: () => void;
+  pulsesContentView: 'list' | 'settings';
   loadHistory: (params?: {
     limit?: number;
     offset?: number;
@@ -74,6 +76,7 @@ export function PulseProvider({
   const [settings, setSettings] = useState<PulseSettings | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [pulsesContentView, setPulsesContentView] = useState<'list' | 'settings'>('list');
 
   const closePulsePanel = useCallback(() => {
     setIsPulsesPanelOpen(false);
@@ -173,9 +176,10 @@ export function PulseProvider({
   };
 
   const openPulsesSettings = () => {
-    onCloseOtherPanels();
-    setPanelMode('settings');
-    setIsPulsesPanelOpen(true);
+    setPulsesContentView('settings');
+  };
+  const closePulseSettingsView = () => {
+    setPulsesContentView('list');
   };
 
   const testSettings = async (data: {
@@ -250,6 +254,8 @@ export function PulseProvider({
     closePulsePanel,
     openPulseForView,
     openPulsesSettings,
+    closePulseSettingsView,
+    pulsesContentView,
     loadHistory,
     pushPulseEntry,
     loadSettings,

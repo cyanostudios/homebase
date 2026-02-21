@@ -6,6 +6,7 @@ import {
   FileText,
   Grid3x3,
   List as ListIcon,
+  Settings,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -35,6 +36,8 @@ import { cn } from '@/lib/utils';
 import { useEstimates } from '../hooks/useEstimates';
 import { calculateEstimateTotals } from '../types/estimate';
 
+import { EstimateSettingsView } from './EstimateSettingsView';
+
 type SortField = 'estimateNumber' | 'contactName' | 'total' | 'createdAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
@@ -43,6 +46,8 @@ export function EstimateList() {
   const { t } = useTranslation();
   const {
     estimates,
+    estimatesContentView,
+    openEstimateSettings,
     openEstimateForView,
     deleteEstimate,
     deleteEstimates,
@@ -307,28 +312,42 @@ export function EstimateList() {
   };
 
   useEffect(() => {
+    if (estimatesContentView !== 'list') {
+      setHeaderTrailing(null);
+      return () => setHeaderTrailing(null);
+    }
     setHeaderTrailing(
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder={t('estimates.searchPlaceholder')}
         rightActions={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'secondary'}
+              variant="ghost"
+              size="sm"
+              icon={Settings}
+              onClick={() => openEstimateSettings()}
+              className="h-9 text-xs px-3"
+              title={t('common.settings')}
+            >
+              {t('common.settings')}
+            </Button>
+            <Button
+              variant="ghost"
               size="sm"
               icon={Grid3x3}
               onClick={() => setViewMode('grid')}
-              className="h-7 text-[10px] px-2"
+              className={cn('h-9 text-xs px-3', viewMode === 'grid' && 'text-primary')}
             >
               {t('slots.grid')}
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'default' : 'secondary'}
+              variant="ghost"
               size="sm"
               icon={ListIcon}
               onClick={() => setViewMode('list')}
-              className="h-7 text-[10px] px-2"
+              className={cn('h-9 text-xs px-3', viewMode === 'list' && 'text-primary')}
             >
               {t('slots.list')}
             </Button>
@@ -337,7 +356,16 @@ export function EstimateList() {
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [t, searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing]);
+  }, [
+    t,
+    searchTerm,
+    setSearchTerm,
+    viewMode,
+    setViewMode,
+    setHeaderTrailing,
+    estimatesContentView,
+    openEstimateSettings,
+  ]);
 
   // Protected navigation handlers
   const handleOpenForView = (estimate: any) => {
@@ -345,6 +373,10 @@ export function EstimateList() {
       openEstimateForView(estimate);
     });
   };
+
+  if (estimatesContentView === 'settings') {
+    return <EstimateSettingsView />;
+  }
 
   return (
     <div className="space-y-4">

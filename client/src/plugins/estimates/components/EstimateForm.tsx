@@ -433,7 +433,7 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                 variant="secondary"
                 icon={Plus}
                 size="sm"
-                className="h-7 text-[10px] px-2"
+                className="h-9 text-xs px-3"
               >
                 Add Item
               </Button>

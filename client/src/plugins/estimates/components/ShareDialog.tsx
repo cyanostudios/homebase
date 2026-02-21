@@ -64,7 +64,7 @@ export function ShareDialog({ isOpen, onClose, shareUrl, estimateNumber }: Share
               size="sm"
               icon={copied ? Check : Copy}
               onClick={handleCopy}
-              className={`h-7 text-[10px] px-2 ${copied ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' : ''}`}
+              className={`h-9 text-xs px-3 ${copied ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' : ''}`}
             >
               {copied ? 'Copied' : 'Copy'}
             </Button>
@@ -73,16 +73,11 @@ export function ShareDialog({ isOpen, onClose, shareUrl, estimateNumber }: Share
               size="sm"
               icon={ExternalLink}
               onClick={handleView}
-              className="h-7 text-[10px] px-2"
+              className="h-9 text-xs px-3"
             >
               View
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onClose}
-              className="h-7 text-[10px] px-2"
-            >
+            <Button variant="secondary" size="sm" onClick={onClose} className="h-9 text-xs px-3">
               Close
             </Button>
           </div>

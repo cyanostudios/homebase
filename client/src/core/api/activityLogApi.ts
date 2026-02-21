@@ -85,6 +85,15 @@ class ActivityLogApi {
       method: 'GET',
     });
   }
+
+  /**
+   * Delete all activity logs for the current user.
+   */
+  async deleteActivityLogs(): Promise<{ deleted: number }> {
+    return this.request('/api/settings/activity-log', {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const activityLogApi = new ActivityLogApi();

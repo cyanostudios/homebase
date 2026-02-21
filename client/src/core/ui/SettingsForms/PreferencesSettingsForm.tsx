@@ -5,7 +5,6 @@ import { Moon, Sun } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -27,18 +26,28 @@ const timezones = [
   { value: 'Asia/Tokyo', label: 'Asia/Tokyo (JST)' },
 ];
 
+type PreferencesFormData = {
+  timezone: string;
+  language: string;
+  pomodoroClockEnabled: boolean;
+  timeTrackingEnabled: boolean;
+};
+
+const defaultFormData: PreferencesFormData = {
+  timezone: 'Europe/Stockholm',
+  language: 'en',
+  pomodoroClockEnabled: true,
+  timeTrackingEnabled: true,
+};
+
 export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormProps) {
   const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
   const { theme, toggleTheme } = useTheme();
-  const { registerSaveHandler, setIsSaving } = useSettingsContext();
+  const { registerSaveHandler, setIsSaving, setHasChanges } = useSettingsContext();
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    timezone: 'Europe/Stockholm',
-    language: 'en',
-    pomodoroClockEnabled: true,
-    timeTrackingEnabled: true,
-  });
+  const [formData, setFormData] = useState<PreferencesFormData>(defaultFormData);
+  const [initialFormData, setInitialFormData] = useState<PreferencesFormData>(defaultFormData);
 
   useEffect(() => {
     loadSettings();
@@ -49,18 +58,32 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
     setIsLoading(true);
     try {
       const settings = await getSettings('preferences');
-      setFormData({
+      const loaded: PreferencesFormData = {
         timezone: settings?.timezone || 'Europe/Stockholm',
         language: settings?.language || 'en',
         pomodoroClockEnabled: settings?.pomodoroClockEnabled !== false,
         timeTrackingEnabled: settings?.timeTrackingEnabled !== false,
-      });
+      };
+      setFormData(loaded);
+      setInitialFormData(loaded);
+      setHasChanges(false);
     } catch (error) {
       console.error('Failed to load preferences settings:', error);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const isDirty =
+    formData.timezone !== initialFormData.timezone ||
+    formData.language !== initialFormData.language ||
+    formData.pomodoroClockEnabled !== initialFormData.pomodoroClockEnabled ||
+    formData.timeTrackingEnabled !== initialFormData.timeTrackingEnabled;
+
+  useEffect(() => {
+    setHasChanges(isDirty);
+    return () => setHasChanges(false);
+  }, [isDirty, setHasChanges]);
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
@@ -72,21 +95,15 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
         timeTrackingEnabled: formData.timeTrackingEnabled,
       });
       i18n.changeLanguage(formData.language);
+      setInitialFormData({ ...formData });
+      setHasChanges(false);
       onCancel();
     } catch (error) {
       console.error('Failed to save preferences settings:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [
-    formData.timezone,
-    formData.language,
-    formData.pomodoroClockEnabled,
-    formData.timeTrackingEnabled,
-    onCancel,
-    updateSettings,
-    setIsSaving,
-  ]);
+  }, [formData, onCancel, updateSettings, setIsSaving, setHasChanges]);
 
   useEffect(() => {
     registerSaveHandler(handleSave);
@@ -99,114 +116,110 @@ export function PreferencesSettingsForm({ onCancel }: PreferencesSettingsFormPro
   ];
 
   if (isLoading) {
-    return <div className="p-6">{t('common.loading')}</div>;
+    return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
   }
 
   return (
-    <div className="space-y-6">
-      <Card padding="sm" className="shadow-none px-0">
-        <DetailSection title={t('preferences.title')}>
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-start gap-6">
-              <div className="flex flex-col gap-1.5">
-                <Label
-                  htmlFor="preferences-theme"
-                  className="text-xs font-medium text-muted-foreground"
-                >
-                  {t('preferences.theme')}
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Sun className="w-4 h-4 text-muted-foreground" />
-                  <Switch
-                    id="preferences-theme"
-                    checked={theme === 'dark'}
-                    onCheckedChange={toggleTheme}
-                    aria-label={t('preferences.toggleDarkMode')}
-                  />
-                  <Moon className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    {theme === 'dark' ? t('preferences.dark') : t('preferences.light')}
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label
-                  htmlFor="preferences-time-tracking"
-                  className="text-xs font-medium text-muted-foreground"
-                >
-                  {t('preferences.timeTracking')}
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="preferences-time-tracking"
-                    checked={formData.timeTrackingEnabled}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, timeTrackingEnabled: checked })
-                    }
-                    aria-label={t('preferences.showTimeTracking')}
-                  />
-                  <span className="text-sm text-muted-foreground">
-                    {formData.timeTrackingEnabled ? t('common.on') : t('common.off')}
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label
-                  htmlFor="preferences-pomodoro-clock"
-                  className="text-xs font-medium text-muted-foreground"
-                >
-                  {t('preferences.pomodoro')}
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="preferences-pomodoro-clock"
-                    checked={formData.pomodoroClockEnabled}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, pomodoroClockEnabled: checked })
-                    }
-                    aria-label={t('preferences.showPomodoro')}
-                  />
-                  <span className="text-sm text-muted-foreground">
-                    {formData.pomodoroClockEnabled ? t('common.on') : t('common.off')}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="preferences-timezone" className="mb-1">
-                {t('preferences.timezone')}
-              </Label>
-              <NativeSelect
-                id="preferences-timezone"
-                value={formData.timezone}
-                onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
-              >
-                {timezones.map((tz) => (
-                  <option key={tz.value} value={tz.value}>
-                    {tz.label}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
-            <div>
-              <Label htmlFor="preferences-language" className="mb-1">
-                {t('preferences.language')}
-              </Label>
-              <NativeSelect
-                id="preferences-language"
-                value={formData.language}
-                onChange={(e) => setFormData({ ...formData, language: e.target.value })}
-              >
-                {languages.map((lang) => (
-                  <option key={lang.value} value={lang.value}>
-                    {lang.label}
-                  </option>
-                ))}
-              </NativeSelect>
+    <DetailSection title={t('preferences.title')} className="pt-0">
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-start gap-6">
+          <div className="flex flex-col gap-1.5">
+            <Label
+              htmlFor="preferences-theme"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              {t('preferences.theme')}
+            </Label>
+            <div className="flex items-center gap-2">
+              <Sun className="w-4 h-4 text-muted-foreground" />
+              <Switch
+                id="preferences-theme"
+                checked={theme === 'dark'}
+                onCheckedChange={toggleTheme}
+                aria-label={t('preferences.toggleDarkMode')}
+              />
+              <Moon className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {theme === 'dark' ? t('preferences.dark') : t('preferences.light')}
+              </span>
             </div>
           </div>
-        </DetailSection>
-      </Card>
-    </div>
+          <div className="flex flex-col gap-1.5">
+            <Label
+              htmlFor="preferences-time-tracking"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              {t('preferences.timeTracking')}
+            </Label>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="preferences-time-tracking"
+                checked={formData.timeTrackingEnabled}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, timeTrackingEnabled: checked })
+                }
+                aria-label={t('preferences.showTimeTracking')}
+              />
+              <span className="text-sm text-muted-foreground">
+                {formData.timeTrackingEnabled ? t('common.on') : t('common.off')}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label
+              htmlFor="preferences-pomodoro-clock"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              {t('preferences.pomodoro')}
+            </Label>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="preferences-pomodoro-clock"
+                checked={formData.pomodoroClockEnabled}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, pomodoroClockEnabled: checked })
+                }
+                aria-label={t('preferences.showPomodoro')}
+              />
+              <span className="text-sm text-muted-foreground">
+                {formData.pomodoroClockEnabled ? t('common.on') : t('common.off')}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <Label htmlFor="preferences-timezone" className="mb-1">
+            {t('preferences.timezone')}
+          </Label>
+          <NativeSelect
+            id="preferences-timezone"
+            value={formData.timezone}
+            onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+          >
+            {timezones.map((tz) => (
+              <option key={tz.value} value={tz.value}>
+                {tz.label}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+        <div>
+          <Label htmlFor="preferences-language" className="mb-1">
+            {t('preferences.language')}
+          </Label>
+          <NativeSelect
+            id="preferences-language"
+            value={formData.language}
+            onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+          >
+            {languages.map((lang) => (
+              <option key={lang.value} value={lang.value}>
+                {lang.label}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+      </div>
+    </DetailSection>
   );
 }

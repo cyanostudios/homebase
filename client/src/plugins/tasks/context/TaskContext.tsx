@@ -34,7 +34,9 @@ interface TaskContextType {
   openTaskForEdit: (task: Task) => void;
   openTaskForView: (task: Task) => void;
   openTaskSettings: () => void;
+  closeTaskSettingsView: () => void;
   closeTaskPanel: () => void;
+  tasksContentView: 'list' | 'settings';
   saveTask: (taskData: any, taskId?: string) => Promise<boolean>;
   createTask: (taskData: {
     title: string;
@@ -123,6 +125,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
 
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasksContentView, setTasksContentView] = useState<'list' | 'settings'>('list');
   const [recentlyDuplicatedTaskId, setRecentlyDuplicatedTaskId] = useState<string | null>(null);
   const [quickEditDraft, setQuickEditDraft] = useState<Partial<{
     status: string;
@@ -285,13 +288,13 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const openTaskSettings = useCallback(() => {
     clearTaskSelectionCore();
     setRecentlyDuplicatedTaskId(null);
-    setCurrentTask(null);
-    setPanelMode('settings');
-    setIsTaskPanelOpen(true);
-    setValidationErrors([]);
-    setQuickEditDraft(null);
+    setTasksContentView('settings');
     onCloseOtherPanels();
   }, [onCloseOtherPanels, clearTaskSelectionCore]);
+
+  const closeTaskSettingsView = useCallback(() => {
+    setTasksContentView('list');
+  }, []);
 
   const openTaskForViewRef = useRef(openTaskForView);
   useEffect(() => {
@@ -307,23 +310,29 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return () => registerTasksNavigation(null);
   }, [registerTasksNavigation, openTaskForViewBridge]);
 
-  const currentItemIndex = currentTask
-    ? tasks.findIndex((t) => t.id === currentTask.id)
-    : -1;
+  const currentItemIndex = currentTask ? tasks.findIndex((t) => t.id === currentTask.id) : -1;
   const totalItems = tasks.length;
   const hasPrevItem = currentItemIndex > 0;
   const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
 
   const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) return;
+    if (!hasPrevItem || currentItemIndex <= 0) {
+      return;
+    }
     const prev = tasks[currentItemIndex - 1];
-    if (prev) openTaskForView(prev);
+    if (prev) {
+      openTaskForView(prev);
+    }
   }, [hasPrevItem, currentItemIndex, tasks, openTaskForView]);
 
   const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= tasks.length - 1) return;
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= tasks.length - 1) {
+      return;
+    }
     const next = tasks[currentItemIndex + 1];
-    if (next) openTaskForView(next);
+    if (next) {
+      openTaskForView(next);
+    }
   }, [hasNextItem, currentItemIndex, tasks, openTaskForView]);
 
   const clearValidationErrors = useCallback(() => {
@@ -836,7 +845,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     openTaskForEdit,
     openTaskForView,
     openTaskSettings,
+    closeTaskSettingsView,
     closeTaskPanel,
+    tasksContentView,
     saveTask,
     createTask,
     deleteTask,

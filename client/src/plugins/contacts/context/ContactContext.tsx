@@ -39,7 +39,10 @@ interface ContactContextType {
   openContactForEdit: (contact: Contact) => void;
   openContactForView: (contact: Contact) => void;
   openContactSettings: () => void;
+  closeContactSettingsView: () => void;
   closeContactPanel: () => void;
+  /** When 'settings', main content shows ContactSettingsView instead of list. */
+  contactsContentView: 'list' | 'settings';
   saveContact: (contactData: any) => Promise<boolean>;
   deleteContact: (id: string) => Promise<void>;
   deleteContacts: (ids: string[]) => Promise<void>;
@@ -122,6 +125,7 @@ export function ContactProvider({
 
   // Data state
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactsContentView, setContactsContentView] = useState<'list' | 'settings'>('list');
   const [tagsDraft, setTagsDraft] = useState<string[] | null>(null);
   const [showDiscardTagsDialog, setShowDiscardTagsDialog] = useState(false);
   const [tagError, setTagError] = useState<string | null>(null);
@@ -169,7 +173,7 @@ export function ContactProvider({
           ]);
           setShowSendMessageDialog(true);
         },
-        className: 'h-7 text-[10px] px-2',
+        className: 'h-9 text-xs px-3',
       });
     }
 
@@ -189,7 +193,7 @@ export function ContactProvider({
           ]);
           setShowSendEmailDialog(true);
         },
-        className: 'h-7 text-[10px] px-2',
+        className: 'h-9 text-xs px-3',
       });
     }
 
@@ -354,12 +358,13 @@ export function ContactProvider({
 
   const openContactSettings = useCallback(() => {
     clearContactSelectionCore();
-    setCurrentContact(null);
-    setPanelMode('settings');
-    setIsContactPanelOpen(true);
-    setValidationErrors([]);
+    setContactsContentView('settings');
     onCloseOtherPanels();
   }, [onCloseOtherPanels, clearContactSelectionCore]);
+
+  const closeContactSettingsView = useCallback(() => {
+    setContactsContentView('list');
+  }, []);
 
   const closeContactPanel = useCallback(() => {
     setIsContactPanelOpen(false);
@@ -722,7 +727,9 @@ export function ContactProvider({
     openContactForEdit,
     openContactForView,
     openContactSettings,
+    closeContactSettingsView,
     closeContactPanel,
+    contactsContentView,
     saveContact,
     deleteContact,
     deleteContacts,

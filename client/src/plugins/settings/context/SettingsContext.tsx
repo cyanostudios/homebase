@@ -22,6 +22,9 @@ export interface SettingsContextType {
   currentSetting: { category: string } | null;
   panelMode: 'create' | 'edit' | 'view';
   isSaving: boolean;
+  /** True when the active form (Preferences/Profile) has unsaved changes. */
+  hasChanges: boolean;
+  setHasChanges: (value: boolean) => void;
   openSettingsPanel: (categoryId: string) => void;
   closeSettingsPanel: () => void;
   registerSaveHandler: (fn: (() => Promise<void>) | null) => void;
@@ -48,6 +51,7 @@ export function SettingsProvider({
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   const [settingsCategory, setSettingsCategory] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
   const saveHandlerRef = useRef<(() => Promise<void>) | null>(null);
 
   const registerSaveHandler = useCallback((fn: (() => Promise<void>) | null) => {
@@ -98,6 +102,8 @@ export function SettingsProvider({
     currentSetting,
     panelMode: 'edit',
     isSaving,
+    hasChanges,
+    setHasChanges,
     openSettingsPanel,
     closeSettingsPanel,
     registerSaveHandler,

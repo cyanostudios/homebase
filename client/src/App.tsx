@@ -7,7 +7,7 @@
  * Last Modified: August 2025 - Global Navigation Guard Integration
  */
 
-import { Home, Plus } from 'lucide-react';
+import { Home, Plus, Settings, X } from 'lucide-react';
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -273,7 +273,9 @@ function AppContent() {
     if (currentPage === 'dashboard') {
       return 'Dashboard';
     }
-
+    if (currentPage === 'settings') {
+      return 'Settings';
+    }
     if (!currentPagePlugin?.navigation) {
       return currentPage;
     }
@@ -290,7 +292,9 @@ function AppContent() {
     if (currentPage === 'dashboard') {
       return Home;
     }
-
+    if (currentPage === 'settings') {
+      return Settings;
+    }
     if (!currentPagePlugin?.navigation) {
       return undefined;
     }
@@ -315,6 +319,134 @@ function AppContent() {
       return null;
     }
 
+    // Notes / Contacts (and future plugins) with settings view: show Close instead of Add
+    const notesContentView = context.notesContentView as 'list' | 'settings' | undefined;
+    const closeNoteSettingsView = context.closeNoteSettingsView as (() => void) | undefined;
+    const contactsContentView = context.contactsContentView as 'list' | 'settings' | undefined;
+    const closeContactSettingsView = context.closeContactSettingsView as (() => void) | undefined;
+    if (
+      currentPagePlugin.name === 'notes' &&
+      notesContentView === 'settings' &&
+      typeof closeNoteSettingsView === 'function'
+    ) {
+      return {
+        label: t('common.close'),
+        icon: X,
+        onClick: closeNoteSettingsView,
+        variant: 'secondary' as const,
+      };
+    }
+    if (
+      currentPagePlugin.name === 'contacts' &&
+      contactsContentView === 'settings' &&
+      typeof closeContactSettingsView === 'function'
+    ) {
+      return {
+        label: t('common.close'),
+        icon: X,
+        onClick: closeContactSettingsView,
+        variant: 'secondary' as const,
+      };
+    }
+    const tasksContentView = context.tasksContentView as 'list' | 'settings' | undefined;
+    const closeTaskSettingsView = context.closeTaskSettingsView as (() => void) | undefined;
+    if (
+      currentPagePlugin.name === 'tasks' &&
+      tasksContentView === 'settings' &&
+      typeof closeTaskSettingsView === 'function'
+    ) {
+      return {
+        label: t('common.close'),
+        icon: X,
+        onClick: closeTaskSettingsView,
+        variant: 'secondary' as const,
+      };
+    }
+    const slotsContentView = context.slotsContentView as 'list' | 'settings' | undefined;
+    const closeSlotSettingsView = context.closeSlotSettingsView as (() => void) | undefined;
+    if (
+      currentPagePlugin.name === 'slots' &&
+      slotsContentView === 'settings' &&
+      typeof closeSlotSettingsView === 'function'
+    ) {
+      return {
+        label: t('common.close'),
+        icon: X,
+        onClick: closeSlotSettingsView,
+        variant: 'secondary' as const,
+      };
+    }
+    const matchesContentView = context.matchesContentView as 'list' | 'settings' | undefined;
+    const closeMatchSettingsView = context.closeMatchSettingsView as (() => void) | undefined;
+    if (
+      currentPagePlugin.name === 'matches' &&
+      matchesContentView === 'settings' &&
+      typeof closeMatchSettingsView === 'function'
+    ) {
+      return {
+        label: t('common.close'),
+        icon: X,
+        onClick: closeMatchSettingsView,
+        variant: 'secondary' as const,
+      };
+    }
+    const estimatesContentView = context.estimatesContentView as 'list' | 'settings' | undefined;
+    const closeEstimateSettingsView = context.closeEstimateSettingsView as (() => void) | undefined;
+    if (
+      currentPagePlugin.name === 'estimates' &&
+      estimatesContentView === 'settings' &&
+      typeof closeEstimateSettingsView === 'function'
+    ) {
+      return {
+        label: t('common.close'),
+        icon: X,
+        onClick: closeEstimateSettingsView,
+        variant: 'secondary' as const,
+      };
+    }
+    const filesContentView = context.filesContentView as 'list' | 'settings' | undefined;
+    const closeFileSettingsView = context.closeFileSettingsView as (() => void) | undefined;
+    if (
+      currentPagePlugin.name === 'files' &&
+      filesContentView === 'settings' &&
+      typeof closeFileSettingsView === 'function'
+    ) {
+      return {
+        label: t('common.close'),
+        icon: X,
+        onClick: closeFileSettingsView,
+        variant: 'secondary' as const,
+      };
+    }
+    const mailContentView = context.mailContentView as 'list' | 'settings' | undefined;
+    const closeMailSettingsView = context.closeMailSettingsView as (() => void) | undefined;
+    if (
+      currentPagePlugin.name === 'mail' &&
+      mailContentView === 'settings' &&
+      typeof closeMailSettingsView === 'function'
+    ) {
+      return {
+        label: t('common.close'),
+        icon: X,
+        onClick: closeMailSettingsView,
+        variant: 'secondary' as const,
+      };
+    }
+    const pulsesContentView = context.pulsesContentView as 'list' | 'settings' | undefined;
+    const closePulseSettingsView = context.closePulseSettingsView as (() => void) | undefined;
+    if (
+      currentPagePlugin.name === 'pulses' &&
+      pulsesContentView === 'settings' &&
+      typeof closePulseSettingsView === 'function'
+    ) {
+      return {
+        label: t('common.close'),
+        icon: X,
+        onClick: closePulseSettingsView,
+        variant: 'secondary' as const,
+      };
+    }
+
     const capName = getSingularCap(currentPagePlugin.name);
     const fnName = `open${capName}Panel`;
     const openPanel = context[fnName as keyof typeof context];
@@ -329,7 +461,7 @@ function AppContent() {
       icon: Plus,
       onClick: () => attemptNavigation(() => (openPanel as (item: any) => void)(null)),
     };
-  }, [currentPage, currentPagePlugin, pluginContexts, attemptNavigation]);
+  }, [currentPage, currentPagePlugin, pluginContexts, attemptNavigation, t]);
 
   if (isLoading) {
     return (
@@ -426,6 +558,7 @@ function AppContent() {
         contentIcon={contentIcon}
         contentActionLabel={primaryAction?.label}
         contentActionIcon={primaryAction?.icon}
+        contentActionVariant={primaryAction?.variant ?? 'primary'}
         onContentAction={primaryAction?.onClick}
         detailPanelOpen={detailPanelOpen}
         detailPanelTitle={detailPanelTitle}

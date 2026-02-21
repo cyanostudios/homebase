@@ -43,7 +43,8 @@
     "addContact": "Lägg till kontakt...",
     "removeContact": "Ta bort kontakt",
     "view": "Visa",
-    "import": "Importera"
+    "import": "Importera",
+    "settings": "Inställningar"
   },
   "nav": {
     "dashboard": "Dashboard",

@@ -1,5 +1,6 @@
-import { Eye, LayoutGrid, List } from 'lucide-react';
+import { Check, Eye, LayoutGrid, List } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -16,20 +17,21 @@ export interface TaskSettingsFormProps {
 const TASKS_SETTINGS_KEY = 'tasks';
 
 export const TaskSettingsForm: React.FC<TaskSettingsFormProps> = ({ onCancel }) => {
+  const { t } = useTranslation();
   const { getSettings, updateSettings } = useApp();
   const [viewMode, setViewMode] = useState<TaskViewMode>('grid');
+  const [initialViewMode, setInitialViewMode] = useState<TaskViewMode>('grid');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
       try {
         const settings = await getSettings(TASKS_SETTINGS_KEY);
-        if (settings?.viewMode === 'list') {
-          setViewMode('list');
-        } else if (settings?.viewMode === 'grid') {
-          setViewMode('grid');
-        }
+        const loaded = settings?.viewMode === 'list' ? 'list' : 'grid';
+        setViewMode(loaded);
+        setInitialViewMode(loaded);
       } catch (error) {
         console.error('Failed to load tasks settings:', error);
       } finally {
@@ -39,12 +41,18 @@ export const TaskSettingsForm: React.FC<TaskSettingsFormProps> = ({ onCancel }) 
     load();
   }, [getSettings]);
 
+  const isDirty = viewMode !== initialViewMode;
+
   const handleSave = useCallback(async () => {
+    setIsSaving(true);
     try {
       await updateSettings(TASKS_SETTINGS_KEY, { viewMode });
+      setInitialViewMode(viewMode);
       onCancel();
     } catch (error) {
       console.error('Failed to save tasks settings:', error);
+    } finally {
+      setIsSaving(false);
     }
   }, [viewMode, updateSettings, onCancel]);
 
@@ -108,6 +116,22 @@ export const TaskSettingsForm: React.FC<TaskSettingsFormProps> = ({ onCancel }) 
           </div>
         </DetailCard>
       </DetailSection>
+
+      {isDirty && (
+        <div className="flex justify-end pt-2">
+          <Button
+            type="button"
+            onClick={handleSave}
+            variant="primary"
+            size="sm"
+            icon={Check}
+            disabled={isSaving}
+            className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
+          >
+            {isSaving ? t('common.saving') : t('common.save')}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

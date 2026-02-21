@@ -15,6 +15,11 @@ function createSettingsRoutes(controller, context) {
     controller.getActivityLogs(req, res);
   });
 
+  // DELETE /api/settings/activity-log – delete all activity logs for the current user
+  router.delete('/activity-log', requireAuth, (req, res) => {
+    controller.deleteActivityLogs(req, res);
+  });
+
   // GET /api/settings - all categories
   router.get('/', requireAuth, (req, res) => {
     controller.getAll(req, res);

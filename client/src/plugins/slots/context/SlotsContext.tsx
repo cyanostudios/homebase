@@ -33,7 +33,9 @@ interface SlotsContextType {
   openSlotForEdit: (slot: Slot) => void;
   openSlotForView: (slot: Slot) => void;
   openSlotSettings: () => void;
+  closeSlotSettingsView: () => void;
   closeSlotPanel: () => void;
+  slotsContentView: 'list' | 'settings';
   saveSlot: (data: Record<string, unknown>, slotId?: string) => Promise<boolean>;
   saveSlots: (dataArray: Record<string, unknown>[]) => Promise<boolean>;
   deleteSlot: (id: string) => Promise<void>;
@@ -139,7 +141,7 @@ export function SlotsProvider({
       icon: Store,
       variant: 'primary',
       className:
-        'h-7 text-[10px] px-2 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30',
+        'h-9 text-xs px-3 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30',
       onClick: () => {},
     });
     return () => unregister?.();
@@ -150,6 +152,7 @@ export function SlotsProvider({
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [slotsContentView, setSlotsContentView] = useState<'list' | 'settings'>('list');
   const [recentlyDuplicatedSlotId, setRecentlyDuplicatedSlotId] = useState<string | null>(null);
   const [mentionsDraft, setMentionsDraft] = useState<SlotMention[] | null>(null);
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
@@ -199,7 +202,7 @@ export function SlotsProvider({
           setSendMessageRecipients(recipients);
           setShowSendMessageDialog(true);
         },
-        className: 'h-7 text-[10px] px-2',
+        className: 'h-9 text-xs px-3',
       });
     }
 
@@ -222,7 +225,7 @@ export function SlotsProvider({
           setSendEmailSlot(item);
           setShowSendEmailDialog(true);
         },
-        className: 'h-7 text-[10px] px-2',
+        className: 'h-9 text-xs px-3',
       });
     }
 
@@ -439,12 +442,13 @@ export function SlotsProvider({
   const openSlotSettings = useCallback(() => {
     clearSlotSelectionCore();
     setRecentlyDuplicatedSlotId(null);
-    setCurrentSlot(null);
-    setPanelMode('settings');
-    setIsSlotsPanelOpen(true);
-    setValidationErrors([]);
+    setSlotsContentView('settings');
     onCloseOtherPanels();
   }, [onCloseOtherPanels, clearSlotSelectionCore]);
+
+  const closeSlotSettingsView = useCallback(() => {
+    setSlotsContentView('list');
+  }, []);
 
   const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
 
@@ -692,7 +696,9 @@ export function SlotsProvider({
     openSlotForEdit,
     openSlotForView,
     openSlotSettings,
+    closeSlotSettingsView,
     closeSlotPanel,
+    slotsContentView,
     saveSlot,
     saveSlots,
     deleteSlot,

@@ -121,6 +121,10 @@ interface EstimateContextType {
   hasNextItem: boolean;
   currentItemIndex: number;
   totalItems: number;
+
+  estimatesContentView: 'list' | 'settings';
+  openEstimateSettings: () => void;
+  closeEstimateSettingsView: () => void;
 }
 
 const EstimateContext = createContext<EstimateContextType | undefined>(undefined);
@@ -145,6 +149,7 @@ export function EstimateProvider({
   const [currentEstimate, setCurrentEstimate] = useState<Estimate | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [estimatesContentView, setEstimatesContentView] = useState<'list' | 'settings'>('list');
 
   // Data state
   const [estimates, setEstimates] = useState<Estimate[]>([]);
@@ -327,15 +332,23 @@ export function EstimateProvider({
   const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
 
   const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) return;
+    if (!hasPrevItem || currentItemIndex <= 0) {
+      return;
+    }
     const prev = estimates[currentItemIndex - 1];
-    if (prev) openEstimateForView(prev);
+    if (prev) {
+      openEstimateForView(prev);
+    }
   }, [hasPrevItem, currentItemIndex, estimates, openEstimateForView]);
 
   const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= estimates.length - 1) return;
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= estimates.length - 1) {
+      return;
+    }
     const next = estimates[currentItemIndex + 1];
-    if (next) openEstimateForView(next);
+    if (next) {
+      openEstimateForView(next);
+    }
   }, [hasNextItem, currentItemIndex, estimates, openEstimateForView]);
 
   const closeEstimatePanel = useCallback(() => {
@@ -767,7 +780,7 @@ export function EstimateProvider({
         label: estimateShareIsDownloadingPdf ? 'Generating PDF…' : 'Download PDF',
         icon: Download,
         onClick: (item: Estimate) => handleDownloadPdf(item),
-        className: 'h-7 text-[10px] px-2',
+        className: 'h-9 text-xs px-3',
         disabled: estimateShareIsDownloadingPdf,
       },
     ];
@@ -778,7 +791,7 @@ export function EstimateProvider({
         label: 'View',
         icon: ExternalLink,
         onClick: () => window.open(shareUrl, '_blank', 'noopener,noreferrer'),
-        className: 'h-7 text-[10px] px-2',
+        className: 'h-9 text-xs px-3',
       });
     } else {
       actions.push({
@@ -786,7 +799,7 @@ export function EstimateProvider({
         label: estimateShareIsCreatingShare ? 'Creating Share…' : 'Share estimate',
         icon: Share,
         onClick: (item: Estimate) => handleShareClick(item),
-        className: 'h-7 text-[10px] px-2',
+        className: 'h-9 text-xs px-3',
         disabled: estimateShareIsCreatingShare,
       });
     }
@@ -990,6 +1003,10 @@ export function EstimateProvider({
     hasNextItem,
     currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
     totalItems,
+
+    estimatesContentView,
+    openEstimateSettings: () => setEstimatesContentView('settings'),
+    closeEstimateSettingsView: () => setEstimatesContentView('list'),
   };
 
   return (

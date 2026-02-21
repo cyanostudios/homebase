@@ -18,6 +18,8 @@ interface MailContextType {
   closeMailPanel: () => void;
   openMailForView: (item: MailLogEntry) => void;
   openMailsSettings: () => void;
+  closeMailSettingsView: () => void;
+  mailContentView: 'list' | 'settings';
   loadHistory: (params?: {
     limit?: number;
     offset?: number;
@@ -81,6 +83,7 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const [settings, setSettings] = useState<MailSettings | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [mailContentView, setMailContentView] = useState<'list' | 'settings'>('list');
 
   useEffect(() => {
     registerPanelCloseFunction('mail', closeMailPanel);
@@ -181,9 +184,10 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   };
 
   const openMailsSettings = () => {
-    onCloseOtherPanels();
-    setPanelMode('settings');
-    setIsMailPanelOpen(true);
+    setMailContentView('settings');
+  };
+  const closeMailSettingsView = () => {
+    setMailContentView('list');
   };
 
   const testSettings = async (data: {
@@ -268,6 +272,8 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     closeMailPanel,
     openMailForView,
     openMailsSettings,
+    closeMailSettingsView,
+    mailContentView,
     loadHistory,
     pushMailEntry,
     loadSettings,

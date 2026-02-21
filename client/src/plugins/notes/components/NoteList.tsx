@@ -7,7 +7,6 @@ import {
   Grid3x3,
   List,
   Settings,
-  Upload,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -28,14 +27,14 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
-import { ImportWizard } from '@/core/ui/ImportWizard';
 import { exportItems } from '@/core/utils/exportUtils';
-import { ImportSchema } from '@/core/utils/importUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useNotes } from '../hooks/useNotes';
 import { notesExportConfig } from '../utils/noteExportConfig';
+
+import { NotesSettingsView } from './NotesSettingsView';
 
 const NOTES_SETTINGS_KEY = 'notes';
 
@@ -43,17 +42,11 @@ type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
 
-const getNoteImportSchema = (t: (key: string) => string): ImportSchema => ({
-  fields: [
-    { key: 'title', label: t('notes.title'), required: true },
-    { key: 'content', label: t('notes.content'), required: true },
-  ],
-});
-
 export const NoteList: React.FC = () => {
   const { t } = useTranslation();
   const {
     notes,
+    notesContentView,
     openNoteForView,
     openNoteSettings,
     deleteNote,
@@ -64,10 +57,8 @@ export const NoteList: React.FC = () => {
     clearNoteSelection,
     selectedCount,
     isSelected,
-    importNotes,
     recentlyDuplicatedNoteId,
   } = useNotes();
-  const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
   const { attemptNavigation } = useGlobalNavigationGuard();
   const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
@@ -290,57 +281,62 @@ export const NoteList: React.FC = () => {
     return content.substring(0, maxLength) + '...';
   };
 
-  // Set header trailing (search + view mode toggle) in ContentHeader
+  // TopBar search: set placeholder when list view so search shows in header
+  // Set header trailing (search + view mode toggle) in ContentHeader – only when showing list
   useEffect(() => {
+    if (notesContentView !== 'list') {
+      setHeaderTrailing(null);
+      return () => setHeaderTrailing(null);
+    }
     setHeaderTrailing(
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder={t('notes.searchPlaceholder')}
         rightActions={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
-              variant="secondary"
+              variant="ghost"
               size="sm"
               icon={Settings}
               onClick={() => openNoteSettings()}
-              className="h-7 text-[10px] px-2"
+              className="h-9 text-xs px-3"
             >
-              {t('slots.settings')}
+              {t('common.settings')}
             </Button>
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'secondary'}
+              variant="ghost"
               size="sm"
               icon={Grid3x3}
               onClick={() => setViewMode('grid')}
-              className="h-7 text-[10px] px-2"
+              className={cn('h-9 text-xs px-3', viewMode === 'grid' && 'text-primary')}
             >
               {t('slots.grid')}
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'default' : 'secondary'}
+              variant="ghost"
               size="sm"
               icon={List}
               onClick={() => setViewMode('list')}
-              className="h-7 text-[10px] px-2"
+              className={cn('h-9 text-xs px-3', viewMode === 'list' && 'text-primary')}
             >
               {t('slots.list')}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={Upload}
-              onClick={() => setIsImportWizardOpen(true)}
-              className="h-7 text-[10px] px-2"
-            >
-              {t('common.import')}
             </Button>
           </div>
         }
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [t, searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing, openNoteSettings]);
+  }, [
+    t,
+    searchTerm,
+    setSearchTerm,
+    viewMode,
+    setViewMode,
+    setHeaderTrailing,
+    openNoteSettings,
+    notesContentView,
+  ]);
 
   // Protected navigation handlers
   const handleOpenForView = (note: any) => {
@@ -348,6 +344,11 @@ export const NoteList: React.FC = () => {
       openNoteForView(note);
     });
   };
+
+  // Full-page settings view (like Core Settings) instead of list
+  if (notesContentView === 'settings') {
+    return <NotesSettingsView />;
+  }
 
   return (
     <div className="space-y-4">
@@ -663,14 +664,6 @@ export const NoteList: React.FC = () => {
         itemCount={selectedCount}
         itemLabel="notes"
         isLoading={deleting}
-      />
-
-      <ImportWizard
-        isOpen={isImportWizardOpen}
-        onClose={() => setIsImportWizardOpen(false)}
-        onImport={importNotes}
-        schema={getNoteImportSchema(t)}
-        title={t('notes.importTitle')}
       />
     </div>
   );

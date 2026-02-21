@@ -22,6 +22,8 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   variant?: 'danger' | 'warning';
+  /** When true, the confirm button is disabled (e.g. while submitting). */
+  confirmDisabled?: boolean;
 }
 
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -33,6 +35,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onConfirm,
   onCancel,
   variant = 'warning',
+  confirmDisabled = false,
 }) => {
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onCancel()}>
@@ -55,7 +58,11 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             </Button>
           </AlertDialogCancel>
           <AlertDialogAction asChild>
-            <Button variant={variant === 'danger' ? 'destructive' : 'default'} onClick={onConfirm}>
+            <Button
+              variant={variant === 'danger' ? 'destructive' : 'default'}
+              onClick={onConfirm}
+              disabled={confirmDisabled}
+            >
               {confirmText}
             </Button>
           </AlertDialogAction>

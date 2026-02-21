@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Heading, Text } from '@/core/ui/Typography';
+import { cn } from '@/lib/utils';
 
 import { pomodoroAudio } from './pomodoroAudio';
 import { PomodoroSettings } from './pomodoroSettings';
@@ -114,7 +115,7 @@ export function PomodoroTimer({
 
   const timerButtonColors = getTimerButtonColor();
 
-  // Compact view för TopBar – visas när compact=true
+  // Compact view för TopBar – ghost-stil, endast färgad text (som list header/footer)
   if (compact) {
     return (
       <div className="flex items-center gap-2 relative">
@@ -122,48 +123,28 @@ export function PomodoroTimer({
           variant="ghost"
           size="sm"
           onClick={handleToggle}
-          className={`flex items-center gap-2 h-9 border transition-colors hover:bg-opacity-75 relative overflow-hidden ${timerButtonColors.bg} ${timerButtonColors.border} ${timerButtonColors.text}`}
+          className={cn('flex items-center gap-1 h-9 text-xs px-3', timerButtonColors.text)}
           aria-label="Toggle Pomodoro panel"
           title="Toggle Pomodoro panel"
         >
           {settings.compactMode ? (
-            <>
-              {/* Progress bakgrund */}
-              <div className="absolute inset-0 bg-muted" />
-              {/* Progress fyllning */}
-              <div
-                className={`absolute inset-0 transition-all duration-1000 ${
-                  sessionType === 'work'
-                    ? 'bg-red-200 dark:bg-red-800'
-                    : sessionType === 'shortBreak'
-                      ? 'bg-green-200 dark:bg-green-800'
-                      : 'bg-blue-200 dark:bg-blue-800'
-                }`}
-                style={{ width: `${progress}%` }}
-              />
-              {/* Endast ikon */}
-              <div className="relative z-10 flex items-center">
-                <Timer className="w-4 h-4" />
-              </div>
-            </>
+            <Timer className="w-4 h-4 flex-shrink-0" />
           ) : (
             <>
               <Timer className="w-4 h-4 flex-shrink-0" />
-              <span className="text-sm font-medium tabular-nums min-w-[5ch] text-right">
-                {timeDisplay}
-              </span>
+              <span className="font-medium tabular-nums min-w-[5ch] text-right">{timeDisplay}</span>
             </>
           )}
         </Button>
 
-        {/* Snabbknappar */}
+        {/* Snabbknappar – ghost, endast färgad text */}
         {state === 'idle' || state === 'paused' ? (
           <Button
             onClick={start}
             variant="ghost"
-            size="md"
+            size="sm"
             icon={Play}
-            className="!bg-green-50 dark:!bg-green-950/30 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50"
+            className="h-9 text-xs px-3 text-green-600 dark:text-green-400"
             aria-label="Start timer"
             title="Start timer"
           />
@@ -171,9 +152,9 @@ export function PomodoroTimer({
           <Button
             onClick={pause}
             variant="ghost"
-            size="md"
+            size="sm"
             icon={Pause}
-            className="!bg-orange-50 dark:!bg-orange-950/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50"
+            className="h-9 text-xs px-3 text-orange-600 dark:text-orange-400"
             aria-label="Pause timer"
             title="Pause timer"
           />

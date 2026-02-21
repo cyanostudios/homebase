@@ -109,7 +109,7 @@ export const ContactSettingsForm: React.FC<ContactSettingsFormProps> = ({ onCanc
                 variant={viewMode === 'grid' ? 'default' : 'ghost'}
                 size="sm"
                 icon={LayoutGrid}
-                className="h-7 text-[10px] px-2"
+                className="h-9 text-xs px-3"
                 onClick={() => setViewMode('grid')}
               >
                 Grid
@@ -118,7 +118,7 @@ export const ContactSettingsForm: React.FC<ContactSettingsFormProps> = ({ onCanc
                 variant={viewMode === 'list' ? 'default' : 'ghost'}
                 size="sm"
                 icon={List}
-                className="h-7 text-[10px] px-2"
+                className="h-9 text-xs px-3"
                 onClick={() => setViewMode('list')}
               >
                 List
@@ -157,7 +157,7 @@ export const ContactSettingsForm: React.FC<ContactSettingsFormProps> = ({ onCanc
               icon={Plus}
               onClick={addTag}
               disabled={!newTag.trim()}
-              className="h-7 text-[10px] px-2"
+              className="h-9 text-xs px-3"
             >
               Add
             </Button>

@@ -53,9 +53,9 @@ export function LoginComponent() {
         // If successful, user is auto-logged in by AppContext
       } else {
         // Login mode
-        const success = await login(email, password);
-        if (!success) {
-          setError('Invalid email or password');
+        const result = await login(email, password);
+        if (!result.success) {
+          setError(result.error || 'Invalid email or password');
         }
       }
     } catch {

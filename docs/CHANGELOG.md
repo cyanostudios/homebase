@@ -4,6 +4,66 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-02 – Settings-design, Import under Settings, knappar, statusbadge, TopBar-widgets (sedan commit cfbb968)
+
+_Dokumentation av alla ändringar sedan senaste commit ("Public booking app, slot bookings in admin, SlotView UX")._
+
+### Enhetlig Settings-design (alla plugins)
+
+- **Fullsidig inställningsvy:** Samma mönster som Notes/Contacts för alla plugins: flikar (View, Import, Tags osv.) + kort med innehåll + footer med Save endast vid ändringar. Close-knapp i headern.
+- **Nya SettingsView-komponenter:** Varje plugin har nu en dedikerad fullsidig inställningsvy:
+  - `ContactSettingsView`, `TaskSettingsView`, `SlotsSettingsView`, `MatchSettingsView`, `EstimateSettingsView`, `FileSettingsView`, `MailSettingsView`, `PulseSettingsView`, `NotesSettingsView` (redan fanns, anpassad).
+- **Flikknappar i headern:** Flikarna (View, Import, Tags osv.) sätts via `setHeaderTrailing` i respektive SettingsView och i Core Settings (`SettingsList`), så att de visas på samma rad som sidrubriken – ingen separat flikrad i innehållet.
+- **ContentView, List, App Close:** Tasks, Slots, Matches, Estimates, Files, Mail, Pulses (och Notes, Contacts) använder konsekvent contentView/list/settings-vy och App Close.
+
+### Import under Settings (som Notes)
+
+- **Notes:** Import fanns redan som flik under Notes-inställningar.
+- **Contacts:** Import-knappen flyttad från list-headern till Settings. Ny flik "Import" i `ContactSettingsView` med beskrivning och knapp som öppnar ImportWizard (samma schema och `importContacts`). Import-knapp och ImportWizard borttagna från `ContactList`.
+- **Tasks:** Samma – flik "Import" i `TaskSettingsView`, Import-knapp och ImportWizard borttagna från `TaskList`.
+- **Övriga plugins:** Ingen CSV-import (ImportWizard) i övriga; Matches har endast "Import from API (coming soon)" i settings.
+
+### Enhetlig knappdesign (list-header, detail-footer, settings)
+
+- **Storlek:** Add-, Close- och alla ghost-knappar i list-header och list-footer: `h-9 text-xs px-3`. Samma storlek för flikknappar i settings (ghost, `h-9 text-xs px-3`).
+- **List-header:** Alla knappar utom Add: ghost, ikon + text. Grid/List-knappar utan bakgrund när aktiv – endast textfärg (`text-primary`). Gäller Notes, Tasks, Slots, Matches, Estimates, Files, Contacts, Mail, Pulses.
+- **ContentHeader & PanelFooter:** Close-knappen i samma storlek som Add (`h-9 text-xs px-3`). PanelFooter uppdaterad för konsekvent knappstorlek.
+- **Sökfält:** `ContentToolbar` – sökfält med `h-9 text-xs`, bredd `sm:w-96`.
+
+### Enhetlig "Settings"-etikett
+
+- **i18n:** `common.settings` tillagd i `en.json` och `sv.json` ("Settings" / "Inställningar").
+- **Listvyer:** Alla plugin-listvyer använder `t('common.settings')` för Settings-knappen i toolbaren. MatchList fick `useTranslation` för detta.
+
+### Statusbadge Mail och Pulse bredvid rubriken
+
+- **Layout:** Statusbadgen (Resend/SMTP, Twilio/Mock) visas bredvid sidrubriken ("Mail", "Pulse") i stället för i toolbaren.
+- **Implementation:**
+  - `ContentLayoutContext`: ny `setHeaderTitleSuffix(node)`; provider tar optional `onTitleSuffixChange`.
+  - `MainLayout`: state `headerTitleSuffix`, rensas vid sidbyte; båda `ContentLayoutProvider`-blocken får `onTitleSuffixChange`; `ContentHeader` får prop `titleSuffix`.
+  - `ContentHeader`: ny prop `titleSuffix` renderas efter `<h1>` (titeln); titelraden har `flex-wrap` för att badge ska få plats.
+  - `MailList` och `PulseList`: anropar `setHeaderTitleSuffix(<Badge ...>)` när listvy är aktiv; badge borttagen från `rightActions`. Toolbaren behåller plugin-filter (där det finns), Settings och Refresh.
+
+### Inloggning – tydligare felmeddelanden
+
+- **API:** `login()` returnerar `{ success, error? }` så att servern kan skicka tillbaka ett felmeddelande.
+- **LoginComponent:** Visar `result.error` för användaren när inloggning misslyckas, så att serverns felmeddelande syns i stället för endast generisk text.
+
+### TopBar – Pomodoro och Time Tracker (ghost, endast färgad text)
+
+- **Bakgrund borttagen:** Trigger-knappen och Start/Pause (Pomodoro) respektive Start/Stop (Time Tracker) har ingen bakgrund eller kant – samma design som knappar i list-header och list-footer.
+- **Stil:** Ghost-knappar, `h-9 text-xs px-3`, endast färgad text (t.ex. röd/grön/blå för Pomodoro-session, grön för Start, orange för Pause/Stop; blå för Time Tracker). Hover enligt Button ghost-variant.
+- **Pomodoro compact:** I "endast ikon"-läge visas bara Timer-ikonen (utan progress-bakgrund); med tidsvisning: ikon + tid i sessionfärg.
+- **Avstånd:** Tätare mellan ikon och siffror: `gap-1` i trigger-knappen (Pomodoro och Time Tracker).
+
+### Övriga justeringar
+
+- **PreferencesSettingsForm / ActivityLogForm / ProfileSettingsForm / TeamSettingsForm:** Justeringar för konsekvent layout och knappar i Core Settings.
+- **Switch-komponent:** Mindre stiländring vid behov för inställningsformulär.
+- **App.tsx / kontexter:** Uppdateringar för contentView, Settings-vy och panelhantering för alla berörda plugins.
+
+---
+
 ## 2026-02 – Pulse & Mail: UI/UX redesign, bulk delete, BulkActionBar placement
 
 ### Pulse & Mail Settings: Provider Cards

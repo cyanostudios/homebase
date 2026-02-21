@@ -10,7 +10,6 @@ import {
   Grid3x3,
   List as ListIcon,
   Settings,
-  Upload,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -34,10 +33,8 @@ import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
-import { ImportWizard } from '@/core/ui/ImportWizard';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportItems } from '@/core/utils/exportUtils';
-import { ImportSchema } from '@/core/utils/importUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
@@ -45,29 +42,21 @@ import { useContacts } from '../hooks/useContacts';
 import { CONTACT_TYPE_COLORS } from '../types/contacts';
 import { contactExportConfig } from '../utils/contactExportConfig';
 
+import { ContactSettingsView } from './ContactSettingsView';
+
 type SortField = 'name' | 'type' | 'email';
 type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
 
 const CONTACTS_SETTINGS_KEY = 'contacts';
 
-const CONTACT_IMPORT_SCHEMA: ImportSchema = {
-  fields: [
-    { key: 'companyName', label: 'Name', required: true },
-    { key: 'contactType', label: 'Type', required: false },
-    { key: 'email', label: 'Email', required: false },
-    { key: 'phone', label: 'Phone', required: false },
-    { key: 'notes', label: 'Notes', required: false },
-  ],
-};
-
 export const ContactList: React.FC = () => {
   const { t } = useTranslation();
   const {
     contacts,
+    contactsContentView,
     openContactForView,
     openContactSettings,
-    importContacts,
     deleteContact,
     deleteContacts,
     selectedContactIds,
@@ -99,7 +88,6 @@ export const ContactList: React.FC = () => {
   const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -303,57 +291,60 @@ export const ContactList: React.FC = () => {
     }
   };
 
-  // Set header trailing (search + view mode toggle) in ContentHeader
   useEffect(() => {
+    if (contactsContentView !== 'list') {
+      setHeaderTrailing(null);
+      return () => setHeaderTrailing(null);
+    }
     setHeaderTrailing(
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder={t('contacts.searchPlaceholder')}
         rightActions={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
-              variant="secondary"
+              variant="ghost"
               size="sm"
               icon={Settings}
               onClick={() => openContactSettings()}
-              className="h-7 text-[10px] px-2"
+              className="h-9 text-xs px-3"
             >
-              {t('slots.settings')}
+              {t('common.settings')}
             </Button>
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'secondary'}
+              variant="ghost"
               size="sm"
               icon={Grid3x3}
               onClick={() => setViewMode('grid')}
-              className="h-7 text-[10px] px-2"
+              className={cn('h-9 text-xs px-3', viewMode === 'grid' && 'text-primary')}
             >
               {t('slots.grid')}
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'default' : 'secondary'}
+              variant="ghost"
               size="sm"
               icon={ListIcon}
               onClick={() => setViewMode('list')}
-              className="h-7 text-[10px] px-2"
+              className={cn('h-9 text-xs px-3', viewMode === 'list' && 'text-primary')}
             >
               {t('slots.list')}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={Upload}
-              onClick={() => setIsImportWizardOpen(true)}
-              className="h-7 text-[10px] px-2"
-            >
-              Import
             </Button>
           </div>
         }
       />,
     );
     return () => setHeaderTrailing(null);
-  }, [t, searchTerm, setSearchTerm, viewMode, setViewMode, setHeaderTrailing, openContactSettings]);
+  }, [
+    t,
+    searchTerm,
+    setSearchTerm,
+    viewMode,
+    setViewMode,
+    setHeaderTrailing,
+    openContactSettings,
+    contactsContentView,
+  ]);
 
   // Protected navigation handlers
   const handleOpenForView = (contact: any) => attemptNavigation(() => openContactForView(contact));
@@ -381,6 +372,11 @@ export const ContactList: React.FC = () => {
         })),
     [contacts, selectedContactIds],
   );
+
+  // Full-page settings view (like Core Settings) instead of list
+  if (contactsContentView === 'settings') {
+    return <ContactSettingsView />;
+  }
 
   return (
     <div className="space-y-4">
@@ -754,14 +750,6 @@ export const ContactList: React.FC = () => {
         itemCount={selectedCount}
         itemLabel="contacts"
         isLoading={deleting}
-      />
-
-      <ImportWizard
-        isOpen={isImportWizardOpen}
-        onClose={() => setIsImportWizardOpen(false)}
-        onImport={importContacts}
-        schema={CONTACT_IMPORT_SCHEMA}
-        title="Import Contacts"
       />
 
       <ConfirmDialog

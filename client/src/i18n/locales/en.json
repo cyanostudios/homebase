@@ -43,7 +43,8 @@
     "addContact": "Add contact...",
     "removeContact": "Remove contact",
     "view": "View",
-    "import": "Import"
+    "import": "Import",
+    "settings": "Settings"
   },
   "nav": {
     "dashboard": "Dashboard",

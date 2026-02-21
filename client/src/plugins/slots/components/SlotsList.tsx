@@ -39,6 +39,7 @@ import type { Slot } from '../types/slots';
 import { resolveSlotsToContacts, resolveSlotsToEmailContacts } from '../utils/slotContactUtils';
 
 import { CapacityAssignedDots } from './CapacityAssignedDots';
+import { SlotsSettingsView } from './SlotsSettingsView';
 
 const SLOTS_SETTINGS_KEY = 'slots';
 type ViewMode = 'grid' | 'list';
@@ -49,7 +50,8 @@ export function SlotsList() {
   const { t } = useTranslation();
   const {
     slots,
-    openSlotPanel,
+    slotsContentView,
+    openSlotPanel: _openSlotPanel,
     openSlotForView,
     openSlotSettings,
     deleteSlot: _deleteSlot,
@@ -177,38 +179,42 @@ export function SlotsList() {
   const handleOpenForView = (slot: Slot) => attemptNavigation(() => openSlotForView(slot));
 
   useEffect(() => {
+    if (slotsContentView !== 'list') {
+      setHeaderTrailing(null);
+      return () => setHeaderTrailing(null);
+    }
     setHeaderTrailing(
       <ContentToolbar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder={t('slots.searchPlaceholder')}
         rightActions={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
-              variant="secondary"
+              variant="ghost"
               size="sm"
               icon={Settings}
               onClick={() => openSlotSettings()}
-              className="h-7 text-[10px] px-2"
-              title={t('slots.settings')}
+              className="h-9 text-xs px-3"
+              title={t('common.settings')}
             >
-              {t('slots.settings')}
+              {t('common.settings')}
             </Button>
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'secondary'}
+              variant="ghost"
               size="sm"
               icon={Grid3x3}
               onClick={() => setViewMode('grid')}
-              className="h-7 text-[10px] px-2"
+              className={cn('h-9 text-xs px-3', viewMode === 'grid' && 'text-primary')}
             >
               {t('slots.grid')}
             </Button>
             <Button
-              variant={viewMode === 'list' ? 'default' : 'secondary'}
+              variant="ghost"
               size="sm"
               icon={List}
               onClick={() => setViewMode('list')}
-              className="h-7 text-[10px] px-2"
+              className={cn('h-9 text-xs px-3', viewMode === 'list' && 'text-primary')}
             >
               {t('slots.list')}
             </Button>
@@ -225,8 +231,7 @@ export function SlotsList() {
     setViewMode,
     setHeaderTrailing,
     openSlotSettings,
-    openSlotPanel,
-    attemptNavigation,
+    slotsContentView,
   ]);
 
   const handleBulkDelete = useCallback(async () => {
@@ -305,6 +310,10 @@ export function SlotsList() {
       },
     });
   }, [slots, selectedSlotIds, t]);
+
+  if (slotsContentView === 'settings') {
+    return <SlotsSettingsView />;
+  }
 
   return (
     <div className="space-y-4 plugin-slots">

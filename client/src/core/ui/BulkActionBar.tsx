@@ -46,7 +46,7 @@ export function BulkActionBar({
           variant="ghost"
           size="sm"
           icon={XCircle}
-          className="h-7 text-[10px] px-2 text-red-600 underline decoration-red-600/50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:text-red-300"
+          className="h-9 text-xs px-3 text-red-600 underline decoration-red-600/50 hover:text-red-700 hover:decoration-red-700 dark:text-red-400 dark:decoration-red-400/50 dark:hover:text-red-300"
           onClick={onClearSelection}
           type="button"
         >
@@ -66,8 +66,8 @@ export function BulkActionBar({
               onClick={action.onClick}
               className={
                 isDestructive
-                  ? 'h-7 text-[10px] px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/30'
-                  : 'h-7 text-[10px] px-2'
+                  ? 'h-9 text-xs px-3 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/30'
+                  : 'h-9 text-xs px-3'
               }
             >
               {action.label}

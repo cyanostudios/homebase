@@ -33,7 +33,9 @@ interface FilesContextType {
   openFileForEdit: (item: FileItem) => void;
   openFileForView: (item: FileItem) => void;
   openFileSettings: () => void;
+  closeFileSettingsView: () => void;
   closeFilePanel: () => void;
+  filesContentView: 'list' | 'settings';
   closeFilesPanel: () => void;
   saveFile: (data: any) => Promise<boolean>;
   deleteFile: (id: string) => Promise<void>;
@@ -95,6 +97,7 @@ export function FilesProvider({
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [filesContentView, setFilesContentView] = useState<'list' | 'settings'>('list');
 
   // Use core bulk selection hook
   const {
@@ -194,12 +197,10 @@ export function FilesProvider({
     onCloseOtherPanels();
   };
   const openFileSettings = () => {
-    clearFileSelectionCore();
-    setCurrentFile(null);
-    setPanelMode('settings');
-    setIsFilesPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
+    setFilesContentView('settings');
+  };
+  const closeFileSettingsView = () => {
+    setFilesContentView('list');
   };
   const closeFilesPanel = () => {
     setIsFilesPanelOpen(false);
@@ -215,15 +216,25 @@ export function FilesProvider({
   const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
 
   const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) return;
+    if (!hasPrevItem || currentItemIndex <= 0) {
+      return;
+    }
     const prev = files[currentItemIndex - 1];
-    if (prev) openFileForView(prev);
+    if (prev) {
+      openFileForView(prev);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- openFileForView identity stable
   }, [hasPrevItem, currentItemIndex, files]);
 
   const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= files.length - 1) return;
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= files.length - 1) {
+      return;
+    }
     const next = files[currentItemIndex + 1];
-    if (next) openFileForView(next);
+    if (next) {
+      openFileForView(next);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- openFileForView identity stable
   }, [hasNextItem, currentItemIndex, files]);
 
   const clearValidationErrors = () => setValidationErrors([]);
@@ -510,7 +521,9 @@ export function FilesProvider({
     openFileForEdit,
     openFileForView,
     openFileSettings,
+    closeFileSettingsView,
     closeFilePanel,
+    filesContentView,
     closeFilesPanel,
     saveFile,
     deleteFile,

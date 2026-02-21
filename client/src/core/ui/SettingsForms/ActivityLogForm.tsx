@@ -1,12 +1,11 @@
 // client/src/core/ui/SettingsForms/ActivityLogForm.tsx
 // Activity log form component
 
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, FilterX, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { NativeSelect } from '@/components/ui/select';
 import {
   Table,
@@ -18,6 +17,7 @@ import {
 } from '@/components/ui/table';
 import { activityLogApi, ActivityLogEntry, ActivityLogParams } from '@/core/api/activityLogApi';
 import { useApp } from '@/core/api/AppContext';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { notesApi } from '@/plugins/notes/api/notesApi';
 
 interface ActivityLogFormProps {
@@ -44,6 +44,8 @@ export function ActivityLogForm({ onCancel: _onCancel }: ActivityLogFormProps) {
     offset: 0,
   });
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     // Only load logs if offset is 0 (initial load or filter change)
@@ -68,6 +70,23 @@ export function ActivityLogForm({ onCancel: _onCancel }: ActivityLogFormProps) {
       console.error('Failed to load activity logs:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDeleteLogs = async () => {
+    setDeleting(true);
+    try {
+      await activityLogApi.deleteActivityLogs();
+      setFilters({ limit: 50, offset: 0 });
+      setLogs([]);
+      setTotal(0);
+      setDeleteConfirmOpen(false);
+      loadLogs(false);
+    } catch (error) {
+      console.error('Failed to delete activity logs:', error);
+      alert(error instanceof Error ? error.message : 'Failed to delete activity logs');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -155,62 +174,80 @@ export function ActivityLogForm({ onCancel: _onCancel }: ActivityLogFormProps) {
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <Card className="shadow-none p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label className="text-sm font-medium mb-2 block">Entity Type</label>
-            <NativeSelect
-              value={filters.entityType || ''}
-              onChange={(e) => handleFilterChange('entityType', e.target.value || undefined)}
-              className="w-full"
-            >
-              <option value="">All Types</option>
-              {/* Common hints, but display in table is generic */}
-              <option value="contact">Contact</option>
-              <option value="note">Note</option>
-              <option value="task">Task</option>
-              <option value="estimate">Estimate</option>
-              <option value="invoice">Invoice</option>
-              <option value="file">File</option>
-              <option value="settings">Settings</option>
-            </NativeSelect>
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-2 block">Action</label>
-            <NativeSelect
-              value={filters.action || ''}
-              onChange={(e) => handleFilterChange('action', e.target.value || undefined)}
-              className="w-full"
-            >
-              <option value="">All Actions</option>
-              <option value="create">Create</option>
-              <option value="update">Update</option>
-              <option value="delete">Delete</option>
-              <option value="export">Export</option>
-              <option value="settings">Settings</option>
-            </NativeSelect>
-          </div>
-          <div className="flex items-end">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setFilters({ limit: 50, offset: 0 });
-              }}
-              className="w-full"
-            >
-              Clear Filters
-            </Button>
-          </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label className="text-sm font-medium mb-2 block">Entity Type</label>
+          <NativeSelect
+            value={filters.entityType || ''}
+            onChange={(e) => handleFilterChange('entityType', e.target.value || undefined)}
+            className="w-full"
+          >
+            <option value="">All Types</option>
+            <option value="contact">Contact</option>
+            <option value="note">Note</option>
+            <option value="task">Task</option>
+            <option value="estimate">Estimate</option>
+            <option value="invoice">Invoice</option>
+            <option value="file">File</option>
+            <option value="settings">Settings</option>
+          </NativeSelect>
         </div>
-      </Card>
+        <div>
+          <label className="text-sm font-medium mb-2 block">Action</label>
+          <NativeSelect
+            value={filters.action || ''}
+            onChange={(e) => handleFilterChange('action', e.target.value || undefined)}
+            className="w-full"
+          >
+            <option value="">All Actions</option>
+            <option value="create">Create</option>
+            <option value="update">Update</option>
+            <option value="delete">Delete</option>
+            <option value="export">Export</option>
+            <option value="settings">Settings</option>
+          </NativeSelect>
+        </div>
+        <div className="flex items-end gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={FilterX}
+            onClick={() => setFilters({ limit: 50, offset: 0 })}
+            className="h-9 text-xs px-3"
+          >
+            Clear Filters
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Trash2}
+            onClick={() => setDeleteConfirmOpen(true)}
+            className="h-9 text-xs px-3 text-red-600 dark:text-red-400"
+          >
+            Delete Logs
+          </Button>
+        </div>
+      </div>
 
-      {/* Activity Log Table */}
-      <Card className="shadow-none">
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onCancel={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteLogs}
+        title="Delete all activity logs?"
+        message="This will permanently delete all activity logs for your account. This action cannot be undone."
+        confirmText="Delete Logs"
+        cancelText="Cancel"
+        variant="danger"
+        confirmDisabled={deleting}
+      />
+
+      <div className="rounded-md border overflow-hidden">
         {isLoading && logs.length === 0 ? (
-          <div className="p-6 text-center text-muted-foreground">Loading activity logs...</div>
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            Loading activity logs...
+          </div>
         ) : logs.length === 0 ? (
-          <div className="p-6 text-center text-muted-foreground">
+          <div className="py-8 text-center text-sm text-muted-foreground">
             No activity logged yet. Your actions will appear here.
           </div>
         ) : (
@@ -305,18 +342,18 @@ export function ActivityLogForm({ onCancel: _onCancel }: ActivityLogFormProps) {
               </TableBody>
             </Table>
             {hasMore && (
-              <div className="p-4 text-center border-t">
-                <Button variant="outline" onClick={handleLoadMore} disabled={isLoading}>
+              <div className="p-3 text-center border-t">
+                <Button variant="outline" size="sm" onClick={handleLoadMore} disabled={isLoading}>
                   {isLoading ? 'Loading...' : `Load More (${total - logs.length} remaining)`}
                 </Button>
               </div>
             )}
-            <div className="p-4 text-center border-t text-sm text-muted-foreground">
+            <div className="px-3 py-2 text-center border-t text-sm text-muted-foreground">
               Showing {logs.length} of {total} activities
             </div>
           </>
         )}
-      </Card>
+      </div>
     </div>
   );
 }

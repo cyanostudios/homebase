@@ -201,6 +201,42 @@ class ActivityLogService {
       throw error;
     }
   }
+
+  /**
+   * Delete all activity logs for the current user (tenant scope).
+   * @param {Object} req - Express request object
+   * @returns {Promise<{ deleted: number }>}
+   */
+  async deleteActivityLogs(req) {
+    const tenantPool = req.tenantPool;
+    if (!tenantPool) {
+      throw new Error('No tenant pool available');
+    }
+
+    const scopeUserId = req.session?.currentTenantUserId ?? req.session?.user?.id;
+    if (!scopeUserId) {
+      throw new Error('User not authenticated');
+    }
+
+    const tableCheck = await tenantPool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = current_schema()
+        AND table_name = 'activity_log'
+      )
+    `);
+    if (!tableCheck.rows[0].exists) {
+      throw new Error(
+        'Activity log table does not exist. Please run migration: npm run migrate:activity-log',
+      );
+    }
+
+    const result = await tenantPool.query(
+      'DELETE FROM activity_log WHERE user_id = $1 RETURNING id',
+      [scopeUserId],
+    );
+    return { deleted: result.rowCount };
+  }
 }
 
 module.exports = ActivityLogService;

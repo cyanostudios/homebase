@@ -277,7 +277,6 @@ export function InvoicesList() {
     await exportToPDF(pdfData, filename, pdfHeaders, 'Invoices Export');
   };
 
-  // Set header trailing (search + filter) in ContentHeader
   useEffect(() => {
     setHeaderTrailing(
       <ContentToolbar
