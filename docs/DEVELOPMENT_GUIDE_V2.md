@@ -111,7 +111,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/homebase_dev
 SESSION_SECRET=your-secret-key-here
 
 # Service Providers (optional - defaults to local/dev)
-DB_PROVIDER=postgres
+DATABASE_PROVIDER=postgres
 STORAGE_PROVIDER=local
 EMAIL_PROVIDER=smtp
 Production variables:
@@ -119,7 +119,7 @@ Production variables:
 DATABASE_URL=your-neon-connection-string
 
 # Service Providers
-DB_PROVIDER=neon
+DATABASE_PROVIDER=neon
 STORAGE_PROVIDER=r2
 EMAIL_PROVIDER=resend
 
@@ -175,7 +175,7 @@ const configs = {
   },
 
   production: {
-    DATABASE_PROVIDER: process.env.DB_PROVIDER || 'neon',
+    DATABASE_PROVIDER: process.env.DATABASE_PROVIDER || 'neon',
     STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || 'r2',
     EMAIL_PROVIDER: process.env.EMAIL_PROVIDER || 'resend',
 
@@ -294,28 +294,17 @@ describe('useMyPlugin', () => {
   });
 });
 Integration Tests
-const request = require('supertest');
-const app = require('../../server/app');
+I nuvarande kodbas startas servern från `server/index.ts` och det finns ingen separat `server/app`-export att importera i Supertest.
 
-describe('My Plugin API', () => {
-  it('should require authentication', async () => {
-    const response = await request(app).get('/api/my-plugin');
-    expect(response.status).toBe(401);
-  });
+✅ Rekommenderat:
 
-  it('should create item with CSRF token', async () => {
-    const { csrfToken } = await request(app)
-      .get('/api/csrf-token')
-      .then(r => r.body);
+- **Unit/service-tester** med mock adapters (snabbt och stabilt).
+- **Integration via körande server**: starta `npm run dev:api` och testa endpoints via HTTP.
 
-    const response = await request(app)
-      .post('/api/my-plugin')
-      .set('X-CSRF-Token', csrfToken)
-      .send({ title: 'Test' });
+Om ni vill ha Supertest-baserade request-tester:
 
-    expect(response.status).toBe(201);
-  });
-});
+- Introducera en `createApp()`-factory som returnerar Express-app utan `listen()`.
+- Låt `server/index.ts` använda den, och låt tester importera `createApp()`.
 
 Security Best Practices
 Backend Security Checklist

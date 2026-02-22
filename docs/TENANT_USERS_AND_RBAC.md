@@ -199,3 +199,38 @@ Result: **401 on GET /api/auth/me** when not logged in is expected; **login (POS
 - Add UI for team management (list members, invite, change role, remove) using `/api/team/*`.
 - Optionally add `actor_user_id` (and `actor_email`) as columns on `activity_log` in a **tenant** migration for richer audit (metadata already carries this today).
 - Define concrete permissions per role later (e.g. “editor can edit contacts”) and optionally `requirePermission('contacts.write')` on top of `requireTenantRole`.
+
+---
+
+## 12. Tenant providers & connection pools (implementation)
+
+Det här är den praktiska implementationen som ligger under “tenant context” ovan.
+
+### 12.1 Tenant provider (`TENANT_PROVIDER`)
+
+**Kod:**
+
+- `server/core/services/tenant/providers/NeonTenantProvider.js`
+- `server/core/services/tenant/providers/LocalTenantProvider.js`
+
+**Syfte:** Byta strategi för hur en tenant provisioneras (t.ex. Neon project/db-per-tenant vs local/schema-per-tenant) utan att plugins behöver ändras.
+
+**Konfiguration (exempel):**
+
+```bash
+TENANT_PROVIDER=neon   # production
+NEON_API_KEY=...
+
+TENANT_PROVIDER=local  # local dev
+```
+
+### 12.2 Connection pools (tenantPool)
+
+**Kod:**
+
+- `server/core/services/connection-pool/ConnectionPoolService.js`
+- `server/core/services/connection-pool/providers/PostgresPoolProvider.js`
+
+**Syfte:** Ge varje request ett korrekt `req.tenantPool` för tenantens connection string och hantera pool-livscykel (återanvändning/cleanup/shutdown).
+
+**Viktigt:** Alla tenant-scopade queries går via `req.tenantPool` (eller core Database-adapter som använder den), och filtrerar med `user_id = currentTenantUserId` för att ge delad data för alla medlemmar i tenant.

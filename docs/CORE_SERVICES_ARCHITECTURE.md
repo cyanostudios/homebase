@@ -599,7 +599,7 @@ REALTIME_PROVIDER: 'socketio',
 },
 
 production: {
-DATABASE_PROVIDER: process.env.DB_PROVIDER || 'neon',
+DATABASE_PROVIDER: process.env.DATABASE_PROVIDER || 'neon',
 STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || 'r2',
 EMAIL_PROVIDER: process.env.EMAIL_PROVIDER || 'resend',
 QUEUE_PROVIDER: process.env.QUEUE_PROVIDER || 'bullmq',
@@ -783,12 +783,12 @@ From Direct Calls to Core Services
 Before:
 // Direct PostgreSQL
 const db = require('pg');
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const contacts = await pool.query('SELECT _ FROM contacts WHERE user_id = ?', [userId]);
+const pool = new Pool({ connectionString: process.env.DATABASE*URL });
+const contacts = await pool.query('SELECT * FROM contacts WHERE user*id = ?', [userId]);
 After:
 // Core service
 const { database } = require('../../server/core/ServiceManager');
-const contacts = await database.query('SELECT _ FROM contacts WHERE id = ?', [contactId]);
+const contacts = await database.query('SELECT * FROM contacts WHERE id = ?', [contactId]);
 // Tenant filtering automatic
 Migration Steps:
 

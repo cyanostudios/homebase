@@ -40,7 +40,7 @@ client/src/core/
 Terminology: **TopBar Widgets** (core/widgets) are the compact tools in the header (clock, pomodoro, time-tracking). **Dashboard Widgets** are plugin-provided blocks on the dashboard (e.g. pluginRegistry.dashboardWidget). The two are separate; TopBar widgets do not depend on the plugin registry.
 ├── PanelFooter.tsx
 ├── PanelTitles.tsx
-├── UniversalPanel.tsx
+├── DetailPanel.tsx
 └── ...
 
 server/core/
@@ -53,7 +53,7 @@ server/core/
 │ ├── cache/
 │ └── ...
 ├── middleware/ # Security middleware
-│ ├── auth.js
+│ ├── authorization.js
 │ ├── csrf.js
 │ ├── validation.js
 │ └── rateLimit.js
@@ -67,7 +67,8 @@ typescriptinterface AppContextType {
 // Authentication
 user: User | null;
 isAuthenticated: boolean;
-login: (email: string, password: string) => Promise<boolean>;
+login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+signup: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
 logout: () => Promise<void>;
 
 // Cross-plugin data (read-only)
@@ -203,14 +204,12 @@ const logger = ServiceManager.get('logger');
 
 Security Middleware Stack
 Authentication Middleware
-// server/core/middleware/auth.js
-function requireAuth() {
-return (req, res, next) => {
-if (!req.session || !req.session.user) {
-return res.status(401).json({ error: 'Authentication required' });
-}
-next();
-};
+// Auth middleware is defined in server/index.ts and injected into routes
+function requireAuth(req, res, next) {
+  if (!req.session || !req.session.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  return next();
 }
 
 function requirePlugin(pluginName) {
@@ -332,7 +331,7 @@ closeContactPanel(); // Close current panel
 openEstimateForView(estimate); // Open target panel
 };
 
-Universal Panel System
+Detail Panel System
 Panel Coordination
 Only one panel can be open at a time:
 typescript// When opening any panel
@@ -353,7 +352,7 @@ return handleCancelClick; // Check unsaved changes
 }
 };
 Global Form Functions
-Forms integrate with UniversalPanel footer:
+Forms integrate with the DetailPanel footer (`PanelFooter`):
 typescript// Each plugin registers global functions (plural naming!)
 window.submitMyPluginsForm = handleSubmit;
 window.cancelMyPluginsForm = handleCancel;
@@ -558,7 +557,7 @@ Service Configuration
 config/services.js:
 module.exports = {
 // Service providers (swappable)
-DATABASE_PROVIDER: process.env.DB_PROVIDER || 'neon',
+DATABASE_PROVIDER: process.env.DATABASE_PROVIDER || 'neon',
 STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || 'r2',
 EMAIL_PROVIDER: process.env.EMAIL_PROVIDER || 'resend',
 
@@ -686,10 +685,8 @@ const results = await database.query('SELECT _ FROM contacts', []);
 ❌ **FEL:**
 
 ```javascript
-// Skapade middleware i server/core/middleware/activityLog.js
-// Registrerade den i server/core/middleware/setup.js
-// Men server/index.ts använder INTE setupMiddleware() - den registrerar middleware direkt!
-// Resultat: Middleware kördes aldrig, inga logs skapades
+// Skapade middleware (t.ex. activity log) men glömde registrera den i server/index.ts.
+// Resultat: middleware kördes aldrig, inga logs skapades.
 ```
 
 ✅ **KORREKT:**
@@ -708,7 +705,7 @@ app.use(activityLogMiddleware);
 setupCoreRoutes(app, { pool, authLimiter, requireAuth, pluginLoader });
 ```
 
-💡 **Lärdom:** `server/index.ts` registrerar middleware direkt, inte via `setupMiddleware()`. När du skapar ny middleware, måste den registreras i `server/index.ts` också, inte bara i `setup.js`.
+💡 **Lärdom:** `server/index.ts` registrerar middleware direkt. När du skapar ny middleware måste den registreras där – annars körs den aldrig.
 
 ---
 

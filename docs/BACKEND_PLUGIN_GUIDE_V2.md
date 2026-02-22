@@ -649,46 +649,23 @@ await expect(model.createItem({ title: '' }))
 .rejects.toThrow('Title is required');
 });
 });
-Integration Tests
-const request = require('supertest');
-const app = require('../../server/app');
+Integration Tests (request-level)
 
-describe('My Plugin API', () => {
-let csrfToken;
+Homebase kör idag servern från `server/index.ts` och exporterar **inte** en separat `server/app`-modul för Supertest.
 
-beforeEach(async () => {
-const response = await request(app).get('/api/csrf-token');
-csrfToken = response.body.csrfToken;
-});
+✅ Rekommenderat i dagsläget:
 
-it('should create item with validation', async () => {
-const response = await request(app)
-.post('/api/my-plugin')
-.set('X-CSRF-Token', csrfToken)
-.send({
-title: 'Test Item',
-content: 'Test content'
-});
+- **Service-/model-tester**: testa business logic via core services + mock adapters (se exemplen ovan).
+- **E2E/integration via körande server**: starta API:t och testa endpoints via HTTP (t.ex. Playwright, curl, Postman).
 
-    expect(response.status).toBe(201);
-    expect(response.body).toHaveProperty('id');
+Om ni vill ha Supertest-stil på request-nivå:
 
-});
+- Skapa en separat factory (t.ex. `server/createApp.ts`) som bygger och returnerar en Express-app **utan** `listen()`.
+- Låt `server/index.ts` använda den factoryn för produktion/dev, och låt tester importera `createApp()`.
 
-it('should reject invalid input', async () => {
-const response = await request(app)
-.post('/api/my-plugin')
-.set('X-CSRF-Token', csrfToken)
-.send({
-title: '', // Invalid - empty
-content: 'Test'
-});
+---
 
-    expect(response.status).toBe(400);
-    expect(response.body.error).toBe('Validation failed');
-
-});
-});
+(Tidigare exempel som importerade `../../server/app` är borttaget eftersom den filen inte finns i nuvarande kodbas.)
 
 ## Database SDK Common Pitfalls
 

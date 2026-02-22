@@ -1,6 +1,6 @@
-# Deployment Guide - Homebase V2
+# Deployment Guide - Homebase
 
-This guide covers deployment of Homebase V2 with the new service abstraction architecture.
+This guide covers deployment of Homebase with the service abstraction architecture.
 
 ## Prerequisites
 
@@ -54,6 +54,49 @@ EMAIL_PROVIDER=resend       # or sendgrid, smtp
 QUEUE_PROVIDER=redis        # or memory
 CACHE_PROVIDER=redis        # or memory
 ```
+
+#### Neon tenant provisioning (database-per-tenant)
+
+Om du använder **Neon** för att automatiskt skapa tenant-databaser vid signup behöver du:
+
+```bash
+# Tenant provider
+TENANT_PROVIDER=neon
+
+# Neon API key (required for automatic provisioning)
+NEON_API_KEY=your_neon_api_key
+```
+
+**Vad det gör:**
+
+- Vid **signup**: skapar en ny Neon-databas/projekt för tenant och kör migrations.
+- Vid **login**: använder tenantens connection string för alla tenant-queries.
+
+Om `NEON_API_KEY` saknas (t.ex. lokalt) ska tenant-provider kunna falla tillbaka till local/dev-strategi enligt konfiguration. Se även `TENANT_USERS_AND_RBAC.md` för session-fält och tenant-scope (`currentTenantUserId`).
+
+**Koppla befintliga Neon-databaser (om du provisionerade manuellt tidigare):**
+
+- **Alternativ A (SQL):** uppdatera `tenants`-tabellen med connection string/metadata.
+
+```sql
+UPDATE tenants
+SET
+  neon_connection_string = 'postgresql://user:password@host.neon.tech/dbname',
+  neon_database_name = 'database_name',
+  neon_project_id = 'project-id'
+WHERE user_id = 1;
+```
+
+- **Alternativ B (Admin API):** som superadmin kan du lista/switcha tenants för att verifiera att mappingen fungerar.
+
+```bash
+GET /api/admin/tenants
+POST /api/admin/switch-tenant
+```
+
+**Testa provisioning snabbt:**
+
+- `node scripts/create-test-user.js` (skapar användare och triggar tenant-provisioning enligt `TENANT_PROVIDER`).
 
 #### Cloud Storage (if using R2 or S3)
 

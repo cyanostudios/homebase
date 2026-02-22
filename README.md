@@ -122,10 +122,11 @@ Complete documentation is available in the **[docs/](./docs/)** directory:
 - **[docs/README.md](./docs/README.md)** - 📚 Complete documentation index
 - **[docs/LESSONS_LEARNED.md](./docs/LESSONS_LEARNED.md)** - ❗ Agent rules, anti-patterns, and do/don'ts
 - **[docs/SECURITY_GUIDELINES.md](./docs/SECURITY_GUIDELINES.md)** - 🔒 Security baseline and enforcement
-- **[docs/PLUGIN_OVERVIEW_V2.md](./docs/PLUGIN_OVERVIEW_V2.md)** - ⭐ Current modular plugin overview
 - **[docs/DEVELOPMENT_GUIDE_V2.md](./docs/DEVELOPMENT_GUIDE_V2.md)** - 🏗️ Project overview & setup
 - **[docs/UI_AND_UX_STANDARDS_V3.md](./docs/UI_AND_UX_STANDARDS_V3.md)** - 🎨 Premium UI/UX Standards (Strict)
 - **[docs/PLUGIN_ARCHITECTURE_V3.md](./docs/PLUGIN_ARCHITECTURE_V3.md)** - 🔌 Action Registry & Decoupling Pattern
+- **[docs/PLUGIN_DEVELOPMENT_STANDARDS_V2.md](./docs/PLUGIN_DEVELOPMENT_STANDARDS_V2.md)** - ✅ Mandatory plugin conventions
+- **[docs/CORE_SERVICES_ARCHITECTURE.md](./docs/CORE_SERVICES_ARCHITECTURE.md)** - 🧱 Service abstraction (Adapter pattern)
 
 ## 🛠 Available Commands
 

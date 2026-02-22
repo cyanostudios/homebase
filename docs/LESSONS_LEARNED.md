@@ -50,12 +50,12 @@ Om en referens (funktion/konstant) används men inte är importerad, kastar Java
 ### Följ befintliga patterns strikt
 
 ❌ **What we did (that didn't work):**
-Skapade settings routes med nytt pattern som inte matchade auth.js eller admin.js.
+Skapade settings routes med nytt pattern som inte matchade befintliga core routes (t.ex. `server/core/routes/auth.js`, `server/core/routes/admin.js`) och dependency-injection från `server/index.ts`.
 
 ✅ **What we do instead (that works):**
 
 ```javascript
-// ✅ KORREKT - Följer samma pattern som auth.js
+// ✅ KORREKT - Följer samma DI-pattern som core routes
 function setupSettingsRoutes(mainPool, authMiddleware) {
   pool = mainPool;
   requireAuth = authMiddleware;
@@ -99,26 +99,19 @@ As of the Settings-plugin migration, Settings is implemented as an always-on plu
 
 ---
 
-### Separata UniversalPanels för olika syften
+### Undvik “dubbel panel”-special-casing
 
 ❌ **What we did (that didn't work):**
-Försökte återanvända samma panel-state för både plugins och settings.
+Byggde separata panel-flöden för plugins och settings (t.ex. två olika panel-komponenter eller två parallella “isOpen”-states), vilket skapade state-konflikter och svåra edge cases.
 
 ✅ **What we do instead (that works):**
 
-```tsx
-// ✅ KORREKT - Separata paneler för olika syften
-<UniversalPanel isOpen={isAnyPanelOpen} {...pluginProps}>
-  {renderers.renderPanelContent()}
-</UniversalPanel>
-
-<UniversalPanel isOpen={isSettingsPanelOpen} {...settingsProps}>
-  {settingsCategory === 'profile' && <ProfileSettingsForm />}
-</UniversalPanel>
-```
+- **En panel-implementation:** Använd den gemensamma `DetailPanel`/`PanelFooter`-mekanismen för allt panelinnehåll.
+- **Settings är en plugin:** Settings hanteras som en always-on plugin och följer samma routing/panel-flöde som andra plugins (ingen separat “settings panel”).
+- **Per-plugin vy-state:** Om en plugin har flera vyer (t.ex. list vs settings), använd pluginens egna `contentView`/mode och låt core vara agnostisk.
 
 💡 **Why (lesson learned):**
-Plugins och settings har olika panel-state-hantering. Settings-kategorier behöver separat state (settingsCategory). Förhindrar konflikter mellan plugin-paneler och settings-paneler. Försök INTE att återanvända samma panel-state för både plugins och settings - det leder till state-konflikter.
+Att ha ett enda panel-flöde minskar specialfall, förenklar close/save/cancel, och gör att nya plugins (inkl. Settings) kan följa samma regler utan att core behöver “veta” om dem.
 
 ---
 
@@ -428,7 +421,7 @@ Kör sedan `npm install` för att länka lokal dependency.
 ❌ **What we did (that didn't work):**
 
 ```javascript
-// Hårdkodad plugin-lista i auth.js
+// Hårdkodad plugin-lista (undvik)
 const availablePlugins = [
   'contacts',
   'notes',
@@ -471,24 +464,13 @@ Hårdkodade plugin-listor måste uppdateras manuellt när nya plugins läggs til
 
 ### Ta bort oanvända middleware-setup filer
 
-❌ **What we did (that didn't work):**
+✅ **Vad som gäller nu (aktuellt):**
 
-```javascript
-// server/core/middleware/setup.js
-// Filen användes inte längre men fanns kvar
-// Middleware registreras direkt i server/index.ts
-```
-
-✅ **What we do instead (that works):**
-
-```bash
-# Ta bort oanvända filer
-rm server/core/middleware/setup.js
-# Middleware registreras direkt där den används (server/index.ts)
-```
+- Middleware registreras **direkt i** `server/index.ts` (det finns ingen central `setupMiddleware()` som “automatiskt” plockar upp nya middleware-filer).
+- Skapa inte nya “setup”-filer för middleware. Lägg istället in middleware där den faktiskt används i serverns bootstrap (`server/index.ts`) så körordning och ansvar är tydligt.
 
 💡 **Why (lesson learned):**
-Oanvända filer skapar förvirring och gör det svårt att förstå var kod faktiskt körs. Om en fil inte används (t.ex. middleware registreras direkt i `server/index.ts` istället för via `setup.js`), ta bort den. Detta gör kodbasen renare och lättare att navigera. Kontrollera ALLTID att en fil verkligen används innan du tar bort den genom att söka efter imports/references.
+Oanvända/“magiska” setup-lager skapar förvirring om var kod faktiskt körs. Genom att registrera middleware explicit i `server/index.ts` blir körordningen tydlig och det blir svårt att råka missa att en ny middleware aldrig kopplats in.
 
 ---
 
