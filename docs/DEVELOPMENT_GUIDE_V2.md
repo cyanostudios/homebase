@@ -681,8 +681,9 @@ See Also:
 CORE_SERVICES_ARCHITECTURE.md - Service details
 SECURITY_GUIDELINES.md - Security requirements
 PLUGIN_DEVELOPMENT_STANDARDS_V2.md - Plugin conventions
-BACKEND_PLUGIN_GUIDE_V2.md - Backend development
-FRONTEND_PLUGIN_GUIDE_V2.md - Frontend development
+REFACTORING_EXISTING_PLUGINS.md - Migrera/refaktorera plugins
+UI_AND_UX_STANDARDS_V3.md - UI/UX standards
+CHANGELOG.md - Historik över ändringar
 
 ```
 

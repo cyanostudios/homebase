@@ -43,85 +43,129 @@ This document defines MANDATORY naming conventions and patterns for all Homebase
      - Plugins are sorted alphabetically for consistency
      - Some plugins (read-only, experimental) are excluded from DEFAULT_USER_PLUGINS
    - Superadmin (admin@homebase.se) needs the plugin added to their user_plugin_access
-   - Run: node scripts/add-your-plugin-to-admin.js (create a script similar to other plugin scripts)
 
-2. Context Interface (MANDATORY Properties)
-   interface MyPluginContextType {
-   // Panel State - EXACT naming required
-   isMyPluginPanelOpen: boolean; // Plugin-specific (plural in name)
-   currentMyPlugin: MyPlugin | null; // Plugin-specific (singular)
-   panelMode: 'create' | 'edit' | 'view' | 'settings'; // GENERIC; add 'settings' if plugin has a settings screen
-   validationErrors: ValidationError[]; // Standard validation array
+- Skapa/kör ett litet script under `scripts/` som lägger till raden i `user_plugin_access` (följ mönstret från andra scripts i repot)
 
-// Data State
-myPlugins: MyPlugin[]; // Plugin data array (plural)
+## 2. Context Interface (mandatory properties)
 
-// CRUD Functions - EXACT naming required
-openMyPluginPanel: (item: MyPlugin | null) => void;
-openMyPluginForEdit: (item: MyPlugin) => void;
-openMyPluginForView: (item: MyPlugin) => void;
-closeMyPluginPanel: () => void;
-saveMyPlugin: (data: any) => Promise<boolean>;
-deleteMyPlugin: (id: string) => Promise<void>;
-duplicateMyPlugin?: (item: MyPlugin) => Promise<void>; // Optional
-clearValidationErrors: () => void;
-} 3. Backend Integration with @homebase/core SDK
-MANDATORY: All plugins MUST use @homebase/core SDK for infrastructure:
+```ts
+interface MyPluginContextType {
+  // Panel State - exact naming required
+  isMyPluginPanelOpen: boolean; // Plugin-specific (plural in name)
+  currentMyPlugin: MyPlugin | null; // Plugin-specific (singular)
+  panelMode: 'create' | 'edit' | 'view' | 'settings'; // Generic; add 'settings' if plugin has a settings screen
+  validationErrors: ValidationError[]; // Standard validation array
+
+  // Data State
+  myPlugins: MyPlugin[]; // Plugin data array (plural)
+
+  // CRUD Functions - exact naming required
+  openMyPluginPanel: (item: MyPlugin | null) => void;
+  openMyPluginForEdit: (item: MyPlugin) => void;
+  openMyPluginForView: (item: MyPlugin) => void;
+  closeMyPluginPanel: () => void;
+  saveMyPlugin: (data: any) => Promise<boolean>;
+  deleteMyPlugin: (id: string) => Promise<void>;
+  duplicateMyPlugin?: (item: MyPlugin) => Promise<void>; // Optional
+  clearValidationErrors: () => void;
+}
+```
+
+## 3. Backend integration with `@homebase/core` SDK
+
+MANDATORY: Plugins ska använda `@homebase/core` SDK för infrastruktur (DB, logger, context).
+
+```js
 const { Logger, Database, Context } = require('@homebase/core');
 
-// Get database instance for current request
 const db = Database.get(req);
 const userId = Context.getUserId(req);
 
-// Use SDK interfaces
 Logger.info('Operation completed', { userId });
-const result = await db.query('SELECT \* FROM items', []);
+const result = await db.query('SELECT * FROM items', []);
+```
 
 NEVER:
+
+```js
 // ❌ WRONG - Direct imports or ServiceManager
 const ServiceManager = require('../../server/core/ServiceManager');
 const db = require('../../server/database');
-const fs = require('fs'); 4. Security Requirements
-MANDATORY middleware on ALL routes:
+const fs = require('fs');
+```
+
+## 4. Security requirements
+
+MANDATORY middleware på alla routes:
+
+```js
 router.get('/', requirePlugin('my-plugin'), controller.getItems);
 router.post('/', requirePlugin('my-plugin'), csrfProtection, controller.create);
 router.put('/:id', requirePlugin('my-plugin'), csrfProtection, controller.update);
 router.delete('/:id', requirePlugin('my-plugin'), csrfProtection, controller.delete);
+```
+
 MANDATORY input validation:
-const { body, param, validationResult } = require('express-validator');
 
-router.post('/', [
-requirePlugin('my-plugin'),
-csrfProtection,
-body('title').trim().notEmpty().isLength({ max: 255 }).escape(),
-body('content').optional().trim().isLength({ max: 5000 }),
-validateRequest
-], controller.create);
+```js
+const { body } = require('express-validator');
 
-5. Frontend: Mentions and export (best practice)
-   - **Mentions:** Use the core components `MentionTextarea` and `MentionContent` from `@/core/ui/` for any @-mention of contacts. Do not duplicate mention input or display logic in plugin components. See [MENTIONS_AND_CROSS_PLUGIN_UI.md](MENTIONS_AND_CROSS_PLUGIN_UI.md).
-   - **Export:** Implement export via `exportFormats` and `onExportItem` in the plugin context, plus an export config (e.g. `myPluginExportConfig`) used by the List and PanelFooter. Follow the unified pattern described in [FRONTEND_PLUGIN_GUIDE_V2.md](FRONTEND_PLUGIN_GUIDE_V2.md) (Detail export / download pattern).
+router.post(
+  '/',
+  [
+    requirePlugin('my-plugin'),
+    csrfProtection,
+    body('title').trim().notEmpty().isLength({ max: 255 }).escape(),
+    body('content').optional().trim().isLength({ max: 5000 }),
+    validateRequest,
+  ],
+  controller.create,
+);
+```
 
-6. List and toolbar UI (mandatory for consistency)
-   Use the same UI components and styling as other plugins so list views and toolbars look and behave the same across the app.
-   - **Toolbar:** Use `ContentToolbar` from `@/core/ui/ContentToolbar` in the list component. Set it via `setHeaderTrailing` from `useContentLayout()` inside a `useEffect`, and return a cleanup that calls `setHeaderTrailing(null)`.
-   - **Toolbar buttons:** Use the shared `Button` from `@/components/ui/button` with:
-     - `variant="secondary"` for secondary actions (e.g. Settings, Grid, List, Import).
-     - `size="sm"`.
-     - `className="h-7 text-[10px] px-2"` for consistent height and label size.
-     - `icon={IconComponent}` for the icon (e.g. `Settings`, `Grid3x3`, `List` from `lucide-react`), and put the label as children (e.g. `Settings`, `Grid`, `List`).
-   - **List layout:** Use `Card` from `@/components/ui/card` for the list container with plugin semantic class (e.g. `plugin-my-plugins`). Use `Table` / `TableHead` / `TableBody` / `TableRow` / `TableCell` for list view and `DetailCard` or `Card` for grid view. See [UI_AND_UX_STANDARDS_V3.md](UI_AND_UX_STANDARDS_V3.md) for checkbox column width (`w-12`), row hover, and card padding.
-   - **Settings button:** If the plugin has a settings screen, add a **Settings** button in the toolbar with the same style as other toolbar buttons (secondary, sm, icon + label "Settings"), e.g. `icon={Settings}` and children `Settings`. Do not use an icon-only button; keep it consistent with Files, Contacts, and Mail.
+## 5. Frontend: Mentions and export (best practice)
 
-7. Plugin settings page (when the plugin has a settings screen)
-   If the plugin exposes a settings screen (e.g. cloud storage, SMTP, preferences), implement the following so the panel opens, shows settings content, and Close/Save work correctly.
-   - **Context:** Extend `panelMode` to include `'settings'` (e.g. `'create' | 'edit' | 'view' | 'settings'`). Expose `openMyPluginSettings` (or `openMyPluginPanel` with a dedicated entry point) that sets `panelMode` to `'settings'` and opens the panel. Expose `closeMyPluginPanel` so the panel can be closed from the footer.
-   - **List toolbar:** Add a Settings button in the list toolbar that calls the open-settings function (same button style as in section 6).
-   - **Form component:** When `panelMode === 'settings'`, render the settings UI (e.g. a dedicated `MyPluginSettingsForm`) and pass `onCancel` so the panel can be closed. If the form returns early for settings (before registering submit/cancel event listeners), the panel footer’s Close and Save will not trigger those listeners. In that case, core must close the panel for this plugin when in settings mode.
-   - **Panel footer (Close / Save):** The detail panel footer shows Close (Cancel) and Save in form modes. For the settings panel to close when the user clicks Close or Save:
-     - **Option A:** Ensure the Form component always registers the global cancel/submit listeners (e.g. move the `useEffect` that registers `cancelMyPluginsForm` / `submitMyPluginsForm` so it runs even when rendering the settings form). Then the existing panel handlers will call those globals and the form’s `onCancel` / submit path will run and close the panel.
-     - **Option B:** Add a special case in core panel handlers: when `currentPlugin.name === 'my-plugin'` and `currentMode === 'settings'`, call `currentPluginContext.closeMyPluginPanel()` directly from both Cancel and Save (Save in settings often just closes the panel after persisting, or simply closes). This is required when the Form returns early for settings and never registers the event listeners (e.g. Files and Mail). See `client/src/core/handlers/panelHandlers.ts` for the pattern (e.g. `closeFilePanel` for files in settings mode).
-   - **Settings content:** Use `DetailSection` from `@/core/ui/DetailSection` for the settings form layout and group related fields under clear section titles.
+- **Mentions:** Use the core components `MentionTextarea` and `MentionContent` from `@/core/ui/` for any @-mention of contacts. Do not duplicate mention input or display logic in plugin components. See [MENTIONS_AND_CROSS_PLUGIN_UI.md](MENTIONS_AND_CROSS_PLUGIN_UI.md).
+- **Export:** Implement export via `exportFormats` and `onExportItem` in the plugin context, plus an export config (e.g. `myPluginExportConfig`) used by the List and PanelFooter. Keep export actions in the list header/footer consistent with other plugins (icon + label, same sizes). If the plugin exports from the detail/footer, prefer `exportItems(...)` + a plugin export config (see existing plugins like Notes/Tasks/Contacts).
+
+### Export pattern (canonical)
+
+När en plugin stödjer export (single-item och/eller bulk) ska vi använda samma wiring som Notes/Tasks/Contacts:
+
+1. **Export config (per plugin)**: en fil som beskriver format, filename och hur data serialiseras.
+   - Exempel: `client/src/plugins/notes/utils/noteExportConfig.ts`
+2. **Context** exponerar:
+   - `exportFormats: ExportFormat[]` (t.ex. `['txt', 'csv', 'pdf']`)
+   - `onExportItem: (format, item) => Promise<void>`
+3. **List view** använder samma config för bulk export (valda items) via `exportItems(...)`.
+4. **PanelFooter / detail footer** renderar export-formatknappar utifrån `exportFormats` och anropar `onExportItem(format, currentItem)`.
+
+**Varför:** Ger konsekvent UX (samma knappar, samma formatnamn) och gör export lätt att återanvända mellan list och detail.
+
+## 6. List and toolbar UI (mandatory for consistency)
+
+Use the same UI components and styling as other plugins so list views and toolbars look and behave the same across the app.
+
+- **Toolbar:** Use `ContentToolbar` from `@/core/ui/ContentToolbar` in the list component. Set it via `setHeaderTrailing` from `useContentLayout()` inside a `useEffect`, and return a cleanup that calls `setHeaderTrailing(null)`.
+- **Toolbar buttons:** Use the shared `Button` from `@/components/ui/button` with:
+  - `variant="secondary"` for secondary actions (e.g. Settings, Grid, List, Import).
+  - `size="sm"`.
+  - `className="h-7 text-[10px] px-2"` for consistent height and label size.
+  - `icon={IconComponent}` for the icon (e.g. `Settings`, `Grid3x3`, `List` from `lucide-react`), and put the label as children (e.g. `Settings`, `Grid`, `List`).
+- **List layout:** Use `Card` from `@/components/ui/card` for the list container with plugin semantic class (e.g. `plugin-my-plugins`). Use `Table` / `TableHead` / `TableBody` / `TableRow` / `TableCell` for list view and `DetailCard` or `Card` for grid view. See [UI_AND_UX_STANDARDS_V3.md](UI_AND_UX_STANDARDS_V3.md) for checkbox column width (`w-12`), row hover, and card padding.
+- **Settings button:** If the plugin has a settings screen, add a **Settings** button in the toolbar with the same style as other toolbar buttons (secondary, sm, icon + label "Settings"), e.g. `icon={Settings}` and children `Settings`. Do not use an icon-only button; keep it consistent with Files, Contacts, and Mail.
+
+## 7. Plugin settings page (when the plugin has a settings screen)
+
+If the plugin exposes a settings screen (e.g. cloud storage, SMTP, preferences), implement the following so the panel opens, shows settings content, and Close/Save work correctly.
+
+- **Context:** Extend `panelMode` to include `'settings'` (e.g. `'create' | 'edit' | 'view' | 'settings'`). Expose `openMyPluginSettings` (or `openMyPluginPanel` with a dedicated entry point) that sets `panelMode` to `'settings'` and opens the panel. Expose `closeMyPluginPanel` so the panel can be closed from the footer.
+- **List toolbar:** Add a Settings button in the list toolbar that calls the open-settings function (same button style as in section 6).
+- **Form component:** When `panelMode === 'settings'`, render the settings UI (e.g. a dedicated `MyPluginSettingsForm`) and pass `onCancel` so the panel can be closed. If the form returns early for settings (before registering submit/cancel event listeners), the panel footer’s Close and Save will not trigger those listeners. In that case, core must close the panel for this plugin when in settings mode.
+- **Panel footer (Close / Save):** The detail panel footer shows Close (Cancel) and Save in form modes. For the settings panel to close when the user clicks Close or Save:
+  - **Option A:** Ensure the Form component always registers the global cancel/submit listeners (e.g. move the `useEffect` that registers `cancelMyPluginsForm` / `submitMyPluginsForm` so it runs even when rendering the settings form). Then the existing panel handlers will call those globals and the form’s `onCancel` / submit path will run and close the panel.
+  - **Option B:** Add a special case in core panel handlers: when `currentPlugin.name === 'my-plugin'` and `currentMode === 'settings'`, call `currentPluginContext.closeMyPluginPanel()` directly from both Cancel and Save (Save in settings often just closes the panel after persisting, or simply closes). This is required when the Form returns early for settings and never registers the event listeners (e.g. Files and Mail). See `client/src/core/handlers/panelHandlers.ts` for the pattern (e.g. `closeFilePanel` for files in settings mode).
+- **Settings content:** Use `DetailSection` from `@/core/ui/DetailSection` for the settings form layout and group related fields under clear section titles.
 
 Context Implementation Pattern
 Frontend Context (Complete Template)
@@ -695,8 +739,8 @@ Following these standards enables:
 - `UI_AND_UX_STANDARDS_V3.md` - List/toolbar UI, buttons, settings panel
 - `CORE_SERVICES_ARCHITECTURE.md` - Service details
 - `SECURITY_GUIDELINES.md` - Security requirements
-- `BACKEND_PLUGIN_GUIDE_V2.md` - Backend implementation
-- `FRONTEND_PLUGIN_GUIDE_V2.md` - Frontend implementation
+- `LESSONS_LEARNED.md` - Common mistakes and anti-patterns
+- `MENTIONS_AND_CROSS_PLUGIN_UI.md` - Mention system & cross-plugin navigation
 
 ```
 

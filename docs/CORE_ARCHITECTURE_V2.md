@@ -903,8 +903,9 @@ Homebase core architecture provides:
 - `CORE_SERVICES_ARCHITECTURE.md` - Service details
 - `SECURITY_GUIDELINES.md` - Security layers
 - `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` - Plugin conventions
-- `BACKEND_PLUGIN_GUIDE_V2.md` - Backend implementation
-- `FRONTEND_PLUGIN_GUIDE_V2.md` - Frontend implementation
+- `MENTIONS_AND_CROSS_PLUGIN_UI.md` - Mentions & cross-plugin UI
+- `TENANT_USERS_AND_RBAC.md` - Tenant/users/RBAC (implementation)
+- `CHANGELOG.md` - Historik över ändringar
 
 ```
 

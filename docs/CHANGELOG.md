@@ -61,6 +61,7 @@ _Dokumentation av alla ändringar sedan senaste commit ("Public booking app, slo
 - **PreferencesSettingsForm / ActivityLogForm / ProfileSettingsForm / TeamSettingsForm:** Justeringar för konsekvent layout och knappar i Core Settings.
 - **Switch-komponent:** Mindre stiländring vid behov för inställningsformulär.
 - **App.tsx / kontexter:** Uppdateringar för contentView, Settings-vy och panelhantering för alla berörda plugins.
+- **Docs:** Ytterligare konsolidering: `FRONTEND_PLUGIN_GUIDE_V2.md` och `BACKEND_PLUGIN_GUIDE_V2.md` borttagna efter att export-pattern flyttats till `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` och bulk-delete (FK hybrid) till `CORE_SERVICES_ARCHITECTURE.md`.
 
 ---
 

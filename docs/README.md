@@ -17,8 +17,6 @@ Det här är den **aktuella** ingången till dokumentationen. Målet är att hå
 - **Core-arkitektur (översikt + TopBar widgets):** `CORE_ARCHITECTURE_V2.md` _(översikt – uppdateras vid stora layout/flow-ändringar)_
 - **Plugin-arkitektur (V3):** `PLUGIN_ARCHITECTURE_V3.md`
 - **Plugin-standarder (mandatory):** `PLUGIN_DEVELOPMENT_STANDARDS_V2.md`
-- **Frontend plugin guide:** `FRONTEND_PLUGIN_GUIDE_V2.md`
-- **Backend plugin guide:** `BACKEND_PLUGIN_GUIDE_V2.md`
 - **Refaktorera befintliga plugins:** `REFACTORING_EXISTING_PLUGINS.md`
 - **Mentions & cross-plugin UI:** `MENTIONS_AND_CROSS_PLUGIN_UI.md`
 - **Tenant/users/RBAC:** `TENANT_USERS_AND_RBAC.md`

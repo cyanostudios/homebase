@@ -20,6 +20,26 @@ Testing Simplicity - Mock adapters for unit tests
 Cost Optimization - Choose providers based on scale and budget
 Compliance - EU providers for GDPR, self-hosted for sensitive data
 
+---
+
+## Bulk delete med foreign keys (hybrid pattern)
+
+Vissa tabeller har kopplingar som måste raderas **före** huvudobjektet (FK/relations). I de fallen använder vi en hybrid:
+
+1. **Plugin-specifik pre-deletion** i pluginens `model.bulkDelete()` (eller motsvarande), där du raderar relaterade rader först via `req.tenantPool.query(...)`.
+2. **Generisk deletion** via core helper (t.ex. `BulkOperationsHelper.bulkDelete(req, tableName, ids)`), som hanterar normalisering/validering och standardiserade svar.
+
+**Riktlinjer:**
+
+- Konvertera alltid string-IDs till rätt typ (oftast `int`) och använd `ANY($1::int[])`.
+- Håll pre-deletion minimal och tydligt avgränsad till relationer som kräver det.
+- Låt core helper göra “huvudraderingen” så beteende är konsekvent mellan plugins.
+
+**Typiska exempel:**
+
+- Notes → Tasks (t.ex. `created_from_note`)
+- Invoices → Invoice items (`invoice_id`)
+
 Configuration-Driven Architecture
 Infrastructure decisions made in one configuration file, not scattered across codebase:
 // config/services.js

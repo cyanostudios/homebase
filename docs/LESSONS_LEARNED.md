@@ -13,7 +13,7 @@
 
 ## Database SDK
 
-> **Note:** Detaljerad dokumentation om Database SDK finns nu i `BACKEND_PLUGIN_GUIDE_V2.md` under "Database SDK Common Pitfalls".
+> **Note:** Se även `CORE_SERVICES_ARCHITECTURE.md` (service-översikt) och `REFACTORING_EXISTING_PLUGINS.md` (migrering).
 
 **Kort sammanfattning:**
 
@@ -210,7 +210,7 @@ I JavaScript/React gäller "Temporal Dead Zone" (TDZ): en variabel får inte anv
 
 ## API & Context
 
-> **Note:** Detaljerad dokumentation om frontend API patterns finns nu i `FRONTEND_PLUGIN_GUIDE_V2.md` under "Common Pitfalls & Best Practices".
+> **Note:** Se även `SECURITY_GUIDELINES.md` (CSRF + middleware) och `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` (konventioner).
 
 **Kort sammanfattning:**
 
@@ -269,8 +269,8 @@ En designåtgärd kan göra att inloggning slutar fungera om den byter **hur** s
 
 > **Note:** Detaljerad dokumentation om plugin development finns nu i:
 >
-> - `BACKEND_PLUGIN_GUIDE_V2.md` - Backend plugin development
-> - `FRONTEND_PLUGIN_GUIDE_V2.md` - Frontend plugin development
+> - `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` - Plugin conventions (frontend + backend)
+> - `SECURITY_GUIDELINES.md` - Security enforcement
 
 **Kort sammanfattning:**
 
@@ -281,7 +281,7 @@ En designåtgärd kan göra att inloggning slutar fungera om den byter **hur** s
 
 ## List View & Rendering
 
-> **Note:** Detaljerad dokumentation om frontend rendering finns nu i `FRONTEND_PLUGIN_GUIDE_V2.md` under "Common Pitfalls & Best Practices".
+> **Note:** Se även `UI_AND_UX_STANDARDS_V3.md` för UI/UX-standarder.
 
 **Kort sammanfattning:**
 
@@ -370,7 +370,7 @@ Kör sedan `npm install` för att länka lokal dependency.
 
 ## Checklista: När Du Refaktorerar till SDK
 
-> **Note:** Detaljerad dokumentation om SDK-refactoring finns nu i `BACKEND_PLUGIN_GUIDE_V2.md` under "Database SDK Common Pitfalls" och `REFACTORING_EXISTING_PLUGINS.md`.
+> **Note:** Se även `REFACTORING_EXISTING_PLUGINS.md`.
 
 **Kort checklista:**
 
@@ -403,7 +403,7 @@ Kör sedan `npm install` för att länka lokal dependency.
 
 ## Panel Subtitle & Cross-Plugin Data
 
-> **Note:** Detaljerad dokumentation om cross-plugin data finns nu i `FRONTEND_PLUGIN_GUIDE_V2.md` under "Common Pitfalls & Best Practices".
+> **Note:** Se även `CORE_ARCHITECTURE_V2.md` (AppContext) och `MENTIONS_AND_CROSS_PLUGIN_UI.md`.
 
 **Kort sammanfattning:**
 
@@ -581,7 +581,7 @@ const onDiscardQuickEditAndClose = useCallback(() => {
 
 ## Bulk Operations & Hybrid Approach
 
-> **Note:** Detaljerad dokumentation om bulk operations finns nu i `BACKEND_PLUGIN_GUIDE_V2.md` under "Bulk Operations with Foreign Key Relationships" och i `CORE_ARCHITECTURE_V2.md` under "PostgreSQLAdapter.\_addTenantFilter()".
+> **Note:** Se även `CORE_ARCHITECTURE_V2.md` (bulk + tenant-scope) och `CORE_SERVICES_ARCHITECTURE.md` (databas/adapters).
 
 **Kort sammanfattning:**
 

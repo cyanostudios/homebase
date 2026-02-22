@@ -30,13 +30,13 @@ Used in forms where the user can @-mention contacts (e.g. note body, task descri
 
 **Props:**
 
-| Prop         | Type                                    | Description                          |
-| ------------ | --------------------------------------- | ------------------------------------ |
-| `value`      | `string`                                | Current text value                   |
-| `onChange`   | `(value: string, mentions: Mention[]) => void` | Called when text or mentions change  |
-| `placeholder`| `string` (optional)                      | Placeholder text                      |
-| `rows`       | `number` (optional)                     | Textarea rows (default 12)            |
-| `className`  | `string` (optional)                      | Additional CSS classes                |
+| Prop          | Type                                           | Description                         |
+| ------------- | ---------------------------------------------- | ----------------------------------- |
+| `value`       | `string`                                       | Current text value                  |
+| `onChange`    | `(value: string, mentions: Mention[]) => void` | Called when text or mentions change |
+| `placeholder` | `string` (optional)                            | Placeholder text                    |
+| `rows`        | `number` (optional)                            | Textarea rows (default 12)          |
+| `className`   | `string` (optional)                            | Additional CSS classes              |
 
 **Behaviour:**
 
@@ -55,10 +55,10 @@ Used in view/detail panels to render text with mentions as clickable or grayed-o
 
 **Props:**
 
-| Prop             | Type                              | Description                                                                 |
-| ---------------- | --------------------------------- | --------------------------------------------------------------------------- |
-| `content`        | `string`                          | Full text content                                                           |
-| `mentions`       | `Mention[]`                       | Array of mentions (position, length, contactId, contactName)                |
+| Prop             | Type                                     | Description                                                                           |
+| ---------------- | ---------------------------------------- | ------------------------------------------------------------------------------------- |
+| `content`        | `string`                                 | Full text content                                                                     |
+| `mentions`       | `Mention[]`                              | Array of mentions (position, length, contactId, contactName)                          |
 | `onMentionClick` | `(contactId: string) => void` (optional) | Called when the user clicks an active (existing) mention. Omit to show non-clickable. |
 
 **Behaviour:**
@@ -85,4 +85,4 @@ This is applied in the AppContext implementations of these getters so that cross
 ## See also
 
 - [CORE_ARCHITECTURE_V2.md](CORE_ARCHITECTURE_V2.md) – AppContext and cross-plugin data
-- [FRONTEND_PLUGIN_GUIDE_V2.md](FRONTEND_PLUGIN_GUIDE_V2.md) – Using core mention components in a plugin
+- [PLUGIN_DEVELOPMENT_STANDARDS_V2.md](PLUGIN_DEVELOPMENT_STANDARDS_V2.md) – Plugin conventions (incl. mentions guidance)
