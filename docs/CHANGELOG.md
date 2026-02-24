@@ -6,6 +6,31 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ## 2026-02 – Homebase 3.1.5 (snapshot before migrating from 3.X)
 
+### Produkter – kategorier, prisvalidering och kanallabels
+
+- **Kategorier vid ny produkt**
+  - Kategorier kan sättas direkt när man skapar en produkt; spara först krävs inte. Borttagen villkoret `currentProduct?.id` i Kategori-fliken i ProductForm.
+  - Borttagen texten "Spara produkten först och koppla kanaler under fliken Kanaler för att välja kategorier."
+  - Enhetlig text och typsnitt för kategorifält: "Välj kategori" för alla kanaler, text-sm, text-gray-500 för tomt tillstånd (WooCommerce + CDON/Fyndiq).
+- **Prisvalidering – pris per butik**
+  - Fix: Valideringen "Minst en aktiv kanal saknar effektivt pris" triggades felaktigt när endast pris per butik (t.ex. vardagsdesign) var ifyllt. Orsak: strikt jämförelse `channelInstanceId === t.channelInstanceId` (string från API vs number från formulär). ProductContext använder nu `String(...)` vid matchning av override och marknad.
+- **Uppdaterade kanallabels (stale-while-revalidate)**
+  - Vid cache-träff för kanaldata hämtas instances i bakgrunden; när svaret kommer uppdateras labels och cache. Efter redigering av t.ex. butikslabel i Channels visas rätt namn även när man öppnar en befintlig produkt.
+  - Filer: [client/src/plugins/products/components/ProductForm.tsx](client/src/plugins/products/components/ProductForm.tsx), [client/src/plugins/products/context/ProductContext.tsx](client/src/plugins/products/context/ProductContext.tsx).
+
+### Orders – paginering, batch-carrier och gruppmarkering
+
+- **Paginering**
+  - Backend: orders list returnerar `{ items, total }`. Model kör COUNT och datafråga parallellt.
+  - Klient: standard limit 50, offset 0; sidbläddring med "Visar X–Y av Z order", Föregående/Nästa och sidnummer. Offset återställs till 0 vid filterändring (status, kanal, datum).
+  - Filer: [plugins/orders/model.js](plugins/orders/model.js), [plugins/orders/controller.js](plugins/orders/controller.js), [client/src/plugins/orders/api/ordersApi.ts](client/src/plugins/orders/api/ordersApi.ts), [client/src/plugins/orders/context/OrdersContext.tsx](client/src/plugins/orders/context/OrdersContext.tsx), [client/src/plugins/orders/components/OrdersList.tsx](client/src/plugins/orders/components/OrdersList.tsx).
+- **Batch-carrier – sammanslagen lista**
+  - I batch-uppdateringsdialogen används en gemensam carrierlista: gemensamma CDON/Fyndiq visas en gång, Fyndiq-unika (4PX, CNE, eQuick, Sunyou, Yanwen) med etiketten "Namn (Fyndiq)". WooCommerce använder samma lista.
+  - Fil: [client/src/plugins/orders/constants/carriers.ts](client/src/plugins/orders/constants/carriers.ts) (BATCH_CARRIERS), [client/src/plugins/orders/components/OrdersList.tsx](client/src/plugins/orders/components/OrdersList.tsx).
+- **Gruppmarkering tydligare**
+  - Grupperade order (samma leverans) har grön (emerald) bakgrund och vänsterkant istället för blå, så de skiljer sig tydligt från valda rader (grå).
+  - Fil: [client/src/plugins/orders/components/OrdersList.tsx](client/src/plugins/orders/components/OrdersList.tsx).
+
 ### CF7 intake och filvalidering
 
 - **Intake-webhook för besiktningsförfrågningar**

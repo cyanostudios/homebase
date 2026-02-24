@@ -22,6 +22,7 @@ interface OrdersContextType {
 
   // Data
   orders: OrderListItem[];
+  totalOrders: number;
   filters: OrdersListFilters;
 
   // Actions
@@ -75,14 +76,22 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
 
   const [orders, setOrders] = useState<OrderListItem[]>([]);
-  const [filters, setFiltersState] = useState<OrdersListFilters>({ status: 'processing' });
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [filters, setFiltersState] = useState<OrdersListFilters>({
+    status: 'processing',
+    limit: 50,
+    offset: 0,
+  });
 
   const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
 
   const reloadOrders = useCallback(async () => {
     try {
-      const data = await ordersApi.list(filters);
-      setOrders((data || []).map(normalizeOrderListItem));
+      const res = await ordersApi.list(filters);
+      const items = Array.isArray(res?.items) ? res.items : [];
+      const total = typeof res?.total === 'number' ? res.total : 0;
+      setOrders(items.map(normalizeOrderListItem));
+      setTotalOrders(total);
     } catch (err) {
       console.error('Failed to load orders:', err);
     }
@@ -93,6 +102,7 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
       reloadOrders();
     } else {
       setOrders([]);
+      setTotalOrders(0);
       setCurrentOrder(null);
       setIsOrdersPanelOpen(false);
       setValidationErrors([]);
@@ -214,6 +224,7 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
       panelMode,
       validationErrors,
       orders,
+      totalOrders,
       filters,
       setFilters,
       reloadOrders,
@@ -231,6 +242,7 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
       panelMode,
       validationErrors,
       orders,
+      totalOrders,
       filters,
       setFilters,
       reloadOrders,

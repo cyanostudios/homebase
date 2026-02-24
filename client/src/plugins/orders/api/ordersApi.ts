@@ -61,16 +61,18 @@ class OrdersApi {
     return payload ?? {};
   }
 
-  async list(filters: OrdersListFilters = {}): Promise<OrderListItem[]> {
+  async list(filters: OrdersListFilters = {}): Promise<{ items: OrderListItem[]; total: number }> {
     const qs = new URLSearchParams();
     if (filters.status) qs.set('status', filters.status);
     if (filters.channel) qs.set('channel', filters.channel);
     if (filters.from) qs.set('from', filters.from);
     if (filters.to) qs.set('to', filters.to);
-    if (filters.limit != null) qs.set('limit', String(filters.limit));
-    if (filters.offset != null) qs.set('offset', String(filters.offset));
+    const limit = filters.limit != null ? filters.limit : 50;
+    const offset = filters.offset != null ? filters.offset : 0;
+    qs.set('limit', String(limit));
+    qs.set('offset', String(offset));
     const suffix = qs.toString() ? `?${qs.toString()}` : '';
-    return (await this.request(`/${suffix}`)) as OrderListItem[];
+    return (await this.request(`/${suffix}`)) as { items: OrderListItem[]; total: number };
   }
 
   async get(id: string): Promise<OrderDetails> {

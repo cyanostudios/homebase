@@ -724,7 +724,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       setCurrentTargetKeys(new Set(cached.targetKeys));
       setSelectedTargetKeys(new Set(cached.targetKeys));
       setChannelInstances(cached.instances);
-      return undefined;
+
+      // Stale-while-revalidate: fetch fresh instances in background so labels stay up-to-date (e.g. after editing in Channels)
+      let revalidateCancelled = false;
+      channelsApi.getInstances().then((resp) => {
+        if (revalidateCancelled) return;
+        const insts = resp?.items ?? [];
+        setChannelInstances(insts);
+        setChannelDataCache(productKey, { ...cached, instances: insts });
+      }).catch(() => {
+        // Keep cached data on error
+      });
+      return () => { revalidateCancelled = true; };
     }
 
     let cancelled = false;
@@ -2095,7 +2106,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             <p className="text-sm text-gray-600 mb-4">
               Välj kategori per kanal. Listorna hämtas från CDON, Fyndiq respektive WooCommerce.
             </p>
-            {currentProduct?.id && categoryTabInstances.length > 0 && (
+            {categoryTabInstances.length > 0 && (
               <div className="space-y-3">
                 {categoryTabInstances.map((inst) => {
                     const isWoo = String(inst.channel).toLowerCase() === 'woocommerce';
@@ -2203,7 +2214,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                     {wooCats.map((id) => (
                                       <span
                                         key={id}
-                                        className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-xs"
+                                        className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-sm"
                                         onClick={(e) => e.stopPropagation()}
                                       >
                                         {list.find((x) => x.id === id)?.name ?? id}
@@ -2219,7 +2230,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                     ))}
                                   </span>
                                 ) : (
-                                  <span className="text-gray-500">Lägg till kategori</span>
+                                  <span className="text-gray-500">Välj kategori</span>
                                 )}
                               </CollapsibleTrigger>
                               <CollapsibleContent>
@@ -2281,7 +2292,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                 ) : (
                                   <ChevronRight className="w-4 h-4 shrink-0" />
                                 )}
-                                <span className="flex-1 min-w-0 truncate">
+                                <span className={`flex-1 min-w-0 truncate ${!cat ? 'text-gray-500' : ''}`}>
                                   {cat
                                     ? (() => {
                                         const item = list.find((x) => x.id === cat);
@@ -2345,9 +2356,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     );
                   })}
               </div>
-            )}
-            {(!currentProduct?.id || channelInstances.length === 0) && (
-              <p className="text-sm text-gray-500">Spara produkten först och koppla kanaler under fliken Kanaler för att välja kategorier.</p>
             )}
           </Card>
         )}

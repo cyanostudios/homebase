@@ -45,7 +45,12 @@ class OrdersModel {
       params.push(Math.max(Number(offset) || 0, 0));
       const offsetIdx = params.length;
 
-      const sql = `
+      const countSql = `
+        SELECT COUNT(*)::int AS total
+        FROM ${OrdersModel.ORDERS_TABLE}
+        WHERE ${clauses.join(' AND ')}
+      `;
+      const dataSql = `
         SELECT
           id,
           user_id,
@@ -70,8 +75,13 @@ class OrdersModel {
         LIMIT $${limitIdx}
         OFFSET $${offsetIdx}
       `;
-      const rows = await db.query(sql, params);
-      return rows.map((r) => this.transformOrderRow(r));
+      const [countRes, dataRes] = await Promise.all([
+        db.query(countSql, params.slice(0, params.length - 2)),
+        db.query(dataSql, params),
+      ]);
+      const total = (countRes[0]?.total ?? 0) || 0;
+      const items = dataRes.map((r) => this.transformOrderRow(r));
+      return { items, total };
     } catch (error) {
       Logger.error('Failed to list orders', error);
       if (error instanceof AppError) throw error;

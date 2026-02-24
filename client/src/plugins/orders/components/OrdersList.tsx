@@ -21,7 +21,7 @@ import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceAp
 import { channelsApi } from '@/plugins/channels/api/channelsApi';
 
 import { ordersApi } from '../api/ordersApi';
-import { CDON_CARRIERS, FYNDIQ_CARRIERS, WOOCOMMERCE_CARRIERS_SE } from '../constants/carriers';
+import { BATCH_CARRIERS } from '../constants/carriers';
 import { useOrders } from '../hooks/useOrders';
 import type { OrderDetails, OrderListItem, OrderStatus } from '../types/orders';
 import { statusDisplayLabel } from '../utils/statusDisplay';
@@ -65,7 +65,7 @@ function normalizeDetails(raw: any): OrderDetails {
 }
 
 export const OrdersList: React.FC = () => {
-  const { orders, filters, setFilters, reloadOrders } = useOrders();
+  const { orders, totalOrders, filters, setFilters, reloadOrders } = useOrders();
   const [search, setSearch] = useState('');
   const [importing, setImporting] = useState<{ channel: string | null }>({ channel: null });
   const [importResult, setImportResult] = useState<Array<{
@@ -263,7 +263,20 @@ export const OrdersList: React.FC = () => {
     const next: any = { ...filters };
     if (!value) delete next[key];
     else next[key] = value;
+    next.offset = 0; // Reset to first page when filters change
     setFilters(next);
+  };
+
+  const limit = filters.limit ?? 50;
+  const offset = filters.offset ?? 0;
+  const currentPage = limit > 0 ? Math.floor(offset / limit) + 1 : 1;
+  const totalPages = limit > 0 ? Math.ceil(totalOrders / limit) || 1 : 1;
+  const from = totalOrders === 0 ? 0 : offset + 1;
+  const to = Math.min(offset + limit, totalOrders);
+
+  const goToPage = (page: number) => {
+    const p = Math.max(1, Math.min(page, totalPages));
+    setFilters({ ...filters, offset: (p - 1) * limit });
   };
 
   const handleImportAll = async () => {
@@ -605,27 +618,11 @@ export const OrdersList: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
                 >
                   <option value="">—</option>
-                  <optgroup label="CDON">
-                    {CDON_CARRIERS.map((c) => (
-                      <option key={`cdon-${c}`} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Fyndiq">
-                    {FYNDIQ_CARRIERS.map((c) => (
-                      <option key={`fyndiq-${c}`} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="WooCommerce (Sverige)">
-                    {WOOCOMMERCE_CARRIERS_SE.map((c) => (
-                      <option key={`woo-${c}`} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </optgroup>
+                  {BATCH_CARRIERS.map(({ value, label }) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -664,6 +661,7 @@ export const OrdersList: React.FC = () => {
             {search ? 'No orders found matching your search.' : 'No orders yet. Import orders from channels to get started.'}
           </div>
         ) : (
+          <>
           <Table>
             <TableHeader>
               <TableRow>
@@ -713,10 +711,10 @@ export const OrdersList: React.FC = () => {
                           void toggleExpand(o);
                         }
                       }}
-                      className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50 ${isExpanded ? 'bg-muted/50' : ''} ${isSelected ? 'bg-muted/30' : ''} ${groupInfo ? 'bg-blue-50/40 dark:bg-blue-900/10' : ''}`}
+                      className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50 ${isExpanded ? 'bg-muted/50' : ''} ${isSelected ? 'bg-muted/30' : ''} ${groupInfo ? 'bg-emerald-50 dark:bg-emerald-950/40' : ''}`}
                     >
                       <TableCell
-                        className={`w-5 p-0 align-top ${groupInfo ? 'border-l-2 border-blue-500' : ''}`}
+                        className={`w-5 p-0 align-top ${groupInfo ? 'border-l-2 border-emerald-400' : ''}`}
                         aria-hidden
                       />
                       <TableCell className={`w-12 ${groupInfo ? 'pl-3' : ''}`} onClick={(e) => handleToggleSelect(id, e)}>
@@ -772,7 +770,7 @@ export const OrdersList: React.FC = () => {
                     {isExpanded && (
                       <TableRow>
                         {groupInfo ? (
-                          <TableCell className="w-5 p-0 border-l-2 border-blue-500 align-top" aria-hidden />
+                          <TableCell className="w-5 p-0 border-l-2 border-emerald-400 align-top" aria-hidden />
                         ) : null}
                         <TableCell
                           colSpan={groupInfo ? 7 : 8}
@@ -793,6 +791,59 @@ export const OrdersList: React.FC = () => {
               })}
             </TableBody>
           </Table>
+          {totalPages > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+              <span className="text-sm text-muted-foreground">
+                Visar {from}–{to} av {totalOrders} order
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => goToPage(currentPage - 1)}
+                  aria-label="Föregående sida"
+                >
+                  Föregående
+                </Button>
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let p: number;
+                  if (totalPages <= 5) {
+                    p = i + 1;
+                  } else if (currentPage <= 3) {
+                    p = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    p = totalPages - 4 + i;
+                  } else {
+                    p = currentPage - 2 + i;
+                  }
+                  return (
+                    <Button
+                      key={p}
+                      variant={p === currentPage ? 'default' : 'outline'}
+                      size="sm"
+                      className="min-w-[2rem]"
+                      onClick={() => goToPage(p)}
+                      aria-label={`Sida ${p}`}
+                      aria-current={p === currentPage ? 'page' : undefined}
+                    >
+                      {p}
+                    </Button>
+                  );
+                })}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => goToPage(currentPage + 1)}
+                  aria-label="Nästa sida"
+                >
+                  Nästa
+                </Button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </Card>
     </div>

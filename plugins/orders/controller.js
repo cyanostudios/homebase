@@ -317,8 +317,8 @@ class OrdersController {
       const limit = req.query?.limit != null ? Number(req.query.limit) : undefined;
       const offset = req.query?.offset != null ? Number(req.query.offset) : undefined;
 
-      const items = await this.model.list(req, { status, channel, from, to, limit, offset });
-      return res.json(items);
+      const { items, total } = await this.model.list(req, { status, channel, from, to, limit, offset });
+      return res.json({ items, total });
     } catch (error) {
       Logger.error('Orders list error', error, { userId: Context.getUserId(req) });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());

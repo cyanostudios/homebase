@@ -115,3 +115,22 @@ export function getCarriersForChannel(channel: OrderChannel | string): string[] 
   if (c === 'woocommerce') return WOOCOMMERCE_CARRIERS_SE;
   return [];
 }
+
+const CDON_SET = new Set(CDON_CARRIERS);
+const FYNDIQ_SET = new Set(FYNDIQ_CARRIERS);
+
+/** Carriers that exist in both CDON and Fyndiq (same API string). */
+const COMMON_CARRIERS = CDON_CARRIERS.filter((c) => FYNDIQ_SET.has(c)).sort((a, b) => a.localeCompare(b));
+
+/** Carriers only in Fyndiq; in batch we show them as "Name (Fyndiq)". */
+const FYNDIQ_ONLY_CARRIERS = FYNDIQ_CARRIERS.filter((c) => !CDON_SET.has(c)).sort((a, b) => a.localeCompare(b));
+
+/**
+ * Single merged list for batch update: common carriers once, Fyndiq-only with "(Fyndiq)" suffix.
+ * WooCommerce uses the same list (no separate API requirements).
+ * Each item: { value } is the API string to send; label is for display.
+ */
+export const BATCH_CARRIERS: Array<{ value: string; label: string }> = [
+  ...COMMON_CARRIERS.map((value) => ({ value, label: value })),
+  ...FYNDIQ_ONLY_CARRIERS.map((value) => ({ value, label: `${value} (Fyndiq)` })),
+];

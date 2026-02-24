@@ -460,12 +460,12 @@ export function ProductProvider({
       const hasGlobalPrice = Number.isFinite(globalPrice) && globalPrice > 0;
       for (const t of channelTargets) {
         if (t.channelInstanceId == null) continue;
-        const ov = channelOverridesToSave.find((o) => o.channelInstanceId === t.channelInstanceId);
+        const ov = channelOverridesToSave.find((o) => String(o.channelInstanceId) === String(t.channelInstanceId));
         const instancePriceOverride = ov?.priceAmount;
         const hasInstancePriceOverride = instancePriceOverride != null && Number.isFinite(Number(instancePriceOverride)) && Number(instancePriceOverride) > 0;
         let hasEffectivePrice = hasGlobalPrice || hasInstancePriceOverride;
         if (!hasEffectivePrice && markets && channelTargetsWithMarket.length > 0) {
-          const withMarket = channelTargetsWithMarket.find((m) => m.channelInstanceId === t.channelInstanceId);
+          const withMarket = channelTargetsWithMarket.find((m) => String(m.channelInstanceId) === String(t.channelInstanceId));
           if (withMarket?.market) {
             const marketAmount = markets[withMarket.market]?.amount;
             hasEffectivePrice = marketAmount != null && Number.isFinite(Number(marketAmount)) && Number(marketAmount) > 0;
