@@ -8,6 +8,7 @@ import {
   Mail,
   ShoppingCart,
   Package,
+  Truck,
   Store,
   LucideIcon,
 } from 'lucide-react';
@@ -136,6 +137,11 @@ import { OrdersList } from '@/plugins/orders/components/OrdersList';
 import { OrdersView } from '@/plugins/orders/components/OrdersView';
 import { OrdersProvider } from '@/plugins/orders/context/OrdersContext';
 import { useOrders } from '@/plugins/orders/hooks/useOrders';
+// Shipping
+import { ShippingList } from '@/plugins/shipping/components/ShippingList';
+import { ShippingSettingsForm } from '@/plugins/shipping/components/ShippingSettingsForm';
+import { ShippingProvider } from '@/plugins/shipping/context/ShippingContext';
+import { useShipping } from '@/plugins/shipping/hooks/useShipping';
 // Mail
 import { MailList } from '@/plugins/mail/components/MailList';
 import { MailSettingsForm } from '@/plugins/mail/components/MailSettingsForm';
@@ -384,6 +390,22 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       label: 'Orders',
       icon: ShoppingCart,
       order: 0,
+    },
+  },
+  {
+    name: 'shipping',
+    Provider: ShippingProvider,
+    hook: useShipping,
+    panelKey: 'isShippingPanelOpen',
+    components: {
+      List: ShippingList,
+      Form: ShippingSettingsForm,
+    },
+    navigation: {
+      category: 'E-Commerce',
+      label: 'Frakt',
+      icon: Truck,
+      order: 3,
     },
   },
 ];

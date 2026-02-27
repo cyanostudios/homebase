@@ -26,6 +26,7 @@ import { useOrders } from '../hooks/useOrders';
 import type { OrderDetails, OrderListItem, OrderStatus } from '../types/orders';
 import { statusDisplayLabel } from '../utils/statusDisplay';
 import { OrderDetailInline } from './OrderDetailInline';
+import { useShipping } from '@/plugins/shipping/hooks/useShipping';
 
 function fmtDate(d: any) {
   if (!d) return '';
@@ -66,6 +67,7 @@ function normalizeDetails(raw: any): OrderDetails {
 
 export const OrdersList: React.FC = () => {
   const { orders, totalOrders, filters, setFilters, reloadOrders } = useOrders();
+  const { openBookModal } = useShipping();
   const [search, setSearch] = useState('');
   const [importing, setImporting] = useState<{ channel: string | null }>({ channel: null });
   const [importResult, setImportResult] = useState<Array<{
@@ -207,6 +209,26 @@ export const OrdersList: React.FC = () => {
       setDetailLoading(null);
     }
   }, [detailCache]);
+
+  React.useEffect(() => {
+    const onBooked = async (event: Event) => {
+      const customEvent = event as CustomEvent<{ updatedOrderIds?: string[] }>;
+      const updatedIds = Array.isArray(customEvent.detail?.updatedOrderIds)
+        ? customEvent.detail.updatedOrderIds.map(String)
+        : [];
+      await reloadOrders();
+      if (expandedId && updatedIds.includes(String(expandedId))) {
+        setDetailCache((prev) => {
+          const next = { ...prev };
+          delete next[String(expandedId)];
+          return next;
+        });
+        await fetchDetail(String(expandedId));
+      }
+    };
+    window.addEventListener('shipping:booked', onBooked as EventListener);
+    return () => window.removeEventListener('shipping:booked', onBooked as EventListener);
+  }, [expandedId, fetchDetail, reloadOrders]);
 
   const toggleExpand = useCallback(
     async (o: OrderListItem) => {
@@ -448,6 +470,13 @@ export const OrdersList: React.FC = () => {
     <div className="flex items-center gap-2 flex-wrap">
       {selectedIds.size > 0 && (
         <>
+          <Button
+            onClick={() => openBookModal(Array.from(selectedIds))}
+            variant="outline"
+            size="sm"
+          >
+            Boka frakt
+          </Button>
           <Button
             onClick={handleExportPlocklista}
             disabled={exportingPlocklista}

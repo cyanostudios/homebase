@@ -2,6 +2,71 @@ Overview
 Security in Homebase is enforced through layered defense. Each layer has specific responsibilities, and plugins inherit security by default when using core services correctly.
 Security Principle: Secure by default, insecure by exception.
 
+Production Launch Baseline (MUST before release)
+This section is the go-live baseline. If any MUST item is not complete, launch should be blocked.
+
+1) CSRF protection must be active end-to-end
+- CSRF middleware must be enabled in runtime (no debug no-op fallback).
+- All state-changing routes (POST/PUT/PATCH/DELETE) must enforce CSRF.
+- Frontend must fetch and send CSRF token for all mutations.
+- Acceptance: external cross-site form POST cannot mutate data.
+
+2) Session and secret hardening
+- SESSION_SECRET must be provided by environment in production (no insecure default fallback).
+- Cookies must be httpOnly + secure + sameSite, and HTTPS-only in production.
+- Rotate all production secrets before launch (session, API keys, SMTP, storage, webhook).
+- Acceptance: app refuses startup or health turns failed when required secrets are missing.
+
+3) Encryption in transit and at rest
+- HTTPS/TLS required for all client traffic.
+- TLS required for database and external providers.
+- At-rest encryption required for database, object storage, and backups.
+- For highly sensitive credentials, use application-level encryption (envelope/KMS pattern preferred).
+
+4) Sensitive data handling and log redaction
+- Never log credentials, tokens, API keys, session identifiers, or raw secrets.
+- SQL logging must redact or disable parameter values in production.
+- Error responses must not expose stack traces or internal schema details in production.
+- Acceptance: security log review shows masked values only.
+
+5) Admin and privileged endpoint hardening
+- Do not expose tenant/database connection strings or infrastructure secrets in API responses.
+- Superuser/admin actions must be auditable with actor identity and timestamp.
+- Add step-up controls for privileged actions (MFA strongly recommended for admin accounts).
+
+6) File upload hardening
+- Enforce allowlist, size limits, path sanitization, and traversal prevention.
+- Validate by file signature (magic bytes), not MIME header only.
+- Block executable and script-like payloads; optional AV scanning is recommended in production.
+- Serve downloads with safe headers and strict access checks.
+
+7) Rate limiting and abuse protection
+- Global and endpoint-specific rate limiting must be active.
+- Use a shared store (for example Redis) for multi-instance deployments.
+- Protect login, webhook, upload, and email endpoints with stricter limits.
+- Add alerting for brute force, abuse bursts, and repeated authorization failures.
+
+8) Verification before go-live
+- Run dependency and static scans (`npm audit`, SAST, lint, secret scan).
+- Run manual abuse tests (CSRF, IDOR, upload, auth bypass, rate-limit bypass).
+- Execute restore drill for backups and document incident runbook.
+
+Current Security Gap Tracker (required for release sign-off)
+Use this checklist to track "as-is" versus "target". Status values: Open / In Progress / Done / N-A.
+
+- [ ] CSRF enabled in runtime and enforced on all state-changing routes
+- [ ] No temporary security bypass comments remain in active routes
+- [ ] Production secrets required (no insecure fallback defaults)
+- [ ] Log redaction in place (no secret/PII/token leakage)
+- [ ] No stack traces/internal details exposed to clients in production
+- [ ] No admin endpoint returns connection strings or secrets
+- [ ] Credentials at rest encrypted or protected by managed secret mechanism
+- [ ] File upload validated by magic bytes + strict allowlist/limits
+- [ ] Shared/distributed rate limiting configured for production topology
+- [ ] Webhook endpoints protected by secret + strict rate limits (+ allowlist where possible)
+- [ ] Backup + restore drill completed and documented
+- [ ] Incident response playbook reviewed and tested
+
 Security Layers
 Layer 1: Network & Request (Middleware)
 Responsibilities:

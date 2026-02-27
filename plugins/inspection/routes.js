@@ -101,6 +101,9 @@ function createInspectionRoutes(context) {
       body('fileIds').optional().isArray(),
       body('listIds').optional().isArray(),
       body('contactListIds').optional().isArray(),
+      commonRules.optionalString('name', 255),
+      commonRules.optionalString('description', 10000),
+      commonRules.optionalString('adminNotes', 10000),
     ],
     validateRequest,
     (req, res) => controller.send(req, res)

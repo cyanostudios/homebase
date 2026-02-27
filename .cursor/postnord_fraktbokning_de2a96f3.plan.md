@@ -7,6 +7,14 @@ isProject: false
 
 # Plan: Boka frakt hos Postnord för order
 
+## Beslut nu (prioritet)
+
+- Vi kör **Customer Plan** nu för att få igång din egen e-handel så snabbt som möjligt.
+- **Partner Plan** hanteras som framtida utbyggnad för multi-tenant och fler företag.
+- Nuvarande implementation ska därför optimeras för single-tenant-flöde, men utan att låsa bort framtida partnerstöd.
+
+---
+
 ## Rekommendation: separat frakt-plugin
 
 **Ja – det är bäst att bygga ett separat frakt-plugin** av följande skäl:
@@ -82,10 +90,11 @@ sequenceDiagram
 
 ---
 
-## 2. Postnord Booking API
+## 2. Postnord Booking API (Customer Plan först)
 
 - Postnord har en **Booking API** för att skapa försändelser och hämta etiketter (ZPL/PDF). Kräver B2B-avtal och API-uppgifter (se t.ex. [PostNord Boknings-API](https://portal.postnord.com/se/sv/resurser/integrationer/api/boknings-api)).
-- I planen: anta att du har (eller skaffar) API-nyckel/integration; plugin lagrar dessa i shipping-inställningar och controller använder dem vid `bookPostnord`. Exakt endpoint och payload följer Postnords aktuella dokumentation (create order, get label).
+- I denna fas utgår vi från att du redan har **Customer Plan** och konfigurerar credentials i shipping-inställningar för din egen butik. Controller använder dem vid `bookPostnord`.
+- Exakt endpoint och payload följer Postnords aktuella dokumentation (create order, get label), utan fallback-gissningar.
 - Tjänster som "Varubrev 1a klass" mappas till Postnords serviceId/code; antingen statisk lista (SE) eller hämtning från API om tillgängligt.
 
 ---
@@ -109,7 +118,8 @@ sequenceDiagram
 
 ## 5. Öppna frågor
 
-- **Postnord-avtal**: Har du (eller ska du skaffa) tillgång till Postnord Booking API (B2B)? Utan det kan endast UI och mock-flöde byggas tills credentials finns.
+- **Postnord-avtal**: Bekräftat för nuvarande spår: Customer Plan för egen e-handel.
+- **Partner-spår senare**: Vid framtida multi-tenant, verifiera partnerkrav och credential-modell per tenant innan utrullning till flera företag.
 - **Vikt per order**: Orders har idag ingen explicit "vikt"-kolumn; vikt kan sättas som standard (t.ex. 0,5 kg) eller beräknas från orderrader om du senare lägger till vikt per rad. Tabellen i modalen kan visa "Vikt" med ett redigerbart fält per order om du vill.
 - **"Visa tidigare filer"**: Om du vill ha historik över skapade etiketter behöver frakt-plugin spara skapade försändelser (t.ex. datum, orderIds, fil-URL eller fil-id) och en enkel lista/sida för att ladda ner tidigare etiketter; kan tas som steg 2 efter första versionen.
 

@@ -59,6 +59,27 @@ function formatAddress(addr: any): string[] {
   return parts;
 }
 
+function normalizeRaw(raw: unknown): Record<string, any> | null {
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw as Record<string, any>;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function toHref(value: unknown, mime: 'application/pdf' | 'text/plain'): string | null {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const v = value.trim();
+  if (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('data:')) return v;
+  return `data:${mime};base64,${v}`;
+}
+
 const STATUS_OPTIONS: OrderStatus[] = ['processing', 'delivered', 'cancelled'];
 
 export interface OrderDetailInlineProps {
@@ -100,6 +121,10 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
 
   const lines = customerLines(order.customer as Record<string, unknown>);
   const hasCustomer = lines.length > 0;
+  const raw = normalizeRaw(order.raw);
+  const labels = raw?.shipping_labels || null;
+  const pdfHref = toHref(labels?.pdf, 'application/pdf');
+  const zplHref = toHref(labels?.zpl, 'text/plain');
 
   return (
     <div className="p-4 sm:p-6 space-y-4 bg-gray-50 border-t border-gray-200">
@@ -253,6 +278,30 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
               <div className="text-sm text-gray-800">
                 <span className="text-gray-500">Tracking:</span> {order.shippingTrackingNumber || '—'}
               </div>
+              {(pdfHref || zplHref) && (
+                <div className="pt-2 flex flex-wrap gap-2">
+                  {pdfHref && (
+                    <a
+                      href={pdfHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 text-xs"
+                    >
+                      Ladda ner PDF
+                    </a>
+                  )}
+                  {zplHref && (
+                    <a
+                      href={zplHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 text-xs"
+                    >
+                      Ladda ner ZPL
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

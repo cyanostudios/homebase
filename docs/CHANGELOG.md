@@ -73,7 +73,38 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
   - `trySetRunning`: kan nu ta över en slot när `running_since` är NULL eller äldre än 15 minuter.
   - Fil: [plugins/orders/orderSyncState.js](plugins/orders/orderSyncState.js).
 
+### PostNord Shipping
+
+- **Nytt plugin för PostNord-fraktbokning**
+  - Plugin i E-handel-sektionen. Inställningar: kundnummer, avsändare, standardvikt (0,15 kg för produkter utan vikt), etikettformat (Både/PDF/ZPL).
+  - Fraktbokning via PostNord API (Customer Plan). Modal visar tidigare valda tjänster och aktuellt etikettformat.
+  - Efter bokning: nedladdningsknappar för PDF- och ZPL-etiketter i expanderad ordervy. Orderlistan uppdateras vid `shipping:booked`-event.
+  - Migrering 053-shipping-postnord.sql. API-dokumentation: docs/POSTNORD_API_DOCUMENTATION_RAW_SWAGGER.md.
+  - Filer: plugins/shipping/, client/src/plugins/shipping/.
+
+### Dokumentation – säkerhet och refaktorering
+
+- **SECURITY_GUIDELINES**
+  - Ny sektion "Production Launch Baseline (MUST before release)" med 8 kritiska krav.
+  - Checklista "Current Security Gap Tracker" för release sign-off.
+  - Fil: [docs/SECURITY_GUIDELINES.md](docs/SECURITY_GUIDELINES.md).
+- **REFACTORING_EXISTING_PLUGINS**
+  - Uppdaterad till @homebase/core-mönster (Database.get(req), Logger, Context.getUserId(req)) för 3.1.
+  - Fil: [docs/REFACTORING_EXISTING_PLUGINS.md](docs/REFACTORING_EXISTING_PLUGINS.md).
+
+### Plocklista PDF
+
+- **Marginaler och tabellstil**
+  - Sidmarginaler 10mm. Uppdaterad tabellstil och avgränsningslinje.
+  - Fil: [plugins/orders/plocklistaPdfTemplate.js](plugins/orders/plocklistaPdfTemplate.js), [plugins/orders/controller.js](plugins/orders/controller.js).
+
 ### Session-stabilitet och städning
+
+- **Dev session-stabilitet (localhost)**
+  - Vite-proxy slutade skriva om `Set-Cookie` manuellt; cookie-hantering sker nu standardmässigt via proxy för att minska sessionsplit/race i dev.
+  - CORS i servern begränsad till `localhost`-origins i dev (inte `127.0.0.1`) för konsekvent cookie-domän.
+  - `checkAuth` i AppContext har kort retry vid första `401` på `/api/auth/me` innan auth-state nollställs.
+  - Verifierat i loggtest (snabba reloads): samma `sid`, `hasUser: true` och återkommande `GET /api/auth/me` med `200 OK`.
 
 - **checkAuth guard**
   - AppContext använder `isCheckingAuth` ref så att endast ett checkAuth-anrop körs åt gången. Undviker race där parallella anrop kan få olika svar (t.ex. 200 vs 401) och skriva över auth-state.

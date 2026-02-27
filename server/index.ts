@@ -73,11 +73,11 @@ app.use(
   }),
 );
 app.use(compression());
-// In development allow common dev origins so session cookie is sent (Vite may use 3001 or 5173)
+// In development we only allow localhost origins to avoid cookie/session split across hosts.
 const corsOrigin =
   process.env.NODE_ENV === 'production'
     ? false
-    : ['http://localhost:3001', 'http://localhost:5173', 'http://localhost:3002', 'http://127.0.0.1:3001', 'http://127.0.0.1:5173', 'http://127.0.0.1:3002'];
+    : ['http://localhost:3001', 'http://localhost:5173', 'http://localhost:3002'];
 app.use(
   cors({
     origin: corsOrigin,

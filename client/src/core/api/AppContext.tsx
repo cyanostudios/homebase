@@ -290,6 +290,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ message }),
       }).catch(() => { });
     };
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     try {
       debugLog('CHECK_AUTH: Calling getMe...');
       const response = await api.getMe();
@@ -299,9 +300,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(true);
     } catch (err: any) {
       debugLog(`CHECK_AUTH: getMe failed status: ${err?.status ?? '—'} message: ${err?.message ?? '—'} code: ${err?.code ?? '—'}`);
-      setUser(null);
-      setCurrentTenantUserId(null);
-      setIsAuthenticated(false);
+      const status = Number(err?.status || 0);
+
+      // Best-effort resilience: a short retry helps with transient cookie/proxy races on startup.
+      if (status === 401) {
+        try {
+          await sleep(250);
+          debugLog('CHECK_AUTH: Retrying getMe after 401...');
+          const retryResponse = await api.getMe();
+          debugLog(`CHECK_AUTH: retry OK userId: ${retryResponse?.user?.id ?? '—'}`);
+          setUser(retryResponse.user);
+          setCurrentTenantUserId(retryResponse.currentTenantUserId ?? retryResponse.user?.id ?? null);
+          setIsAuthenticated(true);
+          return;
+        } catch (retryErr: any) {
+          debugLog(`CHECK_AUTH: retry failed status: ${retryErr?.status ?? '—'} message: ${retryErr?.message ?? '—'}`);
+        }
+      }
+
+      // Only clear auth state when we are certain it's an authentication failure.
+      if (status === 401 || status === 403) {
+        setUser(null);
+        setCurrentTenantUserId(null);
+        setIsAuthenticated(false);
+      }
     } finally {
       setIsLoading(false);
       isCheckingAuth.current = false;

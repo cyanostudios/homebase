@@ -4,6 +4,8 @@ This guide covers migrating existing plugins (contacts, notes, tasks, estimates)
 
 **Goal**: Modernize plugins to use abstraction layers and security best practices.
 
+**3.1 approach**: Use `@homebase/core` – `Database.get(req)`, `Logger`, `Context.getUserId(req)`. Model methods receive `req` for tenant-isolated DB access. Storage, email, queue, PDF are app-specific services (injected or provided via app).
+
 ## Migration Strategy
 
 ### Analyze Current State
@@ -108,19 +110,20 @@ return db.query(query, [userId]);
 }
 
 // AFTER
-const ServiceManager = require('../../server/core/ServiceManager');
-const database = ServiceManager.get('database');
-const logger = ServiceManager.get('logger');
+const { Database, Logger } = require('@homebase/core');
 
 class ContactsModel {
-async getByUser(userId) {
-try {
-// Tenant isolation automatic - no need to pass userId
-return await database.query('SELECT \* FROM contacts', []);
-} catch (error) {
-logger.error('Failed to fetch contacts', error, { userId });
-throw new AppError('Failed to fetch contacts', 500, 'DATABASE_ERROR');
-}
+  async getByUser(req) {
+    try {
+      const db = Database.get(req);
+      // Tenant isolation via req – core sets search_path
+      const { rows } = await db.query('SELECT * FROM contacts WHERE user_id = $1', [req.session?.user?.id]);
+      return rows;
+    } catch (error) {
+      Logger.error('Failed to fetch contacts', error, { userId: req.session?.user?.id });
+      throw new AppError('Failed to fetch contacts', 500, 'DATABASE_ERROR');
+    }
+  }
 }
 } 2. Controller Layer:
 // BEFORE
@@ -131,27 +134,25 @@ res.status(204).send();
 }
 
 // AFTER
+const { Database, Logger, Context } = require('@homebase/core');
+
 async deleteContact(req, res) {
-const { id } = req.params;
-const userId = req.session.user.id;
+  const { id } = req.params;
+  const userId = Context.getUserId(req);
 
-// Verify ownership
-const contact = await database.query(
-'SELECT \* FROM contacts WHERE id = ?',
-[id]
-);
+  const db = Database.get(req);
+  const { rows } = await db.query('SELECT * FROM contacts WHERE id = $1 AND user_id = $2', [id, userId]);
+  const contact = rows[0];
 
-if (!contact) {
-throw new AppError('Contact not found', 404, 'NOT_FOUND');
-}
+  if (!contact) {
+    throw new AppError('Contact not found', 404, 'NOT_FOUND');
+  }
 
-// Delete
-await contactsModel.delete(id);
+  await contactsModel.delete(req, id);
 
-// Audit log
-logger.info('Contact deleted', { contactId: id, userId });
+  Logger.info('Contact deleted', { contactId: id, userId });
 
-res.status(204).send();
+  res.status(204).send();
 } 3. Routes Layer:
 // BEFORE
 router.delete('/:id', controller.deleteContact);
@@ -170,42 +171,35 @@ controller.deleteContact
 const fs = require('fs');
 
 async uploadPhoto(req, res) {
-const path = `./uploads/contacts/${req.params.id}.jpg`;
-fs.writeFileSync(path, req.file.buffer);
-// ❌ File lost on container restart
+  const path = `./uploads/contacts/${req.params.id}.jpg`;
+  fs.writeFileSync(path, req.file.buffer);
+  // ❌ File lost on container restart
 }
 
-// AFTER
-const storage = ServiceManager.get('storage');
+// AFTER – use @homebase/core for DB/Logger; storage is app-specific
+const { Database, Logger, Context } = require('@homebase/core');
+// const storage = getStorage(req);  // app-specific (S3, R2, local Multer, etc.)
 
 async uploadPhoto(req, res) {
-const { id } = req.params;
+  const { id } = req.params;
+  const db = Database.get(req);
+  const userId = Context.getUserId(req);
 
-// Verify ownership
-const contact = await database.query(
-'SELECT \* FROM contacts WHERE id = ?',
-[id]
-);
+  const { rows } = await db.query('SELECT * FROM contacts WHERE id = $1 AND user_id = $2', [id, userId]);
+  if (!rows[0]) {
+    throw new AppError('Contact not found', 404);
+  }
 
-if (!contact) {
-throw new AppError('Contact not found', 404);
-}
+  // Upload to app-provided storage (cloud or local)
+  const photoURL = await storage.upload(req.file.buffer, `contacts/${id}/photo.jpg`, {
+    allowedTypes: ['image/jpeg', 'image/png'],
+    maxSize: 5 * 1024 * 1024,
+    public: true
+  });
 
-// Upload to cloud storage
-const photoURL = await storage.upload(
-req.file.buffer,
-`contacts/${id}/photo.jpg`,
-{
-allowedTypes: ['image/jpeg', 'image/png'],
-maxSize: 5 _ 1024 _ 1024,
-public: true
-}
-);
+  await db.query('UPDATE contacts SET photo_url = $1 WHERE id = $2 AND user_id = $3', [photoURL, id, userId]);
 
-// Update contact with photo URL
-await database.update('contacts', id, { photoURL });
-
-res.json({ photoURL });
+  res.json({ photoURL });
 }
 
 Notes Plugin
@@ -218,17 +212,18 @@ Refactoring Steps (Completed):
    // ❌ Stores raw HTML - XSS vulnerability
    }
 
-// AFTER
+// AFTER – sanitize first; use Database.get(req) for insert
 const sanitizeHTML = require('sanitize-html');
+const { Database } = require('@homebase/core');
 
-async createNote(noteData) {
-// Sanitize content
-noteData.content = sanitizeHTML(noteData.content, {
-allowedTags: ['b', 'i', 'em', 'strong', 'a', 'p', 'br'],
-allowedAttributes: { 'a': ['href'] }
-});
-
-return database.insert('notes', noteData);
+async createNote(req, noteData) {
+  noteData.content = sanitizeHTML(noteData.content, {
+    allowedTags: ['b', 'i', 'em', 'strong', 'a', 'p', 'br'],
+    allowedAttributes: { 'a': ['href'] }
+  });
+  const db = Database.get(req);
+  const { rows } = await db.query('INSERT INTO notes (user_id, content) VALUES ($1, $2) RETURNING *', [req.session?.user?.id, noteData.content]);
+  return rows[0];
 } 2. @Mention Validation:
 // BEFORE
 async createNote(noteData) {
@@ -239,38 +234,37 @@ mentions: noteData.mentions // Blindly trust client
 });
 }
 
-// AFTER
-async createNote(noteData) {
-// Validate mentions exist and belong to user
-if (noteData.mentions && noteData.mentions.length > 0) {
-const contactIds = noteData.mentions.map(m => m.contactId);
+// AFTER – model method receives req for Database.get(req)
+const { Database, Logger } = require('@homebase/core');
 
-    const validContacts = await database.query(
-      `SELECT id FROM contacts WHERE id IN (${contactIds.map(() => '?').join(',')})`,
-      contactIds
-    );
+async createNote(req, noteData) {
+  const db = Database.get(req);
+  if (noteData.mentions && noteData.mentions.length > 0) {
+    const contactIds = noteData.mentions.map(m => m.contactId);
+    const { rows } = await db.query('SELECT id FROM contacts WHERE id = ANY($1::int[]) AND user_id = $2', [contactIds, req.session?.user?.id]);
 
-    if (validContacts.length !== contactIds.length) {
+    if (rows.length !== contactIds.length) {
       throw new AppError('Invalid contact references', 400);
     }
+  }
 
-}
-
-return database.insert('notes', noteData);
+  const { rows } = await db.query('INSERT INTO notes (user_id, content, ...) VALUES ($1, $2, ...) RETURNING *', [req.session?.user?.id, noteData.content]);
+  return rows[0];
 } 3. Audit Logging:
-// AFTER - Add to sensitive note operations
-async createNote(noteData) {
-const note = await database.insert('notes', noteData);
+// AFTER – add to sensitive note operations; use Logger from @homebase/core
+async createNote(req, noteData) {
+  const db = Database.get(req);
+  const { rows } = await db.query('INSERT INTO notes (user_id, content) VALUES ($1, $2) RETURNING *', [req.session?.user?.id, noteData.content]);
+  const note = rows[0];
 
-// Audit log
-logger.info('Note created', {
-noteId: note.id,
-userId: noteData.userId,
-hasMentions: noteData.mentions?.length > 0,
-contentLength: noteData.content.length
-});
+  Logger.info('Note created', {
+    noteId: note.id,
+    userId: req.session?.user?.id,
+    hasMentions: noteData.mentions?.length > 0,
+    contentLength: noteData.content.length
+  });
 
-return note;
+  return note;
 }
 
 Tasks Plugin
@@ -283,40 +277,28 @@ Refactoring Steps (Completed):
    // ❌ No check if contact exists or belongs to user
    }
 
-// AFTER
-async assignTask(taskId, contactId) {
-// Verify task ownership
-const task = await database.query(
-'SELECT \* FROM tasks WHERE id = ?',
-[taskId]
-);
+// AFTER – use @homebase/core for DB/Logger; email is app-specific
+const { Database, Logger } = require('@homebase/core');
+// const emailService = getEmailService(req);  // app-specific
 
-if (!task) {
-throw new AppError('Task not found', 404);
-}
+async assignTask(req, taskId, contactId) {
+  const db = Database.get(req);
+  const userId = req.session?.user?.id;
 
-// Verify contact exists and belongs to user
-const contact = await database.query(
-'SELECT \* FROM contacts WHERE id = ?',
-[contactId]
-);
+  const { rows: taskRows } = await db.query('SELECT * FROM tasks WHERE id = $1 AND user_id = $2', [taskId, userId]);
+  if (!taskRows[0]) throw new AppError('Task not found', 404);
 
-if (!contact) {
-throw new AppError('Contact not found', 404);
-}
+  const { rows: contactRows } = await db.query('SELECT * FROM contacts WHERE id = $1 AND user_id = $2', [contactId, userId]);
+  if (!contactRows[0]) throw new AppError('Contact not found', 404);
 
-// Update assignment
-await database.update('tasks', taskId, { assigned_to: contactId });
+  await db.query('UPDATE tasks SET assigned_to = $1 WHERE id = $2 AND user_id = $3', [contactId, taskId, userId]);
 
-// Send notification
-const email = ServiceManager.get('email');
-await email.send({
-to: contact.email,
-subject: 'New Task Assigned',
-html: taskAssignmentTemplate(task, contact)
-});
+  // Send notification (app-specific email service)
+  if (emailService) {
+    await emailService.send({ to: contactRows[0].email, subject: 'New Task Assigned', html: taskAssignmentTemplate(taskRows[0], contactRows[0]) });
+  }
 
-return task;
+  return taskRows[0];
 } 2. Date Validation:
 // BEFORE
 router.post('/', [
@@ -334,27 +316,25 @@ body('status').isIn(['not started', 'in progress', 'done', 'canceled']),
 body('assigned_to').optional().isInt(),
 validateRequest
 ], controller.createTask); 3. Bulk Operations:
-// NEW - Queue bulk task assignments
-const queue = ServiceManager.get('queue');
+// NEW – queue bulk task assignments; queue is app-specific
+// const queue = getQueue(req);  // app-specific (Bull, BullMQ, etc.)
 
-async assignTasksToMultiple(taskId, contactIds) {
-// Queue background job
-const jobId = await queue.add('bulk-task-assignment', {
-taskId,
-contactIds,
-userId: req.session.user.id
-});
-
-return { jobId, status: 'queued' };
+async assignTasksToMultiple(req, taskId, contactIds) {
+  const jobId = await queue.add('bulk-task-assignment', {
+    taskId,
+    contactIds,
+    userId: req.session?.user?.id
+  });
+  return { jobId, status: 'queued' };
 }
 
-// Process in background
+// Process in background (app-specific)
 queue.process('bulk-task-assignment', async (job) => {
-const { taskId, contactIds } = job.data;
-
-for (const contactId of contactIds) {
-await assignTask(taskId, contactId);
-}
+  const { taskId, contactIds } = job.data;
+  const req = job.data.req;  // pass req or reconstruct for Database.get(req)
+  for (const contactId of contactIds) {
+    await assignTask(req, taskId, contactId);
+  }
 });
 
 Estimates Plugin
@@ -367,112 +347,69 @@ Refactoring Steps (Completed):
    // ❌ Line items stored as JSON without validation
    }
 
-// AFTER
-async createEstimate(estimateData) {
-// Validate line items
-if (!estimateData.line_items || !Array.isArray(estimateData.line_items)) {
-throw new AppError('Line items required', 400);
-}
+// AFTER – use Database.get(req); model method receives req
+const { Database } = require('@homebase/core');
 
-estimateData.line_items.forEach((item, index) => {
-if (!item.description || !item.quantity || !item.price) {
-throw new AppError(`Invalid line item at position ${index}`, 400);
-}
+async createEstimate(req, estimateData) {
+  if (!estimateData.line_items || !Array.isArray(estimateData.line_items)) {
+    throw new AppError('Line items required', 400);
+  }
 
+  estimateData.line_items.forEach((item, index) => {
+    if (!item.description || !item.quantity || !item.price) {
+      throw new AppError(`Invalid line item at position ${index}`, 400);
+    }
     if (item.quantity <= 0 || item.price < 0) {
       throw new AppError(`Invalid values in line item ${index}`, 400);
     }
+  });
 
-});
+  estimateData.total = estimateData.line_items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
 
-// Calculate total
-estimateData.total = estimateData.line_items.reduce(
-(sum, item) => sum + (item.quantity \* item.price),
-0
-);
-
-return database.insert('estimates', estimateData);
+  const db = Database.get(req);
+  const { rows } = await db.query('INSERT INTO estimates (user_id, line_items, total, ...) VALUES ($1, $2, $3, ...) RETURNING *', [req.session?.user?.id, JSON.stringify(estimateData.line_items), estimateData.total]);
+  return rows[0];
 } 2. PDF Generation:
-// NEW - Generate PDF estimate
-const pdfService = ServiceManager.get('pdf');
-const storage = ServiceManager.get('storage');
+// NEW – use @homebase/core for DB; pdf/storage are app-specific
+const { Database, Logger } = require('@homebase/core');
+// const pdfService = getPdfService(req);
+// const storage = getStorage(req);
 
-async generateEstimatePDF(estimateId) {
-const estimate = await database.query(
-'SELECT \* FROM estimates WHERE id = ?',
-[estimateId]
-);
+async generateEstimatePDF(req, estimateId) {
+  const db = Database.get(req);
+  const userId = req.session?.user?.id;
 
-if (!estimate) {
-throw new AppError('Estimate not found', 404);
-}
+  const { rows: estRows } = await db.query('SELECT * FROM estimates WHERE id = $1 AND user_id = $2', [estimateId, userId]);
+  if (!estRows[0]) throw new AppError('Estimate not found', 404);
 
-// Get contact details
-const contact = await database.query(
-'SELECT \* FROM contacts WHERE id = ?',
-[estimate.contact_id]
-);
+  const { rows: contactRows } = await db.query('SELECT * FROM contacts WHERE id = $1 AND user_id = $2', [estRows[0].contact_id, userId]);
 
-// Generate PDF
-const pdfBuffer = await pdfService.generate('estimate-template', {
-estimate,
-contact,
-lineItems: estimate.line_items
-});
+  const pdfBuffer = await pdfService.generate('estimate-template', { estimate: estRows[0], contact: contactRows[0], lineItems: estRows[0].line_items });
+  const pdfURL = await storage.upload(pdfBuffer, `estimates/${estimateId}/estimate.pdf`, { contentType: 'application/pdf', public: false });
 
-// Upload to storage
-const pdfURL = await storage.upload(
-pdfBuffer,
-`estimates/${estimateId}/estimate.pdf`,
-{
-contentType: 'application/pdf',
-public: false
-}
-);
-
-// Update estimate with PDF URL
-await database.update('estimates', estimateId, { pdf_url: pdfURL });
-
-return pdfURL;
+  await db.query('UPDATE estimates SET pdf_url = $1 WHERE id = $2 AND user_id = $3', [pdfURL, estimateId, userId]);
+  return pdfURL;
 } 3. Email Estimate:
-// NEW - Email estimate to contact
-const email = ServiceManager.get('email');
+// NEW – use @homebase/core for DB/Logger; email/storage are app-specific
+const { Database, Logger } = require('@homebase/core');
+// const emailService = getEmailService(req);
+// const storage = getStorage(req);
 
-async sendEstimate(estimateId) {
-const estimate = await database.query(
-'SELECT \* FROM estimates WHERE id = ?',
-[estimateId]
-);
+async sendEstimate(req, estimateId) {
+  const db = Database.get(req);
+  const userId = req.session?.user?.id;
 
-const contact = await database.query(
-'SELECT \* FROM contacts WHERE id = ?',
-[estimate.contact_id]
-);
+  const { rows: estRows } = await db.query('SELECT * FROM estimates WHERE id = $1 AND user_id = $2', [estimateId, userId]);
+  if (!estRows[0]) throw new AppError('Estimate not found', 404);
 
-// Generate PDF if not exists
-if (!estimate.pdf_url) {
-await generateEstimatePDF(estimateId);
-}
+  const { rows: contactRows } = await db.query('SELECT * FROM contacts WHERE id = $1 AND user_id = $2', [estRows[0].contact_id, userId]);
 
-// Get signed URL (temporary access)
-const pdfDownloadURL = storage.getSignedURL(
-`estimates/${estimateId}/estimate.pdf`,
-3600 // 1 hour
-);
+  if (!estRows[0].pdf_url) await generateEstimatePDF(req, estimateId);
+  const pdfDownloadURL = storage.getSignedURL(`estimates/${estimateId}/estimate.pdf`, 3600);
 
-// Send email
-await email.send({
-to: contact.email,
-subject: `Estimate #${estimate.id}`,
-html: estimateEmailTemplate(estimate, contact, pdfDownloadURL)
-});
+  await emailService.send({ to: contactRows[0].email, subject: `Estimate #${estRows[0].id}`, html: estimateEmailTemplate(estRows[0], contactRows[0], pdfDownloadURL) });
 
-// Audit log
-logger.info('Estimate sent', {
-estimateId,
-contactId: contact.id,
-email: contact.email
-});
+  Logger.info('Estimate sent', { estimateId, contactId: contactRows[0].id, email: contactRows[0].email });
 }
 
 Files Plugin Considerations
@@ -494,100 +431,76 @@ size: buffer.length
 });
 }
 
-// AFTER
-const storage = ServiceManager.get('storage');
+// AFTER – use @homebase/core for DB/Logger; storage is app-specific
+const { Database, Logger, Context } = require('@homebase/core');
+// const storage = getStorage(req);  // app-specific (S3, R2, local Multer, etc.)
 
-async uploadFile(fileData, buffer) {
-// Upload to cloud storage (S3, R2, Scaleway, etc.)
-const url = await storage.upload(
-buffer,
-`files/${fileData.filename}`,
-{
-allowedTypes: [
-'application/pdf',
-'image/jpeg',
-'image/png',
-'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-],
-maxSize: 25 _ 1024 _ 1024 // 25MB
-}
-);
+async uploadFile(req, fileData, buffer) {
+  const db = Database.get(req);
+  const url = await storage.upload(buffer, `files/${fileData.filename}`, {
+    allowedTypes: ['application/pdf', 'image/jpeg', 'image/png', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+    maxSize: 25 * 1024 * 1024  // 25MB
+  });
 
-return database.insert('files', {
-filename: fileData.filename,
-url: url,
-size: buffer.length,
-mimetype: fileData.mimetype
-});
+  const { rows } = await db.query('INSERT INTO user_files (user_id, name, size, mime_type, url) VALUES ($1, $2, $3, $4, $5) RETURNING *', [Context.getUserId(req), fileData.filename, buffer.length, fileData.mimetype, url]);
+  return rows[0];
 } 2. Download Handler:
 // BEFORE
 async downloadFile(fileId) {
-const file = await database.query('SELECT \* FROM files WHERE id = ?', [fileId]);
-return fs.readFileSync(file.path);
+  const file = await database.query('SELECT * FROM files WHERE id = ?', [fileId]);
+  return fs.readFileSync(file.path);
 }
 
-// AFTER
-async downloadFile(fileId) {
-const file = await database.query('SELECT \* FROM files WHERE id = ?', [fileId]);
+// AFTER – use Database.get(req) and app-provided storage
+const { Database, Logger } = require('@homebase/core');
 
-// Return signed URL (temporary download link)
-return storage.getSignedURL(file.url, 3600);
+async downloadFile(req, fileId) {
+  const db = Database.get(req);
+  const { rows } = await db.query('SELECT * FROM user_files WHERE id = $1 AND user_id = $2', [fileId, req.session?.user?.id]);
+  if (!rows[0]) throw new AppError('File not found', 404);
+  return storage.getSignedURL(rows[0].url, 3600);
 } 3. Virus Scanning (Optional but Recommended):
-// Add to storage adapter
+// Add to storage adapter; use Logger from @homebase/core
+const { Logger } = require('@homebase/core');
+
 async upload(file, path, options) {
-// ... validation ...
-
-if (process.env.ENABLE_VIRUS_SCAN === 'true') {
-const scanResult = await this.virusScanner.scan(file);
-
+  if (process.env.ENABLE_VIRUS_SCAN === 'true') {
+    const scanResult = await this.virusScanner.scan(file);
     if (scanResult.infected) {
-      logger.warn('Virus detected in upload', {
-        filename: path,
-        virus: scanResult.name
-      });
+      Logger.warn('Virus detected in upload', { filename: path, virus: scanResult.name });
       throw new AppError('File contains malware', 400);
     }
-
-}
-
-return this.provider.upload(file, path);
+  }
+  return this.provider.upload(file, path);
 }
 
 Testing Refactored Plugins
 Unit Tests
-Test with mock adapters:
-const MockDatabaseAdapter = require('../../server/core/services/database/adapters/MockAdapter');
+With @homebase/core, test by providing mock req with mock db or by using test database:
 
 describe('Contacts Model', () => {
-beforeEach(() => {
-// Use mock database
-ServiceManager.override('database', new MockDatabaseAdapter());
-});
+  let mockReq;
 
-it('should create contact', async () => {
-const contact = await contactsModel.create({
-companyName: 'Test Company',
-email: 'test@example.com'
-});
+  beforeEach(() => {
+    // Mock req with session and mock db for Database.get(req)
+    mockReq = {
+      session: { user: { id: 1 } },
+      // If using test DB, req is passed through normal middleware
+    };
+  });
 
+  it('should create contact', async () => {
+    const contact = await contactsModel.create(mockReq, { companyName: 'Test Company', email: 'test@example.com' });
     expect(contact).toHaveProperty('id');
     expect(contact.companyName).toBe('Test Company');
+  });
 
-});
-
-it('should enforce tenant isolation', async () => {
-// Create contact as user 1
-const contact1 = await contactsModel.create({ companyName: 'User 1' });
-
-    // Switch to user 2
-    MockDatabaseAdapter.setCurrentUser(2);
-
-    // User 2 should not see user 1's contact
-    const contacts = await contactsModel.getByUser(2);
+  it('should enforce tenant isolation', async () => {
+    const contact1 = await contactsModel.create({ ...mockReq, session: { user: { id: 1 } } }, { companyName: 'User 1' });
+    const req2 = { ...mockReq, session: { user: { id: 2 } } };
+    const contacts = await contactsModel.getByUser(req2);
     expect(contacts).not.toContainEqual(contact1);
-
-});
+  });
 });
 Integration Tests
 Test with real adapters in test environment:

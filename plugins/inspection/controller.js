@@ -40,13 +40,11 @@ async function loadFileBuffers(req, fileIds) {
   for (const fileId of fileIds) {
     const file = await filesModel.getById(req, fileId);
     if (!file || !file.url) continue;
-    if (file.url.startsWith('/api/files/raw/')) {
-      const filename = path.basename(file.url.replace('/api/files/raw/', ''));
-      const abs = path.join(UPLOAD_ROOT, filename);
-      if (fs.existsSync(abs)) {
-        const content = fs.readFileSync(abs);
-        buffers.push({ filename: file.name || filename, content });
-      }
+    const abs = resolvePhysicalPath(UPLOAD_ROOT, file.url);
+    if (abs && fs.existsSync(abs) && fs.statSync(abs).isFile()) {
+      const content = fs.readFileSync(abs);
+      const filename = file.name || path.basename(abs);
+      buffers.push({ filename, content });
     }
   }
   return buffers;
@@ -199,11 +197,19 @@ class InspectionController {
         fileIds,
         listIds,
         contactListIds,
+        name: bodyName,
+        description: bodyDescription,
+        adminNotes: bodyAdminNotes,
       } = req.body;
       const projectId = req.params.id;
 
       const project = await model.getById(req, projectId);
       if (!project) return res.status(404).json({ error: 'Project not found' });
+
+      // Use body (form state) when provided so email reflects what the user sees
+      const projectName = bodyName !== undefined ? String(bodyName || '').trim() : (project.name || '');
+      const projectDescription = bodyDescription !== undefined ? String(bodyDescription || '') : (project.description || '');
+      const projectAdminNotes = bodyAdminNotes !== undefined ? String(bodyAdminNotes || '') : (project.adminNotes || '');
 
       let emailList = await resolveRecipients(
         req,
@@ -232,11 +238,11 @@ class InspectionController {
       }
 
       const parts = [];
-      if (includeDescription !== false && project.description) {
-        parts.push(project.description);
+      if (includeDescription !== false && projectDescription) {
+        parts.push(projectDescription);
       }
-      if (includeAdminNotes !== false && project.adminNotes) {
-        parts.push('\n--- Admin notes ---\n' + project.adminNotes);
+      if (includeAdminNotes !== false && projectAdminNotes) {
+        parts.push('\n--- Admin notes ---\n' + projectAdminNotes);
       }
       const bodyText = parts.join('\n\n') || 'No content.';
 
@@ -262,7 +268,7 @@ class InspectionController {
         req,
         {
           bcc: emailList,
-          subject: `Besiktning: ${project.name}`,
+          subject: `Besiktning: ${projectName || project.name}`,
           html: bodyText.replace(/\n/g, '<br>'),
           text: bodyText,
           attachments: attachments.length > 0 ? attachments : undefined,

@@ -379,7 +379,7 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
   }, [name, description, adminNotes, pendingFileIds, pendingListIds, saveInspectionAndStay, clearValidationErrors]);
 
   const currentProject = projectFromProps ?? currentInspectionProject;
-  const projectToSend = projectForSendModal ?? (currentProject ? { ...currentProject, files: projectFiles, fileLists: projectFileLists } : null);
+  const projectToSend = projectForSendModal ?? (currentProject ? { ...currentProject, name, description, adminNotes, files: projectFiles, fileLists: projectFileLists } : null);
 
   return (
     <div className="p-4">
@@ -715,23 +715,16 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
+                            <a
+                              href={`${f.url}?download=1`}
+                              download={f.name || undefined}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
                               title="Ladda ner"
-                              asChild
                             >
-                              <a
-                                href={`${f.url}?download=1`}
-                                download={f.name || undefined}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <Download className="h-4 w-4" />
-                              </a>
-                            </Button>
+                              <Download className="h-4 w-4" />
+                            </a>
                           </>
                         )}
                         <Button
@@ -813,17 +806,16 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
               ) : (
                 <div className="flex flex-col items-center justify-center gap-4 py-12 text-muted-foreground">
                   <p>Filtypen kan inte förhandsgranskas.</p>
-                  <Button asChild variant="outline" size="sm">
-                    <a
-                      href={`${previewFile.url}?download=1`}
-                      download={previewFile.name || undefined}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Ladda ner
-                    </a>
-                  </Button>
+                  <a
+                    href={`${previewFile.url}?download=1`}
+                    download={previewFile.name || undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <Download className="h-4 w-4" />
+                    Ladda ner
+                  </a>
                 </div>
               )}
             </div>

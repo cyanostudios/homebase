@@ -27,28 +27,12 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         ws: true,
-        cookieDomainRewrite: 'localhost',
-        cookiePathRewrite: '/',
-        // Preserve cookies and session
-        onProxyReq: (proxyReq, req, res) => {
-          // Forward cookies
-          if (req.headers.cookie) {
-            proxyReq.setHeader('Cookie', req.headers.cookie);
-          }
-        },
-        onProxyRes: (proxyRes, req, res) => {
+        // Keep cookie handling as close to upstream as possible.
+        // Rewriting cookie domain/flags in dev has previously caused session split.
+        onProxyRes: (proxyRes, req, _res) => {
           // DEBUG: Log /api/auth/me responses (for troubleshooting logout on reload)
           if (req.url?.includes('/api/auth/me')) {
             console.log('[PROXY] /api/auth/me', proxyRes.statusCode, 'hasSetCookie:', !!proxyRes.headers['set-cookie']);
-          }
-          // Forward Set-Cookie headers
-          if (proxyRes.headers['set-cookie']) {
-            proxyRes.headers['set-cookie'] = proxyRes.headers['set-cookie'].map((cookie: string) => {
-              return cookie
-                .replace(/Domain=[^;]+;?/gi, 'Domain=localhost;')
-                .replace(/Secure;?/gi, '')
-                .replace(/SameSite=None/gi, 'SameSite=Lax');
-            });
           }
         },
         configure: (proxy, _options) => {

@@ -129,6 +129,9 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
         fileIds: selectedFileIds.length > 0 ? selectedFileIds : undefined,
         contactListIds:
           selectedContactListIds.length > 0 ? selectedContactListIds : undefined,
+        name: project.name,
+        description: project.description,
+        adminNotes: project.adminNotes,
       });
       if (res?.logEntry) {
         window.dispatchEvent(new CustomEvent('mailSent', { detail: res.logEntry }));

@@ -146,24 +146,24 @@ function generatePlocklistaHTML(orders) {
   <title>Plocklista</title>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #111827; margin: 0; padding: 12px; font-size: 11px; }
-    .order-block { border-bottom: 1px solid #ccc; margin-bottom: 12px; padding-bottom: 12px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #111827; margin: 0; padding: 8px; font-size: 15px; }
+    .order-block { border-bottom: 1px solid #6b7280; margin-bottom: 22px; padding-bottom: 22px; }
     .order-block:last-child { border-bottom: none; }
-    .order-meta { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 8px; }
+    .order-meta { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 10px; }
     .address-block, .ids-block { min-width: 180px; }
     .label { font-weight: 600; color: #374151; margin-right: 4px; }
-    .items-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 10px; }
-    .items-table th, .items-table td { padding: 4px 6px; border: 1px solid #e5e7eb; text-align: left; }
-    .items-table th { background: #f3f4f6; }
+    .items-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 14px; }
+    .items-table th, .items-table td { padding: 4px 6px; text-align: left; border: none; background: none; }
+    .items-table th { background: none; }
     .cell.num { text-align: right; }
     .cell.ck { text-align: center; width: 48px; }
-    .sums { margin-top: 6px; display: flex; gap: 16px; flex-wrap: wrap; }
-    .sum-row { font-size: 11px; }
+    .sums { margin-top: 8px; display: flex; gap: 16px; flex-wrap: wrap; }
+    .sum-row { font-size: 15px; }
     .sum-row.total { font-weight: 700; }
   </style>
 </head>
 <body>
-  <h1 style="margin: 0 0 12px 0; font-size: 16px;">Plocklista</h1>
+  <h1 style="margin: 0 0 12px 0; font-size: 22px;">Plocklista</h1>
   ${sections.join('')}
 </body>
 </html>`;
