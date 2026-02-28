@@ -18,12 +18,20 @@ const { Pool } = require('pg');
 
 require('dotenv').config({ path: '.env.local' });
 
+const REQUIRED_PRODUCTION_ENV = ['DATABASE_URL', 'SESSION_SECRET', 'CREDENTIALS_ENCRYPTION_KEY'];
+if (process.env.NODE_ENV === 'production') {
+  const missing = REQUIRED_PRODUCTION_ENV.filter((key) => !String(process.env[key] || '').trim());
+  if (missing.length > 0) {
+    throw new Error(`Missing required production environment variables: ${missing.join(', ')}`);
+  }
+}
+
 const PluginLoader = require('../plugin-loader');
 
 // Core infrastructure
 const Bootstrap = require('./core/Bootstrap');
 const { activityLogMiddleware } = require('./core/middleware/activityLog');
-const { csrfTokenHandler } = require('./core/middleware/csrf');
+const { csrfProtection, csrfTokenHandler } = require('./core/middleware/csrf');
 const { errorHandler } = require('./core/middleware/errorHandler');
 const { globalLimiter, authLimiter } = require('./core/middleware/rateLimit');
 const { setupCoreRoutes } = require('./core/routes');
@@ -92,7 +100,13 @@ app.use(
       pool: sessionPool,
       tableName: 'sessions',
     }),
-    secret: process.env.SESSION_SECRET || 'homebase-dev-secret-change-in-production',
+    secret:
+      process.env.SESSION_SECRET ||
+      (process.env.NODE_ENV === 'production'
+        ? (() => {
+            throw new Error('SESSION_SECRET is required in production');
+          })()
+        : 'homebase-dev-secret-change-in-production'),
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -122,7 +136,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Tenant Pool Middleware
 //
-// - TENANT_PROVIDER=neon: database-per-tenant → req.tenantPool is created from session.tenantConnectionString
+// - TENANT_PROVIDER=neon: database-per-tenant → req.tenantPool is resolved server-side from tenant user id.
 // - TENANT_PROVIDER=local: schema-per-tenant in ONE database (often Neon Postgres via pooler).
 //   IMPORTANT: Neon pooler does NOT support setting search_path via startup "options".
 //   For local provider we therefore rely on PostgreSQLAdapter's per-query `SET search_path TO tenant_<userId>, public`
@@ -136,30 +150,24 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
   }
 
   if (process.env.TENANT_PROVIDER === 'neon') {
-    // Ensure tenant connection string is present in session (restore from DB if missing)
-    if (req.session?.user && !req.session.tenantConnectionString) {
+    const tenantUserId = req.session?.currentTenantUserId ?? userId;
+    if (tenantUserId) {
+      const connectionPool = ServiceManager.get('connectionPool');
       try {
         const r = await pool.query(
-          'SELECT neon_connection_string FROM tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL',
-          [userId],
+          'SELECT neon_connection_string FROM tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL LIMIT 1',
+          [tenantUserId],
         );
         if (r.rows?.length && r.rows[0].neon_connection_string) {
-          req.session.tenantConnectionString = r.rows[0].neon_connection_string;
-          await new Promise<void>((resolve, reject) => {
-            req.session!.save((err: Error | undefined) => {
-              if (err) reject(err);
-              else resolve();
-            });
-          });
+          req.tenantPool = connectionPool.getTenantPool(r.rows[0].neon_connection_string);
+        } else {
+          req.tenantPool = undefined;
         }
       } catch (_e) {
-        // ignore lookup/save errors
+        req.tenantPool = undefined;
       }
-    }
-
-    if (req.session?.tenantConnectionString) {
-      const connectionPool = ServiceManager.get('connectionPool');
-      req.tenantPool = connectionPool.getTenantPool(req.session.tenantConnectionString);
+    } else {
+      req.tenantPool = undefined;
     }
   } else {
     // local (schema-per-tenant): no tenant pool; DB adapter will SET search_path per query.
@@ -217,7 +225,7 @@ function requirePlugin(pluginName: string) {
 const pluginLoader = new PluginLoader(pool, requirePlugin);
 
 // CSRF token endpoint
-app.get('/api/csrf-token', csrfTokenHandler);
+app.get('/api/csrf-token', csrfProtection, csrfTokenHandler);
 
 // DEBUG: Client can send log lines here so everything appears in the server terminal (dev only)
 if (process.env.NODE_ENV !== 'production') {

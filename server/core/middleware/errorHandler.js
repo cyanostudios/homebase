@@ -63,6 +63,14 @@ function errorHandler(error, req, res, next) {
     });
   }
 
+  // Handle invalid/missing CSRF token.
+  if (error.code === 'EBADCSRFTOKEN') {
+    return res.status(403).json({
+      error: 'Invalid CSRF token',
+      code: 'CSRF_INVALID',
+    });
+  }
+
   // Handle unknown errors
   // In development, show more details for debugging
   const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;

@@ -197,10 +197,9 @@ class PostgreSQLAdapter extends DatabaseService {
     try {
       const startTime = Date.now();
       
-      // Log SQL query details for debugging
+      // Log SQL query details without exposing parameter values.
       this.logger?.info('Executing SQL query', {
         sql: finalSql,
-        params: finalParams,
         userId: userId,
         paramCount: finalParams.length,
       });
@@ -334,23 +333,14 @@ class PostgreSQLAdapter extends DatabaseService {
 
     const params = [...values, userId];
 
-    // Log SQL query details for debugging
+    // Log INSERT details without exposing parameter values.
     this.logger?.info('Executing INSERT query', {
       sql: sql.trim(),
-      params: params,
       userId: userId,
       table: table,
       columnCount: columns.length,
       paramCount: params.length,
       dataKeys: columns,
-      dataValues: values.map((v, i) => {
-        // Limit value size for logging (avoid huge JSON strings)
-        const val = v;
-        if (typeof val === 'string' && val.length > 100) {
-          return val.substring(0, 100) + '... (truncated)';
-        }
-        return val;
-      })
     });
 
     try {
@@ -391,11 +381,11 @@ class PostgreSQLAdapter extends DatabaseService {
 
       return result.rows[0];
     } catch (error) {
-      // Enhanced error logging with full SQL and params
+      // Enhanced error logging without parameter values.
       this.logger?.error('INSERT failed - DETAILED ERROR', error, {
         table,
         sql: sql.trim(),
-        params: params,
+        paramCount: params.length,
         userId: userId,
         dataKeys: columns,
         errorCode: error.code,

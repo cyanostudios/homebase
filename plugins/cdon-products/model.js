@@ -3,11 +3,33 @@
 
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const CredentialsCrypto = require('../../server/core/services/security/CredentialsCrypto');
 
 class CdonProductsModel {
   static SETTINGS_TABLE = 'cdon_settings';
   static CHANNEL_MAP_TABLE = 'channel_product_map';
   static ERROR_LOG_TABLE = 'channel_error_log';
+
+  async migrateLegacySecrets(db, userId, row) {
+    const updates = [];
+    const params = [userId];
+    let idx = 2;
+
+    if (row.api_key && !CredentialsCrypto.isEncrypted(row.api_key)) {
+      updates.push(`api_key = $${idx++}`);
+      params.push(CredentialsCrypto.encrypt(String(row.api_key)));
+    }
+    if (row.api_secret && !CredentialsCrypto.isEncrypted(row.api_secret)) {
+      updates.push(`api_secret = $${idx++}`);
+      params.push(CredentialsCrypto.encrypt(String(row.api_secret)));
+    }
+    if (!updates.length) return;
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    await db.query(
+      `UPDATE ${CdonProductsModel.SETTINGS_TABLE} SET ${updates.join(', ')} WHERE user_id = $1`,
+      params,
+    );
+  }
 
   async getSettings(req) {
     try {
@@ -19,6 +41,9 @@ class CdonProductsModel {
         `SELECT * FROM ${CdonProductsModel.SETTINGS_TABLE} WHERE user_id = $1 LIMIT 1`,
         [userId],
       );
+      if (res.length) {
+        await this.migrateLegacySecrets(db, userId, res[0]);
+      }
       return res.length ? this.transformSettingsRow(res[0]) : null;
     } catch (error) {
       Logger.error('Failed to get CDON settings', error);
@@ -50,7 +75,12 @@ class CdonProductsModel {
           updated_at = CURRENT_TIMESTAMP
         RETURNING *
       `;
-      const res = await db.query(sql, [userId, apiKey || null, apiSecret || null, connected]);
+      const res = await db.query(sql, [
+        userId,
+        apiKey ? CredentialsCrypto.encrypt(apiKey) : null,
+        apiSecret ? CredentialsCrypto.encrypt(apiSecret) : null,
+        connected,
+      ]);
       return this.transformSettingsRow(res[0]);
     } catch (error) {
       Logger.error('Failed to save CDON settings', error);
@@ -60,10 +90,12 @@ class CdonProductsModel {
   }
 
   transformSettingsRow(row) {
+    const apiKey = row.api_key ? CredentialsCrypto.decrypt(row.api_key) : '';
+    const apiSecret = row.api_secret ? CredentialsCrypto.decrypt(row.api_secret) : '';
     return {
       id: String(row.id),
-      apiKey: row.api_key || '',
-      apiSecret: row.api_secret || '',
+      apiKey: apiKey || '',
+      apiSecret: apiSecret || '',
       connected: !!row.connected,
       createdAt: row.created_at || null,
       updatedAt: row.updated_at || null,

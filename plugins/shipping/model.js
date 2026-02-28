@@ -1,5 +1,6 @@
 const { Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const CredentialsCrypto = require('../../server/core/services/security/CredentialsCrypto');
 
 const DEFAULT_WEIGHT_KG = 0.15;
 const LABEL_FORMATS = ['PDF', 'ZPL', 'BOTH'];
@@ -18,15 +19,39 @@ class ShippingModel {
     return userId;
   }
 
+  async migrateLegacySettingsSecrets(db, userId, row) {
+    const updates = [];
+    const params = [userId];
+    let idx = 2;
+
+    if (row.api_key && !CredentialsCrypto.isEncrypted(row.api_key)) {
+      updates.push(`api_key = $${idx++}`);
+      params.push(CredentialsCrypto.encrypt(String(row.api_key)));
+    }
+    if (row.api_secret && !CredentialsCrypto.isEncrypted(row.api_secret)) {
+      updates.push(`api_secret = $${idx++}`);
+      params.push(CredentialsCrypto.encrypt(String(row.api_secret)));
+    }
+    if (!updates.length) return;
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    await db.query(
+      `UPDATE ${ShippingModel.SETTINGS_TABLE} SET ${updates.join(', ')} WHERE user_id = $1`,
+      params,
+    );
+  }
+
   transformSettings(row) {
     if (!row) return null;
     const labelFormat = String(row.label_format || 'PDF').toUpperCase();
+    const apiKey = row.api_key ? CredentialsCrypto.decrypt(row.api_key) : '';
+    const apiSecret = row.api_secret ? CredentialsCrypto.decrypt(row.api_secret) : '';
     return {
       bookingUrl: row.booking_url || '',
       authScheme: row.auth_scheme || '',
       integrationId: row.integration_id || '',
-      apiKey: row.api_key || '',
-      apiSecret: row.api_secret || '',
+      apiKey: apiKey || '',
+      apiSecret: apiSecret || '',
       apiKeyHeaderName: row.api_key_header_name || '',
       labelFormat: LABEL_FORMATS.includes(labelFormat) ? labelFormat : 'PDF',
       connected: !!row.connected,
@@ -67,6 +92,9 @@ class ShippingModel {
       `SELECT * FROM ${ShippingModel.SETTINGS_TABLE} WHERE user_id = $1 LIMIT 1`,
       [userId],
     );
+    if (rows.length) {
+      await this.migrateLegacySettingsSecrets(db, userId, rows[0]);
+    }
     return rows.length ? this.transformSettings(rows[0]) : null;
   }
 
@@ -107,8 +135,8 @@ class ShippingModel {
         bookingUrl,
         authScheme,
         integrationId,
-        apiKey,
-        apiSecret,
+        apiKey ? CredentialsCrypto.encrypt(apiKey) : null,
+        apiSecret ? CredentialsCrypto.encrypt(apiSecret) : null,
         apiKeyHeaderName,
         labelFormat,
         connected,

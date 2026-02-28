@@ -16,7 +16,7 @@ function createTaskRoutes(controller, context) {
   // POST /api/tasks - Create new task
   router.post('/',
     requirePlugin('tasks'),
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.string('title', 1, 255),
     commonRules.optionalString('content', 10000),
     commonRules.array('mentions', 50),
@@ -32,7 +32,7 @@ function createTaskRoutes(controller, context) {
   // PUT /api/tasks/:id - Update task
   router.put('/:id',
     requirePlugin('tasks'),
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('id'),
     commonRules.string('title', 1, 255),
     commonRules.optionalString('content', 10000),
@@ -50,6 +50,7 @@ function createTaskRoutes(controller, context) {
   router.delete(
     '/batch',
     requirePlugin('tasks'),
+    csrfProtection,
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
@@ -58,7 +59,7 @@ function createTaskRoutes(controller, context) {
   // DELETE /api/tasks/:id - Delete task
   router.delete('/:id',
     requirePlugin('tasks'),
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('id'),
     validateRequest,
     (req, res) => {

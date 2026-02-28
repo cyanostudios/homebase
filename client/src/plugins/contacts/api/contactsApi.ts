@@ -51,7 +51,7 @@ class ContactsApi {
 
     // Add CSRF token for mutations
     if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
-      // CSRF temporarily disabled: headers["X-CSRF-Token"] = await this.getCsrfToken();
+      headers["X-CSRF-Token"] = await this.getCsrfToken();
     }
 
     const response = await fetch(`/api${endpoint}`, {

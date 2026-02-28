@@ -16,6 +16,11 @@ class ChannelsModel {
   static CHANNEL_INSTANCES_TABLE = 'channel_instances';
   static CHANNEL_OVERRIDES_TABLE = 'channel_product_overrides';
 
+  formatCredentialsForApi(credentials) {
+    if (credentials == null) return null;
+    return { masked: true, hasCredentials: true };
+  }
+
   // ---------- READ: list channel summaries ----------
   async getAll(req) {
     try {
@@ -364,7 +369,7 @@ class ChannelsModel {
         instanceKey: r.instance_key,
         market: r.market,
         label: r.label,
-        credentials: r.credentials ?? null,
+        credentials: this.formatCredentialsForApi(r.credentials),
         enabled: r.enabled !== false,
         createdAt: r.created_at || null,
         updatedAt: r.updated_at || null,
@@ -415,7 +420,7 @@ class ChannelsModel {
         instanceKey: r.instance_key,
         market: r.market,
         label: r.label,
-        credentials: r.credentials ?? null,
+        credentials: this.formatCredentialsForApi(r.credentials),
         enabled: r.enabled !== false,
         createdAt: r.created_at || null,
         updatedAt: r.updated_at || null,
@@ -488,7 +493,7 @@ class ChannelsModel {
         instanceKey: r.instance_key,
         market: r.market,
         label: r.label,
-        credentials: r.credentials ?? null,
+        credentials: this.formatCredentialsForApi(r.credentials),
         enabled: r.enabled !== false,
         createdAt: r.created_at || null,
         updatedAt: r.updated_at || null,

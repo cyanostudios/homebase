@@ -19,7 +19,7 @@ function createInvoiceRoutes(controller, context) {
   
   router.post('/',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.string('contactName', 0, 255).optional(),
     commonRules.optionalString('notes', 5000),
     validateRequest,
@@ -33,6 +33,7 @@ function createInvoiceRoutes(controller, context) {
   router.delete(
     '/batch',
     gate,
+    csrfProtection,
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
@@ -41,7 +42,7 @@ function createInvoiceRoutes(controller, context) {
   // Item operations (auth required)
   router.put('/:id',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('id'),
     commonRules.string('contactName', 0, 255).optional(),
     commonRules.optionalString('notes', 5000),
@@ -51,7 +52,7 @@ function createInvoiceRoutes(controller, context) {
   
   router.delete('/:id',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('id'),
     validateRequest,
     (req, res) => controller.deleteInvoice(req, res)
@@ -63,7 +64,7 @@ function createInvoiceRoutes(controller, context) {
   // Shares (auth required)
   router.post('/shares',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('invoiceId'),
     commonRules.date('validUntil'),
     validateRequest,
@@ -74,7 +75,7 @@ function createInvoiceRoutes(controller, context) {
   
   router.delete('/shares/:shareId',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('shareId'),
     validateRequest,
     (req, res) => controller.revokeShare(req, res)

@@ -101,51 +101,25 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// CSRF token cache (currently disabled but kept for future use)
-// let csrfToken: string | null = null;
+let csrfToken: string | null = null;
 
-// async function getCsrfToken(): Promise<string> {
-//   if (csrfToken) return csrfToken;
-//
-//   try {
-//     const response = await fetch('/api/csrf-token', {
-//       credentials: 'include'
-//     });
-//
-//     if (!response.ok) {
-//       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-//       console.error('CSRF token fetch failed:', {
-//         status: response.status,
-//         statusText: response.statusText,
-//         error: errorData
-//       });
-//
-//       // More specific error message
-//       if (response.status === 401) {
-//         throw new Error('Session required. Please log in again.');
-//       } else if (response.status === 503) {
-//         throw new Error('CSRF protection not configured on server');
-//       } else {
-//         throw new Error(`Failed to get CSRF token: ${errorData.error || response.statusText}`);
-//       }
-//     }
-//
-//     const data = await response.json();
-//     if (!data.csrfToken) {
-//       throw new Error('CSRF token not found in response');
-//     }
-//
-//     csrfToken = data.csrfToken;
-//     return csrfToken;
-//   } catch (error: any) {
-//     console.error('CSRF token fetch failed:', error);
-//     // Re-throw with original message if it's already an Error
-//     if (error instanceof Error) {
-//       throw error;
-//     }
-//     throw new Error('Failed to get CSRF token');
-//   }
-// }
+async function getCsrfToken(): Promise<string> {
+  if (csrfToken) return csrfToken;
+
+  const response = await fetch('/api/csrf-token', {
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    throw new Error('Failed to fetch CSRF token');
+  }
+  const data = await response.json();
+  const token = String(data?.csrfToken || '').trim();
+  if (!token) {
+    throw new Error('CSRF token not found in response');
+  }
+  csrfToken = token;
+  return csrfToken;
+}
 
 const api = {
   async request(endpoint: string, options: RequestInit = {}) {
@@ -154,11 +128,15 @@ const api = {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    // Add CSRF token for mutations (but not for login - it's before authentication)
-    // CSRF is temporarily disabled, so we skip this
-    // if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method) && !endpoint.includes('/auth/login')) {
-    //   headers['X-CSRF-Token'] = await getCsrfToken();
-    // }
+    // Add CSRF token for authenticated mutations.
+    if (
+      options.method &&
+      ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method) &&
+      !endpoint.includes('/auth/login') &&
+      !endpoint.includes('/auth/signup')
+    ) {
+      headers['X-CSRF-Token'] = await getCsrfToken();
+    }
 
     const response = await fetch(`/api${endpoint}`, {
       headers,

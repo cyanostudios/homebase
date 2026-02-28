@@ -1,11 +1,35 @@
 // plugins/mail/model.js
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const CredentialsCrypto = require('../../server/core/services/security/CredentialsCrypto');
 
 const TABLE = 'mail_log';
 const SETTINGS_TABLE = 'mail_settings';
 
 class MailModel {
+  async migrateLegacySecrets(db, rowId, legacy = {}) {
+    const updates = [];
+    const params = [];
+    let idx = 1;
+
+    if (legacy.authPass != null) {
+      updates.push(`auth_pass = $${idx++}`);
+      params.push(CredentialsCrypto.encrypt(legacy.authPass));
+    }
+    if (legacy.resendApiKey != null) {
+      updates.push(`resend_api_key = $${idx++}`);
+      params.push(CredentialsCrypto.encrypt(legacy.resendApiKey));
+    }
+    if (!updates.length) return;
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    params.push(rowId);
+    await db.query(
+      `UPDATE ${SETTINGS_TABLE} SET ${updates.join(', ')} WHERE id = $${idx}`,
+      params,
+    );
+  }
+
   async logSent(req, data) {
     try {
       const db = Database.get(req);
@@ -136,6 +160,18 @@ class MailModel {
       const rows = await db.query(sql, params);
       const row = rows[0];
       if (!row) return null;
+      const authPassRaw = row.auth_pass ? CredentialsCrypto.decrypt(row.auth_pass) : null;
+      const resendApiKeyRaw = row.resend_api_key ? CredentialsCrypto.decrypt(row.resend_api_key) : null;
+
+      await this.migrateLegacySecrets(db, row.id, {
+        authPass:
+          row.auth_pass && !CredentialsCrypto.isEncrypted(row.auth_pass) ? authPassRaw : null,
+        resendApiKey:
+          row.resend_api_key && !CredentialsCrypto.isEncrypted(row.resend_api_key)
+            ? resendApiKeyRaw
+            : null,
+      });
+
       const out = {
         id: row.id,
         provider: row.provider || 'smtp',
@@ -144,18 +180,18 @@ class MailModel {
         secure: !!row.secure,
         authUser: row.auth_user || '',
         fromAddress: row.from_address || 'noreply@homebase.se',
-        hasPassword: !!row.auth_pass,
-        resendApiKey: row.resend_api_key ? '••••••••' : '',
-        hasResendApiKey: !!row.resend_api_key,
+        hasPassword: !!authPassRaw,
+        resendApiKey: resendApiKeyRaw ? '••••••••' : '',
+        hasResendApiKey: !!resendApiKeyRaw,
         resendFromAddress: row.resend_from_address || '',
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };
-      if (options.needsPassword && row.auth_pass) {
-        out.authPass = row.auth_pass;
+      if (options.needsPassword && authPassRaw) {
+        out.authPass = authPassRaw;
       }
-      if (options.needsPassword && row.resend_api_key) {
-        out.resendApiKeyRaw = row.resend_api_key;
+      if (options.needsPassword && resendApiKeyRaw) {
+        out.resendApiKeyRaw = resendApiKeyRaw;
       }
       return out;
     } catch (error) {
@@ -199,10 +235,10 @@ class MailModel {
           resend_from_address: resendFromAddress || null,
         };
         if (data.authPass != null && String(data.authPass).trim() !== '') {
-          updateData.auth_pass = String(data.authPass).trim();
+          updateData.auth_pass = CredentialsCrypto.encrypt(String(data.authPass).trim());
         }
         if (data.resendApiKey != null && String(data.resendApiKey).trim() !== '' && !String(data.resendApiKey).startsWith('••••')) {
-          updateData.resend_api_key = String(data.resendApiKey).trim();
+          updateData.resend_api_key = CredentialsCrypto.encrypt(String(data.resendApiKey).trim());
         }
         await db.update(SETTINGS_TABLE, existing[0].id, updateData);
         return { ok: true };
@@ -214,9 +250,17 @@ class MailModel {
         port,
         secure,
         auth_user: authUser,
-        auth_pass: data.authPass != null && String(data.authPass).trim() !== '' ? String(data.authPass).trim() : null,
+        auth_pass:
+          data.authPass != null && String(data.authPass).trim() !== ''
+            ? CredentialsCrypto.encrypt(String(data.authPass).trim())
+            : null,
         from_address: fromAddress,
-        resend_api_key: data.resendApiKey != null && String(data.resendApiKey).trim() !== '' && !String(data.resendApiKey).startsWith('••••') ? String(data.resendApiKey).trim() : null,
+        resend_api_key:
+          data.resendApiKey != null &&
+          String(data.resendApiKey).trim() !== '' &&
+          !String(data.resendApiKey).startsWith('••••')
+            ? CredentialsCrypto.encrypt(String(data.resendApiKey).trim())
+            : null,
         resend_from_address: resendFromAddress || null,
         created_at: now,
         updated_at: now,

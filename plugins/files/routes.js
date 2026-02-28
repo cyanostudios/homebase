@@ -109,6 +109,7 @@ function createFilesRoutes(controller, context) {
   listsRouter.get('/', gate, (req, res) => controller.getLists(req, res));
   listsRouter.post('/',
     gate,
+    csrfProtection,
     commonRules.string('name', 1, 255),
     validateRequest,
     (req, res) => controller.createList(req, res)
@@ -118,6 +119,7 @@ function createFilesRoutes(controller, context) {
   );
   listsRouter.post('/:id/files',
     gate,
+    csrfProtection,
     commonRules.id('id'),
     [body('fileIds').isArray().withMessage('fileIds must be an array')],
     validateRequest,
@@ -125,6 +127,7 @@ function createFilesRoutes(controller, context) {
   );
   listsRouter.delete('/:id/files/:fileId',
     gate,
+    csrfProtection,
     commonRules.id('id'),
     [commonRules.id('fileId')],
     validateRequest,
@@ -132,12 +135,13 @@ function createFilesRoutes(controller, context) {
   );
   listsRouter.put('/:id',
     gate,
+    csrfProtection,
     commonRules.id('id'),
     commonRules.string('name', 1, 255),
     validateRequest,
     (req, res) => controller.renameList(req, res)
   );
-  listsRouter.delete('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
+  listsRouter.delete('/:id', gate, csrfProtection, commonRules.id('id'), validateRequest, (req, res) =>
     controller.deleteList(req, res)
   );
   router.use('/lists', listsRouter);
@@ -147,7 +151,7 @@ function createFilesRoutes(controller, context) {
 
   router.post('/',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.string('name', 1, 255),
     commonRules.optionalString('url', 500),
     validateRequest,
@@ -156,7 +160,7 @@ function createFilesRoutes(controller, context) {
 
   router.put('/:id',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('id'),
     commonRules.string('name', 1, 255).optional(),
     commonRules.optionalString('url', 500),
@@ -167,7 +171,7 @@ function createFilesRoutes(controller, context) {
   // DELETE /api/files/batch - Bulk delete (MUST be before '/:id' route)
   router.delete('/batch',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     [
       commonRules.array('ids', 500).optional(),
       commonRules.array('folderPaths', 200).optional(),
@@ -178,7 +182,7 @@ function createFilesRoutes(controller, context) {
 
   router.delete('/:id',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.id('id'),
     validateRequest,
     (req, res) => controller.delete(req, res)
@@ -188,7 +192,7 @@ function createFilesRoutes(controller, context) {
   router.post('/upload',
     gate,
     uploadLimiter,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     runUpload,
     (req, res) => controller.upload(req, res, { uploadRoot })
   );
@@ -203,6 +207,7 @@ function createFilesRoutes(controller, context) {
   router.get('/folders', gate, (req, res) => controller.getFolders(req, res));
   router.post('/folders',
     gate,
+    csrfProtection,
     [body('path').optional(), body('name').optional()],
     validateRequest,
     (req, res) => controller.createFolder(req, res)
@@ -211,6 +216,7 @@ function createFilesRoutes(controller, context) {
   // ---- Move file to folder ----
   router.post('/:id/move',
     gate,
+    csrfProtection,
     commonRules.id('id'),
     [body('folderPath').optional({ values: 'null' })],
     validateRequest,
@@ -242,14 +248,14 @@ function createFilesRoutes(controller, context) {
   // POST /api/files/cloud/:service/disconnect
   router.post('/cloud/:service/disconnect',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     (req, res) => cloudStorageController.disconnect(req, res)
   );
 
   // POST /api/files/cloud/:service/credentials - Save OAuth app credentials (per-user)
   router.post('/cloud/:service/credentials',
     gate,
-    /* csrfProtection, */ // Temporarily disabled
+    csrfProtection,
     commonRules.string('clientId', 1, 500),
     commonRules.string('clientSecret', 1, 500),
     validateRequest,

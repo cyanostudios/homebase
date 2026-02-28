@@ -82,6 +82,31 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
   - Migrering 053-shipping-postnord.sql. API-dokumentation: docs/POSTNORD_API_DOCUMENTATION_RAW_SWAGGER.md.
   - Filer: plugins/shipping/, client/src/plugins/shipping/.
 
+### Kritisk säkerhetshärdning (fail-closed)
+
+- **CSRF återaktiverat end-to-end**
+  - No-op/dummy-token borttagen i `server/core/middleware/csrf.js`.
+  - `/api/csrf-token` använder nu riktig token-generering via middleware.
+  - CSRF-skydd återinfört på muterande routes i `invoices`, `estimates`, `tasks`, `notes`, `files`.
+  - Klient-API: CSRF-header återaktiverad i `AppContext`, `contacts`, `notes`, `tasks`, `invoices`, `estimates`.
+- **Fail-fast för hemligheter i produktion**
+  - Produktionsstart blockeras om `DATABASE_URL`, `SESSION_SECRET` eller `CREDENTIALS_ENCRYPTION_KEY` saknas.
+  - `.env.example` uppdaterad med `CREDENTIALS_ENCRYPTION_KEY`.
+- **Minskad secrets-exponering**
+  - `/api/admin/tenants` returnerar inte längre `neon_connection_string`.
+  - Channels-instansers `credentials` maskas i API-svar.
+- **Kryptering av lagrade credentials**
+  - Ny gemensam krypteringstjänst: `server/core/services/security/CredentialsCrypto.js`.
+  - Kryptering vid write + lazy migrering av legacy plaintext i:
+    - `plugins/mail/model.js`
+    - `plugins/shipping/model.js`
+    - `plugins/cdon-products/model.js`
+    - `plugins/fyndiq-products/model.js`
+    - `plugins/files/cloudStorageModel.js`
+- **Session/log-härdning**
+  - Tenant DB-credentials lagras inte längre i session; tenant-pool resolve:as server-side från tenant-id.
+  - SQL/INSERT-loggning i `PostgreSQLAdapter` maskar/utelämnar parameter-värden.
+
 ### Dokumentation – säkerhet och refaktorering
 
 - **SECURITY_GUIDELINES**

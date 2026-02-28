@@ -78,7 +78,7 @@ router.get(
   async (req, res) => {
     try {
       const result = await pool.query(`
-      SELECT u.id, u.email, u.role, t.neon_project_id, t.neon_database_name, t.neon_connection_string
+      SELECT u.id, u.email, u.role, t.neon_project_id, t.neon_database_name
       FROM users u
       INNER JOIN tenants t ON u.id = t.user_id
       WHERE t.neon_connection_string IS NOT NULL
@@ -111,7 +111,7 @@ router.post(
       }
 
       const tenantResult = await pool.query(
-        'SELECT neon_connection_string FROM tenants WHERE user_id = $1',
+        'SELECT user_id FROM tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL',
         [userId],
       );
 
@@ -119,18 +119,13 @@ router.post(
         return res.status(404).json({ error: 'Tenant not found' });
       }
 
-      const newTenantConnectionString = tenantResult.rows[0].neon_connection_string;
-
-      // Update session with new tenant connection
-      req.session.tenantConnectionString = newTenantConnectionString;
+      // Update tenant context reference only (no DB credentials in session)
       req.session.currentTenantUserId = userId;
 
       const logger = ServiceManager.get('logger');
-      const dbHost = newTenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
       logger.info('Admin switched tenant', {
         adminId: req.session.user.id,
         tenantUserId: userId,
-        tenantDb: dbHost,
       });
 
       res.json({

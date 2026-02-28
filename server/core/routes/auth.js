@@ -83,23 +83,17 @@ router.post(
       const pluginNames = pluginAccess.rows.map((row) => row.plugin_name);
       const plugins = await ensurePluginAccess(user.id, pluginNames);
 
-      // Get tenant's connection string.
-      // NOTE: For TENANT_PROVIDER=local (schema-per-tenant in one DB), we do NOT need a per-tenant connection string.
-      // We keep DATABASE_URL here and rely on the DB adapter to SET search_path per query.
-      let tenantConnectionString = null;
-      if (process.env.TENANT_PROVIDER === 'local' && process.env.DATABASE_URL) {
-        tenantConnectionString = process.env.DATABASE_URL;
-      } else {
+      // Validate tenant mapping for provider that uses per-tenant databases.
+      if (process.env.TENANT_PROVIDER !== 'local') {
         const tenantResult = await pool.query(
-          'SELECT neon_connection_string FROM tenants WHERE user_id = $1',
+          'SELECT user_id FROM tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL',
           [user.id],
         );
-        if (!tenantResult.rows.length || !tenantResult.rows[0]?.neon_connection_string) {
+        if (!tenantResult.rows.length) {
           const logger = ServiceManager.get('logger');
           logger.error('No tenant database found', null, { userId: user.id });
           return res.status(500).json({ error: 'Tenant database not configured' });
         }
-        tenantConnectionString = tenantResult.rows[0].neon_connection_string;
       }
 
       // Save user info in session
@@ -110,19 +104,15 @@ router.post(
         plugins,
       };
 
-      // Save tenant connection string in session
-      req.session.tenantConnectionString = tenantConnectionString;
-
       // Set currentTenantUserId to logged-in user by default
       req.session.currentTenantUserId = user.id;
 
-      // Log tenant routing info
+      // Log tenant routing info without exposing connection details
       const logger = ServiceManager.get('logger');
-      const dbHost = tenantConnectionString.split('@')[1]?.split('/')[0] || 'unknown';
       logger.info('User logged in', {
         userId: user.id,
         email: user.email,
-        tenantDb: dbHost,
+        tenantUserId: user.id,
       });
 
       // Save session explicitly before responding
@@ -285,8 +275,6 @@ router.post('/signup', async (req, res) => {
       plugins: selectedPlugins,
     };
 
-    // Set tenant connection string for auto-login
-    req.session.tenantConnectionString = tenantDb.connectionString;
     req.session.currentTenantUserId = user.id;
 
     // Save session before responding (important for signup auto-login)

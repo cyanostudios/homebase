@@ -16,7 +16,7 @@ function createNoteRoutes(controller, context) {
   // POST /api/notes - Create new note
   router.post('/', 
     requirePlugin('notes'),
-    // /* csrfProtection, */ // Temporarily disabled // Temporarily disabled
+    csrfProtection,
     commonRules.string('title', 1, 255),
     commonRules.optionalString('content', 10000), // Max 10KB content
     commonRules.array('mentions', 50), // Max 50 mentions
@@ -29,7 +29,7 @@ function createNoteRoutes(controller, context) {
   // PUT /api/notes/:id - Update note
   router.put('/:id',
     requirePlugin('notes'),
-    // /* csrfProtection, */ // Temporarily disabled // Temporarily disabled
+    csrfProtection,
     commonRules.id('id'),
     commonRules.string('title', 1, 255),
     commonRules.optionalString('content', 10000),
@@ -44,6 +44,7 @@ function createNoteRoutes(controller, context) {
   router.delete(
     '/batch',
     requirePlugin('notes'),
+    csrfProtection,
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
@@ -52,7 +53,7 @@ function createNoteRoutes(controller, context) {
   // DELETE /api/notes/:id - Delete note
   router.delete('/:id',
     requirePlugin('notes'),
-    // /* csrfProtection, */ // Temporarily disabled // Temporarily disabled
+    csrfProtection,
     commonRules.id('id'),
     validateRequest,
     (req, res) => {

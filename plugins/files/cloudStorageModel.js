@@ -2,11 +2,32 @@
 // Cloud storage model for managing OAuth tokens and settings for Google Drive
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const CredentialsCrypto = require('../../server/core/services/security/CredentialsCrypto');
 
 class CloudStorageModel {
   static TABLES = {
     googledrive: 'googledrive_settings',
   };
+
+  async migrateLegacySecrets(db, table, userId, row) {
+    const updates = [];
+    const params = [userId];
+    let idx = 2;
+    const encryptIfLegacy = (column) => {
+      if (row[column] && !CredentialsCrypto.isEncrypted(row[column])) {
+        updates.push(`${column} = $${idx++}`);
+        params.push(CredentialsCrypto.encrypt(String(row[column])));
+      }
+    };
+
+    encryptIfLegacy('client_secret');
+    encryptIfLegacy('access_token');
+    encryptIfLegacy('refresh_token');
+
+    if (!updates.length) return;
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    await db.query(`UPDATE ${table} SET ${updates.join(', ')} WHERE user_id = $1`, params);
+  }
 
   async getSettings(req, service) {
     try {
@@ -29,6 +50,9 @@ class CloudStorageModel {
         LIMIT 1
       `;
       const result = await db.query(sql, [userId]);
+      if (result.length) {
+        await this.migrateLegacySecrets(db, table, userId, result[0]);
+      }
       return result.length ? this.transformSettingsRow(result[0], service) : null;
     } catch (error) {
       Logger.error(`Failed to get ${service} settings`, error);
@@ -74,8 +98,8 @@ class CloudStorageModel {
       `;
       const result = await db.query(sql, [
         userId,
-        accessToken,
-        refreshToken,
+        accessToken ? CredentialsCrypto.encrypt(accessToken) : null,
+        refreshToken ? CredentialsCrypto.encrypt(refreshToken) : null,
         tokenExpiresAt,
         connected,
       ]);
@@ -155,7 +179,7 @@ class CloudStorageModel {
       const result = await db.query(sql, [
         userId,
         clientId ? String(clientId).trim() : null,
-        clientSecret ? String(clientSecret).trim() : null,
+        clientSecret ? CredentialsCrypto.encrypt(String(clientSecret).trim()) : null,
       ]);
       Logger.info(`${service} OAuth credentials saved`, { userId });
       return this.transformSettingsRow(result[0], service);
@@ -169,15 +193,18 @@ class CloudStorageModel {
   }
 
   transformSettingsRow(row, service) {
+    const clientSecret = row.client_secret ? CredentialsCrypto.decrypt(row.client_secret) : null;
+    const accessToken = row.access_token ? CredentialsCrypto.decrypt(row.access_token) : null;
+    const refreshToken = row.refresh_token ? CredentialsCrypto.decrypt(row.refresh_token) : null;
     return {
       id: String(row.id),
       userId: String(row.user_id),
       // OAuth app credentials (optional)
       clientId: row.client_id || null,
-      clientSecret: row.client_secret || null,
+      clientSecret,
       // OAuth tokens (per-user)
-      accessToken: row.access_token || null,
-      refreshToken: row.refresh_token || null,
+      accessToken,
+      refreshToken,
       tokenExpiresAt: row.token_expires_at || null,
       connected: Boolean(row.connected),
       createdAt: row.created_at || null,
