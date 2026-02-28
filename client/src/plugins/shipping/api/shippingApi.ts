@@ -29,9 +29,9 @@ class ShippingApi {
     }
 
     const response = await fetch(`${this.basePath}${path}`, {
-      credentials: 'include',
-      headers,
       ...options,
+      headers,
+      credentials: 'include',
     });
     const text = await response.text();
     const payload = text ? JSON.parse(text) : null;

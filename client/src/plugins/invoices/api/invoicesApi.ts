@@ -62,9 +62,9 @@ export class InvoicesApi {
     let response: Response;
     try {
       response = await fetch(`${this.basePath}${path}`, {
+        ...options,
         headers,
         credentials: 'include',
-        ...options,
       });
     } catch {
       const err: any = new Error('Network unreachable');

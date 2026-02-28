@@ -46,9 +46,9 @@ class ProductsApi {
       }
 
       response = await fetch(`/api${endpoint}`, {
+        ...options,
         headers,
         credentials: 'include',
-        ...options,
       });
     } catch {
       const err: any = new Error('Network unreachable');

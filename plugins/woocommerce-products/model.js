@@ -5,6 +5,7 @@
 
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const CredentialsCrypto = require('../../server/core/services/security/CredentialsCrypto');
 
 class WooCommerceModel {
   static CHANNEL_INSTANCES_TABLE = 'channel_instances';
@@ -13,6 +14,43 @@ class WooCommerceModel {
   static CHANNEL = 'woocommerce';
 
   // ----- Row transformers -----
+  normalizeCredentialsForStorage(credentials) {
+    if (credentials == null) return null;
+    if (typeof credentials === 'string') {
+      if (CredentialsCrypto.isEncrypted(credentials)) return credentials;
+      return CredentialsCrypto.encrypt(credentials);
+    }
+    return CredentialsCrypto.encrypt(JSON.stringify(credentials));
+  }
+
+  parseCredentials(rawCredentials) {
+    if (rawCredentials == null) return null;
+    let payload = rawCredentials;
+    if (typeof payload === 'string' && CredentialsCrypto.isEncrypted(payload)) {
+      payload = CredentialsCrypto.decrypt(payload);
+    }
+    if (typeof payload === 'string') {
+      try {
+        return JSON.parse(payload);
+      } catch {
+        return null;
+      }
+    }
+    return payload;
+  }
+
+  async migrateLegacyCredentials(db, userId, rowId, rawCredentials) {
+    if (!rawCredentials || typeof rawCredentials !== 'string') return;
+    if (CredentialsCrypto.isEncrypted(rawCredentials)) return;
+    await db.query(
+      `
+      UPDATE ${WooCommerceModel.CHANNEL_INSTANCES_TABLE}
+      SET credentials = $3, updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = $1 AND id = $2
+      `,
+      [userId, rowId, CredentialsCrypto.encrypt(rawCredentials)],
+    );
+  }
 
   // ----- Channel Instances API -----
 
@@ -35,13 +73,14 @@ class WooCommerceModel {
       if (!result.length) return null;
 
       const r = result[0];
+      await this.migrateLegacyCredentials(db, userId, r.id, r.credentials);
       return {
         id: String(r.id),
         channel: r.channel,
         instanceKey: r.instance_key,
         market: r.market,
         label: r.label,
-        credentials: r.credentials ?? null,
+        credentials: this.parseCredentials(r.credentials),
         createdAt: r.created_at || null,
         updatedAt: r.updated_at || null,
       };
@@ -76,13 +115,14 @@ class WooCommerceModel {
       if (!result.length) return null;
 
       const r = result[0];
+      await this.migrateLegacyCredentials(db, userId, r.id, r.credentials);
       return {
         id: String(r.id),
         channel: r.channel,
         instanceKey: r.instance_key,
         market: r.market,
         label: r.label,
-        credentials: r.credentials ?? null,
+        credentials: this.parseCredentials(r.credentials),
         createdAt: r.created_at || null,
         updatedAt: r.updated_at || null,
       };
@@ -110,15 +150,9 @@ class WooCommerceModel {
       `;
       const rows = await db.query(sql, [userId, WooCommerceModel.CHANNEL]);
 
-      return rows.map((r) => {
-        let credentials = r.credentials ?? null;
-        if (typeof credentials === 'string') {
-          try {
-            credentials = JSON.parse(credentials);
-          } catch {
-            credentials = null;
-          }
-        }
+      return Promise.all(rows.map(async (r) => {
+        await this.migrateLegacyCredentials(db, userId, r.id, r.credentials);
+        const credentials = this.parseCredentials(r.credentials);
         return {
           id: String(r.id),
           channel: r.channel,
@@ -129,7 +163,7 @@ class WooCommerceModel {
           createdAt: r.created_at || null,
           updatedAt: r.updated_at || null,
         };
-      });
+      }));
     } catch (error) {
       Logger.error('Failed to list WooCommerce instances', error);
       if (error instanceof AppError) throw error;
@@ -152,7 +186,7 @@ class WooCommerceModel {
       }
 
       const lbl = label != null && String(label).trim() ? String(label).trim() : null;
-      const creds = credentials != null ? credentials : null;
+      const creds = this.normalizeCredentialsForStorage(credentials);
 
       const rows = await db.query(
         `
@@ -166,7 +200,7 @@ class WooCommerceModel {
           updated_at = CURRENT_TIMESTAMP
         RETURNING id, channel, instance_key, market, label, credentials, created_at, updated_at
         `,
-        [userId, WooCommerceModel.CHANNEL, key, lbl, creds ? JSON.stringify(creds) : null],
+        [userId, WooCommerceModel.CHANNEL, key, lbl, creds],
       );
 
       const r = rows[0];
@@ -176,7 +210,7 @@ class WooCommerceModel {
         instanceKey: r.instance_key,
         market: r.market,
         label: r.label,
-        credentials: r.credentials ? (typeof r.credentials === 'string' ? JSON.parse(r.credentials) : r.credentials) : null,
+        credentials: this.parseCredentials(r.credentials),
         createdAt: r.created_at || null,
         updatedAt: r.updated_at || null,
       };

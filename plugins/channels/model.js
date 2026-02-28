@@ -7,6 +7,7 @@
 
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const CredentialsCrypto = require('../../server/core/services/security/CredentialsCrypto');
 
 class ChannelsModel {
   static CHANNEL_MAP_TABLE = 'channel_product_map';
@@ -19,6 +20,28 @@ class ChannelsModel {
   formatCredentialsForApi(credentials) {
     if (credentials == null) return null;
     return { masked: true, hasCredentials: true };
+  }
+
+  normalizeCredentialsForStorage(credentials) {
+    if (credentials == null) return null;
+    if (typeof credentials === 'string') {
+      if (CredentialsCrypto.isEncrypted(credentials)) return credentials;
+      return CredentialsCrypto.encrypt(credentials);
+    }
+    return CredentialsCrypto.encrypt(JSON.stringify(credentials));
+  }
+
+  async migrateLegacyCredentials(db, userId, rowId, rawCredentials) {
+    if (!rawCredentials || typeof rawCredentials !== 'string') return;
+    if (CredentialsCrypto.isEncrypted(rawCredentials)) return;
+    await db.query(
+      `
+      UPDATE ${ChannelsModel.CHANNEL_INSTANCES_TABLE}
+      SET credentials = $3, updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = $1 AND id = $2
+      `,
+      [userId, rowId, CredentialsCrypto.encrypt(rawCredentials)],
+    );
   }
 
   // ---------- READ: list channel summaries ----------
@@ -362,6 +385,7 @@ class ChannelsModel {
       sql += ` ORDER BY channel ASC, COALESCE(market,'') ASC, instance_key ASC, id ASC`;
       
       const rows = await db.query(sql, params);
+      await Promise.all(rows.map((r) => this.migrateLegacyCredentials(db, userId, r.id, r.credentials)));
 
       return rows.map((r) => ({
         id: String(r.id),
@@ -395,7 +419,7 @@ class ChannelsModel {
 
       const mkt = market != null && String(market).trim() ? String(market).trim().toLowerCase() : null;
       const lbl = label != null && String(label).trim() ? String(label).trim() : null;
-      const creds = credentials != null ? credentials : null;
+      const creds = this.normalizeCredentialsForStorage(credentials);
 
       const rows = await db.query(
         `
@@ -461,7 +485,7 @@ class ChannelsModel {
       }
       if (credentials !== undefined) {
         setClauses.push(`credentials = $${paramIdx}`);
-        params.push(credentials);
+        params.push(this.normalizeCredentialsForStorage(credentials));
         paramIdx += 1;
       }
       if (enabled !== undefined) {

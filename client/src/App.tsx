@@ -481,7 +481,7 @@ function AppContent() {
           const executeDuplicate = currentPluginContext.executeDuplicate;
           if (typeof executeDuplicate === 'function') {
             executeDuplicate(currentItem, newName)
-              .then(({ closePanel }) => {
+              .then(({ closePanel }: { closePanel: () => void }) => {
                 closePanel();
                 setShowDuplicateDialog(false);
               })
@@ -573,7 +573,7 @@ function AppContent() {
             createdFromNote: noteForTask.id,
           };
           saveTask(payload)
-            .then((success) => {
+            .then((success: boolean) => {
               if (success) {
                 closeNotePanel();
                 attemptNavigation(() => setCurrentPage('tasks'));

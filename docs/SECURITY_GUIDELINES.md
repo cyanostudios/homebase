@@ -67,6 +67,23 @@ Use this checklist to track "as-is" versus "target". Status values: Open / In Pr
 - [ ] Backup + restore drill completed and documented
 - [ ] Incident response playbook reviewed and tested
 
+Done now vs Launch later (recommended for active development)
+Done now (global, low-friction):
+- CSRF active for mutations (server + client token flow).
+- Sensitive SQL parameter values redacted from logs.
+- Credentials encryption standardized for settings/plugins handling secrets.
+- Strict tenant isolation retained (tenant-only search_path, no main-db migration leakage).
+- Baseline guardrails in runtime: explicit body limits + request/header/keepalive timeouts.
+- Public intake webhook hardened with timing-safe secret compare + dedicated limiter + payload sanity checks.
+- File uploads validated by content signature (magic bytes), not only declared MIME.
+
+Launch later (infra/prod-heavy):
+- Distributed rate limiting store (Redis or equivalent) for multi-instance topology.
+- CSP hard-enforce rollout after report-only/compatibility validation window.
+- MFA/step-up auth for privileged admin actions.
+- Webhook IP allowlist/WAF controls where deployment topology supports it.
+- Incident runbooks + backup restore drills + production alerting/SIEM integrations.
+
 Security Layers
 Layer 1: Network & Request (Middleware)
 Responsibilities:

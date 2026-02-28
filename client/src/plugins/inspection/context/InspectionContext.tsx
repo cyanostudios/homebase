@@ -79,7 +79,7 @@ export function InspectionProvider({
     setProjectsLoading(true);
     try {
       const data = await inspectionApi.getProjects();
-      setInspectionProjects(data || []);
+      setInspectionProjects(data);
     } catch (err: any) {
       setValidationErrors([{ field: 'general', message: err?.message || 'Failed to load projects' }]);
     } finally {
@@ -132,8 +132,14 @@ export function InspectionProvider({
             description: data.description,
             adminNotes: data.adminNotes,
           });
-          if (created?.id && Array.isArray(data.pendingFileIds) && data.pendingFileIds.length > 0) {
-            await inspectionApi.setFiles(created.id, data.pendingFileIds);
+          if (created?.id) {
+            if (Array.isArray(data.pendingFileIds) && data.pendingFileIds.length > 0) {
+              await inspectionApi.setFiles(created.id, data.pendingFileIds);
+            }
+            const pendingListIds = Array.isArray(data.pendingListIds) ? data.pendingListIds : [];
+            for (const listId of pendingListIds) {
+              await inspectionApi.addFileList(created.id, listId);
+            }
           }
         }
         await loadProjects();

@@ -27,7 +27,7 @@ export const ListPicker: React.FC<ListPickerProps> = ({ selectedIds, onSelect, o
   useEffect(() => {
     filesApi
       .getLists()
-      .then((data) => setLists(data || []))
+      .then((data) => setLists(data))
       .catch(() => setLists([]))
       .finally(() => setLoading(false));
   }, []);

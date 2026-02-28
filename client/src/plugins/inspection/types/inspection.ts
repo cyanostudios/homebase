@@ -24,4 +24,6 @@ export interface InspectionProject {
   updatedAt: string;
   files: InspectionFile[];
   fileLists?: InspectionFileList[];
+  /** Antal filer – servern returnerar alltid detta (getAll räknar från DB, getById från files.length). */
+  fileCount?: number;
 }

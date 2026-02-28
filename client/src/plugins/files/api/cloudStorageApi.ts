@@ -41,9 +41,9 @@ class CloudStorageApi {
       }
 
       response = await fetch(`/api/files${path}`, {
+        ...options,
         headers,
         credentials: 'include',
-        ...options,
       });
     } catch {
       const err: any = new Error('Network unreachable');

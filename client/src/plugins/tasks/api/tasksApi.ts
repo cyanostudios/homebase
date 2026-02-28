@@ -59,9 +59,9 @@ class TasksApi {
     }
 
     const response = await fetch(`/api${endpoint}`, {
+      ...options,
       headers,
       credentials: 'include',
-      ...options,
     });
 
     if (!response.ok) {

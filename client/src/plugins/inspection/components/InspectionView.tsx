@@ -53,7 +53,7 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
   const [description, setDescription] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
   const [projectFiles, setProjectFiles] = useState<InspectionFile[]>([]);
-  const [projectFileLists, setProjectFileLists] = useState<InspectionFileList[]>([]);
+  const [projectFileLists, setProjectFileLists] = useState<InspectionFileList[] | undefined>(undefined);
   const [pendingFileIds, setPendingFileIds] = useState<string[]>([]);
   const [pendingListIds, setPendingListIds] = useState<string[]>([]);
   const [pendingLists, setPendingLists] = useState<{ id: string; name: string }[]>([]);
@@ -86,8 +86,8 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
       setName(projectFromProps.name || '');
       setDescription(projectFromProps.description || '');
       setAdminNotes(projectFromProps.adminNotes || '');
-      setProjectFiles(projectFromProps.files || []);
-      setProjectFileLists(projectFromProps.fileLists || []);
+      setProjectFiles(projectFromProps.files);
+      setProjectFileLists(projectFromProps.fileLists);
       setPendingFileIds([]);
       setPendingListIds([]);
       setPendingLists([]);
@@ -125,8 +125,8 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
         if (!p) return;
         if (seq !== loadSeqRef.current) return;
 
-        setProjectFiles(p.files || []);
-        setProjectFileLists(p.fileLists || []);
+        setProjectFiles(p.files);
+        setProjectFileLists(p.fileLists);
         setName(p.name || '');
         setDescription(p.description || '');
         setAdminNotes(p.adminNotes || '');
@@ -139,15 +139,15 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
 
   // When in edit mode with file lists that have fileIds, load all files once to resolve names
   useEffect(() => {
-    if (isCreate || !projectFileLists.length) return;
+    if (isCreate || !projectFileLists?.length) return;
     const allIds = new Set<string>();
-    projectFileLists.forEach((fl) => (fl.fileIds || []).forEach((id) => allIds.add(String(id))));
+    projectFileLists.forEach((fl) => fl.fileIds.forEach((id) => allIds.add(String(id))));
     if (allIds.size === 0) return;
     filesApi
       .getItems()
       .then((items: any[]) => {
         const map: Record<string, string> = {};
-        (items || []).forEach((f) => {
+        items.forEach((f) => {
           if (f?.id) map[String(f.id)] = f.name || 'Namnlös';
         });
         setFileIdToName(map);
@@ -169,7 +169,7 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
     setSendHistoryLoading(true);
     inspectionApi
       .getSendHistory(projectId)
-      .then((list) => setSendHistory(list || []))
+      .then((list) => setSendHistory(list))
       .catch(() => setSendHistory([]))
       .finally(() => setSendHistoryLoading(false));
   }, [projectId, isCreate]);
@@ -209,7 +209,7 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
 
     filesApi
       .getItems()
-      .then((items) => setFilesList(items || []))
+      .then((items) => setFilesList(items))
       .catch(() => {});
   }, [isCreate, showFilePicker, filesList.length]);
 
@@ -222,7 +222,10 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
 
     try {
       const payload: any = { name, description, adminNotes };
-      if (isCreate) payload.pendingFileIds = pendingFileIds;
+      if (isCreate) {
+        payload.pendingFileIds = pendingFileIds;
+        payload.pendingListIds = pendingListIds;
+      }
 
       const ok = onSave ? await onSave(payload) : await saveInspectionAndClose(payload);
 
@@ -239,6 +242,7 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
     adminNotes,
     isCreate,
     pendingFileIds,
+    pendingListIds,
     onSave,
     saveInspectionAndClose,
   ]);
@@ -268,7 +272,7 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
       try {
         const p = await inspectionApi.setFiles(projectId, fileIds);
 
-        setProjectFiles(p?.files || []);
+        setProjectFiles(p.files);
         setName(p?.name || '');
         setDescription(p?.description || '');
         setAdminNotes(p?.adminNotes || '');
@@ -286,7 +290,7 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
 
       try {
         const p = await inspectionApi.removeFile(projectId, fileId);
-        setProjectFiles(p?.files || []);
+        setProjectFiles(p.files);
       } catch (e) {
         console.error('Failed to remove file:', e);
       }
@@ -311,7 +315,7 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
         }
         setShowListPicker(false);
         markDirty();
-      } else if (projectId) {
+      } else if (projectId && Array.isArray(projectFileLists)) {
         (async () => {
           try {
             const selectedSet = new Set(listIds.map(String));
@@ -327,7 +331,7 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
               await inspectionApi.addFileList(projectId, listId);
             }
             const p = await inspectionApi.getProject(projectId);
-            setProjectFileLists(p?.fileLists || []);
+            setProjectFileLists(p.fileLists);
           } catch (e) {
             console.error('Failed to update lists:', e);
           } finally {
@@ -350,7 +354,7 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
       if (!projectId) return;
       try {
         await inspectionApi.removeFileList(projectId, fileListId);
-        setProjectFileLists((prev) => prev.filter((fl) => fl.id !== fileListId));
+        setProjectFileLists((prev) => prev === undefined ? undefined : prev.filter((fl) => fl.id !== fileListId));
       } catch (e) {
         console.error('Failed to remove list:', e);
       }
@@ -434,7 +438,8 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
             variant="default"
             className="w-full"
             onClick={isCreate ? handleSaveAndSend : () => setShowSendModal(true)}
-            disabled={isCreate && saving}
+            disabled={(isCreate && saving) || (!isCreate && projectFileLists === undefined)}
+            title={!isCreate && projectFileLists === undefined ? 'Laddar listor...' : undefined}
           >
             <Mail className="h-4 w-4 mr-2" />
             {isCreate ? 'Spara och skicka' : 'Skicka'}
@@ -588,13 +593,15 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
                     })}
                   </ul>
                 )
+              ) : projectFileLists === undefined ? (
+                <p className="text-sm text-muted-foreground">Laddar listor…</p>
               ) : projectFileLists.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Inga listor bifogade</p>
               ) : (
                 <ul className="space-y-1">
                   {projectFileLists.map((fl) => {
                     const isExpanded = expandedListIds.has(fl.id);
-                    const fileIds = fl.fileIds || [];
+                    const fileIds = fl.fileIds;
                     return (
                       <li key={fl.id} className="border-b last:border-0">
                         <div className="flex items-center gap-1 py-2">
@@ -647,11 +654,15 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
 
           {showListPicker && (
             <div className="border rounded-lg p-3 bg-muted/30">
+              {projectFileLists === undefined && !isCreate ? (
+                <p className="text-sm text-muted-foreground">Laddar listor…</p>
+              ) : (
               <ListPicker
-                selectedIds={isCreate ? pendingListIds : projectFileLists.map((fl) => fl.sourceListId)}
+                selectedIds={isCreate ? pendingListIds : projectFileLists!.map((fl) => fl.sourceListId)}
                 onSelect={handleAddLists}
                 onClose={() => setShowListPicker(false)}
               />
+              )}
             </div>
           )}
 

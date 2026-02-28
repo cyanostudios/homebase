@@ -258,7 +258,7 @@ class InspectionController {
         }
       }
       if (idsToAttach.length === 0) {
-        idsToAttach = (project.files || []).map((f) => f.id);
+        idsToAttach = project.files.map((f) => f.id);
       } else {
         idsToAttach = [...new Set(idsToAttach)];
       }

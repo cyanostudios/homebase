@@ -112,11 +112,11 @@ class FyndiqProductsModel {
 
       const sql = `
         INSERT INTO ${FyndiqProductsModel.CHANNEL_MAP_TABLE} (
-          user_id, product_id, channel, enabled, external_id, last_synced_at, last_sync_status, last_error, created_at, updated_at
+          user_id, product_id, channel, channel_instance_id, enabled, external_id, last_synced_at, last_sync_status, last_error, created_at, updated_at
         ) VALUES (
-          $1,       $2,         $3,      $4,      $5,          CURRENT_TIMESTAMP, $6,              $7,         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          $1,       $2,         $3,      NULL,                $4,      $5,          CURRENT_TIMESTAMP, $6,              $7,         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         )
-        ON CONFLICT (user_id, product_id, channel) DO UPDATE SET
+        ON CONFLICT (user_id, product_id, channel, channel_instance_id) DO UPDATE SET
           enabled = EXCLUDED.enabled,
           external_id = EXCLUDED.external_id,
           last_synced_at = CURRENT_TIMESTAMP,

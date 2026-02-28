@@ -2,6 +2,35 @@
 // Input validation helpers using express-validator
 
 const { body, param, query, validationResult } = require('express-validator');
+const SENSITIVE_KEYS = [
+  'password',
+  'secret',
+  'token',
+  'apiKey',
+  'apiSecret',
+  'authorization',
+  'authPass',
+  'clientSecret',
+  'consumerSecret',
+  'refreshToken',
+];
+
+function redactSensitive(value) {
+  if (Array.isArray(value)) return value.map((v) => redactSensitive(v));
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      const keyLower = String(k).toLowerCase();
+      const isSensitive = SENSITIVE_KEYS.some((needle) => keyLower.includes(needle.toLowerCase()));
+      out[k] = isSensitive ? '[REDACTED]' : redactSensitive(v);
+    }
+    return out;
+  }
+  if (typeof value === 'string' && value.length > 500) {
+    return `${value.slice(0, 500)}...[truncated]`;
+  }
+  return value;
+}
 
 /**
  * Validation result middleware
@@ -10,14 +39,18 @@ const { body, param, query, validationResult } = require('express-validator');
 function validateRequest(req, res, next) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    // Log validation errors for debugging
+    const normalizedErrors = errors.array().map((err) => ({
+      field: String(err?.path || err?.param || 'general'),
+      message: String(err?.msg || 'Invalid value'),
+    }));
+    // Log validation errors for debugging without leaking secrets.
     console.log('Validation failed for:', req.path);
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
-    console.log('Validation errors:', JSON.stringify(errors.array(), null, 2));
+    console.log('Request body:', JSON.stringify(redactSensitive(req.body), null, 2));
+    console.log('Validation errors:', JSON.stringify(normalizedErrors, null, 2));
     return res.status(400).json({
       error: 'Validation failed',
       code: 'VALIDATION_ERROR',
-      details: errors.array(),
+      errors: normalizedErrors,
     });
   }
   next();

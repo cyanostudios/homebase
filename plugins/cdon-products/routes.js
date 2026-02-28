@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { csrfProtection } = require('../../server/core/middleware/csrf');
-const { body, commonRules, validateRequest } = require('../../server/core/middleware/validation');
+const { body, param, commonRules, validateRequest } = require('../../server/core/middleware/validation');
 
 function createCdonProductsRoutes(controller, context) {
   const requirePlugin = context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
@@ -114,12 +114,16 @@ function createCdonProductsRoutes(controller, context) {
     '/orders/:orderId/fulfill',
     gate,
     csrfProtection,
+    [param('orderId').trim().notEmpty().withMessage('orderId is required')],
+    validateRequest,
     (req, res) => controller.fulfillOrder(req, res),
   );
   router.put(
     '/orders/:orderId/cancel',
     gate,
     csrfProtection,
+    [param('orderId').trim().notEmpty().withMessage('orderId is required')],
+    validateRequest,
     (req, res) => controller.cancelOrder(req, res),
   );
 

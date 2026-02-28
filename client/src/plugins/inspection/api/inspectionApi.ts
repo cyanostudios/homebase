@@ -7,9 +7,9 @@ class InspectionApi {
     };
 
     const response = await fetch(`/api/inspection${endpoint}`, {
+      ...options,
       headers,
       credentials: 'include',
-      ...options,
     });
 
     if (!response.ok) {

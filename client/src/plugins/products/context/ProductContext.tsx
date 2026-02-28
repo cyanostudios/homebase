@@ -481,7 +481,8 @@ export function ProductProvider({
       }
     }
     setValidationErrors(errors);
-    const blocking = errors.filter((e) => !e.message.includes('Warning'));
+    const isWarningMessage = (message: string) => /^varning\b/i.test(String(message || '').trim()) || /^warning\b/i.test(String(message || '').trim());
+    const blocking = errors.filter((e) => !isWarningMessage(e.message));
     if (blocking.length > 0) return false;
 
     try {
@@ -763,9 +764,10 @@ export function ProductProvider({
       // Handle field-level errors (409 conflicts or validation errors)
       if (error?.errors && Array.isArray(error.errors)) {
         error.errors.forEach((err: any) => {
-          if (err.field && err.message) {
-            validationErrors.push({ field: err.field, message: err.message });
-          }
+          const field = String(err?.field ?? 'general');
+          const message = String(err?.message ?? '').trim();
+          if (!message) return;
+          validationErrors.push({ field, message });
         });
       }
       

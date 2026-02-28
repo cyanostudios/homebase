@@ -61,9 +61,22 @@ const uploadLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * Public intake webhook limiter
+ * Limits abusive bursts while allowing normal webhook traffic.
+ */
+const intakeLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30,
+  message: 'Too many intake requests, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   globalLimiter,
   authLimiter,
   emailLimiter,
   uploadLimiter,
+  intakeLimiter,
 };

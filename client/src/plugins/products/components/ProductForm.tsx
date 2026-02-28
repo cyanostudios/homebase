@@ -1187,7 +1187,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       return;
     }
 
-    if (!String(formData.sku || '').trim()) return;
     setIsSubmitting(true);
     try {
       const hadChanges = !!currentProduct && isDirty;
@@ -1381,7 +1380,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   }, [handleSubmit, onCancel]);
 
   const getFieldError = (fieldName: string) => validationErrors.find((e) => e.field === fieldName);
-  const hasBlockingErrors = validationErrors.some((e) => !e.message.includes('Warning'));
+  const isWarningMessage = (message: string) =>
+    /^varning\b/i.test(String(message || '').trim()) || /^warning\b/i.test(String(message || '').trim());
+  const hasBlockingErrors = validationErrors.some((e) => !isWarningMessage(e.message));
 
   const addImage = () => {
     const v = newImage.trim();
@@ -1491,7 +1492,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               <h3 className="text-sm font-medium text-red-800">Cannot save product</h3>
               <ul className="mt-2 list-disc list-inside text-sm text-red-700">
                 {validationErrors
-                  .filter((e) => !e.message.includes('Warning'))
+                  .filter((e) => !isWarningMessage(e.message))
                   .map((e, i) => (
                     <li key={i}>{e.message}</li>
                   ))}

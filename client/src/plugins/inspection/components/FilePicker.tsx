@@ -37,7 +37,7 @@ export const FilePicker: React.FC<FilePickerProps> = ({ selectedIds, onSelect, o
       try {
         const data = await filesApi.getItems();
         if (seq !== loadSeqRef.current) return;
-        setFiles(data || []);
+        setFiles(data);
       } catch (err) {
         console.error('Failed to load files:', err);
       } finally {

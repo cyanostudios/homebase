@@ -48,9 +48,15 @@ Bootstrap.initializeServices();
 
 const app = express();
 const PORT = process.env.PORT || 3002;
+const JSON_BODY_LIMIT = process.env.API_JSON_LIMIT || '10mb';
+const URL_ENCODED_LIMIT = process.env.API_URLENCODED_LIMIT || '1mb';
+const SERVER_REQUEST_TIMEOUT_MS = Number(process.env.SERVER_REQUEST_TIMEOUT_MS || 60000);
+const SERVER_HEADERS_TIMEOUT_MS = Number(process.env.SERVER_HEADERS_TIMEOUT_MS || 65000);
+const SERVER_KEEPALIVE_TIMEOUT_MS = Number(process.env.SERVER_KEEPALIVE_TIMEOUT_MS || 5000);
 
 // Trust Railway proxy
 app.set('trust proxy', 1);
+app.disable('x-powered-by');
 
 // Main database pool (for auth, tenant mapping, and app queries)
 const pool = new Pool({
@@ -136,16 +142,16 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+// Body parsing with explicit limits to reduce abuse risk.
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: URL_ENCODED_LIMIT }));
 
 // Tenant Pool Middleware
 //
 // - TENANT_PROVIDER=neon: database-per-tenant → req.tenantPool is resolved server-side from tenant user id.
 // - TENANT_PROVIDER=local: schema-per-tenant in ONE database (often Neon Postgres via pooler).
 //   IMPORTANT: Neon pooler does NOT support setting search_path via startup "options".
-//   For local provider we therefore rely on PostgreSQLAdapter's per-query `SET search_path TO tenant_<userId>, public`
+//   For local provider we therefore rely on PostgreSQLAdapter's per-query `SET search_path TO tenant_<userId>`
 //   and DO NOT create a separate tenant pool based on a connection string with search_path options.
 app.use(async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.session?.user?.id;
@@ -304,6 +310,10 @@ const server = app.listen(PORT, () => {
     console.log(`📋 Auth debug logs: [SESSION] [AUTH] [AUTH/ME] [CLIENT] — all appear in this terminal`);
   }
 });
+// Tighten HTTP-level guardrails against slowloris/resource exhaustion.
+server.requestTimeout = SERVER_REQUEST_TIMEOUT_MS;
+server.headersTimeout = SERVER_HEADERS_TIMEOUT_MS;
+server.keepAliveTimeout = SERVER_KEEPALIVE_TIMEOUT_MS;
 
 // Graceful shutdown - wait for server to drain before closing pool
 async function gracefulShutdown() {

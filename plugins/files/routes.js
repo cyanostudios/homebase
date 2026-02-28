@@ -6,6 +6,7 @@ const config = require('./plugin.config');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const FileType = require('file-type');
 const { sanitizeFolderPath } = require('./pathUtils');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
@@ -43,6 +44,80 @@ function createFilesRoutes(controller, context) {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',        // .xlsx
     'application/vnd.openxmlformats-officedocument.presentationml.presentation' // .pptx
   ]);
+  const TEXT_LIKE_MIME = new Set(['text/plain', 'text/csv', 'image/svg+xml']);
+  const TEXT_LIKE_EXT = new Set(['.txt', '.csv', '.svg']);
+
+  async function detectMimeFromContent(filePath) {
+    const fd = await fs.promises.open(filePath, 'r');
+    try {
+      const sample = Buffer.alloc(8192);
+      const { bytesRead } = await fd.read(sample, 0, sample.length, 0);
+      if (!bytesRead) return null;
+      const buf = sample.subarray(0, bytesRead);
+      const detected = await FileType.fromBuffer(buf);
+      return detected?.mime || null;
+    } finally {
+      await fd.close();
+    }
+  }
+
+  function looksLikeTextBuffer(buf) {
+    // Heuristic: allow common whitespace and printable ASCII; reject if many binary control bytes.
+    let nonPrintable = 0;
+    for (let i = 0; i < buf.length; i += 1) {
+      const b = buf[i];
+      const isWhitespace = b === 9 || b === 10 || b === 13;
+      const isPrintable = b >= 32 && b <= 126;
+      if (!isWhitespace && !isPrintable) nonPrintable += 1;
+    }
+    return nonPrintable / Math.max(buf.length, 1) < 0.05;
+  }
+
+  async function validateUploadedFilesByMagicBytes(files) {
+    const blocked = [];
+    for (const file of files || []) {
+      try {
+        const detectedMime = await detectMimeFromContent(file.path);
+        if (detectedMime) {
+          if (!ALLOWED_MIME.has(detectedMime)) {
+            blocked.push({
+              path: file.path,
+              name: file.originalname || file.filename || 'unknown',
+              reason: `detected ${detectedMime}`,
+            });
+          }
+          continue;
+        }
+
+        const ext = path.extname(file.originalname || file.filename || '').toLowerCase();
+        const declaredMime = String(file.mimetype || '').toLowerCase();
+        if (!TEXT_LIKE_MIME.has(declaredMime) || !TEXT_LIKE_EXT.has(ext)) {
+          blocked.push({
+            path: file.path,
+            name: file.originalname || file.filename || 'unknown',
+            reason: 'undetected file signature',
+          });
+          continue;
+        }
+
+        const textSample = await fs.promises.readFile(file.path, { encoding: null });
+        if (!looksLikeTextBuffer(textSample.subarray(0, 8192))) {
+          blocked.push({
+            path: file.path,
+            name: file.originalname || file.filename || 'unknown',
+            reason: 'text-like extension but binary content',
+          });
+        }
+      } catch (error) {
+        blocked.push({
+          path: file.path,
+          name: file.originalname || file.filename || 'unknown',
+          reason: error?.message || 'content validation failed',
+        });
+      }
+    }
+    return blocked;
+  }
 
   const storage = multer.diskStorage({
     destination: function (req, _file, cb) {
@@ -100,7 +175,18 @@ function createFilesRoutes(controller, context) {
         const details = req.rejectedUploads.map((f) => `${f.name} (${f.type})`).join(', ');
         return res.status(400).json({ error: `Blocked file types: ${details}` });
       }
-      next();
+      validateUploadedFilesByMagicBytes(req.files || [])
+        .then(async (blockedByContent) => {
+          if (!blockedByContent.length) return next();
+          for (const blocked of blockedByContent) {
+            try {
+              await fs.promises.unlink(blocked.path);
+            } catch (_) {}
+          }
+          const details = blockedByContent.map((f) => `${f.name} (${f.reason})`).join(', ');
+          return res.status(400).json({ error: `Blocked file content: ${details}` });
+        })
+        .catch(() => res.status(500).json({ error: 'Upload validation failed' }));
     });
 
   // ---- Lists (files namespace) ----

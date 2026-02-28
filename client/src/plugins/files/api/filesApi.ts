@@ -48,63 +48,84 @@ export class FilesApi {
     }
   }
 
+  private isCsrfMismatch(response: Response, payload: any): boolean {
+    if (response.status !== 403) return false;
+    const code = String(payload?.code || '');
+    const message = String(payload?.error || payload?.message || '');
+    return code === 'EBADCSRFTOKEN' || /invalid csrf token/i.test(message);
+  }
+
   private async request(path: string, options: RequestInit = {}) {
-    const headers: Record<string, string> = {
-      ...((options.headers as Record<string, string>) || {}),
+    const method = String(options.method || 'GET').toUpperCase();
+    const isMutation = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
+    let attemptedCsrfRefresh = false;
+
+    const send = async () => {
+      const headers: Record<string, string> = {
+        ...((options.headers as Record<string, string>) || {}),
+      };
+
+      // Add CSRF token for mutations (but not for multipart uploads - browser sets Content-Type)
+      if (isMutation) {
+        // For multipart uploads, don't set Content-Type header (browser needs to set boundary)
+        if (!(options.body instanceof FormData)) {
+          headers['Content-Type'] = 'application/json';
+        }
+        headers['X-CSRF-Token'] = await this.getCsrfToken();
+      } else if (!options.method || options.method === 'GET') {
+        // GET requests don't need CSRF token
+      }
+
+      let response: Response;
+      try {
+        response = await fetch(`${this.basePath}${path}`, {
+          ...options,
+          headers,
+          credentials: 'include',
+        });
+      } catch {
+        const err: any = new Error('Network unreachable');
+        err.status = 0;
+        throw err;
+      }
+
+      if (!response.ok) {
+        let payload: any = null;
+        try {
+          payload = await response.json();
+        } catch {
+          // ignore invalid JSON error payloads
+        }
+
+        if (isMutation && !attemptedCsrfRefresh && this.isCsrfMismatch(response, payload)) {
+          attemptedCsrfRefresh = true;
+          this.csrfToken = null;
+          return send();
+        }
+
+        // Handle standardized error format from backend
+        const errorMessage = payload?.error || payload?.message || response.statusText || 'Request failed';
+        const errorCode = payload?.code;
+        const errorDetails = payload?.details;
+
+        const err: any = new Error(
+          response.status === 409 && payload?.errors?.[0]?.message
+            ? payload.errors[0].message
+            : errorMessage
+        );
+        err.status = response.status;
+        err.code = errorCode;
+        err.details = errorDetails;
+        if (payload?.errors) err.errors = payload.errors as ApiFieldError[];
+        throw err;
+      }
+
+      // may be [] or {}
+      const text = await response.text();
+      return text ? JSON.parse(text) : {};
     };
 
-    // Add CSRF token for mutations (but not for multipart uploads - browser sets Content-Type)
-    if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
-      // For multipart uploads, don't set Content-Type header (browser needs to set boundary)
-      if (!(options.body instanceof FormData)) {
-        headers['Content-Type'] = 'application/json';
-      }
-      headers['X-CSRF-Token'] = await this.getCsrfToken();
-    } else if (!options.method || options.method === 'GET') {
-      // GET requests don't need CSRF token
-    }
-
-    let response: Response;
-    try {
-      response = await fetch(`${this.basePath}${path}`, {
-        headers,
-        credentials: 'include',
-        ...options,
-      });
-    } catch {
-      const err: any = new Error('Network unreachable');
-      err.status = 0;
-      throw err;
-    }
-
-    if (!response.ok) {
-      let payload: any = null;
-      try {
-        payload = await response.json();
-      } catch {
-        // ignore invalid JSON error payloads
-      }
-
-      // Handle standardized error format from backend
-      const errorMessage = payload?.error || payload?.message || response.statusText || 'Request failed';
-      const errorCode = payload?.code;
-      const errorDetails = payload?.details;
-
-      const err: any = new Error(
-        response.status === 409 && payload?.errors?.[0]?.message
-          ? payload.errors[0].message
-          : errorMessage
-      );
-      err.status = response.status;
-      err.code = errorCode;
-      err.details = errorDetails;
-      if (payload?.errors) err.errors = payload.errors as ApiFieldError[];
-      throw err;
-    }
-
-    // may be [] or {}
-    const text = await response.text();
-    return text ? JSON.parse(text) : {};
+    return send();
   }
 
   // JSON CRUD

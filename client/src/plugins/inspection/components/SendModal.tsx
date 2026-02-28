@@ -33,12 +33,12 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
   const [manualEmail, setManualEmail] = useState('');
   const [includeDescription, setIncludeDescription] = useState(true);
   const [includeAdminNotes, setIncludeAdminNotes] = useState(true);
-  const fileLists = project.fileLists || [];
+  const fileLists = project.fileLists!;
   const [selectedListIds, setSelectedListIds] = useState<string[]>(
     fileLists.map((fl: InspectionFileList) => fl.id)
   );
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>(
-    (project.files || []).map((f) => f.id)
+    project.files.map((f) => f.id)
   );
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,13 +61,13 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
 
   useEffect(() => {
     const allIds = new Set<string>();
-    fileLists.forEach((fl) => (fl.fileIds || []).forEach((id) => allIds.add(String(id))));
+    fileLists.forEach((fl) => fl.fileIds.forEach((id) => allIds.add(String(id))));
     if (allIds.size === 0) return;
     filesApi
       .getItems()
       .then((items: any[]) => {
         const map: Record<string, string> = {};
-        (items || []).forEach((f) => {
+        items.forEach((f) => {
           if (f?.id) map[String(f.id)] = f.name || 'Namnlös';
         });
         setFileIdToName(map);
@@ -81,7 +81,7 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
         const res = await fetch('/api/contacts', { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
-          setContacts(data || []);
+          setContacts(data);
         }
       } catch (e) {
         console.error('Failed to load contacts:', e);
@@ -271,7 +271,7 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
                   ) : (
                     fileLists.map((fl) => {
                       const isExpanded = expandedListIds.has(fl.id);
-                      const fileIds = fl.fileIds || [];
+                      const fileIds = fl.fileIds;
                       return (
                         <div key={fl.id} className="border-b border-muted/50 last:border-0">
                           <div className="flex items-center gap-1 py-1.5">
@@ -328,10 +328,10 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
               <Label>Bifogade filer</Label>
               <ScrollArea className="h-32 mt-2 border rounded-md">
                 <div className="p-2 space-y-1">
-                  {(project.files || []).length === 0 ? (
+                  {project.files.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Inga filer bifogade</p>
                   ) : (
-                    (project.files || []).map((f) => (
+                    project.files.map((f) => (
                       <div key={f.id} className="flex items-center space-x-2">
                         <Checkbox
                           id={`file-${f.id}`}
@@ -367,7 +367,7 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
                   selectedIds={selectedContactListIds}
                   onSelect={(ids, lists) => {
                     setSelectedContactListIds(ids);
-                    setSelectedContactLists(lists || []);
+                    if (lists !== undefined) setSelectedContactLists(lists);
                     setShowContactListPicker(false);
                   }}
                   onClose={() => setShowContactListPicker(false)}

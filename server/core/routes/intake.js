@@ -3,7 +3,9 @@
 // POST /api/intake/inspection-request - public endpoint, validated by x-webhook-secret or body.webhook_secret
 
 const express = require('express');
+const crypto = require('crypto');
 const { Logger } = require('@homebase/core');
+const { intakeLimiter } = require('../middleware/rateLimit');
 const { buildFileUrl } = require('../../../plugins/files/pathUtils');
 const {
   buildIntakeReq,
@@ -63,16 +65,38 @@ function normalizeFileUrls(body) {
   return [];
 }
 
+function isHttpUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return false;
+  try {
+    const u = new URL(value);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function generateTraceId() {
   return `intake-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-router.post('/inspection-request', async (req, res) => {
+function safeSecretEquals(actual, expected) {
+  if (typeof actual !== 'string' || typeof expected !== 'string') return false;
+  const actualBuf = Buffer.from(actual.trim(), 'utf8');
+  const expectedBuf = Buffer.from(expected.trim(), 'utf8');
+  if (actualBuf.length !== expectedBuf.length) return false;
+  return crypto.timingSafeEqual(actualBuf, expectedBuf);
+}
+
+router.post('/inspection-request', intakeLimiter, async (req, res) => {
   const traceId = generateTraceId();
   try {
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+      return res.status(400).json({ ok: false, error: 'Invalid payload', traceId });
+    }
+
     const secret = req.header('x-webhook-secret');
     const expected = process.env.CF7_WEBHOOK_SECRET;
-    if (!expected || !secret || secret.trim() !== expected) {
+    if (!safeSecretEquals(secret, expected)) {
       Logger.warn('Intake inspection-request: invalid or missing secret', { traceId });
       return res.status(401).json({ ok: false });
     }
@@ -90,6 +114,12 @@ router.post('/inspection-request', async (req, res) => {
     const fastighetsbeteckning = safeName(fastighetsbeteckningRaw);
     const folderPath = fastighetsbeteckning || 'Intake';
     const fileUrls = normalizeFileUrls(req.body);
+    if (fileUrls.length > 10) {
+      return res.status(400).json({ ok: false, error: 'Too many files in payload', traceId });
+    }
+    if (fileUrls.some((url) => !isHttpUrl(url))) {
+      return res.status(400).json({ ok: false, error: 'Invalid file URL format', traceId });
+    }
 
     const reqLike = await buildIntakeReq();
     const folder = ensureFolderByName(folderPath);

@@ -40,9 +40,9 @@ class ChannelsApi {
       }
 
       response = await fetch(`/api/channels${path}`, {
+        ...options,
         headers,
         credentials: 'include',
-        ...options,
       });
     } catch {
       const err: any = new Error('Network unreachable');

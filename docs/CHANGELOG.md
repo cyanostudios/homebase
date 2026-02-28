@@ -6,6 +6,32 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ## 2026-02 – Homebase 3.1.5 (snapshot before migrating from 3.X)
 
+### Global low-friction security hardening (app-wide)
+
+- **Server guardrails without dev friction**
+  - Global body limits are now explicit (`API_JSON_LIMIT`, `API_URLENCODED_LIMIT`) with safe defaults.
+  - HTTP timeout guardrails set on server (`requestTimeout`, `headersTimeout`, `keepAliveTimeout`).
+  - `x-powered-by` disabled.
+  - Files: [server/index.ts](server/index.ts).
+- **Write validation + webhook abuse protection**
+  - Intake webhook now has strict payload sanity checks (object payload, URL format, max file URL count).
+  - Intake endpoint now uses dedicated rate limiter and timing-safe secret compare.
+  - Files: [server/core/routes/intake.js](server/core/routes/intake.js), [server/core/middleware/rateLimit.js](server/core/middleware/rateLimit.js).
+- **File upload content verification**
+  - Files upload now validates file content signature (magic bytes) after upload, not only `file.mimetype`.
+  - Text-like exceptions (`.txt`, `.csv`, `.svg`) are verified with binary-content heuristic; blocked files are deleted immediately.
+  - File: [plugins/files/routes.js](plugins/files/routes.js).
+- **Validation/log secret hygiene**
+  - Validation middleware now redacts sensitive fields (`password`, `token`, `apiKey`, `secret`, etc.) and truncates large strings in debug logs.
+  - File: [server/core/middleware/validation.js](server/core/middleware/validation.js).
+- **Credentials encryption standardized**
+  - Channel instance credentials now use app-level encryption (write-path + lazy migration) in channels and WooCommerce models.
+  - Files: [plugins/channels/model.js](plugins/channels/model.js), [plugins/woocommerce-products/model.js](plugins/woocommerce-products/model.js).
+- **Strict tenant/main DB boundaries preserved**
+  - Local tenant provider remains strict tenant-only (`search_path` tenant schema), skips main-db migrations in tenant bootstrap, and resets `search_path` before releasing pooled connection.
+  - Migration `053-shipping-postnord.sql` no longer depends on `users` FK in tenant schema.
+  - Files: [server/core/services/tenant/providers/LocalTenantProvider.js](server/core/services/tenant/providers/LocalTenantProvider.js), [server/migrations/053-shipping-postnord.sql](server/migrations/053-shipping-postnord.sql).
+
 ### Produkter – kategorier, prisvalidering och kanallabels
 
 - **Kategorier vid ny produkt**
@@ -50,6 +76,22 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
   - I "Bifogade filer" kan användaren nu ladda ner filer via nedladdningsknapp.
   - Förhandsgranskningsmodal för PDF och bilder (png, jpeg, gif, webp, etc.). Övriga filtyper visar meddelande + ladda ner-länk.
   - Fil: [client/src/plugins/inspection/components/InspectionView.tsx](client/src/plugins/inspection/components/InspectionView.tsx).
+- **Fix: Bifogade listor sparas vid vanlig Spara för nya projekt**
+  - Tidigare sparades listor endast vid "Spara och skicka". Nu inkluderas `pendingListIds` i `handleSave` och `saveInspection` lägger till listor via `addFileList` vid skapande av nytt projekt.
+  - Filer: [client/src/plugins/inspection/components/InspectionView.tsx](client/src/plugins/inspection/components/InspectionView.tsx), [client/src/plugins/inspection/context/InspectionContext.tsx](client/src/plugins/inspection/context/InspectionContext.tsx).
+- **Fix: "Skicka"-knappen disabled tills listor laddats**
+  - I redigeringsläge kunde man klicka "Skicka" innan `projectFileLists` laddats från getProject, vilket gav krasch i SendModal. Knappen är nu disabled tills data finns.
+- **Explicit hantering utan fallbacks**
+  - `projectFileLists` kan vara `undefined` från getAll; visar "Laddar listor..." och disabled "Skicka" tills laddat. `handleRemoveFileList` propagerar `undefined` utan att ersätta med tom array.
+- **Dokumentation**
+  - [docs/inspection-api-responses.md](docs/inspection-api-responses.md) – vad servern returnerar per endpoint.
+  - [docs/inspection-audit-complete.md](docs/inspection-audit-complete.md) – full audit av Inspection-pluginet.
+
+### API – header merge-ordning (CSRF)
+
+- **Fix: CSRF-header skrivs inte längre över**
+  - Fetch-anrop använder nu `{ ...options, headers, credentials: 'include' }` så att CSRF-token från headers inte skrivs över av options. Ändrat i AppContext, orders, inspection, notes, contacts, estimates, invoices, tasks, mail, files, products, channels, cdon, fyndiq, woocommerce, shipping.
+  - Filer: [client/src/core/api/AppContext.tsx](client/src/core/api/AppContext.tsx) och API-moduler i plugins.
 
 ### Orders sync – inga felmeddelanden och fix för fastnad lock
 

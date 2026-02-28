@@ -31,7 +31,7 @@ export const ContactListPicker: React.FC<ContactListPickerProps> = ({
   useEffect(() => {
     contactsApi
       .getLists()
-      .then((data) => setLists(data || []))
+      .then((data) => setLists(data))
       .catch(() => setLists([]))
       .finally(() => setLoading(false));
   }, []);

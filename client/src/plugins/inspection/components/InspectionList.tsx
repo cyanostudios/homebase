@@ -159,7 +159,7 @@ export const InspectionList: React.FC = () => {
                 <TableCell className="max-w-[280px] truncate">
                   {project.description || '—'}
                 </TableCell>
-                <TableCell>{project.fileCount ?? (project.files || []).length}</TableCell>
+                <TableCell>{project.fileCount}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {project.createdAt
                     ? format(new Date(project.createdAt), 'yyyy-MM-dd')

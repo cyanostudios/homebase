@@ -7,9 +7,9 @@ class MailApi {
     };
 
     const response = await fetch(`/api/mail${endpoint}`, {
+      ...options,
       headers,
       credentials: 'include',
-      ...options,
     });
 
     if (!response.ok) {
