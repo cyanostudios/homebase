@@ -81,8 +81,8 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
           onClick={onClosePanel}
           variant="secondary"
           size={BTN_XS}
-          icon={X}
         >
+          <X className="h-4 w-4" />
           Close
         </Button>
         <Button
@@ -90,10 +90,10 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
           onClick={onSaveClick}
           variant="primary"
           size={BTN_XS}
-          icon={Check}
           disabled={isSubmitting}
           className="bg-green-600 hover:bg-green-700 text-white border-none"
         >
+          <Check className="h-4 w-4" />
           Update
         </Button>
       </div>
@@ -109,9 +109,9 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             onClick={onDeleteItem}
             variant="ghost"
             size={BTN_XS}
-            icon={Trash2}
             className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/30"
           >
+            <Trash2 className="h-4 w-4" />
             Delete
           </Button>
           {showDuplicate && (
@@ -120,8 +120,8 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
               onClick={onDuplicateItem}
               variant="ghost"
               size={BTN_XS}
-              icon={Copy}
             >
+              <Copy className="h-4 w-4" />
               Duplicate
             </Button>
           )}
@@ -135,9 +135,9 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
                   onClick={() => action.onClick(currentItem)}
                   variant="ghost"
                   size={BTN_XS}
-                  icon={Icon}
                   className={action.className}
                 >
+                  {Icon && <Icon className="h-4 w-4" />}
                   {action.label}
                 </Button>
               );
@@ -150,8 +150,8 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
                 onClick={() => onExportItem!(format, currentItem)}
                 variant="ghost"
                 size={BTN_XS}
-                icon={Download}
               >
+                <Download className="h-4 w-4" />
                 {EXPORT_FORMAT_LABELS[format] ?? `Export ${format.toUpperCase()}`}
               </Button>
             ))}
@@ -162,8 +162,8 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             onClick={onClosePanel}
             variant="secondary"
             size={BTN_XS}
-            icon={X}
           >
+            <X className="h-4 w-4" />
             Close
           </Button>
           <Button
@@ -171,8 +171,8 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             onClick={onEditItem}
             variant="primary"
             size={BTN_XS}
-            icon={Edit}
           >
+            <Edit className="h-4 w-4" />
             Edit
           </Button>
           {currentPlugin?.name === 'tasks' &&
@@ -183,9 +183,9 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
                 onClick={() => (currentPluginContext as any)?.onApplyQuickEdit?.()}
                 variant="primary"
                 size={BTN_XS}
-                icon={Check}
                 className="bg-green-600 hover:bg-green-700 text-white border-none"
               >
+                <Check className="h-4 w-4" />
                 Update
               </Button>
             )}
@@ -197,9 +197,9 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
                 onClick={() => (currentPluginContext as any)?.onApplyTagsEdit?.()}
                 variant="primary"
                 size={BTN_XS}
-                icon={Check}
                 className="bg-green-600 hover:bg-green-700 text-white border-none"
               >
+                <Check className="h-4 w-4" />
                 Update
               </Button>
             )}
@@ -216,9 +216,9 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
         onClick={onCancelClick}
         variant="secondary"
         size={BTN_XS}
-        icon={X}
         disabled={isSubmitting}
       >
+        <X className="h-4 w-4" />
         Cancel
       </Button>
       <Button
@@ -226,10 +226,10 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
         onClick={onSaveClick}
         variant="primary"
         size={BTN_XS}
-        icon={Check}
         disabled={hasBlockingErrors || isSubmitting}
         className="bg-green-600 hover:bg-green-700 text-white border-none"
       >
+        <Check className="h-4 w-4" />
         {isSubmitting ? 'Saving...' : currentMode === 'edit' ? 'Update' : 'Save'}
       </Button>
     </div>

@@ -138,10 +138,10 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
             <Button
               variant="secondary"
               size="sm"
-              icon={Share}
               onClick={handleCreateShare}
               disabled={isCreatingShare}
             >
+              <Share className="h-4 w-4" />
               {isCreatingShare ? 'Creating Share...' : 'Share Estimate'}
             </Button>
           )}
@@ -149,14 +149,15 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
           <Button
             variant="secondary"
             size="sm"
-            icon={Download}
             onClick={handleDownloadPDF}
             disabled={isDownloadingPDF}
           >
+            <Download className="h-4 w-4" />
             {isDownloadingPDF ? 'Generating PDF...' : 'Download PDF'}
           </Button>
 
-          <Button variant="secondary" size="sm" icon={CopyIcon} onClick={handleDuplicate}>
+          <Button variant="secondary" size="sm" onClick={handleDuplicate}>
+            <CopyIcon className="h-4 w-4" />
             Duplicate Estimate
           </Button>
 
@@ -191,10 +192,10 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
               <Button
                 variant="secondary"
                 size="sm"
-                icon={copied ? Check : Copy}
                 onClick={handleCopyUrl}
                 className={copied ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' : ''}
               >
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 {copied ? 'Copied!' : 'Copy'}
               </Button>
             )}

@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Edit, Eye, ChevronUp, ChevronDown, Search } from 'lucide-react';
 import { useYourItems } from '../hooks/useYourItems';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
-import { Button } from '@/core/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Heading, Text } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
 
@@ -99,7 +99,10 @@ export const YourItemList: React.FC = () => {
             />
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleOpenPanel} variant="primary" icon={Plus}>Add Item</Button>
+            <Button onClick={handleOpenPanel} variant="primary">
+              <Plus className="h-4 w-4" />
+              Add Item
+            </Button>
           </div>
         </div>
       </div>
@@ -163,13 +166,17 @@ export const YourItemList: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex justify-end gap-2">
                           <Button
-                            variant="ghost" size="sm" icon={Eye}
-                            onClick={(e) => { e.stopPropagation(); handleOpenForView(raw); }}>
+                            variant="ghost" size="sm"
+                            onClick={(e) => { e.stopPropagation(); handleOpenForView(raw); }}
+                          >
+                            <Eye className="h-4 w-4" />
                             View
                           </Button>
                           <Button
-                            variant="secondary" size="sm" icon={Edit}
-                            onClick={(e) => { e.stopPropagation(); handleOpenForEdit(raw); }}>
+                            variant="secondary" size="sm"
+                            onClick={(e) => { e.stopPropagation(); handleOpenForEdit(raw); }}
+                          >
+                            <Edit className="h-4 w-4" />
                             Edit
                           </Button>
                         </div>
@@ -199,8 +206,10 @@ export const YourItemList: React.FC = () => {
                     </div>
                     <div>
                       <Button
-                        variant="ghost" size="sm" icon={Eye}
-                        onClick={() => handleOpenForView(it.raw)} className="h-8 px-3">
+                        variant="ghost" size="sm"
+                        onClick={() => handleOpenForView(it.raw)} className="h-8 px-3"
+                      >
+                        <Eye className="h-4 w-4" />
                         View
                       </Button>
                     </div>

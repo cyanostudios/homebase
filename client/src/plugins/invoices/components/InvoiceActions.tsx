@@ -168,9 +168,9 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
             <Button 
               variant="secondary" 
               size="sm"
-              icon={Share}
               onClick={() => setShowCreateShareModal(true)}
             >
+              <Share className="h-4 w-4" />
               Share Invoice
             </Button>
           )}
@@ -178,10 +178,10 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
           <Button 
             variant="secondary" 
             size="sm"
-            icon={Download}
             onClick={handleDownloadPDF}
             disabled={isDownloadingPDF}
           >
+            <Download className="h-4 w-4" />
             {isDownloadingPDF ? 'Generating PDF...' : 'Download PDF'}
           </Button>
         </div>
@@ -208,10 +208,10 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
               <Button 
                 variant="secondary" 
                 size="sm"
-                icon={copied ? Check : Copy}
                 onClick={handleCopyUrl}
                 className={copied ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' : ''}
               >
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 {copied ? 'Copied!' : 'Copy'}
               </Button>
             )}

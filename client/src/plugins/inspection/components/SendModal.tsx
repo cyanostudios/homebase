@@ -201,9 +201,9 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
                 type="button"
                 variant="outline"
                 size="sm"
-                icon={UserPlus}
                 onClick={() => setShowContactListPicker(true)}
               >
+                <UserPlus className="h-4 w-4" />
                 Lägg till från lista
               </Button>
             </div>

@@ -115,7 +115,8 @@ export const InspectionList: React.FC = () => {
                 : 'Inga besiktningsprojekt ännu. Skapa ett nytt projekt för att börja.'}
             </p>
             {!searchTerm && (
-              <Button onClick={() => openInspectionPanel(null)} icon={Plus}>
+              <Button onClick={() => openInspectionPanel(null)}>
+                <Plus className="h-4 w-4" />
                 Skapa projekt
               </Button>
             )}

@@ -1,6 +1,6 @@
 // templates/plugin-frontend-template/components/YourItemForm.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/core/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Heading } from '@/core/ui/Typography';
 import { Card } from '@/core/ui/Card';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';

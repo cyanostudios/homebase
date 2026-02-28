@@ -285,10 +285,10 @@ export const ContactList: React.FC = () => {
             <Button
               variant={activeContentView === 'lists' ? 'default' : 'secondary'}
               size="sm"
-              icon={FolderPlus}
               onClick={() => setActiveContentView('lists')}
               title="Mina listor"
             >
+              <FolderPlus className="h-4 w-4" />
               Listor
             </Button>
             {activeContentView === 'all' && (
@@ -296,25 +296,25 @@ export const ContactList: React.FC = () => {
                 <Button
                   variant={viewMode === 'grid' ? 'default' : 'secondary'}
                   size="sm"
-                  icon={Grid3x3}
                   onClick={() => setViewMode('grid')}
                 >
+                  <Grid3x3 className="h-4 w-4" />
                   Grid
                 </Button>
                 <Button
                   variant={viewMode === 'list' ? 'default' : 'secondary'}
                   size="sm"
-                  icon={ListIcon}
                   onClick={() => setViewMode('list')}
                 >
+                  <ListIcon className="h-4 w-4" />
                   List
                 </Button>
                 <Button
                   variant="secondary"
                   size="sm"
-                  icon={Upload}
                   onClick={() => setShowImportWizard(true)}
                 >
+                  <Upload className="h-4 w-4" />
                   Import
                 </Button>
               </>
@@ -537,7 +537,8 @@ export const ContactList: React.FC = () => {
                 className="max-w-xs"
                 onKeyDown={(e) => e.key === 'Enter' && handleCreateList()}
               />
-              <Button size="sm" icon={Plus} onClick={handleCreateList} disabled={!newListName.trim()}>
+              <Button size="sm" onClick={handleCreateList} disabled={!newListName.trim()}>
+                <Plus className="h-4 w-4" />
                 Skapa lista
               </Button>
             </div>
@@ -590,22 +591,24 @@ export const ContactList: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                icon={Pencil}
                                 className="opacity-0 group-hover:opacity-100"
                                 onClick={() => {
                                   setEditingListId(list.id);
                                   setEditingListName(list.name);
                                 }}
                                 aria-label="Byt namn"
-                              />
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                icon={Trash2}
                                 className="opacity-0 group-hover:opacity-100 text-destructive"
                                 onClick={() => handleDeleteList(list.id)}
                                 aria-label="Ta bort lista"
-                              />
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </>
                           )}
                         </div>
@@ -619,7 +622,8 @@ export const ContactList: React.FC = () => {
                       {selectedListId ? lists.find((l) => l.id === selectedListId)?.name ?? 'Kontakter' : 'Välj en lista'}
                     </span>
                     {selectedListId && (
-                      <Button size="sm" icon={Pencil} variant="outline" onClick={() => setShowContactPicker(true)}>
+                      <Button size="sm" variant="outline" onClick={() => setShowContactPicker(true)}>
+                        <Pencil className="h-4 w-4" />
                         Redigera kontakter
                       </Button>
                     )}
@@ -644,11 +648,12 @@ export const ContactList: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                icon={Trash2}
                                 className="opacity-0 group-hover:opacity-100 text-destructive"
                                 onClick={() => handleRemoveContactFromList(String(c.id))}
                                 aria-label="Ta bort från listan"
-                              />
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           ))}
                         </div>

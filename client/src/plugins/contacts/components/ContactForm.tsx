@@ -578,7 +578,8 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         <Card padding="sm" className="shadow-none px-0">
           <div className="flex items-center justify-between mb-3">
             <Heading level={3}>Addresses</Heading>
-            <Button type="button" onClick={addAddress} variant="secondary" icon={Plus} size="sm">
+            <Button type="button" onClick={addAddress} variant="secondary" size="sm">
+              <Plus className="h-4 w-4" />
               Add Address
             </Button>
           </div>
@@ -598,9 +599,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                       type="button"
                       onClick={() => removeAddress(address.id)}
                       variant="danger"
-                      icon={Trash2}
                       size="sm"
-                    ></Button>
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
 
                   <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
@@ -723,9 +725,9 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                 type="button"
                 onClick={addContactPerson}
                 variant="secondary"
-                icon={Plus}
                 size="sm"
               >
+                <Plus className="h-4 w-4" />
                 Add Contact
               </Button>
             </div>
@@ -747,9 +749,10 @@ export const ContactForm: React.FC<ContactFormProps> = ({
                         type="button"
                         onClick={() => removeContactPerson(person.id)}
                         variant="danger"
-                        icon={Trash2}
                         size="sm"
-                      ></Button>
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
 
                     <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">

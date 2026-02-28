@@ -225,7 +225,8 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
         <AlertDialogFooter>
           <AlertDialogCancel onClick={handleOnClose}>Cancel</AlertDialogCancel>
           {step === 'mapping' && (
-            <Button onClick={() => setStep('preview')} icon={ChevronRight}>
+            <Button onClick={() => setStep('preview')}>
+              <ChevronRight className="h-4 w-4" />
               Next: Preview
             </Button>
           )}
@@ -238,8 +239,8 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                 onClick={handleStartImport}
                 className="bg-green-600 hover:bg-green-700 text-white"
                 disabled={isImporting}
-                icon={isImporting ? undefined : CheckCircle2}
               >
+                {!isImporting && <CheckCircle2 className="h-4 w-4" />}
                 {isImporting ? 'Importing...' : 'Start Import'}
               </Button>
             </div>

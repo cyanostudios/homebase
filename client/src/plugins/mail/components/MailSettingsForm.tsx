@@ -342,7 +342,8 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
                 className="mt-1"
               />
             </div>
-            <Button variant="outline" onClick={handleTest} disabled={testing} icon={Send}>
+            <Button variant="outline" onClick={handleTest} disabled={testing}>
+              <Send className="h-4 w-4" />
               {testing ? 'Skickar...' : 'Skicka testmail'}
             </Button>
           </div>

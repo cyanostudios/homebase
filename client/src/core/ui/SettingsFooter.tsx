@@ -29,8 +29,8 @@ export function SettingsFooter({
           onClick={onClose}
           variant="secondary"
           size={BTN_XS}
-          icon={X}
         >
+          <X className="h-4 w-4" />
           Close
         </Button>
       </div>
@@ -44,9 +44,9 @@ export function SettingsFooter({
         onClick={onClose}
         variant="secondary"
         size={BTN_XS}
-        icon={X}
         disabled={isSaving}
       >
+        <X className="h-4 w-4" />
         Close
       </Button>
       <Button
@@ -54,10 +54,10 @@ export function SettingsFooter({
         onClick={() => onSave?.()}
         variant="primary"
         size={BTN_XS}
-        icon={Check}
         disabled={isSaving}
         className="bg-green-600 hover:bg-green-700 text-white border-none"
       >
+        <Check className="h-4 w-4" />
         {isSaving ? 'Saving...' : 'Save'}
       </Button>
     </div>

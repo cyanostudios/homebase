@@ -164,10 +164,10 @@ export function LoginComponent() {
               <Button
                 type="submit"
                 variant="primary"
-                icon={mode === 'login' ? LogIn : UserPlus}
                 disabled={isLoading}
                 className="w-full flex justify-center"
               >
+                {mode === 'login' ? <LogIn className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
                 {isLoading
                   ? mode === 'login'
                     ? 'Signing in...'

@@ -18,8 +18,13 @@ Use `size="sm"` for compact areas: panel footer, content toolbar, bulk action ba
 - **BulkActionBar action buttons:** Export CSV, Export PDF, Delete
 
 ```tsx
-<Button size="sm" icon={Grid3x3} variant="secondary">Grid</Button>
+<Button size="sm" variant="secondary">
+  <Grid3x3 className="h-4 w-4" />
+  Grid
+</Button>
 ```
+
+**Ikoner i knappar:** Använd ikon som children, inte `icon`-prop. Shadcn/Radix-mönster. Ikonstorlek: `h-4 w-4` för knappar i toolbar/footer.
 
 ---
 
@@ -246,9 +251,18 @@ Use `ContentToolbar` in the content header (via `setHeaderTrailing`). Search + r
   searchPlaceholder="Search..."
   rightActions={
     <div className="flex gap-2">
-      <Button variant={viewMode === 'grid' ? 'default' : 'secondary'} size="sm" icon={Grid3x3}>Grid</Button>
-      <Button variant={viewMode === 'list' ? 'default' : 'secondary'} size="sm" icon={ListIcon}>List</Button>
-      <Button variant="secondary" size="sm" icon={Upload}>Import</Button>
+      <Button variant={viewMode === 'grid' ? 'default' : 'secondary'} size="sm">
+        <Grid3x3 className="h-4 w-4" />
+        Grid
+      </Button>
+      <Button variant={viewMode === 'list' ? 'default' : 'secondary'} size="sm">
+        <ListIcon className="h-4 w-4" />
+        List
+      </Button>
+      <Button variant="secondary" size="sm">
+        <Upload className="h-4 w-4" />
+        Import
+      </Button>
     </div>
   }
 />

@@ -513,24 +513,26 @@ export const FileList: React.FC = () => {
       <Button
         variant={viewMode === 'grid' ? 'default' : 'outline'}
         size="sm"
-        icon={Grid3x3}
         onClick={() => setViewMode('grid')}
         title="Grid view"
-      />
+      >
+        <Grid3x3 className="h-4 w-4" />
+      </Button>
       <Button
         variant={viewMode === 'list' ? 'default' : 'outline'}
         size="sm"
-        icon={List}
         onClick={() => setViewMode('list')}
         title="List view"
-      />
+      >
+        <List className="h-4 w-4" />
+      </Button>
       <Button
         variant="outline"
         size="sm"
-        icon={FolderPlus}
         onClick={() => openCreateFolderDialog(false)}
         title="Skapa mapp"
       >
+        <FolderPlus className="h-4 w-4" />
         Skapa mapp
       </Button>
     </>
@@ -550,7 +552,8 @@ export const FileList: React.FC = () => {
             }}
           >
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" icon={ListPlus} title="Lägg till i lista" disabled={selectedFileIds.length === 0}>
+              <Button variant="outline" size="sm" title="Lägg till i lista" disabled={selectedFileIds.length === 0}>
+                <ListPlus className="h-4 w-4" />
                 Add to list{selectedFileIds.length > 0 ? ` (${selectedFileIds.length})` : ''}
               </Button>
             </DropdownMenuTrigger>
@@ -585,7 +588,8 @@ export const FileList: React.FC = () => {
             onOpenChange={(open) => open && loadFolders()}
           >
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" icon={Move} title="Flytta till mapp" disabled={moving || selectedFileIds.length === 0}>
+              <Button variant="outline" size="sm" title="Flytta till mapp" disabled={moving || selectedFileIds.length === 0}>
+                <Move className="h-4 w-4" />
                 {moving ? 'Flyttar…' : 'Flytta till mapp'}
               </Button>
             </DropdownMenuTrigger>
@@ -613,9 +617,9 @@ export const FileList: React.FC = () => {
           <Button
             variant="destructive"
             size="sm"
-            icon={Trash2}
             onClick={() => setShowDeleteModal(true)}
           >
+            <Trash2 className="h-4 w-4" />
             Delete {selectedFileIds.length + selectedFolderPaths.length}
           </Button>
         </>
@@ -677,10 +681,10 @@ export const FileList: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  icon={Settings}
                   onClick={() => setShowCloudSettings(true)}
                   title="Manage cloud storage"
                 >
+                  <Settings className="h-4 w-4" />
                   Settings
                 </Button>
               </>
@@ -689,9 +693,9 @@ export const FileList: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                icon={Cloud}
                 onClick={() => setShowCloudSettings(true)}
               >
+                <Cloud className="h-4 w-4" />
                 Connect cloud storage
               </Button>
             )}
@@ -749,7 +753,8 @@ export const FileList: React.FC = () => {
                 className="max-w-xs"
                 onKeyDown={(e) => e.key === 'Enter' && handleCreateList()}
               />
-              <Button size="sm" icon={Plus} onClick={handleCreateList} disabled={!newListName.trim()}>
+              <Button size="sm" onClick={handleCreateList} disabled={!newListName.trim()}>
+                <Plus className="h-4 w-4" />
                 Skapa lista
               </Button>
             </div>
@@ -802,22 +807,24 @@ export const FileList: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                icon={Pencil}
                                 className="opacity-0 group-hover:opacity-100"
                                 onClick={() => {
                                   setEditingListId(list.id);
                                   setEditingListName(list.name);
                                 }}
                                 aria-label="Byt namn"
-                              />
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                icon={Trash2}
                                 className="opacity-0 group-hover:opacity-100 text-destructive"
                                 onClick={() => handleDeleteList(list.id)}
                                 aria-label="Ta bort lista"
-                              />
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </>
                           )}
                         </div>
@@ -829,7 +836,8 @@ export const FileList: React.FC = () => {
                   <h3 className="text-sm font-semibold flex items-center justify-between">
                     <span>{selectedListId ? lists.find((l) => l.id === selectedListId)?.name ?? 'Filer' : 'Välj en lista'}</span>
                     {selectedListId && (
-                      <Button size="sm" icon={Plus} variant="outline" onClick={() => setShowFilePicker(true)}>
+                      <Button size="sm" variant="outline" onClick={() => setShowFilePicker(true)}>
+                        <Plus className="h-4 w-4" />
                         Lägg till filer
                       </Button>
                     )}
@@ -849,11 +857,12 @@ export const FileList: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                icon={Trash2}
                                 className="opacity-0 group-hover:opacity-100 text-destructive"
                                 onClick={() => handleRemoveFileFromList(String(f.id))}
                                 aria-label="Ta bort från listan"
-                              />
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           ))}
                         </div>
@@ -1469,8 +1478,8 @@ export const FileList: React.FC = () => {
             <Button
               onClick={handleCreateFolder}
               disabled={!createFolderName.trim() || createFolderSaving}
-              icon={FolderPlus}
             >
+              <FolderPlus className="h-4 w-4" />
               {createFolderSaving ? 'Skapar…' : createFolderAndMove ? 'Skapa och flytta' : 'Skapa'}
             </Button>
           </DialogFooter>
@@ -1500,8 +1509,8 @@ export const FileList: React.FC = () => {
             <Button
               onClick={handleCreateListDialogSubmit}
               disabled={!createListDialogName.trim() || createListDialogSaving}
-              icon={Plus}
             >
+              <Plus className="h-4 w-4" />
               {createListDialogSaving ? 'Skapar…' : 'Skapa'}
             </Button>
           </DialogFooter>

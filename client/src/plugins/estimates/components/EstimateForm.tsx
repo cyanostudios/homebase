@@ -396,7 +396,8 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
         <Card padding="sm" className="shadow-none px-0">
           <div className="flex items-center justify-between mb-3">
             <Heading level={3}>Line Items</Heading>
-            <Button type="button" onClick={addLineItem} variant="secondary" icon={Plus} size="sm">
+            <Button type="button" onClick={addLineItem} variant="secondary" size="sm">
+              <Plus className="h-4 w-4" />
               Add Item
             </Button>
           </div>
@@ -429,19 +430,21 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
                       type="button"
                       onClick={() => duplicateLineItem(index)}
                       variant="secondary"
-                      icon={Copy}
                       size="sm"
                       className="h-8 w-8 p-0 flex-shrink-0"
                       title="Duplicate item"
-                    ></Button>
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
                     <Button
                       type="button"
                       onClick={() => removeLineItem(index)}
                       variant="danger"
-                      icon={Trash2}
                       size="sm"
                       className="h-8 w-8 p-0 flex-shrink-0"
-                    ></Button>
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
 
                   {/* Row 2: Numbers table */}

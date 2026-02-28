@@ -45,7 +45,8 @@ export const ChannelsList: React.FC = () => {
         Klicka på en rad (t.ex. CDON eller Fyndiq) för att öppna panelen och hantera instanser samt aktivera/avaktivera marknader (SE, DK, FI, NO).
       </p>
       <div className="flex items-center justify-end">
-        <Button variant="outline" size="sm" icon={Download} onClick={downloadTemplate}>
+        <Button variant="outline" size="sm" onClick={downloadTemplate}>
+          <Download className="h-4 w-4" />
           Download import template
         </Button>
       </div>

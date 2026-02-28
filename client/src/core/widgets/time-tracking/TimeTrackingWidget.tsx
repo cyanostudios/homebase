@@ -170,19 +170,21 @@ export function TimeTrackingWidget({
             onClick={() => setShowSettings(true)}
             variant="ghost"
             size="md"
-            icon={Settings}
             aria-label="Open settings"
             title="Open settings"
-          />
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
           {onClose && (
             <Button
               variant="ghost"
               size="md"
-              icon={X}
               onClick={onClose}
               aria-label="Close panel"
               title="Close panel"
-            />
+            >
+              <X className="h-4 w-4" />
+            </Button>
           )}
         </div>
       </div>
@@ -193,15 +195,18 @@ export function TimeTrackingWidget({
 
       <div className="flex justify-center gap-2 mb-6">
         {!isRunning ? (
-          <Button onClick={handleStart} variant="default" size="sm" icon={Play}>
+          <Button onClick={handleStart} variant="default" size="sm">
+            <Play className="h-4 w-4" />
             Start
           </Button>
         ) : (
-          <Button onClick={handleStop} variant="secondary" size="sm" icon={Square}>
+          <Button onClick={handleStop} variant="secondary" size="sm">
+            <Square className="h-4 w-4" />
             Stop
           </Button>
         )}
-        <Button onClick={handleReset} variant="outline" size="sm" icon={RotateCcw}>
+        <Button onClick={handleReset} variant="outline" size="sm">
+          <RotateCcw className="h-4 w-4" />
           Reset
         </Button>
       </div>
@@ -325,10 +330,11 @@ export function TimeTrackingWidget({
           onClick={() => setShowSettings(false)}
           variant="ghost"
           size="md"
-          icon={X}
           aria-label="Close settings"
           title="Close settings"
-        />
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
 
       <div className="space-y-3 mb-6">
@@ -396,21 +402,23 @@ export function TimeTrackingWidget({
             onClick={handleStart}
             variant="ghost"
             size="md"
-            icon={Play}
             className="!bg-green-50 dark:!bg-green-950/30 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50"
             aria-label="Start timer"
             title="Start timer"
-          />
+          >
+            <Play className="h-4 w-4" />
+          </Button>
         ) : (
           <Button
             onClick={handleStop}
             variant="ghost"
             size="md"
-            icon={Square}
             className="!bg-orange-50 dark:!bg-orange-950/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50"
             aria-label="Stop timer"
             title="Stop timer"
-          />
+          >
+            <Square className="h-4 w-4" />
+          </Button>
         )}
       </div>
       <PopoverContent

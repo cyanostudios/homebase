@@ -71,9 +71,12 @@ export function ClockDisplay({
                   onClick={() => setShowSettings(true)}
                   variant="ghost"
                   size="md"
-                  icon={Settings}
-                ></Button>
-                <Button onClick={handleClose} variant="ghost" size="md" icon={X}></Button>
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+                <Button onClick={handleClose} variant="ghost" size="md">
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
@@ -125,8 +128,9 @@ export function ClockDisplay({
                 onClick={() => setShowSettings(false)}
                 variant="ghost"
                 size="md"
-                icon={X}
-              ></Button>
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
 
             {/* Time Format */}

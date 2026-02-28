@@ -33,9 +33,9 @@ export function ContentHeader({
             onClick={onAction}
             variant="secondary"
             size="sm"
-            icon={ActionIcon}
             className="bg-green-600 hover:bg-green-700 text-white border-none"
           >
+            {ActionIcon && <ActionIcon className="h-4 w-4" />}
             {actionLabel}
           </Button>
         )}

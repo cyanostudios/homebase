@@ -218,17 +218,17 @@ export function EstimateList() {
             <Button
               variant={viewMode === 'grid' ? 'default' : 'secondary'}
               size="sm"
-              icon={Grid3x3}
               onClick={() => setViewModePersisted('grid')}
             >
+              <Grid3x3 className="h-4 w-4" />
               Grid
             </Button>
             <Button
               variant={viewMode === 'list' ? 'default' : 'secondary'}
               size="sm"
-              icon={ListIcon}
               onClick={() => setViewModePersisted('list')}
             >
+              <ListIcon className="h-4 w-4" />
               List
             </Button>
           </div>

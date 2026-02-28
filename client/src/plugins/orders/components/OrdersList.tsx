@@ -482,8 +482,8 @@ export const OrdersList: React.FC = () => {
             disabled={exportingPlocklista}
             variant="outline"
             size="sm"
-            icon={Download}
           >
+            <Download className="h-4 w-4" />
             {exportingPlocklista ? 'Skapar PDF…' : 'Exportera plocklista (PDF)'}
           </Button>
           <Button
@@ -500,13 +500,14 @@ export const OrdersList: React.FC = () => {
             disabled={deletingSelected}
             variant="destructive"
             size="sm"
-            icon={Trash2}
           >
+            <Trash2 className="h-4 w-4" />
             {deletingSelected ? 'Raderar…' : `Radera ${selectedIds.size} valda`}
           </Button>
         </>
       )}
-      <Button onClick={() => reloadOrders()} variant="outline" size="sm" icon={RefreshCw}>
+      <Button onClick={() => reloadOrders()} variant="outline" size="sm">
+        <RefreshCw className="h-4 w-4" />
         Reload
       </Button>
       <Button
@@ -514,8 +515,8 @@ export const OrdersList: React.FC = () => {
         disabled={deletingAll || orders.length === 0}
         variant="destructive"
         size="sm"
-        icon={Trash2}
       >
+        <Trash2 className="h-4 w-4" />
         {deletingAll ? 'Rensar…' : 'Rensa alla order'}
       </Button>
       <Button
@@ -523,8 +524,8 @@ export const OrdersList: React.FC = () => {
         disabled={importing.channel !== null}
         variant="outline"
         size="sm"
-        icon={Download}
       >
+        <Download className="h-4 w-4" />
         {importing.channel === 'all' ? 'Importing…' : 'Import orders'}
       </Button>
     </div>

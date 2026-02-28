@@ -194,17 +194,18 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
               Note Actions
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" size="sm" icon={Download} onClick={handleExportNote}>
+              <Button variant="secondary" size="sm" onClick={handleExportNote}>
+                <Download className="h-4 w-4" />
                 Export as Text
               </Button>
 
               <Button
                 variant="primary"
                 size="sm"
-                icon={CheckSquare}
                 onClick={handleConvertToTask}
                 className="bg-green-500 dark:bg-green-600 text-white hover:bg-green-600 dark:hover:bg-green-700"
               >
+                <CheckSquare className="h-4 w-4" />
                 Convert to Task
               </Button>
             </div>

@@ -130,18 +130,20 @@ export function PomodoroTimer({
               onClick={() => setShowSettings(true)}
               variant="ghost"
               size="md"
-              icon={Settings}
               aria-label="Open settings"
               title="Open settings"
-            />
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
             <Button
               onClick={handleClose}
               variant="ghost"
               size="md"
-              icon={X}
               aria-label="Close panel"
               title="Close panel"
-            />
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         </div>
         <div className="text-center mb-4">
@@ -185,18 +187,22 @@ export function PomodoroTimer({
         </div>
         <div className="flex justify-center gap-2">
           {state === 'idle' || state === 'paused' ? (
-            <Button onClick={start} variant="primary" size="sm" icon={Play}>
+            <Button onClick={start} variant="primary" size="sm">
+              <Play className="h-4 w-4" />
               Start
             </Button>
           ) : (
-            <Button onClick={pause} variant="primary" size="sm" icon={Pause}>
+            <Button onClick={pause} variant="primary" size="sm">
+              <Pause className="h-4 w-4" />
               Pause
             </Button>
           )}
-          <Button onClick={reset} variant="secondary" size="sm" icon={RotateCcw}>
+          <Button onClick={reset} variant="secondary" size="sm">
+            <RotateCcw className="h-4 w-4" />
             Reset
           </Button>
-          <Button onClick={skip} variant="secondary" size="sm" icon={SkipForward}>
+          <Button onClick={skip} variant="secondary" size="sm">
+            <SkipForward className="h-4 w-4" />
             Skip
           </Button>
         </div>
@@ -214,10 +220,11 @@ export function PomodoroTimer({
             onClick={() => setShowSettings(false)}
             variant="ghost"
             size="md"
-            icon={X}
             aria-label="Close settings"
             title="Close settings"
-          />
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
         <div className="space-y-4 mb-6">
           <div>
@@ -405,21 +412,23 @@ export function PomodoroTimer({
                 onClick={start}
                 variant="ghost"
                 size="md"
-                icon={Play}
                 className="!bg-blue-50 dark:!bg-blue-950/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50"
                 aria-label="Start timer"
                 title="Start timer"
-              />
+              >
+                <Play className="h-4 w-4" />
+              </Button>
             ) : (
               <Button
                 onClick={pause}
                 variant="ghost"
                 size="md"
-                icon={Pause}
                 className="!bg-orange-50 dark:!bg-orange-950/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50"
                 aria-label="Pause timer"
                 title="Pause timer"
-              />
+              >
+                <Pause className="h-4 w-4" />
+              </Button>
             )}
         </div>
         <PopoverContent side="bottom" align="end" className="bg-card border-border p-4">
@@ -445,7 +454,6 @@ export function PomodoroTimer({
             onClick={() => setShowSettings(false)}
             variant="ghost"
             size="md"
-            icon={X}
             aria-label="Close settings"
             title="Close settings"
           />
@@ -545,18 +553,20 @@ export function PomodoroTimer({
             onClick={() => setShowSettings(true)}
             variant="ghost"
             size="md"
-            icon={Settings}
             aria-label="Open settings"
             title="Open settings"
-          />
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
           <Button
             onClick={handleClose}
             variant="ghost"
             size="md"
-            icon={X}
             aria-label="Close panel"
             title="Close panel"
-          />
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -610,8 +620,8 @@ export function PomodoroTimer({
             onClick={start}
             variant="primary"
             size="sm"
-            icon={Play}
           >
+            <Play className="h-4 w-4" />
             Start
           </Button>
         ) : (
@@ -619,8 +629,8 @@ export function PomodoroTimer({
             onClick={pause}
             variant="primary"
             size="sm"
-            icon={Pause}
           >
+            <Pause className="h-4 w-4" />
             Pause
           </Button>
         )}
@@ -629,8 +639,8 @@ export function PomodoroTimer({
           onClick={reset}
           variant="secondary"
           size="sm"
-          icon={RotateCcw}
         >
+          <RotateCcw className="h-4 w-4" />
           Reset
         </Button>
 
@@ -638,8 +648,8 @@ export function PomodoroTimer({
           onClick={skip}
           variant="secondary"
           size="sm"
-          icon={SkipForward}
         >
+          <SkipForward className="h-4 w-4" />
           Skip
         </Button>
       </div>

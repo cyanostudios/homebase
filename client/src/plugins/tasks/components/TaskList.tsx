@@ -104,25 +104,25 @@ export const TaskList: React.FC = () => {
             <Button
               variant={viewMode === 'grid' ? 'default' : 'secondary'}
               size="sm"
-              icon={Grid3x3}
               onClick={() => setViewMode('grid')}
             >
+              <Grid3x3 className="h-4 w-4" />
               Grid
             </Button>
             <Button
               variant={viewMode === 'list' ? 'default' : 'secondary'}
               size="sm"
-              icon={ListIcon}
               onClick={() => setViewMode('list')}
             >
+              <ListIcon className="h-4 w-4" />
               List
             </Button>
             <Button
               variant="secondary"
               size="sm"
-              icon={Upload}
               onClick={() => setShowImportWizard(true)}
             >
+              <Upload className="h-4 w-4" />
               Import
             </Button>
           </div>

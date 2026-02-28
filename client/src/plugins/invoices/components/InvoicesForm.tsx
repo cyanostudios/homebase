@@ -349,7 +349,8 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
         <Card padding="sm" className="shadow-none px-0">
           <div className="flex items-center justify-between mb-3">
             <Heading level={3}>Line Items</Heading>
-            <Button type="button" onClick={addLineItem} variant="secondary" icon={Plus} size="sm">
+            <Button type="button" onClick={addLineItem} variant="secondary" size="sm">
+              <Plus className="h-4 w-4" />
               Add Item
             </Button>
           </div>
@@ -374,8 +375,12 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
                       className="flex-1 text-sm resize-none h-auto min-h-[2.5rem]"
                       required
                     />
-                    <Button type="button" onClick={() => duplicateLineItem(index)} variant="secondary" icon={Copy} size="sm" className="h-8 w-8 p-0" title="Duplicate item" />
-                    <Button type="button" onClick={() => removeLineItem(index)} variant="danger" icon={Trash2} size="sm" className="h-8 w-8 p-0" />
+                    <Button type="button" onClick={() => duplicateLineItem(index)} variant="secondary" size="sm" className="h-8 w-8 p-0" title="Duplicate item">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button type="button" onClick={() => removeLineItem(index)} variant="danger" size="sm" className="h-8 w-8 p-0">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
 
                   {/* Row 2: numbers */}
