@@ -2,7 +2,7 @@
 -- PostNord shipping plugin: settings, senders and service presets.
 
 CREATE TABLE IF NOT EXISTS postnord_settings (
-  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id INT NOT NULL,
   booking_url TEXT NULL,
   auth_scheme VARCHAR(64) NULL,
   integration_id TEXT NULL,
@@ -20,7 +20,7 @@ CREATE INDEX IF NOT EXISTS idx_postnord_settings_user_id ON postnord_settings(us
 
 CREATE TABLE IF NOT EXISTS shipping_senders (
   id SERIAL PRIMARY KEY,
-  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id INT NOT NULL,
   name VARCHAR(255) NOT NULL,
   street VARCHAR(255) NULL,
   postal_code VARCHAR(50) NULL,
@@ -36,7 +36,7 @@ CREATE INDEX IF NOT EXISTS idx_shipping_senders_user_id ON shipping_senders(user
 
 CREATE TABLE IF NOT EXISTS shipping_service_presets (
   id SERIAL PRIMARY KEY,
-  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id INT NOT NULL,
   code VARCHAR(100) NOT NULL,
   name VARCHAR(255) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),

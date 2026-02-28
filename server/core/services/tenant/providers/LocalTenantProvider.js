@@ -7,6 +7,8 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
+const MAIN_DB_MIGRATIONS = new Set(['028-user-settings.sql', '037-fx-rates.sql']);
+
 /**
  * LocalTenantProvider - Creates separate schemas for each tenant in local Postgres
  * 
@@ -42,7 +44,7 @@ class LocalTenantProvider extends TenantService {
         await client.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
         console.log(`   Created schema: ${schemaName}`);
         
-        // 2. Set search path to new schema
+        // 2. Set strict tenant-only search_path.
         await client.query(`SET search_path TO ${schemaName}`);
         
         // 3. Run migrations in the schema
@@ -61,6 +63,9 @@ class LocalTenantProvider extends TenantService {
           connectionString: tenantConnectionString,
         };
       } finally {
+        try {
+          await client.query('RESET search_path');
+        } catch {}
         client.release();
       }
     } catch (error) {
@@ -187,10 +192,15 @@ class LocalTenantProvider extends TenantService {
       console.log(`   Running ${migrationFiles.length} migrations in ${schemaName}...`);
 
       for (const file of migrationFiles) {
+        if (MAIN_DB_MIGRATIONS.has(file)) {
+          console.log(`   Skipping main-db migration for tenant schema: ${file}`);
+          continue;
+        }
+
         const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
         console.log(`   Executing migration: ${file}`);
         
-        // Execute in the tenant schema
+        // Execute in strict tenant schema.
         await client.query(`SET search_path TO ${schemaName}`);
         await client.query(sql);
       }

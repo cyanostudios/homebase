@@ -16,7 +16,13 @@ const session = require('express-session');
 const helmet = require('helmet');
 const { Pool } = require('pg');
 
-require('dotenv').config({ path: '.env.local' });
+// Load shared env first, then local overrides.
+require('dotenv').config({ path: '.env' });
+require('dotenv').config({ path: '.env.local', override: true });
+
+if (!String(process.env.DATABASE_URL || '').trim()) {
+  throw new Error('Missing required environment variable: DATABASE_URL');
+}
 
 const REQUIRED_PRODUCTION_ENV = ['DATABASE_URL', 'SESSION_SECRET', 'CREDENTIALS_ENCRYPTION_KEY'];
 if (process.env.NODE_ENV === 'production') {
