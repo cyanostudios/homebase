@@ -23,8 +23,12 @@ class CloudStorageApi {
       credentials: 'include'
     });
     const data = await response.json();
-    this.csrfToken = data.csrfToken;
-    return this.csrfToken;
+    const token = data?.csrfToken;
+    if (typeof token !== 'string' || !token) {
+      throw new Error('CSRF token not found in response');
+    }
+    this.csrfToken = token;
+    return token;
   }
 
   private async request(path: string, options: RequestInit = {}) {

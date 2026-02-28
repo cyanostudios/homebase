@@ -31,7 +31,9 @@ export const MailList: React.FC = () => {
     return matchSearch && matchPlugin;
   });
 
-  const pluginSources = Array.from(new Set(mailHistory.map((e) => e.pluginSource).filter(Boolean)));
+  const pluginSources = Array.from(
+    new Set(mailHistory.map((e) => e.pluginSource).filter((s): s is string => Boolean(s)))
+  );
 
   return (
     <div className="flex flex-col gap-4 p-4">

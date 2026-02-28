@@ -33,12 +33,12 @@ export class FilesApi {
       }
       
       const data = await response.json();
-      if (!data.csrfToken) {
+      const token = data?.csrfToken;
+      if (typeof token !== 'string' || !token) {
         throw new Error('CSRF token not found in response');
       }
-      
-      this.csrfToken = data.csrfToken;
-      return this.csrfToken;
+      this.csrfToken = token;
+      return token;
     } catch (error: any) {
       console.error('CSRF token fetch failed:', error);
       if (error instanceof Error) {

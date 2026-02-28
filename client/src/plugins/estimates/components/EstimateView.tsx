@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { Heading } from '@/core/ui/Typography';
 
 import { useEstimateStatusActions } from '../hooks/useEstimateStatusActions';
 import { Estimate, calculateEstimateTotals } from '../types/estimate';

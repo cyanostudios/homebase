@@ -198,7 +198,7 @@ export async function exportToPDF(
       }
     };
 
-    doc.setFont(undefined, 'bold');
+    doc.setFont(doc.getFont().fontName, 'bold');
     doc.setFontSize(headerFontSize);
     let x = startX;
     headers.forEach((h) => {
@@ -206,7 +206,7 @@ export async function exportToPDF(
       x += colWidth;
     });
     y += lineHeight + cellPadding * 2;
-    doc.setFont(undefined, 'normal');
+    doc.setFont(doc.getFont().fontName, 'normal');
     doc.setFontSize(fontSize);
     doc.setDrawColor(200, 200, 200);
     doc.line(startX, y, pageWidth - margin, y);

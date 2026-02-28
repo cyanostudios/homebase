@@ -120,23 +120,26 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
     }
     setTesting(true);
     try {
-      // Always use form values – no need to save before testing
-      const payload: Record<string, unknown> = {
-        testTo: email,
-        provider,
-        useSaved: false,
-      };
-      if (provider === 'resend') {
-        payload.resendApiKey = resendApiKey.startsWith('••••') ? undefined : resendApiKey;
-        payload.resendFromAddress = resendFromAddress.trim() || undefined;
-      } else {
-        payload.host = host.trim() || smtpDefaults.host;
-        payload.port = port || 587;
-        payload.secure = secure;
-        payload.authUser = authUser.trim();
-        payload.authPass = authPass.trim() || undefined;
-        payload.fromAddress = fromAddress.trim() || smtpDefaults.fromAddress;
-      }
+      const payload =
+        provider === 'resend'
+          ? {
+              testTo: email,
+              provider: 'resend' as const,
+              useSaved: false,
+              resendApiKey: resendApiKey.startsWith('••••') ? undefined : resendApiKey,
+              resendFromAddress: resendFromAddress.trim() || undefined,
+            }
+          : {
+              testTo: email,
+              provider: 'smtp' as const,
+              useSaved: false,
+              host: host.trim() || smtpDefaults.host,
+              port: port || 587,
+              secure,
+              authUser: authUser.trim(),
+              authPass: authPass.trim() || undefined,
+              fromAddress: fromAddress.trim() || smtpDefaults.fromAddress,
+            };
       await testSettings(payload);
       setTestSuccess('Testmail skickat! Kontrollera din inkorg.');
     } catch (err: any) {

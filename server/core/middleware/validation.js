@@ -85,6 +85,19 @@ const commonRules = {
       .optional()
       .isURL()
       .withMessage(`${field} must be a valid URL`),
+
+  /** URL without escape (escape corrupts https://). Max length, trim, optional. */
+  optionalUrl: (field, max = 2048) =>
+    body(field)
+      .optional({ values: 'falsy' })
+      .customSanitizer((value) => {
+        if (value === null || value === undefined) return '';
+        return String(value).trim();
+      })
+      .isLength({ max })
+      .withMessage(`${field} must not exceed ${max} characters`)
+      .isURL({ protocols: ['http', 'https'] })
+      .withMessage(`${field} must be a valid URL`),
   
   phone: (field) =>
     body(field)

@@ -280,10 +280,10 @@ export const FileList: React.FC = () => {
     });
   }, [folders, currentFolderPath]);
 
-  const breadcrumbs = useMemo(() => {
+  const breadcrumbs = useMemo((): { path: string | null; label: string }[] => {
     if (!currentFolderPath) return [{ path: null, label: 'Root' }];
     const parts = currentFolderPath.split('/').filter(Boolean);
-    const result = [{ path: null, label: 'Root' }];
+    const result: { path: string | null; label: string }[] = [{ path: null, label: 'Root' }];
     let acc = '';
     for (const p of parts) {
       acc = acc ? `${acc}/${p}` : p;

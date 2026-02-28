@@ -11,8 +11,12 @@ class CdonApi {
     if (this.csrfToken) return this.csrfToken;
     const response = await fetch('/api/csrf-token', { credentials: 'include' });
     const data = await response.json();
-    this.csrfToken = data.csrfToken;
-    return this.csrfToken;
+    const token = data?.csrfToken;
+    if (typeof token !== 'string' || !token) {
+      throw new Error('CSRF token missing from response');
+    }
+    this.csrfToken = token;
+    return token;
   }
 
   private async request(path: string, options: RequestInit = {}) {

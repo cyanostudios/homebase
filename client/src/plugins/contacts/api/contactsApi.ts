@@ -28,12 +28,12 @@ class ContactsApi {
       }
       
       const data = await response.json();
-      if (!data.csrfToken) {
+      const token = data?.csrfToken;
+      if (typeof token !== 'string' || !token) {
         throw new Error('CSRF token not found in response');
       }
-      
-      this.csrfToken = data.csrfToken;
-      return this.csrfToken;
+      this.csrfToken = token;
+      return token;
     } catch (error: any) {
       console.error('CSRF token fetch failed:', error);
       if (error instanceof Error) {
@@ -66,7 +66,7 @@ class ContactsApi {
       // Handle standardized error format from backend
       const errorMessage = error.error || error.message || 'Request failed';
       const errorCode = error.code;
-      const errorDetails = error.details;
+      const errorDetails = error.details || error.errors; // validation middleware sends "errors"
       
       const err: any = new Error(errorMessage);
       err.status = response.status;

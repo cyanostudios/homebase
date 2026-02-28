@@ -1,3 +1,4 @@
+import { type LucideIcon } from 'lucide-react';
 import React, { useState } from 'react';
 
 import { ContentHeader } from './ContentHeader';
@@ -13,9 +14,9 @@ interface MainLayoutProps {
   currentPage: NavPage;
   onPageChange: (page: NavPage) => void;
   contentTitle: string;
-  contentIcon?: React.ComponentType<{ className?: string }>;
+  contentIcon?: LucideIcon;
   contentActionLabel?: string;
-  contentActionIcon?: React.ComponentType<{ className?: string }>;
+  contentActionIcon?: LucideIcon;
   onContentAction?: () => void;
   // DetailPanel props
   detailPanelOpen: boolean;

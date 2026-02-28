@@ -97,39 +97,25 @@ export function ContactProvider({
     return nextNumber.toString().padStart(2, '0');
   };
 
-  const validateContact = (contactData: any): ValidationError[] => {
+  /**
+   * Client-side: only checks duplicates (requires contacts list).
+   * Required fields and format (email, phone, website) are validated by the server.
+   */
+  const checkDuplicateContact = (contactData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
 
-    // Contact number
-    if (!contactData.contactNumber?.trim()) {
-      errors.push({
-        field: 'contactNumber',
-        message: 'Contact number is required',
-      });
-    } else {
-      const existingContact = contacts.find(
+    if (contactData.contactNumber?.trim()) {
+      const existing = contacts.find(
         (c) => c.id !== currentContact?.id && c.contactNumber === contactData.contactNumber.trim(),
       );
-      if (existingContact) {
+      if (existing) {
         errors.push({
           field: 'contactNumber',
-          message: `Contact number "${contactData.contactNumber}" already exists for "${existingContact.companyName}"`,
+          message: `Contact number "${contactData.contactNumber}" already exists for "${existing.companyName}"`,
         });
       }
     }
 
-    // Required name (company or full name stored in companyName)
-    if (!contactData.companyName?.trim()) {
-      errors.push({
-        field: 'companyName',
-        message:
-          contactData.contactType === 'company'
-            ? 'Company name is required'
-            : 'Full name is required',
-      });
-    }
-
-    // Company validations
     if (contactData.contactType === 'company' && contactData.organizationNumber?.trim()) {
       const dup = contacts.find(
         (c) =>
@@ -145,7 +131,6 @@ export function ContactProvider({
       }
     }
 
-    // Private person validations
     if (contactData.contactType === 'private' && contactData.personalNumber?.trim()) {
       const dup = contacts.find(
         (c) =>
@@ -161,7 +146,6 @@ export function ContactProvider({
       }
     }
 
-    // Email (warning)
     if (contactData.email?.trim()) {
       const dup = contacts.find(
         (c) => c.id !== currentContact?.id && c.email === contactData.email.trim(),
@@ -219,13 +203,9 @@ export function ContactProvider({
       contactData.contactNumber = generateNextContactNumber();
     }
 
-    // Validate
-    const errors = validateContact(contactData);
-    setValidationErrors(errors);
-
-    // Blocking errors?
-    const blocking = errors.filter((e) => !e.message.includes('Warning'));
-    if (blocking.length > 0) {
+    const duplicateErrors = checkDuplicateContact(contactData);
+    if (duplicateErrors.length > 0) {
+      setValidationErrors(duplicateErrors);
       return false;
     }
 

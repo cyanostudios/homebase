@@ -36,7 +36,7 @@ interface Address {
 
 interface ContactFormProps {
   currentContact?: any;
-  onSave: (data: any) => void; // Kan kasta vid valideringsfel
+  onSave: (data: any) => void | boolean | Promise<boolean>;
   onCancel: () => void;
   isSubmitting?: boolean;
 }
@@ -169,11 +169,11 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
     setIsSubmitting(true);
     try {
-      console.log('Form submitting with data:', formData);
-      // Stödjer både sync och async onSave
-      await Promise.resolve(onSave(formData));
-
-      // ✅ Vid lyckad save
+      const ok = await Promise.resolve(onSave(formData));
+      if (!ok) {
+        // Validation failed – keep form data so user can fix errors
+        return;
+      }
       markClean();
       if (!currentContact) {
         resetForm();

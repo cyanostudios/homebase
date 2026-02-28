@@ -1,165 +1,85 @@
-**User**
+# Säkerhetschecklista för launch
 
-om jag snart vill lansera en version av appen, vad kan jag göra för att öka säkerheten? Vad ska jag tänka på nu? Kolla på alla möjligt hot som finns. Intrång i appen, databasen osv, krypterad eller okrypterad data fram och tillbaka, ALLT som har med säkerhet att göra
-
----
-
-**Cursor**
-
-Bra fråga. Jag gör en snabb men bred säkerhetsinventering av koden (server, auth, session, CORS, rate limit, DB, filuppladdning, secrets, headers) och ger dig en konkret launch-checklista med högsta riskerna först.
-
-Bra att du tar detta **innan launch**. Utifrån koden är det här din säkerhetsbild just nu, med fokus på intrång, databas, kryptering och dataflöden.
-
-## Kritiska risker (fixa före release)
-
-- **CSRF-skydd är i praktiken avstängt globalt**  
-  Det här är den största webbrisk just nu (session-cookie + state-changing endpoints utan CSRF).
-```16:39:server/core/middleware/csrf.js
-// TEMPORARILY DISABLED FOR DEBUGGING
-let csrfProtection;
-if (false && csrf) { // Disabled: change false to true to re-enable
-  csrfProtection = csrf({
-    cookie: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-    },
-  });
-} else {
-  // CSRF protection disabled for debugging
-  csrfProtection = (req, res, next) => {
-    // No-op middleware - CSRF protection disabled
-    next();
-  };
-}
-
-// ... Returns a dummy token
-res.json({ csrfToken: 'csrf-disabled' });
-```
-
-- **Flera routes har CSRF bortkommenterat**
-```148:193:plugins/files/routes.js
-router.post('/',
-  gate,
-  /* csrfProtection, */ // Temporarily disabled
-...
-router.post('/upload',
-  gate,
-  uploadLimiter,
-  /* csrfProtection, */ // Temporarily disabled
-```
-
-- **Fallback-session secret i runtime-kod**  
-  Om env missas i prod kan appen starta med osäkert secret.
-```95:103:server/index.ts
-secret: process.env.SESSION_SECRET || 'homebase-dev-secret-change-in-production',
-cookie: {
-  secure: process.env.NODE_ENV === 'production',
-  httpOnly: true,
-  maxAge: 24 * 60 * 60 * 1000,
-  sameSite: 'lax',
-},
-```
-
-- **Admin endpoint returnerar tenant connection strings**  
-  Det är mycket känslig data (DB-host/credentials i URL).
-```80:89:server/core/routes/admin.js
-SELECT u.id, u.email, u.role, t.neon_project_id, t.neon_database_name, t.neon_connection_string
-...
-res.json({ tenants: result.rows });
-```
-
-- **Känsliga credentials lagras i klartext i DB-tabeller** (mail auth_pass, resend_api_key, shipping api_secret, cdon/fyndiq api_secret, cloud client_secret).  
-  Kräver skydd på applager + strikt DB access.
+**Status:** Delvis genomförd. Kritiska risker adresserade. Återstående punkter nedan.
 
 ---
 
-## Hög prioritet (nästa steg direkt efter kritiska)
+## ✅ Genomfört
 
-- **Loggning läcker potentiellt känsliga parametrar** (SQL params loggas).
-```200:206:server/core/services/database/adapters/PostgreSQLAdapter.js
-this.logger?.info('Executing SQL query', {
-  sql: finalSql,
-  params: finalParams,
-  userId: userId,
-  paramCount: finalParams.length,
-});
-```
-  Risk: API-nycklar/lösenord hamnar i loggar.
+### 1. CSRF-skydd aktiverat
+- `server/core/middleware/csrf.js` – CSRF är påslaget (inget `false &&` eller no-op).
+- Alla muterande routes (files, contacts, estimates, invoices, notes, tasks, orders, products, cdon, fyndiq, shipping, channels, woocommerce) använder `csrfProtection`.
 
-- **CSP är för svag p.g.a. `'unsafe-inline'` på scripts/styles**  
-  Ökar impact vid XSS.
+### 2. SESSION_SECRET – inget fallback i produktion
+- `server/index.ts` – `REQUIRED_PRODUCTION_ENV` inkluderar `SESSION_SECRET` och kastar vid start om det saknas.
+- Session-config kastar också om `SESSION_SECRET` saknas i prod.
 
-- **Filuppladdning validerar MIME-type från klient**  
-  Bra start, men bör kompletteras med magic-byte scanning (inte bara `file.mimetype`).
+### 3. Admin – ingen exponering av connection string
+- `server/core/routes/admin.js` – `/tenants` returnerar `neon_project_id`, `neon_database_name` (inte `neon_connection_string`).
 
-- **Publik webhook saknar extra skydd** (`/api/intake/inspection-request`)  
-  Har secret-check (bra), men lägg på IP allowlist + rate limit + timing-safe compare.
+### 4. Loggning – inga känsliga params
+- `server/core/services/database/adapters/PostgreSQLAdapter.js` – loggar `sql`, `userId`, `paramCount` (inte `params`).
 
-- **Rate limit är process-lokal (memory store)**  
-  Vid flera instanser behöver du Redis-backed limiter, annars lätt att kringgå per node.
+### 5. Kryptering av lagrade credentials
+- `CredentialsCrypto.js` – krypterar/dekrypterar med `CREDENTIALS_ENCRYPTION_KEY`.
+- Används av: mail (auth_pass, resend_api_key), shipping, cloudStorage, cdon, fyndiq, woocommerce-products, channels.
+- `CREDENTIALS_ENCRYPTION_KEY` krävs i produktion (`REQUIRED_PRODUCTION_ENV`).
 
----
+### 6. Webhook – rate limit + timing-safe compare
+- `/api/intake/inspection-request` – `intakeLimiter`, `safeSecretEquals`, secret-check via `x-webhook-secret`.
 
-## Kryptering: vad du ska kräva
-
-### In transit
-- **All trafik via HTTPS/TLS 1.2+** (frontend↔backend, backend↔DB, backend↔S3/R2, webhookkällor).  
-- Tvinga HTTPS + HSTS i reverse proxy.
-- Säkerställ att `DATABASE_URL` använder SSL (t.ex. `sslmode=require`/motsv på provider).
-
-### At rest
-- DB-kryptering via provider (Neon/cloud) + backup-kryptering.
-- Objektlagring med SSE (S3/R2 server-side encryption).
-- **Applikationskryptera särskilt känsliga hemligheter** innan DB-lagring (API secrets, SMTP pass etc.), med nyckel i secrets manager.
+### 7. Filuppladdning (files) – magic-byte scanning
+- `plugins/files/routes.js` – `FileType.fromBuffer`, `validateUploadedFilesByMagicBytes` validerar innehåll efter upload.
+- Produktimport (`/api/products/import`) har ännu inte magic-byte – admin-only, lägre prioritet.
 
 ---
 
-## Auth / konto / session (best practice för launch)
+## Återstående (prioriteringsordning)
 
-- Aktivera CSRF fullt.
-- Tvinga stark `SESSION_SECRET` (fail-fast om saknas i prod).
-- Kortare session-liv + idle timeout för adminkonton.
-- Login-skydd: lockout/step-up efter många försök, ev. CAPTCHA.
-- Lägg till **MFA för admin/superuser**.
-- Email verification + password reset med signed, short-lived tokens.
-- Undvik att exponera intern infrastrukturdata via admin-API (särskilt connection strings).
+### Övrigt (best practice för launch)
 
----
-
-## Databas- och infra-härdning
-
-- Minsta privilegium på DB-användare (separera app user/migration user).
-- Stäng all direkt DB-exponering mot internet om möjligt (allowlist/VPC).
-- Rotera alla secrets före launch: DB, SMTP, API-nycklar, session secret, webhook secret.
-- Automatisk backup + restore-test (inte bara backup finns).
+2. **Auth** – MFA för admin/superuser  
+3. **Auth** – Login lockout/step-up efter många försök  
+4. **Auth** – Kortare session + idle timeout för admin  
+5. **Infra** – Rotera alla secrets före launch (DB, SMTP, API-nycklar, session, webhook)  
+6. **Infra** – Backup + restore-test (testa att återställningen fungerar)  
+7. **Övervakning** – Säkerhetsloggning, alarm på bruteforce/5xx-spikes  
 
 ---
 
-## Övervakning och incidentberedskap
+## To-do vid prod
 
-- Sätt upp:
-  - säkerhetsloggning (auth fail, rate-limit hits, admin actions, webhook failures)
-  - central logg med sekretessmaskning
-  - larm på ovanliga mönster (bruteforce, stora batch deletes, 5xx spikes)
-- Ha enkel incident-playbook:
-  - rotera keys
-  - tvinga logout (invalidate sessions)
-  - blockera IP/rutter tillfälligt
-  - återställ från backup
+Punkter som kan göras **enbart i produktion** – dev påverkas inte.
+
+1. **CSP – stärk i prod**  
+   - Nuvarande: `'unsafe-inline'` på scripts/styles (samma i dev och prod).  
+   - Åtgärd: I prod – nonce-baserad CSP (ta bort `unsafe-inline`). I dev – behåll nuvarande.  
+   - Implementering: `if (NODE_ENV === 'production')` → strängare CSP med nonce; annars → nuvarande.
+
+2. **Webhook – IP allowlist**  
+   - Åtgärd: Begränsa `/api/intake/inspection-request` till kända CF7-IP:er.  
+   - Implementering: `CF7_WEBHOOK_IP_ALLOWLIST` (komma-separerade IP:er). Om satt → avvisa requests från andra IP:er (403). Om ej satt → ingen filtrering.  
+   - Sätts endast i prod (där CF7-IP:erna är kända).
+
+3. **Rate limit – Redis vid flera instanser**  
+   - Idag: Inbyggt memory store (process-lokal).  
+   - Åtgärd: Om du kör flera instanser (horizontal scaling) i prod – använd Redis-backed store (t.ex. `rate-limit-redis`). Vid en instans räcker memory store.
+
+---
+
+## Kryptering (referens)
+
+**In transit:** HTTPS/TLS, tvinga i reverse proxy, `sslmode=require` för DB.  
+**At rest:** DB-kryptering hos provider, SSE för objektlagring, CredentialsCrypto för API/SMTP-nycklar (✅ implementerat).
 
 ---
 
-## Rekommenderad launchordning (praktisk)
+## Launchordning (nästa steg)
 
-1. **Re-enable CSRF** + verifiera alla muterande routes.  
-2. **Ta bort fallback secrets** (SESSION_SECRET måste finnas i prod).  
-3. **Stoppa exponering av `neon_connection_string` i API-svar.**  
-4. **Maskera/ta bort loggning av känsliga params.**  
-5. **Inför kryptering av lagrade credentials** + secret rotation.  
-6. **Stärk upload/webhook/rate-limit** (magic bytes, IP allowlist, Redis limiter).  
-7. **MFA för admin + incident/backup-test.**
-
-Om du vill kan jag i nästa steg göra en **konkret “go-live security checklist”** med exakta acceptanskriterier per punkt (så ni kan bocka av inför release).
-
----
+1. ✅ CSRF  
+2. ✅ SESSION_SECRET  
+3. ✅ Admin connection string  
+4. ✅ SQL-params loggning  
+5. ✅ Credentials-kryptering  
+6. ✅ Filuppladdning magic-byte (files-plugin)  
+7. Se plan: `.cursor/to_do_security_plan_next.md` – kräver dina beslut innan implementering.
