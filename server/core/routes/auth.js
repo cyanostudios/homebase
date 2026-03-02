@@ -223,6 +223,7 @@ router.post('/signup', async (req, res) => {
         'rail',
         'woocommerce-products',
         'orders',
+        'analytics',
       ];
     }
     // Default plugins for new users - all main registered plugins
@@ -239,6 +240,7 @@ router.post('/signup', async (req, res) => {
       'products',
       'woocommerce-products',
       'orders',
+      'analytics',
     ];
 
     if (plugins && Array.isArray(plugins) && plugins.length > 0) {

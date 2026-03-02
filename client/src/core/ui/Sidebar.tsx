@@ -27,6 +27,7 @@ const PLUGIN_ICON_COLORS: Record<string, string> = {
   mail: 'text-muted-foreground',
   inspection: 'text-amber-600 dark:text-amber-400',
   orders: 'text-emerald-600 dark:text-emerald-400',
+  analytics: 'text-cyan-600 dark:text-cyan-400',
 };
 
 export type NavPage =
@@ -46,6 +47,7 @@ export type NavPage =
   | 'products'
   | 'woocommerce-products'
   | 'orders'
+  | 'analytics'
   | 'settings';
 
 interface SidebarProps {
@@ -70,8 +72,12 @@ export function Sidebar({
     const plugins = user?.plugins ?? [];
 
     PLUGIN_REGISTRY.forEach((plugin) => {
-      if (!plugins.includes(plugin.name) || !plugin.navigation) return;
-      if (plugin.navigation.hideFromSidebar) return;
+      if (!plugins.includes(plugin.name) || !plugin.navigation) {
+        return;
+      }
+      if (plugin.navigation.hideFromSidebar) {
+        return;
+      }
 
       const { category, label, icon, order, submenu, badge } = plugin.navigation;
       if (!categoriesMap.has(category)) {

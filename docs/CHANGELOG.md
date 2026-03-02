@@ -6,6 +6,23 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ## 2026-02 – Homebase 3.1.6
 
+### Nytt plugin: E-Commerce Analytics
+
+- **Nytt plugin `analytics`** under E-Commerce med KPI:er för omsättning, order, AOV och sålda enheter.
+- **Nya API-endpoints** i `plugins/analytics/routes.js`: `GET /api/analytics/overview`, `GET /api/analytics/timeseries`, `GET /api/analytics/channels`, `GET /api/analytics/top-products`, `GET /api/analytics/drilldown/orders`, `GET /api/analytics/export/top-products.csv`.
+- **Filtrering och trends**: datumintervall, status, kanal, kanalinstans och granularitet (dag/vecka/månad) stöds i backend och UI.
+- **Drilldown + export**: klick på storsäljare visar orderlista per SKU och CSV-export av topplista finns direkt i vyn.
+- **Dashboard-widget**: snabb kortvy för omsättning med länk till analytics-pluginet.
+- Filer: `plugins/analytics/plugin.config.js`, `plugins/analytics/index.js`, `plugins/analytics/model.js`, `plugins/analytics/controller.js`, `plugins/analytics/routes.js`, `client/src/plugins/analytics/**`, `client/src/core/pluginRegistry.ts`, `client/src/core/ui/Sidebar.tsx`, `server/core/routes/auth.js`.
+
+### Migration: analytics-index
+
+- **Ny migrering `056-analytics-indexes.sql`** med index för vanliga analytics-frågor:
+  - `orders(user_id, placed_at DESC)`
+  - `orders(user_id, channel, channel_instance_id, placed_at DESC)`
+  - `orders(user_id, status, placed_at DESC)`
+  - `order_items(order_id, sku)`
+
 ### WooCommerce – butiksnamn på order (channel_label)
 
 - **Ny kolumn `orders.channel_label`** (migrering 055). Sparar butiksnamnet (t.ex. "Merchbutiken") vid order-sync så att det inte försvinner om butikslabel ändras senare.
