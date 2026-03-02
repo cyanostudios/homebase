@@ -28,7 +28,9 @@
     "sync:up": "git add -A && (git commit -m \"chore(sync): local save\" || ver > nul) && git pull --rebase && git push",
     "migrate:activity-log": "node scripts/run-activity-log-migration.js",
     "migrate:files": "node scripts/run-files-migration.js",
-    "migrate:all": "node scripts/run-all-migrations.js"
+    "migrate:all": "node scripts/run-all-migrations.js",
+    "migrate:encrypt-legacy-secrets": "node scripts/encrypt-legacy-secrets.js",
+    "migrate:encrypt-woo-credentials": "node scripts/encrypt-woo-credentials-in-channel-instances.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
@@ -110,8 +112,10 @@
     "react-icons": "^5.4.0",
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^6.30.1",
+    "qrcode": "^1.5.4",
     "recharts": "^2.15.2",
     "resend": "^6.9.1",
+    "speakeasy": "^2.0.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "tw-animate-css": "^1.2.5",

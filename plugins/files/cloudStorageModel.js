@@ -9,26 +9,6 @@ class CloudStorageModel {
     googledrive: 'googledrive_settings',
   };
 
-  async migrateLegacySecrets(db, table, userId, row) {
-    const updates = [];
-    const params = [userId];
-    let idx = 2;
-    const encryptIfLegacy = (column) => {
-      if (row[column] && !CredentialsCrypto.isEncrypted(row[column])) {
-        updates.push(`${column} = $${idx++}`);
-        params.push(CredentialsCrypto.encrypt(String(row[column])));
-      }
-    };
-
-    encryptIfLegacy('client_secret');
-    encryptIfLegacy('access_token');
-    encryptIfLegacy('refresh_token');
-
-    if (!updates.length) return;
-    updates.push('updated_at = CURRENT_TIMESTAMP');
-    await db.query(`UPDATE ${table} SET ${updates.join(', ')} WHERE user_id = $1`, params);
-  }
-
   async getSettings(req, service) {
     try {
       const db = Database.get(req);
@@ -40,7 +20,11 @@ class CloudStorageModel {
 
       const table = CloudStorageModel.TABLES[service];
       if (!table) {
-        throw new AppError(`Unknown cloud storage service: ${service}`, 400, AppError.CODES.VALIDATION_ERROR);
+        throw new AppError(
+          `Unknown cloud storage service: ${service}`,
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
       }
 
       const sql = `
@@ -50,9 +34,6 @@ class CloudStorageModel {
         LIMIT 1
       `;
       const result = await db.query(sql, [userId]);
-      if (result.length) {
-        await this.migrateLegacySecrets(db, table, userId, result[0]);
-      }
       return result.length ? this.transformSettingsRow(result[0], service) : null;
     } catch (error) {
       Logger.error(`Failed to get ${service} settings`, error);
@@ -74,7 +55,11 @@ class CloudStorageModel {
 
       const table = CloudStorageModel.TABLES[service];
       if (!table) {
-        throw new AppError(`Unknown cloud storage service: ${service}`, 400, AppError.CODES.VALIDATION_ERROR);
+        throw new AppError(
+          `Unknown cloud storage service: ${service}`,
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
       }
 
       const accessToken = data.accessToken ? String(data.accessToken).trim() : null;
@@ -125,7 +110,11 @@ class CloudStorageModel {
 
       const table = CloudStorageModel.TABLES[service];
       if (!table) {
-        throw new AppError(`Unknown cloud storage service: ${service}`, 400, AppError.CODES.VALIDATION_ERROR);
+        throw new AppError(
+          `Unknown cloud storage service: ${service}`,
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
       }
 
       const sql = `
@@ -161,7 +150,11 @@ class CloudStorageModel {
 
       const table = CloudStorageModel.TABLES[service];
       if (!table) {
-        throw new AppError(`Unknown cloud storage service: ${service}`, 400, AppError.CODES.VALIDATION_ERROR);
+        throw new AppError(
+          `Unknown cloud storage service: ${service}`,
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
       }
 
       const sql = `
@@ -188,7 +181,11 @@ class CloudStorageModel {
       if (error instanceof AppError) {
         throw error;
       }
-      throw new AppError(`Failed to save ${service} OAuth credentials`, 500, AppError.CODES.DATABASE_ERROR);
+      throw new AppError(
+        `Failed to save ${service} OAuth credentials`,
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 

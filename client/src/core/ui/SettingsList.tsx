@@ -2,7 +2,7 @@
 // Settings list component showing settings categories
 // Updated: Added Activity Log category
 
-import { User, Globe, History } from 'lucide-react';
+import { Globe, History, Shield, User } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 
 import { Card } from '@/components/ui/card';
@@ -12,7 +12,7 @@ interface SettingsCategory {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  category: 'profile' | 'preferences' | 'activity-log';
+  category: 'profile' | 'preferences' | 'activity-log' | 'security';
   description: string;
 }
 
@@ -37,6 +37,13 @@ const settingsCategories: SettingsCategory[] = [
     icon: History,
     category: 'activity-log',
     description: 'View your activity history',
+  },
+  {
+    id: 'security',
+    label: 'Two-factor authentication',
+    icon: Shield,
+    category: 'security',
+    description: 'Manage two-factor authentication (authenticator app)',
   },
 ];
 

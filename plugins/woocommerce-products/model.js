@@ -23,33 +23,24 @@ class WooCommerceModel {
     return CredentialsCrypto.encrypt(JSON.stringify(credentials));
   }
 
-  parseCredentials(rawCredentials) {
-    if (rawCredentials == null) return null;
-    let payload = rawCredentials;
-    if (typeof payload === 'string' && CredentialsCrypto.isEncrypted(payload)) {
-      payload = CredentialsCrypto.decrypt(payload);
-    }
-    if (typeof payload === 'string') {
-      try {
-        return JSON.parse(payload);
-      } catch {
-        return null;
-      }
-    }
-    return payload;
+  /** Returns value suitable for JSONB column: null or { v: encryptedString }. */
+  credentialsForJsonb(encryptedString) {
+    if (encryptedString == null) return null;
+    return { v: encryptedString };
   }
 
-  async migrateLegacyCredentials(db, userId, rowId, rawCredentials) {
-    if (!rawCredentials || typeof rawCredentials !== 'string') return;
-    if (CredentialsCrypto.isEncrypted(rawCredentials)) return;
-    await db.query(
-      `
-      UPDATE ${WooCommerceModel.CHANNEL_INSTANCES_TABLE}
-      SET credentials = $3, updated_at = CURRENT_TIMESTAMP
-      WHERE user_id = $1 AND id = $2
-      `,
-      [userId, rowId, CredentialsCrypto.encrypt(rawCredentials)],
-    );
+  /** Reads credentials from DB format: { v: encryptedString }. Returns parsed object or null. */
+  parseCredentials(rawCredentials) {
+    if (rawCredentials == null || typeof rawCredentials !== 'object' || !('v' in rawCredentials))
+      return null;
+    const enc = rawCredentials.v;
+    if (typeof enc !== 'string' || !CredentialsCrypto.isEncrypted(enc)) return null;
+    try {
+      const decrypted = CredentialsCrypto.decrypt(enc);
+      return JSON.parse(decrypted);
+    } catch {
+      return null;
+    }
   }
 
   // ----- Channel Instances API -----
@@ -73,7 +64,6 @@ class WooCommerceModel {
       if (!result.length) return null;
 
       const r = result[0];
-      await this.migrateLegacyCredentials(db, userId, r.id, r.credentials);
       return {
         id: String(r.id),
         channel: r.channel,
@@ -115,7 +105,6 @@ class WooCommerceModel {
       if (!result.length) return null;
 
       const r = result[0];
-      await this.migrateLegacyCredentials(db, userId, r.id, r.credentials);
       return {
         id: String(r.id),
         channel: r.channel,
@@ -150,24 +139,24 @@ class WooCommerceModel {
       `;
       const rows = await db.query(sql, [userId, WooCommerceModel.CHANNEL]);
 
-      return Promise.all(rows.map(async (r) => {
-        await this.migrateLegacyCredentials(db, userId, r.id, r.credentials);
-        const credentials = this.parseCredentials(r.credentials);
-        return {
-          id: String(r.id),
-          channel: r.channel,
-          instanceKey: r.instance_key,
-          market: r.market,
-          label: r.label,
-          credentials,
-          createdAt: r.created_at || null,
-          updatedAt: r.updated_at || null,
-        };
+      return rows.map((r) => ({
+        id: String(r.id),
+        channel: r.channel,
+        instanceKey: r.instance_key,
+        market: r.market,
+        label: r.label,
+        credentials: this.parseCredentials(r.credentials),
+        createdAt: r.created_at || null,
+        updatedAt: r.updated_at || null,
       }));
     } catch (error) {
       Logger.error('Failed to list WooCommerce instances', error);
       if (error instanceof AppError) throw error;
-      throw new AppError('Failed to list WooCommerce instances', 500, AppError.CODES.DATABASE_ERROR);
+      throw new AppError(
+        'Failed to list WooCommerce instances',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 
@@ -182,11 +171,16 @@ class WooCommerceModel {
 
       const key = String(instanceKey || '').trim();
       if (!key) {
-        throw new AppError('Missing required field: instanceKey', 400, AppError.CODES.VALIDATION_ERROR);
+        throw new AppError(
+          'Missing required field: instanceKey',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
       }
 
       const lbl = label != null && String(label).trim() ? String(label).trim() : null;
       const creds = this.normalizeCredentialsForStorage(credentials);
+      const credsJsonb = this.credentialsForJsonb(creds);
 
       const rows = await db.query(
         `
@@ -200,7 +194,7 @@ class WooCommerceModel {
           updated_at = CURRENT_TIMESTAMP
         RETURNING id, channel, instance_key, market, label, credentials, created_at, updated_at
         `,
-        [userId, WooCommerceModel.CHANNEL, key, lbl, creds],
+        [userId, WooCommerceModel.CHANNEL, key, lbl, credsJsonb],
       );
 
       const r = rows[0];
@@ -217,7 +211,11 @@ class WooCommerceModel {
     } catch (error) {
       Logger.error('Failed to upsert WooCommerce instance', error);
       if (error instanceof AppError) throw error;
-      throw new AppError('Failed to upsert WooCommerce instance', 500, AppError.CODES.DATABASE_ERROR);
+      throw new AppError(
+        'Failed to upsert WooCommerce instance',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 
@@ -253,7 +251,11 @@ class WooCommerceModel {
     } catch (error) {
       Logger.error('Failed to delete WooCommerce instance', error);
       if (error instanceof AppError) throw error;
-      throw new AppError('Failed to delete WooCommerce instance', 500, AppError.CODES.DATABASE_ERROR);
+      throw new AppError(
+        'Failed to delete WooCommerce instance',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 
@@ -263,7 +265,10 @@ class WooCommerceModel {
    * Upsert per produkt/per kanal (och per instans för Woo) koppling + senaste sync-status.
    * channelInstanceId: optional; for Woo multi-store, pass instance id; for CDON/Fyndiq leave null.
    */
-  async upsertChannelMap(req, { productId, channel, channelInstanceId, externalId, status, error }) {
+  async upsertChannelMap(
+    req,
+    { productId, channel, channelInstanceId, externalId, status, error },
+  ) {
     try {
       const db = Database.get(req);
       const userId = req.session?.user?.id;
@@ -272,7 +277,10 @@ class WooCommerceModel {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
       }
 
-      const instanceId = channelInstanceId != null && Number.isFinite(Number(channelInstanceId)) ? Number(channelInstanceId) : null;
+      const instanceId =
+        channelInstanceId != null && Number.isFinite(Number(channelInstanceId))
+          ? Number(channelInstanceId)
+          : null;
 
       const sql = `
         INSERT INTO ${WooCommerceModel.CHANNEL_MAP_TABLE} (
@@ -298,7 +306,13 @@ class WooCommerceModel {
         error || null,
       ];
       await db.query(sql, params);
-      Logger.info('Channel map upserted', { userId, productId, channel, channelInstanceId: instanceId, externalId });
+      Logger.info('Channel map upserted', {
+        userId,
+        productId,
+        channel,
+        channelInstanceId: instanceId,
+        externalId,
+      });
     } catch (error) {
       Logger.error('Failed to upsert channel map', error);
       if (error instanceof AppError) {
@@ -324,7 +338,8 @@ class WooCommerceModel {
 
       if (!Array.isArray(productIds) || productIds.length === 0) return new Map();
 
-      const instId = instanceId != null && Number.isFinite(Number(instanceId)) ? Number(instanceId) : null;
+      const instId =
+        instanceId != null && Number.isFinite(Number(instanceId)) ? Number(instanceId) : null;
       let sql = `
         SELECT product_id, external_id
         FROM ${WooCommerceModel.CHANNEL_MAP_TABLE}
@@ -350,7 +365,11 @@ class WooCommerceModel {
       if (error instanceof AppError) {
         throw error;
       }
-      throw new AppError('Failed to get channel map for products', 500, AppError.CODES.DATABASE_ERROR);
+      throw new AppError(
+        'Failed to get channel map for products',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 
@@ -455,7 +474,10 @@ class WooCommerceModel {
    * - last_sync_status sätts till en befintlig status (vi använder 'idle' här)
    * channelInstanceId: optional; for Woo clear only that instance's row.
    */
-  async clearChannelMapByExternalId(req, { channel, channelInstanceId, externalId, status, error }) {
+  async clearChannelMapByExternalId(
+    req,
+    { channel, channelInstanceId, externalId, status, error },
+  ) {
     try {
       const db = Database.get(req);
       const userId = req.session?.user?.id;
@@ -464,7 +486,10 @@ class WooCommerceModel {
         throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
       }
 
-      const instId = channelInstanceId != null && Number.isFinite(Number(channelInstanceId)) ? Number(channelInstanceId) : null;
+      const instId =
+        channelInstanceId != null && Number.isFinite(Number(channelInstanceId))
+          ? Number(channelInstanceId)
+          : null;
       let sql = `
         UPDATE ${WooCommerceModel.CHANNEL_MAP_TABLE}
         SET
@@ -486,7 +511,12 @@ class WooCommerceModel {
         sql += ` AND (channel_instance_id IS NULL OR channel_instance_id = 0)`;
       }
       await db.query(sql, params);
-      Logger.info('Channel map cleared by external ID', { userId, channel, channelInstanceId: instId, externalId });
+      Logger.info('Channel map cleared by external ID', {
+        userId,
+        channel,
+        channelInstanceId: instId,
+        externalId,
+      });
     } catch (error) {
       Logger.error('Failed to clear channel map by external ID', error);
       if (error instanceof AppError) {

@@ -22,11 +22,23 @@ class WooCommerceController {
   async _getInstanceOrThrow(req) {
     const instanceId = String(req.query?.instanceId || req.body?.instanceId || '').trim();
     if (!instanceId) {
-      throw new AppError('instanceId is required (WooCommerce is multi-store)', 400, AppError.CODES.VALIDATION_ERROR);
+      throw new AppError(
+        'instanceId is required (WooCommerce is multi-store)',
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
     }
     const inst = await this.model.getInstanceById(req, instanceId);
-    if (!inst?.credentials?.storeUrl || !inst?.credentials?.consumerKey || !inst?.credentials?.consumerSecret) {
-      throw new AppError('WooCommerce instance credentials not found', 404, AppError.CODES.NOT_FOUND);
+    if (
+      !inst?.credentials?.storeUrl ||
+      !inst?.credentials?.consumerKey ||
+      !inst?.credentials?.consumerSecret
+    ) {
+      throw new AppError(
+        'WooCommerce instance credentials not found',
+        404,
+        AppError.CODES.NOT_FOUND,
+      );
     }
     return inst;
   }
@@ -34,17 +46,29 @@ class WooCommerceController {
   async _getInstancesFromBodyOrThrow(req) {
     const rawInstanceIds = req.body?.instanceIds;
     if (!Array.isArray(rawInstanceIds) || rawInstanceIds.length === 0) {
-      throw new AppError('instanceIds is required (select one or more WooCommerce stores)', 400, AppError.CODES.VALIDATION_ERROR);
+      throw new AppError(
+        'instanceIds is required (select one or more WooCommerce stores)',
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
     }
     const instances = [];
     for (const id of rawInstanceIds) {
       const inst = await this.model.getInstanceById(req, id);
-      if (inst?.credentials?.storeUrl && inst?.credentials?.consumerKey && inst?.credentials?.consumerSecret) {
+      if (
+        inst?.credentials?.storeUrl &&
+        inst?.credentials?.consumerKey &&
+        inst?.credentials?.consumerSecret
+      ) {
         instances.push(inst);
       }
     }
     if (instances.length === 0) {
-      throw new AppError('No valid WooCommerce instances found for instanceIds', 404, AppError.CODES.NOT_FOUND);
+      throw new AppError(
+        'No valid WooCommerce instances found for instanceIds',
+        404,
+        AppError.CODES.NOT_FOUND,
+      );
     }
     return instances;
   }
@@ -54,12 +78,14 @@ class WooCommerceController {
     if (error?.code !== '23505') return null;
     const detail = String(error.detail || '');
     const m = detail.match(/\(([^)]+)\)=\(([^)]+)\)/);
-    const cols = m ? m[1].split(',').map(s => s.trim()) : [];
+    const cols = m ? m[1].split(',').map((s) => s.trim()) : [];
     const val = m ? m[2] : undefined;
     const field = cols[1] || cols[0] || 'general';
     return {
       field,
-      message: val ? `Unique value "${val}" already exists for ${field}` : 'Unique constraint violated',
+      message: val
+        ? `Unique value "${val}" already exists for ${field}`
+        : 'Unique constraint violated',
     };
   }
 
@@ -68,10 +94,11 @@ class WooCommerceController {
     const value = String(rawCategory).trim();
     if (!value) return [];
 
-    const toIds = (items) => items
-      .map((x) => Number(x))
-      .filter((x) => Number.isFinite(x) && x > 0)
-      .map((x) => ({ id: x }));
+    const toIds = (items) =>
+      items
+        .map((x) => Number(x))
+        .filter((x) => Number.isFinite(x) && x > 0)
+        .map((x) => ({ id: x }));
 
     if (value.startsWith('[')) {
       try {
@@ -128,7 +155,8 @@ class WooCommerceController {
 
   async createInstance(req, res) {
     try {
-      const { instanceKey, label, storeUrl, consumerKey, consumerSecret, useQueryAuth } = req.body || {};
+      const { instanceKey, label, storeUrl, consumerKey, consumerSecret, useQueryAuth } =
+        req.body || {};
 
       // Extract store name from URL for label if not provided
       let finalLabel = label;
@@ -183,7 +211,8 @@ class WooCommerceController {
       const updatedCreds = {
         storeUrl: storeUrl !== undefined ? storeUrl : existingCreds.storeUrl,
         consumerKey: consumerKey !== undefined ? consumerKey : existingCreds.consumerKey,
-        consumerSecret: consumerSecret !== undefined ? consumerSecret : existingCreds.consumerSecret,
+        consumerSecret:
+          consumerSecret !== undefined ? consumerSecret : existingCreds.consumerSecret,
         useQueryAuth: useQueryAuth !== undefined ? !!useQueryAuth : existingCreds.useQueryAuth,
       };
 
@@ -248,7 +277,11 @@ class WooCommerceController {
         : (await this._getInstanceOrThrow(req)).credentials;
 
       if (!settings?.storeUrl || !settings?.consumerKey || !settings?.consumerSecret) {
-        return res.status(400).json({ error: 'Missing WooCommerce credentials (storeUrl, consumerKey, consumerSecret).' });
+        return res
+          .status(400)
+          .json({
+            error: 'Missing WooCommerce credentials (storeUrl, consumerKey, consumerSecret).',
+          });
       }
 
       const base = this.normalizeBaseUrl(settings.storeUrl);
@@ -258,7 +291,11 @@ class WooCommerceController {
       const ok = response.ok;
       const text = await response.text().catch(() => '');
       let json;
-      try { json = JSON.parse(text); } catch (_) { json = { raw: text }; }
+      try {
+        json = JSON.parse(text);
+      } catch (_) {
+        json = { raw: text };
+      }
 
       res.json({
         ok,
@@ -269,7 +306,12 @@ class WooCommerceController {
       });
     } catch (error) {
       Logger.error('Woo test connection error', error, { userId: Context.getUserId(req) });
-      res.status(502).json({ error: 'Failed to reach WooCommerce API', detail: String(error?.message || error) });
+      res
+        .status(502)
+        .json({
+          error: 'Failed to reach WooCommerce API',
+          detail: String(error?.message || error),
+        });
     }
   }
 
@@ -284,7 +326,8 @@ class WooCommerceController {
 
       const base = this.normalizeBaseUrl(settings.storeUrl);
       const found = await this.findWooProductBySku(base, sku, settings);
-      if (!found?.id) return res.status(404).json({ ok: false, sku, error: 'Product not found in WooCommerce' });
+      if (!found?.id)
+        return res.status(404).json({ ok: false, sku, error: 'Product not found in WooCommerce' });
 
       const mapped = this.mapWooToMvpProduct(found);
       return res.json({
@@ -295,7 +338,9 @@ class WooCommerceController {
       });
     } catch (error) {
       Logger.error('Woo import error', error, { userId: Context.getUserId(req) });
-      res.status(502).json({ error: 'Import from WooCommerce failed', detail: String(error?.message || error) });
+      res
+        .status(502)
+        .json({ error: 'Import from WooCommerce failed', detail: String(error?.message || error) });
     }
   }
 
@@ -305,21 +350,34 @@ class WooCommerceController {
     try {
       const products = Array.isArray(req.body?.products) ? req.body.products : null;
       if (!products || products.length === 0) {
-        return res.status(400).json({ error: 'Request must include products: [] with MVP product fields.' });
+        return res
+          .status(400)
+          .json({ error: 'Request must include products: [] with MVP product fields.' });
       }
 
       const instances = await this._getInstancesFromBodyOrThrow(req);
 
       const channel = 'woocommerce';
-      const productIds = products.map(p => String(p.id));
-      const aggregated = { ok: true, instances: [], result: { create: [], update: [] }, counts: { requested: products.length, success: 0, error: 0 }, items: [] };
+      const productIds = products.map((p) => String(p.id));
+      const aggregated = {
+        ok: true,
+        instances: [],
+        result: { create: [], update: [] },
+        counts: { requested: products.length, success: 0, error: 0 },
+        items: [],
+      };
 
       for (const instance of instances) {
         const settings = instance.credentials;
         const instanceId = instance.id;
         const base = this.normalizeBaseUrl(settings.storeUrl);
 
-        const mapByProductId = await this.model.getChannelMapForProducts(req, channel, productIds, instanceId);
+        const mapByProductId = await this.model.getChannelMapForProducts(
+          req,
+          channel,
+          productIds,
+          instanceId,
+        );
 
         const existingBySku = new Map();
         for (const p of products) {
@@ -358,24 +416,32 @@ class WooCommerceController {
             endpoint: `${base}/wp-json/wc/v3/products/batch`,
             result: { create: [], update: [] },
             counts: { requested: products.length, success: 0, error: 0 },
-            items: products.map(p => ({ productId: p.id, sku: p.sku || null, status: 'noop' })),
+            items: products.map((p) => ({ productId: p.id, sku: p.sku || null, status: 'noop' })),
           });
           continue;
         }
 
         const endpoint = `${base}/wp-json/wc/v3/products/batch`;
-        const response = await this.fetchWithWooAuth(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            create: createPayload.length ? createPayload : undefined,
-            update: updatePayload.length ? updatePayload : undefined,
-          }),
-        }, settings);
+        const response = await this.fetchWithWooAuth(
+          endpoint,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              create: createPayload.length ? createPayload : undefined,
+              update: updatePayload.length ? updatePayload : undefined,
+            }),
+          },
+          settings,
+        );
 
         const rawText = await response.text().catch(() => '');
         let json;
-        try { json = JSON.parse(rawText); } catch (_) { json = { raw: rawText }; }
+        try {
+          json = JSON.parse(rawText);
+        } catch (_) {
+          json = { raw: rawText };
+        }
 
         const successes = new Map();
         const markSuccess = (wooItem) => {
@@ -403,11 +469,20 @@ class WooCommerceController {
               status: 'success',
               error: null,
             });
-            items.push({ productId: pid, sku: sku || null, status: 'success', externalId: found.wooId });
+            items.push({
+              productId: pid,
+              sku: sku || null,
+              status: 'success',
+              externalId: found.wooId,
+            });
           } else {
             let message = null;
             if (Array.isArray(json?.errors)) {
-              message = json.errors.map(e => e?.message).filter(Boolean).join('; ') || null;
+              message =
+                json.errors
+                  .map((e) => e?.message)
+                  .filter(Boolean)
+                  .join('; ') || null;
             }
             await this.model.upsertChannelMap(req, {
               productId: pid,
@@ -417,13 +492,24 @@ class WooCommerceController {
               status: 'error',
               error: message || 'Export failed',
             });
-            await this.model.logChannelError(req, { channel, productId: pid, payload: p, response: json, message: message || 'Export failed' });
-            items.push({ productId: pid, sku: sku || null, status: 'error', error: message || 'Export failed' });
+            await this.model.logChannelError(req, {
+              channel,
+              productId: pid,
+              payload: p,
+              response: json,
+              message: message || 'Export failed',
+            });
+            items.push({
+              productId: pid,
+              sku: sku || null,
+              status: 'error',
+              error: message || 'Export failed',
+            });
           }
         }
 
-        const successCount = items.filter(i => i.status === 'success').length;
-        const errorCount = items.filter(i => i.status === 'error').length;
+        const successCount = items.filter((i) => i.status === 'success').length;
+        const errorCount = items.filter((i) => i.status === 'error').length;
         aggregated.counts.success += successCount;
         aggregated.counts.error += errorCount;
         if (Array.isArray(json?.create)) aggregated.result.create.push(...json.create);
@@ -433,7 +519,11 @@ class WooCommerceController {
           label: instance.label,
           ok: response.ok,
           endpoint,
-          result: { create: json?.create || [], update: json?.update || [], delete: json?.delete || [] },
+          result: {
+            create: json?.create || [],
+            update: json?.update || [],
+            delete: json?.delete || [],
+          },
           counts: { requested: products.length, success: successCount, error: errorCount },
           items,
         });
@@ -457,7 +547,9 @@ class WooCommerceController {
       return res.json(aggregated);
     } catch (error) {
       Logger.error('Woo export error', error, { userId: Context.getUserId(req) });
-      res.status(502).json({ error: 'Export to WooCommerce failed', detail: String(error?.message || error) });
+      res
+        .status(502)
+        .json({ error: 'Export to WooCommerce failed', detail: String(error?.message || error) });
     }
   }
 
@@ -485,7 +577,12 @@ class WooCommerceController {
 
         let ids = [];
         if (inProductIds.length > 0 && instances.length > 0) {
-          const mapByProductId = await this.model.getChannelMapForProducts(req, channel, inProductIds, instanceId);
+          const mapByProductId = await this.model.getChannelMapForProducts(
+            req,
+            channel,
+            inProductIds,
+            instanceId,
+          );
           for (const pid of inProductIds) {
             const ext = mapByProductId.get(pid);
             if (ext != null) {
@@ -523,7 +620,7 @@ class WooCommerceController {
             channelInstanceId: instanceId,
             externalId: id,
             status: 'idle',
-            error: status === 'error' ? (message || 'Delete failed') : null,
+            error: status === 'error' ? message || 'Delete failed' : null,
           });
 
           allItems.push({ externalId: id, status, message: message || undefined });
@@ -539,7 +636,9 @@ class WooCommerceController {
       });
     } catch (error) {
       Logger.error('Woo batch delete error', error, { userId: Context.getUserId(req) });
-      return res.status(502).json({ error: 'Delete from WooCommerce failed', detail: String(error?.message || error) });
+      return res
+        .status(502)
+        .json({ error: 'Delete from WooCommerce failed', detail: String(error?.message || error) });
     }
   }
 
@@ -550,7 +649,9 @@ class WooCommerceController {
     try {
       const inst = await this._getInstanceOrThrow(req);
       const perPageRaw = req.query?.perPage != null ? Number(req.query.perPage) : 100;
-      const perPage = Number.isFinite(perPageRaw) ? Math.min(Math.max(Math.trunc(perPageRaw), 1), 100) : 100;
+      const perPage = Number.isFinite(perPageRaw)
+        ? Math.min(Math.max(Math.trunc(perPageRaw), 1), 100)
+        : 100;
 
       const items = await fetchWooCategoriesFromApi(inst.credentials, perPage);
       return res.json({ ok: true, items });
@@ -612,10 +713,15 @@ class WooCommerceController {
       delete rawClean.version;
       rawClean._homebase_store_url = settings.storeUrl;
 
+      const channelLabel =
+        instance && typeof instance.label === 'string' && instance.label.trim() !== ''
+          ? instance.label.trim()
+          : null;
       const normalized = {
         channel: 'woocommerce',
         channelOrderId,
         channelInstanceId: instance.id != null ? String(instance.id) : null,
+        channelLabel,
         platformOrderNumber: o?.number != null ? String(o.number) : null,
         placedAt: o?.date_created_gmt || o?.date_created || null,
         totalAmount: o?.total != null ? Number(o.total) : null,
@@ -675,7 +781,8 @@ class WooCommerceController {
         const shippingTotalExVat = sl?.total != null ? Number(sl.total) : null;
         const shippingTax = sl?.total_tax != null ? Number(sl.total_tax) : null;
         let shippingTotalInclVat = null;
-        if (Number.isFinite(shippingTotalExVat) && Number.isFinite(shippingTax)) shippingTotalInclVat = shippingTotalExVat + shippingTax;
+        if (Number.isFinite(shippingTotalExVat) && Number.isFinite(shippingTax))
+          shippingTotalInclVat = shippingTotalExVat + shippingTax;
         else if (Number.isFinite(shippingTotalExVat)) shippingTotalInclVat = shippingTotalExVat;
         if (Number.isFinite(shippingTotalInclVat) && shippingTotalInclVat > 0) {
           normalized.items.push({
@@ -710,10 +817,13 @@ class WooCommerceController {
       // Get all WooCommerce instances, not just default
       const instances = await this.model.listInstances(req);
       if (!instances || instances.length === 0) {
-        return res.status(400).json({ error: 'No WooCommerce stores configured. Add a store first.' });
+        return res
+          .status(400)
+          .json({ error: 'No WooCommerce stores configured. Add a store first.' });
       }
 
-      const perPage = req.body?.perPage != null ? Math.min(Math.max(Number(req.body.perPage) || 20, 1), 100) : 20;
+      const perPage =
+        req.body?.perPage != null ? Math.min(Math.max(Number(req.body.perPage) || 20, 1), 100) : 20;
       const after = req.body?.after ? String(req.body.after) : null;
 
       const userId = req.session?.user?.id;
@@ -794,10 +904,15 @@ class WooCommerceController {
             delete rawClean.version;
             rawClean._homebase_store_url = settings.storeUrl;
 
+            const channelLabel =
+              instance && typeof instance.label === 'string' && instance.label.trim() !== ''
+                ? instance.label.trim()
+                : null;
             const normalized = {
               channel: 'woocommerce',
               channelOrderId,
               channelInstanceId: instance.id != null ? String(instance.id) : null,
+              channelLabel,
               platformOrderNumber: o?.number != null ? String(o.number) : null,
               placedAt: o?.date_created_gmt || o?.date_created || null,
               totalAmount: o?.total != null ? Number(o.total) : null,
@@ -847,7 +962,7 @@ class WooCommerceController {
               // - subtotal_tax: tax on subtotal
               // - total: line total ex VAT (same as subtotal if no discounts)
               // - total_tax: same as subtotal_tax for line items
-              // 
+              //
               // To get unit price incl VAT: (subtotal + subtotal_tax) / quantity
               const subtotal = li?.subtotal != null ? Number(li.subtotal) : null;
               const subtotalTax = li?.subtotal_tax != null ? Number(li.subtotal_tax) : null;
@@ -865,7 +980,12 @@ class WooCommerceController {
               } else if (Array.isArray(li?.taxes) && li.taxes.length > 0) {
                 // Fallback: try to get from taxes array
                 const tax = li.taxes[0];
-                const taxTotal = tax?.total != null ? Number(tax.total) : tax?.subtotal != null ? Number(tax.subtotal) : null;
+                const taxTotal =
+                  tax?.total != null
+                    ? Number(tax.total)
+                    : tax?.subtotal != null
+                      ? Number(tax.subtotal)
+                      : null;
                 const priceExVat = li?.price != null ? Number(li.price) : null;
                 if (Number.isFinite(taxTotal) && Number.isFinite(priceExVat) && priceExVat > 0) {
                   vatRate = (taxTotal / priceExVat) * 100;
@@ -914,13 +1034,26 @@ class WooCommerceController {
               if (Number.isFinite(shippingTotalInclVat) && shippingTotalInclVat > 0) {
                 // Calculate VAT rate from shipping total and tax
                 let shippingVatRate = null;
-                if (Number.isFinite(shippingTotalExVat) && Number.isFinite(shippingTax) && shippingTotalExVat > 0) {
+                if (
+                  Number.isFinite(shippingTotalExVat) &&
+                  Number.isFinite(shippingTax) &&
+                  shippingTotalExVat > 0
+                ) {
                   shippingVatRate = (shippingTax / shippingTotalExVat) * 100;
                 } else if (Array.isArray(sl?.taxes) && sl.taxes.length > 0) {
                   // Fallback: try to get from taxes array
                   const tax = sl.taxes[0];
-                  const taxTotal = tax?.total != null ? Number(tax.total) : tax?.subtotal != null ? Number(tax.subtotal) : null;
-                  if (Number.isFinite(taxTotal) && Number.isFinite(shippingTotalExVat) && shippingTotalExVat > 0) {
+                  const taxTotal =
+                    tax?.total != null
+                      ? Number(tax.total)
+                      : tax?.subtotal != null
+                        ? Number(tax.subtotal)
+                        : null;
+                  if (
+                    Number.isFinite(taxTotal) &&
+                    Number.isFinite(shippingTotalExVat) &&
+                    shippingTotalExVat > 0
+                  ) {
                     shippingVatRate = (taxTotal / shippingTotalExVat) * 100;
                   }
                 }
@@ -947,7 +1080,9 @@ class WooCommerceController {
             // Apply inventory sync only when we created a new order record
             if (ingestRes.created && ingestRes.orderId) {
               await this.applyInventoryFromOrderId(req, ingestRes.orderId).catch((err) => {
-                Logger.warn('Inventory sync failed (non-fatal)', err, { orderId: ingestRes.orderId });
+                Logger.warn('Inventory sync failed (non-fatal)', err, {
+                  orderId: ingestRes.orderId,
+                });
               });
             }
 
@@ -980,7 +1115,9 @@ class WooCommerceController {
       });
     } catch (error) {
       Logger.error('Woo orders pull error', error, { userId: Context.getUserId(req) });
-      return res.status(502).json({ error: 'Failed to pull Woo orders', detail: String(error?.message || error) });
+      return res
+        .status(502)
+        .json({ error: 'Failed to pull Woo orders', detail: String(error?.message || error) });
     }
   }
 
@@ -1067,7 +1204,9 @@ class WooCommerceController {
   // ---- Helpers ----
 
   normalizeBaseUrl(url) {
-    let trimmed = String(url || '').trim().replace(/\/+$/, '');
+    let trimmed = String(url || '')
+      .trim()
+      .replace(/\/+$/, '');
     if (!trimmed) return trimmed;
 
     // Om användaren sparat utan schema, defaulta till https://
@@ -1092,13 +1231,15 @@ class WooCommerceController {
       headers['Authorization'] = `Basic ${token}`;
     }
 
-    const fetchFn = typeof fetch === 'function'
-      ? fetch
-      : async (...args) => {
-        const mod = await import('node-fetch').catch(() => null);
-        if (!mod?.default) throw new Error('fetch is not available (Node <18) and node-fetch is not installed');
-        return mod.default(...args);
-      };
+    const fetchFn =
+      typeof fetch === 'function'
+        ? fetch
+        : async (...args) => {
+            const mod = await import('node-fetch').catch(() => null);
+            if (!mod?.default)
+              throw new Error('fetch is not available (Node <18) and node-fetch is not installed');
+            return mod.default(...args);
+          };
 
     return fetchFn(finalUrl, { ...init, headers });
   }
@@ -1130,10 +1271,14 @@ class WooCommerceController {
 
   mapWooStatusToHomebase(status) {
     switch (String(status || '').toLowerCase()) {
-      case 'publish': return 'for sale';
-      case 'draft': return 'draft';
-      case 'private': return 'archived';
-      default: return 'draft';
+      case 'publish':
+        return 'for sale';
+      case 'draft':
+        return 'draft';
+      case 'private':
+        return 'archived';
+      default:
+        return 'draft';
     }
   }
 
@@ -1166,7 +1311,10 @@ class WooCommerceController {
       manage_stock: true,
       stock_quantity: p?.quantity != null ? Number(p.quantity) : undefined,
       description: p?.description || '',
-      categories: Array.isArray(overrideCategories) && overrideCategories.length > 0 ? overrideCategories : undefined,
+      categories:
+        Array.isArray(overrideCategories) && overrideCategories.length > 0
+          ? overrideCategories
+          : undefined,
       images: images.length ? images : undefined,
       attributes: attrs.length ? attrs : undefined,
       meta_data: metaData.length ? metaData : undefined,
@@ -1175,13 +1323,13 @@ class WooCommerceController {
 
   // Transform Woo product -> MVP Product (read-only import mapping)
   mapWooToMvpProduct(w) {
-    const images = Array.isArray(w?.images) ? w.images.map(i => i?.src).filter(Boolean) : [];
+    const images = Array.isArray(w?.images) ? w.images.map((i) => i?.src).filter(Boolean) : [];
     const mainImage = images.length ? images[0] : null;
 
     // find brand attribute
     let brand = null;
     if (Array.isArray(w?.attributes)) {
-      const attr = w.attributes.find(a => String(a?.name || '').toLowerCase() === 'brand');
+      const attr = w.attributes.find((a) => String(a?.name || '').toLowerCase() === 'brand');
       const opts = Array.isArray(attr?.options) ? attr.options : [];
       brand = opts.length ? String(opts[0]) : null;
     }
@@ -1193,13 +1341,16 @@ class WooCommerceController {
       title: w?.name || '',
       status: this.mapWooStatusToHomebase(w?.status),
       quantity: Number.isFinite(w?.stock_quantity) ? Number(w.stock_quantity) : null,
-      priceAmount: w?.regular_price != null && w.regular_price !== '' ? Number(w.regular_price) : null,
+      priceAmount:
+        w?.regular_price != null && w.regular_price !== '' ? Number(w.regular_price) : null,
       currency: null, // store currency not present on product payload
       vatRate: null,
       description: w?.description || null,
       mainImage,
       images,
-      categories: Array.isArray(w?.categories) ? w.categories.map(c => c?.name).filter(Boolean) : [],
+      categories: Array.isArray(w?.categories)
+        ? w.categories.map((c) => c?.name).filter(Boolean)
+        : [],
       brand,
       gtin: null,
       createdAt: w?.date_created || null,

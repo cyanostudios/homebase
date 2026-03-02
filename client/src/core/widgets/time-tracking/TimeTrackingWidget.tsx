@@ -30,6 +30,7 @@ import { useApp } from '@/core/api/AppContext';
 import { Heading, Text } from '@/core/ui/Typography';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
+import { contactsApi } from '@/plugins/contacts/api/contactsApi';
 
 import type { TopBarWidgetProps } from '../registry';
 
@@ -117,16 +118,7 @@ export function TimeTrackingWidget({
     try {
       const seconds = isManual ? minutes * 60 : elapsedSeconds;
       const loggedAt = isManual ? manualDate.toISOString() : new Date().toISOString();
-      const res = await fetch(`/api/contacts/${selectedContactId}/time-entries`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seconds, loggedAt }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to add time');
-      }
+      await contactsApi.createTimeEntry(selectedContactId, { seconds, loggedAt });
       if (!isManual) {
         setElapsedSeconds(0);
       } else {
@@ -368,8 +360,11 @@ export function TimeTrackingWidget({
     <Popover
       open={isExpanded}
       onOpenChange={(open) => {
-        if (open) onToggle?.();
-        else onClose?.();
+        if (open) {
+          onToggle?.();
+        } else {
+          onClose?.();
+        }
       }}
     >
       <div className="flex items-center gap-2">

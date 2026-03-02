@@ -7,29 +7,6 @@ const TABLE = 'mail_log';
 const SETTINGS_TABLE = 'mail_settings';
 
 class MailModel {
-  async migrateLegacySecrets(db, rowId, legacy = {}) {
-    const updates = [];
-    const params = [];
-    let idx = 1;
-
-    if (legacy.authPass != null) {
-      updates.push(`auth_pass = $${idx++}`);
-      params.push(CredentialsCrypto.encrypt(legacy.authPass));
-    }
-    if (legacy.resendApiKey != null) {
-      updates.push(`resend_api_key = $${idx++}`);
-      params.push(CredentialsCrypto.encrypt(legacy.resendApiKey));
-    }
-    if (!updates.length) return;
-
-    updates.push('updated_at = CURRENT_TIMESTAMP');
-    params.push(rowId);
-    await db.query(
-      `UPDATE ${SETTINGS_TABLE} SET ${updates.join(', ')} WHERE id = $${idx}`,
-      params,
-    );
-  }
-
   async logSent(req, data) {
     try {
       const db = Database.get(req);
@@ -161,16 +138,9 @@ class MailModel {
       const row = rows[0];
       if (!row) return null;
       const authPassRaw = row.auth_pass ? CredentialsCrypto.decrypt(row.auth_pass) : null;
-      const resendApiKeyRaw = row.resend_api_key ? CredentialsCrypto.decrypt(row.resend_api_key) : null;
-
-      await this.migrateLegacySecrets(db, row.id, {
-        authPass:
-          row.auth_pass && !CredentialsCrypto.isEncrypted(row.auth_pass) ? authPassRaw : null,
-        resendApiKey:
-          row.resend_api_key && !CredentialsCrypto.isEncrypted(row.resend_api_key)
-            ? resendApiKeyRaw
-            : null,
-      });
+      const resendApiKeyRaw = row.resend_api_key
+        ? CredentialsCrypto.decrypt(row.resend_api_key)
+        : null;
 
       const out = {
         id: row.id,
@@ -216,7 +186,8 @@ class MailModel {
       const secure = !!data.secure;
       const authUser = data.authUser != null ? String(data.authUser).trim() : '';
       const fromAddress = String(data.fromAddress || 'noreply@homebase.se').trim();
-      const resendFromAddress = data.resendFromAddress != null ? String(data.resendFromAddress).trim() : null;
+      const resendFromAddress =
+        data.resendFromAddress != null ? String(data.resendFromAddress).trim() : null;
 
       const existing = await db.query(
         `SELECT id FROM ${SETTINGS_TABLE} WHERE user_id = $1 LIMIT 1`,
@@ -237,7 +208,11 @@ class MailModel {
         if (data.authPass != null && String(data.authPass).trim() !== '') {
           updateData.auth_pass = CredentialsCrypto.encrypt(String(data.authPass).trim());
         }
-        if (data.resendApiKey != null && String(data.resendApiKey).trim() !== '' && !String(data.resendApiKey).startsWith('••••')) {
+        if (
+          data.resendApiKey != null &&
+          String(data.resendApiKey).trim() !== '' &&
+          !String(data.resendApiKey).startsWith('••••')
+        ) {
           updateData.resend_api_key = CredentialsCrypto.encrypt(String(data.resendApiKey).trim());
         }
         await db.update(SETTINGS_TABLE, existing[0].id, updateData);

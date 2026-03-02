@@ -62,7 +62,7 @@ app.disable('x-powered-by');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
-pool.on('error', (err) => {
+pool.on('error', (err: Error) => {
   console.error('[POOL] Database pool error (connection will be removed):', err.message);
 });
 
@@ -73,8 +73,11 @@ const sessionPool = new Pool({
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
 });
-sessionPool.on('error', (err) => {
-  console.error('[SESSION_POOL] Database session pool error (connection will be removed):', err.message);
+sessionPool.on('error', (err: Error) => {
+  console.error(
+    '[SESSION_POOL] Database session pool error (connection will be removed):',
+    err.message,
+  );
 });
 
 // Security middleware
@@ -106,6 +109,12 @@ app.use(
 );
 
 // Session (dedicated pool so session load/save never competes with app queries)
+// In prod: idle timeout – session expires after X min of inactivity (rolling). Dev: 24h, no timeout.
+const isProd = process.env.NODE_ENV === 'production';
+const sessionIdleMinutes = isProd ? Number(process.env.SESSION_IDLE_TIMEOUT_MINUTES || 15) : null;
+const sessionMaxAgeMs =
+  sessionIdleMinutes !== null ? sessionIdleMinutes * 60 * 1000 : 24 * 60 * 60 * 1000;
+
 app.use(
   session({
     store: new (pgSession(session))({
@@ -114,17 +123,18 @@ app.use(
     }),
     secret:
       process.env.SESSION_SECRET ||
-      (process.env.NODE_ENV === 'production'
+      (isProd
         ? (() => {
             throw new Error('SESSION_SECRET is required in production');
           })()
         : 'homebase-dev-secret-change-in-production'),
     resave: false,
     saveUninitialized: false,
+    rolling: isProd,
     cookie: {
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProd,
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: sessionMaxAgeMs,
       sameSite: 'lax',
     },
   }),
@@ -137,7 +147,17 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     const sidShort = typeof sid === 'string' ? sid.slice(0, 8) + '...' : '(no id)';
     const hasUser = !!(req.session && req.session.user);
     const userId = req.session?.user?.id;
-    console.log('[SESSION]', req.method, req.path, '| sid:', sidShort, '| hasUser:', hasUser, '| userId:', userId ?? '—');
+    console.log(
+      '[SESSION]',
+      req.method,
+      req.path,
+      '| sid:',
+      sidShort,
+      '| hasUser:',
+      hasUser,
+      '| userId:',
+      userId ?? '—',
+    );
   }
   next();
 });
@@ -154,15 +174,9 @@ app.use(express.urlencoded({ extended: true, limit: URL_ENCODED_LIMIT }));
 //   For local provider we therefore rely on PostgreSQLAdapter's per-query `SET search_path TO tenant_<userId>`
 //   and DO NOT create a separate tenant pool based on a connection string with search_path options.
 app.use(async (req: Request, res: Response, next: NextFunction) => {
-  const userId = req.session?.user?.id;
-
-  // Always keep currentTenantUserId in sync when logged in (used by DB adapter)
-  if (req.session?.user && req.session.currentTenantUserId == null && userId != null) {
-    req.session.currentTenantUserId = userId;
-  }
+  const tenantUserId = req.session?.currentTenantUserId;
 
   if (process.env.TENANT_PROVIDER === 'neon') {
-    const tenantUserId = req.session?.currentTenantUserId ?? userId;
     if (tenantUserId) {
       const connectionPool = ServiceManager.get('connectionPool');
       try {
@@ -175,7 +189,7 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
         } else {
           req.tenantPool = undefined;
         }
-      } catch (_e) {
+      } catch {
         req.tenantPool = undefined;
       }
     } else {
@@ -263,7 +277,7 @@ app.use('/api', (_req: Request, res: Response, next: NextFunction) => {
 app.use(activityLogMiddleware);
 
 // Setup core routes (auth, admin, health)
-setupCoreRoutes(app, { pool, authLimiter, requireAuth, pluginLoader });
+setupCoreRoutes(app, { pool, authLimiter, requireAuth, pluginLoader, csrfProtection });
 
 // Serve static files (production)
 if (process.env.NODE_ENV === 'production') {
@@ -307,7 +321,9 @@ const server = app.listen(PORT, () => {
   console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
   console.log(`🔌 Loaded ${pluginLoader.getAllPlugins().length} plugins`);
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`📋 Auth debug logs: [SESSION] [AUTH] [AUTH/ME] [CLIENT] — all appear in this terminal`);
+    console.log(
+      `📋 Auth debug logs: [SESSION] [AUTH] [AUTH/ME] [CLIENT] — all appear in this terminal`,
+    );
   }
 });
 // Tighten HTTP-level guardrails against slowloris/resource exhaustion.

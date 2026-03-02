@@ -4,7 +4,84 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-02 – Homebase 3.1.6
+
+### WooCommerce – butiksnamn på order (channel_label)
+
+- **Ny kolumn `orders.channel_label`** (migrering 055). Sparar butiksnamnet (t.ex. "Merchbutiken") vid order-sync så att det inte försvinner om butikslabel ändras senare.
+- **Obligatoriskt vid WooCommerce-instans:** API och UI kräver nu att butikslabel fylls i vid skapande/uppdatering av WooCommerce-butik. Ingen fallback – utan label går det inte att spara.
+- **Orders-lista och ordervy:** Visar `channel_label` om det finns, annars "—". Gäller både listan och OrderDetailInline.
+- **Plocklista-PDF:** Använder `channel_label` om tillgängligt, annars "—".
+- **Backfill för gamla order:** Kör `node scripts/backfill-orders-channel-label.js` en gång per miljö för att sätta `channel_label` på befintliga WooCommerce-order utifrån `channel_instances.label`. Uppdaterar endast rader där `channel_label IS NULL` och det finns en matchande instans med icke-tomt label.
+- **Risk:** Om backfill inte körts efter 055 kommer gamla order att visa "—" för butik tills skriptet körts. Nyare order får label vid sync.
+- Filer: [server/migrations/055-orders-channel-label.sql](server/migrations/055-orders-channel-label.sql), [plugins/orders/model.js](plugins/orders/model.js), [plugins/woocommerce-products/controller.js](plugins/woocommerce-products/controller.js), [plugins/woocommerce-products/model.js](plugins/woocommerce-products/model.js), [client/src/plugins/orders/components/OrdersList.tsx](client/src/plugins/orders/components/OrdersList.tsx), [client/src/plugins/orders/components/OrderDetailInline.tsx](client/src/plugins/orders/components/OrderDetailInline.tsx), [client/src/plugins/orders/types/orders.ts](client/src/plugins/orders/types/orders.ts), [client/src/plugins/woocommerce-products/components/WooSettingsForm.tsx](client/src/plugins/woocommerce-products/components/WooSettingsForm.tsx), [plugins/orders/plocklistaPdfTemplate.js](plugins/orders/plocklistaPdfTemplate.js), [scripts/backfill-orders-channel-label.js](scripts/backfill-orders-channel-label.js).
+
+### Credentials i channel_instances – endast JSONB-format, inga fallbacks
+
+- **Kolumnen `channel_instances.credentials` är JSONB.** Koden sparar nu alltid `{ "v": "<krypterad sträng>" }`. Läser endast det formatet – ingen hantering av äldre plain-objekt eller strängar.
+- **WooCommerce:** `credentialsForJsonb()`, `parseCredentials()` endast för `{ v: encryptedString }`. `migrateLegacyCredentials` och alla anrop borttagna. Nya/sparade butiker får krypterade credentials i rätt format.
+- **Channels (aggregat):** Samma mönster – `credentialsForJsonb()` vid skrivning, `migrateLegacyCredentials` borttagen. `upsertInstance` och `updateInstance` skickar credentials som JSONB-objekt.
+- **Om gamla data:** WooCommerce-instanser som hade credentials sparade som vanligt JSON-objekt (okrypterat) visade tomma fält efter ändringen. Kör **en gång** `npm run migrate:encrypt-woo-credentials` för att kryptera och skriva om till `{ v: "enc:..." }` i alla tenant-databaser. Efter det finns inget legacy-format kvar och appen läser bara ett format.
+- **Risk:** Om migreringen inte körts och det fanns plain-JSON-credentials blir butikslistan tom (labels/URL/credentials). Köra skriptet åtgärdar det.
+- Filer: [plugins/woocommerce-products/model.js](plugins/woocommerce-products/model.js), [plugins/channels/model.js](plugins/channels/model.js), [scripts/encrypt-woo-credentials-in-channel-instances.js](scripts/encrypt-woo-credentials-in-channel-instances.js).
+
+### Borttagna "migrate on read" (migrateLegacy\*) – ingen automatisk uppgradering vid läsning
+
+- **CDON, Fyndiq, Files (Google Drive), Mail, Shipping (PostNord):** `migrateLegacySecrets` / `migrateLegacySettingsSecrets` och alla anrop (t.ex. i `getSettings`) är borttagna. Vid läsning gör vi ingen längre kryptering av okrypterade fält – vi läser bara vad som finns.
+- **Channels:** `migrateLegacyCredentials` borttagen från `listInstances`.
+- **Konsekvens:** Om det fortfarande fanns okrypterade secrets i cdon_settings, fyndiq_settings, googledrive_settings, mail_settings eller postnord_settings kommer de att fungera vid läsning (CredentialsCrypto.decrypt returnerar plain text oförändrad) men ligger kvar okrypterade i DB. Kör **en gång** `npm run migrate:encrypt-legacy-secrets` för att kryptera alla sådana rader i alla tenants. Efter det är allt krypterat och det behövs ingen kod som "migrerar vid läsning".
+- **Risk:** Om encrypt-legacy-secrets inte körts och det fanns plain-text i dessa tabeller är data fortfarande läsbar men inte krypterad i DB.
+- Filer: [plugins/cdon-products/model.js](plugins/cdon-products/model.js), [plugins/fyndiq-products/model.js](plugins/fyndiq-products/model.js), [plugins/files/cloudStorageModel.js](plugins/files/cloudStorageModel.js), [plugins/mail/model.js](plugins/mail/model.js), [plugins/shipping/model.js](plugins/shipping/model.js), [plugins/channels/model.js](plugins/channels/model.js), [scripts/encrypt-legacy-secrets.js](scripts/encrypt-legacy-secrets.js).
+
+### Regel: inga fallbacks
+
+- **Ny regel** [.cursor/rules/no-fallbacks-unless-best-practice.mdc](.cursor/rules/no-fallbacks-unless-best-practice.mdc): Ingen fallback-logik någonstans utom när det är uttryckligen bäst praxis. Ingen kod "för övergången" eller "fixa sen" – vi är i dev, ingen migration att stödja. Vid osäkerhet – fråga användaren istället för att gissa eller lägga till fallback.
+
+### WooCommerce butikslista – Edit-knapp
+
+- **Fix:** "Edit" i WooCommerce-butikslistan anropade tidigare bara `openWooSettingsForEdit` när `inst.credentials` fanns. Efter att credentials endast läses som `{ v: encryptedString }` kunde credentials vara null (t.ex. före encrypt-woo-credentials-migration) och då hände inget vid klick. Nu anropas alltid `openWooSettingsForEdit` med id, instanceKey, label och credentials-fält (tomma strängar om credentials saknas), så panelen öppnas och användaren kan fylla i/spara igen.
+- Fil: [client/src/plugins/woocommerce-products/components/WooExportPanel.tsx](client/src/plugins/woocommerce-products/components/WooExportPanel.tsx).
+
+### Session – PRIMARY KEY på sessions-tabellen
+
+- **Fix:** Tabellen `sessions` (connect-pg-simple) skapades utan PRIMARY KEY på `sid`, vilket gav fel "there is no unique or exclusion constraint matching the ON CONFLICT specification" vid session save (t.ex. efter login). `scripts/setup-database.js` skapar nu `sessions` med `PRIMARY KEY (sid)` och innehåller ett idempotent steg som lägger till PK om den saknas. Kör ALTER manuellt på befintliga DB om behov.
+- Fil: [scripts/setup-database.js](scripts/setup-database.js).
+
+### Session / tenant – ingen sync av currentTenantUserId i middleware
+
+- **Borttaget:** Middleware som "synkade" `currentTenantUserId` från `user.id` när den saknades (fallback). `currentTenantUserId` sätts nu enbart vid login/signup/MFA-verifiering i auth-routes. Tenant-middleware läser bara `req.session?.currentTenantUserId`; om den saknas sätts ingen tenant-pool (korrekt beteende om sessionen inte är fullständig).
+- Fil: [server/index.ts](server/index.ts).
+
+### NPM-skript
+
+- `npm run migrate:encrypt-legacy-secrets` – krypterar plain-text secrets i cdon_settings, fyndiq_settings, googledrive_settings, mail_settings, postnord_settings för alla tenants.
+- `npm run migrate:encrypt-woo-credentials` – krypterar WooCommerce-credentials i channel_instances (plain JSON → `{ v: encrypted }`) för alla tenants.
+- Backfill för channel_label: `node scripts/backfill-orders-channel-label.js`.
+
+---
+
 ## 2026-02 – Homebase 3.1.5 (snapshot before migrating from 3.X)
+
+### Tvåfaktorsautentisering (TOTP)
+
+- **Ny tabell `user_mfa`** för TOTP-secrets (migrering 054). Kör `node scripts/run-user-mfa-migration.js` på main-databasen.
+- **Nya auth-endpoints**: `POST /auth/verify-mfa`, `GET /auth/mfa/status`, `POST /auth/mfa/setup`, `POST /auth/mfa/verify`, `POST /auth/mfa/disable`.
+- **Env `MFA_ENABLED`**: Sätt `true` i prod för att aktivera MFA; `false` eller utelämnad i dev för att slippa TOTP vid utveckling.
+- **Inställningssida Security/2FA**: Ny kategori under Settings för att aktivera/inaktivera tvåfaktorsautentisering. QR-kod och manuell secret vid setup; lösenordsverifiering vid inaktivering.
+- **Login-flöde med MFA**: Om användaren har MFA aktiverat returnerar `/auth/login` `{ requiresMfa: true, mfaToken }` istället för session; klienten visar fält för 6-siffrig kod och anropar `/auth/verify-mfa`.
+- Filer: `server/core/routes/auth.js`, `server/core/services/mfaService.js`, migrering `054-user-mfa.sql`, `client/src/core/api/AppContext.tsx`, `client/src/core/ui/LoginComponent.tsx`, `client/src/core/ui/SettingsList.tsx`, `client/src/core/ui/SettingsForms/SecuritySettingsForm.tsx`, `client/src/core/ui/SettingsFooter.tsx`, `client/src/App.tsx`.
+
+### Session – idle timeout (endast prod)
+
+- **Prod:** `rolling: true`, cookie `maxAge` = `SESSION_IDLE_TIMEOUT_MINUTES` (default 15). Efter X min inaktivitet → utloggning.
+- **Dev:** Ingen idle timeout (24h session). Påverkar inte utveckling.
+- Fil: [server/index.ts](server/index.ts).
+
+### Contacts – CSRF komplettering
+
+- **CSRF-skydd på alla muterande routes** i `plugins/contacts/routes.js`: create, update, delete, bulkDelete, createList, addContactsToList, removeContactFromList, renameList, deleteList, createTimeEntry, deleteTimeEntry.
+- **TimeTrackingWidget** använder nu `contactsApi.createTimeEntry()` istället för raw fetch – säkerställer att X-CSRF-Token skickas vid POST till `/api/contacts/:id/time-entries`.
+- Filer: [plugins/contacts/routes.js](plugins/contacts/routes.js), [client/src/core/widgets/time-tracking/TimeTrackingWidget.tsx](client/src/core/widgets/time-tracking/TimeTrackingWidget.tsx).
 
 ### Global low-friction security hardening (app-wide)
 

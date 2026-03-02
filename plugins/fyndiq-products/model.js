@@ -12,27 +12,6 @@ class FyndiqProductsModel {
   static CHANNEL_MAP_TABLE = 'channel_product_map';
   static ERROR_LOG_TABLE = 'channel_error_log';
 
-  async migrateLegacySecrets(db, userId, row) {
-    const updates = [];
-    const params = [userId];
-    let idx = 2;
-
-    if (row.api_key && !CredentialsCrypto.isEncrypted(row.api_key)) {
-      updates.push(`api_key = $${idx++}`);
-      params.push(CredentialsCrypto.encrypt(String(row.api_key)));
-    }
-    if (row.api_secret && !CredentialsCrypto.isEncrypted(row.api_secret)) {
-      updates.push(`api_secret = $${idx++}`);
-      params.push(CredentialsCrypto.encrypt(String(row.api_secret)));
-    }
-    if (!updates.length) return;
-    updates.push('updated_at = CURRENT_TIMESTAMP');
-    await db.query(
-      `UPDATE ${FyndiqProductsModel.SETTINGS_TABLE} SET ${updates.join(', ')} WHERE user_id = $1`,
-      params,
-    );
-  }
-
   async getSettings(req) {
     try {
       const db = Database.get(req);
@@ -43,9 +22,6 @@ class FyndiqProductsModel {
         `SELECT * FROM ${FyndiqProductsModel.SETTINGS_TABLE} WHERE user_id = $1 LIMIT 1`,
         [userId],
       );
-      if (res.length) {
-        await this.migrateLegacySecrets(db, userId, res[0]);
-      }
       return res.length ? this.transformSettingsRow(res[0]) : null;
     } catch (error) {
       Logger.error('Failed to get Fyndiq settings', error);
@@ -225,4 +201,3 @@ class FyndiqProductsModel {
 }
 
 module.exports = FyndiqProductsModel;
-

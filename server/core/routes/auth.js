@@ -1,9 +1,13 @@
 // server/core/routes/auth.js
-// Authentication routes: login, logout, signup, me
+// Authentication routes: login, logout, signup, me, MFA
 
+const crypto = require('crypto');
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
+const QRCode = require('qrcode');
+const CredentialsCrypto = require('../services/security/CredentialsCrypto');
+const mfaService = require('../services/mfaService');
 const ServiceManager = require('../ServiceManager');
 
 // Dependencies will be injected by setupAuthRoutes()
@@ -11,6 +15,15 @@ let pool = null;
 let authLimiter = null;
 let requireAuth = null;
 let pluginLoader = null;
+let csrfProtection = null;
+
+/** In-memory MFA token store: mfaToken -> { userId, expiresAt } */
+const mfaTokenStore = new Map();
+const MFA_TOKEN_TTL_MS = 5 * 60 * 1000;
+
+function isMfaEnabledInEnvironment() {
+  return process.env.MFA_ENABLED === 'true';
+}
 
 /**
  * Setup auth routes with dependencies
@@ -18,12 +31,14 @@ let pluginLoader = null;
  * @param {Function} limiter - Auth rate limiter
  * @param {Function} authMiddleware - Auth middleware
  * @param {Object} loader - Plugin loader instance
+ * @param {Function} csrf - CSRF protection middleware
  */
-function setupAuthRoutes(mainPool, limiter, authMiddleware, loader) {
+function setupAuthRoutes(mainPool, limiter, authMiddleware, loader, csrf) {
   pool = mainPool;
   authLimiter = limiter;
   requireAuth = authMiddleware;
   pluginLoader = loader;
+  csrfProtection = csrf || (() => (req, res, next) => next());
 }
 
 /**
@@ -46,7 +61,10 @@ async function ensurePluginAccess(userId, existingPluginNames) {
     return missing.length ? [...existingPluginNames, ...missing] : existingPluginNames;
   } catch (err) {
     const logger = ServiceManager.get('logger');
-    logger?.warn?.('ensurePluginAccess failed, using existing plugins', { userId, err: err?.message });
+    logger?.warn?.('ensurePluginAccess failed, using existing plugins', {
+      userId,
+      err: err?.message,
+    });
     return existingPluginNames;
   }
 }
@@ -93,6 +111,24 @@ router.post(
           const logger = ServiceManager.get('logger');
           logger.error('No tenant database found', null, { userId: user.id });
           return res.status(500).json({ error: 'Tenant database not configured' });
+        }
+      }
+
+      // MFA: if enabled globally and user has MFA on, require TOTP before session
+      if (isMfaEnabledInEnvironment()) {
+        const mfaResult = await pool.query(
+          'SELECT enabled, secret_encrypted FROM user_mfa WHERE user_id = $1',
+          [user.id],
+        );
+        const mfaRow = mfaResult.rows[0];
+        if (mfaRow && mfaRow.enabled && mfaRow.secret_encrypted) {
+          const mfaToken = crypto.randomBytes(32).toString('hex');
+          const expiresAt = Date.now() + MFA_TOKEN_TTL_MS;
+          mfaTokenStore.set(mfaToken, { userId: user.id, expiresAt });
+          return res.json({
+            requiresMfa: true,
+            mfaToken,
+          });
         }
       }
 
@@ -301,6 +337,252 @@ router.post('/signup', async (req, res) => {
 });
 
 /**
+ * POST /verify-mfa
+ * Complete login after TOTP verification (no session yet)
+ */
+router.post(
+  '/verify-mfa',
+  (req, res, next) => authLimiter(req, res, next),
+  async (req, res) => {
+    const { mfaToken, code } = req.body;
+
+    try {
+      if (!mfaToken || !code) {
+        return res.status(401).json({ error: 'Invalid verification' });
+      }
+
+      const entry = mfaTokenStore.get(mfaToken);
+      if (!entry) {
+        return res
+          .status(401)
+          .json({ error: 'Invalid or expired verification. Please log in again.' });
+      }
+      if (Date.now() > entry.expiresAt) {
+        mfaTokenStore.delete(mfaToken);
+        return res.status(401).json({ error: 'Verification expired. Please log in again.' });
+      }
+
+      const userId = entry.userId;
+
+      const mfaResult = await pool.query(
+        'SELECT secret_encrypted FROM user_mfa WHERE user_id = $1 AND enabled = true',
+        [userId],
+      );
+      if (!mfaResult.rows.length || !mfaResult.rows[0].secret_encrypted) {
+        mfaTokenStore.delete(mfaToken);
+        return res.status(401).json({ error: 'Invalid verification' });
+      }
+
+      const secret = CredentialsCrypto.decrypt(mfaResult.rows[0].secret_encrypted);
+      if (!mfaService.verifyToken(secret, code)) {
+        return res.status(401).json({ error: 'Invalid code' });
+      }
+
+      mfaTokenStore.delete(mfaToken);
+
+      const userResult = await pool.query('SELECT id, email, role FROM users WHERE id = $1', [
+        userId,
+      ]);
+      if (!userResult.rows.length) {
+        return res.status(401).json({ error: 'Invalid verification' });
+      }
+      const user = userResult.rows[0];
+
+      const pluginAccess = await pool.query(
+        'SELECT plugin_name FROM user_plugin_access WHERE user_id = $1 AND enabled = true',
+        [userId],
+      );
+      const plugins = pluginAccess.rows.map((row) => row.plugin_name);
+      const pluginNames = await ensurePluginAccess(userId, plugins);
+
+      req.session.user = {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        plugins: pluginNames,
+      };
+      req.session.currentTenantUserId = user.id;
+
+      const logger = ServiceManager.get('logger');
+      logger.info('User logged in (MFA)', { userId: user.id, email: user.email });
+
+      req.session.save((err) => {
+        if (err) {
+          logger.error('Session save failed after MFA verify', err, { userId: user.id });
+          return res.status(500).json({ error: 'Session creation failed' });
+        }
+        res.json({
+          user: {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            plugins: req.session.user.plugins,
+          },
+        });
+      });
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('MFA verify failed', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * GET /mfa/status
+ * Get MFA status for current user (requires auth)
+ */
+router.get(
+  '/mfa/status',
+  (req, res, next) => requireAuth(req, res, next),
+  async (req, res) => {
+    if (!isMfaEnabledInEnvironment()) {
+      return res.json({ mfaEnabled: false, mfaDisabledInEnvironment: true });
+    }
+
+    try {
+      const userId = req.session.user.id;
+      const result = await pool.query('SELECT enabled FROM user_mfa WHERE user_id = $1', [userId]);
+      const mfaEnabled = result.rows[0]?.enabled ?? false;
+      return res.json({ mfaEnabled });
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('MFA status failed', error, { userId: req.session?.user?.id });
+      res.status(500).json({ error: 'Failed to get MFA status' });
+    }
+  },
+);
+
+/**
+ * POST /mfa/setup
+ * Start MFA setup: generate secret, save (enabled=false), return QR
+ */
+router.post(
+  '/mfa/setup',
+  (req, res, next) => requireAuth(req, res, next),
+  (req, res, next) => csrfProtection(req, res, next),
+  async (req, res) => {
+    if (!isMfaEnabledInEnvironment()) {
+      return res.status(403).json({ error: 'MFA is disabled in this environment' });
+    }
+
+    try {
+      const userId = req.session.user.id;
+      const email = req.session.user.email;
+
+      const { secret, otpauthUrl } = mfaService.generateSecret(email);
+      const secretEncrypted = CredentialsCrypto.encrypt(secret);
+
+      await pool.query(
+        `INSERT INTO user_mfa (user_id, secret_encrypted, enabled, updated_at)
+         VALUES ($1, $2, false, NOW())
+         ON CONFLICT (user_id) DO UPDATE SET secret_encrypted = $2, enabled = false, updated_at = NOW()`,
+        [userId, secretEncrypted],
+      );
+
+      const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
+      return res.json({ otpauthUrl, qrCodeDataUrl, secret });
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('MFA setup failed', error, { userId: req.session?.user?.id });
+      res.status(500).json({ error: 'Failed to setup MFA' });
+    }
+  },
+);
+
+/**
+ * POST /mfa/verify
+ * Verify TOTP during setup and enable MFA
+ */
+router.post(
+  '/mfa/verify',
+  (req, res, next) => requireAuth(req, res, next),
+  (req, res, next) => csrfProtection(req, res, next),
+  async (req, res) => {
+    if (!isMfaEnabledInEnvironment()) {
+      return res.status(403).json({ error: 'MFA is disabled in this environment' });
+    }
+
+    const { code } = req.body;
+
+    try {
+      const userId = req.session.user.id;
+
+      const result = await pool.query('SELECT secret_encrypted FROM user_mfa WHERE user_id = $1', [
+        userId,
+      ]);
+      if (!result.rows.length || !result.rows[0].secret_encrypted) {
+        return res.status(400).json({ error: 'MFA setup not started. Please run setup first.' });
+      }
+
+      const secret = CredentialsCrypto.decrypt(result.rows[0].secret_encrypted);
+      if (!mfaService.verifyToken(secret, code)) {
+        return res.status(401).json({ error: 'Invalid code' });
+      }
+
+      await pool.query(
+        'UPDATE user_mfa SET enabled = true, updated_at = NOW() WHERE user_id = $1',
+        [userId],
+      );
+
+      return res.json({ success: true });
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('MFA verify (setup) failed', error, { userId: req.session?.user?.id });
+      res.status(500).json({ error: 'Failed to verify MFA' });
+    }
+  },
+);
+
+/**
+ * POST /mfa/disable
+ * Disable MFA (requires password verification)
+ */
+router.post(
+  '/mfa/disable',
+  (req, res, next) => requireAuth(req, res, next),
+  (req, res, next) => csrfProtection(req, res, next),
+  async (req, res) => {
+    if (!isMfaEnabledInEnvironment()) {
+      return res.status(403).json({ error: 'MFA is disabled in this environment' });
+    }
+
+    const { password } = req.body;
+
+    try {
+      if (!password) {
+        return res.status(400).json({ error: 'Password required' });
+      }
+
+      const userId = req.session.user.id;
+
+      const userResult = await pool.query('SELECT password_hash FROM users WHERE id = $1', [
+        userId,
+      ]);
+      if (!userResult.rows.length) {
+        return res.status(401).json({ error: 'Invalid request' });
+      }
+
+      const validPassword = await bcrypt.compare(password, userResult.rows[0].password_hash);
+      if (!validPassword) {
+        return res.status(403).json({ error: 'Invalid password' });
+      }
+
+      await pool.query(
+        'UPDATE user_mfa SET enabled = false, secret_encrypted = NULL, updated_at = NOW() WHERE user_id = $1',
+        [userId],
+      );
+
+      return res.json({ success: true });
+    } catch (error) {
+      const logger = ServiceManager.get('logger');
+      logger.error('MFA disable failed', error, { userId: req.session?.user?.id });
+      res.status(500).json({ error: 'Failed to disable MFA' });
+    }
+  },
+);
+
+/**
  * GET /me
  * Get current user info
  */
@@ -308,7 +590,14 @@ router.get(
   '/me',
   (req, res, next) => requireAuth(req, res, next),
   async (req, res) => {
-    console.log('[AUTH/ME] GET /me | hasSession:', !!req.session, 'hasUser:', !!req.session?.user, 'userId:', req.session?.user?.id);
+    console.log(
+      '[AUTH/ME] GET /me | hasSession:',
+      !!req.session,
+      'hasUser:',
+      !!req.session?.user,
+      'userId:',
+      req.session?.user?.id,
+    );
     try {
       const currentTenantUserId = req.session.currentTenantUserId || req.session.user.id;
 

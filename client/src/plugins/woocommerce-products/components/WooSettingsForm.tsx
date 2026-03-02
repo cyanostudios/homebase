@@ -45,6 +45,7 @@ export const WooSettingsForm: React.FC = () => {
     instanceKey: '',
     label: '',
   });
+  const [labelRequiredError, setLabelRequiredError] = useState<string | null>(null);
 
   // Register unsaved-changes with global guard
   useEffect(() => {
@@ -62,7 +63,7 @@ export const WooSettingsForm: React.FC = () => {
       resetForm();
       return;
     }
-    
+
     // Otherwise, use currentWooSettings if available
     const sourceSettings = currentWooSettings;
     if (sourceSettings) {
@@ -89,12 +90,22 @@ export const WooSettingsForm: React.FC = () => {
   }, [panelMode, markClean]);
 
   const resetForm = useCallback(() => {
-    setFormData({ storeUrl: '', consumerKey: '', consumerSecret: '', useQueryAuth: false, instanceKey: '', label: '' });
+    setFormData({
+      storeUrl: '',
+      consumerKey: '',
+      consumerSecret: '',
+      useQueryAuth: false,
+      instanceKey: '',
+      label: '',
+    });
     markClean();
   }, [markClean]);
 
   const update = (k: string, v: any) => {
     setFormData((prev) => ({ ...prev, [k]: v }));
+    if (k === 'label') {
+      setLabelRequiredError(null);
+    }
     markDirty();
     clearValidationErrors();
   };
@@ -104,6 +115,11 @@ export const WooSettingsForm: React.FC = () => {
   const hasBlockingErrors = validationErrors.some((e) => !e.message.includes('Warning'));
 
   const handleSave = useCallback(async () => {
+    if (!formData.label || formData.label.trim() === '') {
+      setLabelRequiredError('Butiksnamn (label) krävs.');
+      return;
+    }
+    setLabelRequiredError(null);
     const ok = await saveWooSettings(formData);
     if (ok) {
       markClean();
@@ -116,20 +132,20 @@ export const WooSettingsForm: React.FC = () => {
       if (panelMode === 'create' && currentWooSettings === null) {
         resetForm();
       } else {
-      const sourceSettings = currentWooSettings;
-      if (sourceSettings) {
-        setFormData({
-          storeUrl: sourceSettings.storeUrl || '',
-          consumerKey: sourceSettings.consumerKey || '',
-          consumerSecret: sourceSettings.consumerSecret || '',
-          useQueryAuth: !!sourceSettings.useQueryAuth,
-          instanceKey: (sourceSettings as any).instanceKey || '',
-          label: (sourceSettings as any).label || '',
-        });
-        markClean();
-      } else {
-        resetForm();
-      }
+        const sourceSettings = currentWooSettings;
+        if (sourceSettings) {
+          setFormData({
+            storeUrl: sourceSettings.storeUrl || '',
+            consumerKey: sourceSettings.consumerKey || '',
+            consumerSecret: sourceSettings.consumerSecret || '',
+            useQueryAuth: !!sourceSettings.useQueryAuth,
+            instanceKey: (sourceSettings as any).instanceKey || '',
+            label: (sourceSettings as any).label || '',
+          });
+          markClean();
+        } else {
+          resetForm();
+        }
       }
       // WooCommerce has no View component; always close panel so user returns to list page.
       closeWooSettingsPanel();
@@ -189,7 +205,7 @@ export const WooSettingsForm: React.FC = () => {
               {validationErrors
                 .filter((e) => !e.message.includes('Warning'))
                 .map((e, i) => (
-                  <li key={i}>{e.message}</li>
+                  <li key={e.field ?? `err-${i}`}>{e.message}</li>
                 ))}
             </ul>
           </div>
@@ -198,30 +214,35 @@ export const WooSettingsForm: React.FC = () => {
 
       {/* Settings fields */}
       <Card padding="sm" className="shadow-none px-0">
-        <h3 className="text-lg font-semibold mb-3">
-          WooCommerce Store
-        </h3>
+        <h3 className="text-lg font-semibold mb-3">WooCommerce Store</h3>
         <div className="space-y-3">
           <div>
-            <Label htmlFor="label" className="mb-1">Store Name</Label>
+            <Label htmlFor="label" className="mb-1">
+              Store Name *
+            </Label>
             <Input
               id="label"
               type="text"
               value={formData.label}
               onChange={(e) => update('label', e.target.value)}
               placeholder="My WooCommerce Store"
+              required
               className={getFieldError('label') ? 'border-red-500' : ''}
             />
-            {getFieldError('label') && (
-              <p className="mt-1 text-sm text-red-600">{getFieldError('label')?.message}</p>
+            {(getFieldError('label') || labelRequiredError) && (
+              <p className="mt-1 text-sm text-red-600">
+                {getFieldError('label')?.message ?? labelRequiredError}
+              </p>
             )}
             <p className="mt-1 text-xs text-muted-foreground">
-              A friendly name for this store to help you identify it.
+              Ge butiken ett namn så att den syns med rätt namn i orderlistan.
             </p>
           </div>
 
           <div>
-            <Label htmlFor="storeUrl" className="mb-1">Store URL *</Label>
+            <Label htmlFor="storeUrl" className="mb-1">
+              Store URL *
+            </Label>
             <Input
               id="storeUrl"
               type="url"
@@ -238,7 +259,9 @@ export const WooSettingsForm: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="consumerKey" className="mb-1">Consumer Key *</Label>
+              <Label htmlFor="consumerKey" className="mb-1">
+                Consumer Key *
+              </Label>
               <Input
                 id="consumerKey"
                 type="text"
@@ -253,7 +276,9 @@ export const WooSettingsForm: React.FC = () => {
             </div>
 
             <div>
-              <Label htmlFor="consumerSecret" className="mb-1">Consumer Secret *</Label>
+              <Label htmlFor="consumerSecret" className="mb-1">
+                Consumer Secret *
+              </Label>
               <Input
                 id="consumerSecret"
                 type="password"
@@ -277,13 +302,16 @@ export const WooSettingsForm: React.FC = () => {
                 checked={formData.useQueryAuth}
                 onChange={(e) => update('useQueryAuth', e.target.checked)}
               />
-              Use query auth (?consumer_key=…&consumer_secret=…) instead of Basic (for non-HTTPS dev).
+              Use query auth (?consumer_key=…&consumer_secret=…) instead of Basic (for non-HTTPS
+              dev).
             </label>
           </div>
 
           {panelMode === 'create' && (
             <div>
-              <Label htmlFor="instanceKey" className="mb-1">Instance Key (optional)</Label>
+              <Label htmlFor="instanceKey" className="mb-1">
+                Instance Key (optional)
+              </Label>
               <Input
                 id="instanceKey"
                 type="text"
@@ -296,7 +324,8 @@ export const WooSettingsForm: React.FC = () => {
                 <p className="mt-1 text-sm text-red-600">{getFieldError('instanceKey')?.message}</p>
               )}
               <p className="mt-1 text-xs text-muted-foreground">
-                A unique identifier for this store. If not provided, it will be generated from the store URL.
+                A unique identifier for this store. If not provided, it will be generated from the
+                store URL.
               </p>
             </div>
           )}
@@ -318,9 +347,7 @@ export const WooSettingsForm: React.FC = () => {
       {/* Test result */}
       {lastTestResult && (
         <Card padding="sm" className="shadow-none px-0">
-          <h4 className="text-base font-semibold mb-2">
-            Connection Test
-          </h4>
+          <h4 className="text-base font-semibold mb-2">Connection Test</h4>
           {testSummary}
         </Card>
       )}

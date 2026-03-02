@@ -10,7 +10,6 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 
 import { AppProvider, useApp } from '@/core/api/AppContext';
-import type { Note } from '@/plugins/notes/types/notes';
 import { createPanelHandlers } from '@/core/handlers/panelHandlers';
 import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
@@ -21,17 +20,19 @@ import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { LoginComponent } from '@/core/ui/LoginComponent';
 import { MainLayout } from '@/core/ui/MainLayout';
 import { createPanelFooter } from '@/core/ui/PanelFooter';
-import { SettingsFooter } from '@/core/ui/SettingsFooter';
 import { createPanelTitles } from '@/core/ui/PanelTitles';
+import { SettingsFooter } from '@/core/ui/SettingsFooter';
 import { ActivityLogForm } from '@/core/ui/SettingsForms/ActivityLogForm';
 import { PreferencesSettingsForm } from '@/core/ui/SettingsForms/PreferencesSettingsForm';
 import { ProfileSettingsForm } from '@/core/ui/SettingsForms/ProfileSettingsForm';
+import { SecuritySettingsForm } from '@/core/ui/SettingsForms/SecuritySettingsForm';
 import { SettingsList } from '@/core/ui/SettingsList';
 import type { NavPage } from '@/core/ui/Sidebar'; // <-- viktig typ-import
 import {
   GlobalNavigationGuardProvider,
   useGlobalNavigationGuard,
 } from '@/hooks/useGlobalNavigationGuard';
+import type { Note } from '@/plugins/notes/types/notes';
 
 // Dynamic Plugin Providers - scales infinitely without App.tsx changes
 function PluginProviders({ children }: { children: React.ReactNode }) {
@@ -61,9 +62,7 @@ function findCurrentItem(pluginContexts: any[]): any {
       continue;
     }
     try {
-      const singular = plugin.name.endsWith('s')
-        ? plugin.name.slice(0, -1)
-        : plugin.name;
+      const singular = plugin.name.endsWith('s') ? plugin.name.slice(0, -1) : plugin.name;
       const currentItemProperty = `current${singular.charAt(0).toUpperCase() + singular.slice(1)}`;
       const currentItem = context[currentItemProperty];
       if (currentItem) {
@@ -355,7 +354,9 @@ function AppContent() {
         ? 'Preferences'
         : settingsCategory === 'activity-log'
           ? 'Activity Log'
-          : 'Settings';
+          : settingsCategory === 'security'
+            ? 'Two-factor authentication'
+            : 'Settings';
 
   const settingsPanelContent =
     settingsCategory === 'profile' ? (
@@ -370,12 +371,14 @@ function AppContent() {
       />
     ) : settingsCategory === 'activity-log' ? (
       <ActivityLogForm onCancel={handleSettingsClose} />
+    ) : settingsCategory === 'security' ? (
+      <SecuritySettingsForm onCancel={handleSettingsClose} />
     ) : null;
 
   const settingsPanelFooter =
     currentPage === 'settings' && settingsCategory ? (
       <SettingsFooter
-        category={settingsCategory as 'profile' | 'preferences' | 'activity-log'}
+        category={settingsCategory as 'profile' | 'preferences' | 'activity-log' | 'security'}
         onClose={handleSettingsClose}
         onSave={
           settingsCategory === 'profile' || settingsCategory === 'preferences'
@@ -393,8 +396,7 @@ function AppContent() {
   const detailPanelSubtitle = currentPage === 'settings' ? null : panelTitles.getPanelSubtitle();
   const detailPanelContent =
     currentPage === 'settings' ? settingsPanelContent : renderers.renderPanelContent();
-  const detailPanelFooter =
-    currentPage === 'settings' ? settingsPanelFooter : panelFooter;
+  const detailPanelFooter = currentPage === 'settings' ? settingsPanelFooter : panelFooter;
   const onDetailPanelClose =
     currentPage === 'settings' ? () => setSettingsCategory(null) : handlers.getCloseHandler();
 

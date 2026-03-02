@@ -56,6 +56,8 @@ class OrdersModel {
           user_id,
           channel,
           channel_order_id,
+          channel_instance_id,
+          channel_label,
           platform_order_number,
           order_number,
           placed_at,
@@ -138,7 +140,13 @@ class OrdersModel {
         WHERE user_id = $1 AND id = $2
         RETURNING *
         `,
-        [userId, Number(id), status ? String(status) : null, carrier ? String(carrier) : null, trackingNumber ? String(trackingNumber) : null],
+        [
+          userId,
+          Number(id),
+          status ? String(status) : null,
+          carrier ? String(carrier) : null,
+          trackingNumber ? String(trackingNumber) : null,
+        ],
       );
       if (!res.length) throw new AppError('Order not found', 404, AppError.CODES.NOT_FOUND);
       return this.transformOrderRow(res[0]);
@@ -177,7 +185,11 @@ class OrdersModel {
 
       // Limit to 500 orders per batch
       if (validIds.length > 500) {
-        throw new AppError('Too many orders (max 500 per request)', 400, AppError.CODES.VALIDATION_ERROR);
+        throw new AppError(
+          'Too many orders (max 500 per request)',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
       }
 
       const res = await db.query(
@@ -233,7 +245,8 @@ class OrdersModel {
         `,
         [userId],
       );
-      if (!res.length) throw new AppError('Failed to allocate order number', 500, AppError.CODES.DATABASE_ERROR);
+      if (!res.length)
+        throw new AppError('Failed to allocate order number', 500, AppError.CODES.DATABASE_ERROR);
       return Number(res[0].next_number);
     } catch (error) {
       Logger.error('Failed to allocate order number', error);
@@ -254,10 +267,16 @@ class OrdersModel {
       const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
-      const channel = String(order?.channel || '').trim().toLowerCase();
+      const channel = String(order?.channel || '')
+        .trim()
+        .toLowerCase();
       const channelOrderId = String(order?.channelOrderId || '').trim();
       if (!channel || !channelOrderId) {
-        throw new AppError('channel and channelOrderId are required', 400, AppError.CODES.VALIDATION_ERROR);
+        throw new AppError(
+          'channel and channelOrderId are required',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
       }
 
       const channelInstanceId =
@@ -280,6 +299,10 @@ class OrdersModel {
       );
       if (existing.length) {
         const orderId = Number(existing[0].id);
+        const channelLabelVal =
+          typeof order?.channelLabel === 'string' && order.channelLabel.trim() !== ''
+            ? order.channelLabel.trim()
+            : null;
         await db.query(
           `UPDATE ${OrdersModel.ORDERS_TABLE}
            SET
@@ -291,6 +314,7 @@ class OrdersModel {
              billing_address = COALESCE($8, billing_address),
              customer = COALESCE($9, customer),
              raw = $10,
+             channel_label = COALESCE($11, channel_label),
              updated_at = NOW()
            WHERE user_id = $1 AND id = $2`,
           [
@@ -304,6 +328,7 @@ class OrdersModel {
             order?.billingAddress ? JSON.stringify(order.billingAddress) : null,
             order?.customer ? JSON.stringify(order.customer) : null,
             order?.raw ? JSON.stringify(order.raw) : null,
+            channelLabelVal,
           ],
         );
         return { created: false, orderId };
@@ -321,20 +346,24 @@ class OrdersModel {
       );
       const orderNumber = Number(counterRes[0]?.next_number ?? 1);
 
+      const channelLabelVal =
+        typeof order?.channelLabel === 'string' && order.channelLabel.trim() !== ''
+          ? order.channelLabel.trim()
+          : null;
       let orderId;
       try {
         const createRes = await db.query(
           `
           INSERT INTO ${OrdersModel.ORDERS_TABLE} (
-            user_id, channel, channel_order_id, channel_instance_id, platform_order_number, order_number,
+            user_id, channel, channel_order_id, channel_instance_id, channel_label, platform_order_number, order_number,
             placed_at, total_amount, currency, status,
             shipping_address, billing_address, customer, raw,
             created_at, updated_at
           )
           VALUES (
-            $1, $2, $3, $4, $5, $6,
-            $7, $8, COALESCE($9, 'SEK'), COALESCE($10, 'processing'),
-            $11, $12, $13, $14,
+            $1, $2, $3, $4, $5, $6, $7,
+            $8, $9, COALESCE($10, 'SEK'), COALESCE($11, 'processing'),
+            $12, $13, $14, $15,
             NOW(), NOW()
           )
           RETURNING id
@@ -344,6 +373,7 @@ class OrdersModel {
             channel,
             channelOrderId,
             channelInstanceId,
+            channelLabelVal,
             order?.platformOrderNumber != null ? String(order.platformOrderNumber) : null,
             orderNumber,
             placedAt,
@@ -440,14 +470,10 @@ class OrdersModel {
          WHERE order_id IN (SELECT id FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1)`,
         [userId],
       );
-      await db.query(
-        `DELETE FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1`,
-        [userId],
-      );
-      await db.query(
-        `DELETE FROM ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} WHERE user_id = $1`,
-        [userId],
-      );
+      await db.query(`DELETE FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1`, [userId]);
+      await db.query(`DELETE FROM ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} WHERE user_id = $1`, [
+        userId,
+      ]);
 
       // --- Public schema: clear any leftover order data (e.g. after migration public → tenant) ---
       await db.query(
@@ -455,10 +481,7 @@ class OrdersModel {
          WHERE order_id IN (SELECT id FROM public.${OrdersModel.ORDERS_TABLE} WHERE user_id = $1)`,
         [userId],
       );
-      await db.query(
-        `DELETE FROM public.${OrdersModel.ORDERS_TABLE} WHERE user_id = $1`,
-        [userId],
-      );
+      await db.query(`DELETE FROM public.${OrdersModel.ORDERS_TABLE} WHERE user_id = $1`, [userId]);
       await db.query(
         `DELETE FROM public.${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} WHERE user_id = $1`,
         [userId],
@@ -580,10 +603,16 @@ class OrdersModel {
   }
 
   transformOrderRow(row) {
+    const channelLabel =
+      row.channel_label != null && String(row.channel_label).trim() !== ''
+        ? String(row.channel_label).trim()
+        : null;
     return {
       id: String(row.id),
       channel: row.channel,
       channelOrderId: row.channel_order_id,
+      channelInstanceId: row.channel_instance_id != null ? Number(row.channel_instance_id) : null,
+      channelLabel,
       platformOrderNumber: row.platform_order_number,
       orderNumber: row.order_number != null ? Number(row.order_number) : null,
       placedAt: this.toISOUTC(row.placed_at),
@@ -618,4 +647,3 @@ class OrdersModel {
 }
 
 module.exports = OrdersModel;
-

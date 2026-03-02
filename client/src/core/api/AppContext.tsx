@@ -39,7 +39,15 @@
  * Last Modified: August 2025 - Critical Rules Added
  */
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  ReactNode,
+} from 'react';
 
 import { Contact } from '@/plugins/contacts/types/contacts';
 import { Estimate } from '@/plugins/estimates/types/estimate';
@@ -60,7 +68,11 @@ interface AppContextType {
   user: User | null;
   currentTenantUserId: number | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (
+    email: string,
+    password: string,
+  ) => Promise<boolean | { requiresMfa: true; mfaToken: string }>;
+  verifyMfa: (mfaToken: string, code: string) => Promise<boolean>;
   signup: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 
@@ -97,6 +109,12 @@ interface AppContextType {
   getSettings: (category?: string) => Promise<any>;
   updateSettings: (category: string, settings: any) => Promise<any>;
   settingsVersion: number;
+
+  // MFA (two-factor authentication)
+  getMfaStatus: () => Promise<{ mfaEnabled: boolean; mfaDisabledInEnvironment?: boolean }>;
+  mfaSetup: () => Promise<{ otpauthUrl: string; qrCodeDataUrl: string; secret: string }>;
+  mfaVerify: (code: string) => Promise<{ success: boolean }>;
+  mfaDisable: (password: string) => Promise<{ success: boolean }>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -104,7 +122,9 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 let csrfToken: string | null = null;
 
 async function getCsrfToken(): Promise<string> {
-  if (csrfToken) return csrfToken;
+  if (csrfToken) {
+    return csrfToken;
+  }
 
   const response = await fetch('/api/csrf-token', {
     credentials: 'include',
@@ -133,7 +153,8 @@ const api = {
       options.method &&
       ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method) &&
       !endpoint.includes('/auth/login') &&
-      !endpoint.includes('/auth/signup')
+      !endpoint.includes('/auth/signup') &&
+      !endpoint.includes('/auth/verify-mfa')
     ) {
       headers['X-CSRF-Token'] = await getCsrfToken();
     }
@@ -168,6 +189,13 @@ const api = {
     return this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+    });
+  },
+
+  async verifyMfa(mfaToken: string, code: string) {
+    return this.request('/auth/verify-mfa', {
+      method: 'POST',
+      body: JSON.stringify({ mfaToken, code }),
     });
   },
 
@@ -217,6 +245,28 @@ const api = {
       body: JSON.stringify({ settings }),
     });
   },
+
+  async getMfaStatus() {
+    return this.request('/auth/mfa/status');
+  },
+
+  async mfaSetup() {
+    return this.request('/auth/mfa/setup', { method: 'POST' });
+  },
+
+  async mfaVerify(code: string) {
+    return this.request('/auth/mfa/verify', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  },
+
+  async mfaDisable(password: string) {
+    return this.request('/auth/mfa/disable', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    });
+  },
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -257,7 +307,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     // Guard: if a check is already in flight, ignore this call
-    if (isCheckingAuth.current) return;
+    if (isCheckingAuth.current) {
+      return;
+    }
     isCheckingAuth.current = true;
 
     const debugLog = (message: string) => {
@@ -266,7 +318,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ message }),
-      }).catch(() => { });
+      }).catch(() => {});
     };
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     try {
@@ -277,7 +329,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCurrentTenantUserId(response.currentTenantUserId ?? response.user?.id ?? null);
       setIsAuthenticated(true);
     } catch (err: any) {
-      debugLog(`CHECK_AUTH: getMe failed status: ${err?.status ?? '—'} message: ${err?.message ?? '—'} code: ${err?.code ?? '—'}`);
+      debugLog(
+        `CHECK_AUTH: getMe failed status: ${err?.status ?? '—'} message: ${err?.message ?? '—'} code: ${err?.code ?? '—'}`,
+      );
       const status = Number(err?.status || 0);
 
       // Best-effort resilience: a short retry helps with transient cookie/proxy races on startup.
@@ -288,11 +342,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const retryResponse = await api.getMe();
           debugLog(`CHECK_AUTH: retry OK userId: ${retryResponse?.user?.id ?? '—'}`);
           setUser(retryResponse.user);
-          setCurrentTenantUserId(retryResponse.currentTenantUserId ?? retryResponse.user?.id ?? null);
+          setCurrentTenantUserId(
+            retryResponse.currentTenantUserId ?? retryResponse.user?.id ?? null,
+          );
           setIsAuthenticated(true);
           return;
         } catch (retryErr: any) {
-          debugLog(`CHECK_AUTH: retry failed status: ${retryErr?.status ?? '—'} message: ${retryErr?.message ?? '—'}`);
+          debugLog(
+            `CHECK_AUTH: retry failed status: ${retryErr?.status ?? '—'} message: ${retryErr?.message ?? '—'}`,
+          );
         }
       }
 
@@ -320,10 +378,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setContacts(transformedContacts);
 
       // Priority 2: notes and tasks in background
-      const [notesData, tasksData] = await Promise.all([
-        api.getNotes(),
-        api.getTasks(),
-      ]);
+      const [notesData, tasksData] = await Promise.all([api.getNotes(), api.getTasks()]);
       const transformedNotes = notesData.map((note: any) => ({
         ...note,
         createdAt: new Date(note.createdAt),
@@ -350,15 +405,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (
+    email: string,
+    password: string,
+  ): Promise<boolean | { requiresMfa: true; mfaToken: string }> => {
     try {
       const response = await api.login(email, password);
+      if (response.requiresMfa === true && response.mfaToken) {
+        return { requiresMfa: true, mfaToken: response.mfaToken };
+      }
       setUser(response.user);
       setCurrentTenantUserId(response.user?.id ?? null);
       setIsAuthenticated(true);
       return true;
     } catch (error) {
       console.error('Login failed:', error);
+      return false;
+    }
+  };
+
+  const verifyMfa = async (mfaToken: string, code: string): Promise<boolean> => {
+    try {
+      const response = await api.verifyMfa(mfaToken, code);
+      setUser(response.user);
+      setCurrentTenantUserId(response.user?.id ?? null);
+      setIsAuthenticated(true);
+      return true;
+    } catch (error) {
+      console.error('MFA verify failed:', error);
       return false;
     }
   };
@@ -510,6 +584,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const getMfaStatus = async () => api.getMfaStatus();
+  const mfaSetup = async () => api.mfaSetup();
+  const mfaVerify = async (code: string) => api.mfaVerify(code);
+  const mfaDisable = async (password: string) => api.mfaDisable(password);
+
   return (
     <AppContext.Provider
       value={{
@@ -517,6 +596,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         currentTenantUserId,
         isAuthenticated,
         login,
+        verifyMfa,
         signup,
         logout,
         isLoading,
@@ -543,6 +623,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getSettings,
         updateSettings,
         settingsVersion,
+
+        getMfaStatus,
+        mfaSetup,
+        mfaVerify,
+        mfaDisable,
       }}
     >
       {children}

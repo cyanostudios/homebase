@@ -7,7 +7,8 @@ const { commonRules, validateRequest } = require('../../server/core/middleware/v
 
 function createChannelsRoutes(controller, context) {
   // V3: Get requirePlugin from context.middleware instead of parameter
-  const requirePlugin = context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
+  const requirePlugin =
+    context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin('channels'); // auth/enablement guard
 
   // Read-only summaries
@@ -23,32 +24,38 @@ function createChannelsRoutes(controller, context) {
   );
 
   // Read single product↔channel mapping
-  router.get('/map',
+  router.get(
+    '/map',
     gate,
     [
       query('productId').trim().notEmpty().withMessage('productId is required'),
       query('channel').trim().notEmpty().withMessage('channel is required'),
     ],
     validateRequest,
-    (req, res) => controller.getProductMap(req, res)
+    (req, res) => controller.getProductMap(req, res),
   );
 
   // Per-product enable/disable (safe SELECT→INSERT/UPDATE)
   // Body: { productId: string, channel: string, enabled: boolean, channelInstanceId?: number }
-  router.put('/map',
+  router.put(
+    '/map',
     gate,
     csrfProtection,
     [
       commonRules.string('productId', 1, 255),
       commonRules.string('channel', 1, 255),
       body('enabled').isBoolean().withMessage('enabled must be a boolean'),
-      body('channelInstanceId').optional().isInt({ min: 1 }).withMessage('channelInstanceId must be a positive integer'),
+      body('channelInstanceId')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('channelInstanceId must be a positive integer'),
     ],
     validateRequest,
-    (req, res) => controller.setProductEnabled(req, res)
+    (req, res) => controller.setProductEnabled(req, res),
   );
 
-  router.put('/map/bulk',
+  router.put(
+    '/map/bulk',
     gate,
     csrfProtection,
     [
@@ -79,8 +86,15 @@ function createChannelsRoutes(controller, context) {
     '/instances',
     gate,
     [
-      query('channel').optional().trim().isLength({ min: 1, max: 255 }).withMessage('channel is too long'),
-      query('includeDisabled').optional().isIn(['true', 'false', '1', '0']).withMessage('includeDisabled must be true/false/1/0'),
+      query('channel')
+        .optional()
+        .trim()
+        .isLength({ min: 1, max: 255 })
+        .withMessage('channel is too long'),
+      query('includeDisabled')
+        .optional()
+        .isIn(['true', 'false', '1', '0'])
+        .withMessage('includeDisabled must be true/false/1/0'),
     ],
     validateRequest,
     (req, res) => controller.listInstances(req, res),
@@ -95,6 +109,13 @@ function createChannelsRoutes(controller, context) {
       commonRules.string('instanceKey', 1, 50),
       commonRules.optionalString('market', 10),
       commonRules.optionalString('label', 500),
+      body('label')
+        .custom((val, { req }) => {
+          if (String(req.body?.channel || '').toLowerCase() !== 'woocommerce') return true;
+          if (val == null || (typeof val === 'string' && val.trim() === '')) return false;
+          return true;
+        })
+        .withMessage('Butiksnamn (label) krävs för WooCommerce.'),
       body('credentials').optional().isObject().withMessage('credentials must be an object'),
     ],
     validateRequest,
@@ -109,6 +130,14 @@ function createChannelsRoutes(controller, context) {
       commonRules.id('id'),
       commonRules.optionalString('market', 10),
       commonRules.optionalString('label', 500),
+      body('label')
+        .optional()
+        .custom((val) => {
+          if (val === undefined || val === null) return true;
+          if (typeof val === 'string' && val.trim() === '') return false;
+          return true;
+        })
+        .withMessage('Label får inte vara tomt.'),
       body('credentials').optional().isObject().withMessage('credentials must be an object'),
       body('enabled').optional().isBoolean().withMessage('enabled must be a boolean'),
     ],
@@ -122,7 +151,11 @@ function createChannelsRoutes(controller, context) {
     gate,
     [
       query('productId').trim().notEmpty().withMessage('productId is required'),
-      query('channel').optional().trim().isLength({ min: 1, max: 255 }).withMessage('channel is too long'),
+      query('channel')
+        .optional()
+        .trim()
+        .isLength({ min: 1, max: 255 })
+        .withMessage('channel is too long'),
     ],
     validateRequest,
     (req, res) => controller.listOverrides(req, res),
@@ -152,7 +185,9 @@ function createChannelsRoutes(controller, context) {
     [
       commonRules.string('productId', 1, 255),
       body('items').isArray({ min: 1 }).withMessage('items must be a non-empty array'),
-      body('items.*.channelInstanceId').isInt({ min: 1 }).withMessage('channelInstanceId is required'),
+      body('items.*.channelInstanceId')
+        .isInt({ min: 1 })
+        .withMessage('channelInstanceId is required'),
       body('items.*.active').optional().isBoolean(),
       body('items.*.priceAmount').optional({ nullable: true }).isNumeric(),
       body('items.*.currency').optional({ nullable: true }).isString(),

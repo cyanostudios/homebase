@@ -19,28 +19,6 @@ class ShippingModel {
     return userId;
   }
 
-  async migrateLegacySettingsSecrets(db, userId, row) {
-    const updates = [];
-    const params = [userId];
-    let idx = 2;
-
-    if (row.api_key && !CredentialsCrypto.isEncrypted(row.api_key)) {
-      updates.push(`api_key = $${idx++}`);
-      params.push(CredentialsCrypto.encrypt(String(row.api_key)));
-    }
-    if (row.api_secret && !CredentialsCrypto.isEncrypted(row.api_secret)) {
-      updates.push(`api_secret = $${idx++}`);
-      params.push(CredentialsCrypto.encrypt(String(row.api_secret)));
-    }
-    if (!updates.length) return;
-
-    updates.push('updated_at = CURRENT_TIMESTAMP');
-    await db.query(
-      `UPDATE ${ShippingModel.SETTINGS_TABLE} SET ${updates.join(', ')} WHERE user_id = $1`,
-      params,
-    );
-  }
-
   transformSettings(row) {
     if (!row) return null;
     const labelFormat = String(row.label_format || 'PDF').toUpperCase();
@@ -92,9 +70,6 @@ class ShippingModel {
       `SELECT * FROM ${ShippingModel.SETTINGS_TABLE} WHERE user_id = $1 LIMIT 1`,
       [userId],
     );
-    if (rows.length) {
-      await this.migrateLegacySettingsSecrets(db, userId, rows[0]);
-    }
     return rows.length ? this.transformSettings(rows[0]) : null;
   }
 
@@ -103,12 +78,18 @@ class ShippingModel {
     const userId = this.getUserId(req);
 
     const bookingUrl = String(data?.bookingUrl || '').trim() || null;
-    const authScheme = String(data?.authScheme || '').trim().toUpperCase() || null;
+    const authScheme =
+      String(data?.authScheme || '')
+        .trim()
+        .toUpperCase() || null;
     const integrationId = String(data?.integrationId || '').trim() || null;
     const apiKey = String(data?.apiKey || '').trim() || null;
     const apiSecret = String(data?.apiSecret || '').trim() || null;
     const apiKeyHeaderName = String(data?.apiKeyHeaderName || '').trim() || null;
-    const rawLabelFormat = String(data?.labelFormat || 'PDF').trim().toUpperCase() || 'PDF';
+    const rawLabelFormat =
+      String(data?.labelFormat || 'PDF')
+        .trim()
+        .toUpperCase() || 'PDF';
     const labelFormat = LABEL_FORMATS.includes(rawLabelFormat) ? rawLabelFormat : 'PDF';
     const connected = !!(bookingUrl && authScheme && apiKey);
 
@@ -175,7 +156,11 @@ class ShippingModel {
       street: String(data?.street || '').trim() || null,
       postalCode: String(data?.postalCode || '').trim() || null,
       city: String(data?.city || '').trim() || null,
-      country: (String(data?.country || 'SE').trim().slice(0, 2) || 'SE').toUpperCase(),
+      country: (
+        String(data?.country || 'SE')
+          .trim()
+          .slice(0, 2) || 'SE'
+      ).toUpperCase(),
       contactName: String(data?.contactName || '').trim() || null,
       contactPhone: String(data?.contactPhone || '').trim() || null,
     };
@@ -278,7 +263,11 @@ class ShippingModel {
     const code = String(data?.code || '').trim();
     const name = String(data?.name || '').trim();
     if (!code || !name) {
-      throw new AppError('Service code and name are required', 400, AppError.CODES.VALIDATION_ERROR);
+      throw new AppError(
+        'Service code and name are required',
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
     }
 
     if (id != null) {
@@ -328,9 +317,7 @@ class ShippingModel {
     const userId = this.getUserId(req);
     if (!Array.isArray(ids) || ids.length === 0) return [];
 
-    const validIds = ids
-      .map((id) => Number(id))
-      .filter((id) => Number.isFinite(id) && id > 0);
+    const validIds = ids.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0);
     if (!validIds.length) return [];
 
     return db.query(
@@ -369,13 +356,7 @@ class ShippingModel {
         updated_at = CURRENT_TIMESTAMP
       WHERE user_id = $1 AND id = $2
       `,
-      [
-        userId,
-        Number(orderId),
-        String(carrier || ''),
-        String(trackingNumber || ''),
-        labelJson,
-      ],
+      [userId, Number(orderId), String(carrier || ''), String(trackingNumber || ''), labelJson],
     );
   }
 

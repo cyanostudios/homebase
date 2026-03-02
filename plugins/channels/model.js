@@ -31,17 +31,10 @@ class ChannelsModel {
     return CredentialsCrypto.encrypt(JSON.stringify(credentials));
   }
 
-  async migrateLegacyCredentials(db, userId, rowId, rawCredentials) {
-    if (!rawCredentials || typeof rawCredentials !== 'string') return;
-    if (CredentialsCrypto.isEncrypted(rawCredentials)) return;
-    await db.query(
-      `
-      UPDATE ${ChannelsModel.CHANNEL_INSTANCES_TABLE}
-      SET credentials = $3, updated_at = CURRENT_TIMESTAMP
-      WHERE user_id = $1 AND id = $2
-      `,
-      [userId, rowId, CredentialsCrypto.encrypt(rawCredentials)],
-    );
+  /** Value for JSONB column: null or { v: encryptedString }. */
+  credentialsForJsonb(encryptedString) {
+    if (encryptedString == null) return null;
+    return { v: encryptedString };
   }
 
   // ---------- READ: list channel summaries ----------
@@ -57,9 +50,9 @@ class ChannelsModel {
       // 1) Channels present in the mapping table
       const channelsRes = await db.query(
         `SELECT DISTINCT channel FROM ${ChannelsModel.CHANNEL_MAP_TABLE} WHERE user_id = $1`,
-        [userId]
+        [userId],
       );
-      const channels = channelsRes.map(r => r.channel);
+      const channels = channelsRes.map((r) => r.channel);
 
       // 2) Is Woo configured? (multi-store: channel_instances = stores)
       const wooInstancesRes = await db.query(
@@ -71,14 +64,14 @@ class ChannelsModel {
       // 2b) Is CDON configured?
       const cdonCfgRes = await db.query(
         `SELECT connected FROM ${ChannelsModel.CDON_SETTINGS_TABLE} WHERE user_id = $1 LIMIT 1`,
-        [userId]
+        [userId],
       );
       const cdonConfigured = cdonCfgRes.length > 0 && !!cdonCfgRes[0]?.connected;
 
       // 2c) Is Fyndiq configured?
       const fyndiqCfgRes = await db.query(
         `SELECT connected FROM ${ChannelsModel.FYNDIQ_SETTINGS_TABLE} WHERE user_id = $1 LIMIT 1`,
-        [userId]
+        [userId],
       );
       const fyndiqConfigured = fyndiqCfgRes.length > 0 && !!fyndiqCfgRes[0]?.connected;
 
@@ -103,7 +96,7 @@ class ChannelsModel {
           FROM ${ChannelsModel.CHANNEL_MAP_TABLE}
           WHERE user_id = $1 AND channel = $2
           `,
-          [userId, ch]
+          [userId, ch],
         );
         const s = statRes[0] || {};
 
@@ -124,9 +117,9 @@ class ChannelsModel {
           enabledCount: s.enabled_count || 0,
           status: {
             success: s.success_count || 0,
-            error:   s.error_count   || 0,
-            queued:  s.queued_count  || 0,
-            idle:    s.idle_count    || 0,
+            error: s.error_count || 0,
+            queued: s.queued_count || 0,
+            idle: s.idle_count || 0,
           },
           lastSyncedAt: s.last_synced_at || null,
         });
@@ -149,7 +142,9 @@ class ChannelsModel {
    * Normalize a channel key for consistent storage.
    */
   sanitizeChannelKey(channel) {
-    return String(channel || '').trim().toLowerCase();
+    return String(channel || '')
+      .trim()
+      .toLowerCase();
   }
 
   /**
@@ -182,7 +177,11 @@ class ChannelsModel {
     } catch (error) {
       Logger.error('Failed to get product channel targets', error);
       if (error instanceof AppError) throw error;
-      throw new AppError('Failed to get product channel targets', 500, AppError.CODES.DATABASE_ERROR);
+      throw new AppError(
+        'Failed to get product channel targets',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 
@@ -201,9 +200,10 @@ class ChannelsModel {
       }
 
       const ch = this.sanitizeChannelKey(channel);
-      const instId = channelInstanceId != null && Number.isFinite(Number(channelInstanceId))
-        ? Number(channelInstanceId)
-        : null;
+      const instId =
+        channelInstanceId != null && Number.isFinite(Number(channelInstanceId))
+          ? Number(channelInstanceId)
+          : null;
 
       let sql;
       const params = [userId, productId, ch];
@@ -248,9 +248,10 @@ class ChannelsModel {
       }
 
       const ch = this.sanitizeChannelKey(channel);
-      const instId = channelInstanceId != null && Number.isFinite(Number(channelInstanceId))
-        ? Number(channelInstanceId)
-        : null;
+      const instId =
+        channelInstanceId != null && Number.isFinite(Number(channelInstanceId))
+          ? Number(channelInstanceId)
+          : null;
       const current = await this.getProductMapRow(req, productId, ch, instId);
 
       if (!current) {
@@ -373,7 +374,7 @@ class ChannelsModel {
         WHERE user_id = $1
       `;
       const params = [userId];
-      
+
       if (ch) {
         sql += ` AND channel = $2`;
         params.push(ch);
@@ -381,11 +382,10 @@ class ChannelsModel {
       if (!includeDisabled) {
         sql += ` AND enabled = true`;
       }
-      
+
       sql += ` ORDER BY channel ASC, COALESCE(market,'') ASC, instance_key ASC, id ASC`;
-      
+
       const rows = await db.query(sql, params);
-      await Promise.all(rows.map((r) => this.migrateLegacyCredentials(db, userId, r.id, r.credentials)));
 
       return rows.map((r) => ({
         id: String(r.id),
@@ -414,12 +414,18 @@ class ChannelsModel {
       const ch = this.sanitizeChannelKey(channel);
       const key = String(instanceKey || '').trim();
       if (!ch || !key) {
-        throw new AppError('Missing required fields (channel, instanceKey)', 400, AppError.CODES.VALIDATION_ERROR);
+        throw new AppError(
+          'Missing required fields (channel, instanceKey)',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
       }
 
-      const mkt = market != null && String(market).trim() ? String(market).trim().toLowerCase() : null;
+      const mkt =
+        market != null && String(market).trim() ? String(market).trim().toLowerCase() : null;
       const lbl = label != null && String(label).trim() ? String(label).trim() : null;
       const creds = this.normalizeCredentialsForStorage(credentials);
+      const credsJsonb = this.credentialsForJsonb(creds);
 
       const rows = await db.query(
         `
@@ -434,7 +440,7 @@ class ChannelsModel {
           updated_at = CURRENT_TIMESTAMP
         RETURNING id, channel, instance_key, market, label, credentials, enabled, created_at, updated_at
         `,
-        [userId, ch, key, mkt, lbl, creds],
+        [userId, ch, key, mkt, lbl, credsJsonb],
       );
 
       const r = rows[0];
@@ -472,7 +478,8 @@ class ChannelsModel {
       let paramIdx = 3;
 
       if (market !== undefined) {
-        const mkt = market != null && String(market).trim() ? String(market).trim().toLowerCase() : null;
+        const mkt =
+          market != null && String(market).trim() ? String(market).trim().toLowerCase() : null;
         setClauses.push(`market = $${paramIdx}`);
         params.push(mkt);
         paramIdx += 1;
@@ -485,7 +492,7 @@ class ChannelsModel {
       }
       if (credentials !== undefined) {
         setClauses.push(`credentials = $${paramIdx}`);
-        params.push(this.normalizeCredentialsForStorage(credentials));
+        params.push(this.credentialsForJsonb(this.normalizeCredentialsForStorage(credentials)));
         paramIdx += 1;
       }
       if (enabled !== undefined) {
@@ -563,14 +570,14 @@ class ChannelsModel {
           AND o.product_id::text = $2
       `;
       const params = [userId, pid];
-      
+
       if (ch) {
         sql += ` AND o.channel = $3`;
         params.push(ch);
       }
-      
+
       sql += ` ORDER BY o.channel ASC, COALESCE(ci.market,'') ASC, COALESCE(ci.instance_key, o.instance) ASC, o.id ASC`;
-      
+
       const rows = await db.query(sql, params);
 
       return rows.map((r) => ({
@@ -595,7 +602,10 @@ class ChannelsModel {
     }
   }
 
-  async upsertProductOverride(req, { productId, channelInstanceId, active, priceAmount, currency, vatRate, category } = {}) {
+  async upsertProductOverride(
+    req,
+    { productId, channelInstanceId, active, priceAmount, currency, vatRate, category } = {},
+  ) {
     try {
       const db = Database.get(req);
       const userId = req.session?.user?.id;
@@ -604,7 +614,8 @@ class ChannelsModel {
       const pid = String(productId || '').trim();
       const instId = Number(channelInstanceId);
       if (!pid) throw new AppError('productId is required', 400, AppError.CODES.VALIDATION_ERROR);
-      if (!Number.isFinite(instId)) throw new AppError('channelInstanceId is required', 400, AppError.CODES.VALIDATION_ERROR);
+      if (!Number.isFinite(instId))
+        throw new AppError('channelInstanceId is required', 400, AppError.CODES.VALIDATION_ERROR);
 
       // Load instance to mirror channel+instance into overrides (for backwards compat)
       const instRows = await db.query(
@@ -616,15 +627,18 @@ class ChannelsModel {
         `,
         [userId, instId],
       );
-      if (!instRows.length) throw new AppError('Channel instance not found', 404, AppError.CODES.NOT_FOUND);
+      if (!instRows.length)
+        throw new AppError('Channel instance not found', 404, AppError.CODES.NOT_FOUND);
       const inst = instRows[0];
 
       const ch = this.sanitizeChannelKey(inst.channel);
       const instanceKey = String(inst.instance_key);
 
-      const price = priceAmount != null && Number.isFinite(Number(priceAmount)) ? Number(priceAmount) : null;
+      const price =
+        priceAmount != null && Number.isFinite(Number(priceAmount)) ? Number(priceAmount) : null;
       const vat = vatRate != null && Number.isFinite(Number(vatRate)) ? Number(vatRate) : null;
-      const cur = currency != null && String(currency).trim() ? String(currency).trim().toUpperCase() : null;
+      const cur =
+        currency != null && String(currency).trim() ? String(currency).trim().toUpperCase() : null;
       const cat = category != null && String(category).trim() ? String(category).trim() : null;
 
       const rows = await db.query(
@@ -669,7 +683,13 @@ class ChannelsModel {
       if (!pid) throw new AppError('productId is required', 400, AppError.CODES.VALIDATION_ERROR);
       if (!Array.isArray(items) || items.length === 0) return { ok: true, count: 0 };
 
-      const instanceIds = [...new Set(items.map((o) => Number(o.channelInstanceId)).filter((id) => Number.isFinite(id) && id >= 1))];
+      const instanceIds = [
+        ...new Set(
+          items
+            .map((o) => Number(o.channelInstanceId))
+            .filter((id) => Number.isFinite(id) && id >= 1),
+        ),
+      ];
       if (instanceIds.length === 0) return { ok: true, count: 0 };
 
       const instRows = await db.query(
@@ -677,7 +697,12 @@ class ChannelsModel {
          WHERE user_id = $1 AND id = ANY($2::int[])`,
         [userId, instanceIds],
       );
-      const instMap = new Map(instRows.map((r) => [r.id, { channel: this.sanitizeChannelKey(r.channel), instanceKey: String(r.instance_key) }]));
+      const instMap = new Map(
+        instRows.map((r) => [
+          r.id,
+          { channel: this.sanitizeChannelKey(r.channel), instanceKey: String(r.instance_key) },
+        ]),
+      );
 
       const rows = [];
       for (const o of items) {
@@ -685,11 +710,28 @@ class ChannelsModel {
         if (!Number.isFinite(instId) || instId < 1) continue;
         const inst = instMap.get(instId);
         if (!inst) continue;
-        const price = o.priceAmount != null && Number.isFinite(Number(o.priceAmount)) ? Number(o.priceAmount) : null;
-        const vat = o.vatRate != null && Number.isFinite(Number(o.vatRate)) ? Number(o.vatRate) : null;
-        const cur = o.currency != null && String(o.currency).trim() ? String(o.currency).trim().toUpperCase() : null;
-        const cat = o.category != null && String(o.category).trim() ? String(o.category).trim() : null;
-        rows.push({ instId, ch: inst.channel, instanceKey: inst.instanceKey, active: !!o.active, price, cur, vat, cat });
+        const price =
+          o.priceAmount != null && Number.isFinite(Number(o.priceAmount))
+            ? Number(o.priceAmount)
+            : null;
+        const vat =
+          o.vatRate != null && Number.isFinite(Number(o.vatRate)) ? Number(o.vatRate) : null;
+        const cur =
+          o.currency != null && String(o.currency).trim()
+            ? String(o.currency).trim().toUpperCase()
+            : null;
+        const cat =
+          o.category != null && String(o.category).trim() ? String(o.category).trim() : null;
+        rows.push({
+          instId,
+          ch: inst.channel,
+          instanceKey: inst.instanceKey,
+          active: !!o.active,
+          price,
+          cur,
+          vat,
+          cat,
+        });
       }
       if (rows.length === 0) return { ok: true, count: 0 };
 
@@ -697,7 +739,9 @@ class ChannelsModel {
       const params = [userId, pid];
       let idx = 3;
       for (const r of rows) {
-        values.push(`($1, $2, $${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6}, $${idx + 7}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`);
+        values.push(
+          `($1, $2, $${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6}, $${idx + 7}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        );
         params.push(r.ch, r.instanceKey, r.instId, r.active, r.price, r.cur, r.vat, r.cat);
         idx += 8;
       }

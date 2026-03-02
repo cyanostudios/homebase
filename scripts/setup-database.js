@@ -159,10 +159,10 @@ async function setupDatabase() {
       )
     `);
 
-    // Sessions table for express-session
+    // Sessions table for express-session (connect-pg-simple requires PRIMARY KEY on sid for ON CONFLICT)
     await client.query(`
       CREATE TABLE IF NOT EXISTS sessions (
-        sid VARCHAR NOT NULL COLLATE "default",
+        sid VARCHAR NOT NULL PRIMARY KEY,
         sess JSONB NOT NULL,
         expire TIMESTAMP(6) NOT NULL
       )
@@ -195,6 +195,12 @@ async function setupDatabase() {
       'CREATE INDEX IF NOT EXISTS idx_estimate_shares_valid_until ON estimate_shares(valid_until)',
     );
     await client.query('CREATE INDEX IF NOT EXISTS idx_sessions_expire ON sessions(expire)');
+    // Ensure sessions has PRIMARY KEY on sid (required by connect-pg-simple ON CONFLICT)
+    try {
+      await client.query('ALTER TABLE sessions ADD PRIMARY KEY (sid)');
+    } catch (e) {
+      if (e.code !== '42P16' && !e.message?.includes('already exists')) throw e;
+    }
     await client.query(
       'CREATE INDEX IF NOT EXISTS idx_plugin_access_user ON user_plugin_access(user_id, plugin_name)',
     );

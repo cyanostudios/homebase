@@ -15,10 +15,10 @@ const fxRoutes = require('./fx');
  * @param {Object} dependencies - Dependencies (pool, middlewares, etc.)
  */
 function setupCoreRoutes(app, dependencies) {
-  const { pool, authLimiter, requireAuth, pluginLoader } = dependencies;
+  const { pool, authLimiter, requireAuth, pluginLoader, csrfProtection } = dependencies;
 
   // Setup route dependencies
-  authRoutes.setupAuthRoutes(pool, authLimiter, requireAuth, pluginLoader);
+  authRoutes.setupAuthRoutes(pool, authLimiter, requireAuth, pluginLoader, csrfProtection);
   adminRoutes.setupAdminRoutes(pool, requireAuth);
   settingsRoutes.setupSettingsRoutes(pool, requireAuth);
   activityLogRoutes.setupActivityLogRoutes(requireAuth);

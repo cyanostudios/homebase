@@ -6,30 +6,47 @@ import type { OrderDetails, OrderItem, OrderStatus } from '../types/orders';
 import { statusDisplayLabel } from '../utils/statusDisplay';
 
 function fmtDate(d: any) {
-  if (!d) return '';
+  if (!d) {
+    return '';
+  }
   const dt = d instanceof Date ? d : new Date(d);
-  if (Number.isNaN(dt.getTime())) return '';
+  if (Number.isNaN(dt.getTime())) {
+    return '';
+  }
   return dt.toLocaleString();
 }
 
 function fmtMoney(amount: any, currency?: string | null) {
   const n = Number(amount);
-  if (!Number.isFinite(n)) return '';
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'SEK' }).format(n);
+  if (!Number.isFinite(n)) {
+    return '';
+  }
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: currency || 'SEK',
+  }).format(n);
 }
 
 function customerLines(c: Record<string, unknown> | null | undefined): string[] {
-  if (!c || typeof c !== 'object') return [];
+  if (!c || typeof c !== 'object') {
+    return [];
+  }
   const parts: string[] = [];
   const email = (c.email as string) || (c.email_address as string);
   const phone = (c.phone as string) || (c.phone_mobile as string) || (c.phoneMobile as string);
-  if (email) parts.push(email);
-  if (phone) parts.push(phone);
+  if (email) {
+    parts.push(email);
+  }
+  if (phone) {
+    parts.push(phone);
+  }
   return parts;
 }
 
 function formatAddress(addr: any): string[] {
-  if (!addr || typeof addr !== 'object') return [];
+  if (!addr || typeof addr !== 'object') {
+    return [];
+  }
   const parts: string[] = [];
 
   // Fyndiq format: full_name, street_address, postal_code, city, country
@@ -38,30 +55,46 @@ function formatAddress(addr: any): string[] {
   } else {
     // WooCommerce format: first_name, last_name, company, address_1, address_2, city, state, postcode, country
     const name = [addr.first_name, addr.last_name].filter(Boolean).join(' ').trim();
-    if (name) parts.push(name);
-    if (addr.company) parts.push(addr.company);
+    if (name) {
+      parts.push(name);
+    }
+    if (addr.company) {
+      parts.push(addr.company);
+    }
   }
 
   // Street address (Fyndiq) or address_1/address_2 (WooCommerce)
   if (addr.street_address || addr.streetAddress) {
     parts.push(addr.street_address || addr.streetAddress);
   } else {
-    if (addr.address_1) parts.push(addr.address_1);
-    if (addr.address_2) parts.push(addr.address_2);
+    if (addr.address_1) {
+      parts.push(addr.address_1);
+    }
+    if (addr.address_2) {
+      parts.push(addr.address_2);
+    }
   }
 
   const cityState = [addr.city, addr.state].filter(Boolean).join(', ').trim();
   const postal = addr.postcode || addr.postal_code || addr.postalCode;
   const location = [postal, cityState].filter(Boolean).join(' ').trim();
-  if (location) parts.push(location);
-  if (addr.country) parts.push(addr.country);
+  if (location) {
+    parts.push(location);
+  }
+  if (addr.country) {
+    parts.push(addr.country);
+  }
 
   return parts;
 }
 
 function normalizeRaw(raw: unknown): Record<string, any> | null {
-  if (!raw) return null;
-  if (typeof raw === 'object') return raw as Record<string, any>;
+  if (!raw) {
+    return null;
+  }
+  if (typeof raw === 'object') {
+    return raw as Record<string, any>;
+  }
   if (typeof raw === 'string') {
     try {
       const parsed = JSON.parse(raw);
@@ -74,9 +107,13 @@ function normalizeRaw(raw: unknown): Record<string, any> | null {
 }
 
 function toHref(value: unknown, mime: 'application/pdf' | 'text/plain'): string | null {
-  if (typeof value !== 'string' || !value.trim()) return null;
+  if (typeof value !== 'string' || !value.trim()) {
+    return null;
+  }
   const v = value.trim();
-  if (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('data:')) return v;
+  if (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('data:')) {
+    return v;
+  }
   return `data:${mime};base64,${v}`;
 }
 
@@ -130,13 +167,26 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
     <div className="p-4 sm:p-6 space-y-4 bg-gray-50 border-t border-gray-200">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-sm text-gray-500">{order.channel}</div>
+          <div className="text-sm text-gray-500">
+            {order.channelLabel !== null &&
+            order.channelLabel !== undefined &&
+            String(order.channelLabel).trim() !== ''
+              ? String(order.channelLabel).trim()
+              : '—'}
+          </div>
           <div className="text-lg font-semibold text-gray-900">
             {order.platformOrderNumber || order.channelOrderId || 'Order'}
           </div>
           <div className="text-sm text-gray-600 mt-1">
             {fmtDate(order.placedAt)} · {fmtMoney(order.totalAmount, order.currency)}
-            {order.items?.some((it) => it.unitPrice != null && Number.isFinite(Number(it.unitPrice))) ? ' inkl. moms' : ''}
+            {order.items?.some(
+              (it) =>
+                it.unitPrice !== null &&
+                it.unitPrice !== undefined &&
+                Number.isFinite(Number(it.unitPrice)),
+            )
+              ? ' inkl. moms'
+              : ''}
           </div>
         </div>
         {!editing ? (
@@ -181,8 +231,10 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
               <div>
                 <div className="text-xs font-medium text-gray-600 mb-1">Shipping Address</div>
                 <div className="text-sm text-gray-700 space-y-0.5">
-                  {formatAddress(order.shippingAddress || (order.customer as any)?.shippingAddress).map((line, i) => (
-                    <div key={i}>{line}</div>
+                  {formatAddress(
+                    order.shippingAddress || (order.customer as any)?.shippingAddress,
+                  ).map((line) => (
+                    <div key={`shipping-${line}`}>{line}</div>
                   ))}
                 </div>
               </div>
@@ -193,8 +245,10 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
               <div>
                 <div className="text-xs font-medium text-gray-600 mb-1">Billing Address</div>
                 <div className="text-sm text-gray-700 space-y-0.5">
-                  {formatAddress(order.billingAddress || (order.customer as any)?.billingAddress).map((line, i) => (
-                    <div key={i}>{line}</div>
+                  {formatAddress(
+                    order.billingAddress || (order.customer as any)?.billingAddress,
+                  ).map((line) => (
+                    <div key={`billing-${line}`}>{line}</div>
                   ))}
                 </div>
               </div>
@@ -205,8 +259,8 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
               <div className="text-xs font-medium text-gray-600 mb-1">Contact</div>
               {hasCustomer ? (
                 <div className="text-sm text-gray-700 space-y-0.5">
-                  {lines.map((line, i) => (
-                    <div key={i}>{line}</div>
+                  {lines.map((line) => (
+                    <div key={`contact-${line}`}>{line}</div>
                   ))}
                 </div>
               ) : (
@@ -276,7 +330,8 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
                 <span className="text-gray-500">Carrier:</span> {order.shippingCarrier || '—'}
               </div>
               <div className="text-sm text-gray-800">
-                <span className="text-gray-500">Tracking:</span> {order.shippingTrackingNumber || '—'}
+                <span className="text-gray-500">Tracking:</span>{' '}
+                {order.shippingTrackingNumber || '—'}
               </div>
               {(pdfHref || zplHref) && (
                 <div className="pt-2 flex flex-wrap gap-2">
@@ -315,28 +370,43 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
           <table className="min-w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Antal</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">À pris (inkl. moms)</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Radsumma</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  SKU
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  Title
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                  Antal
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                  À pris (inkl. moms)
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                  Radsumma
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {order.items.map((it: OrderItem) => {
-                const unitPrice = it.unitPrice != null && Number.isFinite(Number(it.unitPrice)) ? Number(it.unitPrice) : null;
+                const unitPrice =
+                  it.unitPrice !== null &&
+                  it.unitPrice !== undefined &&
+                  Number.isFinite(Number(it.unitPrice))
+                    ? Number(it.unitPrice)
+                    : null;
                 const qty = Number(it.quantity) || 0;
-                const lineTotal = unitPrice != null && qty > 0 ? unitPrice * qty : null;
+                const lineTotal = unitPrice !== null && qty > 0 ? unitPrice * qty : null;
                 return (
                   <tr key={it.id}>
                     <td className="px-4 py-2 text-sm text-gray-900">{it.sku || '—'}</td>
                     <td className="px-4 py-2 text-sm text-gray-900">{it.title || '—'}</td>
                     <td className="px-4 py-2 text-sm text-gray-900 text-right">{it.quantity}</td>
                     <td className="px-4 py-2 text-sm text-gray-900 text-right">
-                      {unitPrice != null ? fmtMoney(unitPrice, order.currency) : '—'}
+                      {unitPrice !== null ? fmtMoney(unitPrice, order.currency) : '—'}
                     </td>
                     <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium">
-                      {lineTotal != null ? fmtMoney(lineTotal, order.currency) : '—'}
+                      {lineTotal !== null ? fmtMoney(lineTotal, order.currency) : '—'}
                     </td>
                   </tr>
                 );

@@ -44,9 +44,13 @@ function getCustomerEmail(customer) {
   return customer.email || customer.email_address || '';
 }
 
-function formatChannelLabel(channel) {
+function formatChannelLabel(channel, channelLabel) {
   const ch = String(channel || '').toLowerCase();
-  if (ch === 'woocommerce') return 'specifika WooCommerce-butiken';
+  // WooCommerce: use persisted channel_label only; no fallback to "WooCommerce"
+  if (ch === 'woocommerce') {
+    const label = channelLabel != null ? String(channelLabel).trim() : '';
+    return label !== '' ? label : '—';
+  }
   if (ch === 'cdon') return 'CDON';
   if (ch === 'fyndiq') return 'Fyndiq';
   return ch || '—';
@@ -80,13 +84,23 @@ function generatePlocklistaHTML(orders) {
     const phone = getCustomerPhone(order.customer);
     const email = getCustomerEmail(order.customer);
     const orderNr = order.orderNumber != null ? String(order.orderNumber) : order.id || '—';
-    const platformLabel = order.platformLabel != null ? String(order.platformLabel) : formatChannelLabel(order.channel);
+    const platformLabel =
+      order.platformLabel != null
+        ? String(order.platformLabel)
+        : formatChannelLabel(order.channel, order.channelLabel);
     const orderNrPlatform = order.platformOrderNumber || order.channelOrderId || '—';
     const currency = order.currency || 'SEK';
     const totalAmount = order.totalAmount != null ? Number(order.totalAmount) : null;
-    const fraktDisplay = frakt != null && Number.isFinite(frakt) ? formatCurrency(frakt, currency) : '—';
-    const totalDisplay = totalAmount != null && Number.isFinite(totalAmount) ? formatCurrency(totalAmount, currency) : '—';
-    const ordersummaDisplay = ordersumma != null && Number.isFinite(ordersumma) ? formatCurrency(ordersumma, currency) : '—';
+    const fraktDisplay =
+      frakt != null && Number.isFinite(frakt) ? formatCurrency(frakt, currency) : '—';
+    const totalDisplay =
+      totalAmount != null && Number.isFinite(totalAmount)
+        ? formatCurrency(totalAmount, currency)
+        : '—';
+    const ordersummaDisplay =
+      ordersumma != null && Number.isFinite(ordersumma)
+        ? formatCurrency(ordersumma, currency)
+        : '—';
 
     const items = Array.isArray(order.items) ? order.items : [];
     const rows = items

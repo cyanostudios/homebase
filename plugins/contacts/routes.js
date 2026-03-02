@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const config = require('./plugin.config');
+const { csrfProtection } = require('../../server/core/middleware/csrf');
 const {
   body,
   commonRules,
@@ -21,28 +22,31 @@ function createContactRoutes(controller, context) {
   listsRouter.post(
     '/',
     gate,
+    csrfProtection,
     commonRules.string('name', 1, 255),
     validateRequest,
-    (req, res) => controller.createList(req, res)
+    (req, res) => controller.createList(req, res),
   );
   listsRouter.get('/:id/contacts', gate, commonRules.id('id'), validateRequest, (req, res) =>
-    controller.getListContacts(req, res)
+    controller.getListContacts(req, res),
   );
   listsRouter.post(
     '/:id/contacts',
     gate,
+    csrfProtection,
     commonRules.id('id'),
     body('contactIds').isArray().withMessage('contactIds must be an array'),
     validateRequest,
-    (req, res) => controller.addContactsToList(req, res)
+    (req, res) => controller.addContactsToList(req, res),
   );
   listsRouter.delete(
     '/:id/contacts/:contactId',
     gate,
+    csrfProtection,
     commonRules.id('id'),
     commonRules.id('contactId'),
     validateRequest,
-    (req, res) => controller.removeContactFromList(req, res)
+    (req, res) => controller.removeContactFromList(req, res),
   );
   listsRouter.put(
     '/:id',
@@ -50,10 +54,10 @@ function createContactRoutes(controller, context) {
     commonRules.id('id'),
     commonRules.string('name', 1, 255),
     validateRequest,
-    (req, res) => controller.renameList(req, res)
+    (req, res) => controller.renameList(req, res),
   );
   listsRouter.delete('/:id', gate, commonRules.id('id'), validateRequest, (req, res) =>
-    controller.deleteList(req, res)
+    controller.deleteList(req, res),
   );
   router.use('/lists', listsRouter);
 
@@ -64,6 +68,7 @@ function createContactRoutes(controller, context) {
   router.post(
     '/',
     gate,
+    csrfProtection,
     commonRules.string('companyName', 1, 255),
     commonRules.optionalString('email', 255),
     commonRules.email('email').optional(),
@@ -94,6 +99,7 @@ function createContactRoutes(controller, context) {
   router.delete(
     '/batch',
     gate,
+    csrfProtection,
     ...commonRules.requiredArray('ids', 500),
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
@@ -106,6 +112,7 @@ function createContactRoutes(controller, context) {
   router.post(
     '/:id/time-entries',
     gate,
+    csrfProtection,
     commonRules.id('id'),
     body('seconds').isInt({ min: 0 }).toInt().withMessage('seconds must be a non-negative integer'),
     body('loggedAt')
@@ -119,18 +126,15 @@ function createContactRoutes(controller, context) {
   router.delete(
     '/:id/time-entries/:entryId',
     gate,
+    csrfProtection,
     param('id').isInt().withMessage('id must be a valid integer'),
     param('entryId').isInt().withMessage('entryId must be a valid integer'),
     validateRequest,
     (req, res) => controller.deleteTimeEntry(req, res),
   );
 
-  router.delete(
-    '/:id',
-    gate,
-    commonRules.id('id'),
-    validateRequest,
-    (req, res) => controller.delete(req, res),
+  router.delete('/:id', gate, csrfProtection, commonRules.id('id'), validateRequest, (req, res) =>
+    controller.delete(req, res),
   );
 
   return router;

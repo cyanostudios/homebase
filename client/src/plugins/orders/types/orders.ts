@@ -9,6 +9,8 @@ export interface OrderListItem {
   id: string;
   channel: string;
   channelOrderId: string;
+  /** Resolved store/channel display name (e.g. "Mobilhallen"). Set by server for WooCommerce; client uses for CDON/Fyndiq from raw. */
+  channelLabel?: string | null;
   platformOrderNumber?: string | null;
   orderNumber?: number | null;
   placedAt?: Date | string | null;
@@ -43,4 +45,3 @@ export interface OrderDetails extends OrderListItem {
   customer?: any;
   items: OrderItem[];
 }
-

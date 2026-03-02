@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import {
   Table,
   TableBody,
@@ -12,8 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { woocommerceApi } from '../api/woocommerceApi';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 
+import { woocommerceApi } from '../api/woocommerceApi';
 import { useWooCommerce } from '../context/WooCommerceContext';
 
 interface WooInstance {
@@ -33,7 +33,8 @@ interface WooInstance {
 }
 
 export const WooExportPanel: React.FC = () => {
-  const { instances, openWooSettingsPanel, openWooSettingsForEdit, loadWooSettings } = useWooCommerce();
+  const { instances, openWooSettingsPanel, openWooSettingsForEdit, loadWooSettings } =
+    useWooCommerce();
   const [loadingInstances, setLoadingInstances] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
@@ -56,7 +57,9 @@ export const WooExportPanel: React.FC = () => {
       } catch (err) {
         console.error('Failed to load WooCommerce instances:', err);
       } finally {
-        if (!cancelled) setLoadingInstances(false);
+        if (!cancelled) {
+          setLoadingInstances(false);
+        }
       }
     };
     load();
@@ -105,11 +108,7 @@ export const WooExportPanel: React.FC = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-end">
         {isConfigured && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => openWooSettingsPanel(null)}
-          >
+          <Button variant="outline" size="sm" onClick={() => openWooSettingsPanel(null)}>
             Add Store
           </Button>
         )}
@@ -122,9 +121,7 @@ export const WooExportPanel: React.FC = () => {
               <ShoppingCart className="w-6 h-6 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-semibold mb-1">
-                Connect your WooCommerce store
-              </h3>
+              <h3 className="text-lg font-semibold mb-1">Connect your WooCommerce store</h3>
               <p className="text-sm text-muted-foreground">
                 Add your store URL and API keys. Publish products from <strong>Products</strong>.
               </p>
@@ -155,11 +152,10 @@ export const WooExportPanel: React.FC = () => {
           <Card padding="sm" className="shadow-none">
             <div className="flex items-center justify-between gap-3 mb-3">
               <div>
-                <h3 className="text-lg font-semibold mb-1">
-                  Stores
-                </h3>
+                <h3 className="text-lg font-semibold mb-1">Stores</h3>
                 <p className="text-sm text-muted-foreground">
-                  Manage multiple WooCommerce stores. Each store can have its own products and orders.
+                  Manage multiple WooCommerce stores. Each store can have its own products and
+                  orders.
                 </p>
               </div>
             </div>
@@ -168,7 +164,8 @@ export const WooExportPanel: React.FC = () => {
               <div className="text-sm text-muted-foreground">Loading stores…</div>
             ) : instances.length === 0 ? (
               <div className="text-sm text-muted-foreground">
-                No stores configured. Click <strong>Add Store</strong> to connect your first WooCommerce store.
+                No stores configured. Click <strong>Add Store</strong> to connect your first
+                WooCommerce store.
               </div>
             ) : (
               <Table>
@@ -186,9 +183,7 @@ export const WooExportPanel: React.FC = () => {
                     return (
                       <TableRow key={inst.id}>
                         <TableCell>
-                          <div className="font-medium">
-                            {inst.label || inst.instanceKey}
-                          </div>
+                          <div className="font-medium">{inst.label || inst.instanceKey}</div>
                         </TableCell>
                         <TableCell>
                           <div className="text-sm text-muted-foreground truncate max-w-xs">
@@ -196,28 +191,24 @@ export const WooExportPanel: React.FC = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="text-sm text-muted-foreground">
-                            {inst.instanceKey}
-                          </div>
+                          <div className="text-sm text-muted-foreground">{inst.instanceKey}</div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                if (creds) {
-                                  openWooSettingsForEdit({
-                                    id: inst.id,
-                                    storeUrl: creds.storeUrl,
-                                    consumerKey: creds.consumerKey,
-                                    consumerSecret: creds.consumerSecret,
-                                    useQueryAuth: creds.useQueryAuth,
-                                    label: inst.label || '',
-                                    instanceKey: inst.instanceKey,
-                                  } as any);
-                                }
-                              }}
+                              onClick={() =>
+                                openWooSettingsForEdit({
+                                  id: inst.id,
+                                  storeUrl: creds?.storeUrl ?? '',
+                                  consumerKey: creds?.consumerKey ?? '',
+                                  consumerSecret: creds?.consumerSecret ?? '',
+                                  useQueryAuth: creds?.useQueryAuth ?? false,
+                                  label: inst.label ?? '',
+                                  instanceKey: inst.instanceKey,
+                                } as any)
+                              }
                             >
                               Edit
                             </Button>
