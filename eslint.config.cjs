@@ -137,4 +137,13 @@ module.exports = [
       // lägg server-specifika regler här vid behov
     },
   },
+
+  // 5) Registry file keeps intentional grouped import sections by plugin domain.
+  // Disable import-order only here to avoid forced large mechanical reshuffles.
+  {
+    files: ['client/src/core/pluginRegistry.ts'],
+    rules: {
+      'import/order': 'off',
+    },
+  },
 ];
