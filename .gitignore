@@ -38,3 +38,5 @@ emergency_search.js
 .cursor/omskrivning*.md
 .cursor/*_output*.md
 .cursor/*.plan.md
+# Project-specific Neon config (contains project ID)
+.cursor/neon-homebase.md
