@@ -19,6 +19,14 @@ class WooCommerceController {
     this.fyndiqModel = new FyndiqProductsModel();
   }
 
+  requireStoreLabel(label) {
+    const normalized = typeof label === 'string' ? label.trim() : '';
+    if (!normalized) {
+      throw new AppError('Missing required field: label', 400, AppError.CODES.VALIDATION_ERROR);
+    }
+    return normalized;
+  }
+
   async _getInstanceOrThrow(req) {
     const instanceId = String(req.query?.instanceId || req.body?.instanceId || '').trim();
     if (!instanceId) {
@@ -157,17 +165,7 @@ class WooCommerceController {
     try {
       const { instanceKey, label, storeUrl, consumerKey, consumerSecret, useQueryAuth } =
         req.body || {};
-
-      // Extract store name from URL for label if not provided
-      let finalLabel = label;
-      if (!finalLabel && storeUrl) {
-        try {
-          const url = new URL(storeUrl);
-          finalLabel = url.hostname.replace('www.', '');
-        } catch (e) {
-          finalLabel = 'WooCommerce Store';
-        }
-      }
+      const finalLabel = this.requireStoreLabel(label);
 
       const instance = await this.model.upsertInstance(req, {
         instanceKey,
@@ -216,20 +214,11 @@ class WooCommerceController {
         useQueryAuth: useQueryAuth !== undefined ? !!useQueryAuth : existingCreds.useQueryAuth,
       };
 
-      // Extract store name from URL for label if not provided
-      let finalLabel = label;
-      if (!finalLabel && updatedCreds.storeUrl) {
-        try {
-          const url = new URL(updatedCreds.storeUrl);
-          finalLabel = url.hostname.replace('www.', '');
-        } catch (e) {
-          finalLabel = existing.label || 'WooCommerce Store';
-        }
-      }
+      const finalLabel = this.requireStoreLabel(label !== undefined ? label : existing.label);
 
       const instance = await this.model.upsertInstance(req, {
         instanceKey: existing.instanceKey,
-        label: finalLabel || existing.label,
+        label: finalLabel,
         credentials: updatedCreds,
       });
 
@@ -277,11 +266,9 @@ class WooCommerceController {
         : (await this._getInstanceOrThrow(req)).credentials;
 
       if (!settings?.storeUrl || !settings?.consumerKey || !settings?.consumerSecret) {
-        return res
-          .status(400)
-          .json({
-            error: 'Missing WooCommerce credentials (storeUrl, consumerKey, consumerSecret).',
-          });
+        return res.status(400).json({
+          error: 'Missing WooCommerce credentials (storeUrl, consumerKey, consumerSecret).',
+        });
       }
 
       const base = this.normalizeBaseUrl(settings.storeUrl);
@@ -306,12 +293,10 @@ class WooCommerceController {
       });
     } catch (error) {
       Logger.error('Woo test connection error', error, { userId: Context.getUserId(req) });
-      res
-        .status(502)
-        .json({
-          error: 'Failed to reach WooCommerce API',
-          detail: String(error?.message || error),
-        });
+      res.status(502).json({
+        error: 'Failed to reach WooCommerce API',
+        detail: String(error?.message || error),
+      });
     }
   }
 

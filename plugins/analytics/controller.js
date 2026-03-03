@@ -1,9 +1,17 @@
 const { Context, Logger } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
+const analyticsCache = require('./cache');
 
 class AnalyticsController {
   constructor(model) {
     this.model = model;
+  }
+
+  parseIsoDate(value) {
+    if (!value) return null;
+    const dt = new Date(String(value));
+    if (Number.isNaN(dt.getTime())) return null;
+    return dt.toISOString();
   }
 
   parseFilters(req) {
@@ -13,9 +21,71 @@ class AnalyticsController {
       req.query?.channelInstanceId != null && req.query.channelInstanceId !== ''
         ? Number(req.query.channelInstanceId)
         : null;
-    const from = req.query?.from ? new Date(String(req.query.from)) : null;
-    const to = req.query?.to ? new Date(String(req.query.to)) : null;
+    const from = this.parseIsoDate(req.query?.from);
+    const to = this.parseIsoDate(req.query?.to);
     return { status, channel, channelInstanceId, from, to };
+  }
+
+  getGranularity(req) {
+    const raw = req.query?.granularity ? String(req.query.granularity).trim().toLowerCase() : 'day';
+    return raw === 'week' || raw === 'month' ? raw : 'day';
+  }
+
+  buildCachePayload(filters, granularity = null) {
+    const payload = {
+      status: filters?.status || null,
+      channel: filters?.channel || null,
+      channelInstanceId:
+        filters?.channelInstanceId != null ? Number(filters.channelInstanceId) : null,
+      from: filters?.from || null,
+      to: filters?.to || null,
+    };
+    if (granularity != null) {
+      payload.granularity = granularity;
+    }
+    return payload;
+  }
+
+  getCachedOrLoad(req, endpointName, payload, loader, ttlMs = 30000) {
+    const userId = Context.getUserId(req);
+    if (!userId) {
+      return loader();
+    }
+    const key = analyticsCache.buildKey(userId, endpointName, payload);
+    const hit = analyticsCache.get(key);
+    if (hit != null) {
+      return Promise.resolve(hit);
+    }
+    return loader().then((value) => {
+      analyticsCache.set(key, value, ttlMs);
+      return value;
+    });
+  }
+
+  async summary(req, res) {
+    const startedAt = Date.now();
+    try {
+      const filters = this.parseFilters(req);
+      const granularity = this.getGranularity(req);
+      const payload = this.buildCachePayload(filters, granularity);
+      const data = await this.getCachedOrLoad(
+        req,
+        'summary',
+        payload,
+        () => this.model.getSummary(req, filters, granularity),
+        30000,
+      );
+      res.setHeader('X-Analytics-Summary-Ms', String(Date.now() - startedAt));
+      Logger.info('analytics.summary.timing', {
+        userId: Context.getUserId(req),
+        ms: Date.now() - startedAt,
+      });
+      return res.json(data);
+    } catch (error) {
+      Logger.error('Analytics summary error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to load analytics summary' });
+    }
   }
 
   async overview(req, res) {
@@ -31,9 +101,7 @@ class AnalyticsController {
 
   async timeSeries(req, res) {
     try {
-      const granularity = req.query?.granularity
-        ? String(req.query.granularity).trim().toLowerCase()
-        : 'day';
+      const granularity = this.getGranularity(req);
       const data = await this.model.getTimeSeries(req, this.parseFilters(req), granularity);
       return res.json({ items: data });
     } catch (error) {
@@ -43,9 +111,60 @@ class AnalyticsController {
     }
   }
 
-  async channels(req, res) {
+  async statusDistribution(req, res) {
     try {
-      const data = await this.model.getChannels(req, this.parseFilters(req));
+      const granularity = this.getGranularity(req);
+      const items = await this.model.getStatusDistribution(
+        req,
+        this.parseFilters(req),
+        granularity,
+      );
+      return res.json({ items });
+    } catch (error) {
+      Logger.error('Analytics statusDistribution error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to load status distribution' });
+    }
+  }
+
+  async customerSegments(req, res) {
+    const startedAt = Date.now();
+    try {
+      const filters = this.parseFilters(req);
+      const data = await this.getCachedOrLoad(
+        req,
+        'customerSegments',
+        this.buildCachePayload(filters),
+        () => this.model.getCustomerSegments(req, filters),
+        45000,
+      );
+      Logger.info('analytics.customerSegments.timing', {
+        userId: Context.getUserId(req),
+        ms: Date.now() - startedAt,
+      });
+      return res.json(data);
+    } catch (error) {
+      Logger.error('Analytics customerSegments error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to load customer segments' });
+    }
+  }
+
+  async channels(req, res) {
+    const startedAt = Date.now();
+    try {
+      const filters = this.parseFilters(req);
+      const data = await this.getCachedOrLoad(
+        req,
+        'channels',
+        this.buildCachePayload(filters),
+        () => this.model.getChannels(req, filters),
+        30000,
+      );
+      Logger.info('analytics.channels.timing', {
+        userId: Context.getUserId(req),
+        ms: Date.now() - startedAt,
+      });
       return res.json({ items: data });
     } catch (error) {
       Logger.error('Analytics channels error', error, { userId: Context.getUserId(req) });
@@ -55,9 +174,24 @@ class AnalyticsController {
   }
 
   async topProducts(req, res) {
+    const startedAt = Date.now();
     try {
       const limit = req.query?.limit != null ? Number(req.query.limit) : 20;
-      const data = await this.model.getTopProducts(req, this.parseFilters(req), limit);
+      const filters = this.parseFilters(req);
+      const data = await this.getCachedOrLoad(
+        req,
+        'topProducts',
+        {
+          ...this.buildCachePayload(filters),
+          limit,
+        },
+        () => this.model.getTopProducts(req, filters, limit),
+        30000,
+      );
+      Logger.info('analytics.topProducts.timing', {
+        userId: Context.getUserId(req),
+        ms: Date.now() - startedAt,
+      });
       return res.json({ items: data });
     } catch (error) {
       Logger.error('Analytics topProducts error', error, { userId: Context.getUserId(req) });
@@ -88,12 +222,24 @@ class AnalyticsController {
     try {
       const limit = req.query?.limit != null ? Number(req.query.limit) : 200;
       const items = await this.model.getTopProducts(req, this.parseFilters(req), limit);
-      const header = ['sku', 'title', 'order_count', 'units_sold', 'revenue'].join(',');
-      const lines = items.map((row) =>
-        [row.sku ?? '', row.title ?? '', row.orderCount, row.unitsSold, row.revenue]
+      const currencies = [
+        ...new Set(items.flatMap((r) => Object.keys(r.revenueByCurrency || {}))),
+      ].sort();
+      const header = [
+        'sku',
+        'title',
+        'order_count',
+        'units_sold',
+        ...currencies.map((c) => `revenue_${c}`),
+      ].join(',');
+      const lines = items.map((row) => {
+        const base = [row.sku ?? '', row.title ?? '', row.orderCount, row.unitsSold];
+        const revByCur = row.revenueByCurrency || {};
+        const revCols = currencies.map((c) => revByCur[c] ?? 0);
+        return [...base, ...revCols]
           .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-          .join(','),
-      );
+          .join(',');
+      });
       const csv = [header, ...lines].join('\n');
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="analytics-top-products.csv"');

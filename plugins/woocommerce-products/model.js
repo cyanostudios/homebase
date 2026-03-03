@@ -179,6 +179,9 @@ class WooCommerceModel {
       }
 
       const lbl = label != null && String(label).trim() ? String(label).trim() : null;
+      if (!lbl) {
+        throw new AppError('Missing required field: label', 400, AppError.CODES.VALIDATION_ERROR);
+      }
       const creds = this.normalizeCredentialsForStorage(credentials);
       const credsJsonb = this.credentialsForJsonb(creds);
 

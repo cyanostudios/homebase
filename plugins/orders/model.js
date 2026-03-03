@@ -9,6 +9,71 @@ class OrdersModel {
   static ORDERS_TABLE = 'orders';
   static ITEMS_TABLE = 'order_items';
   static ORDER_NUMBER_COUNTER_TABLE = 'order_number_counter';
+  static CUSTOMER_FIRST_ORDERS_TABLE = 'customer_first_orders';
+
+  getChannelMarket(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const marketRaw = raw.market != null ? String(raw.market).trim().toLowerCase() : '';
+    return marketRaw || null;
+  }
+
+  normalizeCurrencyForAnalytics(channel, currency, channelMarketNorm) {
+    const c = currency ? String(currency).trim().toUpperCase() : '';
+    if (channel === 'cdon' || channel === 'fyndiq') {
+      if (channelMarketNorm === 'se') return 'SEK';
+      if (channelMarketNorm === 'dk') return 'DKK';
+      if (channelMarketNorm === 'fi') return 'EUR';
+      if (channelMarketNorm === 'no') return 'NOK';
+    }
+    return c || 'SEK';
+  }
+
+  normalizeCustomerIdentifierForAnalytics(channel, customer) {
+    const c = customer && typeof customer === 'object' ? customer : null;
+    if (!c) return null;
+    if (channel === 'cdon' || channel === 'fyndiq') {
+      const phone = c.phone != null ? String(c.phone) : '';
+      const normalized = phone.replace(/[^0-9+]/g, '').trim();
+      return normalized || null;
+    }
+    const email = c.email != null ? String(c.email).trim().toLowerCase() : '';
+    return email || null;
+  }
+
+  async upsertCustomerFirstOrder(db, { userId, orderId, placedAt, customerIdentifierNorm }) {
+    if (!customerIdentifierNorm) return;
+    await db.query(
+      `
+      INSERT INTO ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE} (
+        user_id,
+        customer_identifier_norm,
+        first_order_id,
+        first_order_at
+      )
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (user_id, customer_identifier_norm) DO UPDATE
+      SET
+        first_order_id = CASE
+          WHEN EXCLUDED.first_order_at IS NULL THEN ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE}.first_order_id
+          WHEN ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE}.first_order_at IS NULL THEN EXCLUDED.first_order_id
+          WHEN EXCLUDED.first_order_at < ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE}.first_order_at THEN EXCLUDED.first_order_id
+          WHEN EXCLUDED.first_order_at = ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE}.first_order_at
+            AND EXCLUDED.first_order_id < ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE}.first_order_id THEN EXCLUDED.first_order_id
+          ELSE ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE}.first_order_id
+        END,
+        first_order_at = CASE
+          WHEN EXCLUDED.first_order_at IS NULL THEN ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE}.first_order_at
+          WHEN ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE}.first_order_at IS NULL THEN EXCLUDED.first_order_at
+          WHEN EXCLUDED.first_order_at < ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE}.first_order_at THEN EXCLUDED.first_order_at
+          WHEN EXCLUDED.first_order_at = ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE}.first_order_at
+            AND EXCLUDED.first_order_id < ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE}.first_order_id THEN EXCLUDED.first_order_at
+          ELSE ${OrdersModel.CUSTOMER_FIRST_ORDERS_TABLE}.first_order_at
+        END,
+        updated_at = NOW()
+      `,
+      [userId, customerIdentifierNorm, orderId, placedAt],
+    );
+  }
 
   async list(req, { status, channel, from, to, limit = 50, offset = 0 } = {}) {
     try {
@@ -289,6 +354,22 @@ class OrdersModel {
       const totalAmount = order?.totalAmount != null ? Number(order.totalAmount) : null;
       const currency = order?.currency ? String(order.currency).trim().toUpperCase() : null;
       const status = order?.status ? String(order.status).trim().toLowerCase() : null;
+      let orderRaw = null;
+      if (order?.raw && typeof order.raw === 'object') {
+        orderRaw = order.raw;
+      } else if (typeof order?.raw === 'string') {
+        try {
+          orderRaw = JSON.parse(order.raw);
+        } catch {
+          orderRaw = null;
+        }
+      }
+      const channelMarketNorm = this.getChannelMarket(orderRaw);
+      const currencyNorm = this.normalizeCurrencyForAnalytics(channel, currency, channelMarketNorm);
+      const customerIdentifierNorm = this.normalizeCustomerIdentifierForAnalytics(
+        channel,
+        order?.customer,
+      );
 
       // If order already exists (same channel + instance + channel_order_id), update it and return.
       const existing = await db.query(
@@ -315,8 +396,12 @@ class OrdersModel {
              customer = COALESCE($9, customer),
              raw = $10,
              channel_label = COALESCE($11, channel_label),
+             channel_market_norm = COALESCE($12, channel_market_norm),
+             currency_norm = COALESCE($13, currency_norm),
+             customer_identifier_norm = COALESCE($14, customer_identifier_norm),
              updated_at = NOW()
-           WHERE user_id = $1 AND id = $2`,
+           WHERE user_id = $1 AND id = $2
+           RETURNING id, placed_at, customer_identifier_norm`,
           [
             userId,
             orderId,
@@ -329,8 +414,17 @@ class OrdersModel {
             order?.customer ? JSON.stringify(order.customer) : null,
             order?.raw ? JSON.stringify(order.raw) : null,
             channelLabelVal,
+            channelMarketNorm,
+            currencyNorm,
+            customerIdentifierNorm,
           ],
         );
+        await this.upsertCustomerFirstOrder(db, {
+          userId,
+          orderId,
+          placedAt,
+          customerIdentifierNorm,
+        });
         return { created: false, orderId };
       }
 
@@ -357,13 +451,13 @@ class OrdersModel {
           INSERT INTO ${OrdersModel.ORDERS_TABLE} (
             user_id, channel, channel_order_id, channel_instance_id, channel_label, platform_order_number, order_number,
             placed_at, total_amount, currency, status,
-            shipping_address, billing_address, customer, raw,
+            shipping_address, billing_address, customer, raw, channel_market_norm, currency_norm, customer_identifier_norm,
             created_at, updated_at
           )
           VALUES (
             $1, $2, $3, $4, $5, $6, $7,
             $8, $9, COALESCE($10, 'SEK'), COALESCE($11, 'processing'),
-            $12, $13, $14, $15,
+            $12, $13, $14, $15, $16, $17, $18,
             NOW(), NOW()
           )
           RETURNING id
@@ -384,6 +478,9 @@ class OrdersModel {
             order?.billingAddress ? JSON.stringify(order.billingAddress) : null,
             order?.customer ? JSON.stringify(order.customer) : null,
             order?.raw ? JSON.stringify(order.raw) : null,
+            channelMarketNorm,
+            currencyNorm,
+            customerIdentifierNorm,
           ],
         );
         orderId = Number(createRes[0].id);
@@ -406,6 +503,13 @@ class OrdersModel {
         }
         throw err;
       }
+
+      await this.upsertCustomerFirstOrder(db, {
+        userId,
+        orderId,
+        placedAt,
+        customerIdentifierNorm,
+      });
 
       // Insert items (new order only)
       const items = Array.isArray(order?.items) ? order.items : [];

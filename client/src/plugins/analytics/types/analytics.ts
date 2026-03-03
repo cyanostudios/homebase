@@ -9,15 +9,30 @@ export interface AnalyticsFilters {
   granularity?: AnalyticsGranularity;
 }
 
-export interface AnalyticsOverview {
+export interface AnalyticsOverviewByCurrency {
+  currency: string;
   revenue: number;
   orderCount: number;
   aov: number;
+}
+
+export interface AnalyticsOverview {
+  byCurrency: AnalyticsOverviewByCurrency[];
   unitsSold: number;
 }
 
 export interface AnalyticsTimeSeriesItem {
   bucket: string;
+  channel: string;
+  channelLabel: string;
+  currency: string;
+  orderCount: number;
+  revenue: number;
+}
+
+export interface AnalyticsStatusDistributionItem {
+  bucket: string;
+  status: string;
   orderCount: number;
   revenue: number;
 }
@@ -26,6 +41,7 @@ export interface AnalyticsChannelItem {
   channel: string;
   channelInstanceId: number | null;
   channelLabel: string | null;
+  currency: string;
   orderCount: number;
   revenue: number;
 }
@@ -35,7 +51,7 @@ export interface AnalyticsTopProductItem {
   title: string | null;
   orderCount: number;
   unitsSold: number;
-  revenue: number;
+  revenueByCurrency: Record<string, number>;
 }
 
 export interface AnalyticsDrilldownOrderItem {
@@ -48,4 +64,21 @@ export interface AnalyticsDrilldownOrderItem {
   status: string;
   totalAmount: number | null;
   currency: string | null;
+}
+
+export interface AnalyticsCustomerSegments {
+  newCustomers: number;
+  returningCustomers: number;
+  newCustomerOrders: number;
+  returningCustomerOrders: number;
+  unidentifiedOrders: number;
+}
+
+export interface AnalyticsSummary {
+  overview: AnalyticsOverview;
+  timeSeries: AnalyticsTimeSeriesItem[];
+  statusDistribution: AnalyticsStatusDistributionItem[];
+  customerSegments: AnalyticsCustomerSegments;
+  channels: AnalyticsChannelItem[];
+  allChannelsForDropdown: AnalyticsChannelItem[];
 }

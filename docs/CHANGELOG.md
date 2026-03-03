@@ -6,12 +6,39 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ## 2026-02 – Homebase 3.1.6
 
+### Analytics – performance-overhaul
+
+- **Summary-endpoint** `GET /api/analytics/summary` ersätter flera separata anrop för första vy. Returnerar overview, timeSeries, statusDistribution, customerSegments, channels, allChannelsForDropdown i ett svar.
+- **Kanoniska kolumner** på `orders`: `channel_market_norm`, `currency_norm`, `customer_identifier_norm`. Fylls vid ingest, inte vid varje read.
+- **Read model** `customer_first_orders` för ny/återkommande kundsegmentering. Uppdateras via trigger vid order-insert/update.
+- **Cache** användar- och filternycklad, kort TTL (30–45 s). Används för summary, channels, customerSegments, top-products. Invalidering vid order-mutationer (update, ingest, sync, delete).
+- **Index** (migration 058) för analytics-frågor: user_id+placed_at, status, channel, channel_instance_id, channel_market_norm, customer_identifier_norm, customer_first_orders, order_items.
+- **Frontend:** debounce på filter, drilldown-fetches isolerade från basdashboard, ingen duplicerad channel-fetch när inget kanalfilter är aktivt.
+- **Timing-loggning** för summary, channels, customerSegments, top-products (p50/p95-analys).
+- Migrationer: `057-analytics-canonical-and-customer-first-orders.sql`, `058-analytics-normalized-indexes.sql`.
+
+### WooCommerce – obligatoriskt label (stramare)
+
+- **Label krävs** vid create/update av WooCommerce-instans. Ingen fallback till hostnamn eller "WooCommerce Store". API returnerar 400 om label saknas.
+- Filer: `plugins/woocommerce-products/controller.js`, `plugins/woocommerce-products/model.js`.
+
+### Orders – kundpresentation
+
+- **Ordervy** formaterar kund- och adressdata läsbart istället för rå JSON. `formatCustomer` och `formatAddress` hjälpfunktioner.
+- Fil: `client/src/plugins/orders/components/OrdersView.tsx`.
+
+### Dokumentation – analytics-referens
+
+- **Konsoliderad analytics-dokumentation** till [docs/analytics-overhaul-reference.md](analytics-overhaul-reference.md). Ersätter och tar bort `analytics-performance-rollout.md`, `analytics-contracts.md` och planen `analytics_performance_overhaul_a77a35d3.plan.md`. Innehåller scope, kontrakt, migrationsrunbook, verifierings-SQL och blueprint för övriga e-commerce-plugins.
+
 ### Nytt plugin: E-Commerce Analytics
 
 - **Nytt plugin `analytics`** under E-Commerce med KPI:er för omsättning, order, AOV och sålda enheter.
+- **Storsäljare:** Fraktkostnader (WooCommerce shipping line items) exkluderas från topplistan – endast produktrader räknas.
 - **Nya API-endpoints** i `plugins/analytics/routes.js`: `GET /api/analytics/overview`, `GET /api/analytics/timeseries`, `GET /api/analytics/channels`, `GET /api/analytics/top-products`, `GET /api/analytics/drilldown/orders`, `GET /api/analytics/export/top-products.csv`.
 - **Filtrering och trends**: datumintervall, status, kanal, kanalinstans och granularitet (dag/vecka/månad) stöds i backend och UI.
 - **Drilldown + export**: klick på storsäljare visar orderlista per SKU och CSV-export av topplista finns direkt i vyn.
+- **Fördjupad analytics**: klick på kanal/butik öppnar order-drilldown för vald kanalinstans, statusfördelning över tid visas i diagram (med klickbar status/bucket-drilldown), och ny/återkommande kundsegmentering visas. För CDON/Fyndiq identifieras kund via telefonnummer; övriga kanaler använder kund-e-post.
 - **Dashboard-widget**: snabb kortvy för omsättning med länk till analytics-pluginet.
 - Filer: `plugins/analytics/plugin.config.js`, `plugins/analytics/index.js`, `plugins/analytics/model.js`, `plugins/analytics/controller.js`, `plugins/analytics/routes.js`, `client/src/plugins/analytics/**`, `client/src/core/pluginRegistry.ts`, `client/src/core/ui/Sidebar.tsx`, `server/core/routes/auth.js`.
 

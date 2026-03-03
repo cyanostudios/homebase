@@ -1,7 +1,10 @@
 import type {
   AnalyticsChannelItem,
+  AnalyticsCustomerSegments,
   AnalyticsFilters,
   AnalyticsOverview,
+  AnalyticsSummary,
+  AnalyticsStatusDistributionItem,
   AnalyticsTimeSeriesItem,
   AnalyticsTopProductItem,
   AnalyticsDrilldownOrderItem,
@@ -34,7 +37,7 @@ class AnalyticsApi {
     return payload ?? {};
   }
 
-  private toQueryString(filters: AnalyticsFilters) {
+  private toQueryParams(filters: AnalyticsFilters): URLSearchParams {
     const qs = new URLSearchParams();
     if (filters.from) {
       qs.set('from', filters.from);
@@ -48,69 +51,84 @@ class AnalyticsApi {
     if (filters.channel) {
       qs.set('channel', filters.channel);
     }
-    if (filters.channelInstanceId !== null && filters.channelInstanceId !== undefined) {
+    if (filters.channelInstanceId !== undefined && filters.channelInstanceId !== null) {
       qs.set('channelInstanceId', String(filters.channelInstanceId));
     }
     if (filters.granularity) {
       qs.set('granularity', filters.granularity);
     }
-    const raw = qs.toString();
+    return qs;
+  }
+
+  private toQueryString(filters: AnalyticsFilters): string {
+    const raw = this.toQueryParams(filters).toString();
     return raw ? `?${raw}` : '';
+  }
+
+  private unwrapItems<T>(data: { items?: T[] } | null | undefined): T[] {
+    return Array.isArray(data?.items) ? data.items : [];
   }
 
   async getOverview(filters: AnalyticsFilters): Promise<AnalyticsOverview> {
     return (await this.request(`/overview${this.toQueryString(filters)}`)) as AnalyticsOverview;
   }
 
+  async getSummary(filters: AnalyticsFilters): Promise<AnalyticsSummary> {
+    return (await this.request(`/summary${this.toQueryString(filters)}`)) as AnalyticsSummary;
+  }
+
   async getTimeSeries(filters: AnalyticsFilters): Promise<AnalyticsTimeSeriesItem[]> {
-    const data = (await this.request(`/timeseries${this.toQueryString(filters)}`)) as {
-      items?: AnalyticsTimeSeriesItem[];
-    };
-    return Array.isArray(data.items) ? data.items : [];
+    const data = await this.request(`/timeseries${this.toQueryString(filters)}`);
+    return this.unwrapItems(data);
+  }
+
+  async getStatusDistribution(
+    filters: AnalyticsFilters,
+  ): Promise<AnalyticsStatusDistributionItem[]> {
+    const data = await this.request(`/status-distribution${this.toQueryString(filters)}`);
+    return this.unwrapItems(data);
+  }
+
+  async getCustomerSegments(filters: AnalyticsFilters): Promise<AnalyticsCustomerSegments> {
+    return (await this.request(
+      `/customer-segments${this.toQueryString(filters)}`,
+    )) as AnalyticsCustomerSegments;
   }
 
   async getChannels(filters: AnalyticsFilters): Promise<AnalyticsChannelItem[]> {
-    const data = (await this.request(`/channels${this.toQueryString(filters)}`)) as {
-      items?: AnalyticsChannelItem[];
-    };
-    return Array.isArray(data.items) ? data.items : [];
+    const data = await this.request(`/channels${this.toQueryString(filters)}`);
+    return this.unwrapItems(data);
   }
 
   async getTopProducts(filters: AnalyticsFilters, limit = 20): Promise<AnalyticsTopProductItem[]> {
-    const qs = this.toQueryString(filters);
-    const suffix = qs ? `${qs}&limit=${limit}` : `?limit=${limit}`;
-    const data = (await this.request(`/top-products${suffix}`)) as {
-      items?: AnalyticsTopProductItem[];
-    };
-    return Array.isArray(data.items) ? data.items : [];
+    const params = this.toQueryParams(filters);
+    params.set('limit', String(limit));
+    const data = await this.request(`/top-products?${params.toString()}`);
+    return this.unwrapItems(data);
   }
 
   async getDrilldownOrders(
     filters: AnalyticsFilters,
     opts: { sku?: string; limit?: number; offset?: number } = {},
   ): Promise<AnalyticsDrilldownOrderItem[]> {
-    const qs = new URLSearchParams(this.toQueryString(filters).replace(/^\?/, ''));
+    const params = this.toQueryParams(filters);
     if (opts.sku) {
-      qs.set('sku', opts.sku);
+      params.set('sku', opts.sku);
     }
-    if (opts.limit !== null && opts.limit !== undefined) {
-      qs.set('limit', String(opts.limit));
+    if (opts.limit !== undefined && opts.limit !== null) {
+      params.set('limit', String(opts.limit));
     }
-    if (opts.offset !== null && opts.offset !== undefined) {
-      qs.set('offset', String(opts.offset));
+    if (opts.offset !== undefined && opts.offset !== null) {
+      params.set('offset', String(opts.offset));
     }
-    const raw = qs.toString();
-    const suffix = raw ? `?${raw}` : '';
-    const data = (await this.request(`/drilldown/orders${suffix}`)) as {
-      items?: AnalyticsDrilldownOrderItem[];
-    };
-    return Array.isArray(data.items) ? data.items : [];
+    const data = await this.request(`/drilldown/orders?${params.toString()}`);
+    return this.unwrapItems(data);
   }
 
   async downloadTopProductsCsv(filters: AnalyticsFilters, limit = 200): Promise<Blob> {
-    const qs = new URLSearchParams(this.toQueryString(filters).replace(/^\?/, ''));
-    qs.set('limit', String(limit));
-    const response = await fetch(`${this.basePath}/export/top-products.csv?${qs.toString()}`, {
+    const params = this.toQueryParams(filters);
+    params.set('limit', String(limit));
+    const response = await fetch(`${this.basePath}/export/top-products.csv?${params.toString()}`, {
       credentials: 'include',
     });
     if (!response.ok) {

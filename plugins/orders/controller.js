@@ -15,6 +15,7 @@ const orderSyncState = require('./orderSyncState');
 const orderSyncService = require('./orderSyncService');
 const puppeteer = require('puppeteer');
 const { generatePlocklistaHTML } = require('./plocklistaPdfTemplate');
+const analyticsCache = require('../analytics/cache');
 
 class OrdersController {
   constructor(model) {
@@ -27,6 +28,12 @@ class OrdersController {
     this.cdonController = new CdonProductsController(this.cdonModel);
     this.fyndiqModel = new FyndiqProductsModel();
     this.fyndiqController = new FyndiqProductsController(this.fyndiqModel);
+  }
+
+  invalidateAnalyticsCache(req) {
+    const userId = Context.getUserId(req);
+    if (!userId) return;
+    analyticsCache.invalidateUser(userId);
   }
 
   normalizeUrlForMatch(url) {
@@ -60,12 +67,7 @@ class OrdersController {
       }
     }
     if (!raw || typeof raw !== 'object') return null;
-    const u =
-      raw?._homebase_store_url ||
-      raw?.store_url ||
-      raw?.storeUrl ||
-      raw?.store ||
-      null;
+    const u = raw?._homebase_store_url || raw?.store_url || raw?.storeUrl || raw?.store || null;
     return u != null ? String(u).trim() : null;
   }
 
@@ -88,7 +90,11 @@ class OrdersController {
           consumerKey: creds.consumerKey || creds.consumer_key || '',
           consumerSecret: creds.consumerSecret || creds.consumer_secret || '',
           useQueryAuth: !!creds.useQueryAuth,
-          _homebase: { instanceId: match.id, instanceKey: match.instanceKey, label: match.label || null },
+          _homebase: {
+            instanceId: match.id,
+            instanceKey: match.instanceKey,
+            label: match.label || null,
+          },
         };
       }
     }
@@ -101,7 +107,11 @@ class OrdersController {
         consumerKey: creds.consumerKey || creds.consumer_key || '',
         consumerSecret: creds.consumerSecret || creds.consumer_secret || '',
         useQueryAuth: !!creds.useQueryAuth,
-        _homebase: { instanceId: instances[0].id, instanceKey: instances[0].instanceKey, label: instances[0].label || null },
+        _homebase: {
+          instanceId: instances[0].id,
+          instanceKey: instances[0].instanceKey,
+          label: instances[0].label || null,
+        },
       };
     }
 
@@ -110,7 +120,9 @@ class OrdersController {
   }
 
   normalizeStatusForStorage(status) {
-    const s = String(status || '').trim().toLowerCase();
+    const s = String(status || '')
+      .trim()
+      .toLowerCase();
     if (!s) return null;
     // Internal canonical status: shipped is treated as delivered (UI only shows Delivered)
     if (s === 'shipped') return 'delivered';
@@ -122,8 +134,12 @@ class OrdersController {
   }
 
   async validateCdonTrackingRequirement({ order, nextStatus, nextTrackingNumber }) {
-    const channel = String(order?.channel || '').trim().toLowerCase();
-    const status = String(nextStatus || '').trim().toLowerCase();
+    const channel = String(order?.channel || '')
+      .trim()
+      .toLowerCase();
+    const status = String(nextStatus || '')
+      .trim()
+      .toLowerCase();
     if (channel !== 'cdon') return null;
     if (status !== 'delivered' && status !== 'shipped') return null;
 
@@ -145,7 +161,10 @@ class OrdersController {
     if (!t) return [];
 
     // Allow multiple tracking numbers separated by comma/semicolon/newline.
-    const parts = t.split(/[,;\n]+/g).map((x) => x.trim()).filter(Boolean);
+    const parts = t
+      .split(/[,;\n]+/g)
+      .map((x) => x.trim())
+      .filter(Boolean);
     const unique = Array.from(new Set(parts));
     const c = carrier != null && String(carrier).trim() !== '' ? String(carrier).trim() : null;
 
@@ -160,7 +179,10 @@ class OrdersController {
     if (!t) return [];
 
     // Allow multiple tracking numbers separated by comma/semicolon/newline.
-    const parts = t.split(/[,;\n]+/g).map((x) => x.trim()).filter(Boolean);
+    const parts = t
+      .split(/[,;\n]+/g)
+      .map((x) => x.trim())
+      .filter(Boolean);
     const unique = Array.from(new Set(parts));
     const c = carrier != null && String(carrier).trim() !== '' ? String(carrier).trim() : null;
 
@@ -185,7 +207,9 @@ class OrdersController {
       return;
     }
 
-    const s = String(status || '').trim().toLowerCase();
+    const s = String(status || '')
+      .trim()
+      .toLowerCase();
     const base = this.getCdonBaseUrl();
 
     if (s === 'cancelled') {
@@ -246,7 +270,9 @@ class OrdersController {
       return;
     }
 
-    const s = String(status || '').trim().toLowerCase();
+    const s = String(status || '')
+      .trim()
+      .toLowerCase();
 
     if (s === 'delivered' || s === 'shipped') {
       const tracking_information = this.buildFyndiqTrackingInformation({ carrier, trackingNumber });
@@ -278,7 +304,12 @@ class OrdersController {
         channel: 'fyndiq',
         productId: null,
         payload: { channelOrderId, status: s, tracking_information },
-        response: { endpoint: url, status: resp.status, statusText: resp.statusText, body: json || text },
+        response: {
+          endpoint: url,
+          status: resp.status,
+          statusText: resp.statusText,
+          body: json || text,
+        },
         message: 'Fyndiq fulfill failed',
       });
       return;
@@ -296,12 +327,22 @@ class OrdersController {
       );
 
       if (!resp.ok) {
-        Logger.warn('Fyndiq cancel failed', { channelOrderId, status: resp.status, body: json || text, url });
+        Logger.warn('Fyndiq cancel failed', {
+          channelOrderId,
+          status: resp.status,
+          body: json || text,
+          url,
+        });
         await this.fyndiqModel.logChannelError(req, {
           channel: 'fyndiq',
           productId: null,
           payload: { channelOrderId, status: s },
-          response: { endpoint: url, status: resp.status, statusText: resp.statusText, body: json || text },
+          response: {
+            endpoint: url,
+            status: resp.status,
+            statusText: resp.statusText,
+            body: json || text,
+          },
           message: 'Fyndiq cancel failed',
         });
       }
@@ -317,7 +358,14 @@ class OrdersController {
       const limit = req.query?.limit != null ? Number(req.query.limit) : undefined;
       const offset = req.query?.offset != null ? Number(req.query.offset) : undefined;
 
-      const { items, total } = await this.model.list(req, { status, channel, from, to, limit, offset });
+      const { items, total } = await this.model.list(req, {
+        status,
+        channel,
+        from,
+        to,
+        limit,
+        offset,
+      });
       return res.json({ items, total });
     } catch (error) {
       Logger.error('Orders list error', error, { userId: Context.getUserId(req) });
@@ -331,7 +379,10 @@ class OrdersController {
       const order = await this.model.getById(req, req.params.id);
       return res.json(order);
     } catch (error) {
-      Logger.error('Orders get error', error, { userId: Context.getUserId(req), id: req.params.id });
+      Logger.error('Orders get error', error, {
+        userId: Context.getUserId(req),
+        id: req.params.id,
+      });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       return res.status(500).json({ error: 'Failed to fetch order' });
     }
@@ -361,7 +412,10 @@ class OrdersController {
         return res.status(404).json({ error: 'No orders found for the given ids' });
       }
 
-      const channelLabels = req.body?.channelLabels && typeof req.body.channelLabels === 'object' ? req.body.channelLabels : null;
+      const channelLabels =
+        req.body?.channelLabels && typeof req.body.channelLabels === 'object'
+          ? req.body.channelLabels
+          : null;
 
       const payload = orders.map((order) => {
         const items = Array.isArray(order.items) ? order.items : [];
@@ -400,8 +454,15 @@ class OrdersController {
           if (frakt < 0) frakt = 0;
         }
 
-        const platformLabel = channelLabels != null && order.id != null ? (channelLabels[String(order.id)] ?? null) : null;
-        const orderForTemplate = { ...order, items: productItems, platformLabel: platformLabel || undefined };
+        const platformLabel =
+          channelLabels != null && order.id != null
+            ? (channelLabels[String(order.id)] ?? null)
+            : null;
+        const orderForTemplate = {
+          ...order,
+          items: productItems,
+          platformLabel: platformLabel || undefined,
+        };
         return { order: orderForTemplate, ordersumma, frakt };
       });
 
@@ -421,7 +482,10 @@ class OrdersController {
       });
 
       const dateStr = new Date().toISOString().slice(0, 10);
-      Logger.info('Plocklista PDF generated', { userId: Context.getUserId(req), orderCount: orders.length });
+      Logger.info('Plocklista PDF generated', {
+        userId: Context.getUserId(req),
+        orderCount: orders.length,
+      });
 
       const buffer = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
       res.setHeader('Content-Type', 'application/pdf');
@@ -456,6 +520,7 @@ class OrdersController {
           Logger.error('Quick-sync background run failed', err, { userId: Context.getUserId(req) });
         });
       });
+      this.invalidateAnalyticsCache(req);
       return res.json({ started: true });
     } catch (error) {
       Logger.error('Orders quickSync error', error, { userId: Context.getUserId(req) });
@@ -493,7 +558,9 @@ class OrdersController {
       const statusRaw = req.body?.status ? String(req.body.status).trim().toLowerCase() : null;
       const status = this.normalizeStatusForStorage(statusRaw);
       const carrier = req.body?.carrier ? String(req.body.carrier).trim() : null;
-      const trackingNumber = req.body?.trackingNumber ? String(req.body.trackingNumber).trim() : null;
+      const trackingNumber = req.body?.trackingNumber
+        ? String(req.body.trackingNumber).trim()
+        : null;
 
       // CDON: for Delivered on orders >= 299 SEK, require tracking number (either existing or provided).
       const current = await this.model.getById(req, req.params.id);
@@ -512,15 +579,22 @@ class OrdersController {
         carrier,
         trackingNumber,
       });
+      this.invalidateAnalyticsCache(req);
 
       // Best-effort push to channel (Woo implemented; others stubbed)
       await this.syncStatusToChannel(req, updated).catch((err) => {
-        Logger.warn('Order status sync failed (non-fatal)', err, { orderId: updated?.id, channel: updated?.channel });
+        Logger.warn('Order status sync failed (non-fatal)', err, {
+          orderId: updated?.id,
+          channel: updated?.channel,
+        });
       });
 
       return res.json(updated);
     } catch (error) {
-      Logger.error('Orders status update error', error, { userId: Context.getUserId(req), id: req.params.id });
+      Logger.error('Orders status update error', error, {
+        userId: Context.getUserId(req),
+        id: req.params.id,
+      });
       if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
       return res.status(500).json({ error: 'Failed to update order status' });
     }
@@ -535,8 +609,15 @@ class OrdersController {
       const created = await this.model.ingest(req, payload);
 
       if (created.created && created.orderId) {
-        await this.applyInventoryFromOrder(req, created.orderId, String(payload.channel || '').trim().toLowerCase());
+        await this.applyInventoryFromOrder(
+          req,
+          created.orderId,
+          String(payload.channel || '')
+            .trim()
+            .toLowerCase(),
+        );
       }
+      this.invalidateAnalyticsCache(req);
 
       return res.json({ ok: true, ...created });
     } catch (error) {
@@ -650,11 +731,14 @@ class OrdersController {
     );
 
     for (const r of rows) {
-      const channel = String(r.channel || '').trim().toLowerCase();
+      const channel = String(r.channel || '')
+        .trim()
+        .toLowerCase();
       if (!channel || channel === sourceChannel) continue;
 
       if (channel === 'woocommerce') {
-        const channelInstanceId = r.channel_instance_id != null ? String(r.channel_instance_id) : null;
+        const channelInstanceId =
+          r.channel_instance_id != null ? String(r.channel_instance_id) : null;
         await this.syncWooStock(req, {
           productId: String(productId),
           sku,
@@ -730,7 +814,9 @@ class OrdersController {
     let wooId = null;
     if (externalId && Number.isFinite(Number(externalId))) wooId = Number(externalId);
     if (!wooId) {
-      const found = await this.wooController.findWooProductBySku(base, sku, settings).catch(() => null);
+      const found = await this.wooController
+        .findWooProductBySku(base, sku, settings)
+        .catch(() => null);
       if (found?.id) wooId = Number(found.id);
     }
 
@@ -816,9 +902,13 @@ class OrdersController {
   }
 
   async syncStatusToChannel(req, order) {
-    const channel = String(order?.channel || '').trim().toLowerCase();
+    const channel = String(order?.channel || '')
+      .trim()
+      .toLowerCase();
     const channelOrderId = String(order?.channelOrderId || '').trim();
-    const status = String(order?.status || '').trim().toLowerCase();
+    const status = String(order?.status || '')
+      .trim()
+      .toLowerCase();
 
     if (!channel || !channelOrderId) return;
 
@@ -834,7 +924,8 @@ class OrdersController {
             hintedStoreUrl: this.extractWooStoreUrlFromOrder(order),
           },
           response: null,
-          message: 'Woo settings missing for this order; cannot sync status (check instances/default store).',
+          message:
+            'Woo settings missing for this order; cannot sync status (check instances/default store).',
         });
         return;
       }
@@ -877,12 +968,16 @@ class OrdersController {
       });
     }
     if (channel === 'fyndiq') {
-      await this.syncStatusToFyndiq(req, {
-        channelOrderId,
-        status,
-        carrier: order?.shippingCarrier || null,
-        trackingNumber: order?.shippingTrackingNumber || null,
-      }, order);
+      await this.syncStatusToFyndiq(
+        req,
+        {
+          channelOrderId,
+          status,
+          carrier: order?.shippingCarrier || null,
+          trackingNumber: order?.shippingTrackingNumber || null,
+        },
+        order,
+      );
     }
   }
 
@@ -890,6 +985,7 @@ class OrdersController {
   async deleteAll(req, res) {
     try {
       const result = await this.model.deleteAll(req);
+      this.invalidateAnalyticsCache(req);
       return res.json({ ok: true, ...result });
     } catch (error) {
       Logger.error('Delete all orders error', error, { userId: Context.getUserId(req) });
@@ -903,9 +999,12 @@ class OrdersController {
     try {
       const idsRaw = req.body?.ids;
       if (!Array.isArray(idsRaw)) {
-        return res.status(400).json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
+        return res
+          .status(400)
+          .json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
       }
       const result = await this.model.deleteByIds(req, idsRaw);
+      this.invalidateAnalyticsCache(req);
       return res.json({ ok: true, ...result });
     } catch (error) {
       Logger.error('Delete orders by ids error', error, { userId: Context.getUserId(req) });
@@ -919,13 +1018,17 @@ class OrdersController {
     try {
       const idsRaw = req.body?.ids;
       if (!Array.isArray(idsRaw)) {
-        return res.status(400).json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
+        return res
+          .status(400)
+          .json({ error: 'ids[] required (must be an array)', code: 'VALIDATION_ERROR' });
       }
 
       const statusRaw = req.body?.status ? String(req.body.status).trim().toLowerCase() : null;
       const status = this.normalizeStatusForStorage(statusRaw);
       const carrier = req.body?.carrier ? String(req.body.carrier).trim() : null;
-      const trackingNumber = req.body?.trackingNumber ? String(req.body.trackingNumber).trim() : null;
+      const trackingNumber = req.body?.trackingNumber
+        ? String(req.body.trackingNumber).trim()
+        : null;
 
       if (!status) {
         return res.status(400).json({ error: 'status is required', code: 'VALIDATION_ERROR' });
@@ -957,13 +1060,16 @@ class OrdersController {
 
           const offenders = [];
           for (const r of rows) {
-            const ch = String(r.channel || '').trim().toLowerCase();
+            const ch = String(r.channel || '')
+              .trim()
+              .toLowerCase();
             if (ch !== 'cdon') continue;
             const total = Number(r.total_amount);
             const needs = Number.isFinite(total) && total >= 299;
             if (!needs) continue;
             const effective = String(trackingNumber || r.shipping_tracking_number || '').trim();
-            if (!effective) offenders.push(r.order_number != null ? `#${r.order_number}` : `id:${r.id}`);
+            if (!effective)
+              offenders.push(r.order_number != null ? `#${r.order_number}` : `id:${r.id}`);
           }
 
           if (offenders.length) {
@@ -984,6 +1090,7 @@ class OrdersController {
         carrier,
         trackingNumber,
       });
+      this.invalidateAnalyticsCache(req);
 
       // Best-effort sync to channels for updated orders
       if (result.updatedIds && result.updatedIds.length > 0) {
@@ -993,7 +1100,10 @@ class OrdersController {
             const order = await this.model.getById(req, orderId);
             if (order) {
               await this.syncStatusToChannel(req, order).catch((err) => {
-                Logger.warn('Order status sync failed (non-fatal)', err, { orderId, channel: order?.channel });
+                Logger.warn('Order status sync failed (non-fatal)', err, {
+                  orderId,
+                  channel: order?.channel,
+                });
               });
             }
           } catch (err) {
@@ -1017,4 +1127,3 @@ class OrdersController {
 }
 
 module.exports = OrdersController;
-

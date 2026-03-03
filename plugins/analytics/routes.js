@@ -11,7 +11,12 @@ function createAnalyticsRoutes(controller, context) {
 
   const filtersValidation = [
     query('status').optional().trim().isLength({ max: 50 }),
-    query('channel').optional().trim().isLength({ max: 50 }),
+    query('channel')
+      .optional()
+      .trim()
+      .isLength({ max: 50 })
+      .matches(/^[a-z0-9_-]+(?::[a-z0-9_-]+)?$/i)
+      .withMessage('channel must match "<channel>" or "<channel>:<market>"'),
     query('channelInstanceId').optional().isInt({ min: 1 }),
     query('from').optional().isISO8601(),
     query('to').optional().isISO8601(),
@@ -19,6 +24,20 @@ function createAnalyticsRoutes(controller, context) {
 
   router.get('/overview', gate, filtersValidation, validateRequest, (req, res) =>
     controller.overview(req, res),
+  );
+
+  router.get(
+    '/summary',
+    gate,
+    [
+      ...filtersValidation,
+      query('granularity')
+        .optional()
+        .isIn(['day', 'week', 'month'])
+        .withMessage('granularity must be one of: day, week, month'),
+    ],
+    validateRequest,
+    (req, res) => controller.summary(req, res),
   );
 
   router.get(
@@ -33,6 +52,24 @@ function createAnalyticsRoutes(controller, context) {
     ],
     validateRequest,
     (req, res) => controller.timeSeries(req, res),
+  );
+
+  router.get(
+    '/status-distribution',
+    gate,
+    [
+      ...filtersValidation,
+      query('granularity')
+        .optional()
+        .isIn(['day', 'week', 'month'])
+        .withMessage('granularity must be one of: day, week, month'),
+    ],
+    validateRequest,
+    (req, res) => controller.statusDistribution(req, res),
+  );
+
+  router.get('/customer-segments', gate, filtersValidation, validateRequest, (req, res) =>
+    controller.customerSegments(req, res),
   );
 
   router.get('/channels', gate, filtersValidation, validateRequest, (req, res) =>

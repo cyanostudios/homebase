@@ -13,11 +13,13 @@ import { useApp } from '@/core/api/AppContext';
 import { analyticsApi } from '../api/analyticsApi';
 import type {
   AnalyticsChannelItem,
+  AnalyticsCustomerSegments,
+  AnalyticsDrilldownOrderItem,
   AnalyticsFilters,
   AnalyticsOverview,
+  AnalyticsStatusDistributionItem,
   AnalyticsTimeSeriesItem,
   AnalyticsTopProductItem,
-  AnalyticsDrilldownOrderItem,
 } from '../types/analytics';
 
 interface AnalyticsContextType {
@@ -35,11 +37,24 @@ interface AnalyticsContextType {
 
   overview: AnalyticsOverview;
   timeSeries: AnalyticsTimeSeriesItem[];
+  statusDistribution: AnalyticsStatusDistributionItem[];
+  customerSegments: AnalyticsCustomerSegments;
   channels: AnalyticsChannelItem[];
+  /** All channels (no channel filter) – for dropdown options so user can switch between channels */
+  allChannelsForDropdown: AnalyticsChannelItem[];
   topProducts: AnalyticsTopProductItem[];
   selectedSku: string | null;
   setSelectedSku: (sku: string | null) => void;
   drilldownOrders: AnalyticsDrilldownOrderItem[];
+  selectedChannelDrilldown: {
+    channel: string;
+    channelInstanceId: number | null;
+    channelLabel: string | null;
+  } | null;
+  setSelectedChannelDrilldown: (
+    next: { channel: string; channelInstanceId: number | null; channelLabel: string | null } | null,
+  ) => void;
+  channelDrilldownOrders: AnalyticsDrilldownOrderItem[];
   exportTopProductsCsv: () => Promise<void>;
 }
 
@@ -52,10 +67,16 @@ interface ProviderProps {
 }
 
 const EMPTY_OVERVIEW: AnalyticsOverview = {
-  revenue: 0,
-  orderCount: 0,
-  aov: 0,
+  byCurrency: [],
   unitsSold: 0,
+};
+
+const EMPTY_CUSTOMER_SEGMENTS: AnalyticsCustomerSegments = {
+  newCustomers: 0,
+  returningCustomers: 0,
+  newCustomerOrders: 0,
+  returningCustomerOrders: 0,
+  unidentifiedOrders: 0,
 };
 
 export function AnalyticsProvider({ children, isAuthenticated }: ProviderProps) {
@@ -64,61 +85,156 @@ export function AnalyticsProvider({ children, isAuthenticated }: ProviderProps) 
   const [filters, setFiltersState] = useState<AnalyticsFilters>({
     granularity: 'day',
   });
+  const [debouncedFilters, setDebouncedFilters] = useState<AnalyticsFilters>({
+    granularity: 'day',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [overview, setOverview] = useState<AnalyticsOverview>(EMPTY_OVERVIEW);
   const [timeSeries, setTimeSeries] = useState<AnalyticsTimeSeriesItem[]>([]);
+  const [statusDistribution, setStatusDistribution] = useState<AnalyticsStatusDistributionItem[]>(
+    [],
+  );
+  const [customerSegments, setCustomerSegments] =
+    useState<AnalyticsCustomerSegments>(EMPTY_CUSTOMER_SEGMENTS);
   const [channels, setChannels] = useState<AnalyticsChannelItem[]>([]);
+  const [allChannelsForDropdown, setAllChannelsForDropdown] = useState<AnalyticsChannelItem[]>([]);
   const [topProducts, setTopProducts] = useState<AnalyticsTopProductItem[]>([]);
   const [selectedSku, setSelectedSku] = useState<string | null>(null);
+  const [selectedChannelDrilldown, setSelectedChannelDrilldown] = useState<{
+    channel: string;
+    channelInstanceId: number | null;
+    channelLabel: string | null;
+  } | null>(null);
   const [drilldownOrders, setDrilldownOrders] = useState<AnalyticsDrilldownOrderItem[]>([]);
+  const [channelDrilldownOrders, setChannelDrilldownOrders] = useState<
+    AnalyticsDrilldownOrderItem[]
+  >([]);
+
+  const fetchSummaryData = useCallback(
+    async (activeFilters: AnalyticsFilters, setSpinner = true) => {
+      if (!isAuthenticated) {
+        return;
+      }
+      if (setSpinner) {
+        setLoading(true);
+      }
+      setError(null);
+      try {
+        const [summary, topData] = await Promise.all([
+          analyticsApi.getSummary(activeFilters),
+          analyticsApi.getTopProducts(activeFilters, 20),
+        ]);
+        setOverview(summary.overview || EMPTY_OVERVIEW);
+        setTimeSeries(Array.isArray(summary.timeSeries) ? summary.timeSeries : []);
+        setStatusDistribution(
+          Array.isArray(summary.statusDistribution) ? summary.statusDistribution : [],
+        );
+        setCustomerSegments(summary.customerSegments || EMPTY_CUSTOMER_SEGMENTS);
+        setChannels(Array.isArray(summary.channels) ? summary.channels : []);
+        setAllChannelsForDropdown(
+          Array.isArray(summary.allChannelsForDropdown) ? summary.allChannelsForDropdown : [],
+        );
+        setTopProducts(topData);
+      } catch (err: any) {
+        setError(err?.message || 'Failed to load analytics');
+      } finally {
+        if (setSpinner) {
+          setLoading(false);
+        }
+      }
+    },
+    [isAuthenticated],
+  );
 
   const reloadAnalytics = useCallback(async () => {
-    if (!isAuthenticated) {
-      return;
+    await fetchSummaryData(filters, true);
+  }, [fetchSummaryData, filters]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedFilters(filters);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [filters]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      void fetchSummaryData(debouncedFilters, true);
+    } else {
+      setOverview(EMPTY_OVERVIEW);
+      setTimeSeries([]);
+      setStatusDistribution([]);
+      setCustomerSegments(EMPTY_CUSTOMER_SEGMENTS);
+      setChannels([]);
+      setAllChannelsForDropdown([]);
+      setTopProducts([]);
+      setSelectedSku(null);
+      setSelectedChannelDrilldown(null);
+      setDrilldownOrders([]);
+      setChannelDrilldownOrders([]);
+      setError(null);
+      setLoading(false);
     }
-    setLoading(true);
-    setError(null);
-    try {
-      const [overviewData, timeData, channelData, topData] = await Promise.all([
-        analyticsApi.getOverview(filters),
-        analyticsApi.getTimeSeries(filters),
-        analyticsApi.getChannels(filters),
-        analyticsApi.getTopProducts(filters, 20),
-      ]);
-      setOverview(overviewData);
-      setTimeSeries(timeData);
-      setChannels(channelData);
-      setTopProducts(topData);
-      if (selectedSku) {
+  }, [debouncedFilters, fetchSummaryData, isAuthenticated]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSkuDrilldown() {
+      if (!isAuthenticated || !selectedSku) {
+        setDrilldownOrders([]);
+        return;
+      }
+      try {
         const details = await analyticsApi.getDrilldownOrders(filters, {
           sku: selectedSku,
           limit: 50,
         });
-        setDrilldownOrders(details);
-      } else {
-        setDrilldownOrders([]);
+        if (!cancelled) {
+          setDrilldownOrders(details);
+        }
+      } catch {
+        if (!cancelled) {
+          setDrilldownOrders([]);
+        }
       }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load analytics');
-    } finally {
-      setLoading(false);
     }
+    void loadSkuDrilldown();
+    return () => {
+      cancelled = true;
+    };
   }, [filters, isAuthenticated, selectedSku]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      void reloadAnalytics();
-    } else {
-      setOverview(EMPTY_OVERVIEW);
-      setTimeSeries([]);
-      setChannels([]);
-      setTopProducts([]);
-      setSelectedSku(null);
-      setDrilldownOrders([]);
-      setError(null);
+    let cancelled = false;
+    async function loadChannelDrilldown() {
+      if (!isAuthenticated || !selectedChannelDrilldown) {
+        setChannelDrilldownOrders([]);
+        return;
+      }
+      try {
+        const channelFilters: AnalyticsFilters = {
+          ...filters,
+          channel: selectedChannelDrilldown.channel,
+          channelInstanceId: selectedChannelDrilldown.channelInstanceId ?? undefined,
+        };
+        const details = await analyticsApi.getDrilldownOrders(channelFilters, {
+          limit: 50,
+        });
+        if (!cancelled) {
+          setChannelDrilldownOrders(details);
+        }
+      } catch {
+        if (!cancelled) {
+          setChannelDrilldownOrders([]);
+        }
+      }
     }
-  }, [isAuthenticated, reloadAnalytics]);
+    void loadChannelDrilldown();
+    return () => {
+      cancelled = true;
+    };
+  }, [filters, isAuthenticated, selectedChannelDrilldown]);
 
   const exportTopProductsCsv = useCallback(async () => {
     const blob = await analyticsApi.downloadTopProductsCsv(filters, 200);
@@ -154,11 +270,17 @@ export function AnalyticsProvider({ children, isAuthenticated }: ProviderProps) 
       error,
       overview,
       timeSeries,
+      statusDistribution,
+      customerSegments,
       channels,
+      allChannelsForDropdown,
       topProducts,
       selectedSku,
       setSelectedSku,
       drilldownOrders,
+      selectedChannelDrilldown,
+      setSelectedChannelDrilldown,
+      channelDrilldownOrders,
       exportTopProductsCsv,
     }),
     [
@@ -169,10 +291,15 @@ export function AnalyticsProvider({ children, isAuthenticated }: ProviderProps) 
       error,
       overview,
       timeSeries,
+      statusDistribution,
+      customerSegments,
       channels,
+      allChannelsForDropdown,
       topProducts,
       selectedSku,
+      selectedChannelDrilldown,
       drilldownOrders,
+      channelDrilldownOrders,
       exportTopProductsCsv,
     ],
   );
