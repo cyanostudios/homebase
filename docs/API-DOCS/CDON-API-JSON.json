@@ -1,0 +1,1349 @@
+{
+  "info": {
+    "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+    "name": "CDON API Documentation",
+    "description": "<html><head></head><body><h1 id=\"cdon-api-documentation\">CDON API Documentation</h1>\n<p>CDON enables merchants to upload products and manage orders on the CDON marketplace platform. For customers, we provide a marketplace offering easy access to a wide variety of products.</p>\n<p>This documentation guides merchants through developing their technical integration. Request and response samples are available in the right-hand sidebar, with dropdown menus for different scenarios.</p>\n<h2 id=\"api-overview\">API Overview</h2>\n<p>Our API follows REST principles, providing simple and predictable URLs to access and modify resources.</p>\n<h3 id=\"server-client-interaction\">Server-Client Interaction</h3>\n<p>The API follows a simple request-response model:</p>\n<ul>\n<li><p><strong>Client (Merchant)</strong>: Initiates all interactions</p>\n</li>\n<li><p><strong>Server (CDON)</strong>: Processes requests and returns appropriate responses</p>\n</li>\n</ul>\n<h3 id=\"resources\">Resources</h3>\n<p>The API exposes addressable resources via URLs. Currently available resources:</p>\n<ul>\n<li><p><strong>ARTICLE</strong></p>\n</li>\n<li><p><strong>ORDER</strong></p>\n</li>\n</ul>\n<p>We continuously improve our API by adding new endpoints and resources.</p>\n<h3 id=\"http-methods\">HTTP Methods</h3>\n<p>Available actions for interacting with resources:</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Method</th>\n<th>Action</th>\n<th>Description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>POST</td>\n<td>Create</td>\n<td>Create a new resource</td>\n</tr>\n<tr>\n<td>GET</td>\n<td>Read</td>\n<td>Retrieve resource information</td>\n</tr>\n<tr>\n<td>PUT</td>\n<td>Update</td>\n<td>Modify an existing resource</td>\n</tr>\n<tr>\n<td>DELETE</td>\n<td>Delete</td>\n<td>Remove a resource</td>\n</tr>\n</tbody>\n</table>\n</div><h3 id=\"http-status-codes\">HTTP Status Codes</h3>\n<p>Status codes indicate the success or failure of API calls:</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Code Range</th>\n<th>Category</th>\n<th>Description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>2xx</td>\n<td>Success</td>\n<td>Request processed successfully</td>\n</tr>\n<tr>\n<td>4xx</td>\n<td>Client Error</td>\n<td>Invalid request or authentication</td>\n</tr>\n<tr>\n<td>5xx</td>\n<td>Server Error</td>\n<td>Internal server issues</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"authentication\">Authentication</h2>\n<p>All API endpoints require Basic Authentication. Include an HTTP Authorization header with \"Basic\" followed by the Base64-encoded string <code>merchantID:token</code>:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>Basic {base64_encode(merchantID:token)}\n\n</code></pre><h2 id=\"api-environments\">API Environments</h2>\n<h3 id=\"production-environment\">Production Environment</h3>\n<p>Base URL:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>https://merchants-api.cdon.com/api/\n\n</code></pre><h3 id=\"sandbox-environment\">Sandbox Environment</h3>\n<p>A self-contained test environment for prototyping and testing integrations. Credentials provided upon request.</p>\n<p>Base URL:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>https://merchants-api.sandbox.cdon.com/api/\n\n</code></pre><p>Available resource endpoints:</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Resource</th>\n<th>URL</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>ARTICLES</td>\n<td>Base URL/v2/articles</td>\n</tr>\n<tr>\n<td>ORDERS</td>\n<td>Base URL/v1/orders/</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"technical-requirements\">Technical Requirements</h2>\n<h3 id=\"request-format\">Request Format</h3>\n<ul>\n<li><p>All requests must use JSON format</p>\n</li>\n<li><p>Set Content-Type header to <code>application/json</code></p>\n</li>\n<li><p>TLS 1.1 or higher required (TLS 1.2 recommended)</p>\n</li>\n<li><p>TLS 1.0 is not supported</p>\n</li>\n</ul>\n<h3 id=\"response-format\">Response Format</h3>\n<p>All API responses return data in JSON format unless otherwise specified.</p>\n<h3 id=\"environment-migration\">Environment Migration</h3>\n<p>When moving from sandbox to production:</p>\n<ol>\n<li><p>Update base URLs</p>\n</li>\n<li><p>Replace sandbox credentials with production credentials</p>\n</li>\n</ol>\n</body></html>",
+    "schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+    "toc": [{ "content": "CDON API Documentation", "slug": "cdon-api-documentation" }],
+    "owner": "10106712",
+    "collectionId": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+    "publishedId": "2sAYkKHdBZ",
+    "public": true,
+    "customColor": { "top-bar": "FFFFFF", "right-sidebar": "303030", "highlight": "189832" },
+    "publishDate": "2025-09-10T08:34:08.000Z"
+  },
+  "item": [
+    {
+      "name": "ARTICLES",
+      "item": [
+        {
+          "name": "PARAMETERS",
+          "item": [
+            {
+              "name": "Parameter Overview",
+              "item": [],
+              "id": "1b437ef0-65a5-46cc-bb37-866e1faf5865",
+              "description": "<h3 id=\"required-parameters\">Required Parameters</h3>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Data type</th>\n<th>Market Specific</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>sku</td>\n<td>Your unique ID for the article</td>\n<td>String (1-64)</td>\n<td>No</td>\n</tr>\n<tr>\n<td>status</td>\n<td>Sale status for the article</td>\n<td>String (\"for sale\" or \"paused\")</td>\n<td>No</td>\n</tr>\n<tr>\n<td>quantity</td>\n<td>Quantity in stock</td>\n<td>Non-negative Integer (0-500 000)</td>\n<td>No</td>\n</tr>\n<tr>\n<td>main_image</td>\n<td>Direct link to main image</td>\n<td>String (1-1500), valid URL</td>\n<td>No</td>\n</tr>\n<tr>\n<td>markets</td>\n<td>Countries for sale</td>\n<td>See Supported Market Codes</td>\n<td>No</td>\n</tr>\n<tr>\n<td>title</td>\n<td>Article name</td>\n<td>See Title and Description</td>\n<td>No*</td>\n</tr>\n<tr>\n<td>description</td>\n<td>Detailed description</td>\n<td>See Title and Description</td>\n<td>No*</td>\n</tr>\n<tr>\n<td>price</td>\n<td>Article price</td>\n<td>See Prices</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>shipping_time</td>\n<td>Delivery time to customer</td>\n<td>See Shipping</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h3 id=\"optional-parameters\">Optional Parameters</h3>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Data type</th>\n<th>Market Specific</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>parent_sku</td>\n<td>Group-identifier for product</td>\n<td>String (1-64)</td>\n<td>No</td>\n</tr>\n<tr>\n<td>category</td>\n<td>Category of the article</td>\n<td>String</td>\n<td>No</td>\n</tr>\n<tr>\n<td>properties</td>\n<td>Article properties</td>\n<td>See Properties</td>\n<td>No*</td>\n</tr>\n<tr>\n<td>variational_properties</td>\n<td>Properties for variations</td>\n<td>See VARIATIONS</td>\n<td>No</td>\n</tr>\n<tr>\n<td>brand</td>\n<td>Manufacturer</td>\n<td>String (1-50)</td>\n<td>No</td>\n</tr>\n<tr>\n<td>gtin</td>\n<td>Global identifier</td>\n<td>String (1-13)</td>\n<td>No</td>\n</tr>\n<tr>\n<td>images</td>\n<td>Additional image links</td>\n<td>List of strings (1-1500), max 10 URLs</td>\n<td>No</td>\n</tr>\n<tr>\n<td>unique_selling_points</td>\n<td>Key selling points</td>\n<td>See Unique Selling Points</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>specifications</td>\n<td>Technical specs</td>\n<td>See Specifications</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>classifications</td>\n<td>Classification attributes</td>\n<td>See Classifications</td>\n<td>No</td>\n</tr>\n<tr>\n<td>delivery_type</td>\n<td>Delivery method</td>\n<td>See Delivery</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>kn_number</td>\n<td><em>Combined nomenclature</em> code</td>\n<td>String (1-48)</td>\n<td>No</td>\n</tr>\n<tr>\n<td>shipped_from</td>\n<td></td>\n<td>\"EU\"/\"NON_EU\"</td>\n<td>No</td>\n</tr>\n<tr>\n<td>manufacturer</td>\n<td>Detailed manufacturer information</td>\n<td>See Manufacturer</td>\n<td>No</td>\n</tr>\n</tbody>\n</table>\n</div>",
+              "_postman_id": "1b437ef0-65a5-46cc-bb37-866e1faf5865",
+              "auth": {
+                "type": "noauth",
+                "isInherited": true,
+                "source": {
+                  "_postman_id": "8d56884c-619c-40d6-8323-7f20750eb015",
+                  "id": "8d56884c-619c-40d6-8323-7f20750eb015",
+                  "name": "PARAMETERS",
+                  "type": "folder"
+                }
+              }
+            },
+            {
+              "name": "Standard Codes Reference",
+              "item": [],
+              "id": "5c7b7ed0-e669-483a-b2b7-1e44fec3e3d7",
+              "description": "<h3>Supported Market Codes</h3>\n\n<p>CDON currently supports the following markets:</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Market Code</th>\n<th>Country</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>SE</td>\n<td>Sweden</td>\n</tr>\n<tr>\n<td>DK</td>\n<td>Denmark</td>\n</tr>\n<tr>\n<td>FI</td>\n<td>Finland</td>\n</tr>\n<tr>\n<td>NO</td>\n<td>Norway</td>\n</tr>\n</tbody>\n</table>\n</div><p>All market codes use the <a href=\"https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2\">ISO-3166-1 alpha-2</a> country code standard.</p>\n<h3>Supported Language Codes</h3>\n\n<p>Language codes use the combined language-region format:</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Language Code</th>\n<th>Description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>sv-SE</td>\n<td>Swedish (Sweden)</td>\n</tr>\n<tr>\n<td>en-US</td>\n<td>English (United States)</td>\n</tr>\n<tr>\n<td>da-DK</td>\n<td>Danish (Denmark)</td>\n</tr>\n<tr>\n<td>fi-FI</td>\n<td>Finnish (Finland)</td>\n</tr>\n<tr>\n<td>nb-NO</td>\n<td>Norwegian (Norway)</td>\n</tr>\n</tbody>\n</table>\n</div><p>The format follows:</p>\n<ul>\n<li><p>Language: <a href=\"https://en.wikipedia.org/wiki/ISO_639-1\">ISO-639-1</a> two-letter language code</p>\n</li>\n<li><p>Region: <a href=\"https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2\">ISO-3166-1 alpha-2</a> two-letter country code</p>\n</li>\n<li><p>Combined with a hyphen, for example: \"en-US\"</p>\n</li>\n</ul>\n<h3>Supported Currency Codes</h3>\n\n<p>The following currency codes are supported:</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Currency Code</th>\n<th>Description</th>\n<th>Associated Market</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>SEK</td>\n<td>Swedish Krona</td>\n<td>SE</td>\n</tr>\n<tr>\n<td>DKK</td>\n<td>Danish Krone</td>\n<td>DK</td>\n</tr>\n<tr>\n<td>EUR</td>\n<td>Euro</td>\n<td>FI</td>\n</tr>\n<tr>\n<td>NOK</td>\n<td>Norwegian Krone</td>\n<td>NO</td>\n</tr>\n</tbody>\n</table>\n</div><p>All currency codes use the <a href=\"https://en.wikipedia.org/wiki/ISO_4217\">ISO-4217</a> standard.</p>\n",
+              "_postman_id": "5c7b7ed0-e669-483a-b2b7-1e44fec3e3d7",
+              "auth": {
+                "type": "noauth",
+                "isInherited": true,
+                "source": {
+                  "_postman_id": "8d56884c-619c-40d6-8323-7f20750eb015",
+                  "id": "8d56884c-619c-40d6-8323-7f20750eb015",
+                  "name": "PARAMETERS",
+                  "type": "folder"
+                }
+              }
+            },
+            {
+              "name": "Basic Fields",
+              "item": [],
+              "id": "6d6f2551-a149-4731-80ae-8cd572a94aa4",
+              "description": "<h3 id=\"category\">Category</h3>\n<p>The category is specified as a single string value of the category ID:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n    \"category\": \"1124\"\n}\n\n</code></pre>\n<h3 id=\"properties\">Properties</h3>\n<p>Properties are key/value pairs defined by the marketplace, divided into three types:</p>\n<ol>\n<li><p><strong>Free Text Properties</strong></p>\n<ul>\n<li><p>Requires language specification (use supported language codes)</p>\n</li>\n<li><p>Values supplied as strings</p>\n</li>\n</ul>\n</li>\n<li><p><strong>Pre-defined Value Properties</strong></p>\n<ul>\n<li>Values chosen from CDON-controlled list</li>\n</ul>\n</li>\n<li><p><strong>Numerical Properties</strong></p>\n<ul>\n<li>Values as integers or decimals in string format</li>\n</ul>\n</li>\n</ol>\n<p>Property Structure:</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Field</th>\n<th>Type</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>name</td>\n<td>String</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>value</td>\n<td>String (1-36)</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>language</td>\n<td>String (5)</td>\n<td>Only for free text</td>\n</tr>\n</tbody>\n</table>\n</div><p>Example:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n    \"properties\": [\n        {\n            \"name\": \"color\",\n            \"value\": \"Deep Green\",\n            \"language\": \"en-US\"\n        },\n        {\n            \"name\": \"size\",\n            \"value\": \"xxl\"\n        },\n        {\n            \"name\": \"weight_kg\",\n            \"value\": \"0.5\"\n        }\n    ]\n}\n\n</code></pre>\n<h2 id=\"free-text-properties\">Free Text Properties</h2>\n<p>These properties allow custom string values with some validation constraints:</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Property Name</th>\n<th>Description</th>\n<th>Constraints</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>color</code></td>\n<td>Product color</td>\n<td>Min length: 1, Max length: 36</td>\n</tr>\n<tr>\n<td><code>connection_type</code></td>\n<td>Type of connection</td>\n<td>Min length: 1, Max length: 36</td>\n</tr>\n<tr>\n<td><code>flavor</code></td>\n<td>Product flavor</td>\n<td>Min length: 1, Max length: 36</td>\n</tr>\n<tr>\n<td><code>material</code></td>\n<td>Product material</td>\n<td>Min length: 1, Max length: 36</td>\n</tr>\n<tr>\n<td><code>pattern</code></td>\n<td>Product pattern</td>\n<td>Min length: 1, Max length: 36</td>\n</tr>\n<tr>\n<td><code>phone_case_type</code></td>\n<td>Type of phone case</td>\n<td>Min length: 1, Max length: 36</td>\n</tr>\n<tr>\n<td><code>size</code></td>\n<td>Product size</td>\n<td>Min length: 1, Max length: 36</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"predefined-properties\">Predefined Properties</h2>\n<p>These properties require specific enumerated values:</p>\n<h3 id=\"preset-color\"><code>preset-color</code></h3>\n<ul>\n<li><p><code>red</code></p>\n</li>\n<li><p><code>blue</code></p>\n</li>\n<li><p><code>green</code></p>\n</li>\n<li><p><code>orange</code></p>\n</li>\n<li><p><code>yellow</code></p>\n</li>\n<li><p><code>purple</code></p>\n</li>\n<li><p><code>pink</code></p>\n</li>\n<li><p><code>gold</code></p>\n</li>\n<li><p><code>silver</code></p>\n</li>\n<li><p><code>multicolor</code></p>\n</li>\n<li><p><code>white</code></p>\n</li>\n<li><p><code>gray</code></p>\n</li>\n<li><p><code>black</code></p>\n</li>\n<li><p><code>turquoise</code></p>\n</li>\n<li><p><code>brown</code></p>\n</li>\n<li><p><code>beige</code></p>\n</li>\n<li><p><code>transparent</code></p>\n</li>\n</ul>\n<h3 id=\"preset-connection_type\"><code>preset-connection_type</code></h3>\n<ul>\n<li><p><code>bluetooth</code></p>\n</li>\n<li><p><code>usb-c</code></p>\n</li>\n<li><p><code>micro-usb</code></p>\n</li>\n<li><p><code>lightning</code></p>\n</li>\n<li><p><code>3.5mm</code></p>\n</li>\n</ul>\n<h3 id=\"preset-hair_type\"><code>preset-hair_type</code></h3>\n<ul>\n<li><p><code>dry hair</code></p>\n</li>\n<li><p><code>normal hair</code></p>\n</li>\n<li><p><code>curly hair</code></p>\n</li>\n<li><p><code>damaged hair</code></p>\n</li>\n<li><p><code>frizzy hair</code></p>\n</li>\n<li><p><code>fine hair</code></p>\n</li>\n<li><p><code>dry scalp</code></p>\n</li>\n<li><p><code>dyed hair</code></p>\n</li>\n</ul>\n<h3 id=\"preset-media_format\"><code>preset-media_format</code></h3>\n<ul>\n<li><p><code>dvd</code></p>\n</li>\n<li><p><code>blu-ray</code></p>\n</li>\n<li><p><code>4k ultra hd</code></p>\n</li>\n<li><p><code>cd</code></p>\n</li>\n<li><p><code>vinyl</code></p>\n</li>\n</ul>\n<h3 id=\"preset-pattern\"><code>preset-pattern</code></h3>\n<ul>\n<li><p><code>abstract and geometry</code></p>\n</li>\n<li><p><code>animals and animal patterns</code></p>\n</li>\n<li><p><code>nature and environment</code></p>\n</li>\n<li><p><code>plants and fruit</code></p>\n</li>\n<li><p><code>space and scifi</code></p>\n</li>\n<li><p><code>text and quotes</code></p>\n</li>\n<li><p><code>camouflage</code></p>\n</li>\n<li><p><code>glitter</code></p>\n</li>\n<li><p><code>marble and stone</code></p>\n</li>\n<li><p><code>vehicles</code></p>\n</li>\n<li><p><code>flags and symbols</code></p>\n</li>\n<li><p><code>maps</code></p>\n</li>\n<li><p><code>characters and celebrities</code></p>\n</li>\n<li><p><code>fantasy</code></p>\n</li>\n<li><p><code>retro</code></p>\n</li>\n</ul>\n<h3 id=\"preset-refurb_grading\"><code>preset-refurb_grading</code></h3>\n<ul>\n<li><p><code>a+</code></p>\n</li>\n<li><p><code>a</code></p>\n</li>\n<li><p><code>b</code></p>\n</li>\n<li><p><code>c</code></p>\n</li>\n</ul>\n<h3 id=\"preset-refurb_warranty\"><code>preset-refurb_warranty</code></h3>\n<ul>\n<li><p><code>2</code> - 2 months warranty</p>\n</li>\n<li><p><code>6</code> - 6 months warranty</p>\n</li>\n<li><p><code>12</code> - 12 months warranty</p>\n</li>\n<li><p><code>24</code> - 24 months warranty</p>\n</li>\n</ul>\n<h3 id=\"preset-size_sml\"><code>preset-size_SML</code></h3>\n<ul>\n<li><p><code>one size</code></p>\n</li>\n<li><p><code>xxs</code></p>\n</li>\n<li><p><code>xs</code></p>\n</li>\n<li><p><code>s</code></p>\n</li>\n<li><p><code>m</code></p>\n</li>\n<li><p><code>l</code></p>\n</li>\n<li><p><code>xl</code></p>\n</li>\n<li><p><code>xxl</code></p>\n</li>\n</ul>\n<h3 id=\"preset-skin_type\"><code>preset-skin_type</code></h3>\n<ul>\n<li><p><code>dry skin</code></p>\n</li>\n<li><p><code>normal skin</code></p>\n</li>\n<li><p><code>mature skin</code></p>\n</li>\n<li><p><code>oily skin</code></p>\n</li>\n<li><p><code>mixed skin</code></p>\n</li>\n<li><p><code>acne</code></p>\n</li>\n</ul>\n<h2 id=\"numerical-properties\">Numerical Properties</h2>\n<p>These properties expect numerical or formatted values:</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Property Name</th>\n<th>Description</th>\n<th>Value Format</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>shoe_size_eu</code></td>\n<td>European shoe size</td>\n<td>String, Min length: 1, Max length: 50</td>\n</tr>\n<tr>\n<td><code>shoe_size_uk_men</code></td>\n<td>UK men's shoe size</td>\n<td>String, Min length: 1, Max length: 50</td>\n</tr>\n<tr>\n<td><code>shoe_size_uk_women</code></td>\n<td>UK women's shoe size</td>\n<td>String, Min length: 1, Max length: 50</td>\n</tr>\n<tr>\n<td><code>shoe_size_us_men</code></td>\n<td>US men's shoe size</td>\n<td>String, Min length: 1, Max length: 50</td>\n</tr>\n<tr>\n<td><code>shoe_size_us_women</code></td>\n<td>US women's shoe size</td>\n<td>String, Min length: 1, Max length: 50</td>\n</tr>\n<tr>\n<td><code>size_cm</code></td>\n<td>Size in centimeters</td>\n<td>String, Min length: 1, Max length: 50</td>\n</tr>\n<tr>\n<td><code>size_gb</code></td>\n<td>Size in gigabytes</td>\n<td>String, Min length: 1, Max length: 50</td>\n</tr>\n<tr>\n<td><code>size_m</code></td>\n<td>Size in meters</td>\n<td>String, Min length: 1, Max length: 50</td>\n</tr>\n<tr>\n<td><code>size_mm</code></td>\n<td>Size in millimeters</td>\n<td>String, Min length: 1, Max length: 50</td>\n</tr>\n<tr>\n<td><code>size_unit</code></td>\n<td>Size in units</td>\n<td>String, Min length: 1, Max length: 50</td>\n</tr>\n<tr>\n<td><code>volume_l</code></td>\n<td>Volume in liters</td>\n<td>String, Min length: 1, Max length: 50</td>\n</tr>\n<tr>\n<td><code>volume_ml</code></td>\n<td>Volume in milliliters</td>\n<td>String, Min length: 1, Max length: 50</td>\n</tr>\n<tr>\n<td><code>weight_g</code></td>\n<td>Weight in grams</td>\n<td>String, Min length: 1, Max length: 50</td>\n</tr>\n<tr>\n<td><code>weight_kg</code></td>\n<td>Weight in kilograms</td>\n<td>String, Min length: 1, Max length: 50</td>\n</tr>\n</tbody>\n</table>\n</div>",
+              "_postman_id": "6d6f2551-a149-4731-80ae-8cd572a94aa4",
+              "auth": {
+                "type": "noauth",
+                "isInherited": true,
+                "source": {
+                  "_postman_id": "8d56884c-619c-40d6-8323-7f20750eb015",
+                  "id": "8d56884c-619c-40d6-8323-7f20750eb015",
+                  "name": "PARAMETERS",
+                  "type": "folder"
+                }
+              }
+            },
+            {
+              "name": "Market-Related Fields",
+              "item": [],
+              "id": "17de98ee-cc9f-409d-811c-fdf758b5f7b1",
+              "description": "<h3 id=\"markets\">Markets</h3>\n<p>Specifies available sale countries. Use the supported market codes for specifying which markets the article should be available in.</p>\n<p>Example:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n    \"markets\": [\"SE\", \"DK\"]\n}\n\n</code></pre>\n<h3 id=\"prices\">Prices</h3>\n<p>Market-specific pricing with VAT included. Use supported market codes and supported currency codes.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Field</th>\n<th>Type</th>\n<th>Required</th>\n<th>Notes</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>market</td>\n<td>String (2)</td>\n<td>Yes</td>\n<td>Market code from supported market codes</td>\n</tr>\n<tr>\n<td>amount_including_vat</td>\n<td>Decimal (1-7)</td>\n<td>Yes</td>\n<td></td>\n</tr>\n<tr>\n<td>currency</td>\n<td>String (3)</td>\n<td>Yes</td>\n<td>Currency code from supported currency codes</td>\n</tr>\n<tr>\n<td>vat_rate</td>\n<td>Decimal</td>\n<td>No</td>\n<td>Default: market rate</td>\n</tr>\n</tbody>\n</table>\n</div><p>Example:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n    \"price\": [\n        {\n            \"market\": \"SE\",\n            \"value\": {\n                \"amount\": 79,\n                \"currency\": \"SEK\"\n            }\n        },\n        {\n            \"market\": \"DK\",\n            \"value\": {\n                \"amount\": 99,\n                \"currency\": \"DKK\"\n            }\n        }\n    ]\n}\n\n</code></pre>\n<h3 id=\"shipping\">Shipping</h3>\n<p>Specifies delivery time range per market. Use market codes from supported market codes.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Field</th>\n<th>Type</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>market</td>\n<td>String (2)</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>min</td>\n<td>Integer 1-9</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>max</td>\n<td>Integer 1-9</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><p>Example:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n    \"shipping_time\": [\n        {\n            \"market\": \"SE\",\n            \"min\": 2,\n            \"max\": 5\n        },\n        {\n            \"market\": \"DK\",\n            \"min\": 4,\n            \"max\": 9\n        }\n    ]\n}\n\n</code></pre>\n<h3 id=\"delivery\">Delivery</h3>\n<p>Specifies delivery method per market. Use market codes from supported market codes. Available types:</p>\n<ul>\n<li><p><code>mailbox</code></p>\n</li>\n<li><p><code>service_point</code></p>\n</li>\n<li><p><code>home_delivery</code></p>\n</li>\n</ul>\n<p>Example:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n    \"delivery_type\": [\n        {\"market\": \"SE\", \"value\": \"mailbox\"},\n        {\"market\": \"DK\", \"value\": \"service_point\"}\n    ]\n}\n\n</code></pre>\n",
+              "_postman_id": "17de98ee-cc9f-409d-811c-fdf758b5f7b1",
+              "auth": {
+                "type": "noauth",
+                "isInherited": true,
+                "source": {
+                  "_postman_id": "8d56884c-619c-40d6-8323-7f20750eb015",
+                  "id": "8d56884c-619c-40d6-8323-7f20750eb015",
+                  "name": "PARAMETERS",
+                  "type": "folder"
+                }
+              }
+            },
+            {
+              "name": "Content Fields",
+              "item": [],
+              "id": "61956ba5-45c7-4bc3-b61c-ab6ef41b1933",
+              "description": "<h3 id=\"title-and-description\">Title and Description</h3>\n<p>Uses combined language-region format as specified in supported language codes.</p>\n<p>Field Constraints:</p>\n<ul>\n<li><p>title: String (5-150 characters)</p>\n</li>\n<li><p>description: String (10-4096 characters)</p>\n</li>\n</ul>\n<p>Example:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n    \"title\": [\n        {\n            \"language\": \"sv-SE\",\n            \"value\": \"This is the title in Swedish\"\n        },\n        {\n            \"language\": \"en-US\",\n            \"value\": \"This is the title in English\"\n        }\n    ]\n}\n\n</code></pre>\n<h3 id=\"unique-selling-points\">Unique Selling Points</h3>\n<p>Language-specific selling points. Use language codes from supported language codes.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Field</th>\n<th>Type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>language</td>\n<td>String (5)</td>\n</tr>\n<tr>\n<td>value</td>\n<td>List of strings (max 30 chars each)</td>\n</tr>\n</tbody>\n</table>\n</div><p>Example:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n    \"unique_selling_points\": [\n        {\n            \"language\": \"en-US\",\n            \"value\": [\n                \"Water resistant\",\n                \"Long battery life\"\n            ]\n        },\n        {\n            \"language\": \"sv-SE\",\n            \"value\": [\n                \"Vattenbeständig\",\n                \"Lång batteritid\"\n            ]\n        }\n    ]\n}\n\n</code></pre>\n",
+              "_postman_id": "61956ba5-45c7-4bc3-b61c-ab6ef41b1933",
+              "auth": {
+                "type": "noauth",
+                "isInherited": true,
+                "source": {
+                  "_postman_id": "8d56884c-619c-40d6-8323-7f20750eb015",
+                  "id": "8d56884c-619c-40d6-8323-7f20750eb015",
+                  "name": "PARAMETERS",
+                  "type": "folder"
+                }
+              }
+            },
+            {
+              "name": "Additional Specifications",
+              "item": [],
+              "id": "ec933058-74fe-44ae-a150-6b6cd80bc6c2",
+              "description": "<h3 id=\"specifications\">Specifications</h3>\n<p>Technical details organized by language and sections. Use language codes from supported language codes.</p>\n<p>Structure:</p>\n<ul>\n<li><p>Language specification</p>\n</li>\n<li><p>Sections containing attributes</p>\n</li>\n<li><p>Each attribute has name, value, and description</p>\n</li>\n</ul>\n<p>Example:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n    \"specifications\": [\n        {\n            \"language\": \"en-US\",\n            \"value\": [\n                {\n                    \"name\": \"Technical Details\",\n                    \"value\": [\n                        {\n                            \"name\": \"Screen size\",\n                            \"value\": \"6.1 inch\",\n                            \"description\": \"Screen size measured diagonally\"\n                        },\n                        {\n                            \"name\": \"Battery capacity\",\n                            \"value\": \"4500mAh\"\n                        }\n                    ]\n                }\n            ]\n        }\n    ]\n}\n\n</code></pre>\n<h3 id=\"classifications\">Classifications</h3>\n<p>Product classification attributes.</p>\n<p>Example:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n    \"classifications\": [\n        {\n            \"name\": \"CONDITION\",\n            \"value\": \"REFURB\"\n        }\n    ]\n}\n\n</code></pre>\n<h4 id=\"condition-classification\">CONDITION Classification</h4>\n<p>The <code>CONDITION</code> classification describes the condition of the product.</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n  \"name\": \"CONDITION\",\n  \"value\": \"[condition value]\"\n}\n\n</code></pre>\n<p>Possible values:</p>\n<ul>\n<li><p><code>NEW</code> - Brand new product</p>\n</li>\n<li><p><code>REFURB</code> - Refurbished product</p>\n</li>\n</ul>\n<h4 id=\"restricted-classification\">RESTRICTED Classification</h4>\n<p>The <code>RESTRICTED</code> classification indicates if a product has age or other restrictions.</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n  \"name\": \"RESTRICTED\",\n  \"value\": \"[restricted value]\"\n}\n\n</code></pre>\n<p>Possible values:</p>\n<ul>\n<li><code>ADULT</code> - Adult-only product</li>\n</ul>\n<h3 id=\"manufacturer\">Manufacturer</h3>\n<p>Provides detailed information about the product manufacturer.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Field</th>\n<th>Type</th>\n<th>Required</th>\n<th>Notes</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>name</td>\n<td>String</td>\n<td>Yes</td>\n<td>Company name of the manufacturer</td>\n</tr>\n<tr>\n<td>address</td>\n<td>Object</td>\n<td>Yes</td>\n<td>Physical address of the manufacturer</td>\n</tr>\n<tr>\n<td>website</td>\n<td>String</td>\n<td>No</td>\n<td>Manufacturer's website URL</td>\n</tr>\n<tr>\n<td>email</td>\n<td>String</td>\n<td>No</td>\n<td>Contact email for the manufacturer</td>\n</tr>\n<tr>\n<td>responsible_person</td>\n<td>Object</td>\n<td>No</td>\n<td>Required if manufacturer is outside EU</td>\n</tr>\n</tbody>\n</table>\n</div><p><strong>Address Structure:</strong></p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Field</th>\n<th>Type</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>street_address</td>\n<td>String</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>city</td>\n<td>String</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>postal_code</td>\n<td>String</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>country</td>\n<td>String (2)</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><p><strong>Responsible Person Structure (only needed if manufacturer outside EU):</strong></p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Field</th>\n<th>Type</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>name</td>\n<td>String</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>phone</td>\n<td>String</td>\n<td>No</td>\n</tr>\n<tr>\n<td>email</td>\n<td>String</td>\n<td>No</td>\n</tr>\n</tbody>\n</table>\n</div><p>Example:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n    \"manufacturer\": {\n        \"name\": \"Manufacturer Company Name\",\n        \"address\": {\n            \"street_address\": \"123 Manufacturing Street\",\n            \"city\": \"Industrial City\",\n            \"postal_code\": \"12345\",\n            \"country\": \"SE\"\n        },\n        \"website\": \"https://manufacturer.example.com\",\n        \"email\": \"contact@manufacturer.example.com\",\n        \"responsible_person\": {\n            \"name\": \"EU representative\",\n            \"phone\": \"+234-567-8900\",\n            \"email\": \"responsible@eu-manufacturer.com\"\n        }\n    }\n}\n\n</code></pre>\n",
+              "_postman_id": "ec933058-74fe-44ae-a150-6b6cd80bc6c2",
+              "auth": {
+                "type": "noauth",
+                "isInherited": true,
+                "source": {
+                  "_postman_id": "8d56884c-619c-40d6-8323-7f20750eb015",
+                  "id": "8d56884c-619c-40d6-8323-7f20750eb015",
+                  "name": "PARAMETERS",
+                  "type": "folder"
+                }
+              }
+            }
+          ],
+          "id": "8d56884c-619c-40d6-8323-7f20750eb015",
+          "auth": { "type": "noauth", "isInherited": false },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "5a15db36-046f-4489-9dfe-eb40974f0090",
+                "type": "text/javascript",
+                "packages": {},
+                "exec": [""]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "id": "5b795b95-0af1-4931-b724-a9abb1640cf8",
+                "type": "text/javascript",
+                "packages": {},
+                "exec": [""]
+              }
+            }
+          ],
+          "_postman_id": "8d56884c-619c-40d6-8323-7f20750eb015",
+          "description": ""
+        },
+        {
+          "name": "VARIATIONS",
+          "item": [],
+          "id": "34c63c10-eb94-4b8b-a05b-02c8974bbe56",
+          "description": "<h1 id=\"product-variation-model\">Product Variation Model</h1>\n<h2 id=\"overview\">Overview</h2>\n<p>CDON supports a flexible product variation model that allows merchants to organize related products (such as different sizes or colors of the same item) using an article group relationship structure. This document explains how to properly use this variation model.</p>\n<h2 id=\"key-components\">Key Components</h2>\n<h3 id=\"1-variational-relationship\">1. Variational Relationship</h3>\n<p>Articles that are variants of each other are grouped using a article group relationship, also known as product:</p>\n<ul>\n<li><p><strong>parent_sku</strong>: Identifies the product that all variations belong to</p>\n</li>\n<li><p><strong>sku</strong>: Each individual variant has its own unique SKU</p>\n</li>\n<li><p><strong>properties</strong>: Define characteristics of each variant</p>\n</li>\n<li><p><strong>variational_properties</strong>: Specify which properties differentiate the variants</p>\n</li>\n</ul>\n<h2 id=\"implementation-details\">Implementation Details</h2>\n<h3 id=\"parent-sku\">Parent SKU</h3>\n<p>The <code>parent_sku</code> parameter serves as a group identifier that must be specified for all articles that should be grouped together. The parent_sku value doesn't have to correspond to the SKU of an actual article - it can be any string value that logically represents the product.</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n  \"sku\": \"SHIRT-RED-M\",\n  \"parent_sku\": \"SHIRT-BASIC\"\n}\n\n</code></pre>\n<p><strong>Important Notes:</strong></p>\n<ul>\n<li><p>The <code>parent_sku</code> parameter is <strong>required</strong> for all articles that should be grouped together</p>\n</li>\n<li><p>All variants of the same product must share the exact same <code>parent_sku</code> value</p>\n</li>\n<li><p>The <code>parent_sku</code> can be a logical identifier that doesn't match any actual article SKU</p>\n</li>\n</ul>\n<p>For example, you might have three variants (RED-S, RED-M, RED-L) all sharing the parent_sku \"RED-SHIRT-GROUP\" without needing to have a article with the SKU \"RED-SHIRT-GROUP\" in your inventory.</p>\n<h3 id=\"properties-and-variational-properties\">Properties and Variational Properties</h3>\n<p>To properly implement a variation model, you need to understand the relationship between properties and variational properties:</p>\n<ol>\n<li><p><strong>properties</strong>: These define all characteristics of an article (color, size, material, etc.)</p>\n</li>\n<li><p><strong>variational_properties</strong>: These specify which of those properties actually differentiate the variants from each other</p>\n</li>\n</ol>\n<h4 id=\"properties\">Properties</h4>\n<p>All articles should have their properties defined as key-value pairs:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n  \"properties\": [\n    {\n      \"name\": \"color\",\n      \"value\": \"Red\",\n      \"language\": \"en-US\"\n    },\n    {\n      \"name\": \"size\",\n      \"value\": \"M\"\n    },\n    {\n      \"name\": \"material\",\n      \"value\": \"Cotton\"\n    }\n  ]\n}\n\n</code></pre>\n<h4 id=\"variational-properties\">Variational Properties</h4>\n<p>For proper variation handling, you must specify which of these properties constitute the actual variations:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n  \"variational_properties\": [\"color\", \"size\"]\n}\n\n</code></pre>\n<p>This tells the system that \"color\" and \"size\" are what differentiate the variants from each other, while other properties like \"material\" are constant or not relevant to the variation.</p>\n<h2 id=\"complete-example\">Complete Example</h2>\n<p>Here's how a product variation family would be structured, focusing on the fields most relevant to the variation model:</p>\n<h3 id=\"parent-product-identifier\">Parent Product Identifier</h3>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n  \"sku\": \"TSHIRT-BASIC\",\n  \"parent_sku\": \"TSHIRT-BASIC-GROUP\"  \n}\n\n</code></pre>\n<p>Note that in this example, we're using a parent_sku that doesn't match the SKU. This is perfectly valid - the parent_sku is simply a logical grouping identifier.</p>\n<h3 id=\"variant-examples\">Variant Examples</h3>\n<h4 id=\"variant-1-red-small-t-shirt\">Variant 1: Red Small T-Shirt</h4>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n  \"sku\": \"TSHIRT-RED-S\",\n  \"parent_sku\": \"TSHIRT-BASIC-GROUP\",\n  \"properties\": [\n    {\n      \"name\": \"color\",\n      \"value\": \"Red\",\n      \"language\": \"en-US\"\n    },\n    {\n      \"name\": \"size\",\n      \"value\": \"S\"\n    },\n    {\n      \"name\": \"material\",\n      \"value\": \"Cotton\"\n    }\n  ],\n  \"variational_properties\": [\"color\", \"size\"]\n}\n\n</code></pre>\n<h4 id=\"variant-2-blue-medium-t-shirt\">Variant 2: Blue Medium T-Shirt</h4>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n  \"sku\": \"TSHIRT-BLUE-M\",\n  \"parent_sku\": \"TSHIRT-BASIC-GROUP\",\n  \"properties\": [\n    {\n      \"name\": \"color\",\n      \"value\": \"Blue\",\n      \"language\": \"en-US\"\n    },\n    {\n      \"name\": \"size\",\n      \"value\": \"M\"\n    },\n    {\n      \"name\": \"material\",\n      \"value\": \"Cotton\"\n    }\n  ],\n  \"variational_properties\": [\"color\", \"size\"]\n}\n\n</code></pre>\n<h4 id=\"variant-3-blue-small-t-shirt\">Variant 3: Blue Small T-Shirt</h4>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n  \"sku\": \"TSHIRT-BLUE-S\",\n  \"parent_sku\": \"TSHIRT-BASIC-GROUP\",\n  \"properties\": [\n    {\n      \"name\": \"color\",\n      \"value\": \"Blue\",\n      \"language\": \"en-US\"\n    },\n    {\n      \"name\": \"size\",\n      \"value\": \"S\"\n    },\n    {\n      \"name\": \"material\",\n      \"value\": \"Cotton\"\n    }\n  ],\n  \"variational_properties\": [\"color\", \"size\"]\n}\n\n</code></pre>\n<h3 id=\"key-points-to-notice\">Key Points to Notice</h3>\n<ol>\n<li><p>All variants share the exact same <code>parent_sku</code> value: \"TSHIRT-BASIC-GROUP\"</p>\n</li>\n<li><p>Each variant has a unique <code>sku</code> value</p>\n</li>\n<li><p>All variants have the same properties defined, but with different values for the variational properties</p>\n</li>\n<li><p>The <code>variational_properties</code> array is identical for all variants and specifies which properties constitute the variation</p>\n</li>\n<li><p>Non-variational properties like \"material\" have the same value across all variants but are still included in each variant's properties</p>\n</li>\n</ol>\n<p>Remember that in a complete article submission, you would include all required fields as specified in the API documentation, such as category, status, quantity, markets, prices, etc. The above examples focus only on the fields relevant to the variation model.</p>\n<h2 id=\"best-practices\">Best Practices</h2>\n<ol>\n<li><p><strong>Consistent Naming Convention</strong>: Use a logical naming convention for SKUs that reflects the variation relationship.</p>\n</li>\n<li><p><strong>Appropriate Property Selection</strong>: Only include properties in <code>variational_properties</code> that actually differentiate variants.</p>\n</li>\n<li><p><strong>Complete Properties</strong>: Ensure all variants have all the necessary properties defined, even if some aren't variational.</p>\n</li>\n<li><p><strong>Images</strong>: Each variant should have its own specific main image that accurately represents that variant.</p>\n</li>\n<li><p><strong>Inventory Management</strong>: Each variant maintains its own inventory through the <code>quantity</code> field.</p>\n</li>\n<li><p><strong>Variation-Specific Titles</strong>: Consider having variant-specific titles that include the variation properties (e.g., \"Red T-Shirt, Size M\").</p>\n</li>\n</ol>\n<h2 id=\"troubleshooting\">Troubleshooting</h2>\n<p>If variants aren't appearing correctly grouped:</p>\n<ol>\n<li><p>Verify all variants share the exact same <code>parent_sku</code> value</p>\n</li>\n<li><p>Check that <code>variational_properties</code> correctly lists all differentiating properties</p>\n</li>\n<li><p>Ensure all variants have the correct properties defined</p>\n</li>\n<li><p>Confirm that all variants belong to the same category</p>\n</li>\n</ol>\n",
+          "_postman_id": "34c63c10-eb94-4b8b-a05b-02c8974bbe56",
+          "auth": {
+            "type": "basic",
+            "basic": {
+              "basicConfig": [
+                { "key": "username", "value": "" },
+                { "key": "password", "value": "•••••••" }
+              ]
+            },
+            "isInherited": true,
+            "source": {
+              "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+              "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+              "name": "CDON API Documentation",
+              "type": "collection"
+            }
+          }
+        },
+        {
+          "name": "Create Articles Bulk",
+          "id": "f8ef37b8-b182-45c6-be12-f05867d6a8b0",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"articles\": [\n        {\n            \"description\": [\n                {\n                    \"language\": \"<language_code>\",\n                    \"value\": \"<string>\"\n                }\n            ],\n            \"main_image\": \"<uri>\",\n            \"markets\": [\n                \"<market_code>\"\n            ],\n            \"price\": [\n                {\n                    \"market\": \"<market_code>\",\n                    \"value\": {\n                        \"amount_including_vat\": {\n                            \"value\": \"<number>\"\n                        },\n                        \"currency\": {\n                            \"value\": \"<currency_code>\"\n                        },\n                        \"vat_rate\": {\n                            \"value\": \"<number>\"\n                        }\n                    }\n                }\n            ],\n            \"quantity\": \"<integer>\",\n            \"shipping_time\": [\n                {\n                    \"market\": \"<market_code>\",\n                    \"min\": \"<integer>\",\n                    \"max\": \"<integer>\"\n                }\n            ],\n            \"sku\": \"<string>\",\n            \"status\": \"<string>\",\n            \"title\": [\n                {\n                    \"language\": \"<language_code>\",\n                    \"value\": \"<string>\"\n                }\n            ],\n            \"availability_dates\": [\n                {\n                    \"market\": \"<market_code>\",\n                    \"value\": \"<string>\"\n                }\n            ],\n            \"brand\": \"<string>\",\n            \"category\": \"<string>\",\n            \"classifications\": [\n                {\n                    \"name\": \"<string>\",\n                    \"value\": \"<string>\"\n                }\n            ],\n            \"delivery_type\": [\n                {\n                    \"market\": \"<market_code>\",\n                    \"value\": \"<string>\"\n                }\n            ],\n            \"gtin\": \"<string>\",\n            \"images\": [\n                \"<uri>\"\n            ],\n            \"internal_note\": \"<string>\",\n            \"kn_number\": \"<string>\",\n            \"manufacturer\": {\n                \"name\": \"<string>\",\n                \"address\": {\n                    \"street_address\": \"<string>\",\n                    \"city\": \"<string>\",\n                    \"postal_code\": \"<string>\",\n                    \"country\": \"<string>\"\n                },\n                \"website\": \"<uri>\",\n                \"email\": \"<email>\",\n                \"responsible_person\": {\n                    \"name\": \"<string>\",\n                    \"phone\": \"<string>\",\n                    \"email\": \"<string>\"\n                }\n            },\n            \"mpn\": \"<string>\",\n            \"parent_sku\": \"<string>\",\n            \"properties\": [\n                {\n                    \"value\": \"<string>\",\n                    \"language\": \"<language_code>\",\n                    \"name\": \"<string>\"\n                }\n            ],\n            \"shipped_from\": \"<string>\",\n            \"specifications\": [\n                {\n                    \"language\": \"<language_code>\",\n                    \"value\": [\n                        {\n                            \"name\": \"<string>\",\n                            \"value\": [\n                                {\n                                    \"name\": \"<string>\",\n                                    \"value\": \"<string>\",\n                                    \"description\": \"<string>\"\n                                }\n                            ]\n                        }\n                    ]\n                }\n            ],\n            \"unique_selling_points\": [\n                {\n                    \"language\": \"<language_code>\",\n                    \"value\": [\n                        \"<string>\"\n                    ]\n                }\n            ],\n            \"variational_properties\": [\n                \"<string>\"\n            ]\n        }\n    ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "https://merchants-api.sandbox.cdon.com/api/v2/articles/bulk",
+            "description": "<p>The POST request to this endpoint allows you to bulk upload articles.</p>\n<h3 id=\"request-body\">Request Body</h3>\n<ul>\n<li><code>articles</code> (array): An array of articles, see ARTICLES or examples for more information on the article structure.</li>\n</ul>\n<h3 id=\"response\">Response</h3>\n<p>The response will include a <code>success</code> array containing the IDs and SKUs of successfully added articles, and a <code>failed</code> array for any articles that failed to be added. Each failed article will have its SKU and an array of errors with messages and fields that caused the failure.</p>\n",
+            "auth": {
+              "type": "basic",
+              "basic": {
+                "basicConfig": [
+                  { "key": "username", "value": "" },
+                  { "key": "password", "value": "•••••••" }
+                ]
+              },
+              "isInherited": true,
+              "source": {
+                "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "name": "CDON API Documentation",
+                "type": "collection"
+              }
+            },
+            "urlObject": {
+              "path": ["v2", "articles", "bulk"],
+              "host": ["https://merchants-api.sandbox.cdon.com/api"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "2e32245b-a8ac-47a4-a79b-51fe0357cc9c",
+              "name": "Successful Creation",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"articles\": [\n        {\n            \"sku\": \"article-123\",\n            \"status\": \"for sale\",\n            \"quantity\": 100,\n            \"main_image\": \"https://example.com/image.jpg\",\n            \"markets\": [\n                \"SE\",\n                \"DK\"\n            ],\n            \"price\": [\n                {\n                    \"market\": \"SE\",\n                    \"value\": {\n                        \"amount_including_vat\": 199.99,\n                        \"currency\": \"SEK\",\n                        \"vat_rate\": 0.25\n                    }\n                },\n                {\n                    \"market\": \"DK\",\n                    \"value\": {\n                        \"amount_including_vat\": 149.99,\n                        \"currency\": \"DKK\",\n                        \"vat_rate\": 0.25\n                    }\n                }\n            ],\n            \"shipping_time\": [\n                {\n                    \"market\": \"SE\",\n                    \"min\": 1,\n                    \"max\": 3\n                },\n                {\n                    \"market\": \"DK\",\n                    \"min\": 2,\n                    \"max\": 5\n                }\n            ],\n            \"title\": [\n                {\n                    \"language\": \"sv-SE\",\n                    \"value\": \"Titel på svenska\"\n                },\n                {\n                    \"language\": \"en-US\",\n                    \"value\": \"Title in English\"\n                }\n            ],\n            \"description\": [\n                {\n                    \"language\": \"sv-SE\",\n                    \"value\": \"Beskrivning på svenska\"\n                },\n                {\n                    \"language\": \"en-US\",\n                    \"value\": \"Description in English\"\n                }\n            ],\n            \"category\": \"1124\",\n            \"properties\": [\n                {\n                    \"name\": \"color\",\n                    \"value\": \"Deep Green\",\n                    \"language\": \"en-US\"\n                },\n                {\n                    \"name\": \"preset-size_SML\",\n                    \"value\": \"s\"\n                }\n            ]\n        }\n    ]\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": "https://merchants-api.sandbox.cdon.com/api/v2/articles/bulk"
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"batch_id\": \"41675f63-0187-429a-a651-70e8174fe725\",\n  \"success\": [\n    {\n      \"id\": \"a1b2c3d4-e5f6-7890-abcd-1234567890ab\",\n      \"sku\": \"article-123\"\n    }\n  ],\n  \"failed\": []\n}"
+            },
+            {
+              "id": "cb81e2df-fc7a-4a15-adbe-0a0259c9691c",
+              "name": "Partial Success",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"articles\": [\n        {\n            \"sku\": \"valid-article\",\n            \"status\": \"for sale\",\n            \"quantity\": 100,\n            \"main_image\": \"https://example.com/image.jpg\",\n            \"markets\": [\n                \"SE\",\n                \"DK\"\n            ],\n            \"price\": [\n                {\n                    \"market\": \"SE\",\n                    \"value\": {\n                        \"amount_including_vat\": 199.99,\n                        \"currency\": \"SEK\",\n                        \"vat_rate\": 0.25\n                    }\n                }\n            ],\n            \"shipping_time\": [\n                {\n                    \"market\": \"SE\",\n                    \"min\": 1,\n                    \"max\": 3\n                }\n            ],\n            \"title\": [\n                {\n                    \"language\": \"sv-SE\",\n                    \"value\": \"Titel på svenska\"\n                }\n            ],\n            \"description\": [\n                {\n                    \"language\": \"sv-SE\",\n                    \"value\": \"Beskrivning på svenska\"\n                }\n            ],\n            \"category\": \"1124\"\n        },\n        {\n            \"sku\": \"invalid-article\",\n            \"status\": \"for sale\",\n            \"quantity\": 100\n            // Missing required fields\n        }\n    ]\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": "https://merchants-api.sandbox.cdon.com/api/v2/articles/bulk"
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"batch_id\": \"41675f63-0187-429a-a651-70e8174fe725\",\n  \"success\": [\n    {\n      \"id\": \"a1b2c3d4-e5f6-7890-abcd-1234567890ab\",\n      \"sku\": \"valid-article\"\n    }\n  ],\n  \"failed\": [\n    {\n      \"sku\": \"invalid-article\",\n      \"errors\": [\n        {\n          \"message\": \"Required field missing\",\n          \"field\": [\"main_image\"]\n        },\n        {\n          \"message\": \"Required field missing\",\n          \"field\": [\"markets\"]\n        },\n        {\n          \"message\": \"Required field missing\",\n          \"field\": [\"price\"]\n        },\n        {\n          \"message\": \"Required field missing\",\n          \"field\": [\"shipping_time\"]\n        },\n        {\n          \"message\": \"Required field missing\",\n          \"field\": [\"title\"]\n        },\n        {\n          \"message\": \"Required field missing\",\n          \"field\": [\"description\"]\n        }\n      ]\n    }\n  ]\n}"
+            }
+          ],
+          "_postman_id": "f8ef37b8-b182-45c6-be12-f05867d6a8b0"
+        },
+        {
+          "name": "Update Articles Bulk",
+          "id": "9794e70b-6d97-4ff3-89fb-44a7bd22e433",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"actions\": [\n        {\n            \"sku\": \"<string>\",\n            \"action\": \"update_article\",\n            \"body\": {\n                \"status\": \"<string>\",\n                \"main_image\": \"<uri>\",\n                \"markets\": [\"<market_code>\"],\n                \"shipping_time\": [\n                    {\n                        \"market\": \"<market_code>\",\n                        \"min\": \"<integer>\",\n                        \"max\": \"<integer>\"\n                    }\n                ],\n                \"title\": [\n                    {\n                        \"language\": \"<language_code>\",\n                        \"value\": \"<string>\"\n                    }\n                ],\n                \"description\": [\n                    {\n                        \"language\": \"<language_code>\",\n                        \"value\": \"<string>\"\n                    }\n                ],\n                \"category\": \"<string>\",\n                \"brand\": \"<string>\",\n                \"gtin\": \"<string>\",\n                \"images\": [\"<uri>\"],\n                \"properties\": [\n                    {\n                        \"name\": \"<string>\",\n                        \"value\": \"<string>\",\n                        \"language\": \"<language_code>\"\n                    }\n                ],\n                \"parent_sku\": \"<string>\",\n                \"internal_note\": \"<string>\"\n            }\n        },\n        {\n            \"sku\": \"<string>\",\n            \"action\": \"update_article_price\",\n            \"body\": {\n                \"price\": [\n                    {\n                        \"market\": \"<market_code>\",\n                        \"value\": {\n                            \"amount_including_vat\": \"<number>\",\n                            \"currency\": \"<currency_code>\",\n                            \"vat_rate\": \"<number>\"\n                        }\n                    }\n                ]\n            }\n        },\n        {\n            \"sku\": \"<string>\",\n            \"action\": \"update_article_quantity\",\n            \"body\": {\n                \"quantity\": \"<integer>\"\n            }\n        },\n        {\n            \"sku\": \"<string>\",\n            \"action\": \"delete_article\"\n        }\n    ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "https://merchants-api.sandbox.cdon.com/api/v2/articles/bulk",
+            "description": "<h3 id=\"update-multiple-articles\">Update Multiple Articles</h3>\n<p>This bulk update endpoint (<code>PUT /v2/articles/bulk</code>) supports multiple action types, each requiring a different body structure. This document outlines the required fields and structure for each action type.</p>\n<h2 id=\"request-structure\">Request Structure</h2>\n<p>All bulk update requests follow this general structure:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n  \"actions\": [\n    {\n      \"sku\": \"&lt;article_sku&gt;\",\n      \"action\": \"&lt;action_type&gt;\",\n      \"body\": {\n        // Fields vary based on action type\n      }\n    }\n  ]\n}\n\n</code></pre>\n<h2 id=\"action-types-and-their-required-body-structures\">Action Types and Their Required Body Structures</h2>\n<h3 id=\"1-update_article\">1. update_article</h3>\n<p>Used for comprehensive article updates.</p>\n<p><strong>Required Fields:</strong> status, main_image, markets, shipping_time, title, description</p>\n<p><strong>Example Body:</strong></p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n  \"status\": \"&lt;string&gt;\",\n  \"main_image\": \"&lt;uri&gt;\",\n  \"markets\": [\"&lt;market_code&gt;\"],\n  \"shipping_time\": [\n    {\n      \"market\": \"&lt;market_code&gt;\",\n      \"min\": &lt;integer&gt;,\n      \"max\": &lt;integer&gt;\n    }\n  ],\n  \"title\": [\n    {\n      \"language\": \"&lt;language_code&gt;\",\n      \"value\": \"&lt;string&gt;\"\n    }\n  ],\n  \"description\": [\n    {\n      \"language\": \"&lt;language_code&gt;\",\n      \"value\": \"&lt;string&gt;\"\n    }\n  ]\n}\n\n</code></pre>\n<p><strong>Optional Fields:</strong> All other article fields with the exception of price and quantity which are not allowed.</p>\n<h3 id=\"2-update_article_price\">2. update_article_price</h3>\n<p>Used solely for updating an article's price information.</p>\n<p><strong>Required Fields:</strong> price</p>\n<p><strong>Example Body:</strong></p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n  \"price\": [\n    {\n      \"market\": \"&lt;market_code&gt;\",\n      \"value\": {\n        \"amount_including_vat\": &lt;decimal&gt;,\n        \"currency\": \"&lt;currency_code&gt;\",\n        \"vat_rate\": &lt;decimal&gt;\n      }\n    }\n  ]\n}\n\n</code></pre>\n<h3 id=\"3-update_article_quantity\">3. update_article_quantity</h3>\n<p>Used solely for updating an article's stock quantity.</p>\n<p><strong>Required Fields:</strong> quantity</p>\n<p><strong>Example Body:</strong></p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n  \"quantity\": &lt;integer&gt;\n}\n\n</code></pre>\n<h3 id=\"4-delete_article\">4. delete_article</h3>\n<p>Used for removing an article from the system.</p>\n<p><strong>Required Fields:</strong> None</p>\n<p><strong>Example Body:</strong> No body required</p>\n<h2 id=\"key-points\">Key Points</h2>\n<ul>\n<li><p>The required fields in the body depend on the action type specified</p>\n</li>\n<li><p>Fields not relevant to the action should be omitted</p>\n</li>\n<li><p>Multiple different action types can be included in a single request</p>\n</li>\n<li><p>The API validates each action independently</p>\n</li>\n<li><p>The response will include success and failure information for each action</p>\n</li>\n</ul>\n<h2 id=\"response-format\">Response Format</h2>\n<p>The API returns information about which actions succeeded and which failed:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-json\">{\n  \"success\": [\n    {\n      \"sku\": \"&lt;article_sku&gt;\",\n      \"action\": \"&lt;action_type&gt;\"\n    }\n  ],\n  \"failed\": [\n    {\n      \"sku\": \"&lt;article_sku&gt;\",\n      \"action\": \"&lt;action_type&gt;\",\n      \"errors\": [\n        {\n          \"message\": \"&lt;error_message&gt;\",\n          \"field\": [\"&lt;field_name&gt;\"]\n        }\n      ]\n    }\n  ]\n}\n\n</code></pre>\n",
+            "auth": {
+              "type": "basic",
+              "basic": {
+                "basicConfig": [
+                  { "key": "username", "value": "" },
+                  { "key": "password", "value": "•••••••" }
+                ]
+              },
+              "isInherited": true,
+              "source": {
+                "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "name": "CDON API Documentation",
+                "type": "collection"
+              }
+            },
+            "urlObject": {
+              "path": ["v2", "articles", "bulk"],
+              "host": ["https://merchants-api.sandbox.cdon.com/api"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "7e7060a9-8ab4-4ba2-8c36-35a4118f0240",
+              "name": "Successful Update",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"actions\": [\n        {\n            \"sku\": \"article-123\",\n            \"action\": \"update_article\",\n            \"body\": {\n                \"status\": \"for sale\",\n                \"main_image\": \"https://example.com/image.jpg\",\n                \"markets\": [\n                    \"SE\",\n                    \"DK\"\n                ],\n                \"shipping_time\": [\n                    {\n                        \"market\": \"SE\",\n                        \"min\": 1,\n                        \"max\": 3\n                    },\n                    {\n                        \"market\": \"DK\",\n                        \"min\": 2,\n                        \"max\": 5\n                    }\n                ],\n                \"title\": [\n                    {\n                        \"language\": \"sv-SE\",\n                        \"value\": \"Uppdaterad titel på svenska\"\n                    },\n                    {\n                        \"language\": \"en-US\",\n                        \"value\": \"Updated title in English\"\n                    }\n                ],\n                \"description\": [\n                    {\n                        \"language\": \"sv-SE\",\n                        \"value\": \"Uppdaterad beskrivning på svenska\"\n                    },\n                    {\n                        \"language\": \"en-US\",\n                        \"value\": \"Updated description in English\"\n                    }\n                ]\n            }\n        },\n        {\n            \"sku\": \"article-456\",\n            \"action\": \"update_article_price\",\n            \"body\": {\n                \"price\": [\n                    {\n                        \"market\": \"SE\",\n                        \"value\": {\n                            \"amount_including_vat\": 299.99,\n                            \"currency\": \"SEK\",\n                            \"vat_rate\": 0.25\n                        }\n                    }\n                ]\n            }\n        },\n        {\n            \"sku\": \"article-789\",\n            \"action\": \"update_article_quantity\",\n            \"body\": {\n                \"quantity\": 42\n            }\n        },\n        {\n            \"sku\": \"article-999\",\n            \"action\": \"delete_article\"\n        }\n    ]\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": "https://merchants-api.sandbox.cdon.com/api/v2/articles/bulk"
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"batch_id\": \"41675f63-0187-429a-a651-70e8174fe725\",\n  \"success\": [\n    {\n      \"sku\": \"article-123\",\n      \"action\": \"update_article\"\n    },\n    {\n      \"sku\": \"article-456\",\n      \"action\": \"update_article_price\"\n    },\n    {\n      \"sku\": \"article-789\",\n      \"action\": \"update_article_quantity\"\n    },\n    {\n      \"sku\": \"article-999\",\n      \"action\": \"delete_article\"\n    }\n  ],\n  \"failed\": []\n}"
+            },
+            {
+              "id": "e379a5ac-219e-4e80-81d2-04b520cd8ce7",
+              "name": "Partial Update Success",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"actions\": [\n        {\n            \"sku\": \"valid-article\",\n            \"action\": \"update_article_price\",\n            \"body\": {\n                \"price\": [\n                    {\n                        \"market\": \"SE\",\n                        \"value\": {\n                            \"amount_including_vat\": 299.99,\n                            \"currency\": \"SEK\",\n                            \"vat_rate\": 0.25\n                        }\n                    }\n                ]\n            }\n        },\n        {\n            \"sku\": \"non-existent-article\",\n            \"action\": \"update_article_quantity\",\n            \"body\": {\n                \"quantity\": 42\n            }\n        },\n        {\n            \"sku\": \"valid-article-2\",\n            \"action\": \"update_article\",\n            \"body\": {\n                \"status\": \"for sale\",\n                \"title\": [\n                    {\n                        \"language\": \"en-US\",\n                        \"value\": \"Updated title\"\n                    }\n                ]\n                // Missing required fields\n            }\n        }\n    ]\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": "https://merchants-api.sandbox.cdon.com/api/v2/articles/bulk"
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"batch_id\": \"41675f63-0187-429a-a651-70e8174fe725\",\n  \"success\": [\n    {\n      \"sku\": \"valid-article\",\n      \"action\": \"update_article_price\"\n    }\n  ],\n  \"failed\": [\n    {\n      \"sku\": \"non-existent-article\",\n      \"action\": \"update_article_quantity\",\n      \"errors\": [\n        {\n          \"message\": \"Article not found\",\n          \"field\": [\"sku\"]\n        }\n      ]\n    },\n    {\n      \"sku\": \"valid-article-2\",\n      \"action\": \"update_article\",\n      \"errors\": [\n        {\n          \"message\": \"Required field missing\",\n          \"field\": [\"main_image\"]\n        },\n        {\n          \"message\": \"Required field missing\",\n          \"field\": [\"markets\"]\n        },\n        {\n          \"message\": \"Required field missing\",\n          \"field\": [\"shipping_time\"]\n        },\n        {\n          \"message\": \"Required field missing\",\n          \"field\": [\"description\"]\n        }\n      ]\n    }\n  ]\n}"
+            }
+          ],
+          "_postman_id": "9794e70b-6d97-4ff3-89fb-44a7bd22e433"
+        }
+      ],
+      "id": "511386fa-f9ad-4b0b-af0c-e8ac330ad68c",
+      "description": "<p>In our API, an \"article\" is the fundamental unit of inventory—a unique product being sold on the marketplace with specific attributes, identified by a unique SKU (Stock Keeping Unit). For example, a specific red t-shirt in size medium with its own inventory count.  </p>\n<p>We use the term \"product\" to refer to the logical grouping of related articles. For instance, a t-shirt available in multiple colors and sizes is considered a single product, while each specific color-size combination represents an individual article.   </p>\n<p>Each article within a product uses its own unique data and can have different pictures, descriptions, pricings.  </p>\n<p>Under PARAMETERS you will find information on the parameters of the article model, following that you find more information regarding the product-article model under VARIATIONS.</p>\n",
+      "_postman_id": "511386fa-f9ad-4b0b-af0c-e8ac330ad68c",
+      "auth": {
+        "type": "basic",
+        "basic": {
+          "basicConfig": [
+            { "key": "username", "value": "" },
+            { "key": "password", "value": "•••••••" }
+          ]
+        },
+        "isInherited": true,
+        "source": {
+          "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+          "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+          "name": "CDON API Documentation",
+          "type": "collection"
+        }
+      }
+    },
+    {
+      "name": "ORDERS",
+      "item": [
+        {
+          "name": "Retrieve an order",
+          "id": "e308976f-3efe-42c6-b8c2-8de27392c658",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to retrieve an order.</strong></p>\n<h2 id=\"request-query-parameters\">Request query parameters</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>order_id</td>\n<td>Unique ID for the order</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"response\">Response</h2>\n<p>The full order object will be returned.</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n  \"id\": \"{{order_id}}\",\n  \"article_id\": \"{{article_id}}\",\n  \"title\": \"Article title\",\n  \"article_sku\": \"123\",\n  \"price\": {\n    \"amount\": 23.2,\n    \"vat_amount\": 5.8,\n    \"vat_rate\": 0.25,\n    \"currency\": \"SEK\"\n  },\n  \"total_price\": {\n    \"amount\": 23.2,\n    \"vat_amount\": 5.8,\n    \"vat_rate\": 0.25,\n    \"currency\": \"SEK\"\n  },\n  \"quantity\": 2,\n  \"shipping_address\": {\n    \"first_name\": \"Test\",\n    \"last_name\": \"Person\",\n    \"street_address\": \"Test address 1\",\n    \"city\": \"Test city\",\n    \"postal_code\": \"234567\",\n    \"country\": \"Test country\",\n    \"phone_number\": \"+46 00 000 00 00\"\n  },\n  \"market\": \"SE\",\n  \"state\": \"CREATED\",\n  \"created_at\": \"2018-01-01 16:57:06\",\n  \"updated_at\": \"2018-01-01 16:57:06\",\n  \"fulfillment_deadline\": \"2018-01-06 16:57:06\",\n  \"tracking_information\": []\n}\n\n</code></pre><p><strong>NOTE:</strong> All transactions are handled in the customer's local currency.</p>\n",
+            "auth": {
+              "type": "basic",
+              "basic": {
+                "basicConfig": [
+                  { "key": "username", "value": "" },
+                  { "key": "password", "value": "•••••••" }
+                ]
+              },
+              "isInherited": true,
+              "source": {
+                "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "name": "CDON API Documentation",
+                "type": "collection"
+              }
+            },
+            "urlObject": {
+              "path": ["v1", "orders", "{{order_id}}"],
+              "host": ["https://merchants-api.sandbox.cdon.com/api"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "569f394c-ccb6-4edf-bc72-b5a830005f82",
+              "name": "200 - Successful call",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Connection",
+                  "value": "keep-alive",
+                  "description": "Options that are desired for the connection"
+                },
+                {
+                  "key": "Content-Encoding",
+                  "value": "gzip",
+                  "description": "The type of encoding used on the data."
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/html",
+                  "description": "The mime type of this content"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 10 Jan 2018 15:00:54 GMT",
+                  "description": "The date and time that the message was sent"
+                },
+                { "key": "Server", "value": "nginx", "description": "A name for the server" },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked",
+                  "description": "The form of encoding used to safely transfer the entity to the user. Currently defined methods are: chunked, compress, deflate, gzip, identity."
+                },
+                {
+                  "key": "X-Request-ID",
+                  "value": "221377f8b27e363e8e5968e90894404d",
+                  "description": "Custom header"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"id\": \"{{order_id}}\",\n  \"article_id\": \"{{article_id}}\",\n  \"customer_order_id\": \"{{customer_order_id}}\",\n  \"title\": \"Article title\",\n  \"article_sku\": \"123\",\n  \"price\": {\n    \"amount\": 23.2,\n    \"vat_amount\": 5.8,\n    \"vat_rate\": 0.25,\n    \"currency\": \"SEK\"\n  },\n  \"total_price\": {\n    \"amount\": 23.2,\n    \"vat_amount\": 5.8,\n    \"vat_rate\": 0.25,\n    \"currency\": \"SEK\"\n  },\n  \"quantity\": 2,\n  \"shipping_address\": {\n    \"first_name\": \"Test\",\n    \"last_name\": \"Person\",\n    \"street_address\": \"Test address 1\",\n    \"city\": \"Test city\",\n    \"postal_code\": \"234567\",\n    \"country\": \"Test country\",\n    \"phone_number\": \"+46 00 000 00 00\"\n  },\n  \"market\": \"SE\",\n  \"state\": \"CREATED\",\n  \"created_at\": \"2018-01-01 16:57:06\",\n  \"updated_at\": \"2018-01-01 16:57:06\",\n  \"fulfillment_deadline\": \"2018-01-06 16:57:06\",\n  \"tracking_information\": []\n}"
+            }
+          ],
+          "_postman_id": "e308976f-3efe-42c6-b8c2-8de27392c658"
+        },
+        {
+          "name": "List orders",
+          "id": "3aa9c2fc-a15a-49eb-8f99-b42c569f4231",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to retrieve your order data.</strong></p>\n<h2 id=\"query-parameters\">Query parameters</h2>\n<h4 id=\"filtering\">Filtering</h4>\n<p>The field <code>state</code> supports filtering. <strong>By default, we return new orders (orders in state CREATED)</strong>.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Filter values</th>\n<th>Definition</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>CREATED</td>\n<td>New order</td>\n</tr>\n<tr>\n<td>ACCEPTED</td>\n<td>Accepted</td>\n</tr>\n<tr>\n<td>FULFILLED</td>\n<td>Handled/shipped</td>\n</tr>\n<tr>\n<td>NOT_FULFILLED</td>\n<td>Cancelled/refunded</td>\n</tr>\n</tbody>\n</table>\n</div><h4 id=\"pagination\">Pagination</h4>\n<p>We return 100 orders by default and you can retrieve up to 1000 orders per page by using pagination parameters.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Default value</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>limit</td>\n<td>100</td>\n<td>No</td>\n</tr>\n<tr>\n<td>page</td>\n<td>1</td>\n<td>No</td>\n</tr>\n</tbody>\n</table>\n</div><p>--</p>\n<p><strong>You may combine pagination and filtering.</strong></p>\n<h2 id=\"response\">Response</h2>\n<p>Order objects will be returned, as per the settings of your request. See response samples on the right hand-side column.</p>\n",
+            "auth": {
+              "type": "basic",
+              "basic": {
+                "basicConfig": [
+                  { "key": "username", "value": "" },
+                  { "key": "password", "value": "•••••••" }
+                ]
+              },
+              "isInherited": true,
+              "source": {
+                "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "name": "CDON API Documentation",
+                "type": "collection"
+              }
+            },
+            "urlObject": {
+              "path": ["v1", "orders", ""],
+              "host": ["https://merchants-api.sandbox.cdon.com/api"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "c9fae49f-0950-4d17-a2f0-ee2d4f163b41",
+              "name": "List cancelled orders",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "https://merchants-api.sandbox.cdon.com/api/v1/orders?state=NOT_FULFILLED",
+                  "host": ["https://merchants-api.sandbox.cdon.com/api"],
+                  "path": ["v1", "orders"],
+                  "query": [{ "key": "state", "value": "NOT_FULFILLED" }]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "[\n\t{\n\t  \"id\": \"{{order_id}}\",\n\t  \"article_id\": \"{{article_id}}\",\n      \"customer_order_id\": \"{{customer_order_id}}\",\n\t  \"title\": \"Article title\",\n\t  \"article_sku\": \"123\",\n\t  \"price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"total_price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"quantity\": 2,\n\t  \"shipping_address\": {\n\t    \"first_name\": \"Test\",\n\t    \"last_name\": \"Person\",\n\t    \"street_address\": \"Test address 1\",\n\t    \"city\": \"Test city\",\n\t    \"postal_code\": \"234567\",\n\t    \"country\": \"Test country\",\n\t    \"phone_number\": \"+46 00 000 00 00\"\n\t  },\n\t  \"market\": \"SE\",\n\t  \"state\": \"NOT FULFILLED\",\n\t  \"created_at\": \"2018-01-01 16:57:06\",\n\t  \"updated_at\": \"2018-01-01 16:57:06\",\n\t  \"fulfillment_deadline\": \"2018-01-06 16:57:06\",\n\t  \"tracking_information\": []\n\t},\n\t{\n\t  \"id\": \"{{order_id}}\",\n\t  \"article_id\": \"{{article_id}}\",\n      \"customer_order_id\": \"{{customer_order_id}}\",\n\t  \"title\": \"Article title\",\n\t  \"article_sku\": \"123\",\n\t  \"price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"total_price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"quantity\": 2,\n\t  \"shipping_address\": {\n\t    \"first_name\": \"Test2\",\n\t    \"last_name\": \"Person2\",\n\t    \"street_address\": \"Test address 2\",\n\t    \"city\": \"Test city\",\n\t    \"postal_code\": \"234567\",\n\t    \"country\": \"Test country\",\n\t    \"phone_number\": \"+46 00 000 00 00\"\n\t  },\n\t  \"market\": \"SE\",\n\t  \"state\": \"NOT_FULFILLED\",\n\t  \"created_at\": \"2018-01-01 16:57:06\",\n\t  \"updated_at\": \"2018-01-01 16:57:06\",\n\t  \"fulfillment_deadline\": \"2018-01-06 16:57:06\",\n\t  \"tracking_information\": []\n\t}\n]"
+            },
+            {
+              "id": "871a1a94-9761-441b-88d9-625717077be3",
+              "name": "List new orders",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "https://merchants-api.sandbox.cdon.com/api/v1/orders?state=CREATED",
+                  "host": ["https://merchants-api.sandbox.cdon.com/api"],
+                  "path": ["v1", "orders"],
+                  "query": [{ "key": "state", "value": "CREATED" }]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "[\n\t{\n\t  \"id\": \"{{order_id}}\",\n\t  \"article_id\": \"{{article_id}}\",\n      \"customer_order_id\": \"{{customer_order_id}}\",\n\t  \"title\": \"Article title\",\n\t  \"article_sku\": \"123\",\n\t  \"price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"total_price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"quantity\": 2,\n\t  \"shipping_address\": {\n\t    \"first_name\": \"Test\",\n\t    \"last_name\": \"Person\",\n\t    \"street_address\": \"Test address 1\",\n\t    \"city\": \"Test city\",\n\t    \"postal_code\": \"234567\",\n\t    \"country\": \"Test country\",\n\t    \"phone_number\": \"+46 00 000 00 00\"\n\t  },\n\t  \"market\": \"SE\",\n\t  \"state\": \"CREATED\",\n\t  \"created_at\": \"2018-01-01 16:57:06\",\n\t  \"updated_at\": \"2018-01-01 16:57:06\",\n\t  \"fulfillment_deadline\": \"2018-01-06 16:57:06\",\n\t  \"tracking_information\": []\n\t}\n]"
+            },
+            {
+              "id": "ecba23fd-f6a9-490e-a2ff-b369929451a4",
+              "name": "List fulfilled orders",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "https://merchants-api.sandbox.cdon.com/api/v1/orders?state=FULFILLED",
+                  "host": ["https://merchants-api.sandbox.cdon.com/api"],
+                  "path": ["v1", "orders"],
+                  "query": [{ "key": "state", "value": "FULFILLED" }]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "[\n\t{\n\t  \"id\": \"{{order_id}}\",\n\t  \"article_id\": \"{{article_id}}\",\n      \"customer_order_id\": \"{{customer_order_id}}\",\n\t  \"title\": \"Article title\",\n\t  \"article_sku\": \"123\",\n\t  \"price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"total_price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"quantity\": 2,\n\t  \"shipping_address\": {\n\t    \"first_name\": \"Test\",\n\t    \"last_name\": \"Person\",\n\t    \"street_address\": \"Test address 1\",\n\t    \"city\": \"Test city\",\n\t    \"postal_code\": \"234567\",\n\t    \"country\": \"Test country\",\n\t    \"phone_number\": \"+46 00 000 00 00\"\n\t  },\n\t  \"market\": \"SE\",\n\t  \"state\": \"FULFILLED\",\n\t  \"created_at\": \"2018-01-01 16:57:06\",\n\t  \"updated_at\": \"2018-01-01 16:57:06\",\n\t  \"fulfillment_deadline\": \"2018-01-06 16:57:06\",\n\t  \"tracking_information\": []\n\t},\n\t{\n\t  \"id\": \"{{order_id}}\",\n\t  \"article_id\": \"{{article_id}}\",\n      \"customer_order_id\": \"{{customer_order_id}}\",\n\t  \"title\": \"Article title\",\n\t  \"article_sku\": \"123\",\n\t  \"price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"total_price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"quantity\": 2,\n\t  \"shipping_address\": {\n\t    \"first_name\": \"Test2\",\n\t    \"last_name\": \"Person2\",\n\t    \"street_address\": \"Test address 2\",\n\t    \"city\": \"Test city\",\n\t    \"postal_code\": \"234567\",\n\t    \"country\": \"Test country\",\n\t    \"phone_number\": \"+46 00 000 00 00\"\n\t  },\n\t  \"market\": \"SE\",\n\t  \"state\": \"FULFILLED\",\n\t  \"created_at\": \"2018-01-01 16:57:06\",\n\t  \"updated_at\": \"2018-01-01 16:57:06\",\n\t  \"fulfillment_deadline\": \"2018-01-06 16:57:06\",\n\t  \"tracking_information\": []\n\t}\n]"
+            }
+          ],
+          "_postman_id": "3aa9c2fc-a15a-49eb-8f99-b42c569f4231"
+        },
+        {
+          "name": "Accept an order",
+          "id": "482ba20d-1521-4a2f-96ff-f164eaf494e0",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }],
+            "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/accept",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to accept an order.</strong></p>\n<p>A request can be sent for one single order.</p>\n<p>By running this call, you will set the order field <code>state</code> to <strong>accepted</strong>.</p>\n<p>Any order that has already been cancelled or fulfilled cannot be accepted.</p>\n<h2 id=\"request-query-parameter\">Request query parameter</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>order_id</td>\n<td>Unique ID for the order you want to accept</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"response\">Response</h2>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n    \"description\": \"Order row was accepted\"\n}\n\n</code></pre>",
+            "auth": {
+              "type": "basic",
+              "basic": {
+                "basicConfig": [
+                  { "key": "username", "value": "" },
+                  { "key": "password", "value": "•••••••" }
+                ]
+              },
+              "isInherited": true,
+              "source": {
+                "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "name": "CDON API Documentation",
+                "type": "collection"
+              }
+            },
+            "urlObject": {
+              "path": ["v1", "orders", "{{order_id}}", "accept"],
+              "host": ["https://merchants-api.sandbox.cdon.com/api"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "22be453d-db8d-49a9-834c-d376ab75215a",
+              "name": "202 - Successful fulfillment",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/accept"
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Connection",
+                  "value": "keep-alive",
+                  "description": "Options that are desired for the connection"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "166",
+                  "description": "The length of the response body in octets (8-bit bytes)"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/html",
+                  "description": "The mime type of this content"
+                },
+                {
+                  "key": "Date",
+                  "value": "Mon, 08 Jan 2018 13:43:35 GMT",
+                  "description": "The date and time that the message was sent"
+                },
+                { "key": "Server", "value": "nginx", "description": "A name for the server" },
+                {
+                  "key": "X-Request-ID",
+                  "value": "c6e2d4c1fe2ef4c9ef631977b9974421",
+                  "description": "Custom header"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order row was accepted\"\n}"
+            },
+            {
+              "id": "21ced1dd-c173-4d13-8679-354e4d0989b1",
+              "name": "403 - Order is already accepted",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/accept"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order row already has accepted as state\"\n}"
+            },
+            {
+              "id": "f166fb32-712a-4f4d-bb94-6772ac49efb8",
+              "name": "403 - Order is already fulfilled",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/accept"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order row already has fulfilled as state\"\n}"
+            },
+            {
+              "id": "0040dceb-fd63-4e67-aaf3-34ab6d576375",
+              "name": "403 - Order is already cancelled",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/accept"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order row already has not_fulfilled as state\"\n}"
+            },
+            {
+              "id": "217a4ba2-61c2-4784-96ea-80fc75905b7f",
+              "name": "403 - Order has passed fulfillment date",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/accept"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order has passed fulfillment due date\"\n}"
+            }
+          ],
+          "_postman_id": "482ba20d-1521-4a2f-96ff-f164eaf494e0"
+        },
+        {
+          "name": "Fulfill an order",
+          "id": "ed547e84-dc72-41ac-ac53-f12231a14a0b",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\t\"tracking_information\": [\n\t\t{\n    \t\t\"carrier_name\": \"Postnord\",\n    \t\t\"tracking_number\": \"abc123\"\n\t\t},\n\t\t{\n    \t\t\"carrier_name\": null,\n\t\t\t\"tracking_number\": \"def456\"\n\t\t},\n\t\t{\n\t\t\t\"tracking_number\": \"ghi789\"\n\t\t}\n\t]\n}\n",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/fulfill",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to fulfill an order.</strong></p>\n<p>A request can be sent for one single order.</p>\n<p>Mark the order as handled as soon as you have shipped the item.<br />By running this call, you will set the order field <code>state</code> to <strong>fulfilled</strong>.</p>\n<p>Any order that has already been cancelled cannot be fulfilled.</p>\n<h2 id=\"request-query-parameter\">Request query parameter</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>order_id</td>\n<td>Unique ID for the order you want to fulfill</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"adding-tracking-information\">Adding tracking information</h2>\n<p>If available the tracking information should be supplied in the body. For each object in the Tracking Information list the Tracking Number is required but Carrier is optional to supply.</p>\n<h2 id=\"example-body-with-tracking-information\">Example body with tracking information</h2>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n    \"tracking_information\": [\n        {\n            \"carrier_name\": \"Postnord\",\n            \"tracking_number\": \"abc123\"\n        },\n        {\n            \"carrier_name\": null,\n            \"tracking_number\": \"def456\"\n        },\n        {\n            \"tracking_number\": \"ghi789\"\n        }\n    ]\n}\n\n</code></pre><h2 id=\"response\">Response</h2>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n    \"description\": \"Order row was fulfilled\"\n}\n\n</code></pre>",
+            "auth": {
+              "type": "basic",
+              "basic": {
+                "basicConfig": [
+                  { "key": "username", "value": "" },
+                  { "key": "password", "value": "•••••••" }
+                ]
+              },
+              "isInherited": true,
+              "source": {
+                "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "name": "CDON API Documentation",
+                "type": "collection"
+              }
+            },
+            "urlObject": {
+              "path": ["v1", "orders", "{{order_id}}", "fulfill"],
+              "host": ["https://merchants-api.sandbox.cdon.com/api"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "b78b4efa-b43d-44e6-85da-09d1593858c1",
+              "name": "202 - Successful fulfillment",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/fulfill"
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Connection",
+                  "value": "keep-alive",
+                  "description": "Options that are desired for the connection"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "166",
+                  "description": "The length of the response body in octets (8-bit bytes)"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/html",
+                  "description": "The mime type of this content"
+                },
+                {
+                  "key": "Date",
+                  "value": "Mon, 08 Jan 2018 13:43:35 GMT",
+                  "description": "The date and time that the message was sent"
+                },
+                { "key": "Server", "value": "nginx", "description": "A name for the server" },
+                {
+                  "key": "X-Request-ID",
+                  "value": "c6e2d4c1fe2ef4c9ef631977b9974421",
+                  "description": "Custom header"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order row was fulfilled\"\n}"
+            },
+            {
+              "id": "65c3ae21-210c-4b84-8328-b56a22febf9d",
+              "name": "403 - Order is already fulfilled",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/fulfill"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order row already has fulfilled as state\"\n}"
+            },
+            {
+              "id": "76059acb-55a0-4d9e-a3ec-7b350c38f71a",
+              "name": "403 - Order is already cancelled",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/fulfill"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order row already has not_fulfilled as state\"\n}"
+            },
+            {
+              "id": "e7f26c07-2075-4662-a85f-92bbcfc298e2",
+              "name": "403 - Order has passed fulfillment date",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/fulfill"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order has passed fulfillment due date\"\n}"
+            }
+          ],
+          "_postman_id": "ed547e84-dc72-41ac-ac53-f12231a14a0b"
+        },
+        {
+          "name": "Cancel an order",
+          "id": "ad6d8aad-49a2-4c09-a266-743a8402ce85",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/cancel",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to cancel an order.</strong></p>\n<p>This call should be used whenever you are unable to ship the item (for stock issue for example).<br />It will set the order field <code>state</code> to <strong>not_fulfilled</strong>.</p>\n<p>Any order that has already been fulfilled or accepted cannot be cancelled.</p>\n<h2 id=\"request-query-parameter\">Request query parameter</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>order_id</td>\n<td>Unique ID for the order you want to cancel</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"response\">Response</h2>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n    \"description\": \"Order row was cancelled\"\n}\n\n</code></pre>",
+            "auth": {
+              "type": "basic",
+              "basic": {
+                "basicConfig": [
+                  { "key": "username", "value": "" },
+                  { "key": "password", "value": "•••••••" }
+                ]
+              },
+              "isInherited": true,
+              "source": {
+                "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "name": "CDON API Documentation",
+                "type": "collection"
+              }
+            },
+            "urlObject": {
+              "path": ["v1", "orders", "{{order_id}}", "cancel"],
+              "host": ["https://merchants-api.sandbox.cdon.com/api"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "fe1db4cd-6838-4c95-b906-6b1c1ca3d0c1",
+              "name": "403 - Order is already cancelled",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/cancel"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n\"description\": \"Order row already has not_fulfilled as state\"\n}"
+            },
+            {
+              "id": "81402585-7977-48c4-bb88-6da717d01d50",
+              "name": "202 - Successful cancelation",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/cancel"
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Connection",
+                  "value": "keep-alive",
+                  "description": "Options that are desired for the connection"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "166",
+                  "description": "The length of the response body in octets (8-bit bytes)"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/html",
+                  "description": "The mime type of this content"
+                },
+                {
+                  "key": "Date",
+                  "value": "Mon, 08 Jan 2018 13:44:33 GMT",
+                  "description": "The date and time that the message was sent"
+                },
+                { "key": "Server", "value": "nginx", "description": "A name for the server" },
+                {
+                  "key": "X-Request-ID",
+                  "value": "962ebde8e5656009157430db29927b61",
+                  "description": "Custom header"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order row was cancelled\"\n}"
+            },
+            {
+              "id": "f5f74951-c5be-4702-9582-d4f5c62d040e",
+              "name": "403 - Order is already fulfilled",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/{{order_id}}/cancel"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order row already has fulfilled as state\"\n}"
+            }
+          ],
+          "_postman_id": "ad6d8aad-49a2-4c09-a266-743a8402ce85"
+        },
+        {
+          "name": "Create a test order",
+          "id": "f97999b7-40e4-4a76-8eae-5ded5340ac8b",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "raw", "raw": "", "options": { "raw": { "language": "json" } } },
+            "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders/",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>Use this call to create test orders in the sanbox.</strong></p>\n<p>Please note that this endpoint is not available in production environment. \nThe response time can be longer than usual.</p>\n<h2 id=\"request-body-parameters\">Request body parameters</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Data type</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>article_id</td>\n<td>Fyndiq unique ID for the article</td>\n<td>String (1-64)</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>quantity</td>\n<td>Quantity of article unit to be ordered</td>\n<td>Non-negative Integer (0-50)</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"response\">Response</h2>\n<p>In the response we will return the Order ID. You can test further your integration by cancelling/fulfilling the orders you create.</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n    \"id\": \"{{order_id}}\",\n    \"description\": \"Order was created.\"\n}\n</code></pre>",
+            "auth": {
+              "type": "basic",
+              "basic": {
+                "basicConfig": [
+                  { "key": "username", "value": "" },
+                  { "key": "password", "value": "•••••••" }
+                ]
+              },
+              "isInherited": true,
+              "source": {
+                "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "name": "CDON API Documentation",
+                "type": "collection"
+              }
+            },
+            "urlObject": {
+              "path": ["v1", "orders", ""],
+              "host": ["https://merchants-api.sandbox.cdon.com/api"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "dec1e268-77ef-4557-94e3-a59508e68ffd",
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"article_id\":\"123\", \n\t\"quantity\":499\n}"
+                },
+                "url": "https://merchants-api.sandbox.cdon.com/api/v1/orders"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"id\": \"{{order_id}}\",\n    \"description\": \"Order was created.\"\n}"
+            }
+          ],
+          "_postman_id": "f97999b7-40e4-4a76-8eae-5ded5340ac8b"
+        }
+      ],
+      "id": "1ccd278e-38cc-4a84-ae03-9cfe0217b963",
+      "description": "<h2 id=\"order-attributes\">Order attributes</h2>\n<p>As soon as a customer completes an order of one of your articles, we will make the order information available via the resource <strong>ORDERS</strong>. It will include the necessary information regarding both the item that was sold and the customer who made the purchase.</p>\n<p>Each order will contain only one SKU, with possible quantity (&gt;1).</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>id</td>\n<td>Unique ID for the order (read only)</td>\n</tr>\n<tr>\n<td>article_id</td>\n<td>Unique ID for the ordered article (read only)</td>\n</tr>\n<tr>\n<td>article_title</td>\n<td>Name of the ordered article (read only)</td>\n</tr>\n<tr>\n<td>article_sku</td>\n<td>Your unique ID for the ordered article (read only)</td>\n</tr>\n<tr>\n<td>market</td>\n<td>Market the order was made on (read only)</td>\n</tr>\n<tr>\n<td>article_price</td>\n<td>Price of the ordered item (excluding shipping) (read only)</td>\n</tr>\n<tr>\n<td>article_vat_rate</td>\n<td>VAT rate for the ordered article (read only)</td>\n</tr>\n<tr>\n<td>quantity</td>\n<td>Number of article units ordered (read only)</td>\n</tr>\n<tr>\n<td>total_price</td>\n<td>Full amount of the order (read only)</td>\n</tr>\n<tr>\n<td>shipping_address</td>\n<td>Customer information (read only)</td>\n</tr>\n<tr>\n<td>created_at</td>\n<td>Date the order was created on, UTC (read only)</td>\n</tr>\n<tr>\n<td>fulfill_before</td>\n<td>Date the order must be fulfilled by, UTC (read only)</td>\n</tr>\n<tr>\n<td>state</td>\n<td>Order state</td>\n</tr>\n</tbody>\n</table>\n</div><h3 id=\"quantity--price\">Quantity / Price</h3>\n<p>In case of an order with several quantity, the price do not represent the unit price but the price for all quantities.</p>\n<p><code>article_price = unit price \\\\* quantity</code></p>\n<p><code>total_price = article_price</code></p>\n<p><strong>NOTE:</strong> All transactions are handled in the customer's local currency.</p>\n<h3 id=\"shipping-address\">Shipping Address</h3>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th><strong>Parameter</strong></th>\n<th><strong>Description</strong></th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>full_name</td>\n<td>Customer full name</td>\n</tr>\n<tr>\n<td>first_name</td>\n<td>Customer first name (not available in a B2B order)</td>\n</tr>\n<tr>\n<td>last_name</td>\n<td>Customer last name (not available in a B2B order)</td>\n</tr>\n<tr>\n<td>street_address</td>\n<td>Customer street address</td>\n</tr>\n<tr>\n<td>postal_code</td>\n<td>Customer postal code</td>\n</tr>\n<tr>\n<td>city</td>\n<td>Customer city</td>\n</tr>\n<tr>\n<td>country</td>\n<td>Customer country</td>\n</tr>\n<tr>\n<td>phone_number</td>\n<td>Customer phone number</td>\n</tr>\n</tbody>\n</table>\n</div><h3 id=\"state\">State</h3>\n<p>In return, you are to inform us on the actions you are taking for the order. In most cases you will ship the package and therefore fulfill the order. In some cases you might need to cancel the order.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>State</th>\n<th>Description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>CREATED</td>\n<td>New order, to be handled</td>\n</tr>\n<tr>\n<td>ACCEPTED</td>\n<td>Order has been accepted, must be fulfilled and delivered within the given delivery time</td>\n</tr>\n<tr>\n<td>FULFILLED</td>\n<td>Order has been handled, item has been shipped</td>\n</tr>\n<tr>\n<td>NOT_FULFILLED</td>\n<td>Order has been cancelled, customer has been refunded</td>\n</tr>\n</tbody>\n</table>\n</div><p>The following calls will give you the ability to handle a single order as per above flow.<br /><strong>Please note that once an order has entered the state</strong> <strong><code>fulfilled</code></strong> <strong>or</strong> <strong><code>not_fulfilled</code></strong>, <strong>the order state can no longer be modified.</strong></p>\n",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [""],
+            "id": "9924e6ac-68ab-4f8f-b624-bb4cea86ea5b"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [""],
+            "id": "57fa3df8-6723-4e06-8742-efa3b26af861"
+          }
+        }
+      ],
+      "_postman_id": "1ccd278e-38cc-4a84-ae03-9cfe0217b963",
+      "auth": {
+        "type": "basic",
+        "basic": {
+          "basicConfig": [
+            { "key": "username", "value": "" },
+            { "key": "password", "value": "•••••••" }
+          ]
+        },
+        "isInherited": true,
+        "source": {
+          "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+          "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+          "name": "CDON API Documentation",
+          "type": "collection"
+        }
+      }
+    },
+    {
+      "name": "CATEGORIES",
+      "item": [
+        {
+          "name": "List Categories",
+          "id": "a070ca12-6193-432f-93f3-029e831124f3",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "https://merchants-api.sandbox.cdon.com/api/v1/categories/{{market}}/{{language}}/",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to retrieve the category tree for Fyndiq articles.</strong></p>\n<h2 id=\"url-structure\">URL Structure</h2>\n<p>When fetching the category tree you will need to supply market and language for the tree you want to fetch.</p>\n<p><a href=\"https://merchants-api.sandbox.cdon.com/api/v1/categories/SE/en-US/\">https://merchants-api.sandbox.cdon.com/api/v1/categories/SE/en-US/</a> will fetch the tree for the Swedish market in English, changing en-US to sv-SE will fetch the same tree but with Swedish names.</p>\n<h2 id=\"response\">Response</h2>\n<p>The category tree will be returned as a list where each node has the following attributes:</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Attribute</th>\n<th>Description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>id</td>\n<td>The ID of the category.</td>\n</tr>\n<tr>\n<td>name</td>\n<td>Name of the category.</td>\n</tr>\n<tr>\n<td>path</td>\n<td>The path from the ancestor root category to the current category separated by dots.</td>\n</tr>\n<tr>\n<td>search_friendly_name</td>\n<td>Search friendly name, if available.</td>\n</tr>\n</tbody>\n</table>\n</div><pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>[\n    {\n        \"id\": 1,\n        \"name\": \"Fashion\",\n        \"path\": \"1\",\n        \"search_friendly_name\": \"\"\n    },\n    {\n        \"id\": 423,\n        \"name\": \"Accessories\",\n        \"path\": \"1.423\",\n        \"search_friendly_name\": \"\"\n    },\n    ...\n]\n\n</code></pre>",
+            "auth": {
+              "type": "basic",
+              "basic": {
+                "basicConfig": [
+                  { "key": "username", "value": "" },
+                  { "key": "password", "value": "•••••••" }
+                ]
+              },
+              "isInherited": true,
+              "source": {
+                "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "name": "CDON API Documentation",
+                "type": "collection"
+              }
+            },
+            "urlObject": {
+              "path": ["v1", "categories", "{{market}}", "{{language}}", ""],
+              "host": ["https://merchants-api.sandbox.cdon.com/api"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [],
+          "_postman_id": "a070ca12-6193-432f-93f3-029e831124f3"
+        }
+      ],
+      "id": "94563188-6eec-41c0-b240-e0c844534fe8",
+      "_postman_id": "94563188-6eec-41c0-b240-e0c844534fe8",
+      "description": "",
+      "auth": {
+        "type": "basic",
+        "basic": {
+          "basicConfig": [
+            { "key": "username", "value": "" },
+            { "key": "password", "value": "•••••••" }
+          ]
+        },
+        "isInherited": true,
+        "source": {
+          "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+          "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+          "name": "CDON API Documentation",
+          "type": "collection"
+        }
+      }
+    },
+    {
+      "name": "STATUSES",
+      "item": [
+        {
+          "name": "List Statuses By Batch Ids",
+          "id": "806817aa-0639-4917-b9bd-23ce7e059a9d",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-merchant-id", "value": "string" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"batch_ids\": [\n    \"string\",\n    \"string\"\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "https://merchants-api.sandbox.cdon.com/api/v1/statuses/batch",
+            "auth": {
+              "type": "basic",
+              "basic": {
+                "basicConfig": [
+                  { "key": "username", "value": "" },
+                  { "key": "password", "value": "•••••••" }
+                ]
+              },
+              "isInherited": true,
+              "source": {
+                "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "name": "CDON API Documentation",
+                "type": "collection"
+              }
+            },
+            "urlObject": {
+              "path": ["v1", "statuses", "batch"],
+              "host": ["https://merchants-api.sandbox.cdon.com/api"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "17189501-2aea-4310-a4f2-fb3c38a54418",
+              "name": "Successful Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "x-merchant-id", "value": "string" },
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"batch_ids\": [\n    \"string\",\n    \"string\"\n  ]\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "https://merchants-api.sandbox.cdon.com/api/v1/statuses/batch?status=ok&mocked_response=true",
+                  "host": ["https://merchants-api.sandbox.cdon.com/api"],
+                  "path": ["v1", "statuses", "batch"],
+                  "query": [
+                    { "key": "status", "value": "ok" },
+                    { "key": "mocked_response", "value": "true" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"batches\": [\n        {\n        \"id\": \"<batch-id>\",\n        \"statuses\": [\n            {\n            \"correlation_id\": \"string\",\n            \"article_id\": \"string\",\n            \"sku\": \"string\",\n            \"action\": \"string\",\n            \"markets\": [\n                {\n                \"market\": \"*\",\n                \"status\": \"ok\",\n                \"error_code\": null\n                },\n                {\n                \"market\": \"*\",\n                \"status\": \"failed\",\n                \"error_code\": \"permission_denied\"\n                }\n            ]\n            },\n            {\n            \"correlation_id\": \"string\",\n            \"article_id\": \"string\",\n            \"sku\": \"string\",\n            \"action\": \"string\",\n            \"markets\": [\n                {\n                \"market\": \"*\",\n                \"status\": \"pending\",\n                \"error_code\": null\n                },\n                {\n                \"market\": \"*\",\n                \"status\": \"failed\",\n                \"error_code\": \"article_does_not_exist\"\n                }\n            ]\n            }\n        ]\n        },\n        {\n        \"id\": \"<batch-id>\",\n        \"statuses\": [\n            {\n            \"correlation_id\": \"string\",\n            \"article_id\": \"string\",\n            \"sku\": \"string\",\n            \"action\": \"string\",\n            \"markets\": [\n                {\n                \"market\": \"*\",\n                \"status\": \"failed\",\n                \"error_code\": \"invalid_category\"\n                },\n                {\n                \"market\": \"*\",\n                \"status\": \"ok\",\n                \"error_code\": null\n                }\n            ]\n            },\n            {\n            \"correlation_id\": \"string\",\n            \"article_id\": \"string\",\n            \"sku\": \"string\",\n            \"action\": \"string\",\n            \"markets\": [\n                {\n                \"market\": \"*\",\n                \"status\": \"failed\",\n                \"error_code\": \"sku_already_exists\"\n                },\n                {\n                \"market\": \"*\",\n                \"status\": \"failed\",\n                \"error_code\": \"invalid_vat_rate\"\n                }\n            ]\n            }\n        ]\n        }\n    ]\n}"
+            }
+          ],
+          "_postman_id": "806817aa-0639-4917-b9bd-23ce7e059a9d"
+        },
+        {
+          "name": "List Statuses By Skus",
+          "id": "7538f04f-13dc-4593-ac0a-08645d3089ba",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-merchant-id", "value": "string" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skus\": [\n    \"string\",\n    \"string\"\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "https://merchants-api.sandbox.cdon.com/api/v1/statuses/sku",
+            "auth": {
+              "type": "basic",
+              "basic": {
+                "basicConfig": [
+                  { "key": "username", "value": "" },
+                  { "key": "password", "value": "•••••••" }
+                ]
+              },
+              "isInherited": true,
+              "source": {
+                "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+                "name": "CDON API Documentation",
+                "type": "collection"
+              }
+            },
+            "urlObject": {
+              "path": ["v1", "statuses", "sku"],
+              "host": ["https://merchants-api.sandbox.cdon.com/api"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "830e93ab-8a6d-490f-b874-f27c3cacdbcc",
+              "name": "Successful Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "x-merchant-id", "value": "string" },
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"skus\": [\n    \"string\",\n    \"string\"\n  ]\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "https://merchants-api.sandbox.cdon.com/api/v1/statuses/sku?status=ok&mocked_response=true",
+                  "host": ["https://merchants-api.sandbox.cdon.com/api"],
+                  "path": ["v1", "statuses", "sku"],
+                  "query": [
+                    { "key": "status", "value": "ok" },
+                    { "key": "mocked_response", "value": "true" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"statuses\": [\n    {\n      \"correlation_id\": \"string\",\n      \"article_id\": \"string\",\n      \"sku\": \"string\",\n      \"action\": \"string\",\n      \"markets\": [\n        {\n          \"market\": \"*\",\n          \"status\": \"failed\",\n          \"error_code\": \"invalid_classification\"\n        },\n        {\n          \"market\": \"*\",\n          \"status\": \"failed\",\n          \"error_code\": \"invalid_vat_rate\"\n        }\n      ]\n    },\n    {\n      \"correlation_id\": \"string\",\n      \"article_id\": \"string\",\n      \"sku\": \"string\",\n      \"action\": \"string\",\n      \"markets\": [\n        {\n          \"market\": \"*\",\n          \"status\": \"failed\",\n          \"error_code\": \"invalid_category\"\n        },\n        {\n          \"market\": \"*\",\n          \"status\": \"failed\",\n          \"error_code\": \"sku_already_exists\"\n        }\n      ]\n    }\n  ]\n}"
+            }
+          ],
+          "_postman_id": "7538f04f-13dc-4593-ac0a-08645d3089ba"
+        }
+      ],
+      "id": "bf42b220-3077-403f-bfaf-3e3760860f3d",
+      "description": "<h2 id=\"overview\">Overview</h2>\n<p>This API enables you to track the processing status of your article requests across multiple markets. It provides two main ways to check statuses:</p>\n<h2 id=\"endpoints\">Endpoints</h2>\n<h3 id=\"1-batch-status-tracking-v1statusesbatch\">1. Batch Status Tracking (<code>/v1/statuses/batch</code>)</h3>\n<p>Check the status of multiple article requests submitted in batches- Returns status information for all articles within specified batch IDs</p>\n<h3 id=\"2-individual-sku-status-tracking-v1statusessku\">2. Individual SKU Status Tracking (<code>/v1/statuses/sku</code>)</h3>\n<p>Returns the latest processed status information for specific articles. Note that this endpoint provides eventual consistency - the status returned reflects the most recent processing state, there could be submitted changes that haven't been processed yet.</p>\n",
+      "_postman_id": "bf42b220-3077-403f-bfaf-3e3760860f3d",
+      "auth": {
+        "type": "basic",
+        "basic": {
+          "basicConfig": [
+            { "key": "username", "value": "" },
+            { "key": "password", "value": "•••••••" }
+          ]
+        },
+        "isInherited": true,
+        "source": {
+          "_postman_id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+          "id": "973152e3-85c2-4458-ba9e-9bfb8c8e6fd8",
+          "name": "CDON API Documentation",
+          "type": "collection"
+        }
+      }
+    }
+  ],
+  "auth": {
+    "type": "basic",
+    "basic": {
+      "basicConfig": [
+        { "key": "username", "value": "" },
+        { "key": "password", "value": "•••••••" }
+      ]
+    }
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "id": "79ba26ae-6401-4b50-bfa8-0d0aae7a1aef",
+        "type": "text/javascript",
+        "packages": {},
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "id": "b0c20571-d89f-40c8-b305-35e71c2e41a1",
+        "type": "text/javascript",
+        "packages": {},
+        "exec": [""]
+      }
+    }
+  ]
+}

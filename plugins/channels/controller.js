@@ -93,12 +93,18 @@ class ChannelsController {
         });
       }
 
-      const row = await this.model.setProductEnabled(req, { productId, channel, enabled, channelInstanceId });
+      const row = await this.model.setProductEnabled(req, {
+        productId,
+        channel,
+        enabled,
+        channelInstanceId,
+      });
 
       // also return the refreshed single-channel summary so UI can update counts
       const summaries = await this.model.getAll(req);
       const summary =
-        summaries.find(s => String(s.channel).toLowerCase() === String(channel).toLowerCase()) || null;
+        summaries.find((s) => String(s.channel).toLowerCase() === String(channel).toLowerCase()) ||
+        null;
 
       res.json({ ok: true, row, summary });
     } catch (error) {
@@ -189,6 +195,7 @@ class ChannelsController {
         label: data.label,
         credentials: data.credentials,
         enabled: data.enabled,
+        selloIntegrationId: data.selloIntegrationId,
       });
       return res.json({ ok: true, row });
     } catch (error) {

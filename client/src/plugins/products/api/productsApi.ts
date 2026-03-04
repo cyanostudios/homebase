@@ -1,3 +1,4 @@
+/* eslint-disable eqeqeq */
 // Dedicated API client for Products (with 409-aware error handling and CSRF)
 
 import type { Product } from '../types/products';
@@ -16,19 +17,30 @@ export type ProductImportResult = {
   notFound: Array<{ row: number; sku: string }>;
   rows: Array<{ row: number; sku?: string; action: string; reason?: string; id?: string }>;
 };
+export type SelloSettings = {
+  id?: string;
+  apiKey: string;
+  connected: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
 
 class ProductsApi {
   private csrfToken: string | null = null;
 
   private async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) return this.csrfToken;
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
 
     const response = await fetch('/api/csrf-token', {
-      credentials: 'include'
+      credentials: 'include',
     });
     const data = await response.json();
     this.csrfToken = data.csrfToken ?? null;
-    if (this.csrfToken == null) throw new Error('CSRF token not returned by server');
+    if (this.csrfToken == null) {
+      throw new Error('CSRF token not returned by server');
+    }
     return this.csrfToken;
   }
 
@@ -37,7 +49,7 @@ class ProductsApi {
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        ...(options.headers as Record<string, string> || {}),
+        ...((options.headers as Record<string, string>) || {}),
       };
 
       // Add CSRF token for mutations
@@ -142,7 +154,9 @@ class ProductsApi {
 
   // ---- Lists ----
 
-  async getLists(): Promise<Array<{ id: string; name: string; namespace: string; createdAt: string; updatedAt: string }>> {
+  async getLists(): Promise<
+    Array<{ id: string; name: string; namespace: string; createdAt: string; updatedAt: string }>
+  > {
     return this.request('/products/lists');
   }
 
@@ -180,10 +194,18 @@ class ProductsApi {
     soldCount: number;
     bestChannel: string | null;
     activeTargetsCount: number;
-    timeline: Array<{ type: string; channel: string; orderId: string; quantity: number; placedAt: string | null }>;
+    timeline: Array<{
+      type: string;
+      channel: string;
+      orderId: string;
+      quantity: number;
+      placedAt: string | null;
+    }>;
   }> {
     const q = new URLSearchParams();
-    if (range) q.set('range', range);
+    if (range) {
+      q.set('range', range);
+    }
     const suffix = q.toString() ? `?${q.toString()}` : '';
     return this.request(`/products/${encodeURIComponent(productId)}/stats${suffix}`);
   }
@@ -197,13 +219,16 @@ class ProductsApi {
   // ---- Batch update ----
   // PATCH /api/products/batch
   // body: { ids: string[], updates: { priceAmount?, quantity?, status?, vatRate?, currency? } }
-  async batchUpdate(ids: string[], updates: {
-    priceAmount?: number;
-    quantity?: number;
-    status?: string;
-    vatRate?: number;
-    currency?: string;
-  }): Promise<{ ok: true; updatedCount: number; updatedIds: string[] }> {
+  async batchUpdate(
+    ids: string[],
+    updates: {
+      priceAmount?: number;
+      quantity?: number;
+      status?: string;
+      vatRate?: number;
+      currency?: string;
+    },
+  ): Promise<{ ok: true; updatedCount: number; updatedIds: string[] }> {
     return this.request('/products/batch', {
       method: 'PATCH',
       body: JSON.stringify({ ids, updates }),
@@ -213,7 +238,9 @@ class ProductsApi {
   // ---- Bulk delete (Platform) ----
   // DELETE /api/products/batch
   // body: { ids: string[] }
-  async deleteProductsBulk(ids: string[]): Promise<{ ok: true; requested: number; deleted: number; deletedIds: string[] }> {
+  async deleteProductsBulk(
+    ids: string[],
+  ): Promise<{ ok: true; requested: number; deleted: number; deletedIds: string[] }> {
     return this.request('/products/batch', {
       method: 'DELETE',
       body: JSON.stringify({ ids }),
@@ -241,14 +268,29 @@ class ProductsApi {
     const payload = text ? JSON.parse(text) : null;
 
     if (!response.ok) {
-      const err: any = new Error(payload?.error || payload?.message || response.statusText || 'Import failed');
+      const err: any = new Error(
+        payload?.error || payload?.message || response.statusText || 'Import failed',
+      );
       err.status = response.status;
       err.error = payload?.error || payload?.message;
-      if (payload?.errors) err.errors = payload.errors;
+      if (payload?.errors) {
+        err.errors = payload.errors;
+      }
       throw err;
     }
 
     return payload as ProductImportResult;
+  }
+
+  async getSelloSettings(): Promise<SelloSettings | null> {
+    return this.request('/products/sello-settings');
+  }
+
+  async putSelloSettings(data: { apiKey?: string }): Promise<SelloSettings> {
+    return this.request('/products/sello-settings', {
+      method: 'PUT',
+      body: JSON.stringify(data || {}),
+    });
   }
 }
 

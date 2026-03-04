@@ -4,6 +4,91 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03 – Products migration hardening (Phase 1 + Phase 2 preflight)
+
+### Sello import, mapping och datamodell
+
+- **Sello settings i tenant**: ny modell och migreringar för Sello-anslutning och integrationsmappning.
+  - Migreringar: `059-products-merchant-sku.sql`, `060-sello-integration-map.sql`, `061-sello-settings.sql`.
+  - Ny fil: `plugins/products/selloModel.js`.
+- **Produktimport från Sello API (`/v5/products`)**:
+  - robust läsning av payload (`products` + `duration.total_count`),
+  - import av titel/beskrivning från Sello `texts.*.sv` (inte `private_name`),
+  - import av bilder och merchant SKU,
+  - import av per-instans/per-marknad-priser till overrides.
+- **Ingen primär butik för pris**:
+  - importen sätter inte globalt pris till 0,
+  - `0`/`null` från Sello pris behandlas som saknat (`NULL` i overrides),
+  - globalt baspris används endast som fallback där override-pris saknas.
+
+### Strikt update-only export (Phase 1)
+
+- **CDON/Fyndiq/Woo update_only_strict** hårdnat:
+  - endast uppdatering av mappade produkter,
+  - tydlig rapportering: `updated`, `skipped_no_map`, `validation_error`, `channel_error`.
+- **CDON fixar**:
+  - korrekt bulk payload-shape (`{ actions: [...] }`),
+  - strikt validering av actions för pris/kvantitet,
+  - förbättrad felrapportering.
+- **Fyndiq fixar**:
+  - `article_id` valideras som UUID-format,
+  - marknadsfilter i strict export (`se/dk/fi`),
+  - strikt validering av pris/kvantitet-actions.
+- **WooCommerce fixar**:
+  - strict export hämtar effektivt pris från instans-overrides, annars baspris.
+
+### Kategorier: felorsak, modellkorrigering och regressionsfix
+
+- **Root cause**: kategori kunde bli fel när kanaldata kollapsade till toppnivåfält i `channelSpecific`.
+- **Ny kategorihantering**:
+  - import sparar kategori per marknad/integration i kanaldata,
+  - `0`/`null` kategorier normaliseras till `null`,
+  - Woo override-kategorier kan innehålla flera ID (JSON-array),
+  - CDON/Fyndiq kräver explicit kategori (ingen fallback).
+- **Inaktiv status**:
+  - inaktiv styr export/skip, men data hålls konsekvent och valideras strikt för aktiva mål.
+- **UI-regressionsfix**:
+  - ProductForm läser kategorier från den nya per-market-strukturen (strict),
+  - tom visning för mobil/surfplattefodral åtgärdad efter modelländring.
+
+### Phase 2 preflight (utan externa skrivningar)
+
+- **Dry-run/preflight för CDON/Fyndiq**:
+  - `dryRun: true` stöd i exportflöde,
+  - inga externa API-anrop,
+  - inga channel-map-fel skrivs i dry-run,
+  - tydliga valideringsorsaker (`mapper_rejected:*`, `contract_validation_failed:*`).
+- **Kontraktsvalidering före export**:
+  - strikt payload-validering för artikel-export i mappar/controllrar,
+  - explicit required-matris dokumenterad i `.cursor/Required_matrix_cdon_fyndiq_phase2.md`.
+
+### Channels / overrides / routes
+
+- Uppdateringar i channels-, products-, cdon-, fyndiq- och woocommerce-pluginer för:
+  - striktare validering,
+  - tydligare rapportering,
+  - säkrare import/export-semantik.
+- Berörda huvudfiler:
+  - `plugins/products/{controller,model,index,routes}.js`
+  - `plugins/channels/{controller,model}.js`
+  - `plugins/cdon-products/{controller,mapToCdonArticle,routes}.js`
+  - `plugins/fyndiq-products/{controller,mapToFyndiqArticle,routes}.js`
+  - `plugins/woocommerce-products/{controller,model,routes}.js`
+  - `plugins/orders/controller.js`
+
+### Dokumentation och API-docs struktur
+
+- API-dokumentation flyttad/normaliserad under `docs/API-DOCS/`:
+  - CDON JSON/MD,
+  - Fyndiq JSON/MD,
+  - PostNord Swagger/JSON,
+  - Sello HTML/MD.
+- Tidigare rotfiler i `docs/` ersatta av ny struktur.
+- Plan- och regeluppdateringar under `.cursor/`:
+  - `Plan_products.md`,
+  - `Plan_baseline_migrations_cleanup.md`,
+  - regler för API-docs-prioritet och no-primary-store-pricing.
+
 ## 2026-02 – Homebase 3.1.6
 
 ### Analytics – performance-overhaul

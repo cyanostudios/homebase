@@ -5,7 +5,11 @@ const { Logger, Context, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 const OrdersModel = require('../orders/model');
-const { mapProductToFyndiqArticle } = require('./mapToFyndiqArticle');
+const {
+  mapProductToFyndiqArticle,
+  getFyndiqArticleInputIssues,
+  validateFyndiqArticlePayload,
+} = require('./mapToFyndiqArticle');
 const { fetchCategoriesFromApi: fetchCategoriesFromApiModule } = require('./fetchCategories');
 
 class FyndiqProductsController {
@@ -20,10 +24,11 @@ class FyndiqProductsController {
     return typeof fetch === 'function'
       ? fetch
       : async (...args) => {
-        const mod = await import('node-fetch').catch(() => null);
-        if (!mod?.default) throw new Error('fetch is not available (Node <18) and node-fetch is not installed');
-        return mod.default(...args);
-      };
+          const mod = await import('node-fetch').catch(() => null);
+          if (!mod?.default)
+            throw new Error('fetch is not available (Node <18) and node-fetch is not installed');
+          return mod.default(...args);
+        };
   }
 
   getBasicAuthHeader(username, password) {
@@ -101,12 +106,15 @@ class FyndiqProductsController {
   // ---- Categories (read-only). API requires market and language; no guessing. ----
   async getCategories(req, res) {
     try {
-      const market = String(req.query?.market || '').trim().toLowerCase();
+      const market = String(req.query?.market || '')
+        .trim()
+        .toLowerCase();
       const language = String(req.query?.language || '').trim();
       if (!market || !language) {
         return res.status(400).json({
           ok: false,
-          error: 'market and language are required. Use query params: ?market=se&language=sv-SE (per Fyndiq API).',
+          error:
+            'market and language are required. Use query params: ?market=se&language=sv-SE (per Fyndiq API).',
         });
       }
 
@@ -114,7 +122,9 @@ class FyndiqProductsController {
       const username = String(settings?.apiKey ?? '').trim();
       const password = String(settings?.apiSecret ?? '').trim();
       if (!username || !password) {
-        return res.status(400).json({ ok: false, error: 'Fyndiq settings not found. Save settings first.' });
+        return res
+          .status(400)
+          .json({ ok: false, error: 'Fyndiq settings not found. Save settings first.' });
       }
 
       const items = await fetchCategoriesFromApiModule(market, language, username, password);
@@ -125,11 +135,18 @@ class FyndiqProductsController {
       if (detail?.includes('credentials') || detail?.includes('401')) {
         return res.status(502).json({
           ok: false,
-          error: 'Fyndiq API rejected credentials. Check username and password in Fyndiq Products plugin settings.',
+          error:
+            'Fyndiq API rejected credentials. Check username and password in Fyndiq Products plugin settings.',
           detail: detail || 'Missing Authorization header',
         });
       }
-      return res.status(502).json({ ok: false, error: 'Failed to fetch Fyndiq categories', detail: detail || 'Unknown error' });
+      return res
+        .status(502)
+        .json({
+          ok: false,
+          error: 'Failed to fetch Fyndiq categories',
+          detail: detail || 'Unknown error',
+        });
     }
   }
 
@@ -157,7 +174,9 @@ class FyndiqProductsController {
       return res.status(status).send(text || undefined);
     } catch (error) {
       Logger.error('Fyndiq API forward error', error, { userId: Context.getUserId(req), path });
-      return res.status(502).json({ ok: false, error: 'Fyndiq request failed', detail: error?.message });
+      return res
+        .status(502)
+        .json({ ok: false, error: 'Fyndiq request failed', detail: error?.message });
     }
   }
 
@@ -167,7 +186,12 @@ class FyndiqProductsController {
   }
 
   async bulkCreateArticles(req, res) {
-    const body = req.body != null ? (Array.isArray(req.body) ? JSON.stringify(req.body) : JSON.stringify(req.body)) : undefined;
+    const body =
+      req.body != null
+        ? Array.isArray(req.body)
+          ? JSON.stringify(req.body)
+          : JSON.stringify(req.body)
+        : undefined;
     return this._forwardFyndiq(req, res, '/api/v1/articles/bulk', { method: 'POST', body });
   }
 
@@ -199,44 +223,68 @@ class FyndiqProductsController {
     const articleId = req.params?.articleId;
     if (!articleId) return res.status(400).json({ ok: false, error: 'Missing articleId' });
     const body = req.body && typeof req.body === 'object' ? JSON.stringify(req.body) : undefined;
-    return this._forwardFyndiq(req, res, `/api/v1/articles/${encodeURIComponent(articleId)}`, { method: 'PUT', body });
+    return this._forwardFyndiq(req, res, `/api/v1/articles/${encodeURIComponent(articleId)}`, {
+      method: 'PUT',
+      body,
+    });
   }
 
   async updateArticlePrice(req, res) {
     const articleId = req.params?.articleId;
     if (!articleId) return res.status(400).json({ ok: false, error: 'Missing articleId' });
     const body = req.body && typeof req.body === 'object' ? JSON.stringify(req.body) : undefined;
-    return this._forwardFyndiq(req, res, `/api/v1/articles/${encodeURIComponent(articleId)}/price`, { method: 'PUT', body });
+    return this._forwardFyndiq(
+      req,
+      res,
+      `/api/v1/articles/${encodeURIComponent(articleId)}/price`,
+      { method: 'PUT', body },
+    );
   }
 
   async updateArticleQuantity(req, res) {
     const articleId = req.params?.articleId;
     if (!articleId) return res.status(400).json({ ok: false, error: 'Missing articleId' });
     const body = req.body && typeof req.body === 'object' ? JSON.stringify(req.body) : undefined;
-    return this._forwardFyndiq(req, res, `/api/v1/articles/${encodeURIComponent(articleId)}/quantity`, { method: 'PUT', body });
+    return this._forwardFyndiq(
+      req,
+      res,
+      `/api/v1/articles/${encodeURIComponent(articleId)}/quantity`,
+      { method: 'PUT', body },
+    );
   }
 
   async bulkUpdateArticles(req, res) {
-    const body = req.body != null ? (Array.isArray(req.body) ? JSON.stringify(req.body) : JSON.stringify(req.body)) : undefined;
+    const body =
+      req.body != null
+        ? Array.isArray(req.body)
+          ? JSON.stringify(req.body)
+          : JSON.stringify(req.body)
+        : undefined;
     return this._forwardFyndiq(req, res, '/api/v1/articles/bulk', { method: 'PUT', body });
   }
 
   async deleteArticle(req, res) {
     const articleId = req.params?.articleId;
     if (!articleId) return res.status(400).json({ ok: false, error: 'Missing articleId' });
-    return this._forwardFyndiq(req, res, `/api/v1/articles/${encodeURIComponent(articleId)}`, { method: 'DELETE' });
+    return this._forwardFyndiq(req, res, `/api/v1/articles/${encodeURIComponent(articleId)}`, {
+      method: 'DELETE',
+    });
   }
 
   async testConnection(req, res) {
     try {
       const inBody = req.body || {};
-      const settings = inBody.apiKey ? {
-        apiKey: String(inBody.apiKey || '').trim(),
-        apiSecret: String(inBody.apiSecret || '').trim(),
-      } : await this.model.getSettings(req);
+      const settings = inBody.apiKey
+        ? {
+            apiKey: String(inBody.apiKey || '').trim(),
+            apiSecret: String(inBody.apiSecret || '').trim(),
+          }
+        : await this.model.getSettings(req);
 
       if (!settings?.apiKey || !settings?.apiSecret) {
-        return res.status(400).json({ ok: false, error: 'Missing Fyndiq credentials (apiKey, apiSecret).' });
+        return res
+          .status(400)
+          .json({ ok: false, error: 'Missing Fyndiq credentials (apiKey, apiSecret).' });
       }
 
       // Validate credentials by hitting a simple authenticated endpoint
@@ -247,7 +295,9 @@ class FyndiqProductsController {
       });
 
       if (resp.status === 401 || resp.status === 403) {
-        return res.status(401).json({ ok: false, status: resp.status, error: 'Unauthorized (check user/password)' });
+        return res
+          .status(401)
+          .json({ ok: false, status: resp.status, error: 'Unauthorized (check user/password)' });
       }
 
       if (!resp.ok) {
@@ -275,6 +325,14 @@ class FyndiqProductsController {
   // POST /api/fyndiq-products/products/export
   async exportProducts(req, res) {
     try {
+      const mode = String(req.body?.mode || '')
+        .trim()
+        .toLowerCase();
+      const dryRun = req.body?.dryRun === true;
+      if (mode === 'update_only_strict') {
+        return this.exportProductsUpdateOnlyStrict(req, res);
+      }
+
       const settings = await this.model.getSettings(req);
       if (!settings?.apiKey || !settings?.apiSecret) {
         return res.status(400).json({ error: 'Fyndiq settings not found. Save settings first.' });
@@ -288,7 +346,9 @@ class FyndiqProductsController {
       const allowedMarkets = ['se', 'dk', 'fi'];
       let marketsFilter = allowedMarkets;
       if (Array.isArray(req.body?.markets) && req.body.markets.length > 0) {
-        const normalized = req.body.markets.map((m) => String(m).toLowerCase()).filter((m) => allowedMarkets.includes(m));
+        const normalized = req.body.markets
+          .map((m) => String(m).toLowerCase())
+          .filter((m) => allowedMarkets.includes(m));
         if (normalized.length) marketsFilter = normalized;
       }
 
@@ -297,7 +357,9 @@ class FyndiqProductsController {
 
       // Load per-instance overrides (Selloklon): active/price/currency/category per market instance.
       const db = Database.get(req);
-      const productIds = Array.from(new Set(products.map((p) => String(p?.id || '').trim()).filter(Boolean)));
+      const productIds = Array.from(
+        new Set(products.map((p) => String(p?.id || '').trim()).filter(Boolean)),
+      );
       const overridesByProductId = new Map(); // productId -> market -> override
 
       if (productIds.length) {
@@ -347,36 +409,68 @@ class FyndiqProductsController {
       const defaultLanguage = 'sv-SE';
       const payloadsWithMeta = [];
       const items = [];
+      let expectedSkip = 0;
 
       for (const p of products) {
         const productId = String(p?.id || '').trim();
         if (!productId) continue;
 
         const overrides = overridesByProductId.get(productId) || {};
-        // Inherit market price from channel_specific.pricing when channel override has no priceAmount
-        const pricing = p?.channelSpecific?.pricing?.markets;
-        if (pricing && typeof pricing === 'object') {
-          for (const m of marketsFilter) {
-            const mk = String(m).toLowerCase();
-            if (!overrides[mk]) overrides[mk] = {};
-            if (overrides[mk].priceAmount == null && pricing[mk]?.amount != null && Number.isFinite(Number(pricing[mk].amount))) {
-              overrides[mk].priceAmount = Number(pricing[mk].amount);
-              if (pricing[mk].currency) overrides[mk].currency = String(pricing[mk].currency).trim().toUpperCase();
-            }
-          }
+        const hasActiveTarget = Object.entries(overrides).some(([market, data]) => {
+          if (!marketsFilter.includes(String(market).toLowerCase())) return false;
+          return data && data.active === true;
+        });
+        if (!hasActiveTarget) {
+          expectedSkip += 1;
+          items.push({
+            productId,
+            sku: p?.sku || null,
+            status: 'expected_skip',
+            reason: 'no_active_channel_market',
+          });
+          continue;
         }
         const payload = mapProductToFyndiqArticle(p, overrides, defaultLanguage, marketsFilter);
 
         if (!payload) {
-          await this.model.upsertChannelMap(req, {
+          const issues = getFyndiqArticleInputIssues(p, overrides, defaultLanguage, marketsFilter);
+          const reason = issues.length ? issues.join(',') : 'mapper_rejected_unknown';
+          if (!dryRun) {
+            await this.model.upsertChannelMap(req, {
+              productId,
+              channel: 'fyndiq',
+              enabled: true,
+              externalId: null,
+              status: 'error',
+              error: `mapper_rejected:${reason}`,
+            });
+          }
+          items.push({
             productId,
-            channel: 'fyndiq',
-            enabled: true,
-            externalId: null,
+            sku: p?.sku || null,
             status: 'error',
-            error: 'Missing required fields or categories (SKU, title, main_image, price per market, categories)',
+            error: `mapper_rejected:${reason}`,
           });
-          items.push({ productId, sku: p?.sku || null, status: 'error', error: 'Mapper returned null (check required fields)' });
+          continue;
+        }
+        const payloadCheck = validateFyndiqArticlePayload(payload);
+        if (!payloadCheck.ok) {
+          if (!dryRun) {
+            await this.model.upsertChannelMap(req, {
+              productId,
+              channel: 'fyndiq',
+              enabled: true,
+              externalId: null,
+              status: 'error',
+              error: `contract_validation_failed:${payloadCheck.reason}`,
+            });
+          }
+          items.push({
+            productId,
+            sku: p?.sku || null,
+            status: 'error',
+            error: `contract_validation_failed:${payloadCheck.reason}`,
+          });
           continue;
         }
 
@@ -384,11 +478,35 @@ class FyndiqProductsController {
         items.push({ productId, sku: payload.sku, status: 'queued' });
       }
 
+      const preflight = {
+        requested: products.length,
+        ready: payloadsWithMeta.length,
+        validation_error: items.filter((x) => x.status === 'error').length,
+        expected_skip: expectedSkip,
+      };
+      if (dryRun) {
+        return res.json({
+          ok: true,
+          channel: 'fyndiq',
+          mode: 'phase2_preflight',
+          dryRun: true,
+          counts: preflight,
+          items,
+        });
+      }
+
       if (payloadsWithMeta.length === 0) {
         return res.status(400).json({
           ok: false,
-          error: 'No products to export (mapper rejected all; check required fields and categories)',
-          counts: { requested: products.length, success: 0, error: items.length, skipped: 0 },
+          error:
+            'No products to export (mapper rejected all; check required fields and categories)',
+          counts: {
+            requested: products.length,
+            success: 0,
+            error: preflight.validation_error,
+            skipped: 0,
+            expected_skip: expectedSkip,
+          },
           items,
         });
       }
@@ -407,7 +525,15 @@ class FyndiqProductsController {
         const r = responses[i];
         const statusCode = r?.status_code != null ? Number(r.status_code) : null;
         const success = statusCode === 202;
-        const errMsg = success ? null : (r?.description != null ? String(r.description) : r?.errors ? JSON.stringify(r.errors) : resp.ok ? null : 'Export failed');
+        const errMsg = success
+          ? null
+          : r?.description != null
+            ? String(r.description)
+            : r?.errors
+              ? JSON.stringify(r.errors)
+              : resp.ok
+                ? null
+                : 'Export failed';
 
         await this.model.upsertChannelMap(req, {
           productId,
@@ -442,13 +568,414 @@ class FyndiqProductsController {
           success: items.filter((x) => x.status === 'success').length,
           error: items.filter((x) => x.status === 'error').length,
           skipped: items.filter((x) => x.status === 'skipped').length,
+          expected_skip: expectedSkip,
         },
         items,
       });
     } catch (error) {
       Logger.error('Fyndiq export error', error, { userId: Context.getUserId(req) });
-      return res.status(502).json({ error: 'Export to Fyndiq failed', detail: String(error?.message || error) });
+      return res
+        .status(502)
+        .json({ error: 'Export to Fyndiq failed', detail: String(error?.message || error) });
     }
+  }
+
+  validateFyndiqUpdateActionEnvelope(action) {
+    if (!action || typeof action !== 'object' || Array.isArray(action)) {
+      return { ok: false, reason: 'invalid_action_envelope' };
+    }
+    const actionName = String(action.action || '').trim();
+    if (!['update_article_price', 'update_article_quantity'].includes(actionName)) {
+      return { ok: false, reason: 'unsupported_action' };
+    }
+    const id = String(action.id || '').trim();
+    if (!id) {
+      return { ok: false, reason: 'invalid_article_id' };
+    }
+    const uuidV4Like = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidV4Like.test(id)) {
+      return { ok: false, reason: 'invalid_article_id' };
+    }
+    if (!action.body || typeof action.body !== 'object' || Array.isArray(action.body)) {
+      return { ok: false, reason: 'missing_action_body' };
+    }
+    return { ok: true };
+  }
+
+  validateFyndiqPriceRows(rows, rowName) {
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return { ok: false, reason: `missing_${rowName}_rows` };
+    }
+    for (const row of rows) {
+      const market = String(row?.market || '')
+        .trim()
+        .toLowerCase();
+      if (!['se', 'dk', 'fi'].includes(market)) {
+        return { ok: false, reason: `invalid_${rowName}_market` };
+      }
+      if (!row?.value || typeof row.value !== 'object' || Array.isArray(row.value)) {
+        return { ok: false, reason: `missing_${rowName}_value` };
+      }
+      const amount = Number(row.value.amount);
+      if (!Number.isFinite(amount) || amount < 0) {
+        return { ok: false, reason: `invalid_${rowName}_amount` };
+      }
+      const currency = String(row.value.currency || '')
+        .trim()
+        .toUpperCase();
+      if (!/^[A-Z]{3}$/.test(currency)) {
+        return { ok: false, reason: `invalid_${rowName}_currency` };
+      }
+      if (row.value.vat_rate != null) {
+        const vatRate = Number(row.value.vat_rate);
+        if (!Number.isFinite(vatRate) || vatRate < 0 || vatRate > 100) {
+          return { ok: false, reason: `invalid_${rowName}_vat_rate` };
+        }
+      }
+    }
+    return { ok: true };
+  }
+
+  validateFyndiqUpdateArticlePriceAction(action) {
+    const envelope = this.validateFyndiqUpdateActionEnvelope(action);
+    if (!envelope.ok) return envelope;
+    const priceCheck = this.validateFyndiqPriceRows(action.body.price, 'price');
+    if (!priceCheck.ok) return priceCheck;
+    const originalPriceCheck = this.validateFyndiqPriceRows(
+      action.body.original_price,
+      'original_price',
+    );
+    if (!originalPriceCheck.ok) return originalPriceCheck;
+    return { ok: true };
+  }
+
+  validateFyndiqUpdateArticleQuantityAction(action) {
+    const envelope = this.validateFyndiqUpdateActionEnvelope(action);
+    if (!envelope.ok) return envelope;
+    const quantity = Number(action.body.quantity);
+    if (!Number.isFinite(quantity) || quantity < 0 || !Number.isInteger(quantity)) {
+      return { ok: false, reason: 'invalid_quantity' };
+    }
+    return { ok: true };
+  }
+
+  async exportProductsUpdateOnlyStrict(req, res) {
+    const settings = await this.model.getSettings(req);
+    if (!settings?.apiKey || !settings?.apiSecret) {
+      return res.status(400).json({ error: 'Fyndiq settings not found. Save settings first.' });
+    }
+    const products = Array.isArray(req.body?.products) ? req.body.products : [];
+    if (!products.length) {
+      return res.status(400).json({ error: 'Request must include products: []' });
+    }
+    const allowedMarkets = ['se', 'dk', 'fi'];
+    let marketsFilter = allowedMarkets;
+    if (Array.isArray(req.body?.markets) && req.body.markets.length > 0) {
+      const normalized = req.body.markets
+        .map((m) =>
+          String(m || '')
+            .trim()
+            .toLowerCase(),
+        )
+        .filter((m) => allowedMarkets.includes(m));
+      if (!normalized.length) {
+        return res.status(400).json({ error: 'markets must include at least one of: se, dk, fi' });
+      }
+      marketsFilter = normalized;
+    }
+
+    const userId = Context.getUserId(req);
+    const db = Database.get(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const productIds = products.map((p) => String(p?.id || '').trim()).filter(Boolean);
+    const mapRows = productIds.length
+      ? await db.query(
+          `
+          SELECT
+            m.product_id::text AS product_id,
+            m.enabled,
+            m.external_id,
+            ci.instance_key,
+            ci.market
+          FROM channel_product_map m
+          LEFT JOIN channel_instances ci ON ci.id = m.channel_instance_id
+          WHERE m.user_id = $1
+            AND m.channel = 'fyndiq'
+            AND m.product_id::text = ANY($2::text[])
+          `,
+          [userId, productIds],
+        )
+      : [];
+    const overrideRows = productIds.length
+      ? await db.query(
+          `
+          SELECT
+            o.product_id::text AS product_id,
+            lower(COALESCE(ci.market, o.instance)) AS market,
+            o.price_amount,
+            o.currency,
+            o.vat_rate
+          FROM channel_product_overrides o
+          LEFT JOIN channel_instances ci ON ci.id = o.channel_instance_id
+          WHERE o.user_id = $1
+            AND o.channel = 'fyndiq'
+            AND o.product_id::text = ANY($2::text[])
+            AND lower(COALESCE(ci.market, o.instance)) IN ('se', 'dk', 'fi')
+          `,
+          [userId, productIds],
+        )
+      : [];
+
+    const mapsByProduct = new Map();
+    for (const row of mapRows) {
+      const pid = String(row.product_id);
+      if (!mapsByProduct.has(pid)) mapsByProduct.set(pid, []);
+      mapsByProduct.get(pid).push(row);
+    }
+    const overridesByProductAndMarket = new Map();
+    for (const row of overrideRows) {
+      const pid = String(row.product_id);
+      const market = String(row.market || '')
+        .trim()
+        .toLowerCase();
+      if (!pid || !market) continue;
+      if (!overridesByProductAndMarket.has(pid)) overridesByProductAndMarket.set(pid, new Map());
+      overridesByProductAndMarket.get(pid).set(market, {
+        priceAmount: row.price_amount != null ? Number(row.price_amount) : null,
+        currency: row.currency != null ? String(row.currency).trim().toUpperCase() : null,
+        vatRate: row.vat_rate != null ? Number(row.vat_rate) : null,
+      });
+    }
+
+    const report = {
+      channel: 'fyndiq',
+      mode: 'update_only_strict',
+      requested: products.length,
+      updated: 0,
+      skipped_no_map: 0,
+      expected_skip: 0,
+      validation_error: 0,
+      channel_error: 0,
+      rows: [],
+    };
+
+    const actions = [];
+    const validProductIds = new Set();
+
+    for (const p of products) {
+      const productId = String(p?.id || '').trim();
+      const sku = String(p?.sku || '').trim();
+      const basePrice = Number(p?.priceAmount);
+      const hasBasePrice = Number.isFinite(basePrice) && basePrice > 0;
+      const baseCurrency = String(p?.currency || '')
+        .trim()
+        .toUpperCase();
+      const mappings = mapsByProduct.get(productId) || [];
+      const enabledMappings = mappings.filter((m) => {
+        if (m.enabled !== true || m.external_id == null) return false;
+        const market = String(m.market || '')
+          .trim()
+          .toLowerCase();
+        return marketsFilter.includes(market);
+      });
+      if (!enabledMappings.length) {
+        report.skipped_no_map += 1;
+        report.expected_skip += 1;
+        report.rows.push({
+          productId,
+          sku: sku || null,
+          channel: 'fyndiq',
+          instanceKey: null,
+          status: 'skipped_no_map',
+          reason: 'no_mapped_target',
+          classification: 'expected_skip',
+        });
+        continue;
+      }
+
+      const articleIdSet = new Set(enabledMappings.map((m) => String(m.external_id)));
+      if (articleIdSet.size !== 1) {
+        report.validation_error += 1;
+        report.rows.push({
+          productId,
+          sku: sku || null,
+          channel: 'fyndiq',
+          instanceKey: null,
+          status: 'validation_error',
+          reason: 'conflicting_article_ids',
+        });
+        continue;
+      }
+
+      const firstMap = enabledMappings[0];
+      const articleId = String(firstMap.external_id || '').trim();
+      const uuidV4Like =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidV4Like.test(articleId)) {
+        report.validation_error += 1;
+        report.rows.push({
+          productId,
+          sku: sku || null,
+          channel: 'fyndiq',
+          instanceKey: firstMap.instance_key || null,
+          status: 'validation_error',
+          reason: 'invalid_article_id',
+        });
+        continue;
+      }
+
+      const quantity = Number(p?.quantity);
+      if (!Number.isFinite(quantity) || quantity < 0) {
+        report.validation_error += 1;
+        report.rows.push({
+          productId,
+          sku: sku || null,
+          channel: 'fyndiq',
+          instanceKey: firstMap.instance_key || null,
+          status: 'validation_error',
+          reason: 'invalid_quantity',
+        });
+        continue;
+      }
+
+      const priceRows = [];
+      const originalPriceRows = [];
+      const overridesByMarket = overridesByProductAndMarket.get(productId) || new Map();
+      let marketValidationFailed = false;
+      for (const m of enabledMappings) {
+        const market = String(m.market || '')
+          .trim()
+          .toLowerCase();
+        const instanceKey = String(m.instance_key || '').trim();
+        if (!['se', 'dk', 'fi'].includes(market)) {
+          report.validation_error += 1;
+          report.rows.push({
+            productId,
+            sku: sku || null,
+            channel: 'fyndiq',
+            instanceKey: instanceKey || null,
+            status: 'validation_error',
+            reason: 'missing_market_on_instance',
+          });
+          marketValidationFailed = true;
+          continue;
+        }
+        const marketOverride = overridesByMarket.get(market);
+        const overrideAmountRaw = Number(marketOverride?.priceAmount);
+        const overrideAmount =
+          Number.isFinite(overrideAmountRaw) && overrideAmountRaw > 0 ? overrideAmountRaw : null;
+        const amount = overrideAmount != null ? overrideAmount : hasBasePrice ? basePrice : null;
+        const overrideCurrency = String(marketOverride?.currency || '')
+          .trim()
+          .toUpperCase();
+        const currency = /^[A-Z]{3}$/.test(overrideCurrency) ? overrideCurrency : baseCurrency;
+        if (!Number.isFinite(amount) || amount <= 0 || !/^[A-Z]{3}$/.test(currency)) {
+          report.validation_error += 1;
+          report.rows.push({
+            productId,
+            sku: sku || null,
+            channel: 'fyndiq',
+            instanceKey: instanceKey || null,
+            status: 'validation_error',
+            reason: 'missing_or_invalid_effective_price',
+          });
+          marketValidationFailed = true;
+          continue;
+        }
+        const vatRate = Number(marketOverride?.vatRate);
+        const value = { amount, currency };
+        if (Number.isFinite(vatRate)) value.vat_rate = vatRate;
+        priceRows.push({ market, value });
+        originalPriceRows.push({ market, value: { ...value } });
+      }
+      if (marketValidationFailed || !priceRows.length) continue;
+
+      const priceAction = {
+        action: 'update_article_price',
+        id: articleId,
+        body: { price: priceRows, original_price: originalPriceRows },
+      };
+      const quantityAction = {
+        action: 'update_article_quantity',
+        id: articleId,
+        body: { quantity: Math.trunc(quantity) },
+      };
+      const priceValidation = this.validateFyndiqUpdateArticlePriceAction(priceAction);
+      if (!priceValidation.ok) {
+        report.validation_error += 1;
+        report.rows.push({
+          productId,
+          sku: sku || null,
+          channel: 'fyndiq',
+          instanceKey: firstMap.instance_key || null,
+          status: 'validation_error',
+          reason: priceValidation.reason,
+        });
+        continue;
+      }
+      const quantityValidation = this.validateFyndiqUpdateArticleQuantityAction(quantityAction);
+      if (!quantityValidation.ok) {
+        report.validation_error += 1;
+        report.rows.push({
+          productId,
+          sku: sku || null,
+          channel: 'fyndiq',
+          instanceKey: firstMap.instance_key || null,
+          status: 'validation_error',
+          reason: quantityValidation.reason,
+        });
+        continue;
+      }
+      actions.push(priceAction);
+      actions.push(quantityAction);
+      validProductIds.add(productId);
+    }
+
+    if (!actions.length) {
+      return res.json({ ok: true, ...report });
+    }
+
+    const response = await this.fyndiqRequest('/api/v1/articles/bulk', {
+      username: settings.apiKey,
+      password: settings.apiSecret,
+      method: 'PUT',
+      body: JSON.stringify(actions),
+    });
+
+    if (!response.resp.ok) {
+      report.channel_error += validProductIds.size;
+      for (const p of products) {
+        const productId = String(p?.id || '').trim();
+        if (!validProductIds.has(productId)) continue;
+        report.rows.push({
+          productId,
+          sku: String(p?.sku || '').trim() || null,
+          channel: 'fyndiq',
+          instanceKey: null,
+          status: 'channel_error',
+          reason: `channel_error_${response.resp.status}`,
+        });
+      }
+      return res
+        .status(response.resp.status)
+        .json({ ok: false, ...report, detail: response.json || response.text || null });
+    }
+
+    report.updated = validProductIds.size;
+    for (const p of products) {
+      const productId = String(p?.id || '').trim();
+      if (!validProductIds.has(productId)) continue;
+      report.rows.push({
+        productId,
+        sku: String(p?.sku || '').trim() || null,
+        channel: 'fyndiq',
+        instanceKey: null,
+        status: 'updated',
+        reason: null,
+      });
+    }
+    return res.json({ ok: true, ...report });
   }
 
   // DELETE /api/fyndiq-products/batch
@@ -461,13 +988,17 @@ class FyndiqProductsController {
       }
 
       const productIdsRaw = Array.isArray(req.body?.productIds) ? req.body.productIds : [];
-      const productIds = Array.from(new Set(productIdsRaw.map((x) => String(x).trim()).filter(Boolean)));
+      const productIds = Array.from(
+        new Set(productIdsRaw.map((x) => String(x).trim()).filter(Boolean)),
+      );
 
       if (productIds.length === 0) {
         return res.json({ ok: true, deleted: 0, items: [] });
       }
       if (productIds.length > 500) {
-        return res.status(400).json({ error: 'Too many productIds (max 500)', code: 'VALIDATION_ERROR' });
+        return res
+          .status(400)
+          .json({ error: 'Too many productIds (max 500)', code: 'VALIDATION_ERROR' });
       }
 
       // Resolve SKU for each productId
@@ -568,11 +1099,14 @@ class FyndiqProductsController {
           continue;
         }
 
-        const del = await this.fyndiqRequest(`/api/v1/articles/${encodeURIComponent(String(articleId))}`, {
-          username: settings.apiKey,
-          password: settings.apiSecret,
-          method: 'DELETE',
-        });
+        const del = await this.fyndiqRequest(
+          `/api/v1/articles/${encodeURIComponent(String(articleId))}`,
+          {
+            username: settings.apiKey,
+            password: settings.apiSecret,
+            method: 'DELETE',
+          },
+        );
 
         const isNotFound = del.resp.status === 404;
         if (!del.resp.ok && !isNotFound) {
@@ -607,7 +1141,9 @@ class FyndiqProductsController {
         items.push({ productId: pid, sku, status: del.resp.ok ? 'deleted' : 'not_found' });
       }
 
-      const deleted = items.filter((x) => x.status === 'deleted' || x.status === 'not_found').length;
+      const deleted = items.filter(
+        (x) => x.status === 'deleted' || x.status === 'not_found',
+      ).length;
 
       return res.json({
         ok: true,
@@ -617,7 +1153,9 @@ class FyndiqProductsController {
       });
     } catch (error) {
       Logger.error('Fyndiq batch delete error', error, { userId: Context.getUserId(req) });
-      return res.status(502).json({ error: 'Delete from Fyndiq failed', detail: String(error?.message || error) });
+      return res
+        .status(502)
+        .json({ error: 'Delete from Fyndiq failed', detail: String(error?.message || error) });
     }
   }
 
@@ -646,7 +1184,7 @@ class FyndiqProductsController {
         method: 'GET',
       });
       if (!resp.ok) {
-        const detail = (json && json.message) ? String(json.message) : resp.statusText;
+        const detail = json && json.message ? String(json.message) : resp.statusText;
         return { fetched: allOrders.length, created: -1, error: String(detail).slice(0, 500) };
       }
       const items = Array.isArray(json) ? json : [];
@@ -681,12 +1219,17 @@ class FyndiqProductsController {
 
     const placedAtRaw = o.created_at;
     let placedAt = placedAtRaw ? String(placedAtRaw).trim() : null;
-    if (placedAt && !placedAt.endsWith('Z') && !placedAt.includes('+') && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(placedAt)) {
+    if (
+      placedAt &&
+      !placedAt.endsWith('Z') &&
+      !placedAt.includes('+') &&
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(placedAt)
+    ) {
       placedAt = placedAt.replace(' ', 'T') + 'Z';
     }
 
     const price = o.price || o.total_price;
-    const currency = (price && price.currency) ? String(price.currency).toUpperCase() : 'SEK';
+    const currency = price && price.currency ? String(price.currency).toUpperCase() : 'SEK';
     const status = this.mapFyndiqOrderStatusToHomebase(o.state);
 
     const ship = o.shipping_address;
@@ -705,13 +1248,23 @@ class FyndiqProductsController {
     const amount = price && price.amount != null ? Number(price.amount) : null;
     const vatAmount = price && price.vat_amount != null ? Number(price.vat_amount) : null;
     const vatRateDoc = price && price.vat_rate != null ? Number(price.vat_rate) : null;
-    const unitPriceInclVat = (Number.isFinite(amount) && Number.isFinite(vatAmount)) ? (amount + vatAmount) / (qty || 1) : null;
-    const vatRatePct = Number.isFinite(vatRateDoc) ? (vatRateDoc <= 1 ? vatRateDoc * 100 : vatRateDoc) : null;
+    const unitPriceInclVat =
+      Number.isFinite(amount) && Number.isFinite(vatAmount)
+        ? (amount + vatAmount) / (qty || 1)
+        : null;
+    const vatRatePct = Number.isFinite(vatRateDoc)
+      ? vatRateDoc <= 1
+        ? vatRateDoc * 100
+        : vatRateDoc
+      : null;
 
     const totalPrice = o.total_price;
-    const totalAmount = (totalPrice && totalPrice.amount != null && totalPrice.vat_amount != null)
-      ? Number(totalPrice.amount) + Number(totalPrice.vat_amount)
-      : (Number.isFinite(unitPriceInclVat) && qty > 0 ? unitPriceInclVat * qty : null);
+    const totalAmount =
+      totalPrice && totalPrice.amount != null && totalPrice.vat_amount != null
+        ? Number(totalPrice.amount) + Number(totalPrice.vat_amount)
+        : Number.isFinite(unitPriceInclVat) && qty > 0
+          ? unitPriceInclVat * qty
+          : null;
 
     const userId = req.session?.user?.id;
     const db = Database.get(req);
@@ -725,16 +1278,19 @@ class FyndiqProductsController {
       if (mapRes.length) platformProductId = String(mapRes[0].product_id);
     }
 
-    const title = (o.title != null || o.article_title != null) ? String(o.title || o.article_title).trim() : null;
-    const items = [{
-      sku: sku || null,
-      productId: platformProductId,
-      title: title || null,
-      quantity: Math.trunc(qty),
-      unitPrice: Number.isFinite(unitPriceInclVat) ? unitPriceInclVat : null,
-      vatRate: Number.isFinite(vatRatePct) ? vatRatePct : null,
-      raw: o,
-    }];
+    const title =
+      o.title != null || o.article_title != null ? String(o.title || o.article_title).trim() : null;
+    const items = [
+      {
+        sku: sku || null,
+        productId: platformProductId,
+        title: title || null,
+        quantity: Math.trunc(qty),
+        unitPrice: Number.isFinite(unitPriceInclVat) ? unitPriceInclVat : null,
+        vatRate: Number.isFinite(vatRatePct) ? vatRatePct : null,
+        raw: o,
+      },
+    ];
 
     return {
       channel: 'fyndiq',
@@ -762,11 +1318,15 @@ class FyndiqProductsController {
         return res.status(400).json({ error: 'Fyndiq settings not found. Save settings first.' });
       }
 
-      const limit = req.body?.perPage != null ? Math.min(Math.max(Number(req.body.perPage), 1), 1000) : 100;
+      const limit =
+        req.body?.perPage != null ? Math.min(Math.max(Number(req.body.perPage), 1), 1000) : 100;
       // Default: only active (open) orders. Send body.state = ['CREATED','FULFILLED'] to include shipped.
-      const states = req.body?.state != null
-        ? (Array.isArray(req.body.state) ? req.body.state : [req.body.state])
-        : ['CREATED'];
+      const states =
+        req.body?.state != null
+          ? Array.isArray(req.body.state)
+            ? req.body.state
+            : [req.body.state]
+          : ['CREATED'];
 
       const allOrders = [];
       for (const state of states) {
@@ -780,8 +1340,13 @@ class FyndiqProductsController {
             method: 'GET',
           });
           if (!resp.ok) {
-            const detail = (json && json.message) ? String(json.message) : resp.statusText;
-            return res.status(resp.status).json({ error: 'Failed to fetch Fyndiq orders', detail: String(detail).slice(0, 500) });
+            const detail = json && json.message ? String(json.message) : resp.statusText;
+            return res
+              .status(resp.status)
+              .json({
+                error: 'Failed to fetch Fyndiq orders',
+                detail: String(detail).slice(0, 500),
+              });
           }
           const items = Array.isArray(json) ? json : [];
           allOrders.push(...items);
@@ -815,7 +1380,9 @@ class FyndiqProductsController {
       });
     } catch (error) {
       Logger.error('Fyndiq orders pull error', error, { userId: Context.getUserId(req) });
-      return res.status(502).json({ error: 'Failed to pull Fyndiq orders', detail: String(error?.message || error) });
+      return res
+        .status(502)
+        .json({ error: 'Failed to pull Fyndiq orders', detail: String(error?.message || error) });
     }
   }
 
@@ -868,5 +1435,3 @@ class FyndiqProductsController {
 }
 
 module.exports = FyndiqProductsController;
-
-

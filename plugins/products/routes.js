@@ -9,7 +9,8 @@ const multer = require('multer');
 
 function createProductRoutes(controller, context) {
   // V3: Get requirePlugin from context.middleware instead of parameter
-  const requirePlugin = context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
+  const requirePlugin =
+    context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin('products');
 
   // In-memory upload for import files
@@ -35,37 +36,97 @@ function createProductRoutes(controller, context) {
       return res.status(400).json({ error: 'Upload failed', code: 'VALIDATION_ERROR' });
     });
 
+  // Sello settings (MUST be before '/' route)
+  router.get('/sello-settings', gate, (req, res) => controller.getSelloSettings(req, res));
+  router.put(
+    '/sello-settings',
+    gate,
+    csrfProtection,
+    [commonRules.optionalString('apiKey', 500)],
+    validateRequest,
+    (req, res) => controller.putSelloSettings(req, res),
+  );
+
   // Category cache (read-only from DB; MUST be before '/' route)
   router.get('/category-cache', gate, (req, res) => controller.getCategoryCache(req, res));
 
   // Lookup tables (MUST be before '/' route)
   router.get('/brands', gate, (req, res) => controller.getBrands(req, res));
-  router.post('/brands', gate, csrfProtection, [commonRules.string('name', 1, 255)], validateRequest, (req, res) => controller.createBrand(req, res));
+  router.post(
+    '/brands',
+    gate,
+    csrfProtection,
+    [commonRules.string('name', 1, 255)],
+    validateRequest,
+    (req, res) => controller.createBrand(req, res),
+  );
   router.get('/suppliers', gate, (req, res) => controller.getSuppliers(req, res));
-  router.post('/suppliers', gate, csrfProtection, [commonRules.string('name', 1, 255)], validateRequest, (req, res) => controller.createSupplier(req, res));
+  router.post(
+    '/suppliers',
+    gate,
+    csrfProtection,
+    [commonRules.string('name', 1, 255)],
+    validateRequest,
+    (req, res) => controller.createSupplier(req, res),
+  );
   router.get('/manufacturers', gate, (req, res) => controller.getManufacturers(req, res));
-  router.post('/manufacturers', gate, csrfProtection, [commonRules.string('name', 1, 255)], validateRequest, (req, res) => controller.createManufacturer(req, res));
+  router.post(
+    '/manufacturers',
+    gate,
+    csrfProtection,
+    [commonRules.string('name', 1, 255)],
+    validateRequest,
+    (req, res) => controller.createManufacturer(req, res),
+  );
 
   // List CRUD (MUST be before '/:id')
   router.get('/lists', gate, (req, res) => controller.getLists(req, res));
-  router.post('/lists', gate, csrfProtection, [commonRules.string('name', 1, 255)], validateRequest, (req, res) => controller.createList(req, res));
-  router.put('/lists/:id', gate, csrfProtection, [commonRules.id('id'), commonRules.string('name', 1, 255)], validateRequest, (req, res) => controller.renameList(req, res));
-  router.delete('/lists/:id', gate, csrfProtection, [commonRules.id('id')], validateRequest, (req, res) => controller.deleteList(req, res));
+  router.post(
+    '/lists',
+    gate,
+    csrfProtection,
+    [commonRules.string('name', 1, 255)],
+    validateRequest,
+    (req, res) => controller.createList(req, res),
+  );
+  router.put(
+    '/lists/:id',
+    gate,
+    csrfProtection,
+    [commonRules.id('id'), commonRules.string('name', 1, 255)],
+    validateRequest,
+    (req, res) => controller.renameList(req, res),
+  );
+  router.delete(
+    '/lists/:id',
+    gate,
+    csrfProtection,
+    [commonRules.id('id')],
+    validateRequest,
+    (req, res) => controller.deleteList(req, res),
+  );
 
   // GET /api/products - List all products
   router.get('/', gate, (req, res) => controller.getAll(req, res));
 
   // POST /api/products/import - CSV/XLSX import (MUST be before '/:id' route)
-  router.post('/import',
-    gate,
-    uploadLimiter,
-    csrfProtection,
-    runImportUpload,
-    (req, res) => controller.import(req, res)
+  router.post('/import', gate, uploadLimiter, csrfProtection, runImportUpload, (req, res) =>
+    controller.import(req, res),
+  );
+
+  // POST /api/products/import/sello - Pull products from Sello API
+  router.post('/import/sello', gate, uploadLimiter, csrfProtection, (req, res) =>
+    controller.importFromSelloApi(req, res),
+  );
+
+  // POST /api/products/map/sello - Build channel map from Sello integrations
+  router.post('/map/sello', gate, csrfProtection, (req, res) =>
+    controller.buildChannelMapFromSello(req, res),
   );
 
   // POST /api/products - Create new product
-  router.post('/',
+  router.post(
+    '/',
     gate,
     csrfProtection,
     [
@@ -88,7 +149,10 @@ function createProductRoutes(controller, context) {
       body('brandId').optional({ values: 'falsy' }).isInt({ min: 1 }),
       body('supplierId').optional({ values: 'falsy' }).isInt({ min: 1 }),
       body('manufacturerId').optional({ values: 'falsy' }).isInt({ min: 1 }),
-      body('channelSpecific').optional({ values: 'null' }).isObject().withMessage('channelSpecific must be an object'),
+      body('channelSpecific')
+        .optional({ values: 'null' })
+        .isObject()
+        .withMessage('channelSpecific must be an object'),
       commonRules.optionalString('color', 100),
       commonRules.optionalString('colorText', 255),
       commonRules.optionalString('size', 50),
@@ -101,11 +165,12 @@ function createProductRoutes(controller, context) {
       body('depthCm').optional({ values: 'null' }).isNumeric(),
     ],
     validateRequest,
-    (req, res) => controller.create(req, res)
+    (req, res) => controller.create(req, res),
   );
 
   // PATCH /api/products/batch - Batch update (MUST be before '/:id' route)
-  router.patch('/batch',
+  router.patch(
+    '/batch',
     gate,
     csrfProtection,
     [
@@ -118,37 +183,35 @@ function createProductRoutes(controller, context) {
       body('updates.currency').optional().isLength({ min: 3, max: 3 }).isAlpha(),
     ],
     validateRequest,
-    (req, res) => controller.batchUpdate(req, res)
+    (req, res) => controller.batchUpdate(req, res),
   );
 
   // DELETE /api/products/batch - Bulk delete (MUST be before '/:id' route)
-  router.delete('/batch',
+  router.delete(
+    '/batch',
     gate,
     csrfProtection,
-    [
-      commonRules.array('ids', 500),
-    ],
+    [commonRules.array('ids', 500)],
     validateRequest,
-    (req, res) => controller.bulkDelete(req, res)
+    (req, res) => controller.bulkDelete(req, res),
   );
 
   // GET /api/products/:id/stats?range=7d|30d|3m|all
-  router.get('/:id/stats',
-    gate,
-    (req, res) => controller.getStats(req, res)
-  );
+  router.get('/:id/stats', gate, (req, res) => controller.getStats(req, res));
 
   // PUT /api/products/:id/list - Set product list (body: listId or null for "Huvudlista")
-  router.put('/:id/list',
+  router.put(
+    '/:id/list',
     gate,
     csrfProtection,
     [commonRules.id('id')],
     validateRequest,
-    (req, res) => controller.setProductList(req, res)
+    (req, res) => controller.setProductList(req, res),
   );
 
   // PUT /api/products/:id - Update product
-  router.put('/:id',
+  router.put(
+    '/:id',
     gate,
     csrfProtection,
     [
@@ -172,7 +235,10 @@ function createProductRoutes(controller, context) {
       body('brandId').optional({ values: 'falsy' }).isInt({ min: 1 }),
       body('supplierId').optional({ values: 'falsy' }).isInt({ min: 1 }),
       body('manufacturerId').optional({ values: 'falsy' }).isInt({ min: 1 }),
-      body('channelSpecific').optional({ values: 'null' }).isObject().withMessage('channelSpecific must be an object'),
+      body('channelSpecific')
+        .optional({ values: 'null' })
+        .isObject()
+        .withMessage('channelSpecific must be an object'),
       commonRules.optionalString('color', 100),
       commonRules.optionalString('colorText', 255),
       commonRules.optionalString('size', 50),
@@ -185,18 +251,12 @@ function createProductRoutes(controller, context) {
       body('depthCm').optional({ values: 'null' }).isNumeric(),
     ],
     validateRequest,
-    (req, res) => controller.update(req, res)
+    (req, res) => controller.update(req, res),
   );
 
   // DELETE /api/products/:id - Delete single product
-  router.delete('/:id',
-    gate,
-    csrfProtection,
-    [
-      commonRules.id('id'),
-    ],
-    validateRequest,
-    (req, res) => controller.delete(req, res)
+  router.delete('/:id', gate, csrfProtection, [commonRules.id('id')], validateRequest, (req, res) =>
+    controller.delete(req, res),
   );
 
   return router;

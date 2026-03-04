@@ -1,0 +1,17 @@
+# No Primary Store for Pricing
+
+## Rule
+
+1. There is **NO** primary/default store for products in this project.
+2. Never assume that one store (for example Merchbutiken) should be the pricing source for all products.
+3. Product pricing must be handled per channel instance / market based on explicit mapping and active state.
+4. Do not derive all product base prices from one store integration.
+5. If pricing source is unclear for a product, stop and ask instead of guessing.
+6. When importing prices from Sello, treat both `null` and `0` as missing price and store `NULL` in Homebase overrides.
+7. Never treat `0` as a valid product price in this project.
+8. Keep existing per-instance prices as source of truth. Base price is fallback only for instances where override price is `NULL`.
+
+## Why
+
+Products are often active in different channels/markets with different prices and activation states. A single-store mental model causes incorrect pricing and bad exports.
+

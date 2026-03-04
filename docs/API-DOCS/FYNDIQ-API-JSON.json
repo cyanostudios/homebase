@@ -1,0 +1,1493 @@
+{
+  "info": {
+    "_postman_id": "5f9f2155-2b2d-6dbe-7c25-5746cdd49407",
+    "name": "NEW FYNDIQ API",
+    "description": "<html><head></head><body><p>Fyndiq enables merchants to upload products and manage orders on the Fyndiq platform. For the customer we provide a marketplace for easy access to a wide variety of products for those small moments of joy.</p>\n<p>This documentation will guide merchants through the development of their technical integration. Request and response samples can be found on the right hand side of the documentation page, with drop down menus for different scenarios.</p>\n<h1 id=\"api-overview\">API overview</h1>\n<p>We choose to design our API around the REST ideology, providing simple and predictable URLs to access and modify objects:</p>\n<h2 id=\"server---client-interaction\">Server - client interaction</h2>\n<p>We identify two different roles: the client that initiates the interaction and the server that replies. The server will never initiate any interaction, its role is simply to process the request it receives and to return an appropriate response.<br>In our case, the merchant will be the client and Fyndiq will be the server.</p>\n<h2 id=\"resource\">Resource</h2>\n<p>Fyndiq API exposes resources; a resource is an addressable object that can be reached via an URL.<br>In our first iteration the only objects you can interact with are the <strong>ARTICLE</strong> and the <strong>ORDER</strong>.<br>We are constantly working on improving our API by adding new endpoints for existing resources and making new resources available.</p>\n<h2 id=\"http-requests-and-methods\">HTTP requests and methods</h2>\n<p>Resources may be accessed via HTTP requests and you can act on the resources according to different methods or verbs:</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>METHOD</th>\n<th>ACTION</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>POST</td>\n<td>Create</td>\n</tr>\n<tr>\n<td>GET</td>\n<td>Read</td>\n</tr>\n<tr>\n<td>PUT</td>\n<td>Update</td>\n</tr>\n<tr>\n<td>DELETE</td>\n<td>Delete</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"http-status-codes\">HTTP status codes</h2>\n<p>HTTP status code is used to indicate success or failure of an API call. The body of the response contains the details of the error.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Code</th>\n<th>ACTION</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>2xx</td>\n<td>Success</td>\n</tr>\n<tr>\n<td>4xx</td>\n<td>Client Error</td>\n</tr>\n<tr>\n<td>5xx</td>\n<td>Server Error</td>\n</tr>\n</tbody>\n</table>\n</div><h1 id=\"fyndiq-api\">FYNDIQ API</h1>\n<h2 id=\"authentication\">Authentication</h2>\n<p>All of our API endpoints requires Basic Authentication. Your requests must include an HTTP Authorization header containing \"Basic\" followed by the Base64-encoded string <em>\"merchantID:token\"</em> :</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>Basic {base64_encode(merchantID:token)}\n\n</code></pre><h2 id=\"url-prefix\">URL prefix</h2>\n<p>The Fyndiq API offers a set of endpoints that can be reached via the following root URL:</p>\n<p>Live API URL:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>https://merchants-api.fyndiq.se/api/v1/\n\n</code></pre><h2 id=\"request\">Request</h2>\n<p>All request arguments must be passed in JSON message format with the Content-Type set as application/json.</p>\n<p>Merchants using the Fyndiq API should ensure that their API-calling systems support TLS 1.1 or higher. TLS 1.0 is not an available protocol on our servers. We strongly recommend TLS 1.2.</p>\n<h2 id=\"response\">Response</h2>\n<p>Unless otherwise specified, all of Fyndiq API responses will return the information that you request in the JSON data format.</p>\n<h2 id=\"sandbox-test-environment\">Sandbox test environment</h2>\n<p>The Fyndiq sandbox is a self-contained environment in which merchants can prototype and test their integration with Fyndiq. Credentials for the sandbox will be provided upon request.</p>\n<p>Sandbox base URL:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>https://merchants-api.sandbox.fyndiq.se/api/v1/\n\n</code></pre><p>The resources will be reachable via:</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Resource</th>\n<th>URL</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>ARTICLES</td>\n<td><a href=\"https://merchants-api.sandbox.fyndiq.se/api/v1/articles\">https://merchants-api.sandbox.fyndiq.se/api/v1/articles</a></td>\n</tr>\n<tr>\n<td>ORDERS</td>\n<td><a href=\"https://merchants-api.SANDBOX.fyndiq.se/api/v1/orders/\">https://merchants-api.SANDBOX.fyndiq.se/api/v1/orders/</a></td>\n</tr>\n</tbody>\n</table>\n</div><p>When migrating from sandbox to production environments, you will need to change the Base URLs and the credentials in your code.</p>\n</body></html>",
+    "schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+    "toc": [
+      { "content": "API overview", "slug": "api-overview" },
+      { "content": "FYNDIQ API", "slug": "fyndiq-api" }
+    ],
+    "owner": "2328684",
+    "collectionId": "5f9f2155-2b2d-6dbe-7c25-5746cdd49407",
+    "publishedId": "7185ENK",
+    "public": true,
+    "customColor": { "highlight": "EA4E68", "top-bar": "085F63", "right-sidebar": "063C4A" },
+    "publishDate": "2020-02-10T09:43:30.000Z"
+  },
+  "item": [
+    {
+      "name": "ARTICLES",
+      "item": [
+        {
+          "name": "Create an article",
+          "id": "3519b3a1-5764-4919-4988-45cc815c33a3",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": "https://merchants-api.sandbox.fyndiq.se/api/v1/articles",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to create an article.</strong></p>\n<p>A request can be sent for one single article.</p>\n<h2 id=\"request-body-parameters\">Request body parameters</h2>\n<p>Parameters that are not available <strong>MUST</strong> be removed from the body of the request.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Data type</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>sku</td>\n<td>Your unique ID for the article</td>\n<td>String (1-64)</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>parent_sku</td>\n<td>Group-identifier for the product, same as the sku for the main article</td>\n<td>String (1-64)</td>\n<td>No</td>\n</tr>\n<tr>\n<td>legacy_product_id</td>\n<td>Legacy Product ID from the former platform</td>\n<td>Non-negative Integer (0-100 000 000)</td>\n<td>No</td>\n</tr>\n<tr>\n<td>status</td>\n<td>Sale status for the article</td>\n<td>String (\"for sale\" or \"paused\")</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>quantity</td>\n<td>Quantity, in stock, of the article</td>\n<td>Non-negative Integer (0-500 000)</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>categories</td>\n<td>Categories of the article</td>\n<td>See categories related data format</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>properties*</td>\n<td>Properties of the article</td>\n<td>See properties related data format</td>\n<td>No</td>\n</tr>\n<tr>\n<td>variational_properties</td>\n<td>List of property names used for choosing variations in an article group</td>\n<td>See properties related data format</td>\n<td>No</td>\n</tr>\n<tr>\n<td>brand</td>\n<td>Manufacturer of the article</td>\n<td>String (1-50)</td>\n<td>No</td>\n</tr>\n<tr>\n<td>gtin</td>\n<td>Unique global identifier</td>\n<td>String (1-13)</td>\n<td>No</td>\n</tr>\n<tr>\n<td>main_image</td>\n<td>Direct link to the main image of the article</td>\n<td>String (1-1500), valid URL</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>images</td>\n<td>Direct links to the extra images of the article</td>\n<td>List of strings (1-1500), valid URLs, 10 max</td>\n<td>No</td>\n</tr>\n<tr>\n<td>markets*</td>\n<td>Countries where your article will be on sale</td>\n<td>See market related data format</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>title*</td>\n<td>Name of the article</td>\n<td>See language related field data format</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>description*</td>\n<td>Detailed text describing the article (no html)</td>\n<td>See language related field data format</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>price*</td>\n<td>Price of the article</td>\n<td>See price related data format</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>shipping_time*</td>\n<td>Time for the package to reach the customer</td>\n<td>See shipping related data format</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>delivery_type*</td>\n<td>How the package will be delivered to the customer</td>\n<td>See delivery related data format</td>\n<td>No</td>\n</tr>\n<tr>\n<td>kn_number</td>\n<td><em>Kombinerade nomenklaturen</em> number</td>\n<td>String (1-48)</td>\n<td>No</td>\n</tr>\n</tbody>\n</table>\n</div><p>** Specific fields. Data to be entered as an array of hashmaps. See below.*</p>\n<h3 id=\"categories\">Categories</h3>\n<p><code>categories</code></p>\n<p>The category tree can be fetched using our API, please check <a href=\"https://merchantapi.fyndiq.com/?version=latest#801b84f1-534b-499d-99e2-65a6b02c5fc0\">List Categories</a> for more information.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Key/value</th>\n<th>Type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>categories</td>\n<td>List of categories (max 5)</td>\n</tr>\n</tbody>\n</table>\n</div><pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>\"categories\": [\"1\", \"2\"]\n\n</code></pre><h3 id=\"properties\">Properties</h3>\n<p><code>properties</code></p>\n<p>Properties are sent in as Key/value pairs. The keys are defined by FYNDIQ and for some keys we also define possible values.</p>\n<p>The properties are divided into three groups, free text, numerical and pre-defined values.</p>\n<p><strong>Free text properties</strong></p>\n<p>The values for these properties are supplied as strings. We require the language to be supplied for these values, currently \"sv-SE\" and \"en-US\" is supported.</p>\n<p><strong>Pre-defined value properties</strong></p>\n<p>The values for these properties are chosen from a pre-defined list controlled by Fyndiq.</p>\n<p><strong>Numerical properties</strong></p>\n<p>The values for these properties are sent as integers or decimal numbers in a string.</p>\n<p>The list of properties in JSON format can be found here:<br /><a href=\"https://merchantcenter.fyndiq.se/properties.json\">https://merchantcenter.fyndiq.se/properties.json</a></p>\n<p>Deprecated link to the same file:<br /><a href=\"http://developers.fyndiq.com/assets/properties.json\">http://developers.fyndiq.com/assets/properties.json</a></p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Key/value</th>\n<th>Type</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>name</td>\n<td>String</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>value</td>\n<td>String (1-36)</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>language</td>\n<td>String (5)</td>\n<td>Only for free text properties</td>\n</tr>\n</tbody>\n</table>\n</div><pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>    \"properties\": \n        [\n            {\n                \"name\": \"color\", //Free text\n                \"value\": \"Deep Green\",\n                \"language\": \"en-US\"\n            }, \n            {\n                \"name\": \"fyndiq-size_SML\", //Pre-defined\n                \"value\": \"xxl\"\n            },\n            {\n                \"name\": \"shoe_size_eu\", //Numerical\n                \"value\": \"40\"\n            }\n        ]\n\n</code></pre><p><code>variational_properties</code></p>\n<p>Variational properties are used to specify which properties makes a variation unique within an article group. The combination of the values of the variational properties needs to be unique for each article within the article group.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Key/value</th>\n<th>Type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>variational_properties</td>\n<td>List of strings (1-2)</td>\n</tr>\n</tbody>\n</table>\n</div><pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>    \"variational_properties\": [\"color\", \"size\"]\n\n</code></pre><h3 id=\"market\">Market</h3>\n<p><code>markets</code></p>\n<p>Specifies which <strong>MARKETS</strong> (countries) where the product should be available for sale. <strong>Currently SE (Sweden), DK (Denmark), FI (Finland) and NO (Norway) is supported.</strong> Enter the country codes, as per <a href=\"https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2\">ISO-3166 standard</a>.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Key/value</th>\n<th>Type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>markets</td>\n<td>List of strings</td>\n</tr>\n</tbody>\n</table>\n</div><pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>    markets: [\"SE\", \"DK\"]\n\n</code></pre><h3 id=\"shipping\">Shipping</h3>\n<p><code>shipping_time</code></p>\n<p>Use this field to indicate the expected time period for the package to reach the customer (range, in days). This will vary according to the <strong>MARKET</strong> and is to be sent as an array of hashmaps.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Key/value</th>\n<th>Type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>market</td>\n<td>String (2)</td>\n</tr>\n<tr>\n<td>min</td>\n<td>Integer 1-9</td>\n</tr>\n<tr>\n<td>max</td>\n<td>Integer 1-9</td>\n</tr>\n</tbody>\n</table>\n</div><pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>    shipping_time: [\n        {\n          \"market\": \"SE\", \n          \"min\": 2,\n          \"max\": 5\n        },\n        {\n          \"market\": \"DK\", \n          \"min\": 4,\n          \"max\": 9\n        }]\n\n</code></pre><h3 id=\"prices\">Prices</h3>\n<p><code>price</code></p>\n<p>The data will vary according to the <strong>MARKET</strong> and is to be sent as an array of hashmaps.<br />For each price, the currency must be given, as per <a href=\"https://en.wikipedia.org/wiki/ISO_4217\">ISO-4217 standard</a>.<br />Prices are to be supplied including VAT.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Key/value</th>\n<th>Type</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>market</td>\n<td>String (2)</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>amount_including_vat*</td>\n<td>Decimal (1-7)</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>currency</td>\n<td>String (3)</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>vat_rate</td>\n<td>Decimal**</td>\n<td>No**</td>\n</tr>\n</tbody>\n</table>\n</div><ul>\n<li>Key can be sent as \"amount\", but note that when fetching articles and orders amount is used to represent the amount excluding VAT.</li>\n</ul>\n<p>** If no vat_rate is supplied the default value for the market will be applied</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>    \"price\": [\n        {\n          \"market\": \"SE\", \n          \"value\": {\n                \"amount\": 79,\n                \"currency\": \"SEK\"\n          }\n        },\n        {\n          \"market\": \"DK\", \n          \"value\": {\n                \"amount\": 99,\n                \"currency\": \"DKK\"\n          }\n        }]\n\n</code></pre><h3 id=\"language\">Language</h3>\n<p>We support language localisation for the article fields:</p>\n<p><code>title</code></p>\n<p><code>description</code></p>\n<p>You can provide us with the data in different languages for a better searchability and customer experience. <strong>Swedish</strong> is currently <strong>required</strong> for articles to be put on sale <strong>unless the merchant is part of our translation program</strong>.</p>\n<p>We choose to represent languages with a combination of a language designator, as per <a href=\"https://en.wikipedia.org/wiki/ISO_639-1\">ISO-639 standard</a>, and a region designator, as per <a href=\"https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2\">ISO-3166 standard</a>.</p>\n<p>For example, to specify the English language as it is used in the United States, enter <strong>en-US</strong>.</p>\n<p>The data is to be sent as an array of hashmaps.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Key/value</th>\n<th>Type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>language</td>\n<td>String (5)</td>\n</tr>\n<tr>\n<td>value (title)</td>\n<td>String (5-150)</td>\n</tr>\n<tr>\n<td>value (description)</td>\n<td>String (10-4096)</td>\n</tr>\n</tbody>\n</table>\n</div><pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>    \"title\": [\n      {\n        \"language\": \"sv-SE\", \n          \"value\": \"This is the title in Swedish\"\n        },\n        {\n        \"language\": \"en-US\", \n          \"value\": \"This is the title in English\"\n        }]\n\n</code></pre><p><code>description</code> is constructed the same way.</p>\n<h3 id=\"delivery\">Delivery</h3>\n<p><code>delivery_type</code></p>\n<p>Delivery type is used to specify how the package will be sent to the customer.<br />Currently the types of deliveries that can be specified are:<br /><code>mailbox</code> and <code>service_point</code></p>\n<p>Only one entry per market is allowed.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Key/value</th>\n<th>Type</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>market</td>\n<td>String (2)</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>value</td>\n<td>String</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>\"delivery_type\": \n    [\n        {\"market\": \"SE\", \"value\": \"mailbox\"},\n        {\"market\": \"DK\", \"value\": \"service_point\"}\n    ]\n\n</code></pre><h3 id=\"response\">Response</h3>\n<p>In the response we will return the Fyndiq article ID, our unique identifier for the article. The article ID is required for all parameter updates you will send via API call.</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n    \"id\": \"{{article_id}}\",\n    \"description\": \"Article was created.\"\n}\n\n</code></pre><p>Use the drop menu in the code column to visualise other senarios and responses.</p>\n",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "articles"],
+              "host": ["merchants-api", "sandbox", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "762b685b-1c29-8403-12d9-f94468551244",
+              "name": "201 - Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\":\"123\",\n  \"legacy_product_id\":123151,\n  \"categories\": [\"1\", \"2\"],\n  \"status\":\"for sale\",\n  \"quantity\":67,\n  \"main_image\":\"http://test.test/test.png\",\n  \"images\": [\"http://test.test/test2.png\", \"http://test.test/test3.png\", \"http://test.test/test4.png\"],\n  \"markets\": [\"SE\"],\n  \"title\":[{\"language\": \"en-US\", \"value\": \"T-shirt\"}],\n  \"description\":[{\"language\": \"en-US\", \"value\": \"This is a red t-shirt, ideal for summer\"}],\n  \"price\":[{\"market\": \"SE\", \"value\": {\"amount\": 4.99, \"currency\": \"SEK\"}}],\n  \"original_price\":[{\"market\": \"SE\", \"value\": {\"amount\": 10, \"currency\": \"SEK\"}}],\n  \"shipping_time\":[{\"market\": \"SE\", \"min\": 1, \"max\": 20}]\n}"
+                },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles"
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Connection",
+                  "value": "keep-alive",
+                  "name": "Connection",
+                  "description": "Options that are desired for the connection"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "57",
+                  "name": "Content-Length",
+                  "description": "The length of the response body in octets (8-bit bytes)"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "name": "Content-Type",
+                  "description": "The mime type of this content"
+                },
+                {
+                  "key": "Date",
+                  "value": "Thu, 21 Dec 2017 09:59:02 GMT",
+                  "name": "Date",
+                  "description": "The date and time that the message was sent"
+                },
+                {
+                  "key": "Server",
+                  "value": "nginx",
+                  "name": "Server",
+                  "description": "A name for the server"
+                }
+              ],
+              "cookie": [],
+              "responseTime": "75",
+              "body": "{\n    \"id\": \"{{article_id}}\",\n    \"description\": \"Article was created.\"\n}"
+            },
+            {
+              "id": "764e06b7-df92-4a7e-984f-626bbb7276df",
+              "name": "409 - SKU already exists",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\":\"123\",\n  \"legacy_product_id\":123151,\n  \"categories\": [\"1\", \"2\"],\n  \"status\":\"for sale\",\n  \"quantity\":67,\n  \"main_image\":\"http://test.test/test.png\",\n  \"images\": [\"http://test.test/test2.png\", \"http://test.test/test3.png\", \"http://test.test/test4.png\"],\n  \"markets\": [\"SE\"],\n  \"title\":[{\"language\": \"en-US\", \"value\": \"T-shirt\"}],\n  \"description\":[{\"language\": \"en-US\", \"value\": \"This is a red t-shirt, ideal for summer\"}],\n  \"price\":[{\"market\": \"SE\", \"value\": {\"amount\": 4.99, \"currency\": \"SEK\"}}],\n  \"original_price\":[{\"market\": \"SE\", \"value\": {\"amount\": 10, \"currency\": \"SEK\"}}],\n  \"shipping_time\":[{\"market\": \"SE\", \"min\": 1, \"max\": 20}]\n}"
+                },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles"
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"SKU already exists, can not create article!\",\n    \"errors\": {\n        \"response_status_code\": 200\n    }\n}"
+            },
+            {
+              "id": "84409191-20b1-5f7d-918d-d173f2ffccd2",
+              "name": "400 - Invalid payload",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"sku\":\"123\", \n\t\"parent_sku\":\"123\",\n\t\"status\":\"for sale\",\n\t\"quantity\":499,\n\t\"categories\":[\"1\"],\n\t\"brand\":\"brand\",\n\t\"gtin\":\"121212121212\",\n\t\"main_image\":\"http://test.test/test.png\",\n\t\"images\": [\"http://test.test/test2.png\", \"http://test.test/test3.png\", \"http://test.test/test4.png\"],\n\t\"markets\": [\"SE\"],\n\t\"title\":[{\"language\": \"sv-SE\", \"value\": \"Article title. The article creation will fail now since the title is being tooooooooooooooooooooooo loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong, more than 200 characters long.\"}],\n\t\"description\":[{\"language\": \"sv-SE\", \"value\": \"Article description, with no HTML.\"}],\n\t\"price\":[{\"market\": \"SE\", \"value\": {\"amount\": 50, \"currency\": \"SEK\"}}],\n\t\"original_price\":[{\"market\": \"SE\", \"value\": {\"amount\": 100, \"currency\": \"SEK\"}}],\n\t\"shipping_time\":[{\"market\": \"SE\", \"min\": 1, \"max\": 3}]\n}"
+                },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles"
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Connection",
+                  "value": "keep-alive",
+                  "name": "Connection",
+                  "description": "Options that are desired for the connection"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "57",
+                  "name": "Content-Length",
+                  "description": "The length of the response body in octets (8-bit bytes)"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "name": "Content-Type",
+                  "description": "The mime type of this content"
+                },
+                {
+                  "key": "Date",
+                  "value": "Thu, 21 Dec 2017 10:10:25 GMT",
+                  "name": "Date",
+                  "description": "The date and time that the message was sent"
+                },
+                {
+                  "key": "Server",
+                  "value": "nginx",
+                  "name": "Server",
+                  "description": "A name for the server"
+                }
+              ],
+              "cookie": [],
+              "responseTime": "39",
+              "body": "{\n    \"description\": \"Invalid payload\",\n    \"errors\": {\n        \"title\": [\n            {\n                \"0\": [\n                    {\n                        \"value\": [\n                            \"max length is 64\"\n                        ]\n                    }\n                ]\n            }\n        ]\n    }\n}"
+            },
+            {
+              "id": "a6e6dd3f-d1f3-6a74-2879-fa600cd35fa0",
+              "name": "401 - Incorrect credentials",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"sku\":\"123\", \n\t\"parent_sku\":\"123\",\n\t\"status\":\"for sale\",\n\t\"quantity\":499,\n\t\"categories\":[\"1\"],\n\t\"brand\":\"brand\",\n\t\"gtin\":\"121212121212\",\n\t\"main_image\":\"http://test.test/test.png\",\n\t\"images\": [\"http://test.test/test2.png\", \"http://test.test/test3.png\", \"http://test.test/test4.png\"],\n\t\"markets\": [\"SE\"],\n\t\"title\":[{\"language\": \"sv-SE\", \"value\": \"Article title\"}],\n\t\"description\":[{\"language\": \"sv-SE\", \"value\": \"Article description, with no HTML.\"}],\n\t\"price\":[{\"market\": \"SE\", \"value\": {\"amount\": 50, \"currency\": \"SEK\"}}],\n\t\"original_price\":[{\"market\": \"SE\", \"value\": {\"amount\": 100, \"currency\": \"SEK\"}}],\n\t\"shipping_time\":[{\"market\": \"SE\", \"min\": 1, \"max\": 3}]\n}"
+                },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles"
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Connection",
+                  "value": "keep-alive",
+                  "name": "Connection",
+                  "description": "Options that are desired for the connection"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "57",
+                  "name": "Content-Length",
+                  "description": "The length of the response body in octets (8-bit bytes)"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "name": "Content-Type",
+                  "description": "The mime type of this content"
+                },
+                {
+                  "key": "Date",
+                  "value": "Thu, 21 Dec 2017 09:59:02 GMT",
+                  "name": "Date",
+                  "description": "The date and time that the message was sent"
+                },
+                {
+                  "key": "Server",
+                  "value": "nginx",
+                  "name": "Server",
+                  "description": "A name for the server"
+                }
+              ],
+              "cookie": [],
+              "responseTime": "75",
+              "body": "{\n    \"description\": \"Authorization credentials were incorrect\"\n}"
+            }
+          ],
+          "_postman_id": "3519b3a1-5764-4919-4988-45cc815c33a3"
+        },
+        {
+          "name": "Bulk Create",
+          "id": "7c30ff89-f63c-47d4-b73e-19d2d09e02cb",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": "https://merchants-api.sandbox.fyndiq.se/api/v1/articles/bulk",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to create a batch of articles through one single call.</strong></p>\n<p>Our api accepts up to 100 create requests per call.</p>\n<h2 id=\"request-body\">Request Body</h2>\n<p>The request body for bulk updates are constructed by putting instances of the same structure used in Create Article in a list:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>[\n    {\n        CREATE ARTICLE BODY 1\n    },\n    {\n        CREATE ARTICLE BODY 2\n    },\n    \n    ...\n    \n    \n]\n</code></pre><h2 id=\"response\">Response</h2>\n<p>We first make sure that the bulk is valid (valid json object). In case it is valid, we return a 202 - Accepted. \nAnd we will list the specific responses for each single create request included in the bulk. These responses follow the same order as the create request order of your bulk. So the first response relates to the first update request of your bulk.</p>\n<p>In this example, the bulk was accepted however only the first create request of the bulk was sucessful:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n    \"description\": \"Accepted\",\n    \"responses\": [\n        {\n            \"id\": \"61c0ffd0-ec59-4ec1-bd3a-a7c2d894e4eb\",\n            \"description\": \"Article was created\"\n        },\n        {\n            \"description\": \"Can not create article\",\n            \"errors\": {\n                \"properties\": [\n                    {\n                        \"0\": [\n                            {\n                                \"language\": [\n                                    \"unallowed value de-US\"\n                                ]\n                            }\n                        ]\n                    }\n                ]\n            },\n            \"status_code\": 400\n        }\n    ]\n}\n</code></pre>",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "articles", "bulk"],
+              "host": ["merchants-api", "sandbox", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "7457430d-1d31-4cf3-b0f4-2e2d16f420a2",
+              "name": "202 - Entire bulk successful",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "[\n{\n    \"sku\": \"123\",\n    \"parent_sku\": \"123\",\n    \"status\": \"for sale\",\n    \"quantity\": 4,\n    \"categories\": [\n        \"2\"\n    ],\n    \"brand\": \"Brand name\",\n    \"gtin\": \"12345\",\n    \"main_image\": \"https://test.test/test.png\",\n    \"images\": [\n        \"https://test.test/test1.png\"\n    ],\n    \"markets\": [\n        \"SE\"\n    ],\n    \"title\": [\n        {\n            \"language\": \"sv-SE\",\n            \"value\": \"Product title\"\n        }\n    ],\n    \"description\": [\n        {\n            \"language\": \"sv-SE\",\n            \"value\": \"Product description\"\n        }\n    ],\n    \"price\": [\n        {\n            \"market\": \"SE\",\n            \"value\": {\n                \"amount\": 100,\n                \"currency\": \"SEK\"\n            }\n        }\n    ],\n    \"original_price\": [\n        {\n            \"market\": \"SE\",\n            \"value\": {\n                \"amount\": 150,\n                \"currency\": \"SEK\"\n            }\n        }\n    ],\n    \"shipping_time\": [\n        {\n            \"market\": \"SE\",\n            \"min\": 1,\n            \"max\": 3\n        }\n    ],\n    \"properties\": [\n        {\n\t\t\t\"name\": \"size_mm\",\n\t\t\t\"value\": \"30\"\n        }\n    ],\n    \"variational_properties\": [\n        \"size_mm\"\n    ]\n},\n{\n    \"sku\": \"234\",\n    \"parent_sku\": \"123\",\n    \"status\": \"for sale\",\n    \"quantity\": 4,\n    \"categories\": [\n        \"2\"\n    ],\n    \"brand\": \"Brand name\",\n    \"gtin\": \"2134\",\n    \"main_image\": \"https://test.test/test.png\",\n    \"images\": [\n        \"https://test.test/test2.png\"\n    ],\n    \"markets\": [\n        \"SE\"\n    ],\n    \"title\": [\n        {\n            \"language\": \"sv-SE\",\n            \"value\": \"Product Title\"\n        }\n    ],\n    \"description\": [\n        {\n            \"language\": \"sv-SE\",\n            \"value\": \"Product description\"\n        }\n    ],\n    \"price\": [\n        {\n            \"market\": \"SE\",\n            \"value\": {\n                \"amount\": 100,\n                \"currency\": \"SEK\"\n            }\n        }\n    ],\n    \"original_price\": [\n        {\n            \"market\": \"SE\",\n            \"value\": {\n                \"amount\": 150,\n                \"currency\": \"SEK\"\n            }\n        }\n    ],\n    \"shipping_time\": [\n        {\n            \"market\": \"SE\",\n            \"min\": 1,\n            \"max\": 3\n        }\n    ],\n    \"properties\": [\n        {\n\t\t\t\"name\": \"size_mm\",\n\t\t\t\"value\": \"35\"\n        }\n    ],\n    \"variational_properties\": [\n        \"size_mm\"\n    ]\n}\n]"
+                },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/bulk"
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    {\n    \"description\": \"Accepted\",\n    \"responses\": [\n        {\n            \"id\": \"61c0ffd0-ec59-4ec1-bd3a-a7c2d894e4eb\",\n            \"description\": \"Article was created\"\n        },\n        {\n            \"id\": \"12c0ffd0-wc54-4ec1-b32d-a7c2d8923a23\",\n            \"description\": \"Article was created\"\n        }\n    ]\n}"
+            }
+          ],
+          "_postman_id": "7c30ff89-f63c-47d4-b73e-19d2d09e02cb"
+        },
+        {
+          "name": "Retrieve an article",
+          "id": "921aeb23-f374-7ad5-a431-d928fda1aaf4",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic {ODliNjdkYTktZjM1ZS00NTYwLThjYzYtMGIyMmVhOTAyYTY3OmI3MjgzZTZiLTJhOWEtNDAzMC1iMjg1LTViMzVkZDBiNGY5OA==}",
+                "type": "text"
+              }
+            ],
+            "url": "https://merchants-api.fyndiq.se/api/v1/articles/{{article_id}}",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to retrieve an article</strong></p>\n<h2 id=\"request-query-parameter\">Request query parameter</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>article_id</td>\n<td>Fyndiq unique ID for the article, given on the article creation call</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"response\">Response</h2>\n<p>The full article object will be returned.</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>    {\n        \"id\": \"cdf52cd6-4f6d-4bb3-9a47-53dc0f7977a3\",\n        \"legacy_product_id\": 123351,\n        \"product_id\": \"cc3502412af2949e3c10c60ef67ee14d\",\n        \"categories\": [\n            \"1\",\n            \"2\"\n        ],\n        \"sku\": \"my_sku\",\n        \"parent_sku\": \"\",\n        \"title\": [\n            {\n                \"language\": \"en-US\",\n                \"value\": \"T-shirt\"\n            }\n        ],\n        \"description\": [\n            {\n                \"language\": \"en-US\",\n                \"value\": \"This is a red t-shirt, ideal for summer\"\n            }\n        ],\n        \"quantity\": 67,\n        \"status\": \"for sale\",\n        \"fyndiq_status\": \"new\",\n        \"fyndiq_reasons\": [],\n        \"properties\": [\n            {\n                \"name\": \"color\",\n                \"value\": \"green\"\n            },\n            {\n                \"name\": \"size\",\n                \"value\": \"M\"\n            }\n        ],\n        \"variational_properties\": [\n            \"color\"\n        ],\n        \"brand\": \"\",\n        \"gtin\": \"\",\n        \"main_image\": \"http://my.domain/test.png\",\n        \"images\": [\n            \"http://my.domain/test2.png\",\n            \"http://my.domain/test3.png\",\n            \"http://my.domain/test4.png\"\n        ],\n        \"markets\": [\n            \"SE\"\n        ],\n        \"merchant_id\": \"188eb3fb-e483-4787-825a-df31ab6dedd5\",\n        \"price\": [\n            {\n                \"market\": \"SE\",\n                \"value\": {\n                    \"amount\": \"49.00\",\n                    \"currency\": \"SEK\"\n                }\n            }\n        ],\n        \"original_price\": [\n            {\n                \"market\": \"SE\",\n                \"value\": {\n                    \"amount\": \"10.00\",\n                    \"currency\": \"SEK\"\n                }\n            }\n        ],\n        \"shipping_time\": [\n            {\n                \"market\": \"SE\",\n                \"min\": 1,\n                \"max\": 5\n            }\n        ]\n    }\n\n</code></pre>",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "articles", "{{article_id}}"],
+              "host": ["merchants-api", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "71d71c89-6d0e-4927-8770-8bc595cb8b8c",
+              "name": "403 - Non-existing article",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/{{article_id}}"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"You do not have permission to access this object\"\n}"
+            },
+            {
+              "id": "b54171ac-738e-8d08-e84d-d51bbda0ad5e",
+              "name": "200 - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" }
+                ],
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/{{article_id}}"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Connection",
+                  "value": "keep-alive",
+                  "name": "Connection",
+                  "description": ""
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "57",
+                  "name": "Content-Length",
+                  "description": ""
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "name": "Content-Type",
+                  "description": ""
+                },
+                {
+                  "key": "Date",
+                  "value": "Fri, 22 Dec 2017 11:54:17 GMT",
+                  "name": "Date",
+                  "description": ""
+                },
+                { "key": "Server", "value": "nginx", "name": "Server", "description": "" }
+              ],
+              "cookie": [],
+              "responseTime": "35",
+              "body": "{\n    \"id\": \"{{article_id}}\",\n    \"product_id\": \"{{product_id}}\",\n    \"sku\": \"123\",\n    \"parent_sku\": \"123\",\n    \"title\": [\n        {\n            \"language\": \"en-US\",\n            \"value\": \"Article title in English\"\n        }\n    ],\n    \"description\": [\n        {\n            \"language\": \"en-US\",\n            \"value\": \"Article description in English, with no HTML\"\n        }\n    ],\n    \"quantity\": 499,\n    \"status\": \"for sale\",\n    \"fyndiq_status\": \"new\",\n    \"fyndiq_reasons\": [],\n    \"categories\": [\n        \"category 1\",\n        \"category 2\"\n    ],\n    \"properties\": [\n        {\n            \"name\": \"color\",\n            \"value\": \"Red\"\n        },\n        {\n            \"name\": \"size\",\n            \"value\": \"XL\"\n        }\n    ],\n    \"brand\": \"brand\",\n    \"gtin\": \"121212121212\",\n    \"main_image\": \"http://test.test/test.png\",\n    \"images\": [\n        \"http://test.test/test2.png\",\n        \"http://test.test/test3.png\",\n        \"http://test.test/test4.png\"\n    ],\n    \"markets\": [\n        \"SE\"\n    ],\n    \"merchant_id\": \"{{yourmerchant_id}}\",\n    \"price\": [\n        {\n            \"market\": \"SE\",\n            \"value\": {\n                \"amount\": \"50.00\",\n                \"currency\": \"SEK\"\n            }\n        }\n    ],\n    \"original_price\": [\n        {\n            \"market\": \"SE\",\n            \"value\": {\n                \"amount\": \"10.00\",\n                \"currency\": \"SEK\"\n            }\n        }\n    ],\n    \"shipping_time\": [\n        {\n            \"market\": \"SE\",\n            \"min\": 2,\n            \"max\": 5\n        }\n    ]\n}"
+            }
+          ],
+          "_postman_id": "921aeb23-f374-7ad5-a431-d928fda1aaf4"
+        },
+        {
+          "name": "Retrieve an article by SKU",
+          "id": "4aa4f264-d451-451a-842f-accee3569b0e",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "GET",
+            "header": [],
+            "url": "https://merchants-api.sandbox.fyndiq.se/api/v1/articles/sku/{{SKU}}",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p>**This endpoint will allow you to retrieve an article by SKU **</p>\n<h2 id=\"request-query-parameter\">Request query parameter</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>SKU</td>\n<td>SKU for the article, given on the article creation call</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"response\">Response</h2>\n<p>The full article object will be returned.</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n    \"description\": \"Article found\",\n    \"content\": {\n        \"article\": {\n            \"id\": \"cdf52cd6-4f6d-4bb3-9a47-53dc0f7977a3\",\n            \"legacy_product_id\": 123351,\n            \"product_id\": \"cc3502412af2949e3c10c60ef67ee14d\",\n            \"categories\": [\n                \"1\",\n                \"2\"\n            ],\n            \"sku\": \"my_sku\",\n            \"parent_sku\": \"\",\n            \"title\": [\n                {\n                    \"language\": \"en-US\",\n                    \"value\": \"T-shirt\"\n                }\n            ],\n            \"description\": [\n                {\n                    \"language\": \"en-US\",\n                    \"value\": \"This is a red t-shirt, ideal for summer\"\n                }\n            ],\n            \"quantity\": 67,\n            \"status\": \"for sale\",\n            \"fyndiq_status\": \"new\",\n            \"fyndiq_reasons\": [],\n            \"properties\": [\n                {\n                    \"name\": \"color\",\n                    \"value\": \"green\"\n                },\n                {\n                    \"name\": \"size\",\n                    \"value\": \"M\"\n                }\n            ],\n            \"variational_properties\": [\n                \"color\"\n            ],\n            \"brand\": \"\",\n            \"gtin\": \"\",\n            \"main_image\": \"http://my.domain/test.png\",\n            \"images\": [\n                \"http://my.domain/test2.png\",\n                \"http://my.domain/test3.png\",\n                \"http://my.domain/test4.png\"\n            ],\n            \"markets\": [\n                \"SE\"\n            ],\n            \"merchant_id\": \"188eb3fb-e483-4787-825a-df31ab6dedd5\",\n            \"price\": [\n                {\n                    \"market\": \"SE\",\n                    \"value\": {\n                        \"amount\": \"80.00\",\n                        \"currency\": \"SEK\",\n                        \"vat_amount\": \"20.00\",\n                        \"vat_rate\": \"0.25\"\n                    }\n                }\n            ],\n            \"original_price\": [\n                {\n                    \"market\": \"SE\",\n                    \"value\": {\n                        \"amount\": \"159.20\",\n                        \"currency\": \"SEK\",\n                        \"vat_amount\": \"39.80\",\n                        \"vat_rate\": \"0.25\"\n                    }\n                }\n            ],\n            \"shipping_time\": [\n                {\n                    \"market\": \"SE\",\n                    \"min\": 1,\n                    \"max\": 5\n                }\n            ]\n        }\n    }\n}\n</code></pre>",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "articles", "sku", "{{SKU}}"],
+              "host": ["merchants-api", "sandbox", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "2dafcb2f-0336-487d-97ec-f97773f29ae4",
+              "name": "404 - Not found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/sku/{{sku}}"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Not found\",\n    \"errors\": {\n        \"description\": \"Article not found\",\n        \"content\": {}\n    }\n}"
+            },
+            {
+              "id": "7c724cda-2415-4471-8103-d87bcd354df8",
+              "name": "200 - OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" }
+                ],
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/sku/{{sku}}"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Connection",
+                  "value": "keep-alive",
+                  "name": "Connection",
+                  "description": ""
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "57",
+                  "name": "Content-Length",
+                  "description": ""
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "name": "Content-Type",
+                  "description": ""
+                },
+                {
+                  "key": "Date",
+                  "value": "Fri, 22 Dec 2017 11:54:17 GMT",
+                  "name": "Date",
+                  "description": ""
+                },
+                { "key": "Server", "value": "nginx", "name": "Server", "description": "" }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Article found\",\n    \"content\": {\n        \"article\": {\n\t\t    \"id\": \"{{article_id}}\",\n\t\t    \"product_id\": \"{{product_id}}\",\n\t\t    \"sku\": \"123\",\n\t\t    \"parent_sku\": \"123\",\n\t\t    \"title\": [\n\t\t        {\n\t\t            \"language\": \"en-US\",\n\t\t            \"value\": \"Article title in English\"\n\t\t        }\n\t\t    ],\n\t\t    \"description\": [\n\t\t        {\n\t\t            \"language\": \"en-US\",\n\t\t            \"value\": \"Article description in English, with no HTML\"\n\t\t        }\n\t\t    ],\n\t\t    \"quantity\": 499,\n\t\t    \"status\": \"for sale\",\n\t\t    \"fyndiq_status\": \"new\",\n\t\t    \"fyndiq_reasons\": [],\n\t\t    \"categories\": [\n\t\t        \"category 1\",\n\t\t        \"category 2\"\n\t\t    ],\n\t\t    \"properties\": [\n\t\t        {\n\t\t            \"name\": \"color\",\n\t\t            \"value\": \"Red\"\n\t\t        },\n\t\t        {\n\t\t            \"name\": \"size\",\n\t\t            \"value\": \"XL\"\n\t\t        }\n\t\t    ],\n\t\t    \"brand\": \"brand\",\n\t\t    \"gtin\": \"121212121212\",\n\t\t    \"main_image\": \"http://test.test/test.png\",\n\t\t    \"images\": [\n\t\t        \"http://test.test/test2.png\",\n\t\t        \"http://test.test/test3.png\",\n\t\t        \"http://test.test/test4.png\"\n\t\t    ],\n\t\t    \"markets\": [\n\t\t        \"SE\"\n\t\t    ],\n\t\t    \"merchant_id\": \"{{yourmerchant_id}}\",\n\t\t\t\"price\": [\n                {\n                    \"market\": \"SE\",\n                    \"value\": {\n                        \"amount\": \"80.00\",\n                        \"currency\": \"SEK\",\n                        \"vat_amount\": \"20.00\",\n                        \"vat_rate\": \"0.25\"\n                    }\n                }\n            ],\n            \"original_price\": [\n                {\n                    \"market\": \"SE\",\n                    \"value\": {\n                        \"amount\": \"159.20\",\n                        \"currency\": \"SEK\",\n                        \"vat_amount\": \"39.80\",\n                        \"vat_rate\": \"0.25\"\n                    }\n                }\n            ],\n\t\t    \"shipping_time\": [\n\t\t        {\n\t\t            \"market\": \"SE\",\n\t\t            \"min\": 2,\n\t\t            \"max\": 5\n\t\t        }\n\t\t    ]\n\t\t}\n\t}\n}"
+            }
+          ],
+          "_postman_id": "4aa4f264-d451-451a-842f-accee3569b0e"
+        },
+        {
+          "name": "List articles",
+          "id": "b60c76a4-ea3f-2779-0457-890ed1be485a",
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "GET",
+            "header": [],
+            "url": "https://merchants-api.sandbox.fyndiq.se/api/v1/articles",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to retrieve the product data you have on your Fyndiq account.</strong></p>\n<h2 id=\"query-parameters\">Query parameters</h2>\n<p>We paginate the response; you can retrieve up to 1000 articles per page. A request run with no parameters will return 100 articles on page 1 (default settings).\nListing articles with <code>for_sale=true</code> will only return articles where state = \"for sale\".</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Default value</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>limit</td>\n<td>100</td>\n<td>No</td>\n</tr>\n<tr>\n<td>page</td>\n<td>1</td>\n<td>No</td>\n</tr>\n<tr>\n<td>for_sale</td>\n<td>false</td>\n<td>No</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"response\">Response</h2>\n<p>Article objests will be returned, as per the settings of your request. See response samples on the right hand-side column.</p>\n",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "articles"],
+              "host": ["merchants-api", "sandbox", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "8236cda9-614a-910f-7812-d2495fb65f4b",
+              "name": "List articles (default settings)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" }
+                ],
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": "0",
+              "body": "[\n    {\n        \"id\": \"{{article_id}}\",\n        \"product_id\": \"{{product_id}}\",\n        \"sku\": \"123\",\n        \"parent_sku\": \"123\",\n        \"title\": [\n            {\n                \"language\": \"en-US\",\n                \"value\": \"Article title in English\"\n            }\n        ],\n        \"description\": [\n            {\n                \"language\": \"en-US\",\n                \"value\": \"Article description in English, with no HTML\"\n            }\n        ],\n        \"quantity\": 499,\n        \"status\": \"for sale\",\n        \"fyndiq_status\": \"new\",\n        \"fyndiq_reasons\": [],\n        \"categories\": [\n            \"category 1\",\n            \"category 2\"\n        ],\n        \"properties\": [\n            {\n                \"name\": \"color\",\n                \"value\": \"Red\"\n            },\n            {\n                \"name\": \"size\",\n                \"value\": \"XL\"\n            }\n        ],\n        \"brand\": \"brand\",\n        \"gtin\": \"121212121212\",\n        \"main_image\": \"http://test.test/test.png\",\n        \"images\": [\n            \"http://test.test/test2.png\",\n            \"http://test.test/test3.png\",\n            \"http://test.test/test4.png\"\n        ],\n        \"markets\": [\n            \"SE\"\n        ],\n        \"merchant_id\": \"{{yourmerchant_id}}\",\n        \"price\": [\n            {\n                \"market\": \"SE\",\n                \"value\": {\n                    \"amount\": \"49.00\",\n                    \"currency\": \"SEK\"\n                }\n            }\n        ],\n        \"original_price\": [\n            {\n                \"market\": \"SE\",\n                \"value\": {\n                    \"amount\": \"100.00\",\n                    \"currency\": \"SEK\"\n                }\n            }\n        ],\n        \"shipping_time\": [\n            {\n                \"market\": \"SE\",\n                \"min\": 2,\n                \"max\": 5\n            }\n        ]\n    },\n    {\n        \"id\": \"{{article_id}}\",\n        \"product_id\": \"{{product_id}}\",\n        \"sku\": \"124\",\n        \"parent_sku\": \"123\",\n        \"title\": [\n            {\n                \"language\": \"en-US\",\n                \"value\": \"Article title in English\"\n            }\n        ],\n        \"description\": [\n            {\n                \"language\": \"en-US\",\n                \"value\": \"Article description in English, with no HTML\"\n            }\n        ],\n        \"quantity\": 499,\n        \"status\": \"for sale\",\n        \"fyndiq_status\": \"new\",\n        \"fyndiq_reasons\": [],\n        \"categories\": [\n            \"category 2\",\n            \"category 3\"\n        ],\n        \"properties\": [\n            {\n                \"name\": \"color\",\n                \"value\": \"Red\"\n            },\n            {\n                \"name\": \"size\",\n                \"value\": \"XL\"\n            }\n        ],\n        \"brand\": \"brand\",\n        \"gtin\": \"121212121212\",\n        \"main_image\": \"http://test.test/test.png\",\n        \"images\": [\n            \"http://test.test/test2.png\",\n            \"http://test.test/test3.png\",\n            \"http://test.test/test4.png\"\n        ],\n        \"markets\": [\n            \"SE\"\n        ],\n        \"merchant_id\": \"{{yourmerchant_id}}\",\n        \"price\": [\n            {\n                \"market\": \"SE\",\n                \"value\": {\n                    \"amount\": \"29.00\",\n                    \"currency\": \"SEK\"\n                }\n            }\n        ],\n        \"original_price\": [\n            {\n                \"market\": \"SE\",\n                \"value\": {\n                    \"amount\": \"60.00\",\n                    \"currency\": \"SEK\"\n                }\n            }\n        ],\n        \"shipping_time\": [\n            {\n                \"market\": \"SE\",\n                \"min\": 2,\n                \"max\": 5\n            }\n        ]\n    }\n]"
+            },
+            {
+              "id": "a0b837eb-4282-cbd4-d8db-fe89829cf436",
+              "name": "List articles (up to 1000)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" }
+                ],
+                "url": {
+                  "raw": "https://merchants-api.fyndiq.se/api/v1/articles?limit=1000&page=1",
+                  "protocol": "https",
+                  "host": ["merchants-api", "fyndiq", "se"],
+                  "path": ["api", "v1", "articles"],
+                  "query": [
+                    { "key": "limit", "value": "1000" },
+                    { "key": "page", "value": "1" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": "0",
+              "body": "[\n    {\n        \"id\": \"{{article_id}}\",\n        \"product_id\": \"{{product_id}}\",\n        \"sku\": \"123\",\n        \"parent_sku\": \"123\",\n        \"title\": [\n            {\n                \"language\": \"en-US\",\n                \"value\": \"Article title in English\"\n            }\n        ],\n        \"description\": [\n            {\n                \"language\": \"en-US\",\n                \"value\": \"Article description in English, with no HTML\"\n            }\n        ],\n        \"quantity\": 499,\n        \"status\": \"for sale\",\n        \"fyndiq_status\": \"new\",\n        \"fyndiq_reasons\": [],\n        \"categories\": [\n            \"category 1\",\n            \"category 2\"\n        ],\n        \"properties\": [\n            {\n                \"name\": \"color\",\n                \"value\": \"Red\"\n            },\n            {\n                \"name\": \"size\",\n                \"value\": \"XL\"\n            }\n        ],\n        \"brand\": \"brand\",\n        \"gtin\": \"121212121212\",\n        \"main_image\": \"http://test.test/test.png\",\n        \"images\": [\n            \"http://test.test/test2.png\",\n            \"http://test.test/test3.png\",\n            \"http://test.test/test4.png\"\n        ],\n        \"markets\": [\n            \"SE\"\n        ],\n        \"merchant_id\": \"{{yourmerchant_id}}\",\n        \"price\": [\n            {\n                \"market\": \"SE\",\n                \"value\": {\n                    \"amount\": \"49.00\",\n                    \"currency\": \"SEK\"\n                }\n            }\n        ],\n        \"original_price\": [\n            {\n                \"market\": \"SE\",\n                \"value\": {\n                    \"amount\": \"100.00\",\n                    \"currency\": \"SEK\"\n                }\n            }\n        ],\n        \"shipping_time\": [\n            {\n                \"market\": \"SE\",\n                \"min\": 2,\n                \"max\": 5\n            }\n        ]\n    },\n    {\n        \"id\": \"{{article_id}}\",\n        \"product_id\": \"{{product_id}}\",\n        \"sku\": \"124\",\n        \"parent_sku\": \"123\",\n        \"title\": [\n            {\n                \"language\": \"en-US\",\n                \"value\": \"Article title in English\"\n            }\n        ],\n        \"description\": [\n            {\n                \"language\": \"en-US\",\n                \"value\": \"Article description in English, with no HTML\"\n            }\n        ],\n        \"quantity\": 499,\n        \"status\": \"for sale\",\n        \"fyndiq_status\": \"new\",\n        \"fyndiq_reasons\": [],\n        \"categories\": [\n            \"category 2\",\n            \"category 3\"\n        ],\n        \"properties\": [\n            {\n                \"name\": \"color\",\n                \"value\": \"Red\"\n            },\n            {\n                \"name\": \"size\",\n                \"value\": \"XL\"\n            }\n        ],\n        \"brand\": \"brand\",\n        \"gtin\": \"121212121212\",\n        \"main_image\": \"http://test.test/test.png\",\n        \"images\": [\n            \"http://test.test/test2.png\",\n            \"http://test.test/test3.png\",\n            \"http://test.test/test4.png\"\n        ],\n        \"markets\": [\n            \"SE\"\n        ],\n        \"merchant_id\": \"{{yourmerchant_id}}\",\n        \"price\": [\n            {\n                \"market\": \"SE\",\n                \"value\": {\n                    \"amount\": \"29.00\",\n                    \"currency\": \"SEK\"\n                }\n            }\n        ],\n        \"original_price\": [\n            {\n                \"market\": \"SE\",\n                \"value\": {\n                    \"amount\": \"60.00\",\n                    \"currency\": \"SEK\"\n                }\n            }\n        ],\n        \"shipping_time\": [\n            {\n                \"market\": \"SE\",\n                \"min\": 2,\n                \"max\": 5\n            }\n        ]\n    }\n]"
+            }
+          ],
+          "_postman_id": "b60c76a4-ea3f-2779-0457-890ed1be485a"
+        },
+        {
+          "name": "List Categories",
+          "id": "801b84f1-534b-499d-99e2-65a6b02c5fc0",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "GET",
+            "header": [],
+            "url": "https://merchants-api.sandbox.fyndiq.se/api/v1/categories/{{MARKET}}/{{LANGUAGE}}/",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to retrieve the category tree for Fyndiq articles.</strong></p>\n<h2 id=\"url-structure\">URL Structure</h2>\n<p>When fetching the category tree you will need to supply market and language for the tree you want to fetch. </p>\n<p><strong><a href=\"https://merchants-api.sandbox.fyndiq.se/api/v1/categories/SE/en-US/\">https://merchants-api.sandbox.fyndiq.se/api/v1/categories/SE/en-US/</a></strong> will fetch the tree for the Swedish market in English, changing en-US to sv-SE will fetch the same tree but with Swedish names. </p>\n<h2 id=\"response\">Response</h2>\n<p>The category tree will be returned as a list where each node has the following attributes:</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Attribute</th>\n<th>Description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>id</td>\n<td>The ID of the category.</td>\n</tr>\n<tr>\n<td>name</td>\n<td>Name of the category.</td>\n</tr>\n<tr>\n<td>path</td>\n<td>The path from the ancestor root category to the current category separated by dots.</td>\n</tr>\n<tr>\n<td>search_friendly_name</td>\n<td>Search friendly name, if available.</td>\n</tr>\n</tbody>\n</table>\n</div><pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>[\n    {\n        \"id\": 1,\n        \"name\": \"Fashion\",\n        \"path\": \"1\",\n        \"search_friendly_name\": \"\"\n    },\n    {\n        \"id\": 423,\n        \"name\": \"Accessories\",\n        \"path\": \"1.423\",\n        \"search_friendly_name\": \"\"\n    },\n    ...\n    \n]\n</code></pre>",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "categories", "{{MARKET}}", "{{LANGUAGE}}", ""],
+              "host": ["merchants-api", "sandbox", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [],
+          "_postman_id": "801b84f1-534b-499d-99e2-65a6b02c5fc0"
+        },
+        {
+          "name": "Update an article",
+          "id": "08b611f4-689a-fedb-91bc-66e180226aff",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "PUT",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": "https://merchants-api.sandbox.fyndiq.se/api/v1/articles/{{article_id}}",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to update articles</strong></p>\n<p>We give the merchant the possibility to update their article data. Each request can contain one or several parameter updates for one specific article.</p>\n<h2 id=\"request-query-parameter\">Request query parameter</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>article_id</td>\n<td>Fyndiq unique ID for the article you want to update</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"request-body-parameters\">Request body parameters</h2>\n<p>We do not support partial updates.<br />All parameters that are editable, must be present, even the ones that are not being updated.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Data type</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>sku</td>\n<td>Your unique ID for the article</td>\n<td>String (1-64)</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>parent_sku</td>\n<td>Group-identifier for the product, same as the sku for the main article</td>\n<td>String (0-64)</td>\n<td>No</td>\n</tr>\n<tr>\n<td>legacy_product_id</td>\n<td>Legacy Product ID from the former platform</td>\n<td>Non-negative Integer (0-100 000 000)</td>\n<td>No</td>\n</tr>\n<tr>\n<td>status</td>\n<td>Sale status for the article</td>\n<td>String (\"for sale\" or \"paused\")</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>categories</td>\n<td>Categories of the article</td>\n<td>See categories related data format</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>properties*</td>\n<td>Properties of the article</td>\n<td>See properties related data format</td>\n<td>No</td>\n</tr>\n<tr>\n<td>variational_properties</td>\n<td>List of property names used for choosing variations in an article group</td>\n<td>See properties related data format</td>\n<td>No</td>\n</tr>\n<tr>\n<td>brand</td>\n<td>Manufacturer of the article</td>\n<td>String (0-50)</td>\n<td>No</td>\n</tr>\n<tr>\n<td>gtin</td>\n<td>Unique global identifier</td>\n<td>String (0-13)</td>\n<td>No</td>\n</tr>\n<tr>\n<td>main_image</td>\n<td>Direct link to the main image of the article</td>\n<td>String (0-1500), valid URL</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>images</td>\n<td>Direct links to the extra images of the article</td>\n<td>List of strings (0-1500), valid URLs, 10 max</td>\n<td>No</td>\n</tr>\n<tr>\n<td>markets*</td>\n<td>Countries where your article will be on sale</td>\n<td>See market related data format</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>title*</td>\n<td>Name of the article</td>\n<td>See language related field data format</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>description*</td>\n<td>Detailed text describing the article (no html)</td>\n<td>See language related field data format</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>shipping_time*</td>\n<td>Time for the package to reach the customer</td>\n<td>See shipping related data format</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><p><em>* Specific fields. Data to be entered as an array of hashmaps. See</em> <a href=\"https://merchantapi.fyndiq.com/#3519b3a1-5764-4919-4988-45cc815c33a3\"><em>Create an article</em></a><em>.</em></p>\n<p><strong>NOTE</strong>: Price and stock cannot be updated via this endpoint. There are specific calls for these two parameters.<br />See <a href=\"https://merchantapi.fyndiq.com/#a693a56a-6f6a-7552-90cf-161cca38ad32\">Update an article price</a> and <a href=\"https://merchantapi.fyndiq.com/#f8b91339-b7b3-d7f3-a85d-68490d470316\">Update an article quantity</a>.</p>\n<h2 id=\"response\">Response</h2>\n<p>In case of sucess, we return a simple 204, with no body:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{}\n\n</code></pre>",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "articles", "{{article_id}}"],
+              "host": ["merchants-api", "sandbox", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "3fefb1e4-12c6-48e4-bf73-a6c29dadaf8f",
+              "name": "403 - Permission denied",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"sku\":\"123\", \n\t\"parent_sku\":\"123\",\n\t\"status\":\"for sale\",\n\t\"tags\":[\"Main tag\", \"Tag 2\", \"Tag 3\", \"Tag 4\"],\n\t\"size\":\"XL\",\n\t\"color\":\"Red\",\n\t\"brand\":\"brand\",\n\t\"gtin\":\"121212121212\",\n\t\"main_image\":\"http://test.test/test.png\",\n\t\"images\": [\"http://test.test/test2.png\", \"http://test.test/test3.png\", \"http://test.test/test4.png\"],\n\t\"markets\": [\"SE\"],\n\t\"title\":[{\"language\": \"en-US\", \"value\": \"Article title in English\"}],\n\t\"description\":[{\"language\": \"en-US\", \"value\": \"Article description, with no HTML\"}],\n\t\"shipping_time\":[{\"market\": \"SE\", \"value\": \"15 - 20\"}]\n}"
+                },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/{{article_id}}"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Permission denied\",\n    \"errors\": {\n        \"response_status_code\": 403\n    }\n}"
+            },
+            {
+              "id": "605b7c7c-f518-68f8-33c0-578d93497261",
+              "name": "204 - Successful update",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"sku\":\"123\", \n\t\"parent_sku\":\"123\",\n\t\"status\":\"for sale\",\n\t\"categories\":[\"1\", \"2\"],\n\t\"brand\":\"brand\",\n\t\"gtin\":\"121212121212\",\n\t\"main_image\":\"http://test.test/test.png\",\n\t\"images\": [\"http://test.test/test2.png\", \"http://test.test/test3.png\", \"http://test.test/test4.png\"],\n\t\"markets\": [\"SE\"],\n\t\"title\":[{\"language\": \"en-US\", \"value\": \"Article title in English\"}],\n\t\"description\":[{\"language\": \"en-US\", \"value\": \"Article description, with no HTML\"}],\n\t\"shipping_time\":[{\"market\": \"SE\", \"min\": 1, \"max\": 3}]\n}"
+                },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/{{article_id}}"
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [],
+              "responseTime": "0",
+              "body": "{}"
+            },
+            {
+              "id": "e8232b79-085b-95f5-6376-7d53ff9a78ed",
+              "name": "400 - Invalid payload",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"sku\":\"123\", \n\t\"parent_sku\":\"123\",\n\t\"status\":\"in-stock\",\n\t\"categories\":[\"1\", \"2\"],\n\t\"brand\":\"brand\",\n\t\"gtin\":\"121212121212\",\n\t\"main_image\":\"http://test.test/test.png\",\n\t\"images\": [\"http://test.test/test2.png\", \"http://test.test/test3.png\", \"http://test.test/test4.png\"],\n\t\"markets\": [\"SE\"],\n\t\"title\":[{\"language\": \"en-US\", \"value\": \"Article title in English\"}],\n\t\"description\":[{\"language\": \"en-US\", \"value\": \"Article description, with no HTML\"}],\n\t\"shipping_time\":[{\"market\": \"SE\", \"min\": 1, \"max\": 3}]\n}"
+                },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/{{article_id}}"
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": "0",
+              "body": "{\n    \"description\": \"Invalid payload\",\n    \"errors\": {\n        \"status\": [\n            \"unallowed value in-stock\"\n        ]\n    }\n}"
+            }
+          ],
+          "_postman_id": "08b611f4-689a-fedb-91bc-66e180226aff"
+        },
+        {
+          "name": "Update an article price",
+          "id": "a693a56a-6f6a-7552-90cf-161cca38ad32",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "PUT",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": "https://merchants-api.sandbox.fyndiq.se/api/v1/articles/{{article_id}}/price",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to update the price of an article</strong></p>\n<h2 id=\"request-query-parameter\">Request query parameter</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>article_id</td>\n<td>Fyndiq unique ID for the article you want to update</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"request-body-parameters\">Request body parameters</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Data type</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>price*</td>\n<td>Price of the article</td>\n<td>See price related data format</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>original_price*</td>\n<td>Price of the article, before sell on Fyndiq</td>\n<td>See price related data format</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><p><em>*Specific fields. Data to be entered as an array of hashmaps. See</em> <a href=\"https://merchantapi.fyndiq.com/#3519b3a1-5764-4919-4988-45cc815c33a3\"><em>Create an article</em></a><em>.</em></p>\n<h2 id=\"response\">Response</h2>\n<p>In case of sucess, we return a simple 204, with no body:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{}\n\n</code></pre>",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "articles", "{{article_id}}", "price"],
+              "host": ["merchants-api", "sandbox", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "8b70387f-7197-446d-bdb7-5bcfb4a85e94",
+              "name": "400 - Invalid payload",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"price\":[{\"market\": \"SE\", \"value\": {\"amount\": \"60\", \"currency\": \"SEK\"}}],\n\t\"original_price\":[{\"market\": \"SE\", \"value\": {\"amount\": \"100\", \"currency\": \"SEK\"}}],\n}"
+                },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/{{article_id}}/price"
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Invalid payload\",\n    \"errors\": {\n        \"price\": [\n            {\n                \"0\": [\n                    {\n                        \"value\": [\n                            {\n                                \"amount\": [\n                                    \"must be of float type\"\n                                ]\n                            }\n                        ]\n                    }\n                ]\n            }\n        ]\n    }\n}"
+            },
+            {
+              "id": "fa0e6538-1519-41a5-96d4-6e1a34e93439",
+              "name": "403 - Permission denied",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"price\":[{\"market\": \"SE\", \"value\": {\"amount\": 60, \"currency\": \"SEK\"}}],\n\t\"original_price\":[{\"market\": \"SE\", \"value\": {\"amount\": 100, \"currency\": \"SEK\"}}],\n}"
+                },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/{{article_id}}/price"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Permission denied\",\n    \"errors\": {\n        \"response_status_code\": 403\n    }\n}"
+            },
+            {
+              "id": "fd8ab30b-dac4-39a1-d119-d2e7f6b9d962",
+              "name": "204 - Successful update",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"price\":[{\"market\": \"SE\", \"value\": {\"amount\": 60, \"currency\": \"SEK\"}}],\n\t\"original_price\":[{\"market\": \"SE\", \"value\": {\"amount\": 100, \"currency\": \"SEK\"}}],\n}"
+                },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/{{article_id}}/price"
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [],
+              "responseTime": "0",
+              "body": "{}"
+            }
+          ],
+          "_postman_id": "a693a56a-6f6a-7552-90cf-161cca38ad32"
+        },
+        {
+          "name": "Update an article quantity",
+          "id": "f8b91339-b7b3-d7f3-a85d-68490d470316",
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "PUT",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": "https://merchants-api.sandbox.fyndiq.se/api/v1/articles/{{article_id}}/quantity",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to update the quantity of an article</strong></p>\n<h2 id=\"request-query-parameter\">Request query parameter</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>article_id</td>\n<td>Fyndiq unique ID for the article you want to update</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"request-body-parameter\">Request body parameter</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Data type</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>quantity</td>\n<td>Quantity, in stock, of the article</td>\n<td>Non-negative Integer (0-500 000)</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"response\">Response</h2>\n<p>In case of sucess, we return a simple 204, with no body:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{}\n\n</code></pre>",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "articles", "{{article_id}}", "quantity"],
+              "host": ["merchants-api", "sandbox", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "a4451e84-8f96-4b9b-ac6b-83aba89cf23a",
+              "name": "403 - Permission denied",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n\t\"quantity\": 299\n}" },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/{{article_id}}/quantity"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Permission denied\",\n    \"errors\": {\n        \"response_status_code\": 403\n    }\n}"
+            },
+            {
+              "id": "be0265a8-ad3c-4d51-bcfd-bcdfce391d53",
+              "name": "400 - Invalid payload",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n\t\"quantity\": \"299\"\n}" },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/{{article_id}}/quantity"
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Invalid payload\",\n    \"errors\": {\n        \"quantity\": [\n            \"must be of integer type\"\n        ]\n    }\n}"
+            },
+            {
+              "id": "cff7e541-ce6a-c121-5b7c-8c970075940b",
+              "name": "204 - Successful update",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n\t\"quantity\": 299\n}" },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/{{article_id}}/quantity"
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [],
+              "responseTime": "0",
+              "body": "{}"
+            }
+          ],
+          "_postman_id": "f8b91339-b7b3-d7f3-a85d-68490d470316"
+        },
+        {
+          "name": "Bulk Update",
+          "id": "490908fe-ef8d-47e7-8fb1-dd2bff402bff",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "PUT",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": "https://merchants-api.sandbox.fyndiq.se/api/v1/articles/bulk",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to update a batch of articles through one single call.</strong></p>\n<p>Our api accepts up to 200 update requests per call. There are 4 different update request types, called <code>actions</code>.</p>\n<p>You can send different actions in the same call. You can also send different actions for the same article in the same call, as long as you do not sent the same action for the same article twice.</p>\n<h2 id=\"request-body-parameters\">Request body parameters</h2>\n<p>All parameters that are editable, must be included in the request, even the ones that are not being updated. Remember, parameters that are not required and are not available for the article can be set to empty string but MUST be present in the body of the request.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Data type</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>action</td>\n<td>The type of update request</td>\n<td>String</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>id</td>\n<td>Fyndiq unique ID for the article you want to update</td>\n<td>String</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>body</td>\n<td>The updated data</td>\n<td>Dictionary</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><p>The body will differs according to the <code>action</code>:</p>\n<h3 id=\"update_article\">update_article</h3>\n<p>Same body schema as the <a href=\"https://merchantapi.fyndiq.com/#08b611f4-689a-fedb-91bc-66e180226aff\">single article update</a>.</p>\n<h3 id=\"update_article_price\">update_article_price</h3>\n<p>Same body schema as the <a href=\"https://merchantapi.fyndiq.com/#a693a56a-6f6a-7552-90cf-161cca38ad32\">single article price update</a>.</p>\n<h3 id=\"update_article_quantity\">update_article_quantity</h3>\n<p>Same body schema as the <a href=\"https://merchantapi.fyndiq.com/#f8b91339-b7b3-d7f3-a85d-68490d470316\">single article quantity update</a>.</p>\n<h3 id=\"delete_article\">delete_article</h3>\n<p>Empty dictionary.</p>\n<h2 id=\"response\">Response</h2>\n<p>We first make sure that the bulk is valid (valid json object). In case it is valid, we return a 202 - Accepted. \nAnd we will list the specific responses for each single update request included in the bulk. These responses follow the same order as the update request order of your bulk. So the first response relates to the first update request of your bulk.</p>\n<h2 id=\"in-this-example-the-bulk-was-accepted-however-only-the-last-update-request-of-the-bulk-was-sucessful------description-accepted-----responses-----------------------description-invalid-payload-------------errors------------------sku----------------------required-field-------------------------------------------status_code-400-------------------------------description-no-permission-to-edit-article-------------status_code-403-------------------------------description-invalid-payload-------------errors------------------quantity----------------------must-be-of-integer-type-------------------------------------------status_code-400-------------------------------description-accepted-------------status_code-202---------------\">In this example, the bulk was accepted however only the last update request of the bulk was sucessful:\n<code>{     \"description\": \"Accepted\",     \"responses\": [         {             \"description\": \"Invalid payload\",             \"errors\": {                 \"sku\": [                     \"required field\"                 ]             },             \"status_code\": 400         },         {             \"description\": \"No permission to edit article\",             \"status_code\": 403         },         {             \"description\": \"Invalid payload\",             \"errors\": {                 \"quantity\": [                     \"must be of integer type\"                 ]             },             \"status_code\": 400         },         {             \"description\": \"Accepted\",             \"status_code\": 202         }     ] }</code></h2>\n<p>In case the bulk is not valid, we return a 400 - Bad request and we indicate which update request is faulty.\nIn the following case, the bulk was not accepted due to the body of the third update request being missing.</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n    \"description\": \"Invalid payload\",\n    \"errors\": {\n        \"bulk_payload\": [\n            {\n                \"3\": [\n                    {\n                        \"body\": [\n                            \"required field\"\n                        ]\n                    }\n}]}}\n</code></pre>",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "articles", "bulk"],
+              "host": ["merchants-api", "sandbox", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "4a9b3a02-1330-409a-bec3-c854ddb05c62",
+              "name": "202 - Valid bulk but invalid payload in specific actions",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "[\n    {\n        \"action\": \"update_article\",\n        \"id\": \"77a9b3fb-cbea-47ce-a275-0327e05a5c83\",\n        \"body\": {\n        \t\t\"sku\":\"123\",\n        \t\t\"categories\": [\"1\", \"2\"],\n\t\t\t\t\"status\":\"for sale\",\n\t\t\t\t\"properties\": [\n\t\t\t\t\t{\n\t\t\t\t\t\t\"name\": \"fyndiq-color\", \"value\": \"red\"\n\t\t\t\t\t},\n\t\t\t\t\t{\n\t\t\t\t\t\t\"name\": \"color\", \"value\": \"röd\", \"language\": \"sv-SE\"\n\t\t\t\t\t},\n\t\t\t\t\t{\n\t\t\t\t\t\t\"name\": \"shoe_size_eu\", \"value\": \"30\"\n\t\t\t\t\t}\n\t\t\t\t],\n\t\t\t\t\"main_image\":\"http://test.test/test123.png\",\n\t\t\t\t\"images\": [],\n\t\t\t\t\"markets\": [\"SE\"],\n\t\t\t\t\"title\":[{\"language\": \"sv-SE\", \"value\": \"Swedish title\"},{\"language\": \"en-US\", \"value\": \"English title\"}],\n\t\t\t\t\"description\":[{\"language\": \"sv-SE\", \"value\": \"Swedish description\"},{\"language\": \"en-US\", \"value\": \"English description\"}],\n\t\t\t\t\"shipping_time\":[{\"market\": \"SE\", \"min\": 1, \"max\": 9}]\n\t\t\t\t}\n    },\n    {\n        \"action\": \"update_article_price\",\n        \"id\": \"88a9b3fb-a275-cbea-47ce-0327e05adc83\",\n        \"body\": {\n        \t\"price\":[{\"market\": \"SE\", \"value\": {\"amount\": 60, \"currency\": \"SEK\"}}],\n\t\t\t\"original_price\":[{\"market\": \"SE\", \"value\": {\"amount\": 100, \"currency\": \"SEK\"}}]\n        }\n    },\n    {\n        \"action\": \"update_article_quantity\",\n        \"id\": \"77a9b3fb-cbea-47ce-a275-0327e05adc83\",\n        \"body\": {\n            \"quantity\": \"25\"\n        }\n    },\n    {\n        \"action\": \"delete_article\",\n        \"id\": \"77a9b3fb-cbea-47ce-a275-0327e05adc83\",\n        \"body\": {}\n    }\n]"
+                },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/bulk"
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "\n{\n    \"description\": \"Accepted\",\n    \"responses\": [\n        {\n\t\t\t\"description\": \"Action accepted\",\n            \"status_code\": 202\n        },\n        {\n            \"description\": \"Action accepted\",\n            \"status_code\": 202\n        },\n        {\n            \"description\": \"Invalid payload\",\n            \"errors\": {\n                \"quantity\": [\n                    \"must be of integer type\"\n                ]\n            },\n            \"status_code\": 400\n        },\n        {\n            \"description\": \"Action accepted\",\n            \"status_code\": 202\n        }\n    ]\n}"
+            },
+            {
+              "id": "c21b7d7a-f92c-466c-969d-adfd19695300",
+              "name": "202 - Entire bulk successful",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "[\n    {\n        \"action\": \"update_article\",\n        \"id\": \"77a9b3fb-cbea-47ce-a275-0327e05a5c83\",\n        \"body\": {\n        \t\t\"sku\":\"123\",\n        \t\t\"categories\": [\"1\", \"2\"],\n\t\t\t\t\"status\":\"for sale\",\n\t\t\t\t\"properties\": [\n\t\t\t\t\t{\n\t\t\t\t\t\t\"name\": \"fyndiq-color\", \"value\": \"red\"\n\t\t\t\t\t},\n\t\t\t\t\t{\n\t\t\t\t\t\t\"name\": \"color\", \"value\": \"röd\", \"language\": \"sv-SE\"\n\t\t\t\t\t},\n\t\t\t\t\t{\n\t\t\t\t\t\t\"name\": \"shoe_size_eu\", \"value\": \"30\"\n\t\t\t\t\t}\n\t\t\t\t],\n\t\t\t\t\"main_image\":\"http://test.test/test123.png\",\n\t\t\t\t\"images\": [],\n\t\t\t\t\"markets\": [\"SE\"],\n\t\t\t\t\"title\":[{\"language\": \"sv-SE\", \"value\": \"Swedish title\"},{\"language\": \"en-US\", \"value\": \"English title\"}],\n\t\t\t\t\"description\":[{\"language\": \"sv-SE\", \"value\": \"Swedish description\"},{\"language\": \"en-US\", \"value\": \"English description\"}],\n\t\t\t\t\"shipping_time\":[{\"market\": \"SE\", \"min\": 1, \"max\": 9}]\n\t\t\t\t}\n    },\n    {\n        \"action\": \"update_article_price\",\n        \"id\": \"88a9b3fb-a275-cbea-47ce-0327e05adc83\",\n        \"body\": {\n        \t\"price\":[{\"market\": \"SE\", \"value\": {\"amount\": 60, \"currency\": \"SEK\"}}],\n\t\t\t\"original_price\":[{\"market\": \"SE\", \"value\": {\"amount\": 100, \"currency\": \"SEK\"}}],\n        }\n    },\n    {\n        \"action\": \"update_article_quantity\",\n        \"id\": \"77a9b3fb-cbea-47ce-a275-0327e05adc83\",\n        \"body\": {\n            \"quantity\": 25\n        }\n    },\n    {\n        \"action\": \"delete_article\",\n        \"id\": \"77a9b3fb-cbea-47ce-a275-0327e05adc83\",\n        \"body\": {}\n    }\n]"
+                },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/bulk"
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Accepted\",\n    \"responses\": [\n        {\n            \"description\": \"Accepted\",\n            \"status_code\": 202\n        },\n        {\n            \"description\": \"No permission to edit article\",\n            \"status_code\": 403\n        },\n        {\n            \"description\": \"Accepted\",\n            \"status_code\": 202\n        },\n        {\n            \"description\": \"Accepted\",\n            \"status_code\": 202\n        }\n    ]\n}"
+            },
+            {
+              "id": "fbba3ea5-eae0-4327-b5ea-e3ee96db4e00",
+              "name": "400 - Invalid payload",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "[\n    {\n        \"action\": \"update_article\",\n        \"id\": \"77a9b3fb-cbea-47ce-a275-0327e05a5c83\",\n        \"body\": {\n        \t\t\"sku\":\"123\",\n        \t\t\"categories\": [\"1\", \"2\"],\n\t\t\t\t\"status\":\"for sale\",\n\t\t\t\t\"properties\": [\n\t\t\t\t\t{\n\t\t\t\t\t\t\"name\": \"fyndiq-color\", \"value\": \"red\"\n\t\t\t\t\t},\n\t\t\t\t\t{\n\t\t\t\t\t\t\"name\": \"color\", \"value\": \"röd\", \"language\": \"sv-SE\"\n\t\t\t\t\t},\n\t\t\t\t\t{\n\t\t\t\t\t\t\"name\": \"shoe_size_eu\", \"value\": \"30\"\n\t\t\t\t\t}\n\t\t\t\t],\n\t\t\t\t\"main_image\":\"http://test.test/test123.png\",\n\t\t\t\t\"images\": [],\n\t\t\t\t\"markets\": [\"SE\"],\n\t\t\t\t\"title\":[{\"language\": \"sv-SE\", \"value\": \"Swedish title\"},{\"language\": \"en-US\", \"value\": \"English title\"}],\n\t\t\t\t\"description\":[{\"language\": \"sv-SE\", \"value\": \"Swedish description\"},{\"language\": \"en-US\", \"value\": \"English description\"}],\n\t\t\t\t\"shipping_time\":[{\"market\": \"SE\", \"min\": 1, \"max\": 9}]\n\t\t\t\t}\n    },\n    {\n        \"action\": \"update_article_price\",\n        \"id\": \"88a9b3fb-a275-cbea-47ce-0327e05adc83\",\n        \"body\": {\n        \t\"price\":[{\"market\": \"SE\", \"value\": {\"amount\": 60, \"currency\": \"SEK\"}}],\n\t\t\t\"original_price\":[{\"market\": \"SE\", \"value\": {\"amount\": 100, \"currency\": \"SEK\"}}],\n        }\n    },\n    {\n        \"action\": \"update_article_quantity\",\n        \"id\": \"77a9b3fb-cbea-47ce-a275-0327e05adc83\",\n        \"body\": {\n            \"quantity\": 25\n        }\n    },\n    {\n        \"action\": \"delete_article\",\n        \"id\": \"77a9b3fb-cbea-47ce-a275-0327e05adc83\"\n    }\n]"
+                },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/bulk"
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Invalid payload\",\n    \"errors\": {\n        \"bulk_payload\": [\n            {\n                \"3\": [\n                    {\n                        \"body\": [\n                            \"required field\"\n                        ]\n                    }\n                ]\n            }\n        ]\n    }\n}"
+            }
+          ],
+          "_postman_id": "490908fe-ef8d-47e7-8fb1-dd2bff402bff"
+        },
+        {
+          "name": "Delete an article",
+          "id": "a967e550-1e17-92dc-c3ba-744935113766",
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "DELETE",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": "https://merchants-api.sandbox.fyndiq.se/api/v1/articles/{{article_id}}",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to delete an article</strong></p>\n<p>By running this call, you will set the field <code>status</code> to <strong>deleted</strong>. The article will no longer be visible to customers.</p>\n<p>All deleted articles are still being visible to you through the API.</p>\n<h2 id=\"request-query-parameter\">Request query parameter</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>article_id</td>\n<td>Fyndiq unique ID for the article you want to update</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"response\">Response</h2>\n<p>In case of sucess, we return a simple 204, with no body:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{}\n\n</code></pre>",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "articles", "{{article_id}}"],
+              "host": ["merchants-api", "sandbox", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "87101e0c-0f94-dc3d-8789-1d124b4640c4",
+              "name": "204 - Successful deletion",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.fyndiq.se/api/v1/articles/{{article_id}}"
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [],
+              "responseTime": "0",
+              "body": "{}"
+            }
+          ],
+          "_postman_id": "a967e550-1e17-92dc-c3ba-744935113766"
+        }
+      ],
+      "id": "f41e908b-f217-0dfa-0be1-ad3d89b4e1c2",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "id": "63fd0f31-7aa0-49d2-aaa3-7cda7e3ccf60",
+            "type": "text/javascript",
+            "exec": [""]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "id": "4024b2b1-3d15-4889-9d7e-e217ee730680",
+            "type": "text/javascript",
+            "exec": [""]
+          }
+        }
+      ],
+      "_postman_id": "f41e908b-f217-0dfa-0be1-ad3d89b4e1c2",
+      "description": ""
+    },
+    {
+      "name": "ORDERS",
+      "item": [
+        {
+          "name": "Retrieve an order",
+          "id": "e7c86681-cd9c-4502-8ff4-4a970a2a5aae",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "GET",
+            "header": [],
+            "url": "https://merchants-api.SANDBOX.fyndiq.se/api/v1/orders/{{order_id}}",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to retrieve an order.</strong></p>\n<h2 id=\"request-query-parameters\">Request query parameters</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>order_id</td>\n<td>Fyndiq unique ID for the order</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"response\">Response</h2>\n<p>The full order object will be returned.</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n  \"id\": \"{{order_id}}\",\n  \"article_id\": \"{{article_id}}\",\n  \"title\": \"Article title\",\n  \"article_sku\": \"123\",\n  \"price\": {\n    \"amount\": 23.2,\n    \"vat_amount\": 5.8,\n    \"vat_rate\": 0.25,\n    \"currency\": \"SEK\"\n  },\n  \"total_price\": {\n    \"amount\": 23.2,\n    \"vat_amount\": 5.8,\n    \"vat_rate\": 0.25,\n    \"currency\": \"SEK\"\n  },\n  \"quantity\": 2,\n  \"shipping_address\": {\n    \"first_name\": \"Test\",\n    \"last_name\": \"Person\",\n    \"street_address\": \"Test address 1\",\n    \"city\": \"Test city\",\n    \"postal_code\": \"234567\",\n    \"country\": \"Test country\",\n    \"phone_number\": \"+46 00 000 00 00\"\n  },\n  \"market\": \"SE\",\n  \"state\": \"CREATED\",\n  \"created_at\": \"2018-01-01 16:57:06\",\n  \"updated_at\": \"2018-01-01 16:57:06\",\n  \"fulfillment_deadline\": \"2018-01-06 16:57:06\",\n  \"tracking_information\": []\n}\n</code></pre><p><strong>NOTE:</strong> All transactions are handled in the customer's local currency.</p>\n",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "orders", "{{order_id}}"],
+              "host": ["merchants-api", "SANDBOX", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "e392d68f-7fc7-45c8-a559-ff2f68a58f0a",
+              "name": "200 - Successful call",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "url": "https://merchants-api.fyndiq.se/api/v1/orders/{{order_id}}"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Connection",
+                  "value": "keep-alive",
+                  "name": "Connection",
+                  "description": "Options that are desired for the connection"
+                },
+                {
+                  "key": "Content-Encoding",
+                  "value": "gzip",
+                  "name": "Content-Encoding",
+                  "description": "The type of encoding used on the data."
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/html",
+                  "name": "Content-Type",
+                  "description": "The mime type of this content"
+                },
+                {
+                  "key": "Date",
+                  "value": "Wed, 10 Jan 2018 15:00:54 GMT",
+                  "name": "Date",
+                  "description": "The date and time that the message was sent"
+                },
+                {
+                  "key": "Server",
+                  "value": "nginx",
+                  "name": "Server",
+                  "description": "A name for the server"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked",
+                  "name": "Transfer-Encoding",
+                  "description": "The form of encoding used to safely transfer the entity to the user. Currently defined methods are: chunked, compress, deflate, gzip, identity."
+                },
+                {
+                  "key": "X-Request-ID",
+                  "value": "221377f8b27e363e8e5968e90894404d",
+                  "name": "X-Request-ID",
+                  "description": "Custom header"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"id\": \"{{order_id}}\",\n  \"article_id\": \"{{article_id}}\",\n  \"title\": \"Article title\",\n  \"article_sku\": \"123\",\n  \"price\": {\n    \"amount\": 23.2,\n    \"vat_amount\": 5.8,\n    \"vat_rate\": 0.25,\n    \"currency\": \"SEK\"\n  },\n  \"total_price\": {\n    \"amount\": 23.2,\n    \"vat_amount\": 5.8,\n    \"vat_rate\": 0.25,\n    \"currency\": \"SEK\"\n  },\n  \"quantity\": 2,\n  \"shipping_address\": {\n    \"first_name\": \"Test\",\n    \"last_name\": \"Person\",\n    \"street_address\": \"Test address 1\",\n    \"city\": \"Test city\",\n    \"postal_code\": \"234567\",\n    \"country\": \"Test country\",\n    \"phone_number\": \"+46 00 000 00 00\"\n  },\n  \"market\": \"SE\",\n  \"state\": \"CREATED\",\n  \"created_at\": \"2018-01-01 16:57:06\",\n  \"updated_at\": \"2018-01-01 16:57:06\",\n  \"fulfillment_deadline\": \"2018-01-06 16:57:06\",\n  \"tracking_information\": []\n}"
+            }
+          ],
+          "_postman_id": "e7c86681-cd9c-4502-8ff4-4a970a2a5aae"
+        },
+        {
+          "name": "List orders",
+          "id": "9654dd86-e7a7-4350-845e-a0ecfb9edd3c",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "GET",
+            "header": [],
+            "url": "https://merchants-api.SANDBOX.fyndiq.se/api/v1/orders/",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to retrieve your order data.</strong></p>\n<h2 id=\"query-parameters\">Query parameters</h2>\n<h4 id=\"filtering\">Filtering</h4>\n<p>The field <code>state</code> supports filtering. <strong>By default, we return new orders (orders in state CREATED)</strong>. </p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Filter values</th>\n<th>Definition</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>CREATED</td>\n<td>New order</td>\n</tr>\n<tr>\n<td>FULFILLED</td>\n<td>Handled/shipped</td>\n</tr>\n<tr>\n<td>NOT_FULFILLED</td>\n<td>Cancelled/refunded</td>\n</tr>\n</tbody>\n</table>\n</div><h4 id=\"pagination\">Pagination</h4>\n<p>We return 100 orders by default and you can retrieve up to 1000 orders per page by using pagination parameters.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Default value</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>limit</td>\n<td>100</td>\n<td>No</td>\n</tr>\n<tr>\n<td>page</td>\n<td>1</td>\n<td>No</td>\n</tr>\n</tbody>\n</table>\n</div><p>--</p>\n<p><strong>You may combine pagination and filtering.</strong></p>\n<h2 id=\"response\">Response</h2>\n<p>Order objects will be returned, as per the settings of your request. See response samples on the right hand-side column.</p>\n",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "orders", ""],
+              "host": ["merchants-api", "SANDBOX", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "50e63b69-ce05-49c6-85ae-4e2c5d262818",
+              "name": "List cancelled orders",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "https://merchants-api.fyndiq.se/api/v1/orders?state=NOT_FULFILLED",
+                  "protocol": "https",
+                  "host": ["merchants-api", "fyndiq", "se"],
+                  "path": ["api", "v1", "orders"],
+                  "query": [{ "key": "state", "value": "NOT_FULFILLED" }]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "[\n\t{\n\t  \"id\": \"{{order_id}}\",\n\t  \"article_id\": \"{{article_id}}\",\n\t  \"title\": \"Article title\",\n\t  \"article_sku\": \"123\",\n\t  \"price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"total_price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"quantity\": 2,\n\t  \"shipping_address\": {\n\t    \"first_name\": \"Test\",\n\t    \"last_name\": \"Person\",\n\t    \"street_address\": \"Test address 1\",\n\t    \"city\": \"Test city\",\n\t    \"postal_code\": \"234567\",\n\t    \"country\": \"Test country\",\n\t    \"phone_number\": \"+46 00 000 00 00\"\n\t  },\n\t  \"market\": \"SE\",\n\t  \"state\": \"NOT FULFILLED\",\n\t  \"created_at\": \"2018-01-01 16:57:06\",\n\t  \"updated_at\": \"2018-01-01 16:57:06\",\n\t  \"fulfillment_deadline\": \"2018-01-06 16:57:06\",\n\t  \"tracking_information\": []\n\t},\n\t{\n\t  \"id\": \"{{order_id}}\",\n\t  \"article_id\": \"{{article_id}}\",\n\t  \"title\": \"Article title\",\n\t  \"article_sku\": \"123\",\n\t  \"price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"total_price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"quantity\": 2,\n\t  \"shipping_address\": {\n\t    \"first_name\": \"Test2\",\n\t    \"last_name\": \"Person2\",\n\t    \"street_address\": \"Test address 2\",\n\t    \"city\": \"Test city\",\n\t    \"postal_code\": \"234567\",\n\t    \"country\": \"Test country\",\n\t    \"phone_number\": \"+46 00 000 00 00\"\n\t  },\n\t  \"market\": \"SE\",\n\t  \"state\": \"NOT_FULFILLED\",\n\t  \"created_at\": \"2018-01-01 16:57:06\",\n\t  \"updated_at\": \"2018-01-01 16:57:06\",\n\t  \"fulfillment_deadline\": \"2018-01-06 16:57:06\",\n\t  \"tracking_information\": []\n\t}\n]"
+            },
+            {
+              "id": "91318f33-245a-43ed-8a98-4d0377cc17ac",
+              "name": "List new orders",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "https://merchants-api.fyndiq.se/api/v1/orders?state=CREATED",
+                  "protocol": "https",
+                  "host": ["merchants-api", "fyndiq", "se"],
+                  "path": ["api", "v1", "orders"],
+                  "query": [{ "key": "state", "value": "CREATED" }]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "[\n\t{\n\t  \"id\": \"{{order_id}}\",\n\t  \"article_id\": \"{{article_id}}\",\n\t  \"title\": \"Article title\",\n\t  \"article_sku\": \"123\",\n\t  \"price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"total_price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"quantity\": 2,\n\t  \"shipping_address\": {\n\t    \"first_name\": \"Test\",\n\t    \"last_name\": \"Person\",\n\t    \"street_address\": \"Test address 1\",\n\t    \"city\": \"Test city\",\n\t    \"postal_code\": \"234567\",\n\t    \"country\": \"Test country\",\n\t    \"phone_number\": \"+46 00 000 00 00\"\n\t  },\n\t  \"market\": \"SE\",\n\t  \"state\": \"CREATED\",\n\t  \"created_at\": \"2018-01-01 16:57:06\",\n\t  \"updated_at\": \"2018-01-01 16:57:06\",\n\t  \"fulfillment_deadline\": \"2018-01-06 16:57:06\",\n\t  \"tracking_information\": []\n\t}\n]"
+            },
+            {
+              "id": "fe100056-9478-480d-9560-6f91f2d24ee6",
+              "name": "List fulfilled orders",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "https://merchants-api.fyndiq.se/api/v1/orders?state=FULFILLED",
+                  "protocol": "https",
+                  "host": ["merchants-api", "fyndiq", "se"],
+                  "path": ["api", "v1", "orders"],
+                  "query": [{ "key": "state", "value": "FULFILLED" }]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "[\n\t{\n\t  \"id\": \"{{order_id}}\",\n\t  \"article_id\": \"{{article_id}}\",\n\t  \"title\": \"Article title\",\n\t  \"article_sku\": \"123\",\n\t  \"price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"total_price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"quantity\": 2,\n\t  \"shipping_address\": {\n\t    \"first_name\": \"Test\",\n\t    \"last_name\": \"Person\",\n\t    \"street_address\": \"Test address 1\",\n\t    \"city\": \"Test city\",\n\t    \"postal_code\": \"234567\",\n\t    \"country\": \"Test country\",\n\t    \"phone_number\": \"+46 00 000 00 00\"\n\t  },\n\t  \"market\": \"SE\",\n\t  \"state\": \"FULFILLED\",\n\t  \"created_at\": \"2018-01-01 16:57:06\",\n\t  \"updated_at\": \"2018-01-01 16:57:06\",\n\t  \"fulfillment_deadline\": \"2018-01-06 16:57:06\",\n\t  \"tracking_information\": []\n\t},\n\t{\n\t  \"id\": \"{{order_id}}\",\n\t  \"article_id\": \"{{article_id}}\",\n\t  \"title\": \"Article title\",\n\t  \"article_sku\": \"123\",\n\t  \"price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"total_price\": {\n\t    \"amount\": 23.2,\n\t    \"vat_amount\": 5.8,\n\t    \"vat_rate\": 0.25,\n\t    \"currency\": \"SEK\"\n\t  },\n\t  \"quantity\": 2,\n\t  \"shipping_address\": {\n\t    \"first_name\": \"Test2\",\n\t    \"last_name\": \"Person2\",\n\t    \"street_address\": \"Test address 2\",\n\t    \"city\": \"Test city\",\n\t    \"postal_code\": \"234567\",\n\t    \"country\": \"Test country\",\n\t    \"phone_number\": \"+46 00 000 00 00\"\n\t  },\n\t  \"market\": \"SE\",\n\t  \"state\": \"FULFILLED\",\n\t  \"created_at\": \"2018-01-01 16:57:06\",\n\t  \"updated_at\": \"2018-01-01 16:57:06\",\n\t  \"fulfillment_deadline\": \"2018-01-06 16:57:06\",\n\t  \"tracking_information\": []\n\t}\n]"
+            }
+          ],
+          "_postman_id": "9654dd86-e7a7-4350-845e-a0ecfb9edd3c"
+        },
+        {
+          "name": "Fulfill an order",
+          "id": "af64bad3-cefd-41b4-b391-a79c70719a69",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\t\"tracking_information\": [\n\t\t{\n    \t\t\"carrier_name\": \"Postnord\",\n    \t\t\"tracking_number\": \"abc123\"\n\t\t}\n\t]\n}\n",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "https://merchants-api.SANDBOX.fyndiq.se/api/v1/orders/{{order_id}}/fulfill",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to fulfill an order.</strong></p>\n<p>A request can be sent for one single order.</p>\n<p>Mark the order as handled as soon as you have shipped the item.<br />By running this call, you will set the order field <code>state</code> to <strong>fulfilled</strong>.</p>\n<p>Any order that has already been cancelled cannot be fulfilled.</p>\n<h2 id=\"request-query-parameter\">Request query parameter</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>order_id</td>\n<td>Fyndiq unique ID for the order you want to fulfill</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"adding-tracking-information\">Adding tracking information</h2>\n<p>If available the tracking information should be supplied in the body.</p>\n<h2 id=\"example-body-with-tracking-information\">Example body with tracking information</h2>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n    \"tracking_information\": [\n        {\n            \"carrier_name\": \"Postnord\",\n            \"tracking_number\": \"abc123\"\n        }\n}\n\n</code></pre><h2 id=\"response\">Response</h2>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n    \"description\": \"Order row was fulfilled\"\n}\n\n</code></pre>",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "orders", "{{order_id}}", "fulfill"],
+              "host": ["merchants-api", "SANDBOX", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "30db3dcd-312c-4ccc-81ba-0713a4e903c3",
+              "name": "202 - Successful fulfillment",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.fyndiq.se/api/v1/orders/{{order_id}}/fulfill"
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Connection",
+                  "value": "keep-alive",
+                  "name": "Connection",
+                  "description": "Options that are desired for the connection"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "166",
+                  "name": "Content-Length",
+                  "description": "The length of the response body in octets (8-bit bytes)"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/html",
+                  "name": "Content-Type",
+                  "description": "The mime type of this content"
+                },
+                {
+                  "key": "Date",
+                  "value": "Mon, 08 Jan 2018 13:43:35 GMT",
+                  "name": "Date",
+                  "description": "The date and time that the message was sent"
+                },
+                {
+                  "key": "Server",
+                  "value": "nginx",
+                  "name": "Server",
+                  "description": "A name for the server"
+                },
+                {
+                  "key": "X-Request-ID",
+                  "value": "c6e2d4c1fe2ef4c9ef631977b9974421",
+                  "name": "X-Request-ID",
+                  "description": "Custom header"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order row was fulfilled\"\n}"
+            },
+            {
+              "id": "69259a1b-8cd7-4642-ac7b-c746321d06e4",
+              "name": "403 - Order is already fulfilled",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.fyndiq.se/api/v1/orders/{{order_id}}/fulfill"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order row already has fulfilled as state\"\n}"
+            },
+            {
+              "id": "734f3bae-b2f7-4cd2-9d34-1a39caeedbe7",
+              "name": "403 - Order is already cancelled",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.fyndiq.se/api/v1/orders/{{order_id}}/fulfill"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order row already has not_fulfilled as state\"\n}"
+            },
+            {
+              "id": "879eac5d-0045-4f64-93c3-3120cd3cf0d1",
+              "name": "403 - Order has passed fulfillment date",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.fyndiq.se/api/v1/orders/{{order_id}}/fulfill"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order has passed fulfillment due date\"\n}"
+            }
+          ],
+          "_postman_id": "af64bad3-cefd-41b4-b391-a79c70719a69"
+        },
+        {
+          "name": "Cancel an order",
+          "id": "4e77d996-d29e-402f-9aee-20321dbbc0de",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "PUT",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": "https://merchants-api.SANDBOX.fyndiq.se/api/v1/orders/{{order_id}}/cancel",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>This endpoint will allow you to cancel an order.</strong></p>\n<p>This call should be used whenever you are unable to ship the item (for stock issue for example).\nIt will set the order field <code>state</code> to <strong>not_fulfilled</strong>.</p>\n<p>Any order that has already been fulfilled cannot be cancelled.</p>\n<h2 id=\"request-query-parameter\">Request query parameter</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>order_id</td>\n<td>Fyndiq unique ID for the order you want to cancel</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"response\">Response</h2>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n    \"description\": \"Order row was cancelled\"\n}\n</code></pre>",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "orders", "{{order_id}}", "cancel"],
+              "host": ["merchants-api", "SANDBOX", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "001dcdc5-62c5-4d2c-96a3-54daed31140f",
+              "name": "403 - Order is already cancelled",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.fyndiq.se/api/v1/orders/{{order_id}}/cancel"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n\"description\": \"Order row already has not_fulfilled as state\"\n}"
+            },
+            {
+              "id": "355e13ae-a712-4a48-92ab-3925d91658af",
+              "name": "202 - Successful cancelation",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.fyndiq.se/api/v1/orders/{{order_id}}/cancel"
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Connection",
+                  "value": "keep-alive",
+                  "name": "Connection",
+                  "description": "Options that are desired for the connection"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "166",
+                  "name": "Content-Length",
+                  "description": "The length of the response body in octets (8-bit bytes)"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/html",
+                  "name": "Content-Type",
+                  "description": "The mime type of this content"
+                },
+                {
+                  "key": "Date",
+                  "value": "Mon, 08 Jan 2018 13:44:33 GMT",
+                  "name": "Date",
+                  "description": "The date and time that the message was sent"
+                },
+                {
+                  "key": "Server",
+                  "value": "nginx",
+                  "name": "Server",
+                  "description": "A name for the server"
+                },
+                {
+                  "key": "X-Request-ID",
+                  "value": "962ebde8e5656009157430db29927b61",
+                  "name": "X-Request-ID",
+                  "description": "Custom header"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order row was cancelled\"\n}"
+            },
+            {
+              "id": "ed45886e-d36d-4366-8035-a1c43d21b208",
+              "name": "403 - Order is already fulfilled",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "" },
+                "url": "https://merchants-api.fyndiq.se/api/v1/orders/{{order_id}}/cancel"
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"description\": \"Order row already has fulfilled as state\"\n}"
+            }
+          ],
+          "_postman_id": "4e77d996-d29e-402f-9aee-20321dbbc0de"
+        },
+        {
+          "name": "Create a test order",
+          "id": "f8a388a2-1ec9-40a0-a74a-5e2e11aae2ab",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth", "isInherited": false },
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "raw", "raw": "" },
+            "url": "https://merchants-api.SANDBOX.fyndiq.se/api/v1/orders/",
+            "description": "<h2 id=\"definition\">Definition</h2>\n<p><strong>Use this call to create test orders in the sanbox.</strong></p>\n<p>Please note that this endpoint is not available in production environment. \nThe response time can be longer than usual.</p>\n<h2 id=\"request-body-parameters\">Request body parameters</h2>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n<th>Data type</th>\n<th>Required</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>article_id</td>\n<td>Fyndiq unique ID for the article</td>\n<td>String (1-64)</td>\n<td>Yes</td>\n</tr>\n<tr>\n<td>quantity</td>\n<td>Quantity of article unit to be ordered</td>\n<td>Non-negative Integer (0-50)</td>\n<td>Yes</td>\n</tr>\n</tbody>\n</table>\n</div><h2 id=\"response\">Response</h2>\n<p>In the response we will return the Order ID. You can test further your integration by cancelling/fulfilling the orders you create.</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code>{\n    \"id\": \"{{order_id}}\",\n    \"description\": \"Order was created.\"\n}\n</code></pre>",
+            "urlObject": {
+              "protocol": "https",
+              "path": ["api", "v1", "orders", ""],
+              "host": ["merchants-api", "SANDBOX", "fyndiq", "se"],
+              "query": [],
+              "variable": []
+            }
+          },
+          "response": [
+            {
+              "id": "c30e56bb-6870-455a-bca8-4f2dc5e2fbe8",
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Basic {base64_encode(merchantID:token)}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\t\"article_id\":\"123\", \n\t\"quantity\":499\n}"
+                },
+                "url": "https://merchants-api-sandbox.fyndiq.se/api/v1/orders"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n    \"id\": \"{{order_id}}\",\n    \"description\": \"Order was created.\"\n}"
+            }
+          ],
+          "_postman_id": "f8a388a2-1ec9-40a0-a74a-5e2e11aae2ab"
+        }
+      ],
+      "id": "9ad03dac-7c1e-4cd0-ae8c-b9b6347fb3d0",
+      "description": "<h2 id=\"order-attributes\">Order attributes</h2>\n<p>As soon as a customer completes an order of one of your articles, we will make the order information available via the resource <strong>ORDERS</strong>. It will include the necessary information regarding both the item that was sold and the customer who made the purchase.</p>\n<p>Each order will contain only one SKU, with possible quantity (&gt;1).</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>Parameter</th>\n<th>Description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>id</td>\n<td>Fyndiq unique ID for the order (read only)</td>\n</tr>\n<tr>\n<td>article_id</td>\n<td>Fyndiq unique ID for the ordered article (read only)</td>\n</tr>\n<tr>\n<td>article_title</td>\n<td>Name of the ordered article (read only)</td>\n</tr>\n<tr>\n<td>article_sku</td>\n<td>Your unique ID for the ordered article (read only)</td>\n</tr>\n<tr>\n<td>market</td>\n<td>Market the order was made on (read only)</td>\n</tr>\n<tr>\n<td>article_price</td>\n<td>Price of the ordered item (excluding shipping) (read only)</td>\n</tr>\n<tr>\n<td>article_vat_rate</td>\n<td>VAT rate for the ordered article (read only)</td>\n</tr>\n<tr>\n<td>quantity</td>\n<td>Number of article units ordered (read only)</td>\n</tr>\n<tr>\n<td>total_price</td>\n<td>Full amount of the order (read only)</td>\n</tr>\n<tr>\n<td>shipping_address</td>\n<td>Customer information (read only)</td>\n</tr>\n<tr>\n<td>created_at</td>\n<td>Date the order was created on, UTC (read only)</td>\n</tr>\n<tr>\n<td>fulfill_before</td>\n<td>Date the order must be fulfilled by, UTC (read only)</td>\n</tr>\n<tr>\n<td>state</td>\n<td>Order state</td>\n</tr>\n</tbody>\n</table>\n</div><h3 id=\"quantity--price\">Quantity / Price</h3>\n<p>In case of an order with several quantity, the price do not represent the unit price but the price for all quantities.</p>\n<p><code>article_price = unit price*quantity</code></p>\n<p><code>total_price = article_price</code></p>\n<p><strong>NOTE:</strong> All transactions are handled in the customer's local currency.</p>\n<h3 id=\"shipping-address\">Shipping Address</h3>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th><strong>Parameter</strong></th>\n<th><strong>Description</strong></th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>full_name</td>\n<td>Customer full name</td>\n</tr>\n<tr>\n<td>first_name</td>\n<td>Customer first name (not available in a B2B order)</td>\n</tr>\n<tr>\n<td>last_name</td>\n<td>Customer last name (not available in a B2B order)</td>\n</tr>\n<tr>\n<td>street_address</td>\n<td>Customer street address</td>\n</tr>\n<tr>\n<td>postal_code</td>\n<td>Customer postal code</td>\n</tr>\n<tr>\n<td>city</td>\n<td>Customer city</td>\n</tr>\n<tr>\n<td>country</td>\n<td>Customer country</td>\n</tr>\n<tr>\n<td>phone_number</td>\n<td>Customer phone number</td>\n</tr>\n</tbody>\n</table>\n</div><h3 id=\"state\">State</h3>\n<p>In return, you are to inform us on the actions you are taking for the order. In most cases you will ship the package and therefore fulfill the order. In some cases you might need to cancel the order.</p>\n<div class=\"click-to-expand-wrapper is-table-wrapper\"><table>\n<thead>\n<tr>\n<th>State</th>\n<th>Description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>CREATED</td>\n<td>New order, to be handled</td>\n</tr>\n<tr>\n<td>FULFILLED</td>\n<td>Order has been handled, item has been shipped</td>\n</tr>\n<tr>\n<td>NOT_FULFILLED</td>\n<td>Order has been cancelled, customer has been refunded</td>\n</tr>\n</tbody>\n</table>\n</div><p>The following calls will give you the ability to handle a single order as per above flow.<br /><strong>Please note that once an order has entered the state</strong> <strong><code>fulfilled</code></strong> <strong>or</strong> <strong><code>not_fulfilled</code>****, the order state can no longer be modifiable.</strong></p>\n",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "id": "a72241f8-8aca-4aae-b35e-d5cd56555de0",
+            "type": "text/javascript",
+            "exec": [""]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "id": "860ecb44-8d91-4183-886a-13c45b1bd537",
+            "type": "text/javascript",
+            "exec": [""]
+          }
+        }
+      ],
+      "_postman_id": "9ad03dac-7c1e-4cd0-ae8c-b9b6347fb3d0"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "id": "9ea10226-bbb0-416d-aa3f-4ab9cb1f15c5",
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "id": "479f4adb-a810-4dcc-8602-6761b14f4c81",
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ]
+}

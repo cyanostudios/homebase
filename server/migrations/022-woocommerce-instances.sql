@@ -1,58 +1,66 @@
 -- 022-woocommerce-instances.sql
--- Migrate WooCommerce settings to channel_instances for multi-store support
+-- Legacy migration kept for compatibility with run-all-migrations.
+-- IMPORTANT: never create a Woo instance with instance_key = 'default'.
 
--- Ensure columns exist (they were never added in 017; only channel_product_overrides got channel_instance_id)
+-- Ensure columns exist
 ALTER TABLE channel_product_map ADD COLUMN IF NOT EXISTS channel_instance_id INT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS channel_instance_id INT;
 
--- Migrate existing WooCommerce settings to channel_instances
+-- Migrate legacy woocommerce_settings to channel_instances only when the user
+-- has no Woo instances yet. Use a deterministic key from store_url host
+-- instead of the banned "default" key.
+WITH legacy AS (
+  SELECT
+    ws.user_id,
+    ws.store_url,
+    ws.consumer_key,
+    ws.consumer_secret,
+    ws.use_query_auth,
+    ws.created_at,
+    ws.updated_at,
+    lower(
+      regexp_replace(
+        trim(both '/' from regexp_replace(coalesce(ws.store_url, ''), '^https?://', '', 'i')),
+        '[^a-z0-9]+',
+        '-',
+        'g'
+      )
+    ) AS generated_instance_key,
+    nullif(
+      regexp_replace(
+        trim(both '/' from regexp_replace(coalesce(ws.store_url, ''), '^https?://', '', 'i')),
+        '/.*$',
+        ''
+      ),
+      ''
+    ) AS generated_label
+  FROM woocommerce_settings ws
+),
+to_insert AS (
+  SELECT l.*
+  FROM legacy l
+  WHERE l.generated_instance_key <> ''
+    AND NOT EXISTS (
+      SELECT 1
+      FROM channel_instances ci
+      WHERE ci.user_id = l.user_id
+        AND ci.channel = 'woocommerce'
+    )
+)
 INSERT INTO channel_instances (user_id, channel, instance_key, market, label, credentials, created_at, updated_at)
 SELECT
-  user_id,
+  t.user_id,
   'woocommerce' AS channel,
-  'default' AS instance_key,
+  t.generated_instance_key AS instance_key,
   NULL AS market,
-  COALESCE(
-    CASE 
-      WHEN store_url LIKE '%://%' THEN 
-        SUBSTRING(store_url FROM 'https?://([^/]+)')
-      ELSE store_url
-    END,
-    'WooCommerce Store'
-  ) AS label,
+  t.generated_label AS label,
   jsonb_build_object(
-    'storeUrl', store_url,
-    'consumerKey', consumer_key,
-    'consumerSecret', consumer_secret,
-    'useQueryAuth', COALESCE(use_query_auth, false)
+    'storeUrl', t.store_url,
+    'consumerKey', t.consumer_key,
+    'consumerSecret', t.consumer_secret,
+    'useQueryAuth', COALESCE(t.use_query_auth, false)
   ) AS credentials,
-  created_at,
-  updated_at
-FROM woocommerce_settings
-WHERE NOT EXISTS (
-  SELECT 1 FROM channel_instances ci
-  WHERE ci.user_id = woocommerce_settings.user_id
-    AND ci.channel = 'woocommerce'
-    AND ci.instance_key = 'default'
-);
-
--- Update channel_product_map to reference instances where applicable
--- (This is for backwards compatibility - new exports will use channel_instance_id)
-UPDATE channel_product_map cm
-SET channel_instance_id = ci.id
-FROM channel_instances ci
-WHERE cm.user_id = ci.user_id
-  AND cm.channel = ci.channel
-  AND ci.channel = 'woocommerce'
-  AND ci.instance_key = 'default'
-  AND (cm.channel_instance_id IS NULL OR cm.channel_instance_id = 0);
-
--- Update orders table to reference instances where applicable
-UPDATE orders o
-SET channel_instance_id = ci.id
-FROM channel_instances ci
-WHERE o.user_id = ci.user_id
-  AND o.channel = ci.channel
-  AND ci.channel = 'woocommerce'
-  AND ci.instance_key = 'default'
-  AND (o.channel_instance_id IS NULL OR o.channel_instance_id = 0);
+  t.created_at,
+  t.updated_at
+FROM to_insert t
+ON CONFLICT (user_id, channel, instance_key) DO NOTHING;

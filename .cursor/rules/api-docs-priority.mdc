@@ -1,0 +1,19 @@
+---
+description: API documentation — JSON primary for CDON/Fyndiq; Swagger MD primary for PostNord
+alwaysApply: true
+---
+
+# API Documentation Priority
+
+**CDON & Fyndiq:** Use JSON files as primary source for endpoints, request bodies, parameters, examples:
+- `docs/API-DOCS/CDON-API-JSON.json`
+- `docs/API-DOCS/FYNDIQ-API-JSON.json`
+
+**PostNord:** Use Swagger MD as primary (Booking API: shipments, labels, EDI, pickups). The Postman JSON covers other Customer APIs.
+- Primary: `docs/API-DOCS/POSTNORD_API_DOCUMENTATION_RAW_SWAGGER.md`
+- Secondary: `docs/API-DOCS/POSTNORD-API-JSON.json` (Customer API Guides)
+
+**Sello:** Use cleaned markdown (extracted from saved HTML).
+- Primary: `docs/API-DOCS/SELLO-API.md`
+
+**MD docs only when:** Debugging errors (400, 401, 403, etc.), JSON/Swagger is ambiguous, or troubleshooting edge cases.

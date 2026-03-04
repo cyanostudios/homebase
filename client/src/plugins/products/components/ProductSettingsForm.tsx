@@ -1,11 +1,14 @@
 // client/src/plugins/products/components/ProductSettingsForm.tsx
 import React, { useState, useEffect } from 'react';
+
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Heading } from '@/core/ui/Typography';
 import { useApp } from '@/core/api/AppContext';
+import { Heading } from '@/core/ui/Typography';
+
+import { productsApi } from '../api/productsApi';
 import type {
   ProductSettings,
   ProductSettingsCdonMarketKey,
@@ -49,21 +52,40 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [cdonData, setCdonData] = useState<Record<ProductSettingsCdonMarketKey, MarketDelivery>>(
-    () => Object.fromEntries(CDON_MARKETS.map((m) => [m.key, emptyMarketDelivery()])) as Record<ProductSettingsCdonMarketKey, MarketDelivery>,
+    () =>
+      Object.fromEntries(CDON_MARKETS.map((m) => [m.key, emptyMarketDelivery()])) as Record<
+        ProductSettingsCdonMarketKey,
+        MarketDelivery
+      >,
   );
-  const [fyndiqData, setFyndiqData] = useState<Record<ProductSettingsFyndiqMarketKey, MarketDelivery>>(
-    () => Object.fromEntries(FYNDIQ_MARKETS.map((m) => [m.key, emptyMarketDelivery()])) as Record<ProductSettingsFyndiqMarketKey, MarketDelivery>,
+  const [fyndiqData, setFyndiqData] = useState<
+    Record<ProductSettingsFyndiqMarketKey, MarketDelivery>
+  >(
+    () =>
+      Object.fromEntries(FYNDIQ_MARKETS.map((m) => [m.key, emptyMarketDelivery()])) as Record<
+        ProductSettingsFyndiqMarketKey,
+        MarketDelivery
+      >,
   );
   const [categoryLanguage, setCategoryLanguage] = useState<CategoryLanguage>('sv-SE');
+  const [selloApiKey, setSelloApiKey] = useState('');
+  const [selloConnected, setSelloConnected] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const raw = await getSettings('products');
+        const [raw, sello] = await Promise.all([
+          getSettings('products'),
+          productsApi.getSelloSettings().catch(() => null),
+        ]);
         const s = (raw && typeof raw === 'object' ? raw : {}) as ProductSettings;
 
-        const nextCdon: Record<ProductSettingsCdonMarketKey, MarketDelivery> = {} as Record<ProductSettingsCdonMarketKey, MarketDelivery>;
+        const nextCdon: Record<ProductSettingsCdonMarketKey, MarketDelivery> = {} as Record<
+          ProductSettingsCdonMarketKey,
+          MarketDelivery
+        >;
         for (const m of CDON_MARKETS) {
           const fromCdon = s?.defaultDeliveryCdon?.[m.key];
           const min = fromCdon?.shippingMin;
@@ -75,7 +97,10 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
         }
         setCdonData(nextCdon);
 
-        const nextFyndiq: Record<ProductSettingsFyndiqMarketKey, MarketDelivery> = {} as Record<ProductSettingsFyndiqMarketKey, MarketDelivery>;
+        const nextFyndiq: Record<ProductSettingsFyndiqMarketKey, MarketDelivery> = {} as Record<
+          ProductSettingsFyndiqMarketKey,
+          MarketDelivery
+        >;
         for (const m of FYNDIQ_MARKETS) {
           const fromFyndiq = s?.defaultDeliveryFyndiq?.[m.key];
           const min = fromFyndiq?.shippingMin;
@@ -89,12 +114,30 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
 
         const lang = s?.categoryLanguage;
         setCategoryLanguage(
-          lang === 'sv-SE' || lang === 'da-DK' || lang === 'fi-FI' || lang === 'nb-NO' ? lang : 'sv-SE',
+          lang === 'sv-SE' || lang === 'da-DK' || lang === 'fi-FI' || lang === 'nb-NO'
+            ? lang
+            : 'sv-SE',
         );
+        setSelloApiKey(String(sello?.apiKey || ''));
+        setSelloConnected(!!sello?.connected);
+        setErrorMessage(null);
       } catch {
-        setCdonData(Object.fromEntries(CDON_MARKETS.map((m) => [m.key, emptyMarketDelivery()])) as Record<ProductSettingsCdonMarketKey, MarketDelivery>);
-        setFyndiqData(Object.fromEntries(FYNDIQ_MARKETS.map((m) => [m.key, emptyMarketDelivery()])) as Record<ProductSettingsFyndiqMarketKey, MarketDelivery>);
+        setCdonData(
+          Object.fromEntries(CDON_MARKETS.map((m) => [m.key, emptyMarketDelivery()])) as Record<
+            ProductSettingsCdonMarketKey,
+            MarketDelivery
+          >,
+        );
+        setFyndiqData(
+          Object.fromEntries(FYNDIQ_MARKETS.map((m) => [m.key, emptyMarketDelivery()])) as Record<
+            ProductSettingsFyndiqMarketKey,
+            MarketDelivery
+          >,
+        );
         setCategoryLanguage('sv-SE');
+        setSelloApiKey('');
+        setSelloConnected(false);
+        setErrorMessage('Kunde inte ladda alla produktinställningar.');
       } finally {
         setLoading(false);
       }
@@ -102,24 +145,38 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
     load();
   }, [getSettings]);
 
-  const updateCdon = (market: ProductSettingsCdonMarketKey, field: keyof MarketDelivery, value: number) => {
+  const updateCdon = (
+    market: ProductSettingsCdonMarketKey,
+    field: keyof MarketDelivery,
+    value: number,
+  ) => {
     setCdonData((prev) => ({ ...prev, [market]: { ...prev[market], [field]: value } }));
   };
-  const updateFyndiq = (market: ProductSettingsFyndiqMarketKey, field: keyof MarketDelivery, value: number) => {
+  const updateFyndiq = (
+    market: ProductSettingsFyndiqMarketKey,
+    field: keyof MarketDelivery,
+    value: number,
+  ) => {
     setFyndiqData((prev) => ({ ...prev, [market]: { ...prev[market], [field]: value } }));
   };
 
   const handleSave = async () => {
     setSaving(true);
+    setErrorMessage(null);
     try {
-      await updateSettings('products', {
-        defaultDeliveryCdon: cdonData,
-        defaultDeliveryFyndiq: fyndiqData,
-        categoryLanguage,
-      });
+      const [savedSello] = await Promise.all([
+        productsApi.putSelloSettings({ apiKey: selloApiKey.trim() }),
+        updateSettings('products', {
+          defaultDeliveryCdon: cdonData,
+          defaultDeliveryFyndiq: fyndiqData,
+          categoryLanguage,
+        }),
+      ]);
+      setSelloConnected(!!savedSello?.connected);
       onClose?.();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save product settings', err);
+      setErrorMessage(String(err?.message || 'Kunde inte spara produktinställningar.'));
     } finally {
       setSaving(false);
     }
@@ -131,8 +188,43 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
 
   return (
     <div className="space-y-4">
+      {errorMessage && (
+        <Card padding="sm" className="shadow-none px-0">
+          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            {errorMessage}
+          </div>
+        </Card>
+      )}
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3">Kategorispråk (CDON/Fyndiq)</Heading>
+        <Heading level={3} className="mb-3">
+          Sello API
+        </Heading>
+        <p className="text-sm text-gray-600 mb-4">
+          Spara API-nyckeln här for Sello-import och integrationsmapping. Detta sparas per användare
+          i databasen.
+        </p>
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="sello-api-key">API key</Label>
+            <Input
+              id="sello-api-key"
+              type="password"
+              value={selloApiKey}
+              onChange={(e) => setSelloApiKey(e.target.value)}
+              placeholder="Klistra in Sello API-nyckel"
+              maxLength={500}
+            />
+          </div>
+          <div className="text-xs text-gray-600">
+            Status: {selloConnected ? 'Connected' : 'Not connected'}
+          </div>
+        </div>
+      </Card>
+
+      <Card padding="sm" className="shadow-none px-0">
+        <Heading level={3} className="mb-3">
+          Kategorispråk (CDON/Fyndiq)
+        </Heading>
         <p className="text-sm text-gray-600 mb-4">
           Språk för kategorilistorna i produktformuläret. Gäller tills du byter.
         </p>
@@ -144,20 +236,27 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
             value={categoryLanguage}
             onChange={(e) => {
               const v = e.target.value as CategoryLanguage;
-              if (v === 'sv-SE' || v === 'da-DK' || v === 'fi-FI' || v === 'nb-NO') setCategoryLanguage(v);
+              if (v === 'sv-SE' || v === 'da-DK' || v === 'fi-FI' || v === 'nb-NO') {
+                setCategoryLanguage(v);
+              }
             }}
           >
             {CATEGORY_LANGUAGE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
           </select>
         </div>
       </Card>
 
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3">CDON – standardleverans</Heading>
+        <Heading level={3} className="mb-3">
+          CDON – standardleverans
+        </Heading>
         <p className="text-sm text-gray-600 mb-4">
-          Standard frakt min/max (dagar) per CDON-marknad när produkten inte har manuellt ifyllda värden.
+          Standard frakt min/max (dagar) per CDON-marknad när produkten inte har manuellt ifyllda
+          värden.
         </p>
         <div className="space-y-6">
           {CDON_MARKETS.map((m) => {
@@ -173,7 +272,9 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
                       type="number"
                       min={0}
                       value={data?.shippingMin ?? 1}
-                      onChange={(e) => updateCdon(m.key, 'shippingMin', parseInt(e.target.value, 10) || 1)}
+                      onChange={(e) =>
+                        updateCdon(m.key, 'shippingMin', parseInt(e.target.value, 10) || 1)
+                      }
                     />
                   </div>
                   <div>
@@ -183,7 +284,9 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
                       type="number"
                       min={0}
                       value={data?.shippingMax ?? 3}
-                      onChange={(e) => updateCdon(m.key, 'shippingMax', parseInt(e.target.value, 10) || 3)}
+                      onChange={(e) =>
+                        updateCdon(m.key, 'shippingMax', parseInt(e.target.value, 10) || 3)
+                      }
                     />
                   </div>
                 </div>
@@ -194,9 +297,12 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
       </Card>
 
       <Card padding="sm" className="shadow-none px-0">
-        <Heading level={3} className="mb-3">Fyndiq – standardleverans</Heading>
+        <Heading level={3} className="mb-3">
+          Fyndiq – standardleverans
+        </Heading>
         <p className="text-sm text-gray-600 mb-4">
-          Standard frakt min/max (dagar) per Fyndiq-marknad när produkten inte har manuellt ifyllda värden.
+          Standard frakt min/max (dagar) per Fyndiq-marknad när produkten inte har manuellt ifyllda
+          värden.
         </p>
         <div className="space-y-6">
           {FYNDIQ_MARKETS.map((m) => {
@@ -212,7 +318,9 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
                       type="number"
                       min={0}
                       value={data?.shippingMin ?? 1}
-                      onChange={(e) => updateFyndiq(m.key, 'shippingMin', parseInt(e.target.value, 10) || 1)}
+                      onChange={(e) =>
+                        updateFyndiq(m.key, 'shippingMin', parseInt(e.target.value, 10) || 1)
+                      }
                     />
                   </div>
                   <div>
@@ -222,7 +330,9 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
                       type="number"
                       min={0}
                       value={data?.shippingMax ?? 3}
-                      onChange={(e) => updateFyndiq(m.key, 'shippingMax', parseInt(e.target.value, 10) || 3)}
+                      onChange={(e) =>
+                        updateFyndiq(m.key, 'shippingMax', parseInt(e.target.value, 10) || 3)
+                      }
                     />
                   </div>
                 </div>

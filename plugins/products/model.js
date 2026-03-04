@@ -36,6 +36,7 @@ class ProductModel {
           p.main_image,
           p.images,
           p.categories,
+          p.merchant_sku,
           p.brand,
           p.brand_id,
           p.ean,
@@ -107,6 +108,7 @@ class ProductModel {
           p.main_image,
           p.images,
           p.categories,
+          p.merchant_sku,
           p.brand,
           p.brand_id,
           p.ean,
@@ -181,6 +183,7 @@ class ProductModel {
           p.main_image,
           p.images,
           p.categories,
+          p.merchant_sku,
           p.brand,
           p.brand_id,
           p.ean,
@@ -257,6 +260,7 @@ class ProductModel {
           images,
           categories,
           brand,
+          merchant_sku,
           brand_id,
           ean,
           gtin,
@@ -281,7 +285,7 @@ class ProductModel {
           $1,
           $2,  $3,  $4,  $5,  $6,  $7,  $8,
           $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,
-          $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34
+          $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35
         )
         RETURNING
           id,
@@ -300,6 +304,7 @@ class ProductModel {
           images,
           categories,
           brand,
+          merchant_sku,
           brand_id,
           ean,
           gtin,
@@ -339,6 +344,7 @@ class ProductModel {
         JSON.stringify(d.images || []),
         JSON.stringify(d.categories || []),
         d.brand,
+        d.merchantSku ?? null,
         d.brandId != null ? d.brandId : null,
         d.ean,
         d.gtin,
@@ -368,7 +374,11 @@ class ProductModel {
       // Unique violation: pg code 23505 (also when wrapped by PostgreSQLAdapter in AppError.details)
       const pgCode = error?.details?.code ?? error?.code;
       if (pgCode === '23505') {
-        throw new AppError('En produkt med detta artikelnummer eller streckkod finns redan', 409, AppError.CODES.CONFLICT);
+        throw new AppError(
+          'En produkt med detta artikelnummer eller streckkod finns redan',
+          409,
+          AppError.CODES.CONFLICT,
+        );
       }
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to create product', 500, AppError.CODES.DATABASE_ERROR);
@@ -392,39 +402,40 @@ class ProductModel {
           product_number = $1,
           sku            = $2,
           mpn            = $3,
-          title          = $4,
-          description    = $5,
-          status         = $6,
-          quantity       = $7,
-          price_amount   = $8,
-          currency       = $9,
-          vat_rate       = $10,
-          main_image     = $11,
-          images         = $12,
-          categories     = $13,
-          brand          = $14,
-          brand_id       = $15,
-          ean            = $16,
-          gtin           = $17,
-          supplier_id    = $18,
-          manufacturer_id = $19,
-          channel_specific = $20,
-          purchase_price = $21,
-          sale_price     = $22,
-          lagerplats     = $23,
-          color          = $24,
-          color_text     = $25,
-          size           = $26,
-          size_text      = $27,
-          pattern        = $28,
-          weight         = $29,
-          length_cm      = $30,
-          width_cm       = $31,
-          height_cm      = $32,
-          depth_cm       = $33,
+          merchant_sku   = $4,
+          title          = $5,
+          description    = $6,
+          status         = $7,
+          quantity       = $8,
+          price_amount   = $9,
+          currency       = $10,
+          vat_rate       = $11,
+          main_image     = $12,
+          images         = $13,
+          categories     = $14,
+          brand          = $15,
+          brand_id       = $16,
+          ean            = $17,
+          gtin           = $18,
+          supplier_id    = $19,
+          manufacturer_id = $20,
+          channel_specific = $21,
+          purchase_price = $22,
+          sale_price     = $23,
+          lagerplats     = $24,
+          color          = $25,
+          color_text     = $26,
+          size           = $27,
+          size_text      = $28,
+          pattern        = $29,
+          weight         = $30,
+          length_cm      = $31,
+          width_cm       = $32,
+          height_cm      = $33,
+          depth_cm       = $34,
           updated_at     = CURRENT_TIMESTAMP
-        WHERE user_id = $34
-          AND id::text = $35
+        WHERE user_id = $35
+          AND id::text = $36
         RETURNING
           id,
           user_id,
@@ -442,6 +453,7 @@ class ProductModel {
           images,
           categories,
           brand,
+          merchant_sku,
           brand_id,
           ean,
           gtin,
@@ -469,6 +481,7 @@ class ProductModel {
         d.productNumber,
         d.sku,
         d.mpn,
+        d.merchantSku ?? null,
         d.title,
         d.description,
         d.status,
@@ -513,7 +526,11 @@ class ProductModel {
       Logger.error('Failed to update product', error);
       const pgCode = error?.details?.code ?? error?.code;
       if (pgCode === '23505') {
-        throw new AppError('En produkt med detta artikelnummer eller streckkod finns redan', 409, AppError.CODES.CONFLICT);
+        throw new AppError(
+          'En produkt med detta artikelnummer eller streckkod finns redan',
+          409,
+          AppError.CODES.CONFLICT,
+        );
       }
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to update product', 500, AppError.CODES.DATABASE_ERROR);
@@ -544,11 +561,11 @@ class ProductModel {
       // Date filter for range
       let dateFilter = '';
       if (range === '7d') {
-        dateFilter = 'AND o.placed_at >= CURRENT_DATE - INTERVAL \'7 days\'';
+        dateFilter = "AND o.placed_at >= CURRENT_DATE - INTERVAL '7 days'";
       } else if (range === '30d') {
-        dateFilter = 'AND o.placed_at >= CURRENT_DATE - INTERVAL \'30 days\'';
+        dateFilter = "AND o.placed_at >= CURRENT_DATE - INTERVAL '30 days'";
       } else if (range === '3m') {
-        dateFilter = 'AND o.placed_at >= CURRENT_DATE - INTERVAL \'3 months\'';
+        dateFilter = "AND o.placed_at >= CURRENT_DATE - INTERVAL '3 months'";
       }
       // 'all' = no date filter
 
@@ -638,10 +655,10 @@ class ProductModel {
 
       // Cleanup dependent channel mappings (avoid orphan rows)
       try {
-        await db.query(
-          `DELETE FROM channel_product_map WHERE user_id = $1 AND product_id = $2`,
-          [userId, String(productId)],
-        );
+        await db.query(`DELETE FROM channel_product_map WHERE user_id = $1 AND product_id = $2`, [
+          userId,
+          String(productId),
+        ]);
       } catch (_err) {
         // Non-fatal cleanup; keep primary delete semantics
         void _err;
@@ -729,10 +746,19 @@ class ProductModel {
 
       const allowed = {
         price_amount: ['priceAmount', (v) => (Number.isFinite(Number(v)) ? Number(v) : undefined)],
-        quantity: ['quantity', (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.trunc(Number(v))) : undefined)],
-        status: ['status', (v) => (['for sale', 'draft', 'archived'].includes(String(v)) ? String(v) : undefined)],
+        quantity: [
+          'quantity',
+          (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.trunc(Number(v))) : undefined),
+        ],
+        status: [
+          'status',
+          (v) => (['for sale', 'draft', 'archived'].includes(String(v)) ? String(v) : undefined),
+        ],
         vat_rate: ['vatRate', (v) => (Number.isFinite(Number(v)) ? Number(v) : undefined)],
-        currency: ['currency', (v) => (/^[A-Z]{3}$/.test(String(v).trim()) ? String(v).trim().toUpperCase() : undefined)],
+        currency: [
+          'currency',
+          (v) => (/^[A-Z]{3}$/.test(String(v).trim()) ? String(v).trim().toUpperCase() : undefined),
+        ],
       };
 
       const setParts = [];
@@ -767,6 +793,110 @@ class ProductModel {
     }
   }
 
+  async upsertFromSelloProduct(
+    req,
+    {
+      sku,
+      merchantSku,
+      title,
+      description,
+      quantity,
+      priceAmount,
+      vatRate,
+      mainImage,
+      images,
+      categories,
+      channelSpecific,
+    },
+  ) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.user?.id;
+      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+
+      const cleanSku = String(sku || '').trim();
+      if (!cleanSku)
+        throw new AppError('Sello product id missing', 400, AppError.CODES.VALIDATION_ERROR);
+      const cleanTitle = String(title || '').trim();
+      if (!cleanTitle)
+        throw new AppError('Sello product title missing', 400, AppError.CODES.VALIDATION_ERROR);
+
+      const existing = await this.getBySku(req, cleanSku);
+      const existingChannelSpecific =
+        existing?.channelSpecific &&
+        typeof existing.channelSpecific === 'object' &&
+        !Array.isArray(existing.channelSpecific)
+          ? existing.channelSpecific
+          : null;
+      let nextChannelSpecific = existingChannelSpecific;
+      if (channelSpecific !== undefined) {
+        if (channelSpecific === null) {
+          nextChannelSpecific = null;
+        } else if (typeof channelSpecific === 'object' && !Array.isArray(channelSpecific)) {
+          const merged = { ...(existingChannelSpecific || {}) };
+          for (const [k, v] of Object.entries(channelSpecific)) {
+            if (v && typeof v === 'object' && !Array.isArray(v)) {
+              const prev = merged[k];
+              merged[k] =
+                prev && typeof prev === 'object' && !Array.isArray(prev)
+                  ? { ...prev, ...v }
+                  : { ...v };
+            } else {
+              merged[k] = v;
+            }
+          }
+          nextChannelSpecific = Object.keys(merged).length ? merged : null;
+        }
+      }
+
+      const payload = {
+        sku: cleanSku,
+        merchantSku: merchantSku != null ? String(merchantSku).trim() : null,
+        title: cleanTitle,
+        description: description != null ? String(description) : '',
+        status: 'for sale',
+        quantity: Number.isFinite(Number(quantity))
+          ? Math.max(0, Math.trunc(Number(quantity)))
+          : existing
+            ? Number(existing.quantity) || 0
+            : 0,
+        priceAmount: Number.isFinite(Number(priceAmount))
+          ? Number(priceAmount)
+          : existing
+            ? Number(existing.priceAmount) || 0
+            : 0,
+        currency: existing?.currency ? String(existing.currency) : 'SEK',
+        vatRate: Number.isFinite(Number(vatRate))
+          ? Number(vatRate)
+          : existing
+            ? Number(existing.vatRate) || 25
+            : 25,
+        mainImage: mainImage != null ? String(mainImage) : null,
+        images: Array.isArray(images) ? images : [],
+        categories: Array.isArray(categories)
+          ? categories.map((x) => String(x || '').trim()).filter(Boolean)
+          : existing?.categories || [],
+        mpn: cleanSku,
+        channelSpecific: nextChannelSpecific,
+      };
+
+      if (!existing) {
+        const created = await this.create(req, payload);
+        return { created: true, product: created };
+      }
+
+      const updated = await this.update(req, existing.id, {
+        ...existing,
+        ...payload,
+      });
+      return { created: false, product: updated };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      Logger.error('Failed to upsert Sello product', error);
+      throw new AppError('Failed to upsert Sello product', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   // ---------- Input / Output helpers ----------
 
   normalizeInput(data = {}) {
@@ -793,7 +923,9 @@ class ProductModel {
       return Number.isFinite(n) ? n : fallback;
     };
 
-    const currency = String(data.currency ?? 'SEK').toUpperCase().trim();
+    const currency = String(data.currency ?? 'SEK')
+      .toUpperCase()
+      .trim();
     const safeCurrency = /^[A-Z]{3}$/.test(currency) ? currency : 'SEK';
 
     const sku = clean(data.sku ?? null);
@@ -825,11 +957,27 @@ class ProductModel {
       images: Array.isArray(data.images) ? data.images.filter(Boolean) : [],
       categories: Array.isArray(data.categories) ? data.categories.filter(Boolean) : [],
       brand: clean(data.brand),
-      brandId: data.brandId != null ? (Number.isFinite(Number(data.brandId)) ? Number(data.brandId) : null) : null,
+      merchantSku: clean(data.merchantSku ?? data.merchant_sku ?? null),
+      brandId:
+        data.brandId != null
+          ? Number.isFinite(Number(data.brandId))
+            ? Number(data.brandId)
+            : null
+          : null,
       ean: eanRaw,
       gtin: gtinRaw,
-      supplierId: data.supplierId != null ? (Number.isFinite(Number(data.supplierId)) ? Number(data.supplierId) : null) : null,
-      manufacturerId: data.manufacturerId != null ? (Number.isFinite(Number(data.manufacturerId)) ? Number(data.manufacturerId) : null) : null,
+      supplierId:
+        data.supplierId != null
+          ? Number.isFinite(Number(data.supplierId))
+            ? Number(data.supplierId)
+            : null
+          : null,
+      manufacturerId:
+        data.manufacturerId != null
+          ? Number.isFinite(Number(data.manufacturerId))
+            ? Number(data.manufacturerId)
+            : null
+          : null,
       lagerplats: clean(data.lagerplats) || null,
       channelSpecific,
       color: clean(data.color),
@@ -869,12 +1017,12 @@ class ProductModel {
         ? channelSpecific
         : typeof channelSpecific === 'string'
           ? (() => {
-            try {
-              return JSON.parse(channelSpecific);
-            } catch {
-              return null;
-            }
-          })()
+              try {
+                return JSON.parse(channelSpecific);
+              } catch {
+                return null;
+              }
+            })()
           : null;
 
     return {
@@ -929,10 +1077,10 @@ class ProductModel {
     const product = await this.getById(req, productId);
     if (!product) throw new AppError('Product not found', 404, AppError.CODES.NOT_FOUND);
 
-    await db.query(
-      `DELETE FROM product_list_items WHERE user_id = $1 AND product_id = $2`,
-      [userId, productId]
-    );
+    await db.query(`DELETE FROM product_list_items WHERE user_id = $1 AND product_id = $2`, [
+      userId,
+      productId,
+    ]);
     if (listId != null && String(listId).trim() !== '') {
       await db.insert('product_list_items', {
         list_id: parseInt(String(listId), 10),

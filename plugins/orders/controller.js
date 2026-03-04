@@ -115,8 +115,8 @@ class OrdersController {
       };
     }
 
-    // Backwards compatibility: default instance / legacy table.
-    return await this.wooModel.getSettings(req);
+    // No default store fallback is allowed.
+    return null;
   }
 
   normalizeStatusForStorage(status) {
@@ -795,7 +795,15 @@ class OrdersController {
       settings = instance?.credentials || null;
     }
     if (!settings) {
-      settings = await this.wooModel.getSettings(req);
+      await this.wooModel.upsertChannelMap(req, {
+        productId,
+        channel: 'woocommerce',
+        channelInstanceId: channelInstanceId || null,
+        externalId: externalId || null,
+        status: 'error',
+        error: 'Woo instance missing for this mapping; cannot sync stock',
+      });
+      return;
     }
     if (!settings?.storeUrl || !settings?.consumerKey || !settings?.consumerSecret) {
       await this.wooModel.upsertChannelMap(req, {
@@ -924,8 +932,7 @@ class OrdersController {
             hintedStoreUrl: this.extractWooStoreUrlFromOrder(order),
           },
           response: null,
-          message:
-            'Woo settings missing for this order; cannot sync status (check instances/default store).',
+          message: 'Woo settings missing for this order; cannot sync status (check Woo instances).',
         });
         return;
       }

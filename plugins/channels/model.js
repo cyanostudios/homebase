@@ -369,7 +369,7 @@ class ChannelsModel {
 
       const ch = channel ? this.sanitizeChannelKey(channel) : null;
       let sql = `
-        SELECT id, channel, instance_key, market, label, credentials, enabled, created_at, updated_at
+        SELECT id, channel, instance_key, market, label, credentials, enabled, sello_integration_id, created_at, updated_at
         FROM ${ChannelsModel.CHANNEL_INSTANCES_TABLE}
         WHERE user_id = $1
       `;
@@ -420,6 +420,13 @@ class ChannelsModel {
           AppError.CODES.VALIDATION_ERROR,
         );
       }
+      if (ch === 'woocommerce' && key.toLowerCase() === 'default') {
+        throw new AppError(
+          'WooCommerce instanceKey "default" is not allowed',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
 
       const mkt =
         market != null && String(market).trim() ? String(market).trim().toLowerCase() : null;
@@ -462,7 +469,7 @@ class ChannelsModel {
     }
   }
 
-  async updateInstance(req, id, { market, label, credentials, enabled } = {}) {
+  async updateInstance(req, id, { market, label, credentials, enabled, selloIntegrationId } = {}) {
     try {
       const db = Database.get(req);
       const userId = req.session?.user?.id;
@@ -482,6 +489,15 @@ class ChannelsModel {
           market != null && String(market).trim() ? String(market).trim().toLowerCase() : null;
         setClauses.push(`market = $${paramIdx}`);
         params.push(mkt);
+        paramIdx += 1;
+      }
+      if (selloIntegrationId !== undefined) {
+        const sid =
+          selloIntegrationId != null && String(selloIntegrationId).trim()
+            ? String(selloIntegrationId).trim()
+            : null;
+        setClauses.push(`sello_integration_id = $${paramIdx}`);
+        params.push(sid);
         paramIdx += 1;
       }
       if (label !== undefined) {
@@ -511,7 +527,7 @@ class ChannelsModel {
         UPDATE ${ChannelsModel.CHANNEL_INSTANCES_TABLE}
         SET ${setClauses.join(', ')}
         WHERE user_id = $1 AND id = $2
-        RETURNING id, channel, instance_key, market, label, credentials, enabled, created_at, updated_at
+        RETURNING id, channel, instance_key, market, label, credentials, enabled, sello_integration_id, created_at, updated_at
         `,
         params,
       );
@@ -526,6 +542,7 @@ class ChannelsModel {
         label: r.label,
         credentials: this.formatCredentialsForApi(r.credentials),
         enabled: r.enabled !== false,
+        selloIntegrationId: r.sello_integration_id || null,
         createdAt: r.created_at || null,
         updatedAt: r.updated_at || null,
       };
@@ -635,7 +652,9 @@ class ChannelsModel {
       const instanceKey = String(inst.instance_key);
 
       const price =
-        priceAmount != null && Number.isFinite(Number(priceAmount)) ? Number(priceAmount) : null;
+        priceAmount != null && Number.isFinite(Number(priceAmount)) && Number(priceAmount) > 0
+          ? Number(priceAmount)
+          : null;
       const vat = vatRate != null && Number.isFinite(Number(vatRate)) ? Number(vatRate) : null;
       const cur =
         currency != null && String(currency).trim() ? String(currency).trim().toUpperCase() : null;
@@ -711,7 +730,9 @@ class ChannelsModel {
         const inst = instMap.get(instId);
         if (!inst) continue;
         const price =
-          o.priceAmount != null && Number.isFinite(Number(o.priceAmount))
+          o.priceAmount != null &&
+          Number.isFinite(Number(o.priceAmount)) &&
+          Number(o.priceAmount) > 0
             ? Number(o.priceAmount)
             : null;
         const vat =

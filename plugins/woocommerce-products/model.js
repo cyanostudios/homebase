@@ -177,6 +177,13 @@ class WooCommerceModel {
           AppError.CODES.VALIDATION_ERROR,
         );
       }
+      if (key.toLowerCase() === 'default') {
+        throw new AppError(
+          'WooCommerce instanceKey "default" is not allowed',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
 
       const lbl = label != null && String(label).trim() ? String(label).trim() : null;
       if (!lbl) {

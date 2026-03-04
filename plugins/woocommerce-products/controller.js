@@ -333,6 +333,13 @@ class WooCommerceController {
   // body: { products: MVPProduct[], instanceIds: string[] }
   async exportProducts(req, res) {
     try {
+      const mode = String(req.body?.mode || '')
+        .trim()
+        .toLowerCase();
+      if (mode === 'update_only_strict') {
+        return this.exportProductsUpdateOnlyStrict(req, res);
+      }
+
       const products = Array.isArray(req.body?.products) ? req.body.products : null;
       if (!products || products.length === 0) {
         return res
@@ -536,6 +543,183 @@ class WooCommerceController {
         .status(502)
         .json({ error: 'Export to WooCommerce failed', detail: String(error?.message || error) });
     }
+  }
+
+  async exportProductsUpdateOnlyStrict(req, res) {
+    const products = Array.isArray(req.body?.products) ? req.body.products : [];
+    if (!products.length) {
+      return res
+        .status(400)
+        .json({ error: 'Request must include products: [] with MVP product fields.' });
+    }
+    const instances = await this._getInstancesFromBodyOrThrow(req);
+    const channel = 'woocommerce';
+    const productIds = products.map((p) => String(p?.id || '').trim()).filter(Boolean);
+    const userId = Context.getUserId(req);
+    const db = Database.get(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const report = {
+      channel: 'woocommerce',
+      mode: 'update_only_strict',
+      requested: products.length,
+      updated: 0,
+      skipped_no_map: 0,
+      expected_skip: 0,
+      validation_error: 0,
+      channel_error: 0,
+      rows: [],
+      instances: [],
+    };
+
+    for (const instance of instances) {
+      const settings = instance.credentials;
+      const instanceId = instance.id;
+      const base = this.normalizeBaseUrl(settings.storeUrl);
+      const mapByProductId = await this.model.getChannelMapForProducts(
+        req,
+        channel,
+        productIds,
+        instanceId,
+      );
+      const overrideRows = productIds.length
+        ? await db.query(
+            `
+            SELECT product_id::text AS product_id, price_amount
+            FROM channel_product_overrides
+            WHERE user_id = $1
+              AND channel = 'woocommerce'
+              AND channel_instance_id = $2
+              AND product_id::text = ANY($3::text[])
+            `,
+            [userId, Number(instanceId), productIds],
+          )
+        : [];
+      const priceByProductId = new Map();
+      for (const row of overrideRows || []) {
+        priceByProductId.set(
+          String(row.product_id),
+          row.price_amount != null ? Number(row.price_amount) : null,
+        );
+      }
+
+      const updatePayload = [];
+      const validForInstance = [];
+      for (const p of products) {
+        const productId = String(p?.id || '').trim();
+        const sku = String(p?.sku || '').trim();
+        const mappedExternalId = mapByProductId.get(productId);
+        if (!mappedExternalId) {
+          report.skipped_no_map += 1;
+          report.expected_skip += 1;
+          report.rows.push({
+            productId,
+            sku: sku || null,
+            channel: 'woocommerce',
+            instanceKey: instance.instanceKey || null,
+            status: 'skipped_no_map',
+            reason: 'no_mapped_target',
+            classification: 'expected_skip',
+          });
+          continue;
+        }
+
+        const quantity = Number(p?.quantity);
+        const overrideRaw = Number(priceByProductId.get(productId));
+        const overridePrice = Number.isFinite(overrideRaw) && overrideRaw > 0 ? overrideRaw : null;
+        const baseRaw = Number(p?.priceAmount);
+        const basePrice = Number.isFinite(baseRaw) && baseRaw > 0 ? baseRaw : null;
+        const priceAmount = overridePrice != null ? overridePrice : basePrice;
+        if (
+          !Number.isFinite(quantity) ||
+          quantity < 0 ||
+          !Number.isFinite(priceAmount) ||
+          priceAmount <= 0
+        ) {
+          report.validation_error += 1;
+          report.rows.push({
+            productId,
+            sku: sku || null,
+            channel: 'woocommerce',
+            instanceKey: instance.instanceKey || null,
+            status: 'validation_error',
+            reason: 'missing_or_invalid_effective_price',
+          });
+          continue;
+        }
+
+        updatePayload.push({
+          id: Number(mappedExternalId),
+          manage_stock: true,
+          stock_quantity: Math.trunc(quantity),
+          regular_price: String(priceAmount),
+        });
+        validForInstance.push({ productId, sku: sku || null });
+      }
+
+      if (!updatePayload.length) {
+        report.instances.push({
+          instanceId: instance.id,
+          instanceKey: instance.instanceKey,
+          requested: products.length,
+          updated: 0,
+        });
+        continue;
+      }
+
+      const endpoint = `${base}/wp-json/wc/v3/products/batch`;
+      const response = await this.fetchWithWooAuth(
+        endpoint,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ update: updatePayload }),
+        },
+        settings,
+      );
+      const text = await response.text().catch(() => '');
+      if (!response.ok) {
+        report.channel_error += validForInstance.length;
+        for (const item of validForInstance) {
+          report.rows.push({
+            productId: item.productId,
+            sku: item.sku,
+            channel: 'woocommerce',
+            instanceKey: instance.instanceKey || null,
+            status: 'channel_error',
+            reason: `channel_error_${response.status}`,
+          });
+        }
+        report.instances.push({
+          instanceId: instance.id,
+          instanceKey: instance.instanceKey,
+          requested: products.length,
+          updated: 0,
+          detail: text || null,
+        });
+        continue;
+      }
+
+      report.updated += validForInstance.length;
+      for (const item of validForInstance) {
+        report.rows.push({
+          productId: item.productId,
+          sku: item.sku,
+          channel: 'woocommerce',
+          instanceKey: instance.instanceKey || null,
+          status: 'updated',
+          reason: null,
+        });
+      }
+      report.instances.push({
+        instanceId: instance.id,
+        instanceKey: instance.instanceKey,
+        requested: products.length,
+        updated: validForInstance.length,
+      });
+    }
+
+    return res.json({ ok: true, ...report });
   }
 
   // ---- Batch delete (Woo) ----
