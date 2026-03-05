@@ -133,6 +133,18 @@ class OrdersController {
     return 'https://merchants-api.cdon.com/api';
   }
 
+  /** CDON/Fyndiq: order total meets channel threshold (299 SEK/DKK/NOK, 29.99 EUR) so tracking is required when marking delivered. */
+  orderNeedsTrackingByAmount(totalAmount, currency) {
+    const total = Number(totalAmount);
+    if (!Number.isFinite(total)) return false;
+    const c = String(currency || 'SEK')
+      .trim()
+      .toUpperCase();
+    if (c === 'SEK' || c === 'DKK' || c === 'NOK') return total >= 299;
+    if (c === 'EUR') return total >= 29.99;
+    return total >= 299;
+  }
+
   async validateCdonTrackingRequirement({ order, nextStatus, nextTrackingNumber }) {
     const channel = String(order?.channel || '')
       .trim()
@@ -140,11 +152,12 @@ class OrdersController {
     const status = String(nextStatus || '')
       .trim()
       .toLowerCase();
-    if (channel !== 'cdon') return null;
+    if (channel !== 'cdon' && channel !== 'fyndiq') return null;
     if (status !== 'delivered' && status !== 'shipped') return null;
 
     const total = Number(order?.totalAmount);
-    const needsTracking = Number.isFinite(total) && total >= 299;
+    const currency = order?.currency ? String(order.currency).trim().toUpperCase() : 'SEK';
+    const needsTracking = this.orderNeedsTrackingByAmount(total, currency);
     if (!needsTracking) return null;
 
     const tracking = String(nextTrackingNumber || '').trim();
@@ -152,7 +165,7 @@ class OrdersController {
 
     return {
       field: 'trackingNumber',
-      message: 'Tracking number is required for CDON orders >= 299 SEK when marking as Delivered.',
+      message: 'Vänligen fyll i kollinummer för denna order.',
     };
   }
 
@@ -561,17 +574,20 @@ class OrdersController {
       const trackingNumber = req.body?.trackingNumber
         ? String(req.body.trackingNumber).trim()
         : null;
+      const forceUpdate = req.body?.forceUpdate === true;
 
-      // CDON: for Delivered on orders >= 299 SEK, require tracking number (either existing or provided).
+      // CDON/Fyndiq: for Delivered, require tracking when order meets amount threshold unless forceUpdate.
       const current = await this.model.getById(req, req.params.id);
       const effectiveTracking = trackingNumber || current?.shippingTrackingNumber || null;
-      const cdonErr = await this.validateCdonTrackingRequirement({
-        order: current,
-        nextStatus: status,
-        nextTrackingNumber: effectiveTracking,
-      });
-      if (cdonErr) {
-        return res.status(400).json({ errors: [cdonErr] });
+      if (!forceUpdate) {
+        const channelErr = await this.validateCdonTrackingRequirement({
+          order: current,
+          nextStatus: status,
+          nextTrackingNumber: effectiveTracking,
+        });
+        if (channelErr) {
+          return res.status(400).json({ errors: [channelErr] });
+        }
       }
 
       const updated = await this.model.updateStatus(req, req.params.id, {
@@ -1036,13 +1052,14 @@ class OrdersController {
       const trackingNumber = req.body?.trackingNumber
         ? String(req.body.trackingNumber).trim()
         : null;
+      const forceUpdate = req.body?.forceUpdate === true;
 
       if (!status) {
         return res.status(400).json({ error: 'status is required', code: 'VALIDATION_ERROR' });
       }
 
-      // CDON: for Delivered on orders >= 299 SEK, require trackingNumber (either provided, or already on each order).
-      if (status === 'delivered') {
+      // CDON and Fyndiq: for Delivered, require tracking when order meets amount threshold (299 SEK/DKK/NOK, 29.99 EUR) unless forceUpdate.
+      if (status === 'delivered' && !forceUpdate) {
         const userId = req.session?.user?.id;
         if (!userId) return res.status(401).json({ error: 'User not authenticated' });
 
@@ -1057,7 +1074,7 @@ class OrdersController {
           const db = Database.get(req);
           const rows = await db.query(
             `
-            SELECT id, order_number, channel, total_amount, shipping_tracking_number
+            SELECT id, order_number, channel, total_amount, currency, shipping_tracking_number
             FROM orders
             WHERE user_id = $1
               AND id = ANY($2::int[])
@@ -1070,9 +1087,8 @@ class OrdersController {
             const ch = String(r.channel || '')
               .trim()
               .toLowerCase();
-            if (ch !== 'cdon') continue;
-            const total = Number(r.total_amount);
-            const needs = Number.isFinite(total) && total >= 299;
+            if (ch !== 'cdon' && ch !== 'fyndiq') continue;
+            const needs = this.orderNeedsTrackingByAmount(r.total_amount, r.currency);
             if (!needs) continue;
             const effective = String(trackingNumber || r.shipping_tracking_number || '').trim();
             if (!effective)
@@ -1080,11 +1096,12 @@ class OrdersController {
           }
 
           if (offenders.length) {
+            const orderList = offenders.join(', ');
             return res.status(400).json({
               errors: [
                 {
                   field: 'trackingNumber',
-                  message: `Tracking number is required for CDON orders >= 299 SEK when marking as Delivered. Missing for: ${offenders.join(', ')}`,
+                  message: `Vänligen fyll i kollinummer för order ${orderList}`,
                 },
               ],
             });

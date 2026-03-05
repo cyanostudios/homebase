@@ -130,15 +130,23 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
   const [carrier, setCarrier] = useState(order.shippingCarrier ?? '');
   const [tracking, setTracking] = useState(order.shippingTrackingNumber ?? '');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveErrorTrackingValidation, setSaveErrorTrackingValidation] = useState(false);
 
-  const handleSave = async () => {
+  const handleSave = async (forceUpdate = false) => {
     setSaving(true);
+    setSaveError(null);
+    setSaveErrorTrackingValidation(false);
     try {
-      const updated = await ordersApi.updateStatus(order.id, {
-        status,
-        carrier: carrier.trim() || undefined,
-        trackingNumber: tracking.trim() || undefined,
-      });
+      const updated = await ordersApi.updateStatus(
+        order.id,
+        {
+          status,
+          carrier: carrier.trim() || undefined,
+          trackingNumber: tracking.trim() || undefined,
+        },
+        forceUpdate ? { forceUpdate: true } : undefined,
+      );
       const next: OrderDetails = {
         ...order,
         ...updated,
@@ -149,7 +157,10 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
       };
       onUpdated?.(next);
       setEditing(false);
-    } catch (e) {
+    } catch (e: any) {
+      const message = e?.message || e?.toString?.() || 'Kunde inte uppdatera order.';
+      setSaveError(message);
+      setSaveErrorTrackingValidation(e?.errors?.[0]?.field === 'trackingNumber');
       console.error('Update order status failed', e);
     } finally {
       setSaving(false);
@@ -198,10 +209,27 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
             Edit status
           </button>
         ) : (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {saveError && (
+              <>
+                <span className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-900">
+                  {saveError}
+                </span>
+                {saveErrorTrackingValidation && (
+                  <button
+                    type="button"
+                    onClick={() => void handleSave(true)}
+                    disabled={saving}
+                    className="px-3 py-2 rounded-md border border-red-300 bg-white text-red-800 hover:bg-red-100 text-sm disabled:opacity-50"
+                  >
+                    Uppdatera ändå
+                  </button>
+                )}
+              </>
+            )}
             <button
               type="button"
-              onClick={handleSave}
+              onClick={() => void handleSave()}
               disabled={saving}
               className="px-3 py-2 rounded-md bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 text-sm"
             >
@@ -211,6 +239,8 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
               type="button"
               onClick={() => {
                 setEditing(false);
+                setSaveError(null);
+                setSaveErrorTrackingValidation(false);
                 setStatus(order.status as OrderStatus);
                 setCarrier(order.shippingCarrier ?? '');
                 setTracking(order.shippingTrackingNumber ?? '');

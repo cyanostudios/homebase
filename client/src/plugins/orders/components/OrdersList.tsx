@@ -107,7 +107,7 @@ export const OrdersList: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [exportingPlocklista, setExportingPlocklista] = useState(false);
   const [batchUpdateResult, setBatchUpdateResult] = useState<
-    { updated: number; requested: number } | { error: string } | null
+    { updated: number; requested: number } | { error: string; trackingValidation?: boolean } | null
   >(null);
 
   // Quick-sync on open: trigger sync in background; if started, show spinner and poll until done, then refetch list
@@ -450,7 +450,7 @@ export const OrdersList: React.FC = () => {
     }
   };
 
-  const handleBatchUpdate = async () => {
+  const handleBatchUpdate = async (forceUpdate = false) => {
     if (selectedIds.size === 0) {
       setBatchUpdateResult({ error: 'Välj minst en order.' });
       return;
@@ -459,11 +459,15 @@ export const OrdersList: React.FC = () => {
     try {
       setBatchUpdating(true);
       setBatchUpdateResult(null);
-      const result = await ordersApi.batchUpdateStatus(Array.from(selectedIds), {
-        status: batchStatus,
-        carrier: batchCarrier.trim() || undefined,
-        trackingNumber: batchTracking.trim() || undefined,
-      });
+      const result = await ordersApi.batchUpdateStatus(
+        Array.from(selectedIds),
+        {
+          status: batchStatus,
+          carrier: batchCarrier.trim() || undefined,
+          trackingNumber: batchTracking.trim() || undefined,
+        },
+        forceUpdate ? { forceUpdate: true } : undefined,
+      );
       setBatchUpdateResult({ updated: result.updated, requested: result.requested });
       setSelectedIds(new Set());
       setShowBatchDialog(false);
@@ -473,6 +477,7 @@ export const OrdersList: React.FC = () => {
     } catch (err: any) {
       setBatchUpdateResult({
         error: err?.message || err?.toString?.() || 'Kunde inte uppdatera order.',
+        trackingValidation: err?.errors?.[0]?.field === 'trackingNumber',
       });
       console.error('Batch update error:', err);
     } finally {
@@ -674,6 +679,23 @@ export const OrdersList: React.FC = () => {
         >
           <Card className="max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-xl font-semibold mb-4">Update {selectedIds.size} orders</h2>
+            {batchUpdateResult && 'error' in batchUpdateResult && (
+              <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-900 flex flex-col gap-2">
+                <span>{batchUpdateResult.error}</span>
+                {batchUpdateResult.trackingValidation && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="self-start border-red-300 text-red-800 hover:bg-red-100"
+                    onClick={() => void handleBatchUpdate(true)}
+                    disabled={batchUpdating}
+                  >
+                    Uppdatera ändå
+                  </Button>
+                )}
+              </div>
+            )}
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Status *</label>
@@ -712,7 +734,11 @@ export const OrdersList: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-2 mt-6">
-              <Button onClick={handleBatchUpdate} disabled={batchUpdating} className="flex-1">
+              <Button
+                onClick={() => void handleBatchUpdate()}
+                disabled={batchUpdating}
+                className="flex-1"
+              >
                 {batchUpdating ? 'Updating…' : 'Update'}
               </Button>
               <Button

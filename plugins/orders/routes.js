@@ -9,7 +9,8 @@ const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
 
 function createOrdersRoutes(controller, context) {
-  const requirePlugin = context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
+  const requirePlugin =
+    context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin('orders');
 
   // GET /api/orders?status=&channel=&from=&to=&limit=&offset=
@@ -29,38 +30,21 @@ function createOrdersRoutes(controller, context) {
   );
 
   // DELETE /api/orders (delete all orders for current user) - must be before /:id route
-  router.delete(
-    '/',
-    gate,
-    csrfProtection,
-    validateRequest,
-    (req, res) => controller.deleteAll(req, res),
+  router.delete('/', gate, csrfProtection, validateRequest, (req, res) =>
+    controller.deleteAll(req, res),
   );
 
   // POST /api/orders/sync - Trigger quick-sync (background). Returns { started, reason? }.
-  router.post(
-    '/sync',
-    gate,
-    csrfProtection,
-    validateRequest,
-    (req, res) => controller.quickSync(req, res),
+  router.post('/sync', gate, csrfProtection, validateRequest, (req, res) =>
+    controller.quickSync(req, res),
   );
 
   // GET /api/orders/sync/status - Whether any sync is running for current user (for UI spinner).
-  router.get(
-    '/sync/status',
-    gate,
-    validateRequest,
-    (req, res) => controller.syncStatus(req, res),
-  );
+  router.get('/sync/status', gate, validateRequest, (req, res) => controller.syncStatus(req, res));
 
   // POST /api/orders/renumber - Renumber order_number by placed_at (oldest = 1) across all channels
-  router.post(
-    '/renumber',
-    gate,
-    csrfProtection,
-    validateRequest,
-    (req, res) => controller.renumber(req, res),
+  router.post('/renumber', gate, csrfProtection, validateRequest, (req, res) =>
+    controller.renumber(req, res),
   );
 
   // DELETE /api/orders/batch - Delete selected orders (body: { ids: string[] })
@@ -86,6 +70,7 @@ function createOrdersRoutes(controller, context) {
         .withMessage('status must be one of: processing, shipped, delivered, cancelled'),
       commonRules.optionalString('carrier', 255),
       commonRules.optionalString('trackingNumber', 255),
+      body('forceUpdate').optional().isBoolean().withMessage('forceUpdate must be a boolean'),
     ],
     validateRequest,
     (req, res) => controller.batchUpdateStatus(req, res),
@@ -102,12 +87,8 @@ function createOrdersRoutes(controller, context) {
   );
 
   // GET /api/orders/:id
-  router.get(
-    '/:id',
-    gate,
-    [commonRules.id('id')],
-    validateRequest,
-    (req, res) => controller.getById(req, res),
+  router.get('/:id', gate, [commonRules.id('id')], validateRequest, (req, res) =>
+    controller.getById(req, res),
   );
 
   // PUT /api/orders/:id/status
@@ -123,6 +104,7 @@ function createOrdersRoutes(controller, context) {
         .withMessage('status must be one of: processing, shipped, delivered, cancelled'),
       commonRules.optionalString('carrier', 255),
       commonRules.optionalString('trackingNumber', 255),
+      body('forceUpdate').optional().isBoolean().withMessage('forceUpdate must be a boolean'),
     ],
     validateRequest,
     (req, res) => controller.updateStatus(req, res),
@@ -137,7 +119,10 @@ function createOrdersRoutes(controller, context) {
       commonRules.string('channel', 1, 50),
       commonRules.string('channelOrderId', 1, 255),
       commonRules.optionalString('platformOrderNumber', 100),
-      body('placedAt').optional({ values: 'falsy' }).isISO8601().withMessage('placedAt must be ISO 8601'),
+      body('placedAt')
+        .optional({ values: 'falsy' })
+        .isISO8601()
+        .withMessage('placedAt must be ISO 8601'),
       body('totalAmount').optional({ values: 'falsy' }).isFloat({ min: 0, max: 99999999 }),
       commonRules.optionalString('currency', 10),
       commonRules.optionalString('status', 50),
@@ -151,4 +136,3 @@ function createOrdersRoutes(controller, context) {
 }
 
 module.exports = createOrdersRoutes;
-

@@ -4,6 +4,26 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03 – Orders: kollinummerkrav CDON/Fyndiq + batch/enskild "Uppdatera ändå"
+
+### Kollinummerkrav (299 SEK/DKK/NOK, 29,99 EUR)
+
+- **CDON och Fyndiq**: order som når tröskelvärdet (299 SEK, 299 DKK, 299 NOK eller 29,99 EUR) kräver kollinummer när de sätts till Levererad.
+- Validering gäller både **enskild order** (Edit status) och **batch-uppdatering** (Update selected).
+- Tydliga felmeddelanden på svenska: t.ex. "Vänligen fyll i kollinummer för order #X" (batch) respektive "Vänligen fyll i kollinummer för denna order." (enskild).
+
+### "Uppdatera ändå"
+
+- **Batch**: vid kollinummersfel visas felmeddelandet i batchmodalen och knappen "Uppdatera ändå"; klick skickar samma uppdatering med `forceUpdate: true` (valideringen hoppas över).
+- **Enskild order**: samma beteende i Edit status – felmeddelande och "Uppdatera ändå" på samma rad som Save/Cancel.
+
+### Tekniska ändringar
+
+- Backend: `orderNeedsTrackingByAmount(totalAmount, currency)` med valuta-medvetna trösklar; `forceUpdate` i body för `PUT /api/orders/:id/status` och `PUT /api/orders/batch/status`.
+- Klient: fel från API använder `errors[0].message` så användaren ser servertext istället för "Bad request"; `OrderDetailInline` visar fel och "Uppdatera ändå" i samma rad som knapparna.
+
+---
+
 ## 2026-03 – Products migration hardening (Phase 1 + Phase 2 preflight)
 
 ### Sello import, mapping och datamodell

@@ -16,11 +16,15 @@ class OrdersApi {
   private basePath = '/api/orders';
 
   private async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) return this.csrfToken;
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
     const response = await fetch('/api/csrf-token', { credentials: 'include' });
     const data = await response.json();
     this.csrfToken = data.csrfToken ?? null;
-    if (this.csrfToken == null) throw new Error('CSRF token not returned by server');
+    if (this.csrfToken === null) {
+      throw new Error('CSRF token not returned by server');
+    }
     return this.csrfToken;
   }
 
@@ -51,10 +55,18 @@ class OrdersApi {
     const payload = text ? JSON.parse(text) : null;
 
     if (!response.ok) {
-      const err: any = new Error(payload?.error || payload?.message || response.statusText || 'Request failed');
+      const message =
+        Array.isArray(payload?.errors) && payload.errors.length > 0
+          ? payload.errors[0].message
+          : payload?.error || payload?.message || response.statusText || 'Request failed';
+      const err: any = new Error(message);
       err.status = response.status;
-      if (payload?.errors) err.errors = payload.errors as ApiFieldError[];
-      if (payload?.details) err.details = payload.details;
+      if (payload?.errors) {
+        err.errors = payload.errors as ApiFieldError[];
+      }
+      if (payload?.details) {
+        err.details = payload.details;
+      }
       throw err;
     }
 
@@ -63,12 +75,20 @@ class OrdersApi {
 
   async list(filters: OrdersListFilters = {}): Promise<{ items: OrderListItem[]; total: number }> {
     const qs = new URLSearchParams();
-    if (filters.status) qs.set('status', filters.status);
-    if (filters.channel) qs.set('channel', filters.channel);
-    if (filters.from) qs.set('from', filters.from);
-    if (filters.to) qs.set('to', filters.to);
-    const limit = filters.limit != null ? filters.limit : 50;
-    const offset = filters.offset != null ? filters.offset : 0;
+    if (filters.status) {
+      qs.set('status', filters.status);
+    }
+    if (filters.channel) {
+      qs.set('channel', filters.channel);
+    }
+    if (filters.from) {
+      qs.set('from', filters.from);
+    }
+    if (filters.to) {
+      qs.set('to', filters.to);
+    }
+    const limit = filters.limit ?? 50;
+    const offset = filters.offset ?? 0;
     qs.set('limit', String(limit));
     qs.set('offset', String(offset));
     const suffix = qs.toString() ? `?${qs.toString()}` : '';
@@ -82,10 +102,15 @@ class OrdersApi {
   async updateStatus(
     id: string,
     data: { status: OrderStatus; carrier?: string; trackingNumber?: string },
+    options?: { forceUpdate?: boolean },
   ): Promise<OrderListItem> {
+    const body: Record<string, unknown> = { ...data };
+    if (options?.forceUpdate === true) {
+      body.forceUpdate = true;
+    }
     return (await this.request(`/${encodeURIComponent(id)}/status`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: JSON.stringify(body),
     })) as OrderListItem;
   }
 
@@ -101,7 +126,10 @@ class OrdersApi {
 
   // Delete selected orders (batch). Body: { ids: string[] }.
   async deleteByIds(ids: string[]): Promise<{ ok: true; deletedCount: number }> {
-    return (await this.request('/batch', { method: 'DELETE', body: JSON.stringify({ ids }) })) as any;
+    return (await this.request('/batch', {
+      method: 'DELETE',
+      body: JSON.stringify({ ids }),
+    })) as any;
   }
 
   /** Trigger quick-sync (background). Returns { started: boolean, reason?: 'fresh'|'locked' }. */
@@ -119,14 +147,19 @@ class OrdersApi {
     return (await this.request('/renumber', { method: 'POST' })) as any;
   }
 
-  // Batch update status for multiple orders
+  // Batch update status for multiple orders. forceUpdate: skip CDON/Fyndiq 299+ tracking validation.
   async batchUpdateStatus(
     ids: string[],
     data: { status: OrderStatus; carrier?: string; trackingNumber?: string },
+    options?: { forceUpdate?: boolean },
   ): Promise<{ ok: true; requested: number; updated: number; updatedIds: string[] }> {
+    const body: Record<string, unknown> = { ids, ...data };
+    if (options?.forceUpdate === true) {
+      body.forceUpdate = true;
+    }
     return (await this.request('/batch/status', {
       method: 'PUT',
-      body: JSON.stringify({ ids, ...data }),
+      body: JSON.stringify(body),
     })) as any;
   }
 
@@ -150,8 +183,12 @@ class OrdersApi {
       let message = 'Failed to download plocklista PDF';
       try {
         const payload = text ? JSON.parse(text) : null;
-        if (payload?.error) message = payload.error;
-      } catch {}
+        if (payload?.error) {
+          message = payload.error;
+        }
+      } catch {
+        /* use default message if JSON parse fails */
+      }
       const err: any = new Error(message);
       err.status = response.status;
       throw err;
@@ -167,4 +204,3 @@ class OrdersApi {
 }
 
 export const ordersApi = new OrdersApi();
-
