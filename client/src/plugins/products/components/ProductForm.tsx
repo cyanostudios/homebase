@@ -60,6 +60,28 @@ const VOLUME_UNIT_OPTIONS = [
   { value: 'ml', label: 'ml' },
 ];
 
+/** CDON/Fyndiq preset-färg (färg dropdown) */
+const COLOR_OPTIONS = [
+  { value: '', label: '— Välj färg —' },
+  { value: 'red', label: 'Röd' },
+  { value: 'blue', label: 'Blå' },
+  { value: 'green', label: 'Grön' },
+  { value: 'orange', label: 'Orange' },
+  { value: 'yellow', label: 'Gul' },
+  { value: 'purple', label: 'Lila' },
+  { value: 'pink', label: 'Rosa' },
+  { value: 'gold', label: 'Guld' },
+  { value: 'silver', label: 'Silver' },
+  { value: 'multicolor', label: 'Multifärgad' },
+  { value: 'white', label: 'Vit' },
+  { value: 'gray', label: 'Grå' },
+  { value: 'black', label: 'Svart' },
+  { value: 'turquoise', label: 'Turkos' },
+  { value: 'brown', label: 'Brun' },
+  { value: 'beige', label: 'Beige' },
+  { value: 'transparent', label: 'Transparent' },
+];
+
 /** CDON/Fyndiq preset-pattern (Fyndiq-mönster dropdown) */
 const PATTERN_OPTIONS = [
   { value: '', label: '— Välj mönster —' },
@@ -594,7 +616,6 @@ interface ProductFormProps {
 }
 
 type FormData = {
-  productNumber: string;
   title: string;
   status: 'for sale' | 'draft' | 'archived';
   quantity: number | '';
@@ -604,6 +625,8 @@ type FormData = {
   currency: string;
   vatRate: number | '';
   sku: string;
+  merchantSku: string;
+  privateName: string;
   mpn: string;
   description: string;
   mainImage: string;
@@ -623,6 +646,8 @@ type FormData = {
   size: string;
   sizeText: string;
   pattern: string;
+  material: string;
+  patternText: string;
   weight: number | '';
   condition: 'new' | 'used';
   groupId: string;
@@ -697,13 +722,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   });
 
   const initialState: FormData = {
-    productNumber: '',
     title: '',
     status: 'for sale',
     quantity: 0,
     priceAmount: 0,
     purchasePrice: '',
     salePrice: '',
+    merchantSku: '',
+    privateName: '',
     currency: 'SEK',
     vatRate: 25,
     sku: '',
@@ -729,6 +755,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     size: '',
     sizeText: '',
     pattern: '',
+    material: '',
+    patternText: '',
     weight: '',
     lengthCm: '',
     widthCm: '',
@@ -1219,7 +1247,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         typeof pricing?.lastFxObservedAt === 'string' ? pricing.lastFxObservedAt : null,
       );
       setFormData({
-        productNumber: currentProduct.productNumber ?? '',
         title: baseTitle,
         status: (currentProduct.status as FormData['status']) ?? 'for sale',
         quantity: Number.isFinite(currentProduct.quantity) ? Number(currentProduct.quantity) : 0,
@@ -1237,6 +1264,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         currency: baseCur,
         vatRate: Number.isFinite(currentProduct.vatRate) ? Number(currentProduct.vatRate) : 25,
         sku,
+        merchantSku: (currentProduct as any).merchantSku ?? '',
+        privateName: (currentProduct as any).privateName ?? '',
         mpn,
         description: baseDesc,
         mainImage: currentProduct.mainImage ?? '',
@@ -1254,6 +1283,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         size: (currentProduct as any).size ?? '',
         sizeText: (currentProduct as any).sizeText ?? '',
         pattern: (currentProduct as any).pattern ?? '',
+        material: (currentProduct as any).material ?? '',
+        patternText: (currentProduct as any).patternText ?? '',
         weight:
           (currentProduct as any).weight != null && (currentProduct as any).weight !== ''
             ? (currentProduct as any).weight
@@ -2080,34 +2111,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           </Card>
         )}
 
-        {/* Tab: Produkt – enligt Produktdetaljer.md: Eget namn, SKU, Moms, Antal i lager, Lagerplats, Leveranstid, Lista */}
+        {/* Tab: Produkt */}
         {!isBatchMode && activeTab === 'produkt' && (
           <>
             <Card padding="sm" className="shadow-none px-0">
               <Heading level={3} className="mb-3">
                 Produkt
               </Heading>
-              <div className="md:max-w-[50%]">
-                <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 lg:grid md:gap-3 lg:grid-cols-[1fr_1fr_5rem_10rem]">
-                  <div className="min-w-0">
-                    <Label htmlFor="productNumber" className="mb-1">
-                      Eget namn (frivillig)
-                    </Label>
-                    <Input
-                      id="productNumber"
-                      type="text"
-                      value={formData.productNumber}
-                      onChange={(e) => updateField('productNumber', e.target.value)}
-                      placeholder="Frivillig"
-                      className={getFieldError('productNumber') ? 'border-red-500' : ''}
-                    />
-                    {getFieldError('productNumber') && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {getFieldError('productNumber')?.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="min-w-0">
+              <div className="max-w-2xl space-y-6">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div>
                     <Label htmlFor="sku" className="mb-1">
                       SKU *
                     </Label>
@@ -2123,6 +2136,30 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     {getFieldError('sku') && (
                       <p className="mt-1 text-sm text-red-600">{getFieldError('sku')?.message}</p>
                     )}
+                  </div>
+                  <div>
+                    <Label htmlFor="merchantSku" className="mb-1">
+                      Egen referens
+                    </Label>
+                    <Input
+                      id="merchantSku"
+                      type="text"
+                      value={formData.merchantSku}
+                      onChange={(e) => updateField('merchantSku', e.target.value)}
+                      placeholder="Intern SKU"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="privateName" className="mb-1">
+                      Eget namn
+                    </Label>
+                    <Input
+                      id="privateName"
+                      type="text"
+                      value={formData.privateName}
+                      onChange={(e) => updateField('privateName', e.target.value)}
+                      placeholder="Intern produktnamn"
+                    />
                   </div>
                   <div>
                     <Label htmlFor="vatRate" className="mb-1">
@@ -2148,7 +2185,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       id="purchasePrice"
                       inputMode="decimal"
                       type="text"
-                      className="w-full max-w-[10rem] text-right"
+                      className="w-full text-right"
                       value={formData.purchasePrice === '' ? '' : String(formData.purchasePrice)}
                       onChange={(e) => {
                         const v = e.target.value;
@@ -2162,11 +2199,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-6">
-                  <Heading level={3} className="mb-3">
+                <div>
+                  <Heading level={4} className="mb-3 text-sm font-medium text-gray-700">
                     Lager
                   </Heading>
-                  <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-3 md:gap-3">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div>
                       <Label htmlFor="quantity" className="mb-1">
                         Antal i lager *
@@ -2189,17 +2226,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     </div>
                     <div>
                       <Label htmlFor="lagerplats" className="mb-1">
-                        Lagerplats (frivillig)
+                        Lagerplats
                       </Label>
                       <Input
                         id="lagerplats"
                         type="text"
                         value={formData.lagerplats}
-                        onChange={(e) => {
-                          setFormData((prev) => ({ ...prev, lagerplats: e.target.value }));
-                          markDirty();
-                        }}
-                        placeholder="Frivillig"
+                        onChange={(e) => updateField('lagerplats', e.target.value)}
+                        placeholder="Plats i lagret"
                       />
                     </div>
                     <div>
@@ -2227,7 +2261,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               </div>
             </Card>
 
-            {/* Leveranstid per marknad: 4x2 (min/max) + leveranstyp. Frivilligt, default från inställningar. */}
             <Card padding="sm" className="shadow-none px-0">
               <Heading level={3} className="mb-3">
                 Leveranstid per marknad
@@ -3449,13 +3482,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 <Label htmlFor="color" className="mb-1">
                   Färg
                 </Label>
-                <Input
+                <NativeSelect
                   id="color"
-                  type="text"
-                  value={formData.color}
+                  value={formData.color || ''}
                   onChange={(e) => updateField('color', e.target.value)}
-                  placeholder="T.ex. Svart"
-                />
+                >
+                  {COLOR_OPTIONS.map((o) => (
+                    <option key={o.value || 'empty'} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </NativeSelect>
               </div>
               <div>
                 <Label htmlFor="colorText" className="mb-1">
@@ -3498,8 +3535,32 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 />
               </div>
               <div>
+                <Label htmlFor="material" className="mb-1">
+                  Material (fritext)
+                </Label>
+                <Input
+                  id="material"
+                  type="text"
+                  value={formData.material}
+                  onChange={(e) => updateField('material', e.target.value)}
+                  placeholder="T.ex. Bomull, polyester"
+                />
+              </div>
+              <div>
+                <Label htmlFor="patternText" className="mb-1">
+                  Mönster (fritext)
+                </Label>
+                <Input
+                  id="patternText"
+                  type="text"
+                  value={formData.patternText}
+                  onChange={(e) => updateField('patternText', e.target.value)}
+                  placeholder="Mönster fritext när preset saknas"
+                />
+              </div>
+              <div>
                 <Label htmlFor="pattern" className="mb-1">
-                  Fyndiq-mönster
+                  Fyndiq-mönster (preset)
                 </Label>
                 <NativeSelect
                   id="pattern"

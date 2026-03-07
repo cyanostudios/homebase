@@ -19,7 +19,6 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
   const productData = useMemo(
     () => ({
       id: src?.id ?? '',
-      productNumber: src?.productNumber ?? '',
       title: src?.title ?? '',
       status: src?.status ?? 'for sale',
       quantity: Number.isFinite(src?.quantity) ? Number(src?.quantity) : 0,
@@ -223,8 +222,8 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
               <div className="text-sm font-medium text-gray-900">{productData.title || '—'}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-500">Product #</div>
-              <div className="text-sm font-mono text-gray-900">{productData.productNumber || '—'}</div>
+              <div className="text-xs text-gray-500">ID</div>
+              <div className="text-sm font-mono text-gray-900">{productData.id || '—'}</div>
             </div>
             <div>
               <div className="text-xs text-gray-500">SKU</div>

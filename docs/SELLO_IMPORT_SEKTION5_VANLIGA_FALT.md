@@ -9,7 +9,8 @@
 | Homebase-kolumn | Sello-källa | Typ | Redan importerat? | Kommentar |
 |-----------------|-------------|-----|-------------------|-----------|
 | **sku** | `id` | fast | ✅ Ja | Sello Art.Nr / produkt-ID |
-| **merchant_sku** | `private_reference` | fast | ✅ Ja | "Din" SKU |
+| **merchant_sku** | `private_reference` | fast | ✅ Ja | Egen referens / intern SKU |
+| **private_name** | `private_name` | fast | ✅ Ja | Eget namn (intern produktnamn, visas inte för kund) |
 | **title** | `texts.default.{sv}.name` (eller standard) | texts | ✅ Ja | Produktnamn |
 | **description** | `texts.default.{sv}.description` | texts | ✅ Ja | Beskrivning |
 | **quantity** | `quantity` | fast | ✅ Ja | Lagerantal |
@@ -27,24 +28,22 @@
 | **weight** | `weight` | fast | ✅ Ja | Vikt (gram) – viktigt för frakt |
 | **notes** | `notes` | fast | ✅ Ja | Anteckningar |
 | **color_text** | properties: `Color` | property | ✅ Ja | Färg (text) |
+| **material** | properties: `Material` | property | ✅ Ja | Material (fritext) |
+| **pattern** | properties: `ColorPattern` | property | ✅ Ja | Fyndiq/CDON preset-mönster |
+| **pattern_text** | properties: `Mönster` | property | ✅ Ja | Mönster fritext när preset saknas |
 | **group_id** | `group_id` | fast | ✅ Ja | Produktgrupp (Sello) |
 | **price_amount** | `prices` (per kanal) | fast | ❌ Nej | Sparas i channelSpecific som override; ingen global core-pris från Sello |
 | **color** | properties: `Color` (kod) | property | ❌ Nej | Om Sello har enum-värde kan det mappas till `color` |
-| **size** / **size_text** | properties (t.ex. `Size`) | property | ❌ Nej | Vanligt; Sello har ingen fast `size`, kan finnas som dynamisk property |
-| **pattern** | properties: `ColorPattern` | property | ❌ Nej | Färgmönster – ganska vanligt i mode/living |
-| **length_cm** / **width_cm** / **height_cm** / **depth_cm** | — | — | ❌ Saknas i Sello | Sello har inte mått i fasta fält; eventuellt via properties om det finns |
-| **supplier_id** / **manufacturer_id** | — | — | ❌ Saknas i Sello | Sello har inte dessa entiteter |
+| **size** / **size_text** | properties (t.ex. `Size`, `Storlek`) | property | ❌ Nej | Vanligt; Sello har dynamisk property |
+| **manufacturer_id** | `manufacturer`, `manufacturer_name` (Sello fast) | fast | ✅ Ja | findOrCreateManufacturerForSello. Använder manufacturer_id om satt, annars manufacturer_name för att hitta/skapa på namn |
+| **length_cm** / **width_cm** / **height_cm** / **depth_cm** | — | — | ❌ Saknas i Sello | Sello har inte mått i fasta fält |
+| **supplier_id** | — | — | ❌ Saknas i Sello | Sello har inte supplier |
 | **sale_price** | — | — | ❌ Nej | Homebase-fält; kan sättas från prislogik, inte direkt från Sello |
 
 ---
 
 ## Sammanfattning
 
-- **Redan importerat:** de flesta vanliga fälten (bas, lager, vikt, volym, köpspris, anteckningar, färg som text, EAN/GTIN, texter/SEO, kanalpriser i channelSpecific).
-- **Vettigt att lägga till vid behov:**
-  - **size / size_text** – om Sello har en property typ "Size" (vanligt i kläder/skor).
-  - **pattern** – från property `ColorPattern` om det används.
-  - **color** (kod) – om vi vill spara enum-värde från Sello `Color` vid sidan om `color_text`.
-- **Saknas i Sello:** längd/bredd/höjd/djup, supplier/manufacturer; dessa fylls i Homebase eller från annan källa.
-
-Om du vill kan nästa steg vara att implementera import av **size/size_text** och **pattern** från Sello properties (liknande `getSelloColorFromProperties`).
+- **Redan importerat:** bas, lager, vikt, volym, köpspris, anteckningar, färg (color + color_text), storlek (size + size_text), material, pattern, pattern_text, manufacturer_id, private_name, EAN/GTIN, texter/SEO, kanalpriser i channelSpecific, aktiva kanaler per integration.
+- **Aktiva kanaler:** `integrations.{integrationId}.active` importeras till `channel_product_overrides.active`. Kräver att `channel_instances` har `sello_integration_id` satt för varje Sello-integration (t.ex. Merchbutiken, CDON, Fyndiq). Kör "Bygg kanalkarta från Sello" eller mappa integrations-ID i kanalinställningarna.
+- **Saknas i Sello:** längd/bredd/höjd/djup, supplier.

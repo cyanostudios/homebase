@@ -26,7 +26,7 @@ import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceAp
 import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
 import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
 
-type SortField = 'productNumber' | 'title' | 'quantity' | 'priceAmount' | 'sku';
+type SortField = 'id' | 'title' | 'quantity' | 'priceAmount' | 'sku';
 type SortOrder = 'asc' | 'desc';
 
 const PUBLISH_MARKETS = [
@@ -61,7 +61,7 @@ export const ProductList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [listFilter, setListFilter] = useState<string>('all');
   const [lists, setLists] = useState<Array<{ id: string; name: string }>>([]);
-  const [sortField, setSortField] = useState<SortField>('productNumber');
+  const [sortField, setSortField] = useState<SortField>('id');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [isMobileView, setIsMobileView] = useState(false);
 
@@ -140,13 +140,11 @@ export const ProductList: React.FC = () => {
       p?._id ??
       p?.uuid ??
       p?.productId ??
-      p?.productNumber ??
       p?.sku ??
       `${p?.title || 'item'}|${p?.createdAt || ''}|${p?.updatedAt || ''}`;
 
     return {
       id: String(rowId),
-      productNumber: p.productNumber || '',
       title: p.title || '',
       quantity: Number.isFinite(p.quantity) ? p.quantity : 0,
       priceAmount: Number.isFinite(p.priceAmount) ? p.priceAmount : 0,
@@ -175,7 +173,7 @@ export const ProductList: React.FC = () => {
       if (!needle) return true;
       return (
         p.title.toLowerCase().includes(needle) ||
-        String(p.productNumber).toLowerCase().includes(needle) ||
+        String(p.id).toLowerCase().includes(needle) ||
         String(p.sku).toLowerCase().includes(needle) ||
         String(p.mpn || '').toLowerCase().includes(needle)
       );
@@ -211,10 +209,10 @@ export const ProductList: React.FC = () => {
           av = (a.sku || '').toLowerCase();
           bv = (b.sku || '').toLowerCase();
           break;
-        case 'productNumber':
+        case 'id':
         default:
-          av = String(a.productNumber).toLowerCase();
-          bv = String(b.productNumber).toLowerCase();
+          av = String(a.id).toLowerCase();
+          bv = String(b.id).toLowerCase();
           break;
       }
 
@@ -642,10 +640,10 @@ export const ProductList: React.FC = () => {
                 </TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('productNumber')}
+                  onClick={() => handleSort('id')}
                 >
                   <div className="flex items-center gap-2">
-                    #<SortIcon field="productNumber" />
+                    #<SortIcon field="id" />
                   </div>
                 </TableHead>
                 <TableHead
@@ -722,7 +720,7 @@ export const ProductList: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm font-mono font-medium">
-                          #{p.productNumber}
+                          #{p.id}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -789,7 +787,7 @@ export const ProductList: React.FC = () => {
                         <h3 className="text-sm font-medium">{p.title}</h3>
                         <div className="mt-1 space-y-1">
                           <div className="text-xs text-muted-foreground">
-                            #{p.productNumber} · {p.sku || '—'}
+                            #{p.id} · {p.sku || '—'}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {p.priceAmount?.toFixed
@@ -924,7 +922,6 @@ export const ProductList: React.FC = () => {
                   onClick={async () => {
                     const payload = selectedProducts.map((p: any) => ({
                       id: p.id,
-                      productNumber: p.productNumber,
                       sku: p.sku,
                       mpn: p.mpn,
                       title: p.title,

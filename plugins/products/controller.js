@@ -64,7 +64,6 @@ function mergeForUpdate(existing, incoming) {
     }
   };
 
-  setIf('productNumber', incoming.productNumber);
   setIf('title', incoming.title);
   setIf('description', incoming.description);
   setIf('status', incoming.status);
@@ -340,14 +339,18 @@ function getSelloGtin(product) {
   return null;
 }
 
-/** Extract color text from Sello product properties (property "Color" or "Färg"). */
-function getSelloColorFromProperties(product) {
+/** Extract value from Sello product properties by property name. */
+function getSelloPropertyValue(product, propertyIds) {
   const props = product?.properties;
   if (!Array.isArray(props)) return null;
+  const ids = Array.isArray(propertyIds)
+    ? propertyIds
+    : [propertyIds];
+  const idsLower = ids.map((id) => String(id).toLowerCase());
   for (const p of props) {
-    const name = String(p?.property ?? '').trim();
+    const name = String(p?.property ?? '').trim().toLowerCase();
     if (!name) continue;
-    if (name.toLowerCase() === 'color' || name.toLowerCase() === 'färg') {
+    if (idsLower.includes(name)) {
       const v = p?.value;
       if (v && typeof v === 'object') {
         const sv = String(v?.sv ?? v?.default ?? '').trim();
@@ -357,6 +360,60 @@ function getSelloColorFromProperties(product) {
     }
   }
   return null;
+}
+
+/** CDON/Fyndiq preset colors (lowercase for match). */
+const CDON_COLOR_PRESETS = new Set([
+  'red', 'blue', 'green', 'orange', 'yellow', 'purple', 'pink', 'gold', 'silver',
+  'multicolor', 'white', 'gray', 'black', 'turquoise', 'brown', 'beige', 'transparent',
+]);
+
+/** CDON preset size values (lowercase). */
+const CDON_SIZE_PRESETS = new Set([
+  'one size', 'xxs', 'xs', 's', 'm', 'l', 'xl', 'xxl',
+]);
+
+/** Extract color text from Sello product properties (property "Color" or "Färg"). */
+function getSelloColorFromProperties(product) {
+  return getSelloPropertyValue(product, ['color', 'färg']);
+}
+
+/** Extract color preset code if Sello Color value matches CDON/Fyndiq list; else null. */
+function getSelloColorPreset(product) {
+  const v = getSelloPropertyValue(product, ['color', 'färg']);
+  if (!v) return null;
+  const lower = String(v).trim().toLowerCase();
+  if (CDON_COLOR_PRESETS.has(lower)) return lower;
+  return null;
+}
+
+/** Size from Sello property "Size" or "Storlek". Preset if matches CDON list. */
+function getSelloSize(product) {
+  const v = getSelloPropertyValue(product, ['size', 'storlek']);
+  if (!v) return null;
+  const lower = String(v).trim().toLowerCase();
+  if (CDON_SIZE_PRESETS.has(lower)) return lower;
+  return null;
+}
+
+/** Size fritext from Sello property "Size" or "Storlek". */
+function getSelloSizeText(product) {
+  return getSelloPropertyValue(product, ['size', 'storlek']);
+}
+
+/** Material (fritext) from Sello property "Material". */
+function getSelloMaterial(product) {
+  return getSelloPropertyValue(product, ['material']);
+}
+
+/** Pattern preset from Sello property "ColorPattern" (för CDON/Fyndiq). */
+function getSelloPattern(product) {
+  return getSelloPropertyValue(product, ['colorpattern', 'pattern']);
+}
+
+/** Pattern fritext from Sello property "Mönster" när preset saknas. */
+function getSelloPatternText(product) {
+  return getSelloPropertyValue(product, ['mönster', 'pattern_text']);
 }
 
 function buildImportedChannelSpecificCategories(product, instancesByIntegration) {
@@ -661,13 +718,6 @@ class ProductController {
     const val = match ? match[2] : undefined;
 
     const hasCol = (name) => constraint.includes(name) || cols.includes(name);
-
-    if (hasCol('product_number')) {
-      return {
-        field: 'productNumber',
-        message: val ? `Product number "${val}" already exists` : 'Product number already exists',
-      };
-    }
 
     if (hasCol('sku')) {
       return {
@@ -1011,7 +1061,7 @@ class ProductController {
         const r = rawRows[i] || {};
 
         // Expected normalized keys (no spaces/underscores):
-        // Default import: sku, title, description, quantity, priceamount, currency, vatrate, productnumber, status, brand, mpn, gtin
+        // Default import: sku, title, description, quantity, priceamount, currency, vatrate, status, brand, mpn, gtin
         // Sello export: sku, standardnamesv, standarddescriptionsv, tax, brand, manufacturerno, propertygtin/propertyean,
         // plus per-channel columns like cdonseprice####, cdonseactive####, fyndiq3price####, fyndiq3active####.
         const sku = toStrOrUndef(r.sku);
@@ -1030,7 +1080,6 @@ class ProductController {
         // Base fields (Sello takes precedence when present)
         const incoming = {
           sku,
-          productNumber: toStrOrUndef(r.productnumber),
           title: isSello
             ? toStrOrUndef(r.standardnamesv) || toStrOrUndef(r.title)
             : toStrOrUndef(r.title),
@@ -1050,8 +1099,6 @@ class ProductController {
         // Basic bounds / normalization (security + sanity)
         if (incoming.title && incoming.title.length > 255)
           incoming.title = incoming.title.slice(0, 255);
-        if (incoming.productNumber && incoming.productNumber.length > 50)
-          incoming.productNumber = incoming.productNumber.slice(0, 50);
         if (incoming.currency) incoming.currency = incoming.currency.toUpperCase();
         if (incoming.quantity !== undefined && incoming.quantity < 0) incoming.quantity = 0;
         if (incoming.priceAmount !== undefined && incoming.priceAmount < 0)
@@ -1094,7 +1141,6 @@ class ProductController {
             continue;
           }
           const payload = {
-            productNumber: incoming.productNumber,
             sku,
             mpn: incoming.mpn ?? '',
             title,
@@ -1187,7 +1233,6 @@ class ProductController {
             continue;
           }
           const payload = {
-            productNumber: incoming.productNumber,
             sku,
             mpn: incoming.mpn ?? '',
             title,
@@ -1437,6 +1482,8 @@ class ProductController {
               integrations: fromList.integrations ?? raw.integrations,
               folder_id: fromList.folder_id ?? raw.folder_id,
               folder_name: fromList.folder_name ?? raw.folder_name,
+              private_name: fromList.private_name ?? raw.private_name,
+              private_reference: fromList.private_reference ?? raw.private_reference,
             };
           }
           summary.requested += 1;
@@ -1486,8 +1533,38 @@ class ProductController {
             raw?.brand_id,
             raw?.brand_name,
           );
+          let selloManufacturer = null;
+          let manufacturerIdRaw = raw?.manufacturer ?? raw?.manufacturer_id;
+          if (manufacturerIdRaw != null && typeof manufacturerIdRaw === 'object' && manufacturerIdRaw.id != null) {
+            manufacturerIdRaw = manufacturerIdRaw.id;
+          }
+          const manufacturerName = (raw?.manufacturer_name ?? '').trim() || null;
+          if (manufacturerIdRaw != null && this.selloModel) {
+            try {
+              const mfr = await this.selloModel.fetchManufacturer(apiKey, manufacturerIdRaw);
+              const mfrName = mfr?.name || manufacturerName;
+              selloManufacturer = await lookupsModel.findOrCreateManufacturerForSello(
+                req,
+                String(manufacturerIdRaw),
+                mfrName,
+              );
+            } catch {
+              selloManufacturer = await lookupsModel.findOrCreateManufacturerForSello(
+                req,
+                String(manufacturerIdRaw),
+                manufacturerName,
+              );
+            }
+          } else if (manufacturerName) {
+            selloManufacturer = await lookupsModel.findOrCreateManufacturerForSello(
+              req,
+              '',
+              manufacturerName,
+            );
+          }
           const upsertResult = await this.model.upsertFromSelloProduct(req, {
             sku,
+            privateName: (() => { const v = raw?.private_name ?? raw?.product?.private_name; return v != null ? String(v).trim() : null; })(),
             merchantSku: raw?.private_reference != null ? String(raw.private_reference) : null,
             title,
             description,
@@ -1504,8 +1581,15 @@ class ProductController {
             gtin: getSelloGtin(raw),
             brand: selloBrand?.name ?? raw?.brand_name,
             brandId: selloBrand?.id,
+            manufacturerId: selloManufacturer?.id ?? undefined,
             purchasePrice: raw?.purchase_price != null ? Number(raw.purchase_price) : undefined,
+            color: getSelloColorPreset(raw),
             colorText: getSelloColorFromProperties(raw),
+            size: getSelloSize(raw),
+            sizeText: getSelloSizeText(raw),
+            material: getSelloMaterial(raw),
+            pattern: getSelloPattern(raw),
+            patternText: getSelloPatternText(raw),
             lagerplats: raw?.stock_location != null ? String(raw.stock_location).trim() : undefined,
             condition: raw?.condition === 'used' ? 'used' : 'new',
             groupId: raw?.group_id != null ? String(raw.group_id) : undefined,
@@ -1643,8 +1727,38 @@ class ProductController {
             raw?.brand_id,
             raw?.brand_name,
           );
+          let selloManufacturer = null;
+          let manufacturerIdRaw = raw?.manufacturer ?? raw?.manufacturer_id;
+          if (manufacturerIdRaw != null && typeof manufacturerIdRaw === 'object' && manufacturerIdRaw.id != null) {
+            manufacturerIdRaw = manufacturerIdRaw.id;
+          }
+          const manufacturerName = (raw?.manufacturer_name ?? '').trim() || null;
+          if (manufacturerIdRaw != null && this.selloModel) {
+            try {
+              const mfr = await this.selloModel.fetchManufacturer(apiKey, manufacturerIdRaw);
+              const mfrName = mfr?.name || manufacturerName;
+              selloManufacturer = await lookupsModel.findOrCreateManufacturerForSello(
+                req,
+                String(manufacturerIdRaw),
+                mfrName,
+              );
+            } catch {
+              selloManufacturer = await lookupsModel.findOrCreateManufacturerForSello(
+                req,
+                String(manufacturerIdRaw),
+                manufacturerName,
+              );
+            }
+          } else if (manufacturerName) {
+            selloManufacturer = await lookupsModel.findOrCreateManufacturerForSello(
+              req,
+              '',
+              manufacturerName,
+            );
+          }
           const upsertResult = await this.model.upsertFromSelloProduct(req, {
             sku,
+            privateName: (() => { const v = raw?.private_name ?? raw?.product?.private_name; return v != null ? String(v).trim() : null; })(),
             merchantSku: raw?.private_reference != null ? String(raw.private_reference) : null,
             title,
             description,
@@ -1661,8 +1775,15 @@ class ProductController {
             gtin: getSelloGtin(raw),
             brand: selloBrand?.name ?? raw?.brand_name,
             brandId: selloBrand?.id,
+            manufacturerId: selloManufacturer?.id ?? undefined,
             purchasePrice: raw?.purchase_price != null ? Number(raw.purchase_price) : undefined,
+            color: getSelloColorPreset(raw),
             colorText: getSelloColorFromProperties(raw),
+            size: getSelloSize(raw),
+            sizeText: getSelloSizeText(raw),
+            material: getSelloMaterial(raw),
+            pattern: getSelloPattern(raw),
+            patternText: getSelloPatternText(raw),
             lagerplats: raw?.stock_location != null ? String(raw.stock_location).trim() : undefined,
             condition: raw?.condition === 'used' ? 'used' : 'new',
             groupId: raw?.group_id != null ? String(raw.group_id) : undefined,

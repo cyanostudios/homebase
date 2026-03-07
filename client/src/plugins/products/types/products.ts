@@ -9,7 +9,6 @@ export interface Product {
   id: string;
 
   // MVP fields (camelCase for frontend)
-  productNumber: string | null; // maps to product_number
   sku: string | null;
   mpn: string | null;
   title: string; // required
@@ -38,6 +37,8 @@ export interface Product {
   size?: string | null;
   sizeText?: string | null;
   pattern?: string | null;
+  material?: string | null;
+  patternText?: string | null;
   weight?: number | null;
   condition?: 'new' | 'used' | null;
   groupId?: string | null;

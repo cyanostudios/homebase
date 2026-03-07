@@ -99,8 +99,61 @@ async function findOrCreateBrandForSello(req, selloBrandId, brandName) {
   return { id: String(r.id), name: r.name ?? '' };
 }
 
+/**
+ * Find or create manufacturer for Sello import. Maps manufacturer id ↔ manufacturer name.
+ * Requires import_manufacturer_id column on manufacturers (migration 065).
+ * @param {object} req
+ * @param {string} selloManufacturerId - Sello manufacturer id
+ * @param {string} manufacturerName - Manufacturer name (from Sello API or fallback)
+ * @returns {Promise<{ id: string, name: string } | null>} Manufacturer or null if both empty
+ */
+async function findOrCreateManufacturerForSello(req, selloManufacturerId, manufacturerName) {
+  const db = Database.get(req);
+  const userId = getUserId(req);
+  if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+
+  const sid = String(selloManufacturerId ?? '').trim();
+  const fname = String(manufacturerName ?? '').trim();
+  if (!sid && !fname) return null;
+
+  if (sid) {
+    const byId = await db.query(
+      `SELECT id, name FROM manufacturers WHERE user_id = $1 AND import_manufacturer_id = $2 LIMIT 1`,
+      [userId, sid],
+    );
+    if (byId && byId.length > 0) {
+      return { id: String(byId[0].id), name: byId[0].name ?? '' };
+    }
+  }
+  if (fname) {
+    const byName = await db.query(
+      `SELECT id, name, import_manufacturer_id FROM manufacturers WHERE user_id = $1 AND name = $2 LIMIT 1`,
+      [userId, fname],
+    );
+    if (byName && byName.length > 0) {
+      const row = byName[0];
+      if (sid && !row.import_manufacturer_id) {
+        await db.query(
+          `UPDATE manufacturers SET import_manufacturer_id = $1 WHERE id = $2 AND user_id = $3`,
+          [sid, row.id, userId],
+        );
+      }
+      return { id: String(row.id), name: row.name ?? '' };
+    }
+  }
+  const result = await db.query(
+    `INSERT INTO manufacturers (user_id, name, import_manufacturer_id) VALUES ($1, $2, $3)
+     ON CONFLICT (user_id, name) DO UPDATE SET import_manufacturer_id = COALESCE(manufacturers.import_manufacturer_id, EXCLUDED.import_manufacturer_id)
+     RETURNING id, name`,
+    [userId, fname || `Sello tillverkare ${sid}`, sid || null],
+  );
+  const r = result[0];
+  return { id: String(r.id), name: r.name ?? '' };
+}
+
 module.exports = {
   getAll,
   create,
   findOrCreateBrandForSello,
+  findOrCreateManufacturerForSello,
 };

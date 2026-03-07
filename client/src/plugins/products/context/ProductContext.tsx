@@ -258,18 +258,6 @@ export function ProductProvider({
     };
   }, []);
 
-  const generateNextProductNumber = (): string => {
-    const toNum = (val: any) => {
-      if (!val) return 0;
-      const s = String(val);
-      const m = s.match(/(\d+)\s*$/);
-      return m ? parseInt(m[1], 10) : parseInt(s, 10) || 0;
-    };
-    const existingNumbers = products.map((p: any) => toNum(p.productNumber));
-    const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
-    return String(maxNumber + 1).padStart(2, '0');
-  };
-
   const validateProduct = (data: any): ValidationError[] => {
     const errors: ValidationError[] = [];
 
@@ -298,18 +286,6 @@ export function ProductProvider({
       if (!/^[A-Z]{3}$/.test(c)) add('currency', 'Currency must be a 3-letter code (e.g., SEK)');
     }
 
-    if (data.productNumber?.trim()) {
-      const pn = data.productNumber.trim();
-      const clash = products.find(
-        (p) => p.id !== currentProduct?.id && String(p.productNumber) === pn,
-      );
-      if (clash) {
-        add(
-          'productNumber',
-          `Product number "${pn}" already exists (used by "${clash.title ?? 'another product'}")`,
-        );
-      }
-    }
     if (data.sku?.trim()) {
       const sku = data.sku.trim();
       const clash = products.find(
@@ -388,7 +364,6 @@ export function ProductProvider({
     channelOverridesToSave?: Array<{ channelInstanceId: number | string; category?: string | null; priceAmount?: number | null }>;
   }): Promise<boolean> => {
     const data: Record<string, unknown> = {
-      productNumber: (raw.productNumber ?? '').trim(),
       title: (raw.title ?? '').trim(),
       status: raw.status,
       quantity: Number(raw.quantity ?? 0),
@@ -406,6 +381,8 @@ export function ProductProvider({
       images: Array.isArray(raw.images) ? raw.images : [],
       categories: Array.isArray(raw.categories) ? raw.categories : [],
       brand: (raw.brand ?? '').trim(),
+      merchantSku: (raw.merchantSku ?? '').trim() || undefined,
+      privateName: (raw.privateName ?? '').trim() || undefined,
       brandId: raw.brandId ? String(raw.brandId).trim() : undefined,
       ean: (raw.ean ?? '').trim() || undefined,
       gtin: (raw.gtin ?? '').trim() || undefined,
@@ -417,6 +394,8 @@ export function ProductProvider({
       size: (raw.size ?? '').trim() || undefined,
       sizeText: (raw.sizeText ?? '').trim() || undefined,
       pattern: (raw.pattern ?? '').trim() || undefined,
+      material: (raw.material ?? '').trim() || undefined,
+      patternText: (raw.patternText ?? '').trim() || undefined,
       weight: raw.weight != null && raw.weight !== '' && Number.isFinite(Number(raw.weight)) ? Number(raw.weight) : undefined,
       lengthCm: raw.lengthCm != null && raw.lengthCm !== '' && Number.isFinite(Number(raw.lengthCm)) ? Number(raw.lengthCm) : undefined,
       widthCm: raw.widthCm != null && raw.widthCm !== '' && Number.isFinite(Number(raw.widthCm)) ? Number(raw.widthCm) : undefined,
@@ -425,10 +404,6 @@ export function ProductProvider({
     };
     if (raw.channelSpecific !== undefined && raw.channelSpecific !== null && typeof raw.channelSpecific === 'object' && !Array.isArray(raw.channelSpecific)) {
       data.channelSpecific = raw.channelSpecific;
-    }
-
-    if (!currentProduct && !data.productNumber) {
-      data.productNumber = generateNextProductNumber();
     }
 
     const errors = validateProduct(data);
@@ -591,7 +566,6 @@ export function ProductProvider({
               if (!targets?.length) return;
               const payload = {
                 id: productForSync.id,
-                productNumber: productForSync.productNumber,
                 sku: productForSync.sku,
                 mpn: productForSync.mpn,
                 title: productForSync.title,
@@ -707,7 +681,6 @@ export function ProductProvider({
               if (!targets?.length) return;
               const payload = {
                 id: productForSync.id,
-                productNumber: productForSync.productNumber,
                 sku: productForSync.sku,
                 mpn: productForSync.mpn,
                 title: productForSync.title,
@@ -858,20 +831,20 @@ export function ProductProvider({
       return `Batch Edit (${batchProductIds.length} products)`;
     }
     if (mode === 'edit' && item) {
-      const productNumber = `#${item.productNumber || item.id}`;
+      const displayId = item.id;
       const title = item.title;
       const price = `${item.priceAmount} ${item.currency}`;
       if (isMobileView && price) {
         return (
           <div>
             <div>
-              {productNumber} • {title}
+              {displayId} • {title}
             </div>
             <div className="text-sm font-normal text-gray-600 mt-1">{price}</div>
           </div>
         );
       }
-      return `${productNumber} • ${title}${price ? ` • ${price}` : ''}`;
+      return `${displayId} • ${title}${price ? ` • ${price}` : ''}`;
     }
     switch (mode) {
       case 'edit':

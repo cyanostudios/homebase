@@ -23,7 +23,6 @@ class ProductModel {
         SELECT
           p.id,
           p.user_id,
-          p.product_number,
           p.sku,
           p.mpn,
           p.title,
@@ -52,11 +51,14 @@ class ProductModel {
           p.volume,
           p.volume_unit,
           p.notes,
+          p.private_name,
           p.color,
           p.color_text,
           p.size,
           p.size_text,
           p.pattern,
+          p.material,
+          p.pattern_text,
           p.weight,
           p.length_cm,
           p.width_cm,
@@ -76,7 +78,7 @@ class ProductModel {
         LEFT JOIN product_list_items pli ON pli.product_id = p.id AND pli.user_id = p.user_id
         LEFT JOIN lists l ON l.id = pli.list_id
         WHERE p.user_id = $1
-        ORDER BY p.product_number NULLS LAST, p.id
+        ORDER BY p.id
       `;
       const result = await db.query(sql, [userId]);
       return result.map((row) => this.transformRow(row));
@@ -100,7 +102,6 @@ class ProductModel {
         SELECT
           p.id,
           p.user_id,
-          p.product_number,
           p.sku,
           p.mpn,
           p.title,
@@ -129,11 +130,14 @@ class ProductModel {
           p.volume,
           p.volume_unit,
           p.notes,
+          p.private_name,
           p.color,
           p.color_text,
           p.size,
           p.size_text,
           p.pattern,
+          p.material,
+          p.pattern_text,
           p.weight,
           p.length_cm,
           p.width_cm,
@@ -180,7 +184,6 @@ class ProductModel {
         SELECT
           p.id,
           p.user_id,
-          p.product_number,
           p.sku,
           p.mpn,
           p.title,
@@ -209,11 +212,14 @@ class ProductModel {
           p.volume,
           p.volume_unit,
           p.notes,
+          p.private_name,
           p.color,
           p.color_text,
           p.size,
           p.size_text,
           p.pattern,
+          p.material,
+          p.pattern_text,
           p.weight,
           p.length_cm,
           p.width_cm,
@@ -261,7 +267,6 @@ class ProductModel {
       const sql = `
         INSERT INTO ${ProductModel.TABLE} (
           user_id,
-          product_number,
           sku,
           mpn,
           title,
@@ -290,11 +295,14 @@ class ProductModel {
           volume,
           volume_unit,
           notes,
+          private_name,
           color,
           color_text,
           size,
           size_text,
           pattern,
+          material,
+          pattern_text,
           weight,
           length_cm,
           width_cm,
@@ -305,12 +313,11 @@ class ProductModel {
           $1,
           $2,  $3,  $4,  $5,  $6,  $7,  $8,
           $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,
-          $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40
+          $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42
         )
         RETURNING
           id,
           user_id,
-          product_number,
           sku,
           mpn,
           title,
@@ -334,11 +341,14 @@ class ProductModel {
           purchase_price,
           sale_price,
           lagerplats,
+          private_name,
           color,
           color_text,
           size,
           size_text,
           pattern,
+          material,
+          pattern_text,
           weight,
           length_cm,
           width_cm,
@@ -350,7 +360,6 @@ class ProductModel {
 
       const params = [
         userId,
-        d.productNumber,
         d.sku,
         d.mpn,
         d.title,
@@ -379,11 +388,14 @@ class ProductModel {
         d.volume != null ? d.volume : null,
         d.volumeUnit ?? null,
         d.notes ?? null,
+        d.privateName ?? null,
         d.color ?? null,
         d.colorText ?? null,
         d.size ?? null,
         d.sizeText ?? null,
         d.pattern ?? null,
+        d.material ?? null,
+        d.patternText ?? null,
         d.weight != null ? d.weight : null,
         d.lengthCm != null ? d.lengthCm : null,
         d.widthCm != null ? d.widthCm : null,
@@ -424,52 +436,53 @@ class ProductModel {
       const sql = `
         UPDATE ${ProductModel.TABLE}
         SET
-          product_number = $1,
-          sku            = $2,
-          mpn            = $3,
-          merchant_sku   = $4,
-          title          = $5,
-          description    = $6,
-          status         = $7,
-          quantity       = $8,
-          price_amount   = $9,
-          currency       = $10,
-          vat_rate       = $11,
-          main_image     = $12,
-          images         = $13,
-          categories     = $14,
-          brand          = $15,
-          brand_id       = $16,
-          ean            = $17,
-          gtin           = $18,
-          supplier_id    = $19,
-          manufacturer_id = $20,
-          channel_specific = $21,
-          purchase_price = $22,
-          sale_price     = $23,
-          lagerplats     = $24,
-          condition      = $25,
-          group_id       = $26,
-          volume         = $27,
-          volume_unit    = $28,
-          notes          = $29,
+          sku            = $1,
+          mpn            = $2,
+          merchant_sku   = $3,
+          title          = $4,
+          description    = $5,
+          status         = $6,
+          quantity       = $7,
+          price_amount   = $8,
+          currency       = $9,
+          vat_rate       = $10,
+          main_image     = $11,
+          images         = $12,
+          categories     = $13,
+          brand          = $14,
+          brand_id       = $15,
+          ean            = $16,
+          gtin           = $17,
+          supplier_id    = $18,
+          manufacturer_id = $19,
+          channel_specific = $20,
+          purchase_price = $21,
+          sale_price     = $22,
+          lagerplats     = $23,
+          condition      = $24,
+          group_id       = $25,
+          volume         = $26,
+          volume_unit    = $27,
+          notes          = $28,
+          private_name   = $29,
           color          = $30,
           color_text     = $31,
           size           = $32,
           size_text      = $33,
           pattern        = $34,
-          weight         = $35,
-          length_cm      = $36,
-          width_cm       = $37,
-          height_cm      = $38,
-          depth_cm       = $39,
+          material       = $35,
+          pattern_text   = $36,
+          weight         = $37,
+          length_cm      = $38,
+          width_cm       = $39,
+          height_cm      = $40,
+          depth_cm       = $41,
           updated_at     = CURRENT_TIMESTAMP
-        WHERE user_id = $40
-          AND id::text = $41
+        WHERE user_id = $42
+          AND id::text = $43
         RETURNING
           id,
           user_id,
-          product_number,
           sku,
           mpn,
           title,
@@ -493,11 +506,14 @@ class ProductModel {
           purchase_price,
           sale_price,
           lagerplats,
+          private_name,
           color,
           color_text,
           size,
           size_text,
           pattern,
+          material,
+          pattern_text,
           weight,
           length_cm,
           width_cm,
@@ -508,7 +524,6 @@ class ProductModel {
       `;
 
       const params = [
-        d.productNumber,
         d.sku,
         d.mpn,
         d.merchantSku ?? null,
@@ -537,11 +552,14 @@ class ProductModel {
         d.volume != null ? d.volume : null,
         d.volumeUnit ?? null,
         d.notes ?? null,
+        d.privateName ?? null,
         d.color ?? null,
         d.colorText ?? null,
         d.size ?? null,
         d.sizeText ?? null,
         d.pattern ?? null,
+        d.material ?? null,
+        d.patternText ?? null,
         d.weight != null ? d.weight : null,
         d.lengthCm != null ? d.lengthCm : null,
         d.widthCm != null ? d.widthCm : null,
@@ -832,6 +850,7 @@ class ProductModel {
     req,
     {
       sku,
+      privateName,
       merchantSku,
       title,
       description,
@@ -846,8 +865,15 @@ class ProductModel {
       gtin,
       brand,
       brandId,
+      manufacturerId,
       purchasePrice,
+      color,
       colorText,
+      size,
+      sizeText,
+      material,
+      pattern,
+      patternText,
       lagerplats,
       condition,
       groupId,
@@ -899,6 +925,7 @@ class ProductModel {
 
       const payload = {
         sku: cleanSku,
+        privateName: privateName != null ? String(privateName).trim() : null,
         merchantSku: merchantSku != null ? String(merchantSku).trim() : null,
         title: cleanTitle,
         description: description != null ? String(description) : '',
@@ -930,10 +957,20 @@ class ProductModel {
         gtin: gtin != null ? String(gtin).trim() || null : undefined,
         brand: brand != null ? String(brand).trim() || null : undefined,
         brandId: brandId != null ? String(brandId).trim() || null : undefined,
+        manufacturerId:
+          manufacturerId != null && Number.isFinite(Number(manufacturerId))
+            ? Number(manufacturerId)
+            : undefined,
         purchasePrice: purchasePrice != null && Number.isFinite(Number(purchasePrice))
           ? Number(purchasePrice)
           : undefined,
+        color: color != null ? String(color).trim() || null : undefined,
         colorText: colorText != null ? String(colorText).trim() || null : undefined,
+        size: size != null ? String(size).trim() || null : undefined,
+        sizeText: sizeText != null ? String(sizeText).trim() || null : undefined,
+        material: material != null ? String(material).trim() || null : undefined,
+        pattern: pattern != null ? String(pattern).trim() || null : undefined,
+        patternText: patternText != null ? String(patternText).trim() || null : undefined,
         lagerplats: lagerplats != null ? String(lagerplats).trim() || null : undefined,
         condition:
           condition === 'new' || condition === 'used'
@@ -948,16 +985,24 @@ class ProductModel {
         volumeUnit: volumeUnit != null ? String(volumeUnit).trim() || null : undefined,
         weight: weight != null && Number.isFinite(Number(weight)) ? Number(weight) : undefined,
         notes: notes != null ? String(notes).trim() || null : undefined,
+        privateName: privateName != null ? String(privateName).trim() || null : undefined,
       };
 
       const payloadClean = { ...payload };
       [
         'brand',
         'brandId',
+        'manufacturerId',
         'ean',
         'gtin',
         'purchasePrice',
+        'color',
         'colorText',
+        'size',
+        'sizeText',
+        'material',
+        'pattern',
+        'patternText',
         'lagerplats',
         'condition',
         'groupId',
@@ -965,6 +1010,7 @@ class ProductModel {
         'volumeUnit',
         'weight',
         'notes',
+        'privateName',
       ].forEach((k) => {
         if (payloadClean[k] === undefined) delete payloadClean[k];
       });
@@ -998,7 +1044,6 @@ class ProductModel {
       return v;
     };
 
-    const productNumberRaw = data.productNumber ?? data.contactNumber ?? null;
     const titleRaw = data.title ?? data.companyName ?? '';
 
     const toInt = (v, fallback = 0) => {
@@ -1030,7 +1075,6 @@ class ProductModel {
           : null;
 
     return {
-      productNumber: clean(productNumberRaw),
       sku,
       mpn: mpnRaw || sku,
       title: String(titleRaw ?? '').trim(),
@@ -1073,12 +1117,15 @@ class ProductModel {
       volume: data.volume != null ? toFloat(data.volume, null) : null,
       volumeUnit: clean(data.volumeUnit ?? data.volume_unit ?? null),
       notes: clean(data.notes) || null,
+      privateName: clean(data.privateName ?? data.private_name ?? null),
       channelSpecific,
       color: clean(data.color),
       colorText: clean(data.colorText),
       size: clean(data.size),
       sizeText: clean(data.sizeText),
       pattern: clean(data.pattern),
+      material: clean(data.material),
+      patternText: clean(data.patternText ?? data.pattern_text),
       weight: data.weight != null ? toFloat(data.weight, null) : null,
       lengthCm: data.lengthCm != null ? toFloat(data.lengthCm, null) : null,
       widthCm: data.widthCm != null ? toFloat(data.widthCm, null) : null,
@@ -1121,9 +1168,10 @@ class ProductModel {
 
     return {
       id: String(row.id),
-      productNumber: row.product_number ?? null,
       sku: row.sku ?? null,
+      merchantSku: row.merchant_sku ?? null,
       mpn: row.mpn ?? null,
+      privateName: row.private_name ?? null,
       title: row.title ?? '',
       description: row.description ?? null,
       status: row.status ?? 'for sale',
@@ -1156,6 +1204,8 @@ class ProductModel {
       size: row.size ?? null,
       sizeText: row.size_text ?? null,
       pattern: row.pattern ?? null,
+      material: row.material ?? null,
+      patternText: row.pattern_text ?? null,
       weight: row.weight != null ? toNumberOr(row.weight, null) : null,
       lengthCm: row.length_cm != null ? toNumberOr(row.length_cm, null) : null,
       widthCm: row.width_cm != null ? toNumberOr(row.width_cm, null) : null,

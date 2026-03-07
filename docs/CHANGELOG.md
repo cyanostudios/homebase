@@ -4,6 +4,57 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03 – Sello import: manufacturer_name, product_number borttagen, Produkt-flik
+
+### Sello import – tillverkare
+
+- **manufacturer_name**: När Sello returnerar `manufacturer: null` men `manufacturer_name` (t.ex. "Wrebbit") används namnet för att hitta/skapa tillverkare via `findOrCreateManufacturerForSello`.
+- **manufacturer som objekt**: Stöd för Sello som returnerar `manufacturer: { id, name }` – använder `manufacturer.id`.
+
+### product_number borttagen
+
+- **Migration 067**: Droppar `product_number` från products. Identifiering sker via `id`; sync mot WooCommerce/Sello via `sku`/sello-id.
+
+### Produkt-flik (UI)
+
+- Städad layout: konsekvent grid (1–3 kolumner), korta etiketter (Egen referens, Eget namn, Lagerplats), fixad duplicerad Card-tagg.
+
+### Scripts
+
+- `scripts/sync-all-sello-products.js`: Synkar alla befintliga produkter från Sello (uppdaterar, skapar inte nya).
+- `scripts/run-build-channel-map-sello.js`: Kör Bygg kanalkarta från Sello (uppdaterar `channel_product_map`).
+
+### Dokumentation
+
+- `docs/SELLO_IMPORT_SEKTION5_VANLIGA_FALT.md`: manufacturer_name tillagd som Sello-källa för manufacturer_id.
+
+---
+
+## 2026-03 – Products: tenant-only (public.products borttagen) + material/pattern_text
+
+### Tenant är enda sanningen för produktdata
+
+- **public.products borttagen**: All produktdata ska ligga i tenant-scheman. `public.products` har droppats i Neon.
+- **Runtime**: PostgreSQLAdapter sätter `search_path` till `tenant_${userId}` per query; alla produktläsningar/skrivningar går mot tenant.
+- **Regel**: Allt som körs manuellt i Neon måste också finnas som migrationfil (`.cursor/rules/neon-mcp.mdc`).
+
+### Nya kolumner
+
+- **material** (VARCHAR 255): fritext från Sello property "Material".
+- **pattern_text** (VARCHAR 255): mönster fritext när Sello/Fyndiq preset saknas.
+
+### Migreringar
+
+- `063-products-material-pattern-text.sql`: ADD material, pattern_text till products (i tenant).
+- `064-drop-public-products.sql`: DROP TABLE IF EXISTS public.products CASCADE.
+
+### Verifiering
+
+- Sökning i repo: inga runtime-referenser till `public.products`. Endast scripts i `scripts/db/` (legacy, ej runtime).
+- Neon: public.products borttagen; tenant_1/2/3.products har material, pattern_text.
+
+---
+
 ## 2026-03 – Sello-import SEO/EAN/GTIN + Rich text + Texter-flik
 
 ### Sello import – utökad datamappning

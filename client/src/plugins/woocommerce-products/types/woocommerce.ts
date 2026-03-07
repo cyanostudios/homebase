@@ -17,7 +17,6 @@ export interface WooSettings {
 // Minimal MVP Product shape used for export mapping
 export interface MvpProduct {
   id?: string;
-  productNumber?: string | null;
   sku?: string | null;
   title?: string;
   status?: string;

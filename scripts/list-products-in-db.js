@@ -23,10 +23,10 @@ async function main() {
   for (const schema of schemas) {
     try {
       const res = await client.query(
-        `SELECT id, user_id, product_number, sku, title, created_at
+        `SELECT id, user_id, sku, title, created_at
          FROM ${schema}.products
          WHERE user_id = $1
-         ORDER BY product_number NULLS LAST, id`,
+         ORDER BY id`,
         [userId]
       );
       console.log(`\n--- ${schema}.products (user_id=${userId}) ---`);
@@ -34,7 +34,7 @@ async function main() {
         console.log('  (inga produkter)');
       } else {
         res.rows.forEach((r) => {
-          console.log(`  id=${r.id} product_number=${JSON.stringify(r.product_number)} sku=${JSON.stringify(r.sku)} title=${(r.title || '').slice(0, 40)}`);
+          console.log(`  id=${r.id} sku=${JSON.stringify(r.sku)} title=${(r.title || '').slice(0, 40)}`);
         });
       }
     } catch (e) {

@@ -1505,7 +1505,6 @@ class WooCommerceController {
 
     return {
       id: undefined,
-      productNumber: null,
       sku: w?.sku || null,
       title: w?.name || '',
       status: this.mapWooStatusToHomebase(w?.status),

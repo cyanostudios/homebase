@@ -137,6 +137,29 @@ class SelloModel {
     }
     return json;
   }
+
+  /**
+   * Fetch manufacturer by id from Sello API.
+   * GET /v5/manufacturers/{id}
+   * @param {string} apiKey
+   * @param {string|number} manufacturerId
+   * @returns {Promise<{ id: string|number, name?: string, title?: string } | null>}
+   */
+  async fetchManufacturer(apiKey, manufacturerId) {
+    const id = String(manufacturerId ?? '').trim();
+    if (!id) return null;
+    try {
+      const json = await this.fetchSelloJson({
+        apiKey,
+        path: `/v5/manufacturers/${encodeURIComponent(id)}`,
+      });
+      if (!json || typeof json !== 'object') return null;
+      const name = json.name ?? json.title ?? null;
+      return { id: json.id ?? id, name };
+    } catch {
+      return null;
+    }
+  }
 }
 
 module.exports = SelloModel;

@@ -11,3 +11,4 @@ alwaysApply: true
 - **När du ska köra migrationer eller SQL mot Neon:** Använd `run_sql` med projectId från filen ovan. Fråga inte användaren om projectId.
 - **Schema:** Om appen använder tenant-scheman (t.ex. tenant_1) i Neon, sätt `search_path` i samma anrop eller kör mot rätt schema enligt projektets konvention.
 - **Efter att du lagt till en ny migration-fil:** Kör migrationen både lokalt (npm run migrate:all mot DATABASE_URL) och mot Neon om användaren har Neon som måldatabas – använd run_sql med projectId från neon-homebase.md för att köra ALTER/CREATE från migrationen.
+- **Regel:** Allt som körs manuellt i Neon måste också finnas som migrationfil. Annars räknas det inte som klart.
