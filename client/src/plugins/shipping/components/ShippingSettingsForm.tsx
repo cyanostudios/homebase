@@ -74,7 +74,9 @@ export const ShippingSettingsForm: React.FC = () => {
   };
 
   const saveSender = async () => {
-    if (!senderForm.name.trim()) return;
+    if (!senderForm.name.trim()) {
+      return;
+    }
     if (senderForm.id) {
       await updateSender(senderForm.id, senderForm);
     } else {
@@ -93,7 +95,9 @@ export const ShippingSettingsForm: React.FC = () => {
   };
 
   const saveService = async () => {
-    if (!serviceForm.code.trim() || !serviceForm.name.trim()) return;
+    if (!serviceForm.code.trim() || !serviceForm.name.trim()) {
+      return;
+    }
     if (serviceForm.id) {
       await updateService(serviceForm.id, serviceForm);
     } else {
@@ -111,6 +115,7 @@ export const ShippingSettingsForm: React.FC = () => {
       window.removeEventListener('submitShippingForm', onSubmit as EventListener);
       window.removeEventListener('cancelShippingForm', onCancel as EventListener);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- saveSettings from context
   }, [closeShippingPanel]);
 
   return (
@@ -201,9 +206,7 @@ export const ShippingSettingsForm: React.FC = () => {
             <Input
               id="shipping-api-header"
               value={settingsForm.apiKeyHeaderName}
-              onChange={(e) =>
-                setSettingsForm((p) => ({ ...p, apiKeyHeaderName: e.target.value }))
-              }
+              onChange={(e) => setSettingsForm((p) => ({ ...p, apiKeyHeaderName: e.target.value }))}
             />
           </div>
         </div>
@@ -270,8 +273,7 @@ export const ShippingSettingsForm: React.FC = () => {
           {senders.map((s) => (
             <div key={s.id} className="flex items-center justify-between gap-2 text-sm">
               <div>
-                <span className="font-medium">{s.name}</span> — {s.street}, {s.postalCode}{' '}
-                {s.city}
+                <span className="font-medium">{s.name}</span> — {s.street}, {s.postalCode} {s.city}
               </div>
               <div className="flex gap-1">
                 <Button
@@ -320,7 +322,11 @@ export const ShippingSettingsForm: React.FC = () => {
             {serviceForm.id ? 'Update service' : 'Add service'}
           </Button>
           {serviceForm.id && (
-            <Button size="sm" variant="outline" onClick={() => setServiceForm({ id: '', code: '', name: '' })}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setServiceForm({ id: '', code: '', name: '' })}
+            >
               Reset
             </Button>
           )}

@@ -2,8 +2,13 @@ import type { Mention } from '@/core/types/mention';
 
 /** Strip HTML tags to plain text. Used when displaying HTML content with MentionContent (mentions use plain-text positions). */
 export function htmlToPlainText(html: string): string {
-  if (!html || typeof html !== 'string') return '';
-  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!html || typeof html !== 'string') {
+    return '';
+  }
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**

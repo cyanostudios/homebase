@@ -1,7 +1,7 @@
 // client/src/plugins/woocommerce-products/api/woocommerceApi.ts
 // WooCommerce API client with CSRF token support
 
-import type { WooSettings, WooTestResult, WooExportResult } from '../types/woocommerce';
+import type { WooTestResult, WooExportResult } from '../types/woocommerce';
 
 export type ApiFieldError = { field: string; message: string };
 
@@ -9,14 +9,18 @@ class WooCommerceApi {
   private csrfToken: string | null = null;
 
   private async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) return this.csrfToken;
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
 
     const response = await fetch('/api/csrf-token', {
-      credentials: 'include'
+      credentials: 'include',
     });
     const data = await response.json();
     this.csrfToken = data.csrfToken ?? null;
-    if (this.csrfToken == null) throw new Error('CSRF token not returned by server');
+    if ((this.csrfToken ?? null) === null) {
+      throw new Error('CSRF token not returned by server');
+    }
     return this.csrfToken;
   }
 
@@ -25,7 +29,7 @@ class WooCommerceApi {
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        ...(options.headers as Record<string, string> || {}),
+        ...((options.headers as Record<string, string>) || {}),
       };
 
       // Add CSRF token for mutations
@@ -68,7 +72,9 @@ class WooCommerceApi {
       throw err;
     }
 
-    if (!text) return {};
+    if (!text) {
+      return {};
+    }
     if (contentType.includes('text/html') || text.trimStart().startsWith('<')) {
       const err: any = new Error(
         'Server returned HTML instead of JSON. The API may be unreachable (is the backend running?) or the route is missing.',
@@ -79,7 +85,9 @@ class WooCommerceApi {
     try {
       return JSON.parse(text);
     } catch {
-      throw new Error(`Invalid JSON response: ${text.slice(0, 100)}${text.length > 100 ? '…' : ''}`);
+      throw new Error(
+        `Invalid JSON response: ${text.slice(0, 100)}${text.length > 100 ? '…' : ''}`,
+      );
     }
   }
 
@@ -96,29 +104,41 @@ class WooCommerceApi {
   }
 
   // ---- Batch export ----
-  async exportProducts(products: any[], opts?: { instanceIds?: string[] }): Promise<WooExportResult> {
+  async exportProducts(
+    products: any[],
+    opts?: { instanceIds?: string[] },
+  ): Promise<WooExportResult> {
     const body: { products: any[]; instanceIds?: string[] } = { products };
-    if (opts?.instanceIds?.length) body.instanceIds = opts.instanceIds;
+    if (opts?.instanceIds?.length) {
+      body.instanceIds = opts.instanceIds;
+    }
     return this.request('/products/export', { method: 'POST', body: JSON.stringify(body) });
   }
 
   // ---- IMPORT (read-only) by SKU ----
-  async importProductBySku(sku: string): Promise<{
+  async importProductBySku(_sku: string): Promise<{
     ok: boolean;
     source: string;
     wooId: number;
     product: any;
   }> {
-    throw new Error('importProductBySku now requires instanceId; use importProductBySkuForInstance() instead.');
+    throw new Error(
+      'importProductBySku now requires instanceId; use importProductBySkuForInstance() instead.',
+    );
   }
 
-  async importProductBySkuForInstance(instanceId: string, sku: string): Promise<{
+  async importProductBySkuForInstance(
+    instanceId: string,
+    sku: string,
+  ): Promise<{
     ok: boolean;
     source: string;
     wooId: number;
     product: any;
   }> {
-    return this.request(`/products/import?instanceId=${encodeURIComponent(instanceId)}&sku=${encodeURIComponent(sku)}`);
+    return this.request(
+      `/products/import?instanceId=${encodeURIComponent(instanceId)}&sku=${encodeURIComponent(sku)}`,
+    );
   }
 
   // ---- Orders pull ----
@@ -159,15 +179,25 @@ class WooCommerceApi {
 
   // ---- Instances (multi-store support) ----
   // GET /api/woocommerce-products/categories?instanceId=...&perPage=100&search=...
-  async getCategories(params?: { instanceId?: string; perPage?: number; search?: string }): Promise<{
+  async getCategories(params?: {
+    instanceId?: string;
+    perPage?: number;
+    search?: string;
+  }): Promise<{
     ok: boolean;
     endpoint?: string;
     items?: Array<{ id: number; name: string; slug?: string; parent?: number }>;
   }> {
     const q = new URLSearchParams();
-    if (params?.instanceId) q.set('instanceId', params.instanceId);
-    if (params?.perPage != null) q.set('perPage', String(params.perPage));
-    if (params?.search) q.set('search', params.search);
+    if (params?.instanceId) {
+      q.set('instanceId', params.instanceId);
+    }
+    if ((params?.perPage ?? null) !== null) {
+      q.set('perPage', String(params.perPage));
+    }
+    if (params?.search) {
+      q.set('search', params.search);
+    }
     return this.request(`/categories?${q.toString()}`);
   }
 

@@ -32,13 +32,16 @@ export function parseCSV(text: string): string[][] {
         current += char;
       }
     } else {
-      if (char === '"') inQuotes = true;
-      else if (char === ',') {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
         row.push(current.trim());
         current = '';
       } else if (char === '\n') {
         row.push(current.trim());
-        if (row.length > 0) result.push(row);
+        if (row.length > 0) {
+          result.push(row);
+        }
         row = [];
         current = '';
       } else {
@@ -55,7 +58,9 @@ export function parseCSV(text: string): string[][] {
 
 export function mapCsvToObjects(csvData: string[][], mapping: Record<string, number>): any[] {
   const [headers, ...rows] = csvData;
-  if (!headers) return [];
+  if (!headers) {
+    return [];
+  }
   return rows.map((row) => {
     const obj: any = {};
     Object.entries(mapping).forEach(([fieldKey, csvIndex]) => {

@@ -80,13 +80,22 @@ export const createPanelHandlers = (
       const closeFunction = findPanelFunction(currentPluginContext, 'close', currentPlugin.name);
 
       // Files, products, inspection: stäng panel direkt vid Cancel (ingen view-läge, tillbaka till listan)
-      if ((currentPlugin.name === 'files' || currentPlugin.name === 'products' || currentPlugin.name === 'inspection') && closeFunction) {
+      if (
+        (currentPlugin.name === 'files' ||
+          currentPlugin.name === 'products' ||
+          currentPlugin.name === 'inspection') &&
+        closeFunction
+      ) {
         closeFunction();
         return;
       }
 
       // DYNAMIC: Find appropriate functions based on mode
-      const openForViewFunction = findOpenFunction(currentPluginContext, 'view', currentPlugin.name);
+      const openForViewFunction = findOpenFunction(
+        currentPluginContext,
+        'view',
+        currentPlugin.name,
+      );
 
       if (currentMode === 'edit' && currentItem && openForViewFunction) {
         openForViewFunction(currentItem);
@@ -102,7 +111,9 @@ export const createPanelHandlers = (
       const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
       const functionName = `submit${cap}Form`;
       const submitFunction = (window as any)[functionName];
-      if (submitFunction) submitFunction();
+      if (submitFunction) {
+        submitFunction();
+      }
     }
   };
 
@@ -112,7 +123,9 @@ export const createPanelHandlers = (
       const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
       const functionName = `cancel${cap}Form`;
       const cancelFunction = (window as any)[functionName];
-      if (cancelFunction) cancelFunction();
+      if (cancelFunction) {
+        cancelFunction();
+      }
     }
   };
 
@@ -186,12 +199,10 @@ export const createPanelHandlers = (
   /** Close the current plugin panel without going through form cancel (used when user already confirmed in global nav guard). */
   const closePanelDirectly = () => {
     if (currentPluginContext && currentPlugin) {
-      const closeFunction = findPanelFunction(
-        currentPluginContext,
-        'close',
-        currentPlugin.name,
-      );
-      if (closeFunction) closeFunction();
+      const closeFunction = findPanelFunction(currentPluginContext, 'close', currentPlugin.name);
+      if (closeFunction) {
+        closeFunction();
+      }
     }
   };
 

@@ -33,9 +33,9 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { useApp } from '@/core/api/AppContext';
-import { useTheme } from '@/hooks/useTheme';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { getTopBarWidgets } from '@/core/widgets';
+import { useTheme } from '@/hooks/useTheme';
 
 import type { NavPage } from './Sidebar';
 
@@ -71,33 +71,37 @@ const getUserInitials = (name: string | undefined, email: string | undefined): s
     }
     return nameParts[0][0].toUpperCase();
   }
-  
+
   // Fallback to email if no name
-  if (!email) return 'U';
+  if (!email) {
+    return 'U';
+  }
   const localPart = email.split('@')[0];
   const parts = localPart.split(/[._-]/);
-  
+
   if (parts.length >= 2 && parts[0].length > 0 && parts[1].length > 0) {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
-  
+
   if (localPart.length >= 2) {
     return localPart.substring(0, 2).toUpperCase();
   }
-  
+
   return localPart[0].toUpperCase();
 };
 
 // Helper function to generate a consistent color from email
 const getUserColor = (email: string | undefined): string => {
-  if (!email) return 'bg-gray-500';
-  
+  if (!email) {
+    return 'bg-gray-500';
+  }
+
   // Generate a color based on email hash
   let hash = 0;
   for (let i = 0; i < email.length; i++) {
     hash = email.charCodeAt(i) + ((hash << 5) - hash);
   }
-  
+
   // Color palette for avatars
   const colors = [
     'bg-blue-500',
@@ -111,7 +115,7 @@ const getUserColor = (email: string | undefined): string => {
     'bg-orange-500',
     'bg-cyan-500',
   ];
-  
+
   return colors[Math.abs(hash) % colors.length];
 };
 
@@ -126,7 +130,9 @@ export function TopBar({
   const { theme, toggleTheme } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
   const [openWidgetId, setOpenWidgetId] = useState<string | null>(null);
-  const [profileSettings, setProfileSettings] = useState<{ name?: string; title?: string } | null>(null);
+  const [profileSettings, setProfileSettings] = useState<{ name?: string; title?: string } | null>(
+    null,
+  );
   const [pomodoroClockEnabled, setPomodoroClockEnabled] = useState(true);
   const [timeTrackingEnabled, setTimeTrackingEnabled] = useState(true);
 
@@ -233,8 +239,12 @@ export function TopBar({
     const items: { label: string; page: NavPage }[] = [{ label: 'Dashboard', page: 'dashboard' }];
     const plugins = user?.plugins ?? [];
     PLUGIN_REGISTRY.forEach((plugin) => {
-      if (!plugins.includes(plugin.name) || !plugin.navigation) return;
-      if (plugin.navigation.hideFromSidebar) return;
+      if (!plugins.includes(plugin.name) || !plugin.navigation) {
+        return;
+      }
+      if (plugin.navigation.hideFromSidebar) {
+        return;
+      }
       items.push({ label: plugin.navigation.label, page: plugin.name as NavPage });
       plugin.navigation.submenu?.forEach((sub) => {
         if (plugins.includes(sub.page)) {
@@ -262,8 +272,12 @@ export function TopBar({
   const topBarWidgets = useMemo(
     () =>
       getTopBarWidgets().filter((w) => {
-        if (w.id === 'pomodoro') return pomodoroClockEnabled;
-        if (w.id === 'time-tracking') return timeTrackingEnabled;
+        if (w.id === 'pomodoro') {
+          return pomodoroClockEnabled;
+        }
+        if (w.id === 'time-tracking') {
+          return timeTrackingEnabled;
+        }
         return true;
       }),
     [pomodoroClockEnabled, timeTrackingEnabled],

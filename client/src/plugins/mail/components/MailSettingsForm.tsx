@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+
 import { useMail } from '../hooks/useMail';
 import type { SmtpSettings } from '../types/mail';
 
@@ -30,7 +31,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
   const { settings, loadSettings, saveSettings, testSettings, closeMailPanel } = useMail();
   const userHasSelectedProvider = useRef(false);
   const [provider, setProvider] = useState<Provider>('smtp');
-  const [saving, setSaving] = useState(false);
+  const [_saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testSuccess, setTestSuccess] = useState<string | null>(null);
   const [testTo, setTestTo] = useState('');
@@ -50,6 +51,7 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
 
   useEffect(() => {
     loadSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load on mount only
   }, []);
 
   useEffect(() => {
@@ -85,7 +87,9 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
         authUser: authUser.trim(),
         authPass: authPass.trim() || undefined,
         fromAddress: fromAddress.trim() || smtpDefaults.fromAddress,
-        resendApiKey: resendApiKey.startsWith('••••') ? undefined : resendApiKey.trim() || undefined,
+        resendApiKey: resendApiKey.startsWith('••••')
+          ? undefined
+          : resendApiKey.trim() || undefined,
         resendFromAddress: resendFromAddress.trim() || undefined,
       });
       closeMailPanel();
@@ -95,8 +99,17 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
       setSaving(false);
     }
   }, [
-    provider, host, port, secure, authUser, authPass, fromAddress,
-    resendApiKey, resendFromAddress, saveSettings, closeMailPanel,
+    provider,
+    host,
+    port,
+    secure,
+    authUser,
+    authPass,
+    fromAddress,
+    resendApiKey,
+    resendFromAddress,
+    saveSettings,
+    closeMailPanel,
   ]);
 
   useEffect(() => {
@@ -305,7 +318,9 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
                 type="password"
                 value={authPass}
                 onChange={(e) => setAuthPass(e.target.value)}
-                placeholder={settings?.smtp?.hasPassword ? 'Lämna tomt för att behålla befintligt' : ''}
+                placeholder={
+                  settings?.smtp?.hasPassword ? 'Lämna tomt för att behålla befintligt' : ''
+                }
                 autoComplete="new-password"
               />
             </div>
@@ -323,7 +338,9 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel }) 
         )}
 
         {error && <p className="text-sm text-destructive mt-2">{error}</p>}
-        {testSuccess && <p className="text-sm text-green-600 dark:text-green-400 mt-2">{testSuccess}</p>}
+        {testSuccess && (
+          <p className="text-sm text-green-600 dark:text-green-400 mt-2">{testSuccess}</p>
+        )}
 
         {/* Test section */}
         <div className="pt-4 mt-4 border-t border-border space-y-3">

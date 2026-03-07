@@ -37,28 +37,31 @@ export const ContactListPicker: React.FC<ContactListPickerProps> = ({
   }, []);
 
   const loadListContacts = (listId: string) => {
-    if (listContacts[listId] !== undefined) return;
+    if (listContacts[listId] !== undefined) {
+      return;
+    }
     contactsApi
       .getListContacts(listId)
       .then((contacts) =>
         setListContacts((prev) => ({
           ...prev,
           [listId]: Array.isArray(contacts) ? contacts : [],
-        }))
+        })),
       )
       .catch(() =>
         setListContacts((prev) => ({
           ...prev,
           [listId]: [],
-        }))
+        })),
       );
   };
 
   const toggleExpand = (listId: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(listId)) next.delete(listId);
-      else {
+      if (next.has(listId)) {
+        next.delete(listId);
+      } else {
         next.add(listId);
         loadListContacts(listId);
       }
@@ -69,8 +72,11 @@ export const ContactListPicker: React.FC<ContactListPickerProps> = ({
   const toggleList = (listId: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(listId)) next.delete(listId);
-      else next.add(listId);
+      if (next.has(listId)) {
+        next.delete(listId);
+      } else {
+        next.add(listId);
+      }
       return next;
     });
   };
@@ -83,7 +89,9 @@ export const ContactListPicker: React.FC<ContactListPickerProps> = ({
 
   const needle = search.trim().toLowerCase();
   const filteredLists = useMemo(() => {
-    if (!needle) return lists;
+    if (!needle) {
+      return lists;
+    }
     return lists.filter((list) => (list.name || '').toLowerCase().includes(needle));
   }, [lists, needle]);
 

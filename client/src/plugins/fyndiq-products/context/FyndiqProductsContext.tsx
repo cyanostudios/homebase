@@ -65,7 +65,11 @@ interface ProviderProps {
   onCloseOtherPanels: () => void;
 }
 
-export function FyndiqProductsProvider({ children, isAuthenticated, onCloseOtherPanels }: ProviderProps) {
+export function FyndiqProductsProvider({
+  children,
+  isAuthenticated,
+  onCloseOtherPanels,
+}: ProviderProps) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
 
   const [isFyndiqProductsPanelOpen, setIsFyndiqProductsPanelOpen] = useState(false);
@@ -84,7 +88,9 @@ export function FyndiqProductsProvider({ children, isAuthenticated, onCloseOther
   const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
 
   const normalizeSettings = useCallback((s: FyndiqSettings | null): FyndiqSettings | null => {
-    if (!s) return null;
+    if (!s) {
+      return null;
+    }
     return {
       ...s,
       createdAt: s.createdAt ? new Date(s.createdAt) : null,
@@ -106,29 +112,38 @@ export function FyndiqProductsProvider({ children, isAuthenticated, onCloseOther
     }
   }, [normalizeSettings]);
 
-  const openFyndiqSettingsPanel = useCallback((s: FyndiqSettings | null) => {
-    setCurrentFyndiqSettings(s);
-    setPanelMode(s ? 'edit' : 'create');
-    setIsFyndiqProductsPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+  const openFyndiqSettingsPanel = useCallback(
+    (s: FyndiqSettings | null) => {
+      setCurrentFyndiqSettings(s);
+      setPanelMode(s ? 'edit' : 'create');
+      setIsFyndiqProductsPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
-  const openFyndiqSettingsForEdit = useCallback((s: FyndiqSettings) => {
-    setCurrentFyndiqSettings(s);
-    setPanelMode('edit');
-    setIsFyndiqProductsPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+  const openFyndiqSettingsForEdit = useCallback(
+    (s: FyndiqSettings) => {
+      setCurrentFyndiqSettings(s);
+      setPanelMode('edit');
+      setIsFyndiqProductsPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
-  const openFyndiqSettingsForView = useCallback((s: FyndiqSettings) => {
-    setCurrentFyndiqSettings(s);
-    setPanelMode('edit');
-    setIsFyndiqProductsPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+  const openFyndiqSettingsForView = useCallback(
+    (s: FyndiqSettings) => {
+      setCurrentFyndiqSettings(s);
+      setPanelMode('edit');
+      setIsFyndiqProductsPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
   const closeFyndiqSettingsPanel = useCallback(() => {
     setIsFyndiqProductsPanelOpen(false);
@@ -170,62 +185,78 @@ export function FyndiqProductsProvider({ children, isAuthenticated, onCloseOther
     const errs: ValidationError[] = [];
     const apiKey = String(data.apiKey ?? '').trim();
     const apiSecret = String(data.apiSecret ?? '').trim();
-    if (!apiKey) errs.push({ field: 'apiKey', message: 'User is required' });
-    if (!apiSecret) errs.push({ field: 'apiSecret', message: 'Password is required' });
+    if (!apiKey) {
+      errs.push({ field: 'apiKey', message: 'User is required' });
+    }
+    if (!apiSecret) {
+      errs.push({ field: 'apiSecret', message: 'Password is required' });
+    }
     return errs;
   };
 
-  const saveFyndiqSettings = useCallback(async (raw: Partial<FyndiqSettings>): Promise<boolean> => {
-    const errs = validate(raw);
-    setValidationErrors(errs);
-    if (errs.length) return false;
-
-    setIsSaving(true);
-    try {
-      const saved = await fyndiqApi.putSettings({
-        apiKey: String(raw.apiKey || ''),
-        apiSecret: String(raw.apiSecret || ''),
-      });
-      const normalized = normalizeSettings(saved) as FyndiqSettings;
-      setSettings(normalized);
-      setCurrentFyndiqSettings(normalized);
-      setPanelMode('view');
-      setValidationErrors([]);
-      return true;
-    } catch (err: any) {
-      console.error('Save Fyndiq settings failed:', err);
-      if (err?.status === 409 && Array.isArray(err.errors)) {
-        setValidationErrors(err.errors);
-      } else {
-        setValidationErrors([{ field: 'general', message: 'Failed to save settings. Please try again.' }]);
+  const saveFyndiqSettings = useCallback(
+    async (raw: Partial<FyndiqSettings>): Promise<boolean> => {
+      const errs = validate(raw);
+      setValidationErrors(errs);
+      if (errs.length) {
+        return false;
       }
-      return false;
-    } finally {
-      setIsSaving(false);
-    }
-  }, [normalizeSettings]);
 
-  const testFyndiqConnection = useCallback(async (override?: Partial<FyndiqSettings>) => {
-    setIsTesting(true);
-    setLastTestResult(null);
-    try {
-      const body = override || {};
-      const result = await fyndiqApi.testConnection({
-        apiKey: body.apiKey ?? settings?.apiKey,
-        apiSecret: body.apiSecret ?? settings?.apiSecret,
-      });
-      setLastTestResult(result as FyndiqTestResult);
-    } catch (err) {
-      console.error('Test Fyndiq connection failed:', err);
-      setLastTestResult({ ok: false, error: 'Failed to test connection' });
-    } finally {
-      setIsTesting(false);
-    }
-  }, [settings]);
+      setIsSaving(true);
+      try {
+        const saved = await fyndiqApi.putSettings({
+          apiKey: String(raw.apiKey || ''),
+          apiSecret: String(raw.apiSecret || ''),
+        });
+        const normalized = normalizeSettings(saved) as FyndiqSettings;
+        setSettings(normalized);
+        setCurrentFyndiqSettings(normalized);
+        setPanelMode('view');
+        setValidationErrors([]);
+        return true;
+      } catch (err: any) {
+        console.error('Save Fyndiq settings failed:', err);
+        if (err?.status === 409 && Array.isArray(err.errors)) {
+          setValidationErrors(err.errors);
+        } else {
+          setValidationErrors([
+            { field: 'general', message: 'Failed to save settings. Please try again.' },
+          ]);
+        }
+        return false;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [normalizeSettings],
+  );
+
+  const testFyndiqConnection = useCallback(
+    async (override?: Partial<FyndiqSettings>) => {
+      setIsTesting(true);
+      setLastTestResult(null);
+      try {
+        const body = override || {};
+        const result = await fyndiqApi.testConnection({
+          apiKey: body.apiKey ?? settings?.apiKey,
+          apiSecret: body.apiSecret ?? settings?.apiSecret,
+        });
+        setLastTestResult(result as FyndiqTestResult);
+      } catch (err) {
+        console.error('Test Fyndiq connection failed:', err);
+        setLastTestResult({ ok: false, error: 'Failed to test connection' });
+      } finally {
+        setIsTesting(false);
+      }
+    },
+    [settings],
+  );
 
   const exportProducts = useCallback(async (products: any[]): Promise<boolean> => {
     if (!Array.isArray(products) || products.length === 0) {
-      setValidationErrors([{ field: 'products', message: 'Select at least one product to export' }]);
+      setValidationErrors([
+        { field: 'products', message: 'Select at least one product to export' },
+      ]);
       return false;
     }
     setExporting(true);
@@ -237,7 +268,9 @@ export function FyndiqProductsProvider({ children, isAuthenticated, onCloseOther
     } catch (err) {
       console.error('Export to Fyndiq failed:', err);
       setLastExportResult(null);
-      setValidationErrors([{ field: 'general', message: 'Export failed. See console for details.' }]);
+      setValidationErrors([
+        { field: 'general', message: 'Export failed. See console for details.' },
+      ]);
       return false;
     } finally {
       setExporting(false);
@@ -251,7 +284,10 @@ export function FyndiqProductsProvider({ children, isAuthenticated, onCloseOther
   }, []);
 
   // ---- aliases expected by generic panel handlers ----
-  const closeFyndiqProductPanel = useCallback(() => closeFyndiqSettingsPanel(), [closeFyndiqSettingsPanel]);
+  const closeFyndiqProductPanel = useCallback(
+    () => closeFyndiqSettingsPanel(),
+    [closeFyndiqSettingsPanel],
+  );
   const openFyndiqProductForEdit = useCallback(
     (item: any) => openFyndiqSettingsForEdit(item as FyndiqSettings),
     [openFyndiqSettingsForEdit],
@@ -260,7 +296,10 @@ export function FyndiqProductsProvider({ children, isAuthenticated, onCloseOther
     (item: any) => openFyndiqSettingsForView(item as FyndiqSettings),
     [openFyndiqSettingsForView],
   );
-  const saveFyndiqProduct = useCallback((data: any) => saveFyndiqSettings(data), [saveFyndiqSettings]);
+  const saveFyndiqProduct = useCallback(
+    (data: any) => saveFyndiqSettings(data),
+    [saveFyndiqSettings],
+  );
 
   const value: FyndiqContextType = useMemo(
     () => ({
@@ -322,7 +361,8 @@ export function FyndiqProductsProvider({ children, isAuthenticated, onCloseOther
 
 export function useFyndiqProducts() {
   const ctx = useContext(FyndiqContext);
-  if (!ctx) throw new Error('useFyndiqProducts must be used within FyndiqProductsProvider');
+  if (!ctx) {
+    throw new Error('useFyndiqProducts must be used within FyndiqProductsProvider');
+  }
   return ctx;
 }
-

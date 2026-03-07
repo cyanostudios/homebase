@@ -61,8 +61,9 @@ async function findOrCreateBrandForSello(req, selloBrandId, brandName) {
   const userId = getUserId(req);
   if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
-  const sid = String(selloBrandId ?? '').trim();
+  let sid = String(selloBrandId ?? '').trim();
   const fname = String(brandName ?? '').trim();
+  if (sid === '0' || sid === '') sid = '';
   if (!sid && !fname) return null;
 
   if (sid) {

@@ -1,6 +1,6 @@
-import { registerWidget } from '../registry';
-
 import { ClockDisplay } from '@/core/ui/clock/ClockDisplay';
+
+import { registerWidget } from '../registry';
 
 registerWidget({
   id: 'clock',

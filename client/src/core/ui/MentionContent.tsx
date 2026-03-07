@@ -82,16 +82,14 @@ export const MentionContent: React.FC<MentionContentProps> = ({
       if (segment.type === 'mention' && segment.mention) {
         const contactExists =
           contactsLoaded &&
-          contactsData.some(
-            (c) => String(c.id) === String(segment.mention!.contactId),
-          );
+          contactsData.some((c) => String(c.id) === String(segment.mention!.contactId));
 
         if (contactExists && onMentionClick) {
           return (
             <Button
               variant="link"
               size="sm"
-              key={`mention-${segment.mention.contactId}-${index}`}
+              key={`mention-${segment.mention.contactId}`}
               onClick={() => onMentionClick(segment.mention!.contactId)}
               className="h-auto p-0 px-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium bg-blue-50 dark:bg-blue-950/30 rounded"
             >
@@ -102,7 +100,7 @@ export const MentionContent: React.FC<MentionContentProps> = ({
         if (contactExists && !onMentionClick) {
           return (
             <span
-              key={`mention-${segment.mention.contactId}-${index}`}
+              key={`mention-span-${segment.mention.contactId}`}
               className="text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-950/30 px-1 rounded"
             >
               @{segment.mention.contactName}
@@ -111,7 +109,7 @@ export const MentionContent: React.FC<MentionContentProps> = ({
         }
         return (
           <span
-            key={`mention-${segment.mention.contactId}-${index}`}
+            key={`mention-del-${segment.mention.contactId}`}
             className="text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1 rounded font-medium"
           >
             @{segment.mention.contactName} (deleted contact)
@@ -119,7 +117,8 @@ export const MentionContent: React.FC<MentionContentProps> = ({
         );
       }
       return segment.text.split('\n').map((line, lineIndex) => (
-        <React.Fragment key={`text-${index}-${lineIndex}`}>
+        // eslint-disable-next-line react/no-array-index-key -- text lines have no stable id
+        <React.Fragment key={`text-${index}-${lineIndex}-${line.slice(0, 30)}`}>
           {line}
           {lineIndex < segment.text.split('\n').length - 1 ? <br /> : null}
         </React.Fragment>

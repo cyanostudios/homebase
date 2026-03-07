@@ -120,28 +120,52 @@
 
   /* Plugin semantic colors (see UI_AND_UX_STANDARDS_V3.md) */
   :root {
-    --plugin-notes: 38 92% 50%;       /* amber */
-    --plugin-contacts: 217 91% 60%;   /* blue */
-    --plugin-tasks: 263 70% 58%;      /* purple */
-    --plugin-estimates: 189 94% 43%;  /* cyan */
-    --plugin-invoices: 142 71% 45%;    /* green */
-    --plugin-files: 215 16% 47%;      /* slate */
-    --plugin-mail: 350 89% 60%;       /* rose */
+    --plugin-notes: 38 92% 50%; /* amber */
+    --plugin-contacts: 217 91% 60%; /* blue */
+    --plugin-tasks: 263 70% 58%; /* purple */
+    --plugin-estimates: 189 94% 43%; /* cyan */
+    --plugin-invoices: 142 71% 45%; /* green */
+    --plugin-files: 215 16% 47%; /* slate */
+    --plugin-mail: 350 89% 60%; /* rose */
   }
 
-  .plugin-notes { --plugin-current: var(--plugin-notes); }
-  .plugin-contacts { --plugin-current: var(--plugin-contacts); }
-  .plugin-tasks { --plugin-current: var(--plugin-tasks); }
-  .plugin-estimates { --plugin-current: var(--plugin-estimates); }
-  .plugin-invoices { --plugin-current: var(--plugin-invoices); }
-  .plugin-files { --plugin-current: var(--plugin-files); }
-  .plugin-mail { --plugin-current: var(--plugin-mail); }
+  .plugin-notes {
+    --plugin-current: var(--plugin-notes);
+  }
+  .plugin-contacts {
+    --plugin-current: var(--plugin-contacts);
+  }
+  .plugin-tasks {
+    --plugin-current: var(--plugin-tasks);
+  }
+  .plugin-estimates {
+    --plugin-current: var(--plugin-estimates);
+  }
+  .plugin-invoices {
+    --plugin-current: var(--plugin-invoices);
+  }
+  .plugin-files {
+    --plugin-current: var(--plugin-files);
+  }
+  .plugin-mail {
+    --plugin-current: var(--plugin-mail);
+  }
 
-  .bg-plugin-subtle { background-color: hsl(var(--plugin-current, var(--plugin-contacts)) / 0.12); }
-  .border-plugin-subtle { border-color: hsl(var(--plugin-current, var(--plugin-contacts)) / 0.35); }
-  .text-plugin { color: hsl(var(--plugin-current, var(--plugin-contacts))); }
-  .ring-plugin-subtle\/50 { --tw-ring-color: hsl(var(--plugin-current, var(--plugin-contacts)) / 0.5); }
-  .ring-plugin-subtle { --tw-ring-color: hsl(var(--plugin-current, var(--plugin-contacts)) / 0.5); }
+  .bg-plugin-subtle {
+    background-color: hsl(var(--plugin-current, var(--plugin-contacts)) / 0.12);
+  }
+  .border-plugin-subtle {
+    border-color: hsl(var(--plugin-current, var(--plugin-contacts)) / 0.35);
+  }
+  .text-plugin {
+    color: hsl(var(--plugin-current, var(--plugin-contacts)));
+  }
+  .ring-plugin-subtle\/50 {
+    --tw-ring-color: hsl(var(--plugin-current, var(--plugin-contacts)) / 0.5);
+  }
+  .ring-plugin-subtle {
+    --tw-ring-color: hsl(var(--plugin-current, var(--plugin-contacts)) / 0.5);
+  }
 
   * {
     @apply border-border;

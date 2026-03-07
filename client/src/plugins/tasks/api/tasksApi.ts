@@ -55,7 +55,7 @@ class TasksApi {
 
     // Add CSRF token for mutations
     if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
-      headers["X-CSRF-Token"] = await this.getCsrfToken();
+      headers['X-CSRF-Token'] = await this.getCsrfToken();
     }
 
     const response = await fetch(`/api${endpoint}`, {
@@ -205,7 +205,9 @@ class TasksApi {
     });
   }
 
-  async bulkDelete(ids: string[]): Promise<{ ok: boolean; requested: number; deleted: number; deletedIds: string[] }> {
+  async bulkDelete(
+    ids: string[],
+  ): Promise<{ ok: boolean; requested: number; deleted: number; deletedIds: string[] }> {
     return this.request('/tasks/batch', {
       method: 'DELETE',
       body: JSON.stringify({ ids }),

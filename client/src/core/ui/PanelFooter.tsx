@@ -76,12 +76,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   if (currentMode === 'view' && currentPlugin?.name === 'channels') {
     return (
       <div className="flex justify-end w-full">
-        <Button
-          type="button"
-          onClick={onClosePanel}
-          variant="secondary"
-          size={BTN_XS}
-        >
+        <Button type="button" onClick={onClosePanel} variant="secondary" size={BTN_XS}>
           <X className="h-4 w-4" />
           Close
         </Button>
@@ -115,12 +110,7 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             Delete
           </Button>
           {showDuplicate && (
-            <Button
-              type="button"
-              onClick={onDuplicateItem}
-              variant="ghost"
-              size={BTN_XS}
-            >
+            <Button type="button" onClick={onDuplicateItem} variant="ghost" size={BTN_XS}>
               <Copy className="h-4 w-4" />
               Duplicate
             </Button>
@@ -157,21 +147,11 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             ))}
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            onClick={onClosePanel}
-            variant="secondary"
-            size={BTN_XS}
-          >
+          <Button type="button" onClick={onClosePanel} variant="secondary" size={BTN_XS}>
             <X className="h-4 w-4" />
             Close
           </Button>
-          <Button
-            type="button"
-            onClick={onEditItem}
-            variant="primary"
-            size={BTN_XS}
-          >
+          <Button type="button" onClick={onEditItem} variant="primary" size={BTN_XS}>
             <Edit className="h-4 w-4" />
             Edit
           </Button>
@@ -240,7 +220,9 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function findOpenFunction(context: any, mode: 'edit' | 'view', pluginName?: string): any {
-  if (!context || !pluginName) return null;
+  if (!context || !pluginName) {
+    return null;
+  }
   const camel = pluginName.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
   const singular = camel.endsWith('s') ? camel.slice(0, -1) : camel;
   const fnName = `open${cap(singular)}For${cap(mode)}`;
@@ -295,9 +277,13 @@ export const createPanelFooter = (
   }
 
   const handleEditItem = () => {
-    if (!currentPluginContext || !currentItem || !pluginName) return;
+    if (!currentPluginContext || !currentItem || !pluginName) {
+      return;
+    }
     const editFn = findOpenFunction(currentPluginContext, 'edit', pluginName);
-    if (editFn) editFn(currentItem);
+    if (editFn) {
+      editFn(currentItem);
+    }
   };
 
   return (

@@ -17,10 +17,12 @@ class CloudStorageApi {
   private csrfToken: string | null = null;
 
   private async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) return this.csrfToken;
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
 
     const response = await fetch('/api/csrf-token', {
-      credentials: 'include'
+      credentials: 'include',
     });
     const data = await response.json();
     const token = data?.csrfToken;
@@ -36,7 +38,7 @@ class CloudStorageApi {
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        ...(options.headers as Record<string, string> || {}),
+        ...((options.headers as Record<string, string>) || {}),
       };
 
       // Add CSRF token for mutations
@@ -98,7 +100,7 @@ class CloudStorageApi {
   async saveOAuthCredentials(
     service: CloudStorageService,
     clientId: string,
-    clientSecret: string
+    clientSecret: string,
   ): Promise<{ ok: boolean; message: string }> {
     return this.request(`/cloud/${service}/credentials`, {
       method: 'POST',

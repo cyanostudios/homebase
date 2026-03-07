@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
+
 import { Heading, Text } from '../Typography';
 
 import { pomodoroAudio } from './pomodoroAudio';
@@ -236,9 +237,7 @@ export function PomodoroTimer({
               min="1"
               max="120"
               value={settings.workDuration}
-              onChange={(e) =>
-                handleSettingsChange('workDuration', parseInt(e.target.value) || 25)
-              }
+              onChange={(e) => handleSettingsChange('workDuration', parseInt(e.target.value) || 25)}
               className="w-full h-10 px-3 text-base border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring"
             />
           </div>
@@ -316,7 +315,9 @@ export function PomodoroTimer({
               onCheckedChange={async (checked) => {
                 if (checked) {
                   const granted = await pomodoroAudio.requestNotificationPermission();
-                  if (granted) handleSettingsChange('notificationsEnabled', true);
+                  if (granted) {
+                    handleSettingsChange('notificationsEnabled', true);
+                  }
                 } else {
                   handleSettingsChange('notificationsEnabled', false);
                 }
@@ -367,8 +368,11 @@ export function PomodoroTimer({
         open={expanded}
         onOpenChange={(open) => {
           if (open) {
-            if (onToggle) onToggle();
-            else setInternalExpanded(true);
+            if (onToggle) {
+              onToggle();
+            } else {
+              setInternalExpanded(true);
+            }
           } else {
             handleClose();
           }
@@ -408,28 +412,28 @@ export function PomodoroTimer({
             </button>
           </PopoverTrigger>
           {state === 'idle' || state === 'paused' ? (
-              <Button
-                onClick={start}
-                variant="ghost"
-                size="md"
-                className="!bg-blue-50 dark:!bg-blue-950/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                aria-label="Start timer"
-                title="Start timer"
-              >
-                <Play className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button
-                onClick={pause}
-                variant="ghost"
-                size="md"
-                className="!bg-orange-50 dark:!bg-orange-950/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50"
-                aria-label="Pause timer"
-                title="Pause timer"
-              >
-                <Pause className="h-4 w-4" />
-              </Button>
-            )}
+            <Button
+              onClick={start}
+              variant="ghost"
+              size="md"
+              className="!bg-blue-50 dark:!bg-blue-950/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+              aria-label="Start timer"
+              title="Start timer"
+            >
+              <Play className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              onClick={pause}
+              variant="ghost"
+              size="md"
+              className="!bg-orange-50 dark:!bg-orange-950/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50"
+              aria-label="Pause timer"
+              title="Pause timer"
+            >
+              <Pause className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         <PopoverContent side="bottom" align="end" className="bg-card border-border p-4">
           {panelContent}
@@ -616,39 +620,23 @@ export function PomodoroTimer({
       {/* Kontroller */}
       <div className="flex justify-center gap-2">
         {state === 'idle' || state === 'paused' ? (
-          <Button
-            onClick={start}
-            variant="primary"
-            size="sm"
-          >
+          <Button onClick={start} variant="primary" size="sm">
             <Play className="h-4 w-4" />
             Start
           </Button>
         ) : (
-          <Button
-            onClick={pause}
-            variant="primary"
-            size="sm"
-          >
+          <Button onClick={pause} variant="primary" size="sm">
             <Pause className="h-4 w-4" />
             Pause
           </Button>
         )}
 
-        <Button
-          onClick={reset}
-          variant="secondary"
-          size="sm"
-        >
+        <Button onClick={reset} variant="secondary" size="sm">
           <RotateCcw className="h-4 w-4" />
           Reset
         </Button>
 
-        <Button
-          onClick={skip}
-          variant="secondary"
-          size="sm"
-        >
+        <Button onClick={skip} variant="secondary" size="sm">
           <SkipForward className="h-4 w-4" />
           Skip
         </Button>

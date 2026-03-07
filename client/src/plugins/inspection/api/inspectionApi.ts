@@ -3,7 +3,7 @@ class InspectionApi {
   private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
+      ...((options.headers as Record<string, string>) || {}),
     };
 
     const response = await fetch(`/api/inspection${endpoint}`, {
@@ -20,7 +20,9 @@ class InspectionApi {
       throw err;
     }
 
-    if (response.status === 204) return;
+    if (response.status === 204) {
+      return;
+    }
     return response.json();
   }
 
@@ -41,7 +43,7 @@ class InspectionApi {
 
   async updateProject(
     id: string,
-    data: { name?: string; description?: string; adminNotes?: string }
+    data: { name?: string; description?: string; adminNotes?: string },
   ) {
     return this.request(`/projects/${id}`, {
       method: 'PUT',
@@ -82,17 +84,20 @@ class InspectionApi {
     return this.request(`/projects/${projectId}/file-lists/${fileListId}`, { method: 'DELETE' });
   }
 
-  async send(projectId: string, data: {
-    recipients: string[];
-    includeDescription?: boolean;
-    includeAdminNotes?: boolean;
-    fileIds?: string[];
-    listIds?: string[];
-    contactListIds?: string[];
-    name?: string;
-    description?: string;
-    adminNotes?: string;
-  }) {
+  async send(
+    projectId: string,
+    data: {
+      recipients: string[];
+      includeDescription?: boolean;
+      includeAdminNotes?: boolean;
+      fileIds?: string[];
+      listIds?: string[];
+      contactListIds?: string[];
+      name?: string;
+      description?: string;
+      adminNotes?: string;
+    },
+  ) {
     return this.request(`/projects/${projectId}/send`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -104,7 +109,9 @@ class InspectionApi {
   }
 
   /** Bulk delete inspection projects only. Uses POST /api/inspection/projects/batch-delete – no other plugins (e.g. orders) are involved. */
-  async deleteInspectionProjectsBulk(ids: string[]): Promise<{ ok: true; deletedCount: number; deletedIds: string[] }> {
+  async deleteInspectionProjectsBulk(
+    ids: string[],
+  ): Promise<{ ok: true; deletedCount: number; deletedIds: string[] }> {
     return this.request('/projects/batch-delete', {
       method: 'POST',
       body: JSON.stringify({ ids }),

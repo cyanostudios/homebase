@@ -362,8 +362,8 @@ function getSelloPropertyValue(product, propertyIds) {
   return null;
 }
 
-/** CDON/Fyndiq preset colors (lowercase for match). */
-const CDON_COLOR_PRESETS = new Set([
+/** Channel preset colors (CDON, Fyndiq, WooCommerce). Lowercase for match. */
+const CHANNEL_COLOR_PRESETS = new Set([
   'red', 'blue', 'green', 'orange', 'yellow', 'purple', 'pink', 'gold', 'silver',
   'multicolor', 'white', 'gray', 'black', 'turquoise', 'brown', 'beige', 'transparent',
 ]);
@@ -373,17 +373,17 @@ const CDON_SIZE_PRESETS = new Set([
   'one size', 'xxs', 'xs', 's', 'm', 'l', 'xl', 'xxl',
 ]);
 
-/** Extract color text from Sello product properties (property "Color" or "Färg"). */
+/** Extract color text from Sello product properties (Color, Färg, ColorText, Färgtext). */
 function getSelloColorFromProperties(product) {
-  return getSelloPropertyValue(product, ['color', 'färg']);
+  return getSelloPropertyValue(product, ['color', 'färg', 'colortext', 'färgtext']);
 }
 
-/** Extract color preset code if Sello Color value matches CDON/Fyndiq list; else null. */
+/** Extract color preset code if Sello Color value matches channel list; else null. */
 function getSelloColorPreset(product) {
   const v = getSelloPropertyValue(product, ['color', 'färg']);
   if (!v) return null;
   const lower = String(v).trim().toLowerCase();
-  if (CDON_COLOR_PRESETS.has(lower)) return lower;
+  if (CHANNEL_COLOR_PRESETS.has(lower)) return lower;
   return null;
 }
 
@@ -1478,7 +1478,6 @@ class ProductController {
           if (fromList) {
             raw = {
               ...raw,
-              brand_name: fromList.brand_name ?? raw.brand_name,
               integrations: fromList.integrations ?? raw.integrations,
               folder_id: fromList.folder_id ?? raw.folder_id,
               folder_name: fromList.folder_name ?? raw.folder_name,
@@ -1584,7 +1583,7 @@ class ProductController {
             manufacturerId: selloManufacturer?.id ?? undefined,
             purchasePrice: raw?.purchase_price != null ? Number(raw.purchase_price) : undefined,
             color: getSelloColorPreset(raw),
-            colorText: getSelloColorFromProperties(raw),
+            colorText: getSelloColorPreset(raw) ? null : getSelloColorFromProperties(raw) ?? null,
             size: getSelloSize(raw),
             sizeText: getSelloSizeText(raw),
             material: getSelloMaterial(raw),
@@ -1778,7 +1777,7 @@ class ProductController {
             manufacturerId: selloManufacturer?.id ?? undefined,
             purchasePrice: raw?.purchase_price != null ? Number(raw.purchase_price) : undefined,
             color: getSelloColorPreset(raw),
-            colorText: getSelloColorFromProperties(raw),
+            colorText: getSelloColorPreset(raw) ? null : getSelloColorFromProperties(raw) ?? null,
             size: getSelloSize(raw),
             sizeText: getSelloSizeText(raw),
             material: getSelloMaterial(raw),

@@ -33,7 +33,7 @@
 | **pattern_text** | properties: `Mönster` | property | ✅ Ja | Mönster fritext när preset saknas |
 | **group_id** | `group_id` | fast | ✅ Ja | Produktgrupp (Sello) |
 | **price_amount** | `prices` (per kanal) | fast | ❌ Nej | Sparas i channelSpecific som override; ingen global core-pris från Sello |
-| **color** | properties: `Color` (kod) | property | ❌ Nej | Om Sello har enum-värde kan det mappas till `color` |
+| **color** | properties: `Color` (value.default eller value.sv) | property | ✅ Ja | Preset-kod (CHANNEL_COLOR_PRESETS) när Sello-värdet matchar. Används av CDON, Fyndiq, WooCommerce. |
 | **size** / **size_text** | properties (t.ex. `Size`, `Storlek`) | property | ❌ Nej | Vanligt; Sello har dynamisk property |
 | **manufacturer_id** | `manufacturer`, `manufacturer_name` (Sello fast) | fast | ✅ Ja | findOrCreateManufacturerForSello. Använder manufacturer_id om satt, annars manufacturer_name för att hitta/skapa på namn |
 | **length_cm** / **width_cm** / **height_cm** / **depth_cm** | — | — | ❌ Saknas i Sello | Sello har inte mått i fasta fält |

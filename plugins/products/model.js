@@ -965,7 +965,8 @@ class ProductModel {
           ? Number(purchasePrice)
           : undefined,
         color: color != null ? String(color).trim() || null : undefined,
-        colorText: colorText != null ? String(colorText).trim() || null : undefined,
+        colorText:
+          colorText === undefined ? undefined : colorText != null ? String(colorText).trim() || null : null,
         size: size != null ? String(size).trim() || null : undefined,
         sizeText: sizeText != null ? String(sizeText).trim() || null : undefined,
         material: material != null ? String(material).trim() || null : undefined,

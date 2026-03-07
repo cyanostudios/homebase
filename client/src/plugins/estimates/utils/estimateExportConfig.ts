@@ -1,12 +1,17 @@
 import type { ExportFormatConfig } from '@/core/utils/exportUtils';
+
 import type { Estimate } from '../types/estimate';
 import { calculateEstimateTotals } from '../types/estimate';
 
 function formatDate(date: Date | string | null | undefined): string {
-  if (!date) return '';
+  if (!date) {
+    return '';
+  }
   try {
     const d = typeof date === 'string' ? new Date(date) : date;
-    if (isNaN(d.getTime())) return '';
+    if (isNaN(d.getTime())) {
+      return '';
+    }
     return d.toLocaleDateString('sv-SE');
   } catch {
     return '';
@@ -14,10 +19,7 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 
 export function estimateToCsvRow(estimate: Estimate): Record<string, unknown> {
-  const totals = calculateEstimateTotals(
-    estimate.lineItems || [],
-    estimate.estimateDiscount || 0,
-  );
+  const totals = calculateEstimateTotals(estimate.lineItems || [], estimate.estimateDiscount || 0);
   return {
     estimateNumber: estimate.estimateNumber ?? '',
     contactName: estimate.contactName ?? '',
@@ -38,10 +40,7 @@ export function estimateToCsvRow(estimate: Estimate): Record<string, unknown> {
 }
 
 export function estimateToPdfRow(estimate: Estimate): Record<string, unknown> {
-  const totals = calculateEstimateTotals(
-    estimate.lineItems || [],
-    estimate.estimateDiscount || 0,
-  );
+  const totals = calculateEstimateTotals(estimate.lineItems || [], estimate.estimateDiscount || 0);
   return {
     estimateNumber: estimate.estimateNumber ?? '',
     contactName: estimate.contactName ?? '',

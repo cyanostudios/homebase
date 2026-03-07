@@ -33,18 +33,23 @@ export const ListPicker: React.FC<ListPickerProps> = ({ selectedIds, onSelect, o
   }, []);
 
   const loadListFiles = (listId: string) => {
-    if (listFiles[listId] !== undefined) return;
+    if (listFiles[listId] !== undefined) {
+      return;
+    }
     filesApi
       .getListFiles(listId)
-      .then((files) => setListFiles((prev) => ({ ...prev, [listId]: Array.isArray(files) ? files : [] })))
+      .then((files) =>
+        setListFiles((prev) => ({ ...prev, [listId]: Array.isArray(files) ? files : [] })),
+      )
       .catch(() => setListFiles((prev) => ({ ...prev, [listId]: [] })));
   };
 
   const toggleExpand = (listId: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(listId)) next.delete(listId);
-      else {
+      if (next.has(listId)) {
+        next.delete(listId);
+      } else {
         next.add(listId);
         loadListFiles(listId);
       }
@@ -54,8 +59,11 @@ export const ListPicker: React.FC<ListPickerProps> = ({ selectedIds, onSelect, o
 
   const toggleList = (listId: string) => {
     const next = new Set(selected);
-    if (next.has(listId)) next.delete(listId);
-    else next.add(listId);
+    if (next.has(listId)) {
+      next.delete(listId);
+    } else {
+      next.add(listId);
+    }
     setSelected(next);
   };
 
@@ -67,7 +75,9 @@ export const ListPicker: React.FC<ListPickerProps> = ({ selectedIds, onSelect, o
 
   const needle = search.trim().toLowerCase();
   const filteredLists = useMemo(() => {
-    if (!needle) return lists;
+    if (!needle) {
+      return lists;
+    }
     return lists.filter((list) => (list.name || '').toLowerCase().includes(needle));
   }, [lists, needle]);
 
@@ -99,7 +109,9 @@ export const ListPicker: React.FC<ListPickerProps> = ({ selectedIds, onSelect, o
         {loading ? (
           <div className="p-4 text-sm text-muted-foreground">Laddar listor...</div>
         ) : lists.length === 0 ? (
-          <div className="p-4 text-sm text-muted-foreground">Inga listor. Skapa listor under Filer.</div>
+          <div className="p-4 text-sm text-muted-foreground">
+            Inga listor. Skapa listor under Filer.
+          </div>
         ) : filteredLists.length === 0 ? (
           <div className="p-4 text-sm text-muted-foreground">Inga listor matchar sökningen.</div>
         ) : (
@@ -154,7 +166,9 @@ export const ListPicker: React.FC<ListPickerProps> = ({ selectedIds, onSelect, o
                           ))}
                         </div>
                       ) : (
-                        <div className="py-2 text-xs text-muted-foreground">Inga filer i listan</div>
+                        <div className="py-2 text-xs text-muted-foreground">
+                          Inga filer i listan
+                        </div>
                       )}
                     </div>
                   )}

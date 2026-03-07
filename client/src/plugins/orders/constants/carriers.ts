@@ -110,9 +110,15 @@ export type OrderChannel = 'woocommerce' | 'cdon' | 'fyndiq';
 /** Returns the approved carrier list for the given channel. WooCommerce gets Swedish common carriers (suggestions). */
 export function getCarriersForChannel(channel: OrderChannel | string): string[] {
   const c = String(channel || '').toLowerCase();
-  if (c === 'cdon') return CDON_CARRIERS;
-  if (c === 'fyndiq') return FYNDIQ_CARRIERS;
-  if (c === 'woocommerce') return WOOCOMMERCE_CARRIERS_SE;
+  if (c === 'cdon') {
+    return CDON_CARRIERS;
+  }
+  if (c === 'fyndiq') {
+    return FYNDIQ_CARRIERS;
+  }
+  if (c === 'woocommerce') {
+    return WOOCOMMERCE_CARRIERS_SE;
+  }
   return [];
 }
 
@@ -120,10 +126,14 @@ const CDON_SET = new Set(CDON_CARRIERS);
 const FYNDIQ_SET = new Set(FYNDIQ_CARRIERS);
 
 /** Carriers that exist in both CDON and Fyndiq (same API string). */
-const COMMON_CARRIERS = CDON_CARRIERS.filter((c) => FYNDIQ_SET.has(c)).sort((a, b) => a.localeCompare(b));
+const COMMON_CARRIERS = CDON_CARRIERS.filter((c) => FYNDIQ_SET.has(c)).sort((a, b) =>
+  a.localeCompare(b),
+);
 
 /** Carriers only in Fyndiq; in batch we show them as "Name (Fyndiq)". */
-const FYNDIQ_ONLY_CARRIERS = FYNDIQ_CARRIERS.filter((c) => !CDON_SET.has(c)).sort((a, b) => a.localeCompare(b));
+const FYNDIQ_ONLY_CARRIERS = FYNDIQ_CARRIERS.filter((c) => !CDON_SET.has(c)).sort((a, b) =>
+  a.localeCompare(b),
+);
 
 /**
  * Single merged list for batch update: common carriers once, Fyndiq-only with "(Fyndiq)" suffix.

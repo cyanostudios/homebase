@@ -88,7 +88,7 @@ export function Text({
       'blue-600': 'text-primary',
       'red-600': 'text-destructive',
     };
-    const colorClass = color ? (colorMap[color] || 'text-foreground') : 'text-foreground';
+    const colorClass = color ? colorMap[color] || 'text-foreground' : 'text-foreground';
     customClasses = `${sizeClass} ${colorClass}`.trim();
   }
 

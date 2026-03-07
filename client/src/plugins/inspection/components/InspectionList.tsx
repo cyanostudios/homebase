@@ -1,8 +1,8 @@
+import { format } from 'date-fns';
 import { ClipboardList, Plus, Trash2 } from 'lucide-react';
 import React, { useState, useMemo, useCallback } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import {
   Table,
@@ -14,24 +14,36 @@ import {
 } from '@/components/ui/table';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { htmlToPlainText } from '@/core/utils/extractMentions';
-import { useInspections } from '../hooks/useInspections';
+
 import { inspectionApi } from '../api/inspectionApi';
-import { format } from 'date-fns';
+import { useInspections } from '../hooks/useInspections';
 
 export const InspectionList: React.FC = () => {
-  const { inspectionProjects, projectsLoading, openInspectionForEdit, openInspectionPanel, loadProjects } = useInspections();
+  const {
+    inspectionProjects,
+    projectsLoading,
+    openInspectionForEdit,
+    openInspectionPanel,
+    loadProjects,
+  } = useInspections();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedInspectionProjectIds, setSelectedInspectionProjectIds] = useState<Set<string>>(new Set());
+  const [selectedInspectionProjectIds, setSelectedInspectionProjectIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
-    if (!needle) return inspectionProjects;
+    if (!needle) {
+      return inspectionProjects;
+    }
     return inspectionProjects.filter(
       (p) =>
         (p.name || '').toLowerCase().includes(needle) ||
-        htmlToPlainText(p.description || '').toLowerCase().includes(needle)
+        htmlToPlainText(p.description || '')
+          .toLowerCase()
+          .includes(needle),
     );
   }, [inspectionProjects, searchTerm]);
 
@@ -39,24 +51,34 @@ export const InspectionList: React.FC = () => {
     e.stopPropagation();
     setSelectedInspectionProjectIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }, []);
 
-  const toggleAllInspections = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      setSelectedInspectionProjectIds(new Set(filtered.map((p) => String(p.id))));
-    } else {
-      setSelectedInspectionProjectIds(new Set());
-    }
-  }, [filtered]);
+  const toggleAllInspections = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.checked) {
+        setSelectedInspectionProjectIds(new Set(filtered.map((p) => String(p.id))));
+      } else {
+        setSelectedInspectionProjectIds(new Set());
+      }
+    },
+    [filtered],
+  );
 
   const handleBulkDeleteInspections = useCallback(async () => {
-    if (selectedInspectionProjectIds.size === 0) return;
+    if (selectedInspectionProjectIds.size === 0) {
+      return;
+    }
     const ids = Array.from(selectedInspectionProjectIds);
-    if (!confirm(`Ta bort ${ids.length} besiktningsprojekt? Detta kan inte ångras.`)) return;
+    if (!confirm(`Ta bort ${ids.length} besiktningsprojekt? Detta kan inte ångras.`)) {
+      return;
+    }
     setBulkDeleteError(null);
     setBulkDeleting(true);
     try {
@@ -124,53 +146,54 @@ export const InspectionList: React.FC = () => {
           </div>
         ) : (
           <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 cursor-pointer"
-                  aria-label="Välj alla"
-                  checked={allSelected}
-                  onChange={toggleAllInspections}
-                />
-              </TableHead>
-              <TableHead>Namn</TableHead>
-              <TableHead>Beskrivning</TableHead>
-              <TableHead>Filer</TableHead>
-              <TableHead>Skapad</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((project) => (
-              <TableRow
-                key={project.id}
-                className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50"
-                onClick={() => openInspectionForEdit(project)}
-              >
-                <TableCell className="w-12" onClick={(e) => toggleInspectionSelection(String(project.id), e)}>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">
                   <input
                     type="checkbox"
                     className="h-4 w-4 cursor-pointer"
-                    aria-label={`Välj ${project.name || 'projekt'}`}
-                    checked={selectedInspectionProjectIds.has(String(project.id))}
-                    onChange={() => {}}
+                    aria-label="Välj alla"
+                    checked={allSelected}
+                    onChange={toggleAllInspections}
                   />
-                </TableCell>
-                <TableCell className="font-medium">{project.name || '—'}</TableCell>
-                <TableCell className="max-w-[280px] truncate">
-                  {htmlToPlainText(project.description || '') || '—'}
-                </TableCell>
-                <TableCell>{project.fileCount}</TableCell>
-                <TableCell className="text-muted-foreground text-sm">
-                  {project.createdAt
-                    ? format(new Date(project.createdAt), 'yyyy-MM-dd')
-                    : '—'}
-                </TableCell>
+                </TableHead>
+                <TableHead>Namn</TableHead>
+                <TableHead>Beskrivning</TableHead>
+                <TableHead>Filer</TableHead>
+                <TableHead>Skapad</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((project) => (
+                <TableRow
+                  key={project.id}
+                  className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50"
+                  onClick={() => openInspectionForEdit(project)}
+                >
+                  <TableCell
+                    className="w-12"
+                    onClick={(e) => toggleInspectionSelection(String(project.id), e)}
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 cursor-pointer"
+                      aria-label={`Välj ${project.name || 'projekt'}`}
+                      checked={selectedInspectionProjectIds.has(String(project.id))}
+                      onChange={() => {}}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">{project.name || '—'}</TableCell>
+                  <TableCell className="max-w-[280px] truncate">
+                    {htmlToPlainText(project.description || '') || '—'}
+                  </TableCell>
+                  <TableCell>{project.fileCount}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {project.createdAt ? format(new Date(project.createdAt), 'yyyy-MM-dd') : '—'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </Card>
     </div>

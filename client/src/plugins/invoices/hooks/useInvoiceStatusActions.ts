@@ -1,10 +1,11 @@
 import { useState } from 'react';
+
 import { useInvoicesContext } from '../context/InvoicesContext';
 import { Invoice } from '../types/invoices';
 
 export function useInvoiceStatusActions() {
   const { saveInvoice } = useInvoicesContext();
-  
+
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
   const [pendingInvoice, setPendingInvoice] = useState<Invoice | null>(null);
@@ -40,9 +41,11 @@ export function useInvoiceStatusActions() {
       ...invoice,
       status: newStatus,
       // Handle special status transitions
-      ...(newStatus === 'sent' && !invoice.invoiceNumber && {
-        // Backend will auto-generate invoice number when status becomes 'sent'
-      }),
+      ...(newStatus === 'sent' &&
+        !invoice.invoiceNumber &&
+        {
+          // Backend will auto-generate invoice number when status becomes 'sent'
+        }),
       ...(newStatus === 'paid' && {
         paidAt: new Date().toISOString(),
       }),

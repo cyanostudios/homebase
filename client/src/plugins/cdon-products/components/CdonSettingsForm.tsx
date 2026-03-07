@@ -20,13 +20,21 @@ export const CdonSettingsForm: React.FC = () => {
     validationErrors,
     clearValidationErrors,
     lastTestResult,
-    openCdonSettingsForView,
+    openCdonSettingsForView: _openCdonSettingsForView,
     closeCdonSettingsPanel,
   } = useCdonProducts();
 
-  const { isDirty, showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
-    useUnsavedChanges();
-  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } = useGlobalNavigationGuard();
+  const {
+    isDirty,
+    showWarning,
+    markDirty,
+    markClean,
+    attemptAction,
+    confirmDiscard,
+    cancelDiscard,
+  } = useUnsavedChanges();
+  const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
+    useGlobalNavigationGuard();
 
   const [formData, setFormData] = useState({
     apiKey: '',
@@ -66,7 +74,9 @@ export const CdonSettingsForm: React.FC = () => {
 
   const handleSave = useCallback(async () => {
     const ok = await saveCdonSettings(formData as any);
-    if (ok) markClean();
+    if (ok) {
+      markClean();
+    }
   }, [formData, saveCdonSettings, markClean]);
 
   const handleCancel = useCallback(() => {
@@ -102,7 +112,9 @@ export const CdonSettingsForm: React.FC = () => {
   }, [handleSave, handleCancel]);
 
   const testSummary = useMemo(() => {
-    if (!lastTestResult) return null;
+    if (!lastTestResult) {
+      return null;
+    }
     return (
       <div
         className={`rounded-md p-3 border ${lastTestResult.ok ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}
@@ -126,8 +138,8 @@ export const CdonSettingsForm: React.FC = () => {
             <ul className="list-disc list-inside mt-2 text-sm text-red-700">
               {validationErrors
                 .filter((e) => !e.message.includes('Warning'))
-                .map((e, i) => (
-                  <li key={i}>{e.message}</li>
+                .map((e) => (
+                  <li key={e.field + ':' + e.message}>{e.message}</li>
                 ))}
             </ul>
           </div>
@@ -135,9 +147,7 @@ export const CdonSettingsForm: React.FC = () => {
       )}
 
       <Card padding="sm" className="shadow-none px-0">
-        <h3 className="text-lg font-semibold mb-3">
-          CDON Login
-        </h3>
+        <h3 className="text-lg font-semibold mb-3">CDON Login</h3>
         <div className="space-y-3">
           <div>
             <Label htmlFor="apiKey" className="mb-1">
@@ -191,9 +201,7 @@ export const CdonSettingsForm: React.FC = () => {
 
       {lastTestResult && (
         <Card padding="sm" className="shadow-none px-0">
-          <h4 className="text-base font-semibold mb-2">
-            Connection Test
-          </h4>
+          <h4 className="text-base font-semibold mb-2">Connection Test</h4>
           {testSummary}
         </Card>
       )}
@@ -210,4 +218,3 @@ export const CdonSettingsForm: React.FC = () => {
     </div>
   );
 };
-

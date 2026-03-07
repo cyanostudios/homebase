@@ -1,15 +1,10 @@
-import React, { useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -41,15 +36,9 @@ export const ShippingBookModal: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [resultSummary, setResultSummary] = useState<string | null>(null);
 
-  const servicesById = useMemo(
-    () => new Map(services.map((s) => [String(s.id), s])),
-    [services],
-  );
+  const servicesById = useMemo(() => new Map(services.map((s) => [String(s.id), s])), [services]);
   const recentServices = useMemo(
-    () =>
-      recentServiceIds
-        .map((id) => servicesById.get(String(id)))
-        .filter(Boolean),
+    () => recentServiceIds.map((id) => servicesById.get(String(id))).filter(Boolean),
     [recentServiceIds, servicesById],
   );
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Heading, Text } from '@/core/ui/Typography';
 
 import { channelsApi } from '../api/channelsApi';
@@ -31,18 +31,24 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
       setLoadingErrors(true);
       try {
         const resp = await channelsApi.getErrors({ channel: String(item.channel), limit: 20 });
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         const normalized = (resp.items || []).map((e: any) => ({
           ...e,
           createdAt: e.createdAt ? new Date(e.createdAt) : null,
         }));
         setErrors(normalized);
       } catch (err) {
-        if (!cancelled) setErrors([]);
+        if (!cancelled) {
+          setErrors([]);
+        }
         // keep console output for debugging; avoid noisy UI
         console.error('Failed to load channel errors:', err);
       } finally {
-        if (!cancelled) setLoadingErrors(false);
+        if (!cancelled) {
+          setLoadingErrors(false);
+        }
       }
     };
     run();
@@ -51,7 +57,9 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
     };
   }, [item.channel]);
 
-  const isCdonOrFyndiq = String(item.channel).toLowerCase() === 'cdon' || String(item.channel).toLowerCase() === 'fyndiq';
+  const isCdonOrFyndiq =
+    String(item.channel).toLowerCase() === 'cdon' ||
+    String(item.channel).toLowerCase() === 'fyndiq';
 
   useEffect(() => {
     let cancelled = false;
@@ -62,14 +70,20 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
           channel: String(item.channel),
           includeDisabled: isCdonOrFyndiq,
         });
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         const items = Array.isArray(resp.items) ? resp.items : [];
         setInstances(items);
       } catch (err) {
-        if (!cancelled) setInstances([]);
+        if (!cancelled) {
+          setInstances([]);
+        }
         console.error('Failed to load channel instances:', err);
       } finally {
-        if (!cancelled) setLoadingInstances(false);
+        if (!cancelled) {
+          setLoadingInstances(false);
+        }
       }
     };
     run();
@@ -189,18 +203,21 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
       <Card padding="sm" className="shadow-none px-0">
         <div className="flex items-center justify-between gap-3 mb-3">
           <Heading level={3}>Instances</Heading>
-          {(String(item.channel).toLowerCase() === 'cdon' || String(item.channel).toLowerCase() === 'fyndiq') && (
+          {(String(item.channel).toLowerCase() === 'cdon' ||
+            String(item.channel).toLowerCase() === 'fyndiq') && (
             <Button variant="secondary" onClick={ensureDefaults} disabled={creatingDefaults}>
               {creatingDefaults ? 'Creating…' : 'Create defaults'}
             </Button>
           )}
         </div>
         <Text variant="caption" className="text-gray-600 mb-3">
-          Instances represent markets/stores (e.g. <strong>cdon.se</strong>, <strong>fyndiq.fi</strong>, <strong>woocommerce.shopA</strong>).
+          Instances represent markets/stores (e.g. <strong>cdon.se</strong>,{' '}
+          <strong>fyndiq.fi</strong>, <strong>woocommerce.shopA</strong>).
         </Text>
         {isCdonOrFyndiq && instances.length > 0 && (
           <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-3">
-            Aktivera eller avaktivera marknader nedan. Endast aktiva marknader syns i Produkter och Orders.
+            Aktivera eller avaktivera marknader nedan. Endast aktiva marknader syns i Produkter och
+            Orders.
           </p>
         )}
 
@@ -208,7 +225,8 @@ export const ChannelsView: React.FC<ChannelsViewProps> = ({ item }) => {
           <div className="text-sm text-gray-500">Loading…</div>
         ) : instances.length === 0 ? (
           <div className="text-sm text-gray-500">
-            No instances yet. Click <strong>Create defaults</strong> or import a template that contains instance columns.
+            No instances yet. Click <strong>Create defaults</strong> or import a template that
+            contains instance columns.
           </div>
         ) : (
           <div className="divide-y divide-gray-200 rounded-lg border border-gray-200 overflow-hidden">

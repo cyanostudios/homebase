@@ -27,30 +27,36 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <div style={{
-          padding: 24,
-          fontFamily: 'system-ui, sans-serif',
-          maxWidth: 600,
-          margin: '40px auto',
-        }}>
+        <div
+          style={{
+            padding: 24,
+            fontFamily: 'system-ui, sans-serif',
+            maxWidth: 600,
+            margin: '40px auto',
+          }}
+        >
           <h1 style={{ color: '#c00', marginBottom: 16 }}>Ett fel uppstod</h1>
-          <pre style={{
-            background: '#f5f5f5',
-            padding: 16,
-            overflow: 'auto',
-            fontSize: 13,
-          }}>
+          <pre
+            style={{
+              background: '#f5f5f5',
+              padding: 16,
+              overflow: 'auto',
+              fontSize: 13,
+            }}
+          >
             {this.state.error.message}
           </pre>
           <details style={{ marginTop: 16 }}>
             <summary style={{ cursor: 'pointer' }}>Stack trace</summary>
-            <pre style={{
-              background: '#f5f5f5',
-              padding: 16,
-              overflow: 'auto',
-              fontSize: 11,
-              marginTop: 8,
-            }}>
+            <pre
+              style={{
+                background: '#f5f5f5',
+                padding: 16,
+                overflow: 'auto',
+                fontSize: 11,
+                marginTop: 8,
+              }}
+            >
               {this.state.error.stack}
             </pre>
           </details>

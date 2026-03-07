@@ -31,7 +31,10 @@ const languages = [
   { value: 'sv', label: 'Svenska' },
 ];
 
-export function PreferencesSettingsForm({ onCancel, onRegisterSave }: PreferencesSettingsFormProps) {
+export function PreferencesSettingsForm({
+  onCancel,
+  onRegisterSave,
+}: PreferencesSettingsFormProps) {
   const { getSettings, updateSettings } = useApp();
   const { theme, toggleTheme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);

@@ -1,4 +1,4 @@
-import { Share, Copy, Check, Download, Copy as CopyIcon, X } from 'lucide-react';
+import { Share, Copy, Check, Download, Copy as CopyIcon } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,6 @@ interface EstimateActionsProps {
 export function EstimateActions({ estimate }: EstimateActionsProps) {
   const { duplicateEstimate, closeEstimatePanel } = useEstimates();
 
-
   // Share state
   const [isCreatingShare, setIsCreatingShare] = useState(false);
   const [existingShare, setExistingShare] = useState<EstimateShare | null>(null);
@@ -27,6 +26,7 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
   // Load existing share when component mounts
   useEffect(() => {
     loadExistingShare();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load on mount only
   }, [estimate.id]);
 
   const loadExistingShare = async () => {
@@ -132,7 +132,9 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
     <>
       {/* Other Actions */}
       <div>
-        <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Other Actions</div>
+        <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Other Actions
+        </div>
         <div className="flex flex-wrap gap-3">
           {!existingShare && (
             <Button
@@ -173,7 +175,9 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
       {existingShare && (
         <div
           className={`mt-4 p-4 rounded-lg border ${
-            isShareExpired ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800' : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+            isShareExpired
+              ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+              : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
           }`}
         >
           <div
@@ -193,7 +197,11 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
                 variant="secondary"
                 size="sm"
                 onClick={handleCopyUrl}
-                className={copied ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' : ''}
+                className={
+                  copied
+                    ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300'
+                    : ''
+                }
               >
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 {copied ? 'Copied!' : 'Copy'}
@@ -201,7 +209,9 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
             )}
           </div>
 
-          <div className={`text-xs ${isShareExpired ? 'text-red-700 dark:text-red-400' : 'text-blue-700 dark:text-blue-400'}`}>
+          <div
+            className={`text-xs ${isShareExpired ? 'text-red-700 dark:text-red-400' : 'text-blue-700 dark:text-blue-400'}`}
+          >
             <div className="flex items-center justify-left">
               <div>
                 {isShareExpired ? 'Expired on' : 'Expires on'}{' '}
@@ -228,8 +238,12 @@ export function EstimateActions({ estimate }: EstimateActionsProps) {
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Cannot create share link</h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Estimate {estimate.estimateNumber}</p>
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Cannot create share link
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Estimate {estimate.estimateNumber}
+                </p>
               </div>
             </div>
 

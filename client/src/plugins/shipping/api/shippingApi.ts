@@ -11,11 +11,15 @@ class ShippingApi {
   private basePath = '/api/shipping';
 
   private async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) return this.csrfToken;
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
     const response = await fetch('/api/csrf-token', { credentials: 'include' });
     const data = await response.json();
     this.csrfToken = data.csrfToken ?? null;
-    if (this.csrfToken == null) throw new Error('CSRF token not returned by server');
+    if ((this.csrfToken ?? null) === null) {
+      throw new Error('CSRF token not returned by server');
+    }
     return this.csrfToken;
   }
 
@@ -89,7 +93,10 @@ class ShippingApi {
     })) as ShippingServicePreset;
   }
 
-  async updateService(id: string, data: Partial<ShippingServicePreset>): Promise<ShippingServicePreset> {
+  async updateService(
+    id: string,
+    data: Partial<ShippingServicePreset>,
+  ): Promise<ShippingServicePreset> {
     return (await this.request(`/services/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify(data),

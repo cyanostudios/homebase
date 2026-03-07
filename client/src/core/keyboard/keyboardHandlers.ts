@@ -1,7 +1,5 @@
 // client/src/core/keyboard/keyboardHandlers.ts
 
-import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
-
 // --- helpers: hyphen-safe singular + capitalization (same as panelHandlers.ts) ---
 const toCamel = (name: string) => name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 const singularCap = (pluginName: string) => {
@@ -11,7 +9,7 @@ const singularCap = (pluginName: string) => {
 };
 
 // Utility function to find plugin functions dynamically
-function findPluginFunction(context: any, action: string, pluginName?: string): any {
+function _findPluginFunction(context: any, action: string, pluginName?: string): any {
   if (!context || !pluginName) {
     return null;
   }

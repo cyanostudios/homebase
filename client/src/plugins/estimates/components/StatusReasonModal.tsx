@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 
-import { ACCEPTANCE_REASONS, REJECTION_REASONS, StatusReason } from '../types/estimate';
+import { ACCEPTANCE_REASONS, REJECTION_REASONS } from '../types/estimate';
 
 interface StatusReasonModalProps {
   isOpen: boolean;

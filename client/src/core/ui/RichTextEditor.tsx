@@ -1,22 +1,31 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import Link from '@tiptap/extension-link';
+import Placeholder from '@tiptap/extension-placeholder';
+import Underline from '@tiptap/extension-underline';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
-import Link from '@tiptap/extension-link';
-import Underline from '@tiptap/extension-underline';
-import Placeholder from '@tiptap/extension-placeholder';
-import { Bold, Italic, Underline as UnderlineIcon, Strikethrough, Link as LinkIcon } from 'lucide-react';
 import DOMPurify from 'dompurify';
-import { Toggle } from '@/components/ui/toggle';
-import { Textarea } from '@/components/ui/textarea';
+import {
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  Strikethrough,
+  Link as LinkIcon,
+} from 'lucide-react';
+import React, { useEffect, useCallback, useState } from 'react';
+
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Textarea } from '@/components/ui/textarea';
+import { Toggle } from '@/components/ui/toggle';
 import { cn } from '@/lib/utils';
 
 const ALLOWED_TAGS = ['p', 'br', 'strong', 'em', 'u', 's', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3'];
 
 function sanitizeHtml(html: string): string {
-  if (!html || typeof html !== 'string') return '';
+  if (!html || typeof html !== 'string') {
+    return '';
+  }
   return DOMPurify.sanitize(html, { ALLOWED_TAGS });
 }
 
@@ -66,7 +75,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   });
 
   useEffect(() => {
-    if (!editor) return;
+    if (!editor) {
+      return;
+    }
     const current = editor.getHTML();
     const incoming = sanitizeHtml(value || '');
     if (current !== incoming && !sourceMode) {
@@ -75,7 +86,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   }, [value, editor, sourceMode]);
 
   const handleEditorUpdate = useCallback(() => {
-    if (!editor || sourceMode) return;
+    if (!editor || sourceMode) {
+      return;
+    }
     const html = editor.getHTML();
     if (html !== value) {
       onChange(html);
@@ -83,13 +96,17 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   }, [editor, sourceMode, value, onChange]);
 
   useEffect(() => {
-    if (!editor) return;
+    if (!editor) {
+      return;
+    }
     editor.on('update', handleEditorUpdate);
     return () => editor.off('update', handleEditorUpdate);
   }, [editor, handleEditorUpdate]);
 
   const applyLink = useCallback(() => {
-    if (!editor) return;
+    if (!editor) {
+      return;
+    }
     const url = linkUrl.trim();
     if (url) {
       editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
@@ -112,7 +129,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     setSourceMode(true);
   }, [editor]);
 
-  if (!editor) return null;
+  if (!editor) {
+    return null;
+  }
 
   const toolbar = (
     <div className="flex flex-wrap items-center gap-0.5 border-b border-input bg-muted/30 px-1 py-1 rounded-t-md">
@@ -208,7 +227,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           onChange={(e) => setSourceValue(e.target.value)}
           onBlur={() => {
             const clean = sanitizeHtml(sourceValue);
-            if (clean !== value) onChange(clean);
+            if (clean !== value) {
+              onChange(clean);
+            }
           }}
           placeholder={placeholder}
           rows={Math.max(6, Math.floor(minHeight / 24))}

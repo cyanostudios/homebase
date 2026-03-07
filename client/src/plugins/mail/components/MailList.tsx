@@ -1,3 +1,4 @@
+import { format } from 'date-fns';
 import { Mail, Settings, RefreshCw } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -15,7 +16,6 @@ import {
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 
 import { useMail } from '../hooks/useMail';
-import { format } from 'date-fns';
 
 export const MailList: React.FC = () => {
   const { mailHistory, totalCount, settings, loading, loadHistory, openMailPanel } = useMail();
@@ -32,7 +32,7 @@ export const MailList: React.FC = () => {
   });
 
   const pluginSources = Array.from(
-    new Set(mailHistory.map((e) => e.pluginSource).filter((s): s is string => Boolean(s)))
+    new Set(mailHistory.map((e) => e.pluginSource).filter((s): s is string => Boolean(s))),
   );
 
   return (

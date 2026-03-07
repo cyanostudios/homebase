@@ -10,19 +10,19 @@ export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled';
 export interface InvoiceLineItem {
   id?: string;
   name?: string;
-  title?: string;            // some UIs use title
+  title?: string; // some UIs use title
   description?: string;
   quantity: number;
   unitPrice: number;
-  discount: number;          // percent 0–100
-  vatRate: number;           // percent 0–100
+  discount: number; // percent 0–100
+  vatRate: number; // percent 0–100
 
   // Calculated fields (kept same names/pattern as estimates)
-  lineSubtotal: number;                 // quantity * unitPrice
-  discountAmount: number;               // lineSubtotal * (discount/100)
-  lineSubtotalAfterDiscount: number;    // lineSubtotal - discountAmount
-  vatAmount: number;                    // lineSubtotalAfterDiscount * (vatRate/100)
-  lineTotal: number;                    // lineSubtotalAfterDiscount + vatAmount
+  lineSubtotal: number; // quantity * unitPrice
+  discountAmount: number; // lineSubtotal * (discount/100)
+  lineSubtotalAfterDiscount: number; // lineSubtotal - discountAmount
+  vatAmount: number; // lineSubtotalAfterDiscount * (vatRate/100)
+  lineTotal: number; // lineSubtotalAfterDiscount + vatAmount
   sortOrder: number;
 }
 
@@ -34,9 +34,9 @@ export interface Invoice {
   contactName?: string;
   organizationNumber?: string;
 
-  currency?: string;         // default 'SEK'
+  currency?: string; // default 'SEK'
   lineItems: InvoiceLineItem[];
-  invoiceDiscount: number;   // percent
+  invoiceDiscount: number; // percent
   notes?: string;
   paymentTerms?: string;
 
@@ -104,7 +104,7 @@ export function calculateInvoiceLineItem(item: Partial<InvoiceLineItem>): Invoic
 
 export function calculateInvoiceTotals(
   lineItems: InvoiceLineItem[],
-  invoiceDiscount: number = 0
+  invoiceDiscount: number = 0,
 ): {
   subtotal: number;
   totalDiscount: number;
@@ -118,8 +118,8 @@ export function calculateInvoiceTotals(
   let totalDiscount = 0;
 
   // Sum up line-level amounts (like estimates)
-  lineItems.forEach(item => {
-    const lineSubtotal = item.lineSubtotal ?? ((item.quantity || 0) * (item.unitPrice || 0));
+  lineItems.forEach((item) => {
+    const lineSubtotal = item.lineSubtotal ?? (item.quantity || 0) * (item.unitPrice || 0);
     const discountAmount = item.discountAmount ?? 0;
     subtotal += lineSubtotal;
     totalDiscount += discountAmount;
@@ -133,8 +133,8 @@ export function calculateInvoiceTotals(
 
   // Proportional VAT allocation based on final net
   let totalVat = 0;
-  lineItems.forEach(item => {
-    const lineSubtotal = item.lineSubtotal ?? ((item.quantity || 0) * (item.unitPrice || 0));
+  lineItems.forEach((item) => {
+    const lineSubtotal = item.lineSubtotal ?? (item.quantity || 0) * (item.unitPrice || 0);
     const lineDiscountAmount = item.discountAmount ?? 0;
     const lineAfterDiscount = lineSubtotal - lineDiscountAmount;
 

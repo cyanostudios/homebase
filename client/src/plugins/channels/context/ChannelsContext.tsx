@@ -116,59 +116,71 @@ export function ChannelsProvider({ children, isAuthenticated, onCloseOtherPanels
   // Safe per-product enable/disable for a channel:
   // - Calls backing API
   // - Locally merges returned summary into `channels`
-  const setProductEnabled = useCallback(async (args: {
-    productId: string;
-    channel: string;
-    enabled: boolean;
-    channelInstanceId?: number;
-  }) => {
-    const res = await channelsApi.setProductEnabled({
-      productId: String(args.productId),
-      channel: String(args.channel).toLowerCase(),
-      enabled: !!args.enabled,
-      channelInstanceId: args.channelInstanceId,
-    });
-    const summary: ChannelSummary | null = res?.summary ?? null;
-
-    if (summary) {
-      setChannels((prev) => {
-        const idx = prev.findIndex(
-          (s) => String(s.channel).toLowerCase() === String(summary.channel).toLowerCase(),
-        );
-        if (idx === -1) {
-          return [...prev, summary];
-        }
-        const next = prev.slice();
-        next[idx] = { ...next[idx], ...summary };
-        return next;
+  const setProductEnabled = useCallback(
+    async (args: {
+      productId: string;
+      channel: string;
+      enabled: boolean;
+      channelInstanceId?: number;
+    }) => {
+      const res = await channelsApi.setProductEnabled({
+        productId: String(args.productId),
+        channel: String(args.channel).toLowerCase(),
+        enabled: !!args.enabled,
+        channelInstanceId: args.channelInstanceId,
       });
-    }
-    return { ok: !!res?.ok, row: res?.row, summary: summary ?? null };
-  }, []);
+      const summary: ChannelSummary | null = res?.summary ?? null;
 
-  const openChannelsPanel = useCallback((item: ChannelSummary | null) => {
-    setCurrentChannel(item);
-    setPanelMode(item ? 'view' : 'create');
-    setIsChannelsPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+      if (summary) {
+        setChannels((prev) => {
+          const idx = prev.findIndex(
+            (s) => String(s.channel).toLowerCase() === String(summary.channel).toLowerCase(),
+          );
+          if (idx === -1) {
+            return [...prev, summary];
+          }
+          const next = prev.slice();
+          next[idx] = { ...next[idx], ...summary };
+          return next;
+        });
+      }
+      return { ok: !!res?.ok, row: res?.row, summary: summary ?? null };
+    },
+    [],
+  );
 
-  const openChannelForEdit = useCallback((item: ChannelSummary) => {
-    setCurrentChannel(item);
-    setPanelMode('edit');
-    setIsChannelsPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+  const openChannelsPanel = useCallback(
+    (item: ChannelSummary | null) => {
+      setCurrentChannel(item);
+      setPanelMode(item ? 'view' : 'create');
+      setIsChannelsPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
-  const openChannelForView = useCallback((item: ChannelSummary) => {
-    setCurrentChannel(item);
-    setPanelMode('view');
-    setIsChannelsPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+  const openChannelForEdit = useCallback(
+    (item: ChannelSummary) => {
+      setCurrentChannel(item);
+      setPanelMode('edit');
+      setIsChannelsPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
+
+  const openChannelForView = useCallback(
+    (item: ChannelSummary) => {
+      setCurrentChannel(item);
+      setPanelMode('view');
+      setIsChannelsPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
   const closeChannelsPanel = useCallback(() => {
     setIsChannelsPanelOpen(false);

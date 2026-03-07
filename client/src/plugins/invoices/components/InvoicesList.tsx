@@ -15,8 +15,8 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useInvoices } from '../hooks/useInvoices';
-import { invoiceExportConfig } from '../utils/invoiceExportConfig';
 import { invoicesNavigation } from '../navigation';
+import { invoiceExportConfig } from '../utils/invoiceExportConfig';
 
 type SortField = 'invoiceNumber' | 'contactName' | 'total' | 'createdAt' | 'status';
 type SortOrder = 'asc' | 'desc';
@@ -136,8 +136,11 @@ export function InvoicesList() {
   const toggleSelectOne = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
@@ -294,7 +297,12 @@ export function InvoicesList() {
           selectedCount={selectedCount}
           onClearSelection={() => setSelectedIds(new Set())}
           actions={[
-            { label: 'Export CSV', icon: FileSpreadsheet, onClick: handleExportCSV, variant: 'default' },
+            {
+              label: 'Export CSV',
+              icon: FileSpreadsheet,
+              onClick: handleExportCSV,
+              variant: 'default',
+            },
             { label: 'Export PDF', icon: FileText, onClick: handleExportPDF, variant: 'default' },
             {
               label: 'Delete…',
@@ -341,10 +349,7 @@ export function InvoicesList() {
                 handleOpenForView(invoice);
               }}
             >
-              <div
-                className="flex-shrink-0 pt-0.5"
-                onClick={(e) => e.stopPropagation()}
-              >
+              <div className="flex-shrink-0 pt-0.5" onClick={(e) => e.stopPropagation()}>
                 <input
                   type="checkbox"
                   checked={selectedIds.has(invoice.id)}
@@ -355,42 +360,42 @@ export function InvoicesList() {
                 />
               </div>
               <div className="flex-1 min-w-0">
-              {/* Rad 1: Icon + Invoice Number + Badges */}
-              <div className="flex items-center gap-2 mb-1.5">
-                <Receipt className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
-                <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
-                  {invoice.invoiceNumber || `DRAFT-${invoice.id}`}
+                {/* Rad 1: Icon + Invoice Number + Badges */}
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Receipt className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                  <div className="text-sm font-semibold text-foreground flex-1 min-w-0 truncate">
+                    {invoice.invoiceNumber || `DRAFT-${invoice.id}`}
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {getTypeBadge((invoice as any).invoiceType)}
+                    {getStatusBadge(invoice.status || 'draft')}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {getTypeBadge((invoice as any).invoiceType)}
-                  {getStatusBadge(invoice.status || 'draft')}
-                </div>
-              </div>
 
-              {/* Rad 2: Contact + Total + Due Date */}
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <div className="flex-1 min-w-0 truncate">
-                  {invoice.contactName || '—'}
-                  {invoice.organizationNumber && (
-                    <span className="ml-1">• {invoice.organizationNumber}</span>
-                  )}
+                {/* Rad 2: Contact + Total + Due Date */}
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <div className="flex-1 min-w-0 truncate">
+                    {invoice.contactName || '—'}
+                    {invoice.organizationNumber && (
+                      <span className="ml-1">• {invoice.organizationNumber}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-sm font-medium text-foreground">
+                      {(invoice.total || 0).toFixed(2)} {invoice.currency || 'SEK'}
+                    </span>
+                    {invoice.dueDate && (
+                      <span>• Due {new Date(invoice.dueDate).toLocaleDateString()}</span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-sm font-medium text-foreground">
-                    {(invoice.total || 0).toFixed(2)} {invoice.currency || 'SEK'}
-                  </span>
-                  {invoice.dueDate && (
-                    <span>• Due {new Date(invoice.dueDate).toLocaleDateString()}</span>
-                  )}
-                </div>
-              </div>
 
-              {/* Rad 3: VAT (optional) */}
-              {invoice.totalVat && invoice.totalVat > 0 && (
-                <div className="mt-1 text-xs text-muted-foreground">
-                  VAT: {(invoice.totalVat || 0).toFixed(2)} {invoice.currency || 'SEK'}
-                </div>
-              )}
+                {/* Rad 3: VAT (optional) */}
+                {invoice.totalVat && invoice.totalVat > 0 && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    VAT: {(invoice.totalVat || 0).toFixed(2)} {invoice.currency || 'SEK'}
+                  </div>
+                )}
               </div>
             </div>
           )}

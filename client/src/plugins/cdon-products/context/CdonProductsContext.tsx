@@ -11,7 +11,12 @@ import React, {
 import { useApp } from '@/core/api/AppContext';
 
 import { cdonApi } from '../api/cdonApi';
-import type { CdonExportResult, CdonSettings, CdonTestResult, ValidationError } from '../types/cdon';
+import type {
+  CdonExportResult,
+  CdonSettings,
+  CdonTestResult,
+  ValidationError,
+} from '../types/cdon';
 
 interface CdonContextType {
   // Panel state
@@ -61,7 +66,11 @@ interface ProviderProps {
   onCloseOtherPanels: () => void;
 }
 
-export function CdonProductsProvider({ children, isAuthenticated, onCloseOtherPanels }: ProviderProps) {
+export function CdonProductsProvider({
+  children,
+  isAuthenticated,
+  onCloseOtherPanels,
+}: ProviderProps) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
 
   const [isCdonProductsPanelOpen, setIsCdonProductsPanelOpen] = useState(false);
@@ -80,7 +89,9 @@ export function CdonProductsProvider({ children, isAuthenticated, onCloseOtherPa
   const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
 
   const normalizeSettings = useCallback((s: CdonSettings | null): CdonSettings | null => {
-    if (!s) return null;
+    if (!s) {
+      return null;
+    }
     return {
       ...s,
       createdAt: s.createdAt ? new Date(s.createdAt) : null,
@@ -103,29 +114,38 @@ export function CdonProductsProvider({ children, isAuthenticated, onCloseOtherPa
   }, [normalizeSettings]);
 
   // Panel actions
-  const openCdonSettingsPanel = useCallback((s: CdonSettings | null) => {
-    setCurrentCdonSettings(s);
-    setPanelMode(s ? 'edit' : 'create');
-    setIsCdonProductsPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+  const openCdonSettingsPanel = useCallback(
+    (s: CdonSettings | null) => {
+      setCurrentCdonSettings(s);
+      setPanelMode(s ? 'edit' : 'create');
+      setIsCdonProductsPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
-  const openCdonSettingsForEdit = useCallback((s: CdonSettings) => {
-    setCurrentCdonSettings(s);
-    setPanelMode('edit');
-    setIsCdonProductsPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+  const openCdonSettingsForEdit = useCallback(
+    (s: CdonSettings) => {
+      setCurrentCdonSettings(s);
+      setPanelMode('edit');
+      setIsCdonProductsPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
-  const openCdonSettingsForView = useCallback((s: CdonSettings) => {
-    setCurrentCdonSettings(s);
-    setPanelMode('edit');
-    setIsCdonProductsPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  }, [onCloseOtherPanels]);
+  const openCdonSettingsForView = useCallback(
+    (s: CdonSettings) => {
+      setCurrentCdonSettings(s);
+      setPanelMode('edit');
+      setIsCdonProductsPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+    },
+    [onCloseOtherPanels],
+  );
 
   const closeCdonSettingsPanel = useCallback(() => {
     setIsCdonProductsPanelOpen(false);
@@ -168,64 +188,78 @@ export function CdonProductsProvider({ children, isAuthenticated, onCloseOtherPa
     const errs: ValidationError[] = [];
     const apiKey = String(data.apiKey ?? '').trim();
     const apiSecret = String(data.apiSecret ?? '').trim();
-    if (!apiKey) errs.push({ field: 'apiKey', message: 'Username is required' });
-    if (!apiSecret) errs.push({ field: 'apiSecret', message: 'Password is required' });
+    if (!apiKey) {
+      errs.push({ field: 'apiKey', message: 'Username is required' });
+    }
+    if (!apiSecret) {
+      errs.push({ field: 'apiSecret', message: 'Password is required' });
+    }
     return errs;
   };
 
-  const saveCdonSettings = useCallback(async (raw: Partial<CdonSettings>): Promise<boolean> => {
-    const errs = validate(raw);
-    setValidationErrors(errs);
-    if (errs.length) return false;
-
-    setIsSaving(true);
-    try {
-      const saved = await cdonApi.putSettings({
-        apiKey: String(raw.apiKey || ''),
-        apiSecret: String(raw.apiSecret || ''),
-      });
-      const normalized = normalizeSettings(saved) as CdonSettings;
-      setSettings(normalized);
-      setCurrentCdonSettings(normalized);
-      setPanelMode('view');
-      setValidationErrors([]);
-      return true;
-    } catch (err: any) {
-      console.error('Save CDON settings failed:', err);
-      if (err?.status === 409 && Array.isArray(err.errors)) {
-        setValidationErrors(err.errors);
-      } else {
-        const message =
-          err?.message || err?.error || 'Failed to save settings. Please try again.';
-        setValidationErrors([{ field: 'general', message }]);
+  const saveCdonSettings = useCallback(
+    async (raw: Partial<CdonSettings>): Promise<boolean> => {
+      const errs = validate(raw);
+      setValidationErrors(errs);
+      if (errs.length) {
+        return false;
       }
-      return false;
-    } finally {
-      setIsSaving(false);
-    }
-  }, [normalizeSettings]);
 
-  const testCdonConnection = useCallback(async (override?: Partial<CdonSettings>) => {
-    setIsTesting(true);
-    setLastTestResult(null);
-    try {
-      const body = override || {};
-      const result = await cdonApi.testConnection({
-        apiKey: body.apiKey ?? settings?.apiKey,
-        apiSecret: body.apiSecret ?? settings?.apiSecret,
-      });
-      setLastTestResult(result as CdonTestResult);
-    } catch (err: any) {
-      console.error('Test CDON connection failed:', err);
-      setLastTestResult({ ok: false, error: 'Failed to test connection' });
-    } finally {
-      setIsTesting(false);
-    }
-  }, [settings]);
+      setIsSaving(true);
+      try {
+        const saved = await cdonApi.putSettings({
+          apiKey: String(raw.apiKey || ''),
+          apiSecret: String(raw.apiSecret || ''),
+        });
+        const normalized = normalizeSettings(saved) as CdonSettings;
+        setSettings(normalized);
+        setCurrentCdonSettings(normalized);
+        setPanelMode('view');
+        setValidationErrors([]);
+        return true;
+      } catch (err: any) {
+        console.error('Save CDON settings failed:', err);
+        if (err?.status === 409 && Array.isArray(err.errors)) {
+          setValidationErrors(err.errors);
+        } else {
+          const message =
+            err?.message || err?.error || 'Failed to save settings. Please try again.';
+          setValidationErrors([{ field: 'general', message }]);
+        }
+        return false;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [normalizeSettings],
+  );
+
+  const testCdonConnection = useCallback(
+    async (override?: Partial<CdonSettings>) => {
+      setIsTesting(true);
+      setLastTestResult(null);
+      try {
+        const body = override || {};
+        const result = await cdonApi.testConnection({
+          apiKey: body.apiKey ?? settings?.apiKey,
+          apiSecret: body.apiSecret ?? settings?.apiSecret,
+        });
+        setLastTestResult(result as CdonTestResult);
+      } catch (err: any) {
+        console.error('Test CDON connection failed:', err);
+        setLastTestResult({ ok: false, error: 'Failed to test connection' });
+      } finally {
+        setIsTesting(false);
+      }
+    },
+    [settings],
+  );
 
   const exportProducts = useCallback(async (products: any[]): Promise<boolean> => {
     if (!Array.isArray(products) || products.length === 0) {
-      setValidationErrors([{ field: 'products', message: 'Select at least one product to export' }]);
+      setValidationErrors([
+        { field: 'products', message: 'Select at least one product to export' },
+      ]);
       return false;
     }
     setExporting(true);
@@ -237,7 +271,9 @@ export function CdonProductsProvider({ children, isAuthenticated, onCloseOtherPa
     } catch (err) {
       console.error('Export to CDON failed:', err);
       setLastExportResult(null);
-      setValidationErrors([{ field: 'general', message: 'Export failed. See console for details.' }]);
+      setValidationErrors([
+        { field: 'general', message: 'Export failed. See console for details.' },
+      ]);
       return false;
     } finally {
       setExporting(false);
@@ -249,11 +285,17 @@ export function CdonProductsProvider({ children, isAuthenticated, onCloseOtherPa
   }, []);
 
   // ---- aliases expected by generic panel handlers ----
-  const closeCdonProductPanel = useCallback(() => closeCdonSettingsPanel(), [closeCdonSettingsPanel]);
-  const openCdonProductForEdit = useCallback((item: any) => {
-    // Settings object is used as the panel "item" for this plugin
-    openCdonSettingsForEdit(item as CdonSettings);
-  }, [openCdonSettingsForEdit]);
+  const closeCdonProductPanel = useCallback(
+    () => closeCdonSettingsPanel(),
+    [closeCdonSettingsPanel],
+  );
+  const openCdonProductForEdit = useCallback(
+    (item: any) => {
+      // Settings object is used as the panel "item" for this plugin
+      openCdonSettingsForEdit(item as CdonSettings);
+    },
+    [openCdonSettingsForEdit],
+  );
   const openCdonProductForView = useCallback(
     (item: any) => openCdonSettingsForView(item as CdonSettings),
     [openCdonSettingsForView],
@@ -320,7 +362,8 @@ export function CdonProductsProvider({ children, isAuthenticated, onCloseOtherPa
 
 export function useCdonProducts() {
   const ctx = useContext(CdonContext);
-  if (!ctx) throw new Error('useCdonProducts must be used within CdonProductsProvider');
+  if (!ctx) {
+    throw new Error('useCdonProducts must be used within CdonProductsProvider');
+  }
   return ctx;
 }
-

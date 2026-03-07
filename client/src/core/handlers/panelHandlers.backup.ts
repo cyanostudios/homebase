@@ -85,7 +85,11 @@ export const createPanelHandlers = (
       }
 
       // DYNAMIC: Find appropriate functions based on mode
-      const openForViewFunction = findOpenFunction(currentPluginContext, 'view', currentPlugin.name);
+      const openForViewFunction = findOpenFunction(
+        currentPluginContext,
+        'view',
+        currentPlugin.name,
+      );
 
       if (currentMode === 'edit' && currentItem && openForViewFunction) {
         openForViewFunction(currentItem);

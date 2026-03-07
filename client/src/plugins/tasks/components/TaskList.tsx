@@ -117,11 +117,7 @@ export const TaskList: React.FC = () => {
               <ListIcon className="h-4 w-4" />
               List
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowImportWizard(true)}
-            >
+            <Button variant="secondary" size="sm" onClick={() => setShowImportWizard(true)}>
               <Upload className="h-4 w-4" />
               Import
             </Button>
@@ -244,8 +240,7 @@ export const TaskList: React.FC = () => {
   };
 
   const selectedCount = selectedIds.size;
-  const allSelected =
-    sortedTasks.length > 0 && sortedTasks.every((t) => selectedIds.has(t.id));
+  const allSelected = sortedTasks.length > 0 && sortedTasks.every((t) => selectedIds.has(t.id));
   const toggleSelectAll = () => {
     if (allSelected) {
       setSelectedIds(new Set());
@@ -256,8 +251,11 @@ export const TaskList: React.FC = () => {
   const toggleSelectOne = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
@@ -393,7 +391,9 @@ export const TaskList: React.FC = () => {
                       : 'hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md',
                   )}
                   onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) return;
+                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                      return;
+                    }
                     e.preventDefault();
                     handleOpenForView(task);
                   }}

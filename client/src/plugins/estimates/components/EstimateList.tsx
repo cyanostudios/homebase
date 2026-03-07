@@ -1,5 +1,4 @@
 import {
-  Calculator,
   ArrowUp,
   ArrowDown,
   Trash2,
@@ -144,8 +143,11 @@ export function EstimateList() {
   const toggleSelectOne = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
@@ -265,7 +267,12 @@ export function EstimateList() {
           selectedCount={selectedCount}
           onClearSelection={() => setSelectedIds(new Set())}
           actions={[
-            { label: 'Export CSV', icon: FileSpreadsheet, onClick: handleExportCSV, variant: 'default' },
+            {
+              label: 'Export CSV',
+              icon: FileSpreadsheet,
+              onClick: handleExportCSV,
+              variant: 'default',
+            },
             { label: 'Export PDF', icon: FileText, onClick: handleExportPDF, variant: 'default' },
             {
               label: 'Delete…',
@@ -301,7 +308,9 @@ export function EstimateList() {
                       : 'hover:border-plugin-subtle hover:shadow-md',
                   )}
                   onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) return;
+                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                      return;
+                    }
                     e.preventDefault();
                     handleOpenForView(estimate);
                   }}
@@ -328,11 +337,11 @@ export function EstimateList() {
                     </div>
                     {getStatusBadge(estimate.status)}
                   </div>
-                  <h3 className="font-semibold text-base mb-1 line-clamp-1">{estimate.contactName}</h3>
+                  <h3 className="font-semibold text-base mb-1 line-clamp-1">
+                    {estimate.contactName}
+                  </h3>
                   <div className="text-xs text-muted-foreground mb-4">
-                    {estimate.organizationNumber && (
-                      <span>Org: {estimate.organizationNumber}</span>
-                    )}
+                    {estimate.organizationNumber && <span>Org: {estimate.organizationNumber}</span>}
                   </div>
                   <div className="flex flex-col gap-2 mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
                     <div className="flex items-center justify-between text-sm font-medium">

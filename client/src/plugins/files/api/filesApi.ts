@@ -8,21 +8,23 @@ export class FilesApi {
   constructor(private basePath: string = '/api/files') {}
 
   async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) return this.csrfToken;
-    
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
+
     try {
       const response = await fetch('/api/csrf-token', {
-        credentials: 'include'
+        credentials: 'include',
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('CSRF token fetch failed:', {
           status: response.status,
           statusText: response.statusText,
-          error: errorData
+          error: errorData,
         });
-        
+
         if (response.status === 401) {
           throw new Error('Session required. Please log in again.');
         } else if (response.status === 503) {
@@ -31,7 +33,7 @@ export class FilesApi {
           throw new Error(`Failed to get CSRF token: ${errorData.error || response.statusText}`);
         }
       }
-      
+
       const data = await response.json();
       const token = data?.csrfToken;
       if (typeof token !== 'string' || !token) {
@@ -49,7 +51,9 @@ export class FilesApi {
   }
 
   private isCsrfMismatch(response: Response, payload: any): boolean {
-    if (response.status !== 403) return false;
+    if (response.status !== 403) {
+      return false;
+    }
     const code = String(payload?.code || '');
     const message = String(payload?.error || payload?.message || '');
     return code === 'EBADCSRFTOKEN' || /invalid csrf token/i.test(message);
@@ -104,19 +108,22 @@ export class FilesApi {
         }
 
         // Handle standardized error format from backend
-        const errorMessage = payload?.error || payload?.message || response.statusText || 'Request failed';
+        const errorMessage =
+          payload?.error || payload?.message || response.statusText || 'Request failed';
         const errorCode = payload?.code;
         const errorDetails = payload?.details;
 
         const err: any = new Error(
           response.status === 409 && payload?.errors?.[0]?.message
             ? payload.errors[0].message
-            : errorMessage
+            : errorMessage,
         );
         err.status = response.status;
         err.code = errorCode;
         err.details = errorDetails;
-        if (payload?.errors) err.errors = payload.errors as ApiFieldError[];
+        if (payload?.errors) {
+          err.errors = payload.errors as ApiFieldError[];
+        }
         throw err;
       }
 
@@ -130,11 +137,13 @@ export class FilesApi {
 
   // JSON CRUD
   getItems(folderPath?: string | null) {
-    if (folderPath === undefined) return this.request('/');
+    if (folderPath === undefined) {
+      return this.request('/');
+    }
     const q = '?folderPath=' + encodeURIComponent(folderPath === null ? '' : folderPath);
     return this.request('/' + q);
   }
-  
+
   createItem(data: any) {
     return this.request('/', {
       method: 'POST',
@@ -142,7 +151,7 @@ export class FilesApi {
       body: JSON.stringify(data),
     });
   }
-  
+
   updateItem(id: string, data: any) {
     return this.request(`/${id}`, {
       method: 'PUT',
@@ -150,7 +159,7 @@ export class FilesApi {
       body: JSON.stringify(data),
     });
   }
-  
+
   deleteItem(id: string) {
     return this.request(`/${id}`, { method: 'DELETE' });
   }
@@ -158,7 +167,10 @@ export class FilesApi {
   // ---- Bulk delete ----
   // DELETE /api/files/batch
   // body: { ids?: string[], folderPaths?: string[] }
-  async deleteFilesBulk(ids: string[] = [], folderPaths: string[] = []): Promise<{ ok: true; requested: number; deleted: number; deletedIds: string[] }> {
+  async deleteFilesBulk(
+    ids: string[] = [],
+    folderPaths: string[] = [],
+  ): Promise<{ ok: true; requested: number; deleted: number; deletedIds: string[] }> {
     return this.request('/batch', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -169,7 +181,9 @@ export class FilesApi {
   // MULTIPART upload (returns array of created items)
   async uploadFiles(files: File[], folderPath?: string | null): Promise<any[]> {
     const fd = new FormData();
-    for (const f of files) fd.append('files', f, f.name);
+    for (const f of files) {
+      fd.append('files', f, f.name);
+    }
     if (folderPath !== undefined && folderPath !== null && folderPath !== '') {
       fd.append('folderPath', folderPath);
     }
@@ -201,7 +215,9 @@ export class FilesApi {
   }
 
   // ---- Lists ----
-  getLists(): Promise<Array<{ id: string; name: string; namespace: string; createdAt: string; updatedAt: string }>> {
+  getLists(): Promise<
+    Array<{ id: string; name: string; namespace: string; createdAt: string; updatedAt: string }>
+  > {
     return this.request('/lists');
   }
 
@@ -209,14 +225,29 @@ export class FilesApi {
     return this.request(`/lists/${encodeURIComponent(listId)}/files`);
   }
 
-  createList(name: string): Promise<{ id: string; name: string; namespace: string; createdAt: string; updatedAt: string }> {
+  createList(name: string): Promise<{
+    id: string;
+    name: string;
+    namespace: string;
+    createdAt: string;
+    updatedAt: string;
+  }> {
     return this.request('/lists', {
       method: 'POST',
       body: JSON.stringify({ name }),
     });
   }
 
-  renameList(listId: string, name: string): Promise<{ id: string; name: string; namespace: string; createdAt: string; updatedAt: string }> {
+  renameList(
+    listId: string,
+    name: string,
+  ): Promise<{
+    id: string;
+    name: string;
+    namespace: string;
+    createdAt: string;
+    updatedAt: string;
+  }> {
     return this.request(`/lists/${encodeURIComponent(listId)}`, {
       method: 'PUT',
       body: JSON.stringify({ name }),
@@ -235,9 +266,12 @@ export class FilesApi {
   }
 
   removeFileFromList(listId: string, fileId: string): Promise<void> {
-    return this.request(`/lists/${encodeURIComponent(listId)}/files/${encodeURIComponent(fileId)}`, {
-      method: 'DELETE',
-    });
+    return this.request(
+      `/lists/${encodeURIComponent(listId)}/files/${encodeURIComponent(fileId)}`,
+      {
+        method: 'DELETE',
+      },
+    );
   }
 }
 

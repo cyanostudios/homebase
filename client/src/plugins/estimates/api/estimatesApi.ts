@@ -5,21 +5,23 @@ class EstimatesApi {
   private csrfToken: string | null = null;
 
   async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) return this.csrfToken;
-    
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
+
     try {
       const response = await fetch('/api/csrf-token', {
-        credentials: 'include'
+        credentials: 'include',
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('CSRF token fetch failed:', {
           status: response.status,
           statusText: response.statusText,
-          error: errorData
+          error: errorData,
         });
-        
+
         if (response.status === 401) {
           throw new Error('Session required. Please log in again.');
         } else if (response.status === 503) {
@@ -28,7 +30,7 @@ class EstimatesApi {
           throw new Error(`Failed to get CSRF token: ${errorData.error || response.statusText}`);
         }
       }
-      
+
       const data = await response.json();
       const token = data?.csrfToken;
       if (typeof token !== 'string' || !token) {
@@ -48,12 +50,12 @@ class EstimatesApi {
   private async request(endpoint: string, options: RequestInit = {}) {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
+      ...((options.headers as Record<string, string>) || {}),
     };
 
     // Add CSRF token for mutations
     if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
-      headers["X-CSRF-Token"] = await this.getCsrfToken();
+      headers['X-CSRF-Token'] = await this.getCsrfToken();
     }
 
     const response = await fetch(`/api${endpoint}`, {
@@ -64,17 +66,17 @@ class EstimatesApi {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Network error' }));
-      
+
       // Handle standardized error format from backend
       const errorMessage = error.error || error.message || 'Request failed';
       const errorCode = error.code;
       const errorDetails = error.details;
-      
+
       const err: any = new Error(errorMessage);
       err.status = response.status;
       err.code = errorCode;
       err.details = errorDetails;
-      
+
       throw err;
     }
 
@@ -133,7 +135,9 @@ class EstimatesApi {
     });
   }
 
-  async bulkDelete(ids: string[]): Promise<{ ok: boolean; requested: number; deleted: number; deletedIds: string[] }> {
+  async bulkDelete(
+    ids: string[],
+  ): Promise<{ ok: boolean; requested: number; deleted: number; deletedIds: string[] }> {
     return this.request('/estimates/batch', {
       method: 'DELETE',
       body: JSON.stringify({ ids }),
@@ -161,7 +165,7 @@ class EstimatesApi {
           if (match) {
             errorMessage = match[1];
           }
-        } catch (_err) {
+        } catch {
           // ESLint no-empty: ignore parse errors when response body isn't JSON
         }
         throw new Error(errorMessage);

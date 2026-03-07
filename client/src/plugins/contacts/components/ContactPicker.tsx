@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { contactsApi } from '../api/contactsApi';
 
 export interface ContactPickerProps {
@@ -42,14 +43,17 @@ export const ContactPicker: React.FC<ContactPickerProps> = ({
       !search ||
       (c.companyName || '').toLowerCase().includes(search.toLowerCase()) ||
       (c.email || '').toLowerCase().includes(search.toLowerCase()) ||
-      (c.contactNumber || '').toLowerCase().includes(search.toLowerCase())
+      (c.contactNumber || '').toLowerCase().includes(search.toLowerCase()),
   );
 
   const toggle = (id: string) => {
     const next = new Set(selected);
     const key = String(id);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
     setSelected(next);
   };
 

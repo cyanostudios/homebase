@@ -12,6 +12,8 @@ export type FxLatest = {
 
 export async function getFxLatest(): Promise<FxLatest> {
   const res = await fetch('/api/fx/latest', { credentials: 'include' });
-  if (!res.ok) throw new Error('Failed to fetch FX rates');
+  if (!res.ok) {
+    throw new Error('Failed to fetch FX rates');
+  }
   return res.json();
 }

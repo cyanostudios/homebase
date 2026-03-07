@@ -38,12 +38,16 @@ export const OrdersForm: React.FC<OrdersFormProps> = ({ onSave, onCancel }) => {
   const hasBlockingErrors = validationErrors.some((e) => !e.message.includes('Warning'));
 
   const handleSave = useCallback(async () => {
-    if (isSaving) return;
+    if (isSaving) {
+      return;
+    }
     setIsSaving(true);
     clearValidationErrors();
     try {
       const ok = await onSave(formData);
-      if (!ok) setIsSaving(false);
+      if (!ok) {
+        setIsSaving(false);
+      }
     } catch {
       setIsSaving(false);
     }
@@ -65,7 +69,9 @@ export const OrdersForm: React.FC<OrdersFormProps> = ({ onSave, onCancel }) => {
       <div>
         <div className="text-lg font-semibold text-gray-900">Update order status</div>
         <div className="text-sm text-gray-500 mt-1">
-          {currentOrder ? `${currentOrder.channel} · ${currentOrder.channelOrderId}` : 'No order selected'}
+          {currentOrder
+            ? `${currentOrder.channel} · ${currentOrder.channelOrderId}`
+            : 'No order selected'}
         </div>
       </div>
 
@@ -75,8 +81,8 @@ export const OrdersForm: React.FC<OrdersFormProps> = ({ onSave, onCancel }) => {
           <ul className="mt-2 text-sm text-red-700 list-disc pl-5">
             {validationErrors
               .filter((e) => !e.message.includes('Warning'))
-              .map((e, idx) => (
-                <li key={idx}>{e.message}</li>
+              .map((e) => (
+                <li key={e.field + ':' + e.message}>{e.message}</li>
               ))}
           </ul>
         </div>
@@ -94,8 +100,9 @@ export const OrdersForm: React.FC<OrdersFormProps> = ({ onSave, onCancel }) => {
           <select
             value={formData.status}
             onChange={(e) => setFormData((p) => ({ ...p, status: e.target.value as OrderStatus }))}
-            className={`w-full px-3 py-2 border rounded-md ${getFieldError('status') ? 'border-red-500' : 'border-gray-300'
-              }`}
+            className={`w-full px-3 py-2 border rounded-md ${
+              getFieldError('status') ? 'border-red-500' : 'border-gray-300'
+            }`}
             disabled={isSaving}
           >
             {STATUSES.map((s) => (
@@ -150,12 +157,15 @@ export const OrdersForm: React.FC<OrdersFormProps> = ({ onSave, onCancel }) => {
             <input
               value={formData.trackingNumber}
               onChange={(e) => setFormData((p) => ({ ...p, trackingNumber: e.target.value }))}
-              className={`w-full px-3 py-2 border rounded-md ${getFieldError('trackingNumber') ? 'border-red-500' : 'border-gray-300'
-                }`}
+              className={`w-full px-3 py-2 border rounded-md ${
+                getFieldError('trackingNumber') ? 'border-red-500' : 'border-gray-300'
+              }`}
               disabled={isSaving}
             />
             {getFieldError('trackingNumber') ? (
-              <p className="mt-1 text-sm text-red-600">{getFieldError('trackingNumber')?.message}</p>
+              <p className="mt-1 text-sm text-red-600">
+                {getFieldError('trackingNumber')?.message}
+              </p>
             ) : null}
           </div>
         </div>
@@ -181,4 +191,3 @@ export const OrdersForm: React.FC<OrdersFormProps> = ({ onSave, onCancel }) => {
     </div>
   );
 };
-

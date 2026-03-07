@@ -53,9 +53,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
   const [addingTimeEntry, setAddingTimeEntry] = useState(false);
   const [newTimeMinutes, setNewTimeMinutes] = useState('');
-  const [newTimeDate, setNewTimeDate] = useState(() =>
-    new Date().toISOString().slice(0, 10),
-  );
+  const [newTimeDate, setNewTimeDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   const loadTimeEntries = useCallback(async (contactId: string) => {
     setLoadingTimeEntries(true);
@@ -70,32 +68,31 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     }
   }, []);
 
-  const handleDeleteTimeEntry = useCallback(
-    async (contactId: string, entryId: string) => {
-      setDeletingEntryId(entryId);
-      try {
-        await contactsApi.deleteTimeEntry(contactId, entryId);
-        setTimeEntries((prev) => prev.filter((e) => e.id !== entryId));
-      } catch (error) {
-        console.error('Failed to delete time entry:', error);
-      } finally {
-        setDeletingEntryId(null);
-      }
-    },
-    [],
-  );
+  const handleDeleteTimeEntry = useCallback(async (contactId: string, entryId: string) => {
+    setDeletingEntryId(entryId);
+    try {
+      await contactsApi.deleteTimeEntry(contactId, entryId);
+      setTimeEntries((prev) => prev.filter((e) => e.id !== entryId));
+    } catch (error) {
+      console.error('Failed to delete time entry:', error);
+    } finally {
+      setDeletingEntryId(null);
+    }
+  }, []);
 
   const handleAddTimeEntry = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!contact?.id) return;
+      if (!contact?.id) {
+        return;
+      }
       const minutes = parseInt(newTimeMinutes, 10);
-      if (Number.isNaN(minutes) || minutes < 0) return;
+      if (Number.isNaN(minutes) || minutes < 0) {
+        return;
+      }
       setAddingTimeEntry(true);
       try {
-        const loggedAt = newTimeDate
-          ? new Date(newTimeDate).toISOString()
-          : undefined;
+        const loggedAt = newTimeDate ? new Date(newTimeDate).toISOString() : undefined;
         const entry = await contactsApi.createTimeEntry(contact.id, {
           seconds: minutes * 60,
           loggedAt,

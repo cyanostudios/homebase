@@ -12,10 +12,14 @@ const PLUGIN_CONFIGS: Record<string, any> = {
     getSubtitle: (item: any) => {
       if (item?.status) {
         const statusColors: Record<string, string> = {
-          pending: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800',
-          processing: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-          success: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800',
-          error: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800',
+          pending:
+            'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800',
+          processing:
+            'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+          success:
+            'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800',
+          error:
+            'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800',
         };
         return {
           icon: Upload,
@@ -145,7 +149,9 @@ export const createPanelTitles = (
                 {subtitleData.badge.text}
               </span>
               {subtitleData.text && (
-                <span className="text-xs text-gray-600 dark:text-gray-400">• {subtitleData.text}</span>
+                <span className="text-xs text-gray-600 dark:text-gray-400">
+                  • {subtitleData.text}
+                </span>
               )}
             </div>
           );

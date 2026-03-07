@@ -16,10 +16,12 @@ class ChannelsApi {
   private csrfToken: string | null = null;
 
   private async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) return this.csrfToken;
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
 
     const response = await fetch('/api/csrf-token', {
-      credentials: 'include'
+      credentials: 'include',
     });
     const data = await response.json();
     this.csrfToken = String(data?.csrfToken || '');
@@ -31,7 +33,7 @@ class ChannelsApi {
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        ...(options.headers as Record<string, string> || {}),
+        ...((options.headers as Record<string, string>) || {}),
       };
 
       // Add CSRF token for mutations
@@ -80,20 +82,30 @@ class ChannelsApi {
   }
 
   // GET /api/channels/product-targets?productId=...
-  async getProductTargets(productId: string): Promise<{ ok: true; targets: Array<{ channel: string; channelInstanceId: string | null }> }> {
+  async getProductTargets(
+    productId: string,
+  ): Promise<{ ok: true; targets: Array<{ channel: string; channelInstanceId: string | null }> }> {
     const q = new URLSearchParams({ productId });
     return this.request(`/product-targets?${q.toString()}`);
   }
 
   // GET /api/channels/map?productId=...&channel=...
-  async getProductMap(params: { productId: string; channel: string }): Promise<{ ok: true; row: ChannelMapRow | null }> {
+  async getProductMap(params: {
+    productId: string;
+    channel: string;
+  }): Promise<{ ok: true; row: ChannelMapRow | null }> {
     const q = new URLSearchParams({ productId: params.productId, channel: params.channel });
     return this.request(`/map?${q.toString()}`);
   }
 
   // PUT /api/channels/map — per-product enable/disable for a channel (optionally per instance)
   // Body: { productId: string, channel: string, enabled: boolean, channelInstanceId?: number }
-  async setProductEnabled(body: { productId: string; channel: string; enabled: boolean; channelInstanceId?: number }): Promise<{
+  async setProductEnabled(body: {
+    productId: string;
+    channel: string;
+    enabled: boolean;
+    channelInstanceId?: number;
+  }): Promise<{
     ok: boolean;
     row: ChannelMapRow;
     summary: ChannelSummary | null;
@@ -109,7 +121,9 @@ class ChannelsApi {
     productId: string;
     updates: Array<{ channel: string; channelInstanceId?: number; enabled: boolean }>;
   }): Promise<{ ok: true; count: number }> {
-    if (!body.updates?.length) return Promise.resolve({ ok: true, count: 0 });
+    if (!body.updates?.length) {
+      return Promise.resolve({ ok: true, count: 0 });
+    }
     return this.request('/map/bulk', {
       method: 'PUT',
       body: JSON.stringify(body),
@@ -117,17 +131,29 @@ class ChannelsApi {
   }
 
   // GET /api/channels/errors?channel=...&limit=...
-  async getErrors(params: { channel: string; limit?: number }): Promise<{ ok: true; items: ChannelErrorLogItem[] }> {
+  async getErrors(params: {
+    channel: string;
+    limit?: number;
+  }): Promise<{ ok: true; items: ChannelErrorLogItem[] }> {
     const q = new URLSearchParams({ channel: params.channel });
-    if (params.limit != null) q.set('limit', String(params.limit));
+    if ((params.limit ?? null) !== null) {
+      q.set('limit', String(params.limit));
+    }
     return this.request(`/errors?${q.toString()}`);
   }
 
   // ---- Instances (Selloklon) ----
-  async getInstances(params?: { channel?: string; includeDisabled?: boolean }): Promise<{ ok: true; items: ChannelInstance[] }> {
+  async getInstances(params?: {
+    channel?: string;
+    includeDisabled?: boolean;
+  }): Promise<{ ok: true; items: ChannelInstance[] }> {
     const q = new URLSearchParams();
-    if (params?.channel) q.set('channel', params.channel);
-    if (params?.includeDisabled === true) q.set('includeDisabled', 'true');
+    if (params?.channel) {
+      q.set('channel', params.channel);
+    }
+    if (params?.includeDisabled === true) {
+      q.set('includeDisabled', 'true');
+    }
     const suffix = q.toString() ? `?${q.toString()}` : '';
     return this.request(`/instances${suffix}`);
   }
@@ -145,12 +171,15 @@ class ChannelsApi {
     });
   }
 
-  async updateInstance(id: string, body: {
-    market?: string | null;
-    label?: string | null;
-    credentials?: any | null;
-    enabled?: boolean;
-  }): Promise<{ ok: true; row: ChannelInstance }> {
+  async updateInstance(
+    id: string,
+    body: {
+      market?: string | null;
+      label?: string | null;
+      credentials?: any | null;
+      enabled?: boolean;
+    },
+  ): Promise<{ ok: true; row: ChannelInstance }> {
     return this.request(`/instances/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify(body),
@@ -158,9 +187,14 @@ class ChannelsApi {
   }
 
   // ---- Per-product overrides ----
-  async getOverrides(params: { productId: string; channel?: string }): Promise<{ ok: true; items: ChannelProductOverride[] }> {
+  async getOverrides(params: {
+    productId: string;
+    channel?: string;
+  }): Promise<{ ok: true; items: ChannelProductOverride[] }> {
     const q = new URLSearchParams({ productId: params.productId });
-    if (params.channel) q.set('channel', params.channel);
+    if (params.channel) {
+      q.set('channel', params.channel);
+    }
     return this.request(`/overrides?${q.toString()}`);
   }
 
@@ -192,17 +226,30 @@ class ChannelsApi {
     const items = body.items
       .map((o) => {
         const id = Number(o.channelInstanceId);
-        if (!Number.isFinite(id) || id < 1) return null;
-        const row: { channelInstanceId: number; active: boolean; priceAmount?: number; category?: string } = {
+        if (!Number.isFinite(id) || id < 1) {
+          return null;
+        }
+        const row: {
+          channelInstanceId: number;
+          active: boolean;
+          priceAmount?: number;
+          category?: string;
+        } = {
           channelInstanceId: id,
           active: o.active ?? true,
         };
-        if (o.priceAmount != null && Number.isFinite(Number(o.priceAmount))) row.priceAmount = Number(o.priceAmount);
-        if (o.category != null && String(o.category).trim() !== '') row.category = String(o.category).trim();
+        if ((o.priceAmount ?? null) !== null && Number.isFinite(Number(o.priceAmount))) {
+          row.priceAmount = Number(o.priceAmount);
+        }
+        if ((o.category ?? null) !== null && String(o.category).trim() !== '') {
+          row.category = String(o.category).trim();
+        }
         return row;
       })
-      .filter((x): x is NonNullable<typeof x> => x != null);
-    if (items.length === 0) return Promise.resolve({ ok: true, count: 0 });
+      .filter((x): x is NonNullable<typeof x> => (x ?? null) !== null);
+    if (items.length === 0) {
+      return Promise.resolve({ ok: true, count: 0 });
+    }
     return this.request('/overrides/bulk', {
       method: 'PUT',
       body: JSON.stringify({ productId: body.productId, items }),

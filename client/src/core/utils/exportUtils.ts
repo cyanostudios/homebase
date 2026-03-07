@@ -74,7 +74,9 @@ export function exportItems(options: ExportItemsOptions): void | Promise<void> {
   switch (format) {
     case 'txt': {
       const c = config.txt;
-      if (!c?.getContent || !c?.getFilename) return;
+      if (!c?.getContent || !c?.getFilename) {
+        return;
+      }
       exportToTxt(
         items,
         c.getContent,
@@ -85,13 +87,21 @@ export function exportItems(options: ExportItemsOptions): void | Promise<void> {
     }
     case 'csv': {
       const c = config.csv;
-      if (!c?.headers || !c?.mapItemToRow) return;
-      exportToCSV(items.map((item) => c.mapItemToRow(item)), baseFilename, c.headers);
+      if (!c?.headers || !c?.mapItemToRow) {
+        return;
+      }
+      exportToCSV(
+        items.map((item) => c.mapItemToRow(item)),
+        baseFilename,
+        c.headers,
+      );
       return;
     }
     case 'pdf': {
       const c = config.pdf;
-      if (!c?.columns || !c?.mapItemToRow) return;
+      if (!c?.columns || !c?.mapItemToRow) {
+        return;
+      }
       const data = items.map((item) => c.mapItemToRow(item));
       const title = c.title ?? optionsTitle ?? 'Export';
       return exportToPDF(data, baseFilename, c.columns, title);
@@ -102,7 +112,9 @@ export function exportItems(options: ExportItemsOptions): void | Promise<void> {
 }
 
 function escapeCSVValue(value: any): string {
-  if (value === null || value === undefined) return '';
+  if (value === null || value === undefined) {
+    return '';
+  }
   const s = String(value);
   if (s.includes(',') || s.includes('"') || s.includes('\n')) {
     return `"${s.replace(/"/g, '""')}"`;
@@ -112,9 +124,7 @@ function escapeCSVValue(value: any): string {
 
 function convertToCSV(data: any[], headers: string[]): string {
   const headerRow = headers.map(escapeCSVValue).join(',');
-  const dataRows = data.map((item) =>
-    headers.map((h) => escapeCSVValue(item[h])).join(','),
-  );
+  const dataRows = data.map((item) => headers.map((h) => escapeCSVValue(item[h])).join(','));
   return [headerRow, ...dataRows].join('\n');
 }
 
@@ -138,7 +148,9 @@ export function exportToCSV(data: any[], filename: string, headers: string[]): v
 }
 
 function formatDate(date: Date | string | null | undefined): string {
-  if (!date) return '';
+  if (!date) {
+    return '';
+  }
   try {
     const d = typeof date === 'string' ? new Date(date) : date;
     return isNaN(d.getTime()) ? '' : d.toLocaleDateString('sv-SE');
@@ -148,7 +160,9 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 
 function truncateForCell(value: string, maxLen: number = 25): string {
-  if (!value) return '';
+  if (!value) {
+    return '';
+  }
   const s = String(value).trim();
   return s.length > maxLen ? s.slice(0, maxLen - 2) + '…' : s;
 }
@@ -224,7 +238,9 @@ export async function exportToPDF(
         ) {
           value = formatDate(value);
         }
-        if (value === null || value === undefined) value = '';
+        if (value === null || value === undefined) {
+          value = '';
+        }
         doc.text(truncateForCell(String(value), 22), x + cellPadding, y + cellPadding);
         x += colWidth;
       });

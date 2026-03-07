@@ -28,7 +28,9 @@ export function ContentToolbar({
           className="w-full pl-10"
         />
       </div>
-      {rightActions != null ? <div className="flex items-center gap-2 shrink-0">{rightActions}</div> : null}
+      {rightActions !== null && rightActions !== undefined ? (
+        <div className="flex items-center gap-2 shrink-0">{rightActions}</div>
+      ) : null}
     </div>
   );
 }

@@ -52,15 +52,16 @@ import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { ImportWizard } from '@/core/ui/ImportWizard';
 import { exportItems } from '@/core/utils/exportUtils';
+import type { ImportSchema } from '@/core/utils/importUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
-import { useContacts } from '../hooks/useContacts';
 import { contactsApi } from '../api/contactsApi';
-import { ContactPicker } from './ContactPicker';
+import { useContacts } from '../hooks/useContacts';
 import { CONTACT_TYPE_COLORS } from '../types/contacts';
 import { contactExportConfig } from '../utils/contactExportConfig';
-import type { ImportSchema } from '@/core/utils/importUtils';
+
+import { ContactPicker } from './ContactPicker';
 
 type SortField = 'contactNumber' | 'name' | 'type' | 'email';
 type SortOrder = 'asc' | 'desc';
@@ -128,7 +129,9 @@ export const ContactList: React.FC = () => {
   const [createListDialogSaving, setCreateListDialogSaving] = useState(false);
 
   useEffect(() => {
-    if (activeContentView !== 'lists') return;
+    if (activeContentView !== 'lists') {
+      return;
+    }
     setListsLoading(true);
     contactsApi
       .getLists()
@@ -152,10 +155,16 @@ export const ContactList: React.FC = () => {
 
   const handleCreateList = async () => {
     const name = newListName.trim();
-    if (!name) return;
+    if (!name) {
+      return;
+    }
     try {
       const created = await contactsApi.createList(name);
-      setLists((prev) => [...prev, { id: created.id, name: created.name }].sort((a, b) => a.name.localeCompare(b.name)));
+      setLists((prev) =>
+        [...prev, { id: created.id, name: created.name }].sort((a, b) =>
+          a.name.localeCompare(b.name),
+        ),
+      );
       setNewListName('');
     } catch (err) {
       console.error('Create list failed:', err);
@@ -164,7 +173,9 @@ export const ContactList: React.FC = () => {
 
   const handleRenameList = async (listId: string) => {
     const name = editingListName.trim();
-    if (!name) return;
+    if (!name) {
+      return;
+    }
     try {
       await contactsApi.renameList(listId, name);
       setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, name } : l)));
@@ -176,18 +187,24 @@ export const ContactList: React.FC = () => {
   };
 
   const handleDeleteList = async (listId: string) => {
-    if (!confirm('Ta bort listan? Kontakterna tas inte bort, bara kopplingen.')) return;
+    if (!confirm('Ta bort listan? Kontakterna tas inte bort, bara kopplingen.')) {
+      return;
+    }
     try {
       await contactsApi.deleteList(listId);
       setLists((prev) => prev.filter((l) => l.id !== listId));
-      if (selectedListId === listId) setSelectedListId(null);
+      if (selectedListId === listId) {
+        setSelectedListId(null);
+      }
     } catch (err) {
       console.error('Delete list failed:', err);
     }
   };
 
   const handleAddContactsToList = (contactIds: string[]) => {
-    if (!selectedListId) return;
+    if (!selectedListId) {
+      return;
+    }
     const currentIds = listContacts.map((c: any) => String(c.id));
     const toAdd = contactIds.filter((id) => !currentIds.includes(id));
     const toRemove = currentIds.filter((id) => !contactIds.includes(id));
@@ -213,7 +230,9 @@ export const ContactList: React.FC = () => {
   };
 
   const handleAddSelectedToList = (listId: string) => {
-    if (selectedIds.size === 0) return;
+    if (selectedIds.size === 0) {
+      return;
+    }
     const ids = Array.from(selectedIds);
     contactsApi
       .addContactsToList(listId, ids)
@@ -230,7 +249,9 @@ export const ContactList: React.FC = () => {
 
   const handleCreateListDialogSubmit = () => {
     const name = createListDialogName.trim();
-    if (!name || selectedIds.size === 0) return;
+    if (!name || selectedIds.size === 0) {
+      return;
+    }
     setCreateListDialogSaving(true);
     contactsApi
       .createList(name)
@@ -239,7 +260,9 @@ export const ContactList: React.FC = () => {
       })
       .then((list) => {
         setLists((prev) =>
-          [...prev, { id: String(list.id), name: list.name }].sort((a, b) => a.name.localeCompare(b.name))
+          [...prev, { id: String(list.id), name: list.name }].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          ),
         );
         setSelectedIds(new Set());
         setShowCreateListDialog(false);
@@ -250,10 +273,14 @@ export const ContactList: React.FC = () => {
   };
 
   const handleRemoveContactFromList = (contactId: string) => {
-    if (!selectedListId) return;
+    if (!selectedListId) {
+      return;
+    }
     contactsApi
       .removeContactFromList(selectedListId, contactId)
-      .then(() => setListContacts((prev) => prev.filter((c: any) => String(c.id) !== String(contactId))))
+      .then(() =>
+        setListContacts((prev) => prev.filter((c: any) => String(c.id) !== String(contactId))),
+      )
       .catch((err) => console.error('Remove contact from list failed:', err));
   };
 
@@ -309,11 +336,7 @@ export const ContactList: React.FC = () => {
                   <ListIcon className="h-4 w-4" />
                   List
                 </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setShowImportWizard(true)}
-                >
+                <Button variant="secondary" size="sm" onClick={() => setShowImportWizard(true)}>
                   <Upload className="h-4 w-4" />
                   Import
                 </Button>
@@ -386,8 +409,7 @@ export const ContactList: React.FC = () => {
 
   const selectedCount = selectedIds.size;
   const allSelected =
-    sortedContacts.length > 0 &&
-    sortedContacts.every((c) => selectedIds.has(c.id));
+    sortedContacts.length > 0 && sortedContacts.every((c) => selectedIds.has(c.id));
   const toggleSelectAll = () => {
     if (allSelected) {
       setSelectedIds(new Set());
@@ -398,8 +420,11 @@ export const ContactList: React.FC = () => {
   const toggleSelectOne = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
@@ -550,7 +575,9 @@ export const ContactList: React.FC = () => {
                   <h3 className="text-sm font-semibold">Listor</h3>
                   <div className="border rounded-md divide-y max-h-[400px] overflow-y-auto">
                     {lists.length === 0 ? (
-                      <div className="p-4 text-sm text-muted-foreground">Inga listor. Skapa en ovan.</div>
+                      <div className="p-4 text-sm text-muted-foreground">
+                        Inga listor. Skapa en ovan.
+                      </div>
                     ) : (
                       lists.map((list) => (
                         <div
@@ -566,15 +593,27 @@ export const ContactList: React.FC = () => {
                                 onChange={(e) => setEditingListName(e.target.value)}
                                 className="h-8 flex-1"
                                 onKeyDown={(e) => {
-                                  if (e.key === 'Enter') handleRenameList(list.id);
-                                  if (e.key === 'Escape') setEditingListId(null);
+                                  if (e.key === 'Enter') {
+                                    handleRenameList(list.id);
+                                  }
+                                  if (e.key === 'Escape') {
+                                    setEditingListId(null);
+                                  }
                                 }}
                                 autoFocus
                               />
-                              <Button size="sm" variant="ghost" onClick={() => handleRenameList(list.id)}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRenameList(list.id)}
+                              >
                                 Spara
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => setEditingListId(null)}>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setEditingListId(null)}
+                              >
                                 Avbryt
                               </Button>
                             </>
@@ -619,10 +658,16 @@ export const ContactList: React.FC = () => {
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold flex items-center justify-between">
                     <span>
-                      {selectedListId ? lists.find((l) => l.id === selectedListId)?.name ?? 'Kontakter' : 'Välj en lista'}
+                      {selectedListId
+                        ? (lists.find((l) => l.id === selectedListId)?.name ?? 'Kontakter')
+                        : 'Välj en lista'}
                     </span>
                     {selectedListId && (
-                      <Button size="sm" variant="outline" onClick={() => setShowContactPicker(true)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowContactPicker(true)}
+                      >
                         <Pencil className="h-4 w-4" />
                         Redigera kontakter
                       </Button>
@@ -634,14 +679,17 @@ export const ContactList: React.FC = () => {
                         <div className="p-4 text-sm text-muted-foreground">Laddar kontakter...</div>
                       ) : listContacts.length === 0 ? (
                         <div className="p-4 text-sm text-muted-foreground">
-                          Inga kontakter i listan. Klicka &quot;Redigera kontakter&quot; för att lägga till.
+                          Inga kontakter i listan. Klicka &quot;Redigera kontakter&quot; för att
+                          lägga till.
                         </div>
                       ) : (
                         <div className="divide-y">
                           {listContacts.map((c: any) => (
                             <div key={c.id} className="flex items-center gap-2 px-3 py-2 group">
                               <User className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
-                              <span className="flex-1 truncate text-sm">{c.companyName || c.email || 'Namnlös'}</span>
+                              <span className="flex-1 truncate text-sm">
+                                {c.companyName || c.email || 'Namnlös'}
+                              </span>
                               <span className="text-xs text-muted-foreground truncate max-w-[140px]">
                                 {c.email}
                               </span>
@@ -666,231 +714,237 @@ export const ContactList: React.FC = () => {
           </div>
         </Card>
       ) : (
-      <Card className="shadow-none">
-        {sortedContacts.length === 0 ? (
-          <div className="p-6 text-center text-muted-foreground">
-            {searchTerm
-              ? 'No contacts found matching your search.'
-              : 'No contacts yet. Click "Add Contact" to get started.'}
-          </div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {sortedContacts.map((contact) => (
-              <Card
-                key={contact.id}
-                className={cn(
-                  'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent',
-                  selectedIds.has(contact.id)
-                    ? 'plugin-contacts bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
-                    : 'hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md',
-                )}
-                onClick={(e) => {
-                  if ((e.target as HTMLElement).closest('input[type="checkbox"]')) return;
-                  handleOpenForView(contact);
-                }}
-                data-list-item={JSON.stringify(contact)}
-                data-plugin-name="contacts"
-                role="button"
-                aria-label={`Open contact ${contact.companyName}`}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(contact.id)}
-                      onChange={() => toggleSelectOne(contact.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="cursor-pointer h-4 w-4"
-                      aria-label={selectedIds.has(contact.id) ? 'Unselect contact' : 'Select contact'}
-                    />
-                    <span className="font-mono text-[10px] text-muted-foreground">
-                      #{contact.contactNumber}
-                    </span>
-                  </div>
-                  <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
-                    {contact.contactType === 'company' ? 'Company' : 'Private'}
-                  </Badge>
-                </div>
-                <h3 className="font-semibold text-base mb-1 line-clamp-1">{contact.companyName}</h3>
-                <div className="text-xs text-muted-foreground mb-4">
-                  {contact.contactType === 'company' && contact.organizationNumber && (
-                    <span>Org: {contact.organizationNumber}</span>
-                  )}
-                  {contact.contactType === 'private' && contact.personalNumber && (
-                    <span>PN: {contact.personalNumber.substring(0, 9)}XXXX</span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-2 mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
-                  <div className="flex items-center gap-2 text-xs">
-                    <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                    <span className="truncate">{contact.email}</span>
-                  </div>
-                  {contact.phone && (
-                    <div className="flex items-center gap-2 text-xs">
-                      <Phone className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                      <span>{contact.phone}</span>
-                    </div>
-                  )}
-                  <div className="text-[10px] text-muted-foreground mt-1 pt-2 border-t border-dashed border-gray-100 dark:border-gray-800">
-                    Created: {new Date(contact.createdAt).toLocaleDateString()}
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={toggleSelectAll}
-                    className="h-4 w-4 cursor-pointer"
-                    aria-label={allSelected ? 'Deselect all contacts' : 'Select all contacts'}
-                  />
-                </TableHead>
-                <TableHead className="w-12"></TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('contactNumber')}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>#</span>
-                    {sortField === 'contactNumber' &&
-                      (sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3 w-3 inline" />
-                      ) : (
-                        <ArrowDown className="h-3 w-3 inline" />
-                      ))}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('name')}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>Name</span>
-                    {sortField === 'name' &&
-                      (sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3 w-3 inline" />
-                      ) : (
-                        <ArrowDown className="h-3 w-3 inline" />
-                      ))}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('type')}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>Type</span>
-                    {sortField === 'type' &&
-                      (sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3 w-3 inline" />
-                      ) : (
-                        <ArrowDown className="h-3 w-3 inline" />
-                      ))}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 select-none"
-                  onClick={() => handleSort('email')}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>Email</span>
-                    {sortField === 'email' &&
-                      (sortOrder === 'asc' ? (
-                        <ArrowUp className="h-3 w-3 inline" />
-                      ) : (
-                        <ArrowDown className="h-3 w-3 inline" />
-                      ))}
-                  </div>
-                </TableHead>
-                <TableHead>Phone</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <Card className="shadow-none">
+          {sortedContacts.length === 0 ? (
+            <div className="p-6 text-center text-muted-foreground">
+              {searchTerm
+                ? 'No contacts found matching your search.'
+                : 'No contacts yet. Click "Add Contact" to get started.'}
+            </div>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {sortedContacts.map((contact) => (
-                <TableRow
+                <Card
                   key={contact.id}
-                  className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50"
-                  tabIndex={0}
+                  className={cn(
+                    'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent',
+                    selectedIds.has(contact.id)
+                      ? 'plugin-contacts bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
+                      : 'hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md',
+                  )}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                      return;
+                    }
+                    handleOpenForView(contact);
+                  }}
                   data-list-item={JSON.stringify(contact)}
                   data-plugin-name="contacts"
                   role="button"
                   aria-label={`Open contact ${contact.companyName}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleOpenForView(contact);
-                  }}
                 >
-                  <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(contact.id)}
-                      onChange={() => toggleSelectOne(contact.id)}
-                      className="h-4 w-4 cursor-pointer"
-                      aria-label={`Select ${contact.companyName}`}
-                    />
-                  </TableCell>
-                  <TableCell className="w-12">
-                    {contact.contactType === 'company' ? (
-                      <Building className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                    ) : (
-                      <User className="w-4 h-4 text-green-500 dark:text-green-400" />
-                    )}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    #{contact.contactNumber}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold">{contact.companyName}</span>
-                      {contact.contactType === 'company' && contact.organizationNumber && (
-                        <span className="text-xs text-muted-foreground">
-                          Org: {contact.organizationNumber}
-                        </span>
-                      )}
-                      {contact.contactType === 'private' && contact.personalNumber && (
-                        <span className="text-xs text-muted-foreground">
-                          PN: {contact.personalNumber.substring(0, 9)}XXXX
-                        </span>
-                      )}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(contact.id)}
+                        onChange={() => toggleSelectOne(contact.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="cursor-pointer h-4 w-4"
+                        aria-label={
+                          selectedIds.has(contact.id) ? 'Unselect contact' : 'Select contact'
+                        }
+                      />
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        #{contact.contactNumber}
+                      </span>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      className={
-                        contact.contactType === 'company'
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                          : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-                      }
-                    >
+                    <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
                       {contact.contactType === 'company' ? 'Company' : 'Private'}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <Mail className="w-3 h-3 text-muted-foreground" />
-                      <span className="truncate max-w-[200px]">{contact.email}</span>
+                  </div>
+                  <h3 className="font-semibold text-base mb-1 line-clamp-1">
+                    {contact.companyName}
+                  </h3>
+                  <div className="text-xs text-muted-foreground mb-4">
+                    {contact.contactType === 'company' && contact.organizationNumber && (
+                      <span>Org: {contact.organizationNumber}</span>
+                    )}
+                    {contact.contactType === 'private' && contact.personalNumber && (
+                      <span>PN: {contact.personalNumber.substring(0, 9)}XXXX</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2 mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center gap-2 text-xs">
+                      <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                      <span className="truncate">{contact.email}</span>
                     </div>
-                  </TableCell>
-                  <TableCell>
                     {contact.phone && (
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <Phone className="w-3 h-3 text-muted-foreground" />
+                      <div className="flex items-center gap-2 text-xs">
+                        <Phone className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                         <span>{contact.phone}</span>
                       </div>
                     )}
-                  </TableCell>
-                </TableRow>
+                    <div className="text-[10px] text-muted-foreground mt-1 pt-2 border-t border-dashed border-gray-100 dark:border-gray-800">
+                      Created: {new Date(contact.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                </Card>
               ))}
-            </TableBody>
-          </Table>
-        )}
-      </Card>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 cursor-pointer"
+                      aria-label={allSelected ? 'Deselect all contacts' : 'Select all contacts'}
+                    />
+                  </TableHead>
+                  <TableHead className="w-12"></TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('contactNumber')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>#</span>
+                      {sortField === 'contactNumber' &&
+                        (sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3 w-3 inline" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 inline" />
+                        ))}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('name')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>Name</span>
+                      {sortField === 'name' &&
+                        (sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3 w-3 inline" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 inline" />
+                        ))}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('type')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>Type</span>
+                      {sortField === 'type' &&
+                        (sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3 w-3 inline" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 inline" />
+                        ))}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('email')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>Email</span>
+                      {sortField === 'email' &&
+                        (sortOrder === 'asc' ? (
+                          <ArrowUp className="h-3 w-3 inline" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 inline" />
+                        ))}
+                    </div>
+                  </TableHead>
+                  <TableHead>Phone</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedContacts.map((contact) => (
+                  <TableRow
+                    key={contact.id}
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50"
+                    tabIndex={0}
+                    data-list-item={JSON.stringify(contact)}
+                    data-plugin-name="contacts"
+                    role="button"
+                    aria-label={`Open contact ${contact.companyName}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleOpenForView(contact);
+                    }}
+                  >
+                    <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(contact.id)}
+                        onChange={() => toggleSelectOne(contact.id)}
+                        className="h-4 w-4 cursor-pointer"
+                        aria-label={`Select ${contact.companyName}`}
+                      />
+                    </TableCell>
+                    <TableCell className="w-12">
+                      {contact.contactType === 'company' ? (
+                        <Building className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                      ) : (
+                        <User className="w-4 h-4 text-green-500 dark:text-green-400" />
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      #{contact.contactNumber}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-semibold">{contact.companyName}</span>
+                        {contact.contactType === 'company' && contact.organizationNumber && (
+                          <span className="text-xs text-muted-foreground">
+                            Org: {contact.organizationNumber}
+                          </span>
+                        )}
+                        {contact.contactType === 'private' && contact.personalNumber && (
+                          <span className="text-xs text-muted-foreground">
+                            PN: {contact.personalNumber.substring(0, 9)}XXXX
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        className={
+                          contact.contactType === 'company'
+                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                            : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                        }
+                      >
+                        {contact.contactType === 'company' ? 'Company' : 'Private'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5 text-sm">
+                        <Mail className="w-3 h-3 text-muted-foreground" />
+                        <span className="truncate max-w-[200px]">{contact.email}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {contact.phone && (
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <Phone className="w-3 h-3 text-muted-foreground" />
+                          <span>{contact.phone}</span>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </Card>
       )}
 
       {showContactPicker && (

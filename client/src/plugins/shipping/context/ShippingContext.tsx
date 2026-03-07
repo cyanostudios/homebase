@@ -80,7 +80,9 @@ export function ShippingProvider({ children, isAuthenticated, onCloseOtherPanels
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
 
   const [isShippingPanelOpen, setIsShippingPanelOpen] = useState(false);
-  const [currentShippingSettings, setCurrentShippingSettings] = useState<ShippingSettings | null>(null);
+  const [currentShippingSettings, setCurrentShippingSettings] = useState<ShippingSettings | null>(
+    null,
+  );
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -228,9 +230,7 @@ export function ShippingProvider({ children, isAuthenticated, onCloseOtherPanels
   const updateSender = useCallback(async (id: string, data: Partial<ShippingSender>) => {
     const updated = await shippingApi.updateSender(id, data);
     setSenders((prev) =>
-      prev
-        .map((s) => (s.id === id ? updated : s))
-        .sort((a, b) => a.name.localeCompare(b.name)),
+      prev.map((s) => (s.id === id ? updated : s)).sort((a, b) => a.name.localeCompare(b.name)),
     );
   }, []);
 
@@ -247,9 +247,7 @@ export function ShippingProvider({ children, isAuthenticated, onCloseOtherPanels
   const updateService = useCallback(async (id: string, data: Partial<ShippingServicePreset>) => {
     const updated = await shippingApi.updateService(id, data);
     setServices((prev) =>
-      prev
-        .map((s) => (s.id === id ? updated : s))
-        .sort((a, b) => a.name.localeCompare(b.name)),
+      prev.map((s) => (s.id === id ? updated : s)).sort((a, b) => a.name.localeCompare(b.name)),
     );
   }, []);
 
@@ -291,7 +289,10 @@ export function ShippingProvider({ children, isAuthenticated, onCloseOtherPanels
         });
 
         setRecentServiceIds((prev) => {
-          const next = [payload.serviceId, ...prev.filter((id) => id !== payload.serviceId)].slice(0, 5);
+          const next = [payload.serviceId, ...prev.filter((id) => id !== payload.serviceId)].slice(
+            0,
+            5,
+          );
           localStorage.setItem(RECENT_SERVICES_KEY, JSON.stringify(next));
           return next;
         });
@@ -388,6 +389,8 @@ export function ShippingProvider({ children, isAuthenticated, onCloseOtherPanels
 
 export function useShipping() {
   const ctx = useContext(ShippingContext);
-  if (!ctx) throw new Error('useShipping must be used within ShippingProvider');
+  if (!ctx) {
+    throw new Error('useShipping must be used within ShippingProvider');
+  }
   return ctx;
 }

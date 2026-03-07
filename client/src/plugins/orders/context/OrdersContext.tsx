@@ -32,7 +32,11 @@ interface OrdersContextType {
   openOrderForEdit: (order: OrderDetails) => void;
   openOrderForView: (order: OrderListItem | OrderDetails) => Promise<void>;
   closeOrderPanel: () => void;
-  saveOrder: (data: { status: OrderStatus; carrier?: string; trackingNumber?: string }) => Promise<boolean>;
+  saveOrder: (data: {
+    status: OrderStatus;
+    carrier?: string;
+    trackingNumber?: string;
+  }) => Promise<boolean>;
   deleteOrder: (_id: string) => Promise<void>;
   clearValidationErrors: () => void;
 }
@@ -182,7 +186,11 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
   );
 
   const saveOrder = useCallback(
-    async (data: { status: OrderStatus; carrier?: string; trackingNumber?: string }): Promise<boolean> => {
+    async (data: {
+      status: OrderStatus;
+      carrier?: string;
+      trackingNumber?: string;
+    }): Promise<boolean> => {
       clearValidationErrors();
 
       if (!currentOrder?.id) {
@@ -196,7 +204,9 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
 
         setOrders((prev) => prev.map((o) => (o.id === currentOrder.id ? updatedNormalized : o)));
         setCurrentOrder((prev) =>
-          prev ? ({ ...(prev as any), ...updatedNormalized } as OrderDetails) : (updatedNormalized as OrderDetails),
+          prev
+            ? ({ ...(prev as any), ...updatedNormalized } as OrderDetails)
+            : (updatedNormalized as OrderDetails),
         );
         setPanelMode('view');
         return true;
@@ -205,7 +215,9 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
         if (err?.errors) {
           setValidationErrors(err.errors);
         } else {
-          setValidationErrors([{ field: 'general', message: err?.message || 'Failed to update order' }]);
+          setValidationErrors([
+            { field: 'general', message: err?.message || 'Failed to update order' },
+          ]);
         }
         return false;
       }
@@ -261,7 +273,8 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
 
 export function useOrders() {
   const ctx = useContext(OrdersContext);
-  if (!ctx) throw new Error('useOrders must be used within OrdersProvider');
+  if (!ctx) {
+    throw new Error('useOrders must be used within OrdersProvider');
+  }
   return ctx;
 }
-

@@ -3,4 +3,3 @@ import { useFyndiqProducts as useFyndiqProductsContext } from '../context/Fyndiq
 export function useFyndiqProducts() {
   return useFyndiqProductsContext();
 }
-

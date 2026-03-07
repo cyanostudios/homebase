@@ -28,7 +28,9 @@ export const FilePicker: React.FC<FilePickerProps> = ({ selectedIds, onSelect, o
   }, [selectedIds]);
 
   useEffect(() => {
-    if (didLoadRef.current) return;
+    if (didLoadRef.current) {
+      return;
+    }
     didLoadRef.current = true;
 
     const seq = ++loadSeqRef.current;
@@ -36,12 +38,16 @@ export const FilePicker: React.FC<FilePickerProps> = ({ selectedIds, onSelect, o
     const load = async () => {
       try {
         const data = await filesApi.getItems();
-        if (seq !== loadSeqRef.current) return;
+        if (seq !== loadSeqRef.current) {
+          return;
+        }
         setFiles(data);
       } catch (err) {
         console.error('Failed to load files:', err);
       } finally {
-        if (seq === loadSeqRef.current) setLoading(false);
+        if (seq === loadSeqRef.current) {
+          setLoading(false);
+        }
       }
     };
 
@@ -49,14 +55,17 @@ export const FilePicker: React.FC<FilePickerProps> = ({ selectedIds, onSelect, o
   }, []);
 
   const filtered = files.filter(
-    (f) => !search || (f.name || '').toLowerCase().includes(search.toLowerCase())
+    (f) => !search || (f.name || '').toLowerCase().includes(search.toLowerCase()),
   );
 
   const toggle = (id: string) => {
     const next = new Set(selected);
     const key = String(id);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
     setSelected(next);
   };
 

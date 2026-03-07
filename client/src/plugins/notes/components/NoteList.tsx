@@ -111,11 +111,7 @@ export const NoteList: React.FC = () => {
               <ListIcon className="h-4 w-4" />
               List
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowImportWizard(true)}
-            >
+            <Button variant="secondary" size="sm" onClick={() => setShowImportWizard(true)}>
               <Upload className="h-4 w-4" />
               Import
             </Button>
@@ -203,8 +199,7 @@ export const NoteList: React.FC = () => {
   };
 
   const selectedCount = selectedIds.size;
-  const allSelected =
-    sortedNotes.length > 0 && sortedNotes.every((n) => selectedIds.has(n.id));
+  const allSelected = sortedNotes.length > 0 && sortedNotes.every((n) => selectedIds.has(n.id));
   const toggleSelectAll = () => {
     if (allSelected) {
       setSelectedIds(new Set());
@@ -215,8 +210,11 @@ export const NoteList: React.FC = () => {
   const toggleSelectOne = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
@@ -333,7 +331,9 @@ export const NoteList: React.FC = () => {
                       : 'hover:border-plugin-subtle hover:plugin-notes hover:shadow-md',
                   )}
                   onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) return;
+                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                      return;
+                    }
                     e.preventDefault();
                     handleOpenForView(note);
                   }}

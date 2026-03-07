@@ -18,13 +18,13 @@ export function useTheme() {
 
   useEffect(() => {
     const root = window.document.documentElement;
-    
+
     // Remove both classes first
     root.classList.remove('light', 'dark');
-    
+
     // Add current theme class
     root.classList.add(theme);
-    
+
     // Save to localStorage
     localStorage.setItem('theme', theme);
   }, [theme]);

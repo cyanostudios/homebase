@@ -1,13 +1,18 @@
 // client/src/plugins/files/components/CloudStorageSettings.tsx
+import { Cloud, X, ExternalLink, Key } from 'lucide-react';
 import React, { useState } from 'react';
-import { Cloud, X, ExternalLink, Settings, Key } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Heading, Text } from '@/core/ui/Typography';
-import { useFiles } from '../hooks/useFiles';
-import { cloudStorageApi, type CloudStorageService } from '../api/cloudStorageApi';
 
-const serviceConfig: Record<CloudStorageService, { name: string; icon: string; color: string; description: string }> = {
+import { cloudStorageApi, type CloudStorageService } from '../api/cloudStorageApi';
+import { useFiles } from '../hooks/useFiles';
+
+const serviceConfig: Record<
+  CloudStorageService,
+  { name: string; icon: string; color: string; description: string }
+> = {
   googledrive: {
     name: 'Google Drive',
     icon: '☁️',
@@ -25,7 +30,9 @@ export const CloudStorageSettings: React.FC = () => {
   } = useFiles();
   const [openingService, setOpeningService] = useState<CloudStorageService | null>(null);
   const [configuringService, setConfiguringService] = useState<CloudStorageService | null>(null);
-  const [credentials, setCredentials] = useState<Record<CloudStorageService, { clientId: string; clientSecret: string }>>({
+  const [credentials, setCredentials] = useState<
+    Record<CloudStorageService, { clientId: string; clientSecret: string }>
+  >({
     googledrive: { clientId: '', clientSecret: '' },
   });
   const [savingCredentials, setSavingCredentials] = useState(false);
@@ -165,11 +172,7 @@ export const CloudStorageSettings: React.FC = () => {
                     >
                       {savingCredentials ? 'Saving...' : 'Save Credentials'}
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setConfiguringService(null)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => setConfiguringService(null)}>
                       Cancel
                     </Button>
                   </div>

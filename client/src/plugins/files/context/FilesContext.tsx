@@ -1,8 +1,14 @@
 // client/src/plugins/files/context/FilesContext.tsx
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+
 import { useApp } from '@/core/api/AppContext';
+
+import {
+  cloudStorageApi,
+  type CloudStorageSettings,
+  type CloudStorageService,
+} from '../api/cloudStorageApi';
 import { filesApi, type FilesApi } from '../api/filesApi';
-import { cloudStorageApi, type CloudStorageSettings, type CloudStorageService } from '../api/cloudStorageApi';
 import type { ValidationError, FileItem } from '../types/files';
 
 interface FilesContextType {
@@ -49,7 +55,11 @@ interface FilesContextType {
   getCloudStorageEmbedUrl: (service: CloudStorageService) => Promise<string | null>;
 
   // PanelTitles integration
-  getPanelTitle: (mode: 'create' | 'edit' | 'view', item: FileItem | null, isMobile?: boolean) => string;
+  getPanelTitle: (
+    mode: 'create' | 'edit' | 'view',
+    item: FileItem | null,
+    isMobile?: boolean,
+  ) => string;
   getPanelSubtitle: (mode: 'create' | 'edit' | 'view', item: FileItem | null) => React.ReactNode;
   getDeleteMessage: (item: FileItem | null) => string;
 }
@@ -95,12 +105,14 @@ export function FilesProvider({
       setFiles([]);
       setFolders([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load on auth change only
   }, [isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated) {
       void loadItems();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentFolderPath, isAuthenticated]);
 
   useEffect(() => {
@@ -130,7 +142,8 @@ export function FilesProvider({
 
   async function loadItems(folderPathOverride?: string | null) {
     try {
-      const path = folderPathOverride !== undefined ? (folderPathOverride ?? '') : (currentFolderPath ?? '');
+      const path =
+        folderPathOverride !== undefined ? (folderPathOverride ?? '') : (currentFolderPath ?? '');
       const items: any[] = await api.getItems(path);
       setFiles(items.map(normalize));
     } catch (e: any) {
@@ -184,7 +197,9 @@ export function FilesProvider({
     const errors = validate(raw);
     setValidationErrors(errors);
     const blocking = errors.filter((e) => !e.message.includes('Warning'));
-    if (blocking.length > 0) return false;
+    if (blocking.length > 0) {
+      return false;
+    }
 
     const batch = Array.isArray(raw?._files) ? (raw._files as File[]) : [];
 
@@ -199,10 +214,10 @@ export function FilesProvider({
         return true;
       } catch (err: any) {
         console.error('Upload failed:', err);
-        
+
         // V2: Handle standardized error format from backend
         const validationErrors: ValidationError[] = [];
-        
+
         // Check for field-level errors (409 conflicts)
         if (err?.status === 409 && Array.isArray(err.errors)) {
           validationErrors.push(...err.errors);
@@ -223,13 +238,13 @@ export function FilesProvider({
         else if (err?.status === 400 && err?.message) {
           validationErrors.push({ field: '_files', message: err.message });
         }
-        
+
         // If no validation errors from backend, use error message
         if (validationErrors.length === 0) {
           const errorMessage = err?.message || err?.error || 'Failed to upload. Please try again.';
           validationErrors.push({ field: 'general', message: errorMessage });
         }
-        
+
         setValidationErrors(validationErrors);
         return false;
       }
@@ -251,10 +266,10 @@ export function FilesProvider({
       return true;
     } catch (err: any) {
       console.error('Failed to save file:', err);
-      
+
       // V2: Handle standardized error format from backend
       const validationErrors: ValidationError[] = [];
-      
+
       // Check for field-level errors (409 conflicts)
       if (err?.status === 409 && Array.isArray(err.errors)) {
         validationErrors.push(...err.errors);
@@ -275,13 +290,13 @@ export function FilesProvider({
       else if (err?.status === 400 && err?.message) {
         validationErrors.push({ field: 'general', message: err.message });
       }
-      
+
       // If no validation errors from backend, use error message
       if (validationErrors.length === 0) {
         const errorMessage = err?.message || err?.error || 'Failed to save. Please try again.';
         validationErrors.push({ field: 'general', message: errorMessage });
       }
-      
+
       setValidationErrors(validationErrors);
       return false;
     }
@@ -304,7 +319,9 @@ export function FilesProvider({
   const deleteFiles = async (ids: string[], folderPaths?: string[]) => {
     const uniqueIds = Array.from(new Set((ids || []).map(String))).filter(Boolean);
     const uniquePaths = Array.from(new Set((folderPaths || []).filter(Boolean)));
-    if (!uniqueIds.length && !uniquePaths.length) return;
+    if (!uniqueIds.length && !uniquePaths.length) {
+      return;
+    }
 
     try {
       await api.deleteFilesBulk(uniqueIds, uniquePaths);
@@ -391,22 +408,39 @@ export function FilesProvider({
 
   // ---- PanelTitles helpers ----
   const humanSize = (bytes?: number | null) => {
-    if (bytes == null || !Number.isFinite(bytes)) return '—';
+    if ((bytes ?? null) === null || !Number.isFinite(bytes)) {
+      return '—';
+    }
     const units = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
-    let n = bytes, i = 0;
-    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    let n = bytes,
+      i = 0;
+    while (n >= 1024 && i < units.length - 1) {
+      n /= 1024;
+      i++;
+    }
     return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
   };
 
   const getPanelTitle = (mode: 'create' | 'edit' | 'view', item: FileItem | null): string => {
-    if (mode === 'create') return 'Upload Files';
-    if (mode === 'edit') return 'Rename File';
+    if (mode === 'create') {
+      return 'Upload Files';
+    }
+    if (mode === 'edit') {
+      return 'Rename File';
+    }
     return item?.name || 'File';
   };
 
-  const getPanelSubtitle = (mode: 'create' | 'edit' | 'view', item: FileItem | null): React.ReactNode => {
-    if (mode === 'create') return 'Select one or multiple files to upload';
-    if (mode === 'edit') return 'Change the file name and save';
+  const getPanelSubtitle = (
+    mode: 'create' | 'edit' | 'view',
+    item: FileItem | null,
+  ): React.ReactNode => {
+    if (mode === 'create') {
+      return 'Select one or multiple files to upload';
+    }
+    if (mode === 'edit') {
+      return 'Change the file name and save';
+    }
     if (item) {
       const type = item.mimeType || 'application/octet-stream';
       const size = humanSize(item.size);
@@ -495,6 +529,8 @@ export function FilesProvider({
 
 export function useFilesContext() {
   const ctx = useContext(FilesContext);
-  if (!ctx) throw new Error('useFilesContext must be used within a FilesProvider');
+  if (!ctx) {
+    throw new Error('useFilesContext must be used within a FilesProvider');
+  }
   return ctx;
 }

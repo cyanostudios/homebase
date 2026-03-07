@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { RichTextEditor } from '@/core/ui/RichTextEditor';
 import { getFxLatest } from '@/core/api/fxApi';
+import { RichTextEditor } from '@/core/ui/RichTextEditor';
 import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -1118,12 +1118,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         const tData = (cs.cdon as any)?.texts?.[m.key] ?? (cs.fyndiq as any)?.texts?.[m.key];
         const validFor = tData?.validFor ?? { cdon: true, fyndiq: true };
         const extended = (cs as any)?.textsExtended?.[m.key];
-        const bulletpointsStr =
-          Array.isArray(extended?.bulletpoints)
-            ? (extended.bulletpoints as string[]).filter(Boolean).join('\n')
-            : typeof extended?.bulletpoints === 'string'
-              ? extended.bulletpoints
-              : '';
+        const bulletpointsStr = Array.isArray(extended?.bulletpoints)
+          ? (extended.bulletpoints as string[]).filter(Boolean).join('\n')
+          : typeof extended?.bulletpoints === 'string'
+            ? extended.bulletpoints
+            : '';
         texts[m.key] =
           tData && typeof tData === 'object'
             ? {
@@ -1289,8 +1288,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           (currentProduct as any).weight != null && (currentProduct as any).weight !== ''
             ? (currentProduct as any).weight
             : '',
-        condition:
-          (currentProduct as any).condition === 'used' ? 'used' : 'new',
+        condition: (currentProduct as any).condition === 'used' ? 'used' : 'new',
         groupId: (currentProduct as any).groupId ?? '',
         volume:
           (currentProduct as any).volume != null && (currentProduct as any).volume !== ''
@@ -1736,7 +1734,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         const t = formData.texts[m.key];
         const bpRaw = (t?.bulletpoints ?? '').trim();
         const bulletpointsArr = bpRaw
-          ? bpRaw.split(/\n/).map((s) => s.trim()).filter(Boolean)
+          ? bpRaw
+              .split(/\n/)
+              .map((s) => s.trim())
+              .filter(Boolean)
           : undefined;
         if (
           (t?.titleSeo ?? '').trim() ||
@@ -2347,7 +2348,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               Texter per marknad
             </Heading>
             <p className="text-sm text-gray-600 mb-4">
-              Titel och beskrivning per språk. sv-SE är standard. Välj land till vänster – innehållet visas till höger.
+              Titel och beskrivning per språk. sv-SE är standard. Välj land till vänster –
+              innehållet visas till höger.
             </p>
             <div className="flex gap-0 min-h-[320px]" style={{ minHeight: 'min(320px, 50vh)' }}>
               {/* Left: country list ~20% */}
@@ -2361,9 +2363,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       type="button"
                       onClick={() => setSelectedTextMarket(m.key)}
                       className={`text-left px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-                        isSelected
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'text-gray-700 hover:bg-gray-100'
+                        isSelected ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-100'
                       }`}
                     >
                       {m.label}

@@ -8,7 +8,9 @@ class FyndiqApi {
   private csrfToken: string | null = null;
 
   private async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) return this.csrfToken;
+    if (this.csrfToken) {
+      return this.csrfToken;
+    }
     const response = await fetch('/api/csrf-token', { credentials: 'include' });
     const data = await response.json();
     const token = data?.csrfToken;
@@ -54,15 +56,23 @@ class FyndiqApi {
       try {
         payload = JSON.parse(text);
       } catch {
-        throw new Error(`Invalid JSON response: ${text.slice(0, 100)}${text.length > 100 ? '…' : ''}`);
+        throw new Error(
+          `Invalid JSON response: ${text.slice(0, 100)}${text.length > 100 ? '…' : ''}`,
+        );
       }
     }
 
     if (!response.ok) {
-      const err: any = new Error(payload?.error || payload?.message || response.statusText || 'Request failed');
+      const err: any = new Error(
+        payload?.error || payload?.message || response.statusText || 'Request failed',
+      );
       err.status = response.status;
-      if (payload?.errors) err.errors = payload.errors as ApiFieldError[];
-      if (payload?.detail) err.detail = payload.detail;
+      if (payload?.errors) {
+        err.errors = payload.errors as ApiFieldError[];
+      }
+      if (payload?.detail) {
+        err.detail = payload.detail;
+      }
       throw err;
     }
 
@@ -83,19 +93,23 @@ class FyndiqApi {
 
   async exportProducts(
     products: any[],
-    opts?: { markets?: ('se' | 'dk' | 'fi')[] }
+    opts?: { markets?: ('se' | 'dk' | 'fi')[] },
   ): Promise<FyndiqExportResult> {
     const body: { products: any[]; markets?: ('se' | 'dk' | 'fi')[] } = { products };
-    if (opts?.markets?.length) body.markets = opts.markets;
+    if (opts?.markets?.length) {
+      body.markets = opts.markets;
+    }
     return this.request('/products/export', { method: 'POST', body: JSON.stringify(body) });
   }
 
   async batchDelete(
     productIds: string[],
-    opts?: { markets?: ('se' | 'dk' | 'fi')[] }
+    opts?: { markets?: ('se' | 'dk' | 'fi')[] },
   ): Promise<FyndiqExportResult> {
     const body: { productIds: string[]; markets?: ('se' | 'dk' | 'fi')[] } = { productIds };
-    if (opts?.markets?.length) body.markets = opts.markets;
+    if (opts?.markets?.length) {
+      body.markets = opts.markets;
+    }
     return this.request('/batch', { method: 'DELETE', body: JSON.stringify(body) });
   }
 
@@ -115,15 +129,27 @@ class FyndiqApi {
     return this.request('/articles', { method: 'POST', body: JSON.stringify(payload) });
   }
 
-  async bulkCreateArticles(payloads: Record<string, unknown>[]): Promise<{ description?: string; responses?: unknown[] }> {
+  async bulkCreateArticles(
+    payloads: Record<string, unknown>[],
+  ): Promise<{ description?: string; responses?: unknown[] }> {
     return this.request('/articles/bulk', { method: 'POST', body: JSON.stringify(payloads) });
   }
 
-  async listArticles(params?: { limit?: number; page?: number; for_sale?: boolean }): Promise<unknown[]> {
+  async listArticles(params?: {
+    limit?: number;
+    page?: number;
+    for_sale?: boolean;
+  }): Promise<unknown[]> {
     const q = new URLSearchParams();
-    if (params?.limit != null) q.set('limit', String(params.limit));
-    if (params?.page != null) q.set('page', String(params.page));
-    if (params?.for_sale !== undefined) q.set('for_sale', String(params.for_sale));
+    if ((params?.limit ?? null) !== null) {
+      q.set('limit', String(params.limit));
+    }
+    if ((params?.page ?? null) !== null) {
+      q.set('page', String(params.page));
+    }
+    if (params?.for_sale !== undefined) {
+      q.set('for_sale', String(params.for_sale));
+    }
     const path = '/articles' + (q.toString() ? `?${q.toString()}` : '');
     return this.request(path);
   }
@@ -136,20 +162,38 @@ class FyndiqApi {
     return this.request(`/articles/sku/${encodeURIComponent(sku)}`);
   }
 
-  async updateArticle(articleId: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return this.request(`/articles/${encodeURIComponent(articleId)}`, { method: 'PUT', body: JSON.stringify(payload) });
+  async updateArticle(
+    articleId: string,
+    payload: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    return this.request(`/articles/${encodeURIComponent(articleId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
   }
 
-  async updateArticlePrice(articleId: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return this.request(`/articles/${encodeURIComponent(articleId)}/price`, { method: 'PUT', body: JSON.stringify(payload) });
+  async updateArticlePrice(
+    articleId: string,
+    payload: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    return this.request(`/articles/${encodeURIComponent(articleId)}/price`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
   }
 
-  async updateArticleQuantity(articleId: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return this.request(`/articles/${encodeURIComponent(articleId)}/quantity`, { method: 'PUT', body: JSON.stringify(payload) });
+  async updateArticleQuantity(
+    articleId: string,
+    payload: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    return this.request(`/articles/${encodeURIComponent(articleId)}/quantity`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
   }
 
   async bulkUpdateArticles(
-    items: Array<{ action: string; id: string; body: Record<string, unknown> }>
+    items: Array<{ action: string; id: string; body: Record<string, unknown> }>,
   ): Promise<{ description?: string; responses?: unknown[] }> {
     return this.request('/articles/bulk', { method: 'PUT', body: JSON.stringify(items) });
   }
@@ -158,11 +202,13 @@ class FyndiqApi {
     await this.request(`/articles/${encodeURIComponent(articleId)}`, { method: 'DELETE' });
   }
 
-  async getCategories(market: string, language: string): Promise<{ ok: boolean; items?: unknown[] }> {
+  async getCategories(
+    market: string,
+    language: string,
+  ): Promise<{ ok: boolean; items?: unknown[] }> {
     const path = `/categories?market=${encodeURIComponent(market)}&language=${encodeURIComponent(language)}`;
     return this.request(path);
   }
 }
 
 export const fyndiqApi = new FyndiqApi();
-

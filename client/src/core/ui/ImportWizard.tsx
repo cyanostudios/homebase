@@ -42,7 +42,9 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
     setFileName(file.name);
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -91,7 +93,9 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     }, 300);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && handleOnClose()}>
@@ -198,9 +202,9 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                   <tbody>
                     {mapCsvToObjects(csvData, mapping)
                       .slice(0, 5)
-                      .map((row, i) => (
+                      .map((row) => (
                         <tr
-                          key={`preview-${i}-${JSON.stringify(row).slice(0, 40)}`}
+                          key={`preview-${JSON.stringify(row).slice(0, 80)}`}
                           className="border-b border-gray-100 dark:border-gray-800 last:border-b-0"
                         >
                           {schema.fields

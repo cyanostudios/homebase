@@ -3,7 +3,7 @@ class MailApi {
   private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
+      ...((options.headers as Record<string, string>) || {}),
     };
 
     const response = await fetch(`/api/mail${endpoint}`, {
@@ -25,9 +25,15 @@ class MailApi {
 
   async getHistory(params?: { limit?: number; offset?: number; pluginSource?: string }) {
     const search = new URLSearchParams();
-    if (params?.limit) search.set('limit', String(params.limit));
-    if (params?.offset) search.set('offset', String(params.offset));
-    if (params?.pluginSource) search.set('pluginSource', params.pluginSource);
+    if (params?.limit) {
+      search.set('limit', String(params.limit));
+    }
+    if (params?.offset) {
+      search.set('offset', String(params.offset));
+    }
+    if (params?.pluginSource) {
+      search.set('pluginSource', params.pluginSource);
+    }
     const qs = search.toString();
     return this.request(`/history${qs ? `?${qs}` : ''}`);
   }

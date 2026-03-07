@@ -1,9 +1,16 @@
 import { Building, User } from 'lucide-react';
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from 'react';
 
+import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
-import { Badge } from '@/components/ui/badge';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 
 import { contactsApi } from '../api/contactsApi';
@@ -51,10 +58,11 @@ interface ContactProviderProps {
 
 export function ContactProvider({
   children,
-  isAuthenticated,
+  isAuthenticated: _isAuthenticated,
   onCloseOtherPanels,
 }: ContactProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction, contacts, refreshData } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, contacts, refreshData } =
+    useApp();
 
   // Panel states
   const [isContactPanelOpen, setIsContactPanelOpen] = useState(false);
@@ -234,10 +242,10 @@ export function ContactProvider({
       return true;
     } catch (error: any) {
       console.error('Failed to save contact:', error);
-      
+
       // V2: Handle standardized error format from backend
       const validationErrors: ValidationError[] = [];
-      
+
       // Check if backend returned validation errors in details array
       if (error?.details && Array.isArray(error.details)) {
         error.details.forEach((detail: any) => {
@@ -250,13 +258,14 @@ export function ContactProvider({
           }
         });
       }
-      
+
       // If no validation errors from backend, use error message
       if (validationErrors.length === 0) {
-        const errorMessage = error?.message || error?.error || 'Failed to save contact. Please try again.';
+        const errorMessage =
+          error?.message || error?.error || 'Failed to save contact. Please try again.';
         validationErrors.push({ field: 'general', message: errorMessage });
       }
-      
+
       setValidationErrors(validationErrors);
       return false;
     }
@@ -275,7 +284,9 @@ export function ContactProvider({
   };
 
   const deleteContacts = async (ids: string[]) => {
-    if (!ids.length) return;
+    if (!ids.length) {
+      return;
+    }
     try {
       await bulkApi.bulkDelete('contacts', ids);
       if (currentContact && ids.includes(currentContact.id)) {
@@ -289,23 +300,26 @@ export function ContactProvider({
     }
   };
 
-  const importContacts = useCallback(async (data: any[]) => {
-    for (const row of data) {
-      try {
-        const payload = {
-          companyName: row.companyName ?? row.name ?? '',
-          contactType: row.contactType ?? row.type ?? 'company',
-          email: row.email ?? '',
-          phone: row.phone ?? '',
-          notes: row.notes ?? '',
-        };
-        await contactsApi.createContact(payload);
-      } catch (error) {
-        console.error('Failed to import contact', row, error);
+  const importContacts = useCallback(
+    async (data: any[]) => {
+      for (const row of data) {
+        try {
+          const payload = {
+            companyName: row.companyName ?? row.name ?? '',
+            contactType: row.contactType ?? row.type ?? 'company',
+            email: row.email ?? '',
+            phone: row.phone ?? '',
+            notes: row.notes ?? '',
+          };
+          await contactsApi.createContact(payload);
+        } catch (error) {
+          console.error('Failed to import contact', row, error);
+        }
       }
-    }
-    await refreshData();
-  }, [refreshData]);
+      await refreshData();
+    },
+    [refreshData],
+  );
 
   // Panel title helpers
   const getPanelTitle = (mode: string, item: Contact | null, isMobileView: boolean) => {
@@ -321,7 +335,9 @@ export function ContactProvider({
             <div>
               {contactNumber} • {name}
             </div>
-            <div className="text-sm font-normal text-gray-600 dark:text-gray-400 mt-1">{orgNumber}</div>
+            <div className="text-sm font-normal text-gray-600 dark:text-gray-400 mt-1">
+              {orgNumber}
+            </div>
           </div>
         );
       }

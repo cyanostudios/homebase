@@ -12,7 +12,13 @@ import React, {
 import { useApp } from '@/core/api/AppContext';
 
 import { woocommerceApi } from '../api/woocommerceApi';
-import type { WooSettings, WooTestResult, WooExportResult, MvpProduct, ValidationError } from '../types/woocommerce';
+import type {
+  WooSettings,
+  WooTestResult,
+  WooExportResult,
+  MvpProduct,
+  ValidationError,
+} from '../types/woocommerce';
 
 type WooInstance = {
   id: string;
@@ -102,7 +108,7 @@ export function WooCommerceProvider({
     mode: 'create',
     currentSettings: null,
   });
-  
+
   // Keep refs in sync with state
   useEffect(() => {
     panelStateRef.current = {
@@ -136,7 +142,6 @@ export function WooCommerceProvider({
       console.error('Failed to load Woo settings:', err);
       setInstances([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load settings when authenticated
@@ -197,7 +202,7 @@ export function WooCommerceProvider({
     setIsSaving(true);
     try {
       let saved: WooSettings;
-      
+
       // If we have an instance ID (from editing an existing instance), use updateInstance
       if (raw.id && /^\d+$/.test(String(raw.id))) {
         // This is an instance ID, use updateInstance
@@ -222,14 +227,16 @@ export function WooCommerceProvider({
         } as any;
       } else {
         // Creating a new instance (multi-store). Generate instanceKey from store URL if not provided.
-        const instanceKey = raw.instanceKey || (() => {
-          try {
-            const url = new URL(String(raw.storeUrl));
-            return url.hostname.replace(/\./g, '-').toLowerCase();
-          } catch {
-            return `store-${Date.now()}`;
-          }
-        })();
+        const instanceKey =
+          raw.instanceKey ||
+          (() => {
+            try {
+              const url = new URL(String(raw.storeUrl));
+              return url.hostname.replace(/\./g, '-').toLowerCase();
+            } catch {
+              return `store-${Date.now()}`;
+            }
+          })();
         const result = await woocommerceApi.createInstance({
           instanceKey,
           label: raw.label || undefined,
@@ -250,22 +257,22 @@ export function WooCommerceProvider({
           instanceKey: result.instance.instanceKey || undefined,
         } as any;
       }
-      
-      const normalized: WooSettings = {
+
+      const _normalized: WooSettings = {
         ...saved,
         createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
         updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
       };
-      
+
       setValidationErrors([]);
-      
+
       // WooCommerce has no View component, so close the panel after saving
       // This matches the behavior when canceling - user returns to the list
       closeWooSettingsPanel();
-      
+
       // Reload instances to refresh store list
       await loadWooSettings();
-      
+
       return true;
     } catch (err: any) {
       console.error('Save Woo settings failed:', err);
@@ -364,19 +371,21 @@ export function WooCommerceProvider({
 
   const deleteWooCommerce = async (_id: string) => {
     // WooCommerce settings deletion not typically needed, but required by interface
-    setValidationErrors([{ field: 'general', message: 'Delete not supported for WooCommerce settings' }]);
+    setValidationErrors([
+      { field: 'general', message: 'Delete not supported for WooCommerce settings' },
+    ]);
   };
 
   // Panel Title Functions
-  const getPanelTitle = (mode: string, item: WooSettings | null, isMobileView: boolean) => {
+  const getPanelTitle = (_mode: string, _item: WooSettings | null, _isMobileView: boolean) => {
     return 'WooCommerce Settings';
   };
 
-  const getPanelSubtitle = (mode: string, item: WooSettings | null) => {
+  const getPanelSubtitle = (mode: string, _item: WooSettings | null) => {
     return mode === 'edit' ? 'Update WooCommerce connection' : 'Configure WooCommerce connection';
   };
 
-  const getDeleteMessage = (item: WooSettings | null) => {
+  const getDeleteMessage = (_item: WooSettings | null) => {
     return 'Are you sure you want to delete WooCommerce settings? This action cannot be undone.';
   };
 
@@ -409,6 +418,7 @@ export function WooCommerceProvider({
       getPanelSubtitle,
       getDeleteMessage,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- panel API deps intentional
     [
       isWoocommerceProductsPanelOpen,
       currentWooSettings,

@@ -3,19 +3,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { filesApi } from '@/plugins/files/api/filesApi';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ContactListPicker } from './ContactListPicker';
+import { filesApi } from '@/plugins/files/api/filesApi';
+
 import { inspectionApi } from '../api/inspectionApi';
 import type { InspectionProject, InspectionFileList } from '../types/inspection';
+
+import { ContactListPicker } from './ContactListPicker';
 
 interface SendModalProps {
   project: InspectionProject;
@@ -35,26 +32,27 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
   const [includeAdminNotes, setIncludeAdminNotes] = useState(true);
   const fileLists = project.fileLists!;
   const [selectedListIds, setSelectedListIds] = useState<string[]>(
-    fileLists.map((fl: InspectionFileList) => fl.id)
+    fileLists.map((fl: InspectionFileList) => fl.id),
   );
-  const [selectedFileIds, setSelectedFileIds] = useState<string[]>(
-    project.files.map((f) => f.id)
-  );
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>(project.files.map((f) => f.id));
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedListIds, setExpandedListIds] = useState<Set<string>>(new Set());
   const [fileIdToName, setFileIdToName] = useState<Record<string, string>>({});
   const [selectedContactListIds, setSelectedContactListIds] = useState<string[]>([]);
   const [selectedContactLists, setSelectedContactLists] = useState<{ id: string; name: string }[]>(
-    []
+    [],
   );
   const [showContactListPicker, setShowContactListPicker] = useState(false);
 
   const toggleListExpanded = useCallback((id: string) => {
     setExpandedListIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }, []);
@@ -62,13 +60,17 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
   useEffect(() => {
     const allIds = new Set<string>();
     fileLists.forEach((fl) => fl.fileIds.forEach((id) => allIds.add(String(id))));
-    if (allIds.size === 0) return;
+    if (allIds.size === 0) {
+      return;
+    }
     filesApi
       .getItems()
       .then((items: any[]) => {
         const map: Record<string, string> = {};
         items.forEach((f) => {
-          if (f?.id) map[String(f.id)] = f.name || 'Namnlös';
+          if (f?.id) {
+            map[String(f.id)] = f.name || 'Namnlös';
+          }
         });
         setFileIdToName(map);
       })
@@ -92,15 +94,17 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
 
   const addRecipient = (value: string) => {
     const v = value.trim();
-    if (!v) return;
+    if (!v) {
+      return;
+    }
     if (isEmail(v)) {
-      if (!recipients.includes(v)) setRecipients([...recipients, v]);
+      if (!recipients.includes(v)) {
+        setRecipients([...recipients, v]);
+      }
       setManualEmail('');
     } else {
       const c = contacts.find(
-        (x) =>
-          String(x.id) === v ||
-          (x.companyName || '').toLowerCase() === v.toLowerCase()
+        (x) => String(x.id) === v || (x.companyName || '').toLowerCase() === v.toLowerCase(),
       );
       if (c?.email && !recipients.includes(c.email)) {
         setRecipients([...recipients, c.email]);
@@ -127,8 +131,7 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
         includeAdminNotes,
         listIds: selectedListIds.length > 0 ? selectedListIds : undefined,
         fileIds: selectedFileIds.length > 0 ? selectedFileIds : undefined,
-        contactListIds:
-          selectedContactListIds.length > 0 ? selectedContactListIds : undefined,
+        contactListIds: selectedContactListIds.length > 0 ? selectedContactListIds : undefined,
         name: project.name,
         description: project.description,
         adminNotes: project.adminNotes,
@@ -161,103 +164,103 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
           <div className="space-y-4">
             <div>
               <Label>Mottagare</Label>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {recipients.map((r) => (
-                <Badge
-                  key={r}
-                  variant="secondary"
-                  className="cursor-pointer"
-                  onClick={() => removeRecipient(r)}
-                >
-                  {r} ×
-                </Badge>
-              ))}
-            </div>
-            <div className="flex gap-2 mt-2">
-              <input
-                type="text"
-                placeholder="E-post eller välj kontakt nedan"
-                value={manualEmail}
-                onChange={(e) => setManualEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addRecipient(manualEmail);
-                  }
-                }}
-                className="flex-1 px-3 py-2 text-sm border rounded-md bg-background"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => addRecipient(manualEmail)}
-              >
-                Lägg till
-              </Button>
-            </div>
-            <div className="flex gap-2 mt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowContactListPicker(true)}
-              >
-                <UserPlus className="h-4 w-4" />
-                Lägg till från lista
-              </Button>
-            </div>
-            {selectedContactLists.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {selectedContactLists.map((list) => (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {recipients.map((r) => (
                   <Badge
-                    key={list.id}
+                    key={r}
                     variant="secondary"
                     className="cursor-pointer"
-                    onClick={() => {
-                      setSelectedContactListIds((prev) => prev.filter((id) => id !== list.id));
-                      setSelectedContactLists((prev) => prev.filter((l) => l.id !== list.id));
-                    }}
+                    onClick={() => removeRecipient(r)}
                   >
-                    {list.name} ×
+                    {r} ×
                   </Badge>
                 ))}
               </div>
-            )}
-            <ScrollArea className="h-24 mt-2 border rounded-md">
-              <div className="p-2 space-y-1">
-                {contactsWithEmail.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => addRecipient(c.email)}
-                    className="w-full text-left px-2 py-1.5 text-sm hover:bg-muted rounded"
-                  >
-                    {c.companyName || c.email} — {c.email}
-                  </button>
-                ))}
+              <div className="flex gap-2 mt-2">
+                <input
+                  type="text"
+                  placeholder="E-post eller välj kontakt nedan"
+                  value={manualEmail}
+                  onChange={(e) => setManualEmail(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addRecipient(manualEmail);
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 text-sm border rounded-md bg-background"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addRecipient(manualEmail)}
+                >
+                  Lägg till
+                </Button>
               </div>
-            </ScrollArea>
+              <div className="flex gap-2 mt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowContactListPicker(true)}
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Lägg till från lista
+                </Button>
+              </div>
+              {selectedContactLists.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {selectedContactLists.map((list) => (
+                    <Badge
+                      key={list.id}
+                      variant="secondary"
+                      className="cursor-pointer"
+                      onClick={() => {
+                        setSelectedContactListIds((prev) => prev.filter((id) => id !== list.id));
+                        setSelectedContactLists((prev) => prev.filter((l) => l.id !== list.id));
+                      }}
+                    >
+                      {list.name} ×
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              <ScrollArea className="h-24 mt-2 border rounded-md">
+                <div className="p-2 space-y-1">
+                  {contactsWithEmail.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => addRecipient(c.email)}
+                      className="w-full text-left px-2 py-1.5 text-sm hover:bg-muted rounded"
+                    >
+                      {c.companyName || c.email} — {c.email}
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
 
             <div className="space-y-2">
               <Label>Inkludera i mailet</Label>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="inc-desc"
-                checked={includeDescription}
-                onCheckedChange={(v) => setIncludeDescription(!!v)}
-              />
-              <label htmlFor="inc-desc">Beskrivning</label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="inc-notes"
-                checked={includeAdminNotes}
-                onCheckedChange={(v) => setIncludeAdminNotes(!!v)}
-              />
-              <label htmlFor="inc-notes">Admin-kommentarer</label>
-            </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="inc-desc"
+                  checked={includeDescription}
+                  onCheckedChange={(v) => setIncludeDescription(!!v)}
+                />
+                <label htmlFor="inc-desc">Beskrivning</label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="inc-notes"
+                  checked={includeAdminNotes}
+                  onCheckedChange={(v) => setIncludeAdminNotes(!!v)}
+                />
+                <label htmlFor="inc-notes">Admin-kommentarer</label>
+              </div>
             </div>
           </div>
 
@@ -291,26 +294,39 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
                               id={`list-${fl.id}`}
                               checked={selectedListIds.includes(fl.id)}
                               onCheckedChange={(v) => {
-                                if (v) setSelectedListIds([...selectedListIds, fl.id]);
-                                else setSelectedListIds(selectedListIds.filter((id) => id !== fl.id));
+                                if (v) {
+                                  setSelectedListIds([...selectedListIds, fl.id]);
+                                } else {
+                                  setSelectedListIds(selectedListIds.filter((id) => id !== fl.id));
+                                }
                               }}
                               className="shrink-0"
                               onClick={(e) => e.stopPropagation()}
                             />
-                            <label htmlFor={`list-${fl.id}`} className="text-sm truncate flex-1 cursor-pointer">
+                            <label
+                              htmlFor={`list-${fl.id}`}
+                              className="text-sm truncate flex-1 cursor-pointer"
+                            >
                               {fl.sourceListName || 'Lista'}
                             </label>
                           </div>
                           {isExpanded && (
                             <div className="ml-6 pl-2 border-l border-muted pb-1.5">
                               {fileIds.length === 0 ? (
-                                <p className="text-xs text-muted-foreground py-1">Inga filer i listan</p>
+                                <p className="text-xs text-muted-foreground py-1">
+                                  Inga filer i listan
+                                </p>
                               ) : (
                                 <ul className="space-y-0.5 pt-1">
                                   {fileIds.map((fileId) => (
-                                    <li key={fileId} className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <li
+                                      key={fileId}
+                                      className="flex items-center gap-2 text-xs text-muted-foreground"
+                                    >
                                       <File className="h-3 w-3 shrink-0" />
-                                      <span className="truncate">{fileIdToName[fileId] || `Fil ${fileId}`}</span>
+                                      <span className="truncate">
+                                        {fileIdToName[fileId] || `Fil ${fileId}`}
+                                      </span>
                                     </li>
                                   ))}
                                 </ul>
@@ -337,8 +353,11 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
                           id={`file-${f.id}`}
                           checked={selectedFileIds.includes(f.id)}
                           onCheckedChange={(v) => {
-                            if (v) setSelectedFileIds([...selectedFileIds, f.id]);
-                            else setSelectedFileIds(selectedFileIds.filter((id) => id !== f.id));
+                            if (v) {
+                              setSelectedFileIds([...selectedFileIds, f.id]);
+                            } else {
+                              setSelectedFileIds(selectedFileIds.filter((id) => id !== f.id));
+                            }
                           }}
                         />
                         <label htmlFor={`file-${f.id}`} className="text-sm">
@@ -367,7 +386,9 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
                   selectedIds={selectedContactListIds}
                   onSelect={(ids, lists) => {
                     setSelectedContactListIds(ids);
-                    if (lists !== undefined) setSelectedContactLists(lists);
+                    if (lists !== undefined) {
+                      setSelectedContactLists(lists);
+                    }
                     setShowContactListPicker(false);
                   }}
                   onClose={() => setShowContactListPicker(false)}
@@ -377,9 +398,7 @@ export const SendModal: React.FC<SendModalProps> = ({ project, onClose, onSent }
           </div>
         )}
 
-        {error && (
-          <div className="text-sm text-destructive">{error}</div>
-        )}
+        {error && <div className="text-sm text-destructive">{error}</div>}
 
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={onClose}>

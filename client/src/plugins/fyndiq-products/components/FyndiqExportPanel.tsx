@@ -29,18 +29,26 @@ export const FyndiqExportPanel: React.FC = () => {
   );
 
   useEffect(() => {
-    if (!isConfigured) return;
+    if (!isConfigured) {
+      return;
+    }
     let cancelled = false;
     const load = async () => {
       setLoadingInstances(true);
       try {
         const resp = await channelsApi.getInstances({ channel: 'fyndiq' });
-        if (!cancelled) setInstances(resp.items || []);
+        if (!cancelled) {
+          setInstances(resp.items || []);
+        }
       } catch (err) {
-        if (!cancelled) setInstances([]);
+        if (!cancelled) {
+          setInstances([]);
+        }
         console.error('Failed to load Fyndiq instances:', err);
       } finally {
-        if (!cancelled) setLoadingInstances(false);
+        if (!cancelled) {
+          setLoadingInstances(false);
+        }
       }
     };
     load();
@@ -83,7 +91,9 @@ export const FyndiqExportPanel: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={() => {
-              if (settings) openFyndiqSettingsForEdit(settings);
+              if (settings) {
+                openFyndiqSettingsForEdit(settings);
+              }
             }}
           >
             Settings
@@ -98,9 +108,7 @@ export const FyndiqExportPanel: React.FC = () => {
               <Store className="w-6 h-6 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-semibold mb-1">
-                Connect Fyndiq
-              </h3>
+              <h3 className="text-lg font-semibold mb-1">Connect Fyndiq</h3>
               <p className="text-sm text-muted-foreground">
                 Add your Fyndiq API credentials. Publish products from <strong>Products</strong>.
               </p>
@@ -131,15 +139,18 @@ export const FyndiqExportPanel: React.FC = () => {
           <Card padding="sm" className="shadow-none">
             <div className="flex items-center justify-between gap-3 mb-3">
               <div>
-                <h3 className="text-lg font-semibold mb-1">
-                  Market Instances
-                </h3>
+                <h3 className="text-lg font-semibold mb-1">Market Instances</h3>
                 <p className="text-sm text-muted-foreground">
                   Configure markets (SE, DK, FI) for per-market pricing and activation.
                 </p>
               </div>
               {instances.length === 0 && (
-                <Button variant="secondary" size="sm" onClick={ensureDefaults} disabled={creatingDefaults}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={ensureDefaults}
+                  disabled={creatingDefaults}
+                >
                   {creatingDefaults ? 'Creating…' : 'Create defaults'}
                 </Button>
               )}
@@ -149,7 +160,8 @@ export const FyndiqExportPanel: React.FC = () => {
               <div className="text-sm text-muted-foreground">Loading instances…</div>
             ) : instances.length === 0 ? (
               <div className="text-sm text-muted-foreground">
-                No instances configured. Click <strong>Create defaults</strong> to set up SE, DK, and FI markets.
+                No instances configured. Click <strong>Create defaults</strong> to set up SE, DK,
+                and FI markets.
               </div>
             ) : (
               <Table>
@@ -169,14 +181,10 @@ export const FyndiqExportPanel: React.FC = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm text-muted-foreground">
-                          {inst.instanceKey}
-                        </div>
+                        <div className="text-sm text-muted-foreground">{inst.instanceKey}</div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm text-muted-foreground">
-                          {inst.market || '—'}
-                        </div>
+                        <div className="text-sm text-muted-foreground">{inst.market || '—'}</div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -184,7 +192,6 @@ export const FyndiqExportPanel: React.FC = () => {
               </Table>
             )}
           </Card>
-
         </>
       )}
     </div>

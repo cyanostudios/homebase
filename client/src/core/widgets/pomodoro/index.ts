@@ -1,6 +1,6 @@
-import { registerWidget } from '../registry';
-
 import { PomodoroTimer } from '@/core/ui/pomodoro/PomodoroTimer';
+
+import { registerWidget } from '../registry';
 
 registerWidget({
   id: 'pomodoro',

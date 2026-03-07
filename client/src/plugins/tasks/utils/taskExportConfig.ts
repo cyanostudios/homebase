@@ -1,11 +1,16 @@
 import type { ExportFormatConfig } from '@/core/utils/exportUtils';
+
 import type { Task } from '../types/tasks';
 
 function formatDate(date: Date | string | null | undefined): string {
-  if (!date) return '';
+  if (!date) {
+    return '';
+  }
   try {
     const d = typeof date === 'string' ? new Date(date) : date;
-    if (isNaN(d.getTime())) return '';
+    if (isNaN(d.getTime())) {
+      return '';
+    }
     return d.toLocaleDateString('sv-SE');
   } catch {
     return '';
@@ -16,7 +21,9 @@ function getAssignedName(
   contacts: { id: string; companyName?: string }[],
   assignedTo: string | null,
 ): string {
-  if (!assignedTo || !contacts.length) return '';
+  if (!assignedTo || !contacts.length) {
+    return '';
+  }
   const c = contacts.find((x) => String(x.id) === String(assignedTo));
   return c?.companyName ?? '';
 }

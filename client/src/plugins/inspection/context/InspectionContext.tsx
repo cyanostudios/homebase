@@ -1,5 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from 'react';
+
 import { useApp } from '@/core/api/AppContext';
+
 import { inspectionApi } from '../api/inspectionApi';
 import type { InspectionProject } from '../types/inspection';
 
@@ -43,15 +52,19 @@ export function InspectionProvider({
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
 
   const [isInspectionPanelOpen, setIsInspectionPanelOpen] = useState(false);
-  const [currentInspectionProject, setCurrentInspectionProject] = useState<InspectionProject | null>(null);
+  const [currentInspectionProject, setCurrentInspectionProject] =
+    useState<InspectionProject | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('create');
   const [inspectionProjects, setInspectionProjects] = useState<InspectionProject[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<{ field: string; message: string }[]>([]);
+  const [validationErrors, setValidationErrors] = useState<{ field: string; message: string }[]>(
+    [],
+  );
 
   useEffect(() => {
     registerPanelCloseFunction('inspection', closeInspectionPanel);
     return () => unregisterPanelCloseFunction('inspection');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only registration
   }, []);
 
   useEffect(() => {
@@ -68,11 +81,13 @@ export function InspectionProvider({
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) loadProjects();
-    else {
+    if (isAuthenticated) {
+      loadProjects();
+    } else {
       setInspectionProjects([]);
       setProjectsLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadProjects stable, intentional deps
   }, [isAuthenticated]);
 
   const loadProjects = useCallback(async () => {
@@ -81,7 +96,9 @@ export function InspectionProvider({
       const data = await inspectionApi.getProjects();
       setInspectionProjects(data);
     } catch (err: any) {
-      setValidationErrors([{ field: 'general', message: err?.message || 'Failed to load projects' }]);
+      setValidationErrors([
+        { field: 'general', message: err?.message || 'Failed to load projects' },
+      ]);
     } finally {
       setProjectsLoading(false);
     }
@@ -94,7 +111,7 @@ export function InspectionProvider({
       setPanelMode(project ? 'edit' : 'create');
       setIsInspectionPanelOpen(true);
     },
-    [onCloseOtherPanels]
+    [onCloseOtherPanels],
   );
 
   const openInspectionForEdit = useCallback((project: InspectionProject) => {
@@ -150,7 +167,7 @@ export function InspectionProvider({
         return false;
       }
     },
-    [currentInspectionProject, loadProjects, closeInspectionPanel]
+    [currentInspectionProject, loadProjects, closeInspectionPanel],
   );
 
   // Sparar, lägger till listor, laddar fullt projekt och växlar till edit (stänger inte panelen). Returnerar projektet vid lyckat sparande.
@@ -172,7 +189,9 @@ export function InspectionProvider({
             description: data.description,
             adminNotes: data.adminNotes,
           });
-          if (!created?.id) throw new Error('Create project failed');
+          if (!created?.id) {
+            throw new Error('Create project failed');
+          }
           projectId = created.id;
           if (Array.isArray(data.pendingFileIds) && data.pendingFileIds.length > 0) {
             await inspectionApi.setFiles(projectId, data.pendingFileIds);
@@ -192,7 +211,7 @@ export function InspectionProvider({
         return null;
       }
     },
-    [currentInspectionProject, loadProjects]
+    [currentInspectionProject, loadProjects],
   );
 
   // Sparar OCH stänger panelen (används av footer-knappen)
@@ -203,34 +222,45 @@ export function InspectionProvider({
           name: currentInspectionProject?.name,
           description: currentInspectionProject?.description,
           adminNotes: currentInspectionProject?.adminNotes,
-        }
+        },
       );
-      if (ok) closeInspectionPanel();
+      if (ok) {
+        closeInspectionPanel();
+      }
       return ok;
     },
-    [saveInspection, closeInspectionPanel, currentInspectionProject]
+    [saveInspection, closeInspectionPanel, currentInspectionProject],
   );
 
-  const deleteInspection = useCallback(async (id: string) => {
-    try {
-      await inspectionApi.deleteProject(id);
-      await loadProjects();
-      closeInspectionPanel();
-    } catch (err: any) {
-      setValidationErrors([{ field: 'general', message: err?.message || 'Failed to delete' }]);
-    }
-  }, [loadProjects, closeInspectionPanel]);
+  const deleteInspection = useCallback(
+    async (id: string) => {
+      try {
+        await inspectionApi.deleteProject(id);
+        await loadProjects();
+        closeInspectionPanel();
+      } catch (err: any) {
+        setValidationErrors([{ field: 'general', message: err?.message || 'Failed to delete' }]);
+      }
+    },
+    [loadProjects, closeInspectionPanel],
+  );
 
   const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
 
   const getPanelTitle = useCallback((mode: string, item: InspectionProject | null) => {
-    if (mode === 'create') return 'Nytt besiktningsprojekt';
-    if (mode === 'edit') return 'Redigera projekt';
+    if (mode === 'create') {
+      return 'Nytt besiktningsprojekt';
+    }
+    if (mode === 'edit') {
+      return 'Redigera projekt';
+    }
     return item?.name || 'Besiktningsprojekt';
   }, []);
 
   const getPanelSubtitle = useCallback((_mode: string, item: InspectionProject | null) => {
-    return item ? `Skapad ${item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}` : '';
+    return item
+      ? `Skapad ${item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}`
+      : '';
   }, []);
 
   const getDeleteMessage = useCallback((item: InspectionProject | null) => {
@@ -266,6 +296,8 @@ export function InspectionProvider({
 
 export function useInspectionContext() {
   const ctx = useContext(InspectionContext);
-  if (!ctx) throw new Error('useInspectionContext must be used within InspectionProvider');
+  if (!ctx) {
+    throw new Error('useInspectionContext must be used within InspectionProvider');
+  }
   return ctx;
 }

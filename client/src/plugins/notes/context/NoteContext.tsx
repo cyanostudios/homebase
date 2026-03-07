@@ -1,5 +1,12 @@
 import { StickyNote, CheckSquare } from 'lucide-react';
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from 'react';
 
 import { useApp } from '@/core/api/AppContext';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
@@ -27,8 +34,13 @@ interface NoteContextType {
   deleteNote: (id: string) => Promise<void>;
   deleteNotes: (ids: string[]) => Promise<void>;
   duplicateNote: (note: Note) => Promise<void>;
-  getDuplicateConfig: (item: Note | null) => { defaultName: string; nameLabel: string; confirmOnly: boolean } | null;
-  executeDuplicate: (item: Note, newName: string) => Promise<{ closePanel: () => void; highlightId?: string }>;
+  getDuplicateConfig: (
+    item: Note | null,
+  ) => { defaultName: string; nameLabel: string; confirmOnly: boolean } | null;
+  executeDuplicate: (
+    item: Note,
+    newName: string,
+  ) => Promise<{ closePanel: () => void; highlightId?: string }>;
   clearValidationErrors: () => void;
 
   // Panel Title Functions
@@ -58,7 +70,11 @@ interface NoteProviderProps {
   onCloseOtherPanels: () => void;
 }
 
-export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: NoteProviderProps) {
+export function NoteProvider({
+  children,
+  isAuthenticated: _isAuthenticated,
+  onCloseOtherPanels,
+}: NoteProviderProps) {
   const {
     registerPanelCloseFunction,
     unregisterPanelCloseFunction,
@@ -81,6 +97,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     return () => {
       unregisterPanelCloseFunction('notes');
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only registration
   }, []);
 
   // Global functions for form submission
@@ -192,10 +209,10 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       return true;
     } catch (error: any) {
       console.error('Failed to save note:', error);
-      
+
       // V2: Handle standardized error format from backend
       const validationErrors: ValidationError[] = [];
-      
+
       // Check if backend returned validation errors in details array
       if (error?.details && Array.isArray(error.details)) {
         error.details.forEach((detail: any) => {
@@ -208,13 +225,14 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           }
         });
       }
-      
+
       // If no validation errors from backend, use error message
       if (validationErrors.length === 0) {
-        const errorMessage = error?.message || error?.error || 'Failed to save note. Please try again.';
+        const errorMessage =
+          error?.message || error?.error || 'Failed to save note. Please try again.';
         validationErrors.push({ field: 'general', message: errorMessage });
       }
-      
+
       setValidationErrors(validationErrors);
       return false;
     }
@@ -232,7 +250,9 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   };
 
   const deleteNotes = async (ids: string[]) => {
-    if (!ids.length) return;
+    if (!ids.length) {
+      return;
+    }
     try {
       await notesApi.bulkDelete(ids);
       await refreshData();
@@ -256,13 +276,16 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       console.log('Note duplicated successfully');
     } catch (error: any) {
       console.error('Failed to duplicate note:', error);
-      const errorMessage = error?.message || error?.error || 'Failed to duplicate note. Please try again.';
+      const errorMessage =
+        error?.message || error?.error || 'Failed to duplicate note. Please try again.';
       alert(errorMessage);
     }
   };
 
   const getDuplicateConfig = (item: Note | null) => {
-    if (!item) return null;
+    if (!item) {
+      return null;
+    }
     return {
       defaultName: `Copy of ${item.title}`,
       nameLabel: 'Title',
@@ -285,7 +308,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   };
 
   // Panel Title Functions (moved from PanelTitles.tsx)
-  const getPanelTitle = (mode: string, item: Note | null, isMobileView: boolean) => {
+  const getPanelTitle = (mode: string, item: Note | null, _isMobileView: boolean) => {
     // View mode with item
     if (mode === 'view' && item) {
       return item.title || `Note #${item.id}`;
@@ -353,17 +376,19 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   }, []);
 
-  const detailFooterActions = hasTasksPlugin && openToTaskDialog
-    ? [
-        {
-          id: 'create-task-from-note',
-          label: 'To Task',
-          icon: CheckSquare,
-          onClick: (note: Note) => openToTaskDialog(note),
-          className: 'text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30',
-        },
-      ]
-    : undefined;
+  const detailFooterActions =
+    hasTasksPlugin && openToTaskDialog
+      ? [
+          {
+            id: 'create-task-from-note',
+            label: 'To Task',
+            icon: CheckSquare,
+            onClick: (note: Note) => openToTaskDialog(note),
+            className:
+              'text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30',
+          },
+        ]
+      : undefined;
 
   const importNotes = useCallback(
     async (data: any[]) => {

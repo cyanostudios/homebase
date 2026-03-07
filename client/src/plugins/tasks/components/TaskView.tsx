@@ -3,16 +3,16 @@ import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useApp } from '@/core/api/AppContext';
+import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { MentionContent } from '@/core/ui/MentionContent';
+import { htmlToPlainText } from '@/core/utils/extractMentions';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
 
 import { useTasks } from '../hooks/useTasks';
 
-import { MentionContent } from '@/core/ui/MentionContent';
-import { htmlToPlainText } from '@/core/utils/extractMentions';
 import { TaskPriorityButtons } from './TaskPriorityButtons';
 import { TaskStatusButtons } from './TaskStatusButtons';
 
@@ -24,12 +24,12 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
   const { openContactForView } = useContacts();
   const {
     closeTaskPanel,
-    saveTask,
+    saveTask: _saveTask,
     quickEditDraft,
     setQuickEditField,
     showDiscardQuickEditDialog,
     setShowDiscardQuickEditDialog,
-    onDiscardQuickEditAndClose,
+    onDiscardQuickEditAndClose: _onDiscardQuickEditAndClose,
     onConfirmDiscardQuickEditAndClose,
   } = useTasks();
   const { openNoteForView } = useNotes();
@@ -245,7 +245,11 @@ export const TaskView: React.FC<TaskViewProps> = ({ task }) => {
         <DetailSection title="Content">
           <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
             <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-              <MentionContent content={htmlToPlainText(task.content || '')} mentions={task.mentions || []} onMentionClick={handleContactClick} />
+              <MentionContent
+                content={htmlToPlainText(task.content || '')}
+                mentions={task.mentions || []}
+                onMentionClick={handleContactClick}
+              />
             </div>
           </div>
         </DetailSection>
