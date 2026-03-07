@@ -310,7 +310,9 @@ function getSelloEan(product) {
   const props = product?.properties;
   if (!Array.isArray(props)) return null;
   for (const p of props) {
-    const name = String(p?.property ?? '').trim().toUpperCase();
+    const name = String(p?.property ?? '')
+      .trim()
+      .toUpperCase();
     if (name !== 'EAN') continue;
     const v = p?.value;
     if (v && typeof v === 'object') {
@@ -327,7 +329,9 @@ function getSelloGtin(product) {
   const props = product?.properties;
   if (!Array.isArray(props)) return null;
   for (const p of props) {
-    const name = String(p?.property ?? '').trim().toUpperCase();
+    const name = String(p?.property ?? '')
+      .trim()
+      .toUpperCase();
     if (name !== 'GTIN') continue;
     const v = p?.value;
     if (v && typeof v === 'object') {
@@ -343,12 +347,12 @@ function getSelloGtin(product) {
 function getSelloPropertyValue(product, propertyIds) {
   const props = product?.properties;
   if (!Array.isArray(props)) return null;
-  const ids = Array.isArray(propertyIds)
-    ? propertyIds
-    : [propertyIds];
+  const ids = Array.isArray(propertyIds) ? propertyIds : [propertyIds];
   const idsLower = ids.map((id) => String(id).toLowerCase());
   for (const p of props) {
-    const name = String(p?.property ?? '').trim().toLowerCase();
+    const name = String(p?.property ?? '')
+      .trim()
+      .toLowerCase();
     if (!name) continue;
     if (idsLower.includes(name)) {
       const v = p?.value;
@@ -364,14 +368,27 @@ function getSelloPropertyValue(product, propertyIds) {
 
 /** Channel preset colors (CDON, Fyndiq, WooCommerce). Lowercase for match. */
 const CHANNEL_COLOR_PRESETS = new Set([
-  'red', 'blue', 'green', 'orange', 'yellow', 'purple', 'pink', 'gold', 'silver',
-  'multicolor', 'white', 'gray', 'black', 'turquoise', 'brown', 'beige', 'transparent',
+  'red',
+  'blue',
+  'green',
+  'orange',
+  'yellow',
+  'purple',
+  'pink',
+  'gold',
+  'silver',
+  'multicolor',
+  'white',
+  'gray',
+  'black',
+  'turquoise',
+  'brown',
+  'beige',
+  'transparent',
 ]);
 
 /** CDON preset size values (lowercase). */
-const CDON_SIZE_PRESETS = new Set([
-  'one size', 'xxs', 'xs', 's', 'm', 'l', 'xl', 'xxl',
-]);
+const CDON_SIZE_PRESETS = new Set(['one size', 'xxs', 'xs', 's', 'm', 'l', 'xl', 'xxl']);
 
 /** Extract color text from Sello product properties (Color, Färg, ColorText, Färgtext). */
 function getSelloColorFromProperties(product) {
@@ -1001,12 +1018,10 @@ class ProductController {
           ? modeRaw
           : null;
       if (!mode) {
-        return res
-          .status(400)
-          .json({
-            error: 'Invalid mode (use update-only, create-only, or upsert)',
-            code: 'VALIDATION_ERROR',
-          });
+        return res.status(400).json({
+          error: 'Invalid mode (use update-only, create-only, or upsert)',
+          code: 'VALIDATION_ERROR',
+        });
       }
 
       const file = req.file;
@@ -1014,12 +1029,10 @@ class ProductController {
         return res.status(400).json({ error: 'No file uploaded', code: 'VALIDATION_ERROR' });
       }
       if (file.size > IMPORT_MAX_FILE_BYTES) {
-        return res
-          .status(400)
-          .json({
-            error: `File too large (max ${Math.round(IMPORT_MAX_FILE_BYTES / 1024 / 1024)}MB)`,
-            code: 'VALIDATION_ERROR',
-          });
+        return res.status(400).json({
+          error: `File too large (max ${Math.round(IMPORT_MAX_FILE_BYTES / 1024 / 1024)}MB)`,
+          code: 'VALIDATION_ERROR',
+        });
       }
 
       const originalName = String(file.originalname || '').toLowerCase();
@@ -1425,28 +1438,6 @@ class ProductController {
         : null;
 
       if (selloProductIds && selloProductIds.length > 0) {
-        const listMap = new Map();
-        try {
-          const filterQuery = selloProductIds
-            .map((id) => `filter[id][]=${encodeURIComponent(id)}`)
-            .join('&');
-          const listRes = await this.selloModel.fetchSelloJson({
-            apiKey,
-            path: `/v5/products?${filterQuery}`,
-          });
-          const listProducts = Array.isArray(listRes?.products)
-            ? listRes.products
-            : Array.isArray(listRes?.data?.products)
-              ? listRes.data.products
-              : [];
-          for (const p of listProducts) {
-            const id = String(p?.id ?? '').trim();
-            if (id) listMap.set(id, p);
-          }
-        } catch {
-          // List fetch optional; we fall back to single-product data only
-        }
-
         for (const productId of selloProductIds) {
           let raw;
           try {
@@ -1473,17 +1464,6 @@ class ProductController {
               sourceCreatedAt: null,
             });
             continue;
-          }
-          const fromList = listMap.get(String(raw?.id ?? '').trim());
-          if (fromList) {
-            raw = {
-              ...raw,
-              integrations: fromList.integrations ?? raw.integrations,
-              folder_id: fromList.folder_id ?? raw.folder_id,
-              folder_name: fromList.folder_name ?? raw.folder_name,
-              private_name: fromList.private_name ?? raw.private_name,
-              private_reference: fromList.private_reference ?? raw.private_reference,
-            };
           }
           summary.requested += 1;
           const sku = String(raw?.id ?? '').trim();
@@ -1534,7 +1514,11 @@ class ProductController {
           );
           let selloManufacturer = null;
           let manufacturerIdRaw = raw?.manufacturer ?? raw?.manufacturer_id;
-          if (manufacturerIdRaw != null && typeof manufacturerIdRaw === 'object' && manufacturerIdRaw.id != null) {
+          if (
+            manufacturerIdRaw != null &&
+            typeof manufacturerIdRaw === 'object' &&
+            manufacturerIdRaw.id != null
+          ) {
             manufacturerIdRaw = manufacturerIdRaw.id;
           }
           const manufacturerName = (raw?.manufacturer_name ?? '').trim() || null;
@@ -1563,7 +1547,10 @@ class ProductController {
           }
           const upsertResult = await this.model.upsertFromSelloProduct(req, {
             sku,
-            privateName: (() => { const v = raw?.private_name ?? raw?.product?.private_name; return v != null ? String(v).trim() : null; })(),
+            privateName: (() => {
+              const v = raw?.private_name ?? raw?.product?.private_name;
+              return v != null ? String(v).trim() : null;
+            })(),
             merchantSku: raw?.private_reference != null ? String(raw.private_reference) : null,
             title,
             description,
@@ -1583,7 +1570,7 @@ class ProductController {
             manufacturerId: selloManufacturer?.id ?? undefined,
             purchasePrice: raw?.purchase_price != null ? Number(raw.purchase_price) : undefined,
             color: getSelloColorPreset(raw),
-            colorText: getSelloColorPreset(raw) ? null : getSelloColorFromProperties(raw) ?? null,
+            colorText: getSelloColorPreset(raw) ? null : (getSelloColorFromProperties(raw) ?? null),
             size: getSelloSize(raw),
             sizeText: getSelloSizeText(raw),
             material: getSelloMaterial(raw),
@@ -1728,7 +1715,11 @@ class ProductController {
           );
           let selloManufacturer = null;
           let manufacturerIdRaw = raw?.manufacturer ?? raw?.manufacturer_id;
-          if (manufacturerIdRaw != null && typeof manufacturerIdRaw === 'object' && manufacturerIdRaw.id != null) {
+          if (
+            manufacturerIdRaw != null &&
+            typeof manufacturerIdRaw === 'object' &&
+            manufacturerIdRaw.id != null
+          ) {
             manufacturerIdRaw = manufacturerIdRaw.id;
           }
           const manufacturerName = (raw?.manufacturer_name ?? '').trim() || null;
@@ -1757,7 +1748,10 @@ class ProductController {
           }
           const upsertResult = await this.model.upsertFromSelloProduct(req, {
             sku,
-            privateName: (() => { const v = raw?.private_name ?? raw?.product?.private_name; return v != null ? String(v).trim() : null; })(),
+            privateName: (() => {
+              const v = raw?.private_name ?? raw?.product?.private_name;
+              return v != null ? String(v).trim() : null;
+            })(),
             merchantSku: raw?.private_reference != null ? String(raw.private_reference) : null,
             title,
             description,
@@ -1777,7 +1771,7 @@ class ProductController {
             manufacturerId: selloManufacturer?.id ?? undefined,
             purchasePrice: raw?.purchase_price != null ? Number(raw.purchase_price) : undefined,
             color: getSelloColorPreset(raw),
-            colorText: getSelloColorPreset(raw) ? null : getSelloColorFromProperties(raw) ?? null,
+            colorText: getSelloColorPreset(raw) ? null : (getSelloColorFromProperties(raw) ?? null),
             size: getSelloSize(raw),
             sizeText: getSelloSizeText(raw),
             material: getSelloMaterial(raw),
@@ -2131,12 +2125,10 @@ class ProductController {
               );
               const c = credsRows?.[0];
               if (!c?.api_key || !c?.api_secret) {
-                return res
-                  .status(502)
-                  .json({
-                    error: 'CDON credentials missing',
-                    detail: 'Configure CDON in settings',
-                  });
+                return res.status(502).json({
+                  error: 'CDON credentials missing',
+                  detail: 'Configure CDON in settings',
+                });
               }
               items = await fetchCdonCategories(market, lang, c.api_key, c.api_secret);
             } else {
@@ -2146,12 +2138,10 @@ class ProductController {
               );
               const c = credsRows?.[0];
               if (!c?.api_key || !c?.api_secret) {
-                return res
-                  .status(502)
-                  .json({
-                    error: 'Fyndiq credentials missing',
-                    detail: 'Configure Fyndiq in settings',
-                  });
+                return res.status(502).json({
+                  error: 'Fyndiq credentials missing',
+                  detail: 'Configure Fyndiq in settings',
+                });
               }
               const marketLower = market.toLowerCase();
               items = await fetchFyndiqCategories(marketLower, lang, c.api_key, c.api_secret);
