@@ -1,5 +1,5 @@
+import { Trash2, ChevronUp, ChevronDown, Upload, Pencil, Settings, X } from 'lucide-react';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Trash2, ChevronUp, ChevronDown, Upload, Plus, Pencil, Settings, X } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,17 +14,16 @@ import {
 } from '@/components/ui/table';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
+import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
+import { useCdonProducts } from '@/plugins/cdon-products/context/CdonProductsContext';
+import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
+import { useFyndiqProducts } from '@/plugins/fyndiq-products/context/FyndiqProductsContext';
+import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceApi';
 
 import { productsApi } from '../api/productsApi';
 import { useProducts } from '../hooks/useProducts';
+
 import { ProductSettingsForm } from './ProductSettingsForm';
-import { useWooCommerce } from '@/plugins/woocommerce-products/context/WooCommerceContext';
-import { useCdonProducts } from '@/plugins/cdon-products/context/CdonProductsContext';
-import { useFyndiqProducts } from '@/plugins/fyndiq-products/context/FyndiqProductsContext';
-import { channelsApi } from '@/plugins/channels/api/channelsApi';
-import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceApi';
-import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
-import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
 
 type SortField = 'id' | 'title' | 'quantity' | 'priceAmount' | 'sku';
 type SortOrder = 'asc' | 'desc';
@@ -66,14 +65,24 @@ export const ProductList: React.FC = () => {
   const [isMobileView, setIsMobileView] = useState(false);
 
   useEffect(() => {
-    productsApi.getLists().then((data) => setLists(data || [])).catch(() => setLists([]));
+    productsApi
+      .getLists()
+      .then((data) => setLists(data || []))
+      .catch(() => setLists([]));
   }, []);
 
-  const [wooInstances, setWooInstances] = useState<Array<{ id: string; instanceKey?: string; label?: string | null }>>([]);
+  const [wooInstances, setWooInstances] = useState<
+    Array<{ id: string; instanceKey?: string; label?: string | null }>
+  >([]);
   useEffect(() => {
-    woocommerceApi.getInstances().then((r) => {
-      if (r?.items?.length) setWooInstances(r.items);
-    }).catch(() => setWooInstances([]));
+    woocommerceApi
+      .getInstances()
+      .then((r) => {
+        if (r?.items?.length) {
+          setWooInstances(r.items);
+        }
+      })
+      .catch(() => setWooInstances([]));
   }, []);
 
   // Publish-modal state (WooCommerce is per-store)
@@ -83,9 +92,27 @@ export const ProductList: React.FC = () => {
   const [publishFyndiqMarkets, setPublishFyndiqMarkets] = useState<string[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [lastPublishResult, setLastPublishResult] = useState<{
-    woo?: { ok: boolean; result?: { create?: unknown[]; update?: unknown[] }; endpoint?: string; instances?: Array<{ instanceId: string | null; label: string | null; ok: boolean; counts?: { success?: number; error?: number } }> };
-    cdon?: { ok: boolean; counts?: { requested?: number; success?: number; error?: number }; endpoint?: string };
-    fyndiq?: { ok: boolean; counts?: { requested?: number; success?: number; error?: number }; endpoint?: string };
+    woo?: {
+      ok: boolean;
+      result?: { create?: unknown[]; update?: unknown[] };
+      endpoint?: string;
+      instances?: Array<{
+        instanceId: string | null;
+        label: string | null;
+        ok: boolean;
+        counts?: { success?: number; error?: number };
+      }>;
+    };
+    cdon?: {
+      ok: boolean;
+      counts?: { requested?: number; success?: number; error?: number };
+      endpoint?: string;
+    };
+    fyndiq?: {
+      ok: boolean;
+      counts?: { requested?: number; success?: number; error?: number };
+      endpoint?: string;
+    };
   } | null>(null);
 
   // Delete-modal state (WooCommerce is per-store)
@@ -105,9 +132,16 @@ export const ProductList: React.FC = () => {
 
   // Batch-edit modal state
   const [showBatchEditModal, setShowBatchEditModal] = useState(false);
-  const [batchEditUpdates, setBatchEditUpdates] = useState<{ priceAmount?: string; quantity?: string; vatRate?: string; currency?: string }>({});
+  const [batchEditUpdates, setBatchEditUpdates] = useState<{
+    priceAmount?: string;
+    quantity?: string;
+    vatRate?: string;
+    currency?: string;
+  }>({});
   const [batchEditApplying, setBatchEditApplying] = useState(false);
-  const [lastBatchEditResult, setLastBatchEditResult] = useState<{ updatedCount: number } | null>(null);
+  const [lastBatchEditResult, setLastBatchEditResult] = useState<{ updatedCount: number } | null>(
+    null,
+  );
 
   // Import-modal state
   const [showImportModal, setShowImportModal] = useState(false);
@@ -170,20 +204,26 @@ export const ProductList: React.FC = () => {
     const needle = searchTerm.trim().toLowerCase();
 
     let filtered = products.map(normalize).filter((p: any) => {
-      if (!needle) return true;
+      if (!needle) {
+        return true;
+      }
       return (
         p.title.toLowerCase().includes(needle) ||
         String(p.id).toLowerCase().includes(needle) ||
         String(p.sku).toLowerCase().includes(needle) ||
-        String(p.mpn || '').toLowerCase().includes(needle)
+        String(p.mpn || '')
+          .toLowerCase()
+          .includes(needle)
       );
     });
 
     if (listFilter !== 'all') {
       filtered = filtered.filter((p: any) => {
         const lid = p.raw?.listId ?? p.listId ?? null;
-        const empty = lid == null || String(lid).trim() === '';
-        if (listFilter === 'main') return empty;
+        const empty = (lid ?? null) === null || String(lid).trim() === '';
+        if (listFilter === 'main') {
+          return empty;
+        }
         return String(lid) === String(listFilter);
       });
     }
@@ -250,7 +290,9 @@ export const ProductList: React.FC = () => {
   );
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (!headerCheckboxRef.current) return;
+    if (!headerCheckboxRef.current) {
+      return;
+    }
     headerCheckboxRef.current.indeterminate = !allVisibleSelected && someVisibleSelected;
   }, [allVisibleSelected, someVisibleSelected]);
 
@@ -266,7 +308,9 @@ export const ProductList: React.FC = () => {
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null;
+    if (sortField !== field) {
+      return null;
+    }
     return sortOrder === 'asc' ? (
       <ChevronUp className="w-4 h-4" />
     ) : (
@@ -276,20 +320,32 @@ export const ProductList: React.FC = () => {
 
   // Protected navigation handlers
   const handleOpenProduct = (product: any) => attemptNavigation(() => openProductForEdit(product));
-  const handleOpenPanel = () => attemptNavigation(() => openProductPanel(null));
+  const _handleOpenPanel = () => attemptNavigation(() => openProductPanel(null));
 
   const total = products.length;
   const filtered = filteredAndSorted.length;
   const isWooConfigured = wooInstances.length > 0;
-  const isCdonConfigured = !!(cdonSettings?.connected && cdonSettings?.apiKey && cdonSettings?.apiSecret);
-  const isFyndiqConfigured = !!(fyndiqSettings?.connected && fyndiqSettings?.apiKey && fyndiqSettings?.apiSecret);
+  const isCdonConfigured = !!(
+    cdonSettings?.connected &&
+    cdonSettings?.apiKey &&
+    cdonSettings?.apiSecret
+  );
+  const isFyndiqConfigured = !!(
+    fyndiqSettings?.connected &&
+    fyndiqSettings?.apiKey &&
+    fyndiqSettings?.apiSecret
+  );
 
   // Delete action (modal confirm)
   const runDeleteFlow = async () => {
-    if (selectedProductIds.length === 0) return;
+    if (selectedProductIds.length === 0) {
+      return;
+    }
     setDeleting(true);
 
-    const attemptedPlatformIds = Array.from(new Set(selectedProductIds.map(String))).filter(Boolean);
+    const attemptedPlatformIds = Array.from(new Set(selectedProductIds.map(String))).filter(
+      Boolean,
+    );
 
     try {
       const nextResult: {
@@ -369,7 +425,10 @@ export const ProductList: React.FC = () => {
     } catch (err: any) {
       console.error('Bulk delete failed', err);
       setLastDeleteResult({
-        woo: deleteFromWooInstanceIds.length > 0 ? { ok: false, deleted: 0, errors: [String(err?.message || err)] } : undefined,
+        woo:
+          deleteFromWooInstanceIds.length > 0
+            ? { ok: false, deleted: 0, errors: [String(err?.message || err)] }
+            : undefined,
         cdon: deleteFromCdonMarkets.length ? { ok: false, deleted: 0 } : undefined,
         fyndiq: deleteFromFyndiqMarkets.length ? { ok: false, deleted: 0 } : undefined,
         platform: alsoDeleteFromPlatform ? { ok: false, deleted: 0 } : undefined,
@@ -380,7 +439,9 @@ export const ProductList: React.FC = () => {
   };
 
   const runImportFlow = async () => {
-    if (!importFile) return;
+    if (!importFile) {
+      return;
+    }
     setImporting(true);
     try {
       const resp = await importProducts(importFile, importMode);
@@ -408,11 +469,7 @@ export const ProductList: React.FC = () => {
           {selectedProductIds.length > 0 && (
             <div className="mt-2 text-sm flex items-center flex-wrap gap-2">
               <Badge variant="secondary">{selectedProductIds.length} selected</Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => clearProductSelection()}
-              >
+              <Button variant="ghost" size="sm" onClick={() => clearProductSelection()}>
                 Clear selection
               </Button>
 
@@ -433,7 +490,9 @@ export const ProductList: React.FC = () => {
               {/* Batch Edit… — opens same product form in batch mode (only filled fields applied) */}
               <button
                 className="inline-flex items-center px-3 py-1.5 rounded-md border border-amber-600 text-amber-700 hover:bg-amber-50 text-sm"
-                onClick={() => attemptNavigation(() => openProductPanelForBatch(selectedProductIds))}
+                onClick={() =>
+                  attemptNavigation(() => openProductPanelForBatch(selectedProductIds))
+                }
               >
                 <Pencil className="w-4 h-4 mr-1" />
                 Batch Edit…
@@ -475,7 +534,9 @@ export const ProductList: React.FC = () => {
             <option value="all">Alla produkter</option>
             <option value="main">Huvudlista</option>
             {lists.map((l) => (
-              <option key={l.id} value={l.id}>{l.name}</option>
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
             ))}
           </select>
           <div className="flex items-center justify-end gap-2">
@@ -520,16 +581,26 @@ export const ProductList: React.FC = () => {
                 : 'Publish failed'}
             </div>
             <div className="mt-2 flex flex-col gap-1 text-sm">
-              {lastPublishResult.woo != null && (
+              {lastPublishResult.woo !== null && lastPublishResult.woo !== undefined && (
                 <div>
                   WooCommerce:{' '}
                   {lastPublishResult.woo.ok ? (
-                    Array.isArray(lastPublishResult.woo.instances) && lastPublishResult.woo.instances.length > 0 ? (
-                      <>{(lastPublishResult.woo.instances as any[]).filter((i) => i.ok).length} store(s) updated</>
+                    Array.isArray(lastPublishResult.woo.instances) &&
+                    lastPublishResult.woo.instances.length > 0 ? (
+                      <>
+                        {(lastPublishResult.woo.instances as any[]).filter((i) => i.ok).length}{' '}
+                        store(s) updated
+                      </>
                     ) : (
                       <>
-                        Created {Array.isArray(lastPublishResult.woo.result?.create) ? lastPublishResult.woo.result.create.length : 0},{' '}
-                        Updated {Array.isArray(lastPublishResult.woo.result?.update) ? lastPublishResult.woo.result.update.length : 0}
+                        Created{' '}
+                        {Array.isArray(lastPublishResult.woo.result?.create)
+                          ? lastPublishResult.woo.result.create.length
+                          : 0}
+                        , Updated{' '}
+                        {Array.isArray(lastPublishResult.woo.result?.update)
+                          ? lastPublishResult.woo.result.update.length
+                          : 0}
                       </>
                     )
                   ) : (
@@ -537,7 +608,7 @@ export const ProductList: React.FC = () => {
                   )}
                 </div>
               )}
-              {lastPublishResult.cdon != null && (
+              {lastPublishResult.cdon !== null && lastPublishResult.cdon !== undefined && (
                 <div>
                   CDON:{' '}
                   {lastPublishResult.cdon.ok ? (
@@ -550,7 +621,7 @@ export const ProductList: React.FC = () => {
                   )}
                 </div>
               )}
-              {lastPublishResult.fyndiq != null && (
+              {lastPublishResult.fyndiq !== null && lastPublishResult.fyndiq !== undefined && (
                 <div>
                   Fyndiq:{' '}
                   {lastPublishResult.fyndiq.ok ? (
@@ -588,11 +659,14 @@ export const ProductList: React.FC = () => {
               <div className="mt-2">
                 <div className="text-sm">WooCommerce deleted: {lastDeleteResult.woo.deleted}</div>
                 {lastDeleteResult.woo.endpoint && (
-                  <div className="mt-1 text-xs break-all">Endpoint: {lastDeleteResult.woo.endpoint}</div>
+                  <div className="mt-1 text-xs break-all">
+                    Endpoint: {lastDeleteResult.woo.endpoint}
+                  </div>
                 )}
                 {lastDeleteResult.woo.errors?.length ? (
                   <div className="mt-2 text-xs">
                     {lastDeleteResult.woo.errors.map((e, i) => (
+                      /* eslint-disable-next-line react/no-array-index-key -- error list has no stable ids */
                       <div key={i} className="break-all">
                         • {e}
                       </div>
@@ -602,16 +676,18 @@ export const ProductList: React.FC = () => {
               </div>
             )}
 
-            {lastDeleteResult.cdon != null && (
+            {lastDeleteResult.cdon !== null && lastDeleteResult.cdon !== undefined && (
               <div className="mt-2 text-sm">CDON deleted: {lastDeleteResult.cdon.deleted}</div>
             )}
 
-            {lastDeleteResult.fyndiq != null && (
+            {lastDeleteResult.fyndiq !== null && lastDeleteResult.fyndiq !== undefined && (
               <div className="mt-2 text-sm">Fyndiq deleted: {lastDeleteResult.fyndiq.deleted}</div>
             )}
 
             {lastDeleteResult.platform && (
-              <div className="mt-2 text-sm">Platform deleted: {lastDeleteResult.platform.deleted}</div>
+              <div className="mt-2 text-sm">
+                Platform deleted: {lastDeleteResult.platform.deleted}
+              </div>
             )}
           </div>
         </div>
@@ -651,7 +727,8 @@ export const ProductList: React.FC = () => {
                   onClick={() => handleSort('title')}
                 >
                   <div className="flex items-center gap-2">
-                    Title<SortIcon field="title" />
+                    Title
+                    <SortIcon field="title" />
                   </div>
                 </TableHead>
                 <TableHead
@@ -659,7 +736,8 @@ export const ProductList: React.FC = () => {
                   onClick={() => handleSort('sku')}
                 >
                   <div className="flex items-center gap-2">
-                    SKU<SortIcon field="sku" />
+                    SKU
+                    <SortIcon field="sku" />
                   </div>
                 </TableHead>
                 <TableHead
@@ -667,7 +745,8 @@ export const ProductList: React.FC = () => {
                   onClick={() => handleSort('quantity')}
                 >
                   <div className="flex items-center gap-2">
-                    Qty<SortIcon field="quantity" />
+                    Qty
+                    <SortIcon field="quantity" />
                   </div>
                 </TableHead>
                 <TableHead
@@ -675,7 +754,8 @@ export const ProductList: React.FC = () => {
                   onClick={() => handleSort('priceAmount')}
                 >
                   <div className="flex items-center gap-2">
-                    Price<SortIcon field="priceAmount" />
+                    Price
+                    <SortIcon field="priceAmount" />
                   </div>
                 </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -719,9 +799,7 @@ export const ProductList: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm font-mono font-medium">
-                          #{p.id}
-                        </div>
+                        <div className="text-sm font-mono font-medium">#{p.id}</div>
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">{p.title}</div>
@@ -819,13 +897,14 @@ export const ProductList: React.FC = () => {
       {/* Publish-modal */}
       {showPublishModal && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowPublishModal(false)} />
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowPublishModal(false)}
+          />
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-xl">
             <div className="bg-white rounded-xl shadow-xl border">
               <div className="p-4 border-b">
-              <h3 className="mb-0 text-lg font-semibold">
-                  Publish selected products
-                </h3>
+                <h3 className="mb-0 text-lg font-semibold">Publish selected products</h3>
                 <div className="text-xs text-gray-500">
                   {selectedProducts.length} products selected
                 </div>
@@ -835,7 +914,9 @@ export const ProductList: React.FC = () => {
                   <div className="text-sm font-medium mb-2">Choose channels / stores</div>
                   <div className="space-y-3">
                     <div className={!isWooConfigured ? 'opacity-50' : ''}>
-                      <div className="text-sm font-medium mb-1">WooCommerce {isWooConfigured ? '' : '(not connected)'}</div>
+                      <div className="text-sm font-medium mb-1">
+                        WooCommerce {isWooConfigured ? '' : '(not connected)'}
+                      </div>
                       {wooInstances.length > 0 ? (
                         <div className="flex flex-wrap gap-4 pl-5">
                           {wooInstances.map((inst) => (
@@ -845,9 +926,13 @@ export const ProductList: React.FC = () => {
                                 disabled={!isWooConfigured}
                                 checked={isWooConfigured && publishWooInstanceIds.includes(inst.id)}
                                 onChange={(e) => {
-                                  if (!isWooConfigured) return;
+                                  if (!isWooConfigured) {
+                                    return;
+                                  }
                                   setPublishWooInstanceIds((prev) =>
-                                    e.target.checked ? [...prev, inst.id] : prev.filter((id) => id !== inst.id)
+                                    e.target.checked
+                                      ? [...prev, inst.id]
+                                      : prev.filter((id) => id !== inst.id),
                                   );
                                 }}
                               />
@@ -856,11 +941,15 @@ export const ProductList: React.FC = () => {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-xs text-gray-500 pl-5">No WooCommerce stores added. Add a store in Settings.</p>
+                        <p className="text-xs text-gray-500 pl-5">
+                          No WooCommerce stores added. Add a store in Settings.
+                        </p>
                       )}
                     </div>
                     <div className={!isCdonConfigured ? 'opacity-50' : ''}>
-                      <div className="text-sm font-medium mb-1">CDON {isCdonConfigured ? '' : '(not connected)'}</div>
+                      <div className="text-sm font-medium mb-1">
+                        CDON {isCdonConfigured ? '' : '(not connected)'}
+                      </div>
                       <div className="flex flex-wrap gap-4 pl-5">
                         {PUBLISH_MARKETS.map(({ key, label }) => (
                           <label key={key} className="flex items-center gap-2">
@@ -869,9 +958,13 @@ export const ProductList: React.FC = () => {
                               disabled={!isCdonConfigured}
                               checked={isCdonConfigured && publishCdonMarkets.includes(key)}
                               onChange={(e) => {
-                                if (!isCdonConfigured) return;
+                                if (!isCdonConfigured) {
+                                  return;
+                                }
                                 setPublishCdonMarkets((prev) =>
-                                  e.target.checked ? [...prev.filter((m) => m !== key), key] : prev.filter((m) => m !== key)
+                                  e.target.checked
+                                    ? [...prev.filter((m) => m !== key), key]
+                                    : prev.filter((m) => m !== key),
                                 );
                               }}
                             />
@@ -881,7 +974,9 @@ export const ProductList: React.FC = () => {
                       </div>
                     </div>
                     <div className={!isFyndiqConfigured ? 'opacity-50' : ''}>
-                      <div className="text-sm font-medium mb-1">Fyndiq {isFyndiqConfigured ? '' : '(not connected)'}</div>
+                      <div className="text-sm font-medium mb-1">
+                        Fyndiq {isFyndiqConfigured ? '' : '(not connected)'}
+                      </div>
                       <div className="flex flex-wrap gap-4 pl-5">
                         {PUBLISH_MARKETS.map(({ key, label }) => (
                           <label key={key} className="flex items-center gap-2">
@@ -890,9 +985,13 @@ export const ProductList: React.FC = () => {
                               disabled={!isFyndiqConfigured}
                               checked={isFyndiqConfigured && publishFyndiqMarkets.includes(key)}
                               onChange={(e) => {
-                                if (!isFyndiqConfigured) return;
+                                if (!isFyndiqConfigured) {
+                                  return;
+                                }
                                 setPublishFyndiqMarkets((prev) =>
-                                  e.target.checked ? [...prev.filter((m) => m !== key), key] : prev.filter((m) => m !== key)
+                                  e.target.checked
+                                    ? [...prev.filter((m) => m !== key), key]
+                                    : prev.filter((m) => m !== key),
                                 );
                               }}
                             />
@@ -917,7 +1016,9 @@ export const ProductList: React.FC = () => {
                   disabled={
                     publishing ||
                     selectedProducts.length === 0 ||
-                    (publishWooInstanceIds.length === 0 && !publishCdonMarkets.length && !publishFyndiqMarkets.length)
+                    (publishWooInstanceIds.length === 0 &&
+                      !publishCdonMarkets.length &&
+                      !publishFyndiqMarkets.length)
                   }
                   onClick={async () => {
                     const payload = selectedProducts.map((p: any) => ({
@@ -946,7 +1047,9 @@ export const ProductList: React.FC = () => {
                         try {
                           const r = await woocommerceApi.exportProducts(
                             payload,
-                            publishWooInstanceIds.length > 0 ? { instanceIds: publishWooInstanceIds } : undefined
+                            publishWooInstanceIds.length > 0
+                              ? { instanceIds: publishWooInstanceIds }
+                              : undefined,
                           );
                           result.woo = {
                             ok: !!r?.ok,
@@ -1002,15 +1105,15 @@ export const ProductList: React.FC = () => {
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => {
-              if (!importing) setShowImportModal(false);
+              if (!importing) {
+                setShowImportModal(false);
+              }
             }}
           />
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-xl">
             <div className="bg-white rounded-xl shadow-xl border">
               <div className="p-4 border-b">
-                <h3 className="mb-0 text-lg font-semibold">
-                  Import products
-                </h3>
+                <h3 className="mb-0 text-lg font-semibold">Import products</h3>
                 <div className="text-xs text-gray-500">
                   Upload a .csv or .xlsx file and choose how to apply it.
                 </div>
@@ -1052,7 +1155,9 @@ export const ProductList: React.FC = () => {
                 {lastImportResult && (
                   <div className="rounded-md border p-3 text-sm">
                     {lastImportResult.ok === false ? (
-                      <div className="text-red-700">Import failed: {String(lastImportResult.error || 'Unknown error')}</div>
+                      <div className="text-red-700">
+                        Import failed: {String(lastImportResult.error || 'Unknown error')}
+                      </div>
                     ) : (
                       <div className="space-y-1">
                         <div className="font-medium">Import result</div>
@@ -1063,13 +1168,25 @@ export const ProductList: React.FC = () => {
                           Created: {lastImportResult.created} · Updated: {lastImportResult.updated}
                         </div>
                         <div className="text-xs text-gray-600">
-                          Missing SKU: {Array.isArray(lastImportResult.skippedMissingSku) ? lastImportResult.skippedMissingSku.length : 0}
+                          Missing SKU:{' '}
+                          {Array.isArray(lastImportResult.skippedMissingSku)
+                            ? lastImportResult.skippedMissingSku.length
+                            : 0}
                           {' · '}
-                          Invalid: {Array.isArray(lastImportResult.skippedInvalid) ? lastImportResult.skippedInvalid.length : 0}
+                          Invalid:{' '}
+                          {Array.isArray(lastImportResult.skippedInvalid)
+                            ? lastImportResult.skippedInvalid.length
+                            : 0}
                           {' · '}
-                          Conflicts: {Array.isArray(lastImportResult.conflicts) ? lastImportResult.conflicts.length : 0}
+                          Conflicts:{' '}
+                          {Array.isArray(lastImportResult.conflicts)
+                            ? lastImportResult.conflicts.length
+                            : 0}
                           {' · '}
-                          Not found: {Array.isArray(lastImportResult.notFound) ? lastImportResult.notFound.length : 0}
+                          Not found:{' '}
+                          {Array.isArray(lastImportResult.notFound)
+                            ? lastImportResult.notFound.length
+                            : 0}
                         </div>
                       </div>
                     )}
@@ -1101,12 +1218,18 @@ export const ProductList: React.FC = () => {
       {/* Batch Edit modal */}
       {showBatchEditModal && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowBatchEditModal(false)} />
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowBatchEditModal(false)}
+          />
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-xl">
             <div className="bg-white rounded-xl shadow-xl border">
               <div className="p-4 border-b">
                 <h3 className="mb-0 text-lg font-semibold">Batch Edit</h3>
-                <div className="text-xs text-gray-500">{selectedProductIds.length} products selected. Set only the fields you want to change.</div>
+                <div className="text-xs text-gray-500">
+                  {selectedProductIds.length} products selected. Set only the fields you want to
+                  change.
+                </div>
               </div>
               <div className="p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
@@ -1117,7 +1240,9 @@ export const ProductList: React.FC = () => {
                       inputMode="decimal"
                       placeholder="Leave empty to skip"
                       value={batchEditUpdates.priceAmount ?? ''}
-                      onChange={(e) => setBatchEditUpdates((u) => ({ ...u, priceAmount: e.target.value }))}
+                      onChange={(e) =>
+                        setBatchEditUpdates((u) => ({ ...u, priceAmount: e.target.value }))
+                      }
                       className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
                     />
                   </div>
@@ -1128,7 +1253,9 @@ export const ProductList: React.FC = () => {
                       inputMode="numeric"
                       placeholder="Leave empty to skip"
                       value={batchEditUpdates.quantity ?? ''}
-                      onChange={(e) => setBatchEditUpdates((u) => ({ ...u, quantity: e.target.value }))}
+                      onChange={(e) =>
+                        setBatchEditUpdates((u) => ({ ...u, quantity: e.target.value }))
+                      }
                       className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
                     />
                   </div>
@@ -1139,7 +1266,9 @@ export const ProductList: React.FC = () => {
                       inputMode="decimal"
                       placeholder="Leave empty to skip"
                       value={batchEditUpdates.vatRate ?? ''}
-                      onChange={(e) => setBatchEditUpdates((u) => ({ ...u, vatRate: e.target.value }))}
+                      onChange={(e) =>
+                        setBatchEditUpdates((u) => ({ ...u, vatRate: e.target.value }))
+                      }
                       className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
                     />
                   </div>
@@ -1147,7 +1276,12 @@ export const ProductList: React.FC = () => {
                     <label className="text-sm font-medium">Currency</label>
                     <select
                       value={batchEditUpdates.currency ?? ''}
-                      onChange={(e) => setBatchEditUpdates((u) => ({ ...u, currency: e.target.value || undefined }))}
+                      onChange={(e) =>
+                        setBatchEditUpdates((u) => ({
+                          ...u,
+                          currency: e.target.value || undefined,
+                        }))
+                      }
                       className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
                     >
                       <option value="">— No change —</option>
@@ -1159,7 +1293,7 @@ export const ProductList: React.FC = () => {
                     </select>
                   </div>
                 </div>
-                {lastBatchEditResult != null && (
+                {lastBatchEditResult !== null && lastBatchEditResult !== undefined && (
                   <div className="rounded-md border border-green-200 bg-green-50 text-green-800 p-2 text-sm">
                     Updated {lastBatchEditResult.updatedCount} product(s).
                   </div>
@@ -1184,21 +1318,48 @@ export const ProductList: React.FC = () => {
                       !batchEditUpdates.currency)
                   }
                   onClick={async () => {
-                    const updates: { priceAmount?: number; quantity?: number; vatRate?: number; currency?: string } = {};
-                    if (batchEditUpdates.priceAmount != null && batchEditUpdates.priceAmount !== '') {
+                    const updates: {
+                      priceAmount?: number;
+                      quantity?: number;
+                      vatRate?: number;
+                      currency?: string;
+                    } = {};
+                    if (
+                      batchEditUpdates.priceAmount !== null &&
+                      batchEditUpdates.priceAmount !== undefined &&
+                      batchEditUpdates.priceAmount !== ''
+                    ) {
                       const n = Number(batchEditUpdates.priceAmount.replace(',', '.'));
-                      if (Number.isFinite(n)) updates.priceAmount = n;
+                      if (Number.isFinite(n)) {
+                        updates.priceAmount = n;
+                      }
                     }
-                    if (batchEditUpdates.quantity != null && batchEditUpdates.quantity !== '') {
+                    if (
+                      batchEditUpdates.quantity !== null &&
+                      batchEditUpdates.quantity !== undefined &&
+                      batchEditUpdates.quantity !== ''
+                    ) {
                       const n = Number(batchEditUpdates.quantity);
-                      if (Number.isFinite(n) && n >= 0) updates.quantity = Math.trunc(n);
+                      if (Number.isFinite(n) && n >= 0) {
+                        updates.quantity = Math.trunc(n);
+                      }
                     }
-                    if (batchEditUpdates.vatRate != null && batchEditUpdates.vatRate !== '') {
+                    if (
+                      batchEditUpdates.vatRate !== null &&
+                      batchEditUpdates.vatRate !== undefined &&
+                      batchEditUpdates.vatRate !== ''
+                    ) {
                       const n = Number(batchEditUpdates.vatRate.replace(',', '.'));
-                      if (Number.isFinite(n)) updates.vatRate = n;
+                      if (Number.isFinite(n)) {
+                        updates.vatRate = n;
+                      }
                     }
-                    if (batchEditUpdates.currency) updates.currency = batchEditUpdates.currency;
-                    if (Object.keys(updates).length === 0) return;
+                    if (batchEditUpdates.currency) {
+                      updates.currency = batchEditUpdates.currency;
+                    }
+                    if (Object.keys(updates).length === 0) {
+                      return;
+                    }
                     setBatchEditApplying(true);
                     try {
                       const result = await batchUpdateProducts(selectedProductIds, updates);
@@ -1211,7 +1372,9 @@ export const ProductList: React.FC = () => {
                     }
                   }}
                 >
-                  {batchEditApplying ? 'Applying…' : `Apply to ${selectedProductIds.length} products`}
+                  {batchEditApplying
+                    ? 'Applying…'
+                    : `Apply to ${selectedProductIds.length} products`}
                 </button>
               </div>
             </div>
@@ -1226,19 +1389,21 @@ export const ProductList: React.FC = () => {
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-xl">
             <div className="bg-white rounded-xl shadow-xl border">
               <div className="p-4 border-b">
-                <h3 className="mb-0 text-lg font-semibold">
-                  Delete selected products
-                </h3>
+                <h3 className="mb-0 text-lg font-semibold">Delete selected products</h3>
                 <div className="text-xs text-gray-500">
                   {selectedProducts.length} products selected
                 </div>
               </div>
               <div className="p-4 space-y-4">
                 <div>
-                  <div className="text-sm font-medium mb-2">Choose channels / stores to delete from</div>
+                  <div className="text-sm font-medium mb-2">
+                    Choose channels / stores to delete from
+                  </div>
                   <div className="space-y-3">
                     <div className={!isWooConfigured ? 'opacity-50' : ''}>
-                      <div className="text-sm font-medium mb-1">WooCommerce {isWooConfigured ? '' : '(not connected)'}</div>
+                      <div className="text-sm font-medium mb-1">
+                        WooCommerce {isWooConfigured ? '' : '(not connected)'}
+                      </div>
                       {wooInstances.length > 0 ? (
                         <div className="flex flex-wrap gap-4 pl-5">
                           {wooInstances.map((inst) => (
@@ -1246,11 +1411,17 @@ export const ProductList: React.FC = () => {
                               <input
                                 type="checkbox"
                                 disabled={!isWooConfigured}
-                                checked={isWooConfigured && deleteFromWooInstanceIds.includes(inst.id)}
+                                checked={
+                                  isWooConfigured && deleteFromWooInstanceIds.includes(inst.id)
+                                }
                                 onChange={(e) => {
-                                  if (!isWooConfigured) return;
+                                  if (!isWooConfigured) {
+                                    return;
+                                  }
                                   setDeleteFromWooInstanceIds((prev) =>
-                                    e.target.checked ? [...prev, inst.id] : prev.filter((id) => id !== inst.id)
+                                    e.target.checked
+                                      ? [...prev, inst.id]
+                                      : prev.filter((id) => id !== inst.id),
                                   );
                                 }}
                               />
@@ -1263,7 +1434,9 @@ export const ProductList: React.FC = () => {
                       )}
                     </div>
                     <div className={!isCdonConfigured ? 'opacity-50' : ''}>
-                      <div className="text-sm font-medium mb-1">CDON {isCdonConfigured ? '' : '(not connected)'}</div>
+                      <div className="text-sm font-medium mb-1">
+                        CDON {isCdonConfigured ? '' : '(not connected)'}
+                      </div>
                       <div className="flex flex-wrap gap-4 pl-5">
                         {PUBLISH_MARKETS.map(({ key, label }) => (
                           <label key={key} className="flex items-center gap-2">
@@ -1272,11 +1445,13 @@ export const ProductList: React.FC = () => {
                               disabled={!isCdonConfigured}
                               checked={isCdonConfigured && deleteFromCdonMarkets.includes(key)}
                               onChange={(e) => {
-                                if (!isCdonConfigured) return;
+                                if (!isCdonConfigured) {
+                                  return;
+                                }
                                 setDeleteFromCdonMarkets((prev: string[]) =>
                                   e.target.checked
                                     ? [...prev.filter((m: string) => m !== key), key as string]
-                                    : prev.filter((m: string) => m !== key)
+                                    : prev.filter((m: string) => m !== key),
                                 );
                               }}
                             />
@@ -1286,7 +1461,9 @@ export const ProductList: React.FC = () => {
                       </div>
                     </div>
                     <div className={!isFyndiqConfigured ? 'opacity-50' : ''}>
-                      <div className="text-sm font-medium mb-1">Fyndiq {isFyndiqConfigured ? '' : '(not connected)'}</div>
+                      <div className="text-sm font-medium mb-1">
+                        Fyndiq {isFyndiqConfigured ? '' : '(not connected)'}
+                      </div>
                       <div className="flex flex-wrap gap-4 pl-5">
                         {PUBLISH_MARKETS.map(({ key, label }) => (
                           <label key={key} className="flex items-center gap-2">
@@ -1295,11 +1472,13 @@ export const ProductList: React.FC = () => {
                               disabled={!isFyndiqConfigured}
                               checked={isFyndiqConfigured && deleteFromFyndiqMarkets.includes(key)}
                               onChange={(e) => {
-                                if (!isFyndiqConfigured) return;
+                                if (!isFyndiqConfigured) {
+                                  return;
+                                }
                                 setDeleteFromFyndiqMarkets((prev: string[]) =>
                                   e.target.checked
                                     ? [...prev.filter((m: string) => m !== key), key as string]
-                                    : prev.filter((m: string) => m !== key)
+                                    : prev.filter((m: string) => m !== key),
                                 );
                               }}
                             />
@@ -1321,7 +1500,8 @@ export const ProductList: React.FC = () => {
                     <span>Also delete from platform</span>
                   </label>
                   <div className="text-xs text-gray-500 ml-6">
-                    If checked, products will be permanently deleted from the platform database (cannot be undone).
+                    If checked, products will be permanently deleted from the platform database
+                    (cannot be undone).
                   </div>
                 </div>
               </div>
@@ -1357,16 +1537,15 @@ export const ProductList: React.FC = () => {
       {/* Product Settings Modal */}
       {showProductSettings && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowProductSettings(false)} />
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowProductSettings(false)}
+          />
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-xl max-h-[90vh] overflow-y-auto">
             <Card className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">Produktinställningar</h3>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowProductSettings(false)}
-                >
+                <Button variant="ghost" size="icon" onClick={() => setShowProductSettings(false)}>
                   <X className="w-5 h-5" />
                 </Button>
               </div>

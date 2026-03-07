@@ -3,12 +3,12 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Heading, Text } from '@/core/ui/Typography';
-import { useChannels } from '@/plugins/channels/hooks/useChannels';
 import { channelsApi, type ChannelMapRow } from '@/plugins/channels/api/channelsApi';
+import { useChannels } from '@/plugins/channels/hooks/useChannels';
 import type { ChannelInstance, ChannelProductOverride } from '@/plugins/channels/types/channels';
 
 interface ProductViewProps {
-  item?: any;   // preferred prop from panel renderer
+  item?: any; // preferred prop from panel renderer
   product?: any; // legacy fallback (kept for compatibility)
 }
 
@@ -51,7 +51,7 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
 
   // ---- Selloklon per-instance overrides ----
   const [instances, setInstances] = useState<ChannelInstance[]>([]);
-  const [overrides, setOverrides] = useState<ChannelProductOverride[]>([]);
+  const [_overrides, setOverrides] = useState<ChannelProductOverride[]>([]);
   const [loadingOverrides, setLoadingOverrides] = useState(false);
   const [savingOverrideKey, setSavingOverrideKey] = useState<string | null>(null);
   const [draftOverrideByInstanceId, setDraftOverrideByInstanceId] = useState<
@@ -67,15 +67,15 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
         return;
       }
       try {
-        const res = await channelsApi.getProductMap({
+        const res = (await channelsApi.getProductMap({
           productId: String(productData.id),
           channel: 'woocommerce',
-        }) as { ok: true; row: ChannelMapRow | null };
+        })) as { ok: true; row: ChannelMapRow | null };
         if (!cancelled) {
           setWooEnabled(res.row ? !!res.row.enabled : false);
           setWooExternalId(res.row?.external_id ?? null);
         }
-      } catch (_e) {
+      } catch {
         if (!cancelled) {
           setWooEnabled(null);
           setWooExternalId(null);
@@ -83,13 +83,17 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
       }
     }
     loadMap();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [canToggleWoo, productData.id]);
 
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      if (!productData.id) return;
+      if (!productData.id) {
+        return;
+      }
       setLoadingOverrides(true);
       try {
         const [instResp, ovResp] = await Promise.all([
@@ -97,7 +101,9 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
           channelsApi.getOverrides({ productId: String(productData.id) }),
         ]);
 
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         const insts = instResp.items || [];
         const ovs = ovResp.items || [];
 
@@ -105,12 +111,15 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
         setOverrides(ovs);
 
         setDraftOverrideByInstanceId(() => {
-          const next: Record<string, { active: boolean; priceAmount: string; currency: string; category: string }> = {};
+          const next: Record<
+            string,
+            { active: boolean; priceAmount: string; currency: string; category: string }
+          > = {};
           for (const inst of insts) {
             const ov = ovs.find((o) => o.instanceId === inst.id) || null;
             next[inst.id] = {
               active: ov ? !!ov.active : false,
-              priceAmount: ov?.priceAmount != null ? String(ov.priceAmount) : '',
+              priceAmount: (ov?.priceAmount ?? null) !== null ? String(ov.priceAmount) : '',
               currency: String(ov?.currency || ''),
               category: String(ov?.category || ''),
             };
@@ -124,7 +133,9 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
         }
         console.error('Failed to load channel overrides:', err);
       } finally {
-        if (!cancelled) setLoadingOverrides(false);
+        if (!cancelled) {
+          setLoadingOverrides(false);
+        }
       }
     };
     run();
@@ -135,7 +146,9 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
 
   const saveOverride = async (inst: ChannelInstance) => {
     const draft = draftOverrideByInstanceId[inst.id];
-    if (!draft || !productData.id) return;
+    if (!draft || !productData.id) {
+      return;
+    }
     const key = `${inst.channel}.${inst.instanceKey}`;
     setSavingOverrideKey(key);
     try {
@@ -158,7 +171,9 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
   };
 
   const handleWooToggle = async (next: boolean) => {
-    if (!canToggleWoo || !productData.id) return;
+    if (!canToggleWoo || !productData.id) {
+      return;
+    }
     setWooPending(true);
     try {
       await setProductEnabled({
@@ -168,12 +183,14 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
       });
       setWooEnabled(next);
       try {
-        const res = await channelsApi.getProductMap({
+        const res = (await channelsApi.getProductMap({
           productId: String(productData.id),
           channel: 'woocommerce',
-        }) as { ok: true; row: ChannelMapRow | null };
+        })) as { ok: true; row: ChannelMapRow | null };
         setWooExternalId(res.row?.external_id ?? null);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     } catch (e) {
       console.error('Failed to toggle Woo mapping', e);
     } finally {
@@ -258,7 +275,10 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
       )}
 
       {/* Classification */}
-      {(productData.brand || productData.mpn || productData.gtin || (productData.categories ?? []).length > 0) && (
+      {(productData.brand ||
+        productData.mpn ||
+        productData.gtin ||
+        (productData.categories ?? []).length > 0) && (
         <Card padding="sm" className="shadow-none px-0">
           <Heading level={3} className="mb-3">
             Classification
@@ -280,8 +300,8 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
               <div className="text-xs text-gray-500 mb-1">Categories</div>
               {productData.categories?.length ? (
                 <ul className="flex flex-wrap gap-2">
-                  {productData.categories.map((c: string, i: number) => (
-                    <li key={`${c}-${i}`} className="px-2 py-0.5 rounded-full border text-xs">
+                  {productData.categories.map((c: string) => (
+                    <li key={c} className="px-2 py-0.5 rounded-full border text-xs">
                       {c}
                     </li>
                   ))}
@@ -301,17 +321,11 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
             Images
           </Heading>
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
-            {productData.images.map((url: string, i: number) => (
-              <a
-                key={`${url}-${i}`}
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
+            {productData.images.map((url: string) => (
+              <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="block">
                 <img
                   src={url}
-                  alt={`Product image ${i + 1}`}
+                  alt="Product"
                   className="w-full h-24 object-cover rounded-md border"
                 />
               </a>
@@ -373,7 +387,8 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
 
         <div className="mt-3 text-xs text-gray-500">
           Note: enabling a channel here marks the product as publishable. You can publish from the{' '}
-          <strong>Products</strong> list (Publish…) or from the <strong>WooCommerce</strong> plugin panel.
+          <strong>Products</strong> list (Publish…) or from the <strong>WooCommerce</strong> plugin
+          panel.
         </div>
 
         {/* Per-instance overrides */}
@@ -382,19 +397,23 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
             Per-instance overrides
           </Heading>
           <Text variant="caption" className="text-gray-600 mb-3">
-            Control <strong>active</strong>, <strong>price</strong>, and <strong>category</strong> per market/store instance.
+            Control <strong>active</strong>, <strong>price</strong>, and <strong>category</strong>{' '}
+            per market/store instance.
           </Text>
 
           {loadingOverrides ? (
             <div className="text-sm text-gray-500">Loading…</div>
           ) : instances.length === 0 ? (
             <div className="text-sm text-gray-500">
-              No instances configured yet. Open the <strong>Channels</strong> plugin and create defaults for CDON/Fyndiq.
+              No instances configured yet. Open the <strong>Channels</strong> plugin and create
+              defaults for CDON/Fyndiq.
             </div>
           ) : (
             <div className="divide-y divide-gray-200 rounded-lg border border-gray-200 overflow-hidden">
               {instances
-                .filter((i) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()))
+                .filter((i) =>
+                  ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()),
+                )
                 .map((inst) => {
                   const draft = draftOverrideByInstanceId[inst.id] || {
                     active: false,
@@ -415,7 +434,11 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
                             {inst.market ? ` · market ${inst.market}` : ''}
                           </div>
                         </div>
-                        <Button variant="secondary" disabled={saving} onClick={() => saveOverride(inst)}>
+                        <Button
+                          variant="secondary"
+                          disabled={saving}
+                          onClick={() => saveOverride(inst)}
+                        >
                           {saving ? 'Saving…' : 'Save'}
                         </Button>
                       </div>
@@ -461,7 +484,11 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
 
                         <input
                           className="h-9 rounded-md border px-2 text-sm"
-                          placeholder={String(inst.channel).toLowerCase() === 'woocommerce' ? 'categories' : 'category'}
+                          placeholder={
+                            String(inst.channel).toLowerCase() === 'woocommerce'
+                              ? 'categories'
+                              : 'category'
+                          }
                           value={draft.category}
                           onChange={(e) =>
                             setDraftOverrideByInstanceId((prev) => ({

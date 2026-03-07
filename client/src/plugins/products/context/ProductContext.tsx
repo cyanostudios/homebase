@@ -11,13 +11,13 @@ import React, {
 } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
+import { channelsApi } from '@/plugins/channels/api/channelsApi';
+import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
+import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceApi';
 
 import { productsApi, type ProductImportMode, type ProductImportResult } from '../api/productsApi';
 import type { Product, ProductSettings, ValidationError } from '../types/products';
-import { channelsApi } from '@/plugins/channels/api/channelsApi';
-import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceApi';
-import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
-import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
 
 interface ProductContextType {
   // Panel state
@@ -50,15 +50,35 @@ interface ProductContextType {
   batchProductIds: string[];
 
   // CRUD actions
-  saveProduct: (data: any, options?: {
-    hadChanges?: boolean;
-    channelTargets?: Array<{ channel: string; channelInstanceId: number | null }>;
-    channelTargetsWithMarket?: Array<{ channel: string; channelInstanceId: number | null; market: string }>;
-    channelOverridesToSave?: Array<{ channelInstanceId: number | string; category?: string | null; priceAmount?: number | null }>;
-  }) => Promise<boolean>;
+  saveProduct: (
+    data: any,
+    options?: {
+      hadChanges?: boolean;
+      channelTargets?: Array<{ channel: string; channelInstanceId: number | null }>;
+      channelTargetsWithMarket?: Array<{
+        channel: string;
+        channelInstanceId: number | null;
+        market: string;
+      }>;
+      channelOverridesToSave?: Array<{
+        channelInstanceId: number | string;
+        category?: string | null;
+        priceAmount?: number | null;
+      }>;
+    },
+  ) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<void>;
   deleteProducts: (ids: string[]) => Promise<void>; // bulk
-  batchUpdateProducts: (ids: string[], updates: { priceAmount?: number; quantity?: number; status?: string; vatRate?: number; currency?: string }) => Promise<{ updatedCount: number }>;
+  batchUpdateProducts: (
+    ids: string[],
+    updates: {
+      priceAmount?: number;
+      quantity?: number;
+      status?: string;
+      vatRate?: number;
+      currency?: string;
+    },
+  ) => Promise<{ updatedCount: number }>;
   importProducts: (file: File, mode: ProductImportMode) => Promise<ProductImportResult>;
 
   clearValidationErrors: () => void;
@@ -69,11 +89,21 @@ interface ProductContextType {
   getDeleteMessage: (item: Product | null) => string;
 
   // Kanaler tab: cache so switching tabs doesn’t refetch (survives form remount)
-  getChannelDataCache: (productKey: string) => { instances: any[]; overrides: any[]; targetKeys: string[] } | null;
-  setChannelDataCache: (productKey: string, data: { instances: any[]; overrides: any[]; targetKeys: string[] }) => void;
+  getChannelDataCache: (
+    productKey: string,
+  ) => { instances: any[]; overrides: any[]; targetKeys: string[] } | null;
+  setChannelDataCache: (
+    productKey: string,
+    data: { instances: any[]; overrides: any[]; targetKeys: string[] },
+  ) => void;
   clearChannelDataCache: () => void;
 
-  getChannelCategories: (inst: { channel: string; id: string | number; market?: string | null; instanceKey?: string }) => Promise<Array<{ id: string; name: string; path?: string; parent?: number }>>;
+  getChannelCategories: (inst: {
+    channel: string;
+    id: string | number;
+    market?: string | null;
+    instanceKey?: string;
+  }) => Promise<Array<{ id: string; name: string; path?: string; parent?: number }>>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -89,7 +119,8 @@ export function ProductProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: ProductProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction, getSettings, settingsVersion } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, getSettings, settingsVersion } =
+    useApp();
 
   // Panel state (no 'view' mode: always editable form with Avbryt + Spara only)
   const [isProductPanelOpen, setIsProductPanelOpen] = useState(false);
@@ -114,11 +145,16 @@ export function ProductProvider({
   } | null>(null);
   const getChannelDataCache = useCallback((productKey: string) => {
     const c = channelDataCacheRef.current;
-    return c && c.productKey === productKey ? { instances: c.instances, overrides: c.overrides, targetKeys: c.targetKeys } : null;
+    return c && c.productKey === productKey
+      ? { instances: c.instances, overrides: c.overrides, targetKeys: c.targetKeys }
+      : null;
   }, []);
-  const setChannelDataCache = useCallback((productKey: string, data: { instances: any[]; overrides: any[]; targetKeys: string[] }) => {
-    channelDataCacheRef.current = { productKey, ...data };
-  }, []);
+  const setChannelDataCache = useCallback(
+    (productKey: string, data: { instances: any[]; overrides: any[]; targetKeys: string[] }) => {
+      channelDataCacheRef.current = { productKey, ...data };
+    },
+    [],
+  );
   const clearChannelDataCache = useCallback(() => {
     channelDataCacheRef.current = null;
   }, []);
@@ -126,10 +162,23 @@ export function ProductProvider({
   const TTL_CDON_FYNDIQ_MS = 24 * 60 * 60 * 1000;
   const TTL_WOO_MS = 6 * 60 * 60 * 1000;
 
-  const channelCategoriesCacheRef = useRef<Record<string, { items: Array<{ id: string; name: string; path?: string; parent?: number }>; fetchedAt: number }>>({});
+  const channelCategoriesCacheRef = useRef<
+    Record<
+      string,
+      {
+        items: Array<{ id: string; name: string; path?: string; parent?: number }>;
+        fetchedAt: number;
+      }
+    >
+  >({});
 
   const getChannelCategories = useCallback(
-    async (inst: { channel: string; id: string | number; market?: string | null; instanceKey?: string }): Promise<Array<{ id: string; name: string; path?: string; parent?: number }>> => {
+    async (inst: {
+      channel: string;
+      id: string | number;
+      market?: string | null;
+      instanceKey?: string;
+    }): Promise<Array<{ id: string; name: string; path?: string; parent?: number }>> => {
       const ch = String(inst.channel || '').toLowerCase();
       const categoryLanguage = productSettings?.categoryLanguage ?? 'sv-SE';
 
@@ -153,7 +202,9 @@ export function ProductProvider({
         return cached.items;
       }
 
-      const res = await fetch(`/api/products/category-cache?key=${encodeURIComponent(cacheKey)}`, { credentials: 'include' });
+      const res = await fetch(`/api/products/category-cache?key=${encodeURIComponent(cacheKey)}`, {
+        credentials: 'include',
+      });
       if (res.status === 404) {
         channelCategoriesCacheRef.current[cacheKey] = { items: [], fetchedAt: Date.now() };
         return [];
@@ -162,8 +213,12 @@ export function ProductProvider({
         let message = res.statusText || 'Failed to load categories';
         try {
           const errBody = await res.json();
-          if (errBody?.error && typeof errBody.error === 'string') message = errBody.error;
-          if (errBody?.detail && typeof errBody.detail === 'string' && errBody.detail !== message) message = `${message}: ${errBody.detail}`;
+          if (errBody?.error && typeof errBody.error === 'string') {
+            message = errBody.error;
+          }
+          if (errBody?.detail && typeof errBody.detail === 'string' && errBody.detail !== message) {
+            message = `${message}: ${errBody.detail}`;
+          }
         } catch {
           // keep message from statusText
         }
@@ -174,6 +229,7 @@ export function ProductProvider({
       channelCategoriesCacheRef.current[cacheKey] = { items, fetchedAt: Date.now() };
       return items;
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- TTL constants are stable
     [productSettings?.categoryLanguage],
   );
 
@@ -228,11 +284,14 @@ export function ProductProvider({
   // Keep selection valid when products change
   useEffect(() => {
     if (!products?.length) {
-      if (selectedProductIds.length) setSelectedProductIds([]);
+      if (selectedProductIds.length) {
+        setSelectedProductIds([]);
+      }
       return;
     }
     const existing = new Set(products.map((p) => String(p.id)));
     setSelectedProductIds((prev) => prev.filter((id) => existing.has(id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intended: run only when products change
   }, [products]);
 
   // Register panel-close with AppContext
@@ -264,7 +323,9 @@ export function ProductProvider({
     const add = (field: string, message: string) => errors.push({ field, message });
     const isFiniteNumber = (n: any) => typeof n === 'number' && Number.isFinite(n);
 
-    if (!data.title?.trim()) add('title', 'Title is required');
+    if (!data.title?.trim()) {
+      add('title', 'Title is required');
+    }
     if (!data.status || !['for sale', 'draft', 'archived'].includes(String(data.status))) {
       add('status', 'Status must be one of: for sale, draft, archived');
     }
@@ -283,7 +344,9 @@ export function ProductProvider({
       add('currency', 'Currency is required');
     } else {
       const c = String(data.currency).toUpperCase();
-      if (!/^[A-Z]{3}$/.test(c)) add('currency', 'Currency must be a 3-letter code (e.g., SEK)');
+      if (!/^[A-Z]{3}$/.test(c)) {
+        add('currency', 'Currency must be a 3-letter code (e.g., SEK)');
+      }
     }
 
     if (data.sku?.trim()) {
@@ -303,7 +366,9 @@ export function ProductProvider({
       errors.push({ field: 'gtin', message: 'Warning: GTIN should be 8–14 digits (12 för UPC-A)' });
     }
 
-    if (!data.brand?.trim()) add('brand', 'Märke är obligatoriskt');
+    if (!data.brand?.trim()) {
+      add('brand', 'Märke är obligatoriskt');
+    }
 
     return errors;
   };
@@ -354,28 +419,49 @@ export function ProductProvider({
 
   const clearValidationErrors = () => setValidationErrors([]);
 
-  const saveProduct = async (raw: any, options?: {
-    hadChanges?: boolean;
-    channelTargets?: Array<{ channel: string; channelInstanceId: number | null }>;
-    /** Targets with market (se/dk/fi/no) for effective-price validation. */
-    channelTargetsWithMarket?: Array<{ channel: string; channelInstanceId: number | null; market: string }>;
-    categoryOverrides?: Array<{ channelInstanceId: string; category: string | null }>;
-    /** Per-channel category + price overrides (overrides categoryOverrides when present). */
-    channelOverridesToSave?: Array<{ channelInstanceId: number | string; category?: string | null; priceAmount?: number | null }>;
-  }): Promise<boolean> => {
+  const saveProduct = async (
+    raw: any,
+    options?: {
+      hadChanges?: boolean;
+      channelTargets?: Array<{ channel: string; channelInstanceId: number | null }>;
+      /** Targets with market (se/dk/fi/no) for effective-price validation. */
+      channelTargetsWithMarket?: Array<{
+        channel: string;
+        channelInstanceId: number | null;
+        market: string;
+      }>;
+      categoryOverrides?: Array<{ channelInstanceId: string; category: string | null }>;
+      /** Per-channel category + price overrides (overrides categoryOverrides when present). */
+      channelOverridesToSave?: Array<{
+        channelInstanceId: number | string;
+        category?: string | null;
+        priceAmount?: number | null;
+      }>;
+    },
+  ): Promise<boolean> => {
     const data: Record<string, unknown> = {
       title: (raw.title ?? '').trim(),
       status: raw.status,
       quantity: Number(raw.quantity ?? 0),
       priceAmount: Number(raw.priceAmount ?? 0),
-      purchasePrice: raw.purchasePrice != null && raw.purchasePrice !== '' && Number.isFinite(Number(raw.purchasePrice)) ? Number(raw.purchasePrice) : undefined,
-      salePrice: raw.salePrice != null && raw.salePrice !== '' && Number.isFinite(Number(raw.salePrice)) ? Number(raw.salePrice) : undefined,
+      purchasePrice:
+        (raw.purchasePrice ?? null) !== null &&
+        raw.purchasePrice !== '' &&
+        Number.isFinite(Number(raw.purchasePrice))
+          ? Number(raw.purchasePrice)
+          : undefined,
+      salePrice:
+        (raw.salePrice ?? null) !== null &&
+        raw.salePrice !== '' &&
+        Number.isFinite(Number(raw.salePrice))
+          ? Number(raw.salePrice)
+          : undefined,
       currency: (raw.currency ?? 'SEK').toUpperCase(),
       vatRate: Number(raw.vatRate ?? 25),
       sku: (raw.sku ?? '').trim(),
       // MPN is only used by marketplace connectors (CDON/Fyndiq).
       // If user leaves it blank, auto-copy SKU so exports won't miss required identifiers.
-      mpn: ((raw.mpn ?? '').trim() || (raw.sku ?? '').trim()),
+      mpn: (raw.mpn ?? '').trim() || (raw.sku ?? '').trim(),
       description: raw.description ?? '',
       mainImage: raw.mainImage ?? '',
       images: Array.isArray(raw.images) ? raw.images : [],
@@ -396,13 +482,37 @@ export function ProductProvider({
       pattern: (raw.pattern ?? '').trim() || undefined,
       material: (raw.material ?? '').trim() || undefined,
       patternText: (raw.patternText ?? '').trim() || undefined,
-      weight: raw.weight != null && raw.weight !== '' && Number.isFinite(Number(raw.weight)) ? Number(raw.weight) : undefined,
-      lengthCm: raw.lengthCm != null && raw.lengthCm !== '' && Number.isFinite(Number(raw.lengthCm)) ? Number(raw.lengthCm) : undefined,
-      widthCm: raw.widthCm != null && raw.widthCm !== '' && Number.isFinite(Number(raw.widthCm)) ? Number(raw.widthCm) : undefined,
-      heightCm: raw.heightCm != null && raw.heightCm !== '' && Number.isFinite(Number(raw.heightCm)) ? Number(raw.heightCm) : undefined,
-      depthCm: raw.depthCm != null && raw.depthCm !== '' && Number.isFinite(Number(raw.depthCm)) ? Number(raw.depthCm) : undefined,
+      weight:
+        (raw.weight ?? null) !== null && raw.weight !== '' && Number.isFinite(Number(raw.weight))
+          ? Number(raw.weight)
+          : undefined,
+      lengthCm:
+        (raw.lengthCm ?? null) !== null &&
+        raw.lengthCm !== '' &&
+        Number.isFinite(Number(raw.lengthCm))
+          ? Number(raw.lengthCm)
+          : undefined,
+      widthCm:
+        (raw.widthCm ?? null) !== null && raw.widthCm !== '' && Number.isFinite(Number(raw.widthCm))
+          ? Number(raw.widthCm)
+          : undefined,
+      heightCm:
+        (raw.heightCm ?? null) !== null &&
+        raw.heightCm !== '' &&
+        Number.isFinite(Number(raw.heightCm))
+          ? Number(raw.heightCm)
+          : undefined,
+      depthCm:
+        (raw.depthCm ?? null) !== null && raw.depthCm !== '' && Number.isFinite(Number(raw.depthCm))
+          ? Number(raw.depthCm)
+          : undefined,
     };
-    if (raw.channelSpecific !== undefined && raw.channelSpecific !== null && typeof raw.channelSpecific === 'object' && !Array.isArray(raw.channelSpecific)) {
+    if (
+      raw.channelSpecific !== undefined &&
+      raw.channelSpecific !== null &&
+      typeof raw.channelSpecific === 'object' &&
+      !Array.isArray(raw.channelSpecific)
+    ) {
       data.channelSpecific = raw.channelSpecific;
     }
 
@@ -413,10 +523,14 @@ export function ProductProvider({
 
     // CDON/Fyndiq: varje vald butik måste ha marknad – annars kan vi inte veta vilket pris som gäller
     const cdonFyndiqTargets = channelTargets.filter(
-      (t) => t.channelInstanceId != null && ['cdon', 'fyndiq'].includes(String(t.channel).toLowerCase()),
+      (t) =>
+        (t.channelInstanceId ?? null) !== null &&
+        ['cdon', 'fyndiq'].includes(String(t.channel).toLowerCase()),
     );
     for (const t of cdonFyndiqTargets) {
-      const withMarket = channelTargetsWithMarket.find((m) => m.channelInstanceId === t.channelInstanceId);
+      const withMarket = channelTargetsWithMarket.find(
+        (m) => m.channelInstanceId === t.channelInstanceId,
+      );
       if (!withMarket?.market) {
         errors.push({
           field: 'kanaler',
@@ -429,36 +543,54 @@ export function ProductProvider({
 
     // Warn if product is active on a channel but has no effective price (per-butikspris överstyring eller baspris/marknadspris)
     const pricing = (data.channelSpecific as any)?.pricing;
-    const markets = pricing?.markets && typeof pricing.markets === 'object' ? pricing.markets : null;
+    const markets =
+      pricing?.markets && typeof pricing.markets === 'object' ? pricing.markets : null;
     if (channelTargets.length > 0) {
       const globalPrice = Number(data.priceAmount ?? 0);
       const hasGlobalPrice = Number.isFinite(globalPrice) && globalPrice > 0;
       for (const t of channelTargets) {
-        if (t.channelInstanceId == null) continue;
-        const ov = channelOverridesToSave.find((o) => String(o.channelInstanceId) === String(t.channelInstanceId));
+        if ((t.channelInstanceId ?? null) === null) {
+          continue;
+        }
+        const ov = channelOverridesToSave.find(
+          (o) => String(o.channelInstanceId) === String(t.channelInstanceId),
+        );
         const instancePriceOverride = ov?.priceAmount;
-        const hasInstancePriceOverride = instancePriceOverride != null && Number.isFinite(Number(instancePriceOverride)) && Number(instancePriceOverride) > 0;
+        const hasInstancePriceOverride =
+          (instancePriceOverride ?? null) !== null &&
+          Number.isFinite(Number(instancePriceOverride)) &&
+          Number(instancePriceOverride) > 0;
         let hasEffectivePrice = hasGlobalPrice || hasInstancePriceOverride;
         if (!hasEffectivePrice && markets && channelTargetsWithMarket.length > 0) {
-          const withMarket = channelTargetsWithMarket.find((m) => String(m.channelInstanceId) === String(t.channelInstanceId));
+          const withMarket = channelTargetsWithMarket.find(
+            (m) => String(m.channelInstanceId) === String(t.channelInstanceId),
+          );
           if (withMarket?.market) {
             const marketAmount = markets[withMarket.market]?.amount;
-            hasEffectivePrice = marketAmount != null && Number.isFinite(Number(marketAmount)) && Number(marketAmount) > 0;
+            hasEffectivePrice =
+              (marketAmount ?? null) !== null &&
+              Number.isFinite(Number(marketAmount)) &&
+              Number(marketAmount) > 0;
           }
         }
         if (!hasEffectivePrice) {
           errors.push({
             field: 'priceAmount',
-            message: 'Varning: Minst en aktiv kanal saknar effektivt pris. Ange baspris eller fyll i pris per butik under Priser.',
+            message:
+              'Varning: Minst en aktiv kanal saknar effektivt pris. Ange baspris eller fyll i pris per butik under Priser.',
           });
           break;
         }
       }
     }
     setValidationErrors(errors);
-    const isWarningMessage = (message: string) => /^varning\b/i.test(String(message || '').trim()) || /^warning\b/i.test(String(message || '').trim());
+    const isWarningMessage = (message: string) =>
+      /^varning\b/i.test(String(message || '').trim()) ||
+      /^warning\b/i.test(String(message || '').trim());
     const blocking = errors.filter((e) => !isWarningMessage(e.message));
-    if (blocking.length > 0) return false;
+    if (blocking.length > 0) {
+      return false;
+    }
 
     try {
       if (currentProduct) {
@@ -468,9 +600,7 @@ export function ProductProvider({
           createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
           updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
         };
-        setProducts((prev) =>
-          prev.map((p) => (p.id === currentProduct.id ? normalized : p)),
-        );
+        setProducts((prev) => prev.map((p) => (p.id === currentProduct.id ? normalized : p)));
         setCurrentProduct(normalized);
         setValidationErrors([]);
 
@@ -478,27 +608,35 @@ export function ProductProvider({
         const desiredTargets = options?.channelTargets ?? null;
         if (desiredTargets && desiredTargets.length >= 0) {
           try {
-            const { targets: currentTargets } = await channelsApi.getProductTargets(String(saved.id));
+            const { targets: currentTargets } = await channelsApi.getProductTargets(
+              String(saved.id),
+            );
             const currentSet = new Set(
               (currentTargets ?? []).map((t) =>
-                t.channelInstanceId != null
+                (t.channelInstanceId ?? null) !== null
                   ? `${t.channel}:${t.channelInstanceId}`
                   : t.channel,
               ),
             );
             const desiredSet = new Set(
               desiredTargets.map((t) =>
-                t.channelInstanceId != null
+                (t.channelInstanceId ?? null) !== null
                   ? `${t.channel}:${t.channelInstanceId}`
                   : t.channel,
               ),
             );
             const toEnable = desiredTargets.filter((t) => {
-              const k = t.channelInstanceId != null ? `${t.channel}:${t.channelInstanceId}` : t.channel;
+              const k =
+                (t.channelInstanceId ?? null) !== null
+                  ? `${t.channel}:${t.channelInstanceId}`
+                  : t.channel;
               return !currentSet.has(k);
             });
             const toDisable = (currentTargets ?? []).filter((t) => {
-              const k = t.channelInstanceId != null ? `${t.channel}:${t.channelInstanceId}` : t.channel;
+              const k =
+                (t.channelInstanceId ?? null) !== null
+                  ? `${t.channel}:${t.channelInstanceId}`
+                  : t.channel;
               return !desiredSet.has(k);
             });
             const mapUpdates = [
@@ -509,7 +647,8 @@ export function ProductProvider({
               })),
               ...toDisable.map((t) => ({
                 channel: t.channel,
-                channelInstanceId: t.channelInstanceId != null ? Number(t.channelInstanceId) : undefined,
+                channelInstanceId:
+                  (t.channelInstanceId ?? null) !== null ? Number(t.channelInstanceId) : undefined,
                 enabled: false as const,
               })),
             ];
@@ -563,7 +702,9 @@ export function ProductProvider({
           (async () => {
             try {
               const { targets } = await channelsApi.getProductTargets(String(productForSync.id));
-              if (!targets?.length) return;
+              if (!targets?.length) {
+                return;
+              }
               const payload = {
                 id: productForSync.id,
                 sku: productForSync.sku,
@@ -584,8 +725,10 @@ export function ProductProvider({
                 updatedAt: productForSync.updatedAt,
               };
               const wooTargets = targets.filter((t) => t.channel === 'woocommerce');
-              const wooInstanceIds = wooTargets.map((t) => t.channelInstanceId).filter((id): id is string => id != null);
-              const wooLegacy = wooTargets.some((t) => t.channelInstanceId == null);
+              const wooInstanceIds = wooTargets
+                .map((t) => t.channelInstanceId)
+                .filter((id): id is string => (id ?? null) !== null);
+              const wooLegacy = wooTargets.some((t) => (t.channelInstanceId ?? null) === null);
               if (wooInstanceIds.length > 0 || wooLegacy) {
                 await woocommerceApi.exportProducts(
                   [payload],
@@ -607,7 +750,10 @@ export function ProductProvider({
         closeProductPanel();
       } else {
         const saved = await productsApi.createProduct(data);
-        const listId = data.listId != null && String(data.listId).trim() !== '' ? String(data.listId).trim() : null;
+        const listId =
+          (data.listId ?? null) !== null && String(data.listId).trim() !== ''
+            ? String(data.listId).trim()
+            : null;
         if (listId !== null) {
           try {
             await productsApi.setProductList(String(saved.id), listId);
@@ -678,7 +824,9 @@ export function ProductProvider({
           (async () => {
             try {
               const { targets } = await channelsApi.getProductTargets(String(productForSync.id));
-              if (!targets?.length) return;
+              if (!targets?.length) {
+                return;
+              }
               const payload = {
                 id: productForSync.id,
                 sku: productForSync.sku,
@@ -699,7 +847,9 @@ export function ProductProvider({
                 updatedAt: productForSync.updatedAt,
               };
               const wooTargets = targets.filter((t) => t.channel === 'woocommerce');
-              const wooInstanceIds = wooTargets.map((t) => t.channelInstanceId).filter((id): id is string => id != null);
+              const wooInstanceIds = wooTargets
+                .map((t) => t.channelInstanceId)
+                .filter((id): id is string => (id ?? null) !== null);
               if (wooInstanceIds.length > 0) {
                 await woocommerceApi.exportProducts([payload], { instanceIds: wooInstanceIds });
               }
@@ -720,10 +870,10 @@ export function ProductProvider({
       return true;
     } catch (error: any) {
       console.error('Failed to save product:', error);
-      
+
       // Handle validation errors from backend
       const validationErrors: ValidationError[] = [];
-      
+
       // Handle 404 errors (product not found - should not happen on create, but can on update)
       if (error?.status === 404) {
         validationErrors.push({
@@ -733,23 +883,26 @@ export function ProductProvider({
         setValidationErrors(validationErrors);
         return false;
       }
-      
+
       // Handle field-level errors (409 conflicts or validation errors)
       if (error?.errors && Array.isArray(error.errors)) {
         error.errors.forEach((err: any) => {
           const field = String(err?.field ?? 'general');
           const message = String(err?.message ?? '').trim();
-          if (!message) return;
+          if (!message) {
+            return;
+          }
           validationErrors.push({ field, message });
         });
       }
-      
+
       // If no specific field errors, show general error
       if (validationErrors.length === 0) {
-        const errorMessage = error?.error || error?.message || 'Failed to save product. Please try again.';
+        const errorMessage =
+          error?.error || error?.message || 'Failed to save product. Please try again.';
         validationErrors.push({ field: 'general', message: errorMessage });
       }
-      
+
       setValidationErrors(validationErrors);
       return false;
     }
@@ -770,7 +923,9 @@ export function ProductProvider({
   // Bulk delete
   const deleteProducts = async (ids: string[]) => {
     const uniqueIds = Array.from(new Set((ids || []).map(String))).filter(Boolean);
-    if (!uniqueIds.length) return;
+    if (!uniqueIds.length) {
+      return;
+    }
 
     try {
       await productsApi.deleteProductsBulk(uniqueIds);
@@ -785,14 +940,30 @@ export function ProductProvider({
 
   const batchUpdateProducts = async (
     ids: string[],
-    updates: { priceAmount?: number; quantity?: number; status?: string; vatRate?: number; currency?: string },
+    updates: {
+      priceAmount?: number;
+      quantity?: number;
+      status?: string;
+      vatRate?: number;
+      currency?: string;
+    },
   ) => {
     const uniqueIds = Array.from(new Set((ids || []).map(String))).filter(Boolean);
-    if (!uniqueIds.length) return { updatedCount: 0 };
+    if (!uniqueIds.length) {
+      return { updatedCount: 0 };
+    }
     const filtered = Object.fromEntries(
       Object.entries(updates).filter(([, v]) => v !== undefined && v !== null && v !== ''),
-    ) as { priceAmount?: number; quantity?: number; status?: string; vatRate?: number; currency?: string };
-    if (Object.keys(filtered).length === 0) return { updatedCount: 0 };
+    ) as {
+      priceAmount?: number;
+      quantity?: number;
+      status?: string;
+      vatRate?: number;
+      currency?: string;
+    };
+    if (Object.keys(filtered).length === 0) {
+      return { updatedCount: 0 };
+    }
     try {
       const result = await productsApi.batchUpdate(uniqueIds, filtered);
       await loadProducts();
@@ -803,11 +974,14 @@ export function ProductProvider({
     }
   };
 
-  const importProducts = useCallback(async (file: File, mode: ProductImportMode): Promise<ProductImportResult> => {
-    const result = await productsApi.importProducts(file, mode);
-    await loadProducts();
-    return result;
-  }, [loadProducts]);
+  const importProducts = useCallback(
+    async (file: File, mode: ProductImportMode): Promise<ProductImportResult> => {
+      const result = await productsApi.importProducts(file, mode);
+      await loadProducts();
+      return result;
+    },
+    [loadProducts],
+  );
 
   // ---------- Selection helpers ----------
   const toggleProductSelected = useCallback((id: string) => {
@@ -856,7 +1030,7 @@ export function ProductProvider({
     }
   };
 
-  const getPanelSubtitle = (mode: string, item: Product | null) => {
+  const getPanelSubtitle = (_mode: string, _item: Product | null) => {
     if (batchProductIds.length > 0) {
       return 'Change only the fields you want to update; leave others empty.';
     }
@@ -865,7 +1039,9 @@ export function ProductProvider({
   };
 
   const getDeleteMessage = (item: Product | null) => {
-    if (!item) return 'Are you sure you want to delete this product?';
+    if (!item) {
+      return 'Are you sure you want to delete this product?';
+    }
     const itemName = item.title || 'this product';
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
@@ -910,6 +1086,7 @@ export function ProductProvider({
       clearChannelDataCache,
       getChannelCategories,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- broad deps intentional for panel API
     [
       isProductPanelOpen,
       currentProduct,
