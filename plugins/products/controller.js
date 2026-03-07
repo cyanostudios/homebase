@@ -10,6 +10,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const lookupsModel = require('./lookupsModel');
+const listsModel = require('../../server/core/lists/listsModel');
 const { fetchCategoriesFromApi: fetchCdonCategories } = require('../cdon-products/fetchCategories');
 const {
   fetchCategoriesFromApi: fetchFyndiqCategories,
@@ -274,6 +275,88 @@ function getSelloAllCategoryIds(product) {
     }
   }
   return out;
+}
+
+/** Extract textsExtended (titleSeo, metaDesc, metaKeywords, bulletpoints) from Sello texts per market. */
+function getSelloTextsExtended(product) {
+  const texts = product?.texts;
+  if (!texts || typeof texts !== 'object') return null;
+  const defaultTexts = texts.default;
+  if (!defaultTexts || typeof defaultTexts !== 'object') return null;
+  const langToMarket = { sv: 'se', da: 'dk', fi: 'fi', no: 'no', nb: 'no' };
+  const out = {};
+  for (const [lang, t] of Object.entries(defaultTexts)) {
+    if (!t || typeof t !== 'object') continue;
+    const market = langToMarket[lang] || (lang === 'en' ? 'se' : null);
+    if (!market || out[market]) continue;
+    const titleSeo = String(t.title ?? '').trim();
+    const metaDesc = String(t.meta_description ?? '').trim();
+    const metaKeywords = String(t.meta_keywords ?? '').trim();
+    const bp = t.bulletpoints;
+    const bulletpoints = Array.isArray(bp) ? bp.filter(Boolean).map(String) : [];
+    if (titleSeo || metaDesc || metaKeywords || bulletpoints.length > 0) {
+      out[market] = {
+        ...(titleSeo && { titleSeo }),
+        ...(metaDesc && { metaDesc }),
+        ...(metaKeywords && { metaKeywords }),
+        ...(bulletpoints.length > 0 && { bulletpoints }),
+      };
+    }
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** Extract EAN from Sello properties (property "EAN"). */
+function getSelloEan(product) {
+  const props = product?.properties;
+  if (!Array.isArray(props)) return null;
+  for (const p of props) {
+    const name = String(p?.property ?? '').trim().toUpperCase();
+    if (name !== 'EAN') continue;
+    const v = p?.value;
+    if (v && typeof v === 'object') {
+      const val = String(v?.default ?? v?.sv ?? '').trim();
+      if (val) return val;
+    }
+    break;
+  }
+  return null;
+}
+
+/** Extract GTIN from Sello properties (property "GTIN"). */
+function getSelloGtin(product) {
+  const props = product?.properties;
+  if (!Array.isArray(props)) return null;
+  for (const p of props) {
+    const name = String(p?.property ?? '').trim().toUpperCase();
+    if (name !== 'GTIN') continue;
+    const v = p?.value;
+    if (v && typeof v === 'object') {
+      const val = String(v?.default ?? v?.sv ?? '').trim();
+      if (val) return val;
+    }
+    break;
+  }
+  return null;
+}
+
+/** Extract color text from Sello product properties (property "Color" or "Färg"). */
+function getSelloColorFromProperties(product) {
+  const props = product?.properties;
+  if (!Array.isArray(props)) return null;
+  for (const p of props) {
+    const name = String(p?.property ?? '').trim();
+    if (!name) continue;
+    if (name.toLowerCase() === 'color' || name.toLowerCase() === 'färg') {
+      const v = p?.value;
+      if (v && typeof v === 'object') {
+        const sv = String(v?.sv ?? v?.default ?? '').trim();
+        if (sv) return sv;
+      }
+      break;
+    }
+  }
+  return null;
 }
 
 function buildImportedChannelSpecificCategories(product, instancesByIntegration) {
@@ -1292,6 +1375,209 @@ class ProductController {
         });
       }
 
+      const selloProductIds = Array.isArray(req.body?.selloProductIds)
+        ? req.body.selloProductIds.map((x) => String(x).trim()).filter(Boolean)
+        : null;
+
+      if (selloProductIds && selloProductIds.length > 0) {
+        const listMap = new Map();
+        try {
+          const filterQuery = selloProductIds
+            .map((id) => `filter[id][]=${encodeURIComponent(id)}`)
+            .join('&');
+          const listRes = await this.selloModel.fetchSelloJson({
+            apiKey,
+            path: `/v5/products?${filterQuery}`,
+          });
+          const listProducts = Array.isArray(listRes?.products)
+            ? listRes.products
+            : Array.isArray(listRes?.data?.products)
+              ? listRes.data.products
+              : [];
+          for (const p of listProducts) {
+            const id = String(p?.id ?? '').trim();
+            if (id) listMap.set(id, p);
+          }
+        } catch {
+          // List fetch optional; we fall back to single-product data only
+        }
+
+        for (const productId of selloProductIds) {
+          let raw;
+          try {
+            raw = await this.selloModel.fetchSelloJson({
+              apiKey,
+              path: `/v5/products/${encodeURIComponent(productId)}`,
+            });
+          } catch (err) {
+            summary.skipped_invalid += 1;
+            summary.rows.push({
+              sku: productId,
+              status: 'skipped_invalid',
+              reason: 'sello_fetch_failed',
+              sourceCreatedAt: null,
+            });
+            continue;
+          }
+          if (!raw || typeof raw !== 'object') {
+            summary.skipped_invalid += 1;
+            summary.rows.push({
+              sku: productId,
+              status: 'skipped_invalid',
+              reason: 'sello_empty_response',
+              sourceCreatedAt: null,
+            });
+            continue;
+          }
+          const fromList = listMap.get(String(raw?.id ?? '').trim());
+          if (fromList) {
+            raw = {
+              ...raw,
+              brand_name: fromList.brand_name ?? raw.brand_name,
+              integrations: fromList.integrations ?? raw.integrations,
+              folder_id: fromList.folder_id ?? raw.folder_id,
+              folder_name: fromList.folder_name ?? raw.folder_name,
+            };
+          }
+          summary.requested += 1;
+          const sku = String(raw?.id ?? '').trim();
+          const title = getSelloStandardNameSv(raw);
+          const description = getSelloStandardDescriptionSv(raw);
+          if (!sku) {
+            summary.skipped_invalid += 1;
+            summary.rows.push({
+              sku: null,
+              status: 'skipped_invalid',
+              reason: 'missing_sku',
+              sourceCreatedAt: raw?.created_at || null,
+            });
+            continue;
+          }
+          if (!title) {
+            summary.skipped_invalid += 1;
+            summary.rows.push({
+              sku,
+              status: 'skipped_invalid',
+              reason: 'missing_standard_name_sv',
+              sourceCreatedAt: raw?.created_at || null,
+            });
+            continue;
+          }
+          const imageResult = await this.downloadSelloImages(req, sku, raw?.images);
+          summary.image_downloaded += imageResult.downloaded;
+          summary.image_failed += imageResult.failed;
+          const categoryIds = getSelloAllCategoryIds(raw);
+          const importedChannelSpecific = buildImportedChannelSpecificCategories(
+            raw,
+            instancesByIntegration,
+          );
+          const textsExtended = getSelloTextsExtended(raw);
+          if (textsExtended) {
+            importedChannelSpecific.textsExtended = textsExtended;
+          }
+          const selloList = await listsModel.findOrCreateListForSelloFolder(
+            req,
+            'products',
+            raw?.folder_id,
+            raw?.folder_name,
+          );
+          const selloBrand = await lookupsModel.findOrCreateBrandForSello(
+            req,
+            raw?.brand_id,
+            raw?.brand_name,
+          );
+          const upsertResult = await this.model.upsertFromSelloProduct(req, {
+            sku,
+            merchantSku: raw?.private_reference != null ? String(raw.private_reference) : null,
+            title,
+            description,
+            quantity: raw?.quantity,
+            priceAmount: undefined,
+            vatRate: raw?.tax,
+            mainImage: imageResult.urls[0] || null,
+            images: imageResult.urls,
+            categories: categoryIds,
+            channelSpecific: Object.keys(importedChannelSpecific).length
+              ? importedChannelSpecific
+              : undefined,
+            ean: getSelloEan(raw),
+            gtin: getSelloGtin(raw),
+            brand: selloBrand?.name ?? raw?.brand_name,
+            brandId: selloBrand?.id,
+            purchasePrice: raw?.purchase_price != null ? Number(raw.purchase_price) : undefined,
+            colorText: getSelloColorFromProperties(raw),
+            lagerplats: raw?.stock_location != null ? String(raw.stock_location).trim() : undefined,
+            condition: raw?.condition === 'used' ? 'used' : 'new',
+            groupId: raw?.group_id != null ? String(raw.group_id) : undefined,
+            volume: raw?.volume != null ? Number(raw.volume) : undefined,
+            volumeUnit: raw?.volume_unit != null ? String(raw.volume_unit).trim() : undefined,
+            weight: raw?.weight != null ? Number(raw.weight) : undefined,
+            notes: raw?.notes != null ? String(raw.notes).trim() : undefined,
+          });
+          const createdProductId = String(upsertResult?.product?.id || '').trim();
+          if (createdProductId && selloList?.id) {
+            await this.model.setProductList(req, createdProductId, selloList.id);
+          }
+          if (createdProductId) {
+            const integrations =
+              raw?.integrations && typeof raw.integrations === 'object' ? raw.integrations : {};
+            for (const [integrationIdRaw, statesRaw] of Object.entries(integrations)) {
+              const integrationId = String(integrationIdRaw || '').trim();
+              if (!integrationId) continue;
+              const targetInstances = instancesByIntegration.get(integrationId) || [];
+              if (!targetInstances.length) continue;
+              const state = statesRaw && typeof statesRaw === 'object' ? statesRaw : {};
+              const active = state.active === true;
+              const currency = getSelloCurrencyForIntegration(raw, integrationId);
+              const catIds = getSelloCategoriesForIntegration(raw, integrationId);
+              const firstCategoryId = catIds.length ? catIds[0] : null;
+              for (const inst of targetInstances) {
+                const perInstancePrice = getSelloStorePriceForInstance(
+                  raw,
+                  integrationId,
+                  inst.market,
+                );
+                let overrideCategory;
+                if (inst.channel === 'woocommerce') {
+                  overrideCategory = catIds.length ? JSON.stringify(catIds) : null;
+                } else if (inst.channel === 'cdon' || inst.channel === 'fyndiq') {
+                  overrideCategory = firstCategoryId;
+                }
+                await this.upsertChannelOverride(req, {
+                  productId: createdProductId,
+                  channel: inst.channel,
+                  instance: inst.instanceKey,
+                  active,
+                  priceAmount: perInstancePrice,
+                  currency,
+                  vatRate: raw?.tax,
+                  category: overrideCategory,
+                });
+                summary.overrides_updated += 1;
+              }
+            }
+          }
+          if (upsertResult.created) {
+            summary.created += 1;
+            summary.rows.push({
+              sku,
+              status: 'created',
+              reason: null,
+              sourceCreatedAt: raw?.created_at || null,
+            });
+          } else {
+            summary.updated += 1;
+            summary.rows.push({
+              sku,
+              status: 'updated',
+              reason: null,
+              sourceCreatedAt: raw?.created_at || null,
+            });
+          }
+        }
+        return res.json(summary);
+      }
+
       while (true) {
         if (maxPages != null && pagesFetched >= maxPages) break;
         if (maxProducts != null && summary.requested >= maxProducts) break;
@@ -1342,15 +1628,27 @@ class ProductController {
             raw,
             instancesByIntegration,
           );
-
+          const textsExtended = getSelloTextsExtended(raw);
+          if (textsExtended) {
+            importedChannelSpecific.textsExtended = textsExtended;
+          }
+          const selloList = await listsModel.findOrCreateListForSelloFolder(
+            req,
+            'products',
+            raw?.folder_id,
+            raw?.folder_name,
+          );
+          const selloBrand = await lookupsModel.findOrCreateBrandForSello(
+            req,
+            raw?.brand_id,
+            raw?.brand_name,
+          );
           const upsertResult = await this.model.upsertFromSelloProduct(req, {
             sku,
             merchantSku: raw?.private_reference != null ? String(raw.private_reference) : null,
             title,
             description,
             quantity: raw?.quantity,
-            // No primary store exists; keep existing base price on updates.
-            // For new products, model default remains unchanged.
             priceAmount: undefined,
             vatRate: raw?.tax,
             mainImage: imageResult.urls[0] || null,
@@ -1359,8 +1657,24 @@ class ProductController {
             channelSpecific: Object.keys(importedChannelSpecific).length
               ? importedChannelSpecific
               : undefined,
+            ean: getSelloEan(raw),
+            gtin: getSelloGtin(raw),
+            brand: selloBrand?.name ?? raw?.brand_name,
+            brandId: selloBrand?.id,
+            purchasePrice: raw?.purchase_price != null ? Number(raw.purchase_price) : undefined,
+            colorText: getSelloColorFromProperties(raw),
+            lagerplats: raw?.stock_location != null ? String(raw.stock_location).trim() : undefined,
+            condition: raw?.condition === 'used' ? 'used' : 'new',
+            groupId: raw?.group_id != null ? String(raw.group_id) : undefined,
+            volume: raw?.volume != null ? Number(raw.volume) : undefined,
+            volumeUnit: raw?.volume_unit != null ? String(raw.volume_unit).trim() : undefined,
+            weight: raw?.weight != null ? Number(raw.weight) : undefined,
+            notes: raw?.notes != null ? String(raw.notes).trim() : undefined,
           });
           const productId = String(upsertResult?.product?.id || '').trim();
+          if (productId && selloList?.id) {
+            await this.model.setProductList(req, productId, selloList.id);
+          }
           if (productId) {
             const integrations =
               raw?.integrations && typeof raw.integrations === 'object' ? raw.integrations : {};

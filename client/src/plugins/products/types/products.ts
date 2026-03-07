@@ -32,13 +32,18 @@ export interface Product {
   manufacturerName?: string | null;
   lagerplats?: string | null;
 
-  /** Detaljer: färg, storlek, mönster, vikt, mått */
+  /** Detaljer: färg, storlek, mönster, vikt, mått, skick, volym, anteckningar */
   color?: string | null;
   colorText?: string | null;
   size?: string | null;
   sizeText?: string | null;
   pattern?: string | null;
   weight?: number | null;
+  condition?: 'new' | 'used' | null;
+  groupId?: string | null;
+  volume?: number | null;
+  volumeUnit?: string | null;
+  notes?: string | null;
   lengthCm?: number | null;
   widthCm?: number | null;
   heightCm?: number | null;

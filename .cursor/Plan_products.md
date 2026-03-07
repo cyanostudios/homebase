@@ -688,3 +688,9 @@ Behavioral rollback impact if reverted:
 
 - Revert only:
   - `client/src/plugins/products/components/ProductForm.tsx`
+
+---
+
+## To-do (framtida städning)
+
+- **Ta bort import_folder_id och import_brand_id** — När Sello-importen är slutgiltigt klar och inte kommer köras igen: droppa kolumnerna `lists.import_folder_id` och `brands.import_brand_id` (och tillhörande index). Listor och märken behåller id + name; produkterna är redan kopplade. Skapa t.ex. migration `066-drop-import-ids.sql` när det är dags.

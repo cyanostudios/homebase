@@ -838,7 +838,7 @@ class CdonProductsController {
         return res.status(400).json({ error: 'Request must include products: []' });
       }
 
-      const allowedMarkets = ['se', 'dk', 'fi'];
+      const allowedMarkets = ['se', 'dk', 'fi', 'no'];
       let marketsFilter = allowedMarkets;
       if (Array.isArray(req.body?.markets) && req.body.markets.length > 0) {
         const normalized = req.body.markets
@@ -964,7 +964,7 @@ class CdonProductsController {
           WHERE o.user_id = $1
             AND o.channel = 'cdon'
             AND o.product_id::text = ANY($2::text[])
-            AND lower(COALESCE(ci.market, o.instance)) IN ('se','dk','fi')
+            AND lower(COALESCE(ci.market, o.instance)) IN ('se','dk','fi','no')
           `,
           [userId, productIds],
         );
@@ -1231,7 +1231,7 @@ class CdonProductsController {
           WHERE o.user_id = $1
             AND o.channel = 'cdon'
             AND o.product_id::text = ANY($2::text[])
-            AND lower(COALESCE(ci.market, o.instance)) IN ('se', 'dk', 'fi')
+            AND lower(COALESCE(ci.market, o.instance)) IN ('se', 'dk', 'fi', 'no')
           `,
           [userId, productIds],
         )

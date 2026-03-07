@@ -186,7 +186,8 @@ export function AnalyticsProvider({ children, isAuthenticated }: ProviderProps) 
         return;
       }
       try {
-        const details = await analyticsApi.getDrilldownOrders(filters, {
+        const { status: _s, ...filtersWithoutStatus } = filters;
+        const details = await analyticsApi.getDrilldownOrders(filtersWithoutStatus, {
           sku: selectedSku,
           limit: 50,
         });
@@ -213,8 +214,9 @@ export function AnalyticsProvider({ children, isAuthenticated }: ProviderProps) 
         return;
       }
       try {
+        const { status: _s, ...filtersWithoutStatus } = filters;
         const channelFilters: AnalyticsFilters = {
-          ...filters,
+          ...filtersWithoutStatus,
           channel: selectedChannelDrilldown.channel,
           channelInstanceId: selectedChannelDrilldown.channelInstanceId ?? undefined,
         };

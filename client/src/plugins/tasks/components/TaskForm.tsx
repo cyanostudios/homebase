@@ -13,7 +13,8 @@ import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { useTasks } from '../hooks/useTasks';
 import { TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
 
-import { MentionTextarea } from '@/core/ui/MentionTextarea';
+import { RichTextEditor } from '@/core/ui/RichTextEditor';
+import { extractMentionsFromHtml } from '@/core/utils/extractMentions';
 
 type TaskStatus = (typeof TASK_STATUS_OPTIONS)[number];
 type TaskPriority = (typeof TASK_PRIORITY_OPTIONS)[number];
@@ -162,11 +163,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     }
   };
 
-  const handleContentChange = (content: string, mentions: any[]) => {
-    setFormData((prev) => ({ ...prev, content, mentions }));
-    if (validationErrors.length > 0) {
-      clearValidationErrors();
-    }
+  const handleContentChange = (html: string) => {
+    const mentions = extractMentionsFromHtml(html, contacts);
+    setFormData((prev) => ({ ...prev, content: html, mentions }));
+    if (validationErrors.length > 0) clearValidationErrors();
     markDirty();
   };
 
@@ -351,11 +351,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({
               Description{' '}
               <span className="text-xs text-gray-500 dark:text-gray-400">(Type @ to mention contacts)</span>
             </Label>
-            <MentionTextarea
+            <RichTextEditor
               value={formData.content}
               onChange={handleContentChange}
-              placeholder="Describe the task details... Type @ to mention contacts"
-              rows={8}
+              placeholder="Describe the task details... Type @CompanyName to mention contacts"
+              minHeight={180}
               className={getFieldError('content') ? 'border-red-500' : ''}
             />
             {getFieldError('content') && (

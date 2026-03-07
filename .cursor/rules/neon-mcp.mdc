@@ -6,6 +6,7 @@ alwaysApply: true
 
 # Neon MCP – agent ska göra allt utan att fråga
 
+- **MCP-server:** Använd `user-Neon` som server vid call_mcp_tool (Cursor prefixar användarens MCP med `user-`).
 - **Projekt:** Läs projectId från [.cursor/neon-homebase.md](.cursor/neon-homebase.md) (fältet "Project ID"). Använd detta i alla Neon MCP-anrop (run_sql, describe_project, describe_table_schema, prepare_database_migration, etc.).
 - **När du ska köra migrationer eller SQL mot Neon:** Använd `run_sql` med projectId från filen ovan. Fråga inte användaren om projectId.
 - **Schema:** Om appen använder tenant-scheman (t.ex. tenant_1) i Neon, sätt `search_path` i samma anrop eller kör mot rätt schema enligt projektets konvention.

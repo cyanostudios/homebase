@@ -4,6 +4,56 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03 – Sello-import SEO/EAN/GTIN + Rich text + Texter-flik
+
+### Sello import – utökad datamappning
+
+- **SEO-fält från texts**: `titleSeo`, `metaDesc`, `metaKeywords`, `bulletpoints` importeras per språk till `channelSpecific.textsExtended`.
+- **EAN/GTIN från properties**: importeras till `products.ean` och `products.gtin`.
+- **Övriga sektion 1-fält**: redan importerade (condition, lagerplats, volume, weight, purchase_price, notes, color_text, group_id).
+
+### Rich text (TipTap)
+
+- **Global RichTextEditor** för produktbeskrivning, Notes, Tasks, Besiktningar.
+- Vanlig textarea för interna anteckningar; meta-fält (titleSeo, metaDesc, metaKeywords) är plain text.
+- Toggle-komponent för verktygsfält; B, I, U, Strike, länk, Kod/Visual.
+- `extractMentionsFromHtml` och `htmlToPlainText` för Notes/Tasks.
+
+### Produktform – Texter-flik
+
+- 20/80-layout: länder vänster, innehåll höger.
+- Titel, beskrivning (6 rader), sedan Avancerat med titleSeo, metaDesc, metaKeywords, bulletpoints (bulletpoints först under Avancerat).
+
+### Dokumentation
+
+- `docs/SELLO_PRODUCT_FIELDS_COMPLETE.md`, `docs/SELLO_IMPORT_SEKTION5_VANLIGA_FALT.md`.
+- Migration `062-sello-sektion1-fields.sql`: `import_folder_id`, `import_brand_id` på lists/brands.
+
+---
+
+## 2026-03 – Phase 2 Delivery Plan (create/full article)
+
+### Implementerat enligt plan
+
+- **Kontrakt-hårdgörande**: CDON och Fyndiq-valideringar inkluderar nu marknaden NO (SE, DK, FI, NO).
+- **Kravmatris**: `docs/CHANNEL_REQUIREMENTS_MATRIX.md` – låst krav per kanal med kodkoppling.
+- **Preflight-runner**: `scripts/phase2-preflight.js` – kör med dryRun, Stop/Go-rapportering.
+- **Write-pilot**: `scripts/phase2-write-pilot.js` – kör 5–10 produkter, explicit mode (inga implicita körningar).
+- **Runbook**: `docs/PHASE2_RUNBOOK.md` – kommandon, tolkningsregler, rollback.
+- **Regressionstester**: `server/__tests__/phase2ContractValidators.test.js` – validering av payload-kontrakt.
+
+### Kommandon
+
+```bash
+# Preflight (read-only)
+PHASE1_PILOT_USER_ID=1 node scripts/phase2-preflight.js
+
+# Write pilot (5–10 produkter)
+PHASE1_PILOT_USER_ID=1 node scripts/phase2-write-pilot.js
+```
+
+---
+
 ## 2026-03 – Orders: kollinummerkrav CDON/Fyndiq + batch/enskild "Uppdatera ändå"
 
 ### Kollinummerkrav (299 SEK/DKK/NOK, 29,99 EUR)

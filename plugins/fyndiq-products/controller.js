@@ -343,7 +343,7 @@ class FyndiqProductsController {
         return res.status(400).json({ error: 'Request must include products: []' });
       }
 
-      const allowedMarkets = ['se', 'dk', 'fi'];
+      const allowedMarkets = ['se', 'dk', 'fi', 'no'];
       let marketsFilter = allowedMarkets;
       if (Array.isArray(req.body?.markets) && req.body.markets.length > 0) {
         const normalized = req.body.markets
@@ -391,7 +391,7 @@ class FyndiqProductsController {
           const currency = r.currency != null ? String(r.currency).trim().toUpperCase() : null;
 
           // Only use overrides with explicit market (no inferring market from currency).
-          if (!market || !['se', 'dk', 'fi'].includes(market)) continue;
+          if (!market || !['se', 'dk', 'fi', 'no'].includes(market)) continue;
 
           if (!overridesByProductId.has(pid)) overridesByProductId.set(pid, {});
           overridesByProductId.get(pid)[market] = {
@@ -668,7 +668,7 @@ class FyndiqProductsController {
     if (!products.length) {
       return res.status(400).json({ error: 'Request must include products: []' });
     }
-    const allowedMarkets = ['se', 'dk', 'fi'];
+    const allowedMarkets = ['se', 'dk', 'fi', 'no'];
     let marketsFilter = allowedMarkets;
     if (Array.isArray(req.body?.markets) && req.body.markets.length > 0) {
       const normalized = req.body.markets
@@ -679,7 +679,7 @@ class FyndiqProductsController {
         )
         .filter((m) => allowedMarkets.includes(m));
       if (!normalized.length) {
-        return res.status(400).json({ error: 'markets must include at least one of: se, dk, fi' });
+        return res.status(400).json({ error: 'markets must include at least one of: se, dk, fi, no' });
       }
       marketsFilter = normalized;
     }
@@ -721,7 +721,7 @@ class FyndiqProductsController {
           WHERE o.user_id = $1
             AND o.channel = 'fyndiq'
             AND o.product_id::text = ANY($2::text[])
-            AND lower(COALESCE(ci.market, o.instance)) IN ('se', 'dk', 'fi')
+            AND lower(COALESCE(ci.market, o.instance)) IN ('se', 'dk', 'fi', 'no')
           `,
           [userId, productIds],
         )

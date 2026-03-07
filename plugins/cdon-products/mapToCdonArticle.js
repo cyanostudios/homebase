@@ -109,9 +109,9 @@ function mapProductToCdonArticle(
   for (const m of markets) {
     const existing = shippingTimeMap.get(m);
     const min =
-      existing?.min != null ? Math.max(1, Math.min(9, Math.floor(Number(existing.min)))) : 1;
+      existing?.min != null ? Math.max(1, Math.min(10, Math.floor(Number(existing.min)))) : 1;
     const max =
-      existing?.max != null ? Math.max(1, Math.min(9, Math.floor(Number(existing.max)))) : 3;
+      existing?.max != null ? Math.max(1, Math.min(10, Math.floor(Number(existing.max)))) : 3;
     shipping_time.push({ market: m, min, max });
   }
 
@@ -268,11 +268,12 @@ function validateCdonArticlePayload(article) {
 
   const markets = Array.isArray(article.markets) ? article.markets : [];
   if (!markets.length) return { ok: false, reason: 'missing_markets' };
+  const VALID_MARKETS = ['SE', 'DK', 'FI', 'NO'];
   for (const m of markets) {
     const market = String(m || '')
       .trim()
       .toUpperCase();
-    if (!['SE', 'DK', 'FI'].includes(market)) return { ok: false, reason: 'invalid_market' };
+    if (!VALID_MARKETS.includes(market)) return { ok: false, reason: 'invalid_market' };
   }
 
   const title = Array.isArray(article.title) ? article.title : [];
@@ -296,7 +297,7 @@ function validateCdonArticlePayload(article) {
     const market = String(row?.market || '')
       .trim()
       .toUpperCase();
-    if (!['SE', 'DK', 'FI'].includes(market)) return { ok: false, reason: 'invalid_price_market' };
+    if (!VALID_MARKETS.includes(market)) return { ok: false, reason: 'invalid_price_market' };
     const amount = Number(row?.value?.amount_including_vat);
     if (!Number.isFinite(amount) || amount <= 0)
       return { ok: false, reason: 'invalid_amount_including_vat' };
@@ -312,11 +313,11 @@ function validateCdonArticlePayload(article) {
     const market = String(row?.market || '')
       .trim()
       .toUpperCase();
-    if (!['SE', 'DK', 'FI'].includes(market))
+    if (!VALID_MARKETS.includes(market))
       return { ok: false, reason: 'invalid_shipping_time_market' };
     const min = Number(row?.min);
     const max = Number(row?.max);
-    if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max > 9 || min > max) {
+    if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max > 10 || min > max) {
       return { ok: false, reason: 'invalid_shipping_time_range' };
     }
   }

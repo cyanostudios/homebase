@@ -10,6 +10,7 @@ import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import { useTasks } from '@/plugins/tasks/hooks/useTasks';
 
 import { MentionContent } from '@/core/ui/MentionContent';
+import { htmlToPlainText } from '@/core/utils/extractMentions';
 
 interface NoteViewProps {
   note: any;
@@ -118,7 +119,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         <DetailSection title="Content">
           <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
             <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
-              <MentionContent content={note.content} mentions={note.mentions || []} onMentionClick={handleContactClick} />
+              <MentionContent content={htmlToPlainText(note.content || '')} mentions={note.mentions || []} onMentionClick={handleContactClick} />
             </div>
           </div>
         </DetailSection>

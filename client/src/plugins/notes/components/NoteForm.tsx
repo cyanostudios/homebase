@@ -5,12 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Heading } from '@/core/ui/Typography';
+import { RichTextEditor } from '@/core/ui/RichTextEditor';
+import { extractMentionsFromHtml } from '@/core/utils/extractMentions';
+import { useApp } from '@/core/api/AppContext';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 import { useNotes } from '../hooks/useNotes';
-
-import { MentionTextarea } from '@/core/ui/MentionTextarea';
 
 interface NoteFormState {
   title: string;
@@ -31,6 +32,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   onCancel,
   isSubmitting: externalIsSubmitting = false,
 }) => {
+  const { contacts } = useApp();
   const { validationErrors, clearValidationErrors } = useNotes();
   const {
     isDirty,
@@ -148,12 +150,10 @@ export const NoteForm: React.FC<NoteFormProps> = ({
     markDirty();
   };
 
-  const handleContentChange = (content: string, mentions: any[]) => {
-    setFormData((prev) => ({ ...prev, content, mentions }));
-    // Clear validation errors when user starts typing
-    if (validationErrors.length > 0) {
-      clearValidationErrors();
-    }
+  const handleContentChange = (html: string) => {
+    const mentions = extractMentionsFromHtml(html, contacts);
+    setFormData((prev) => ({ ...prev, content: html, mentions }));
+    if (validationErrors.length > 0) clearValidationErrors();
     markDirty();
   };
 
@@ -237,11 +237,11 @@ export const NoteForm: React.FC<NoteFormProps> = ({
             <Label htmlFor="note-content" className="mb-1">
               Content <span className="text-xs text-gray-500 dark:text-gray-400">(Type @ to mention contacts)</span>
             </Label>
-            <MentionTextarea
+            <RichTextEditor
               value={formData.content}
               onChange={handleContentChange}
-              placeholder="Write your note here... Type @ to mention contacts"
-              rows={12}
+              placeholder="Write your note here... Type @CompanyName to mention contacts"
+              minHeight={240}
               className={getFieldError('content') ? 'border-red-500' : ''}
             />
             {getFieldError('content') && (

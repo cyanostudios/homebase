@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
+import { htmlToPlainText } from '@/core/utils/extractMentions';
 import { useInspections } from '../hooks/useInspections';
 import { inspectionApi } from '../api/inspectionApi';
 import { format } from 'date-fns';
@@ -30,7 +31,7 @@ export const InspectionList: React.FC = () => {
     return inspectionProjects.filter(
       (p) =>
         (p.name || '').toLowerCase().includes(needle) ||
-        (p.description || '').toLowerCase().includes(needle)
+        htmlToPlainText(p.description || '').toLowerCase().includes(needle)
     );
   }, [inspectionProjects, searchTerm]);
 
@@ -158,7 +159,7 @@ export const InspectionList: React.FC = () => {
                 </TableCell>
                 <TableCell className="font-medium">{project.name || '—'}</TableCell>
                 <TableCell className="max-w-[280px] truncate">
-                  {project.description || '—'}
+                  {htmlToPlainText(project.description || '') || '—'}
                 </TableCell>
                 <TableCell>{project.fileCount}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">

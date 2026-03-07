@@ -47,6 +47,11 @@ class ProductModel {
           p.purchase_price,
           p.sale_price,
           p.lagerplats,
+          p.condition,
+          p.group_id,
+          p.volume,
+          p.volume_unit,
+          p.notes,
           p.color,
           p.color_text,
           p.size,
@@ -119,6 +124,11 @@ class ProductModel {
           p.purchase_price,
           p.sale_price,
           p.lagerplats,
+          p.condition,
+          p.group_id,
+          p.volume,
+          p.volume_unit,
+          p.notes,
           p.color,
           p.color_text,
           p.size,
@@ -194,6 +204,11 @@ class ProductModel {
           p.purchase_price,
           p.sale_price,
           p.lagerplats,
+          p.condition,
+          p.group_id,
+          p.volume,
+          p.volume_unit,
+          p.notes,
           p.color,
           p.color_text,
           p.size,
@@ -270,6 +285,11 @@ class ProductModel {
           purchase_price,
           sale_price,
           lagerplats,
+          condition,
+          group_id,
+          volume,
+          volume_unit,
+          notes,
           color,
           color_text,
           size,
@@ -285,7 +305,7 @@ class ProductModel {
           $1,
           $2,  $3,  $4,  $5,  $6,  $7,  $8,
           $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,
-          $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35
+          $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40
         )
         RETURNING
           id,
@@ -354,6 +374,11 @@ class ProductModel {
         d.purchasePrice != null ? d.purchasePrice : null,
         d.salePrice != null ? d.salePrice : null,
         d.lagerplats ?? null,
+        d.condition ?? 'new',
+        d.groupId ?? null,
+        d.volume != null ? d.volume : null,
+        d.volumeUnit ?? null,
+        d.notes ?? null,
         d.color ?? null,
         d.colorText ?? null,
         d.size ?? null,
@@ -423,19 +448,24 @@ class ProductModel {
           purchase_price = $22,
           sale_price     = $23,
           lagerplats     = $24,
-          color          = $25,
-          color_text     = $26,
-          size           = $27,
-          size_text      = $28,
-          pattern        = $29,
-          weight         = $30,
-          length_cm      = $31,
-          width_cm       = $32,
-          height_cm      = $33,
-          depth_cm       = $34,
+          condition      = $25,
+          group_id       = $26,
+          volume         = $27,
+          volume_unit    = $28,
+          notes          = $29,
+          color          = $30,
+          color_text     = $31,
+          size           = $32,
+          size_text      = $33,
+          pattern        = $34,
+          weight         = $35,
+          length_cm      = $36,
+          width_cm       = $37,
+          height_cm      = $38,
+          depth_cm       = $39,
           updated_at     = CURRENT_TIMESTAMP
-        WHERE user_id = $35
-          AND id::text = $36
+        WHERE user_id = $40
+          AND id::text = $41
         RETURNING
           id,
           user_id,
@@ -502,6 +532,11 @@ class ProductModel {
         d.purchasePrice != null ? d.purchasePrice : null,
         d.salePrice != null ? d.salePrice : null,
         d.lagerplats ?? null,
+        d.condition ?? 'new',
+        d.groupId ?? null,
+        d.volume != null ? d.volume : null,
+        d.volumeUnit ?? null,
+        d.notes ?? null,
         d.color ?? null,
         d.colorText ?? null,
         d.size ?? null,
@@ -807,6 +842,19 @@ class ProductModel {
       images,
       categories,
       channelSpecific,
+      ean,
+      gtin,
+      brand,
+      brandId,
+      purchasePrice,
+      colorText,
+      lagerplats,
+      condition,
+      groupId,
+      volume,
+      volumeUnit,
+      weight,
+      notes,
     },
   ) {
     try {
@@ -878,16 +926,57 @@ class ProductModel {
           : existing?.categories || [],
         mpn: cleanSku,
         channelSpecific: nextChannelSpecific,
+        ean: ean != null ? String(ean).trim() || null : undefined,
+        gtin: gtin != null ? String(gtin).trim() || null : undefined,
+        brand: brand != null ? String(brand).trim() || null : undefined,
+        brandId: brandId != null ? String(brandId).trim() || null : undefined,
+        purchasePrice: purchasePrice != null && Number.isFinite(Number(purchasePrice))
+          ? Number(purchasePrice)
+          : undefined,
+        colorText: colorText != null ? String(colorText).trim() || null : undefined,
+        lagerplats: lagerplats != null ? String(lagerplats).trim() || null : undefined,
+        condition:
+          condition === 'new' || condition === 'used'
+            ? condition
+            : condition != null
+              ? String(condition).trim().toLowerCase() === 'used'
+                ? 'used'
+                : 'new'
+              : undefined,
+        groupId: groupId != null ? String(groupId).trim() || null : undefined,
+        volume: volume != null && Number.isFinite(Number(volume)) ? Number(volume) : undefined,
+        volumeUnit: volumeUnit != null ? String(volumeUnit).trim() || null : undefined,
+        weight: weight != null && Number.isFinite(Number(weight)) ? Number(weight) : undefined,
+        notes: notes != null ? String(notes).trim() || null : undefined,
       };
 
+      const payloadClean = { ...payload };
+      [
+        'brand',
+        'brandId',
+        'ean',
+        'gtin',
+        'purchasePrice',
+        'colorText',
+        'lagerplats',
+        'condition',
+        'groupId',
+        'volume',
+        'volumeUnit',
+        'weight',
+        'notes',
+      ].forEach((k) => {
+        if (payloadClean[k] === undefined) delete payloadClean[k];
+      });
+
       if (!existing) {
-        const created = await this.create(req, payload);
+        const created = await this.create(req, payloadClean);
         return { created: true, product: created };
       }
 
       const updated = await this.update(req, existing.id, {
         ...existing,
-        ...payload,
+        ...payloadClean,
       });
       return { created: false, product: updated };
     } catch (error) {
@@ -979,6 +1068,11 @@ class ProductModel {
             : null
           : null,
       lagerplats: clean(data.lagerplats) || null,
+      condition: clean(data.condition) || 'new',
+      groupId: clean(data.groupId ?? data.group_id ?? null),
+      volume: data.volume != null ? toFloat(data.volume, null) : null,
+      volumeUnit: clean(data.volumeUnit ?? data.volume_unit ?? null),
+      notes: clean(data.notes) || null,
       channelSpecific,
       color: clean(data.color),
       colorText: clean(data.colorText),
@@ -1051,6 +1145,11 @@ class ProductModel {
       manufacturerId: row.manufacturer_id != null ? String(row.manufacturer_id) : null,
       manufacturerName: row.manufacturer_name ?? null,
       lagerplats: row.lagerplats ?? null,
+      condition: row.condition ?? 'new',
+      groupId: row.group_id ?? null,
+      volume: row.volume != null ? toNumberOr(row.volume, null) : null,
+      volumeUnit: row.volume_unit ?? null,
+      notes: row.notes ?? null,
       channelSpecific: channelSpecificObj,
       color: row.color ?? null,
       colorText: row.color_text ?? null,

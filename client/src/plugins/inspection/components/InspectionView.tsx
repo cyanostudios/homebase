@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/core/ui/RichTextEditor';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { filesApi } from '@/plugins/files/api/filesApi';
 import { useInspections } from '../hooks/useInspections';
@@ -405,31 +406,29 @@ export const InspectionView: React.FC<InspectionViewProps> = (props) => {
 
           <div>
             <Label htmlFor="inspection-description">Beskrivning</Label>
-            <Textarea
-              id="inspection-description"
+            <RichTextEditor
               value={description}
-              onChange={(e) => {
-                setDescription(e.target.value);
+              onChange={(val) => {
+                setDescription(val);
                 markDirty();
               }}
               placeholder="Vad ska besiktigas?"
-              rows={5}
+              minHeight={160}
               className="mt-1"
             />
           </div>
 
           <div>
             <Label htmlFor="inspection-adminNotes">Admin-kommentarer</Label>
-            <Textarea
-              id="inspection-adminNotes"
+            <RichTextEditor
               value={adminNotes}
-              onChange={(e) => {
-                setAdminNotes(e.target.value);
+              onChange={(val) => {
+                setAdminNotes(val);
                 markDirty();
               }}
               placeholder="Egna anteckningar..."
-              rows={10}
-              className="mt-1 min-h-[200px]"
+              minHeight={200}
+              className="mt-1"
             />
           </div>
 

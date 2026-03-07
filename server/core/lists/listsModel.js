@@ -155,6 +155,59 @@ async function deleteList(req, namespace, listId) {
 }
 
 /**
+ * Find or create a list for Sello folder. Maps folder_id ↔ list (same id+name linkage as Homebase).
+ * Handles name changes and duplicate names during import.
+ * @param {object} req
+ * @param {string} namespace - e.g. 'products'
+ * @param {string} folderId - Sello folder_id
+ * @param {string} folderName - Sello folder_name
+ * @returns {Promise<{ id: string, name: string } | null>} List or null if both empty
+ */
+async function findOrCreateListForSelloFolder(req, namespace, folderId, folderName) {
+  const db = Database.get(req);
+  const userId = getUserId(req);
+  const ns = String(namespace || '').trim();
+  const fid = String(folderId ?? '').trim();
+  const fname = String(folderName ?? '').trim();
+  if (!ns) return null;
+  if (!fid && !fname) return null;
+
+  if (fid) {
+    const byId = await db.query(
+      `SELECT id, name FROM ${TABLE} WHERE user_id = $1 AND namespace = $2 AND import_folder_id = $3 LIMIT 1`,
+      [userId, ns, fid],
+    );
+    if (byId && byId.length > 0) {
+      return { id: String(byId[0].id), name: byId[0].name ?? '' };
+    }
+  }
+  if (fname) {
+    const byName = await db.query(
+      `SELECT id, name, import_folder_id FROM ${TABLE} WHERE user_id = $1 AND namespace = $2 AND name = $3 LIMIT 1`,
+      [userId, ns, fname],
+    );
+    if (byName && byName.length > 0) {
+      const row = byName[0];
+      if (fid && !row.import_folder_id) {
+        await db.query(
+          `UPDATE ${TABLE} SET import_folder_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3`,
+          [fid, row.id, userId],
+        );
+      }
+      return { id: String(row.id), name: row.name ?? '' };
+    }
+  }
+  const listName = fname || `Sello mapp ${fid}`;
+  const result = await db.query(
+    `INSERT INTO ${TABLE} (user_id, namespace, name, import_folder_id) VALUES ($1, $2, $3, $4)
+     RETURNING id, name`,
+    [userId, ns, listName, fid || null],
+  );
+  const r = result[0];
+  return { id: String(r.id), name: r.name ?? listName };
+}
+
+/**
  * Get a single list by id (for ownership/namespace checks). Returns null if not found.
  */
 async function getListById(req, namespace, listId) {
@@ -300,6 +353,7 @@ module.exports = {
   renameList,
   deleteList,
   getListById,
+  findOrCreateListForSelloFolder,
   getFileListItems,
   getContactListItems,
   addContactsToList,

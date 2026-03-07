@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/core/ui/RichTextEditor';
 import { getFxLatest } from '@/core/api/fxApi';
 import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -41,6 +42,22 @@ const SIZE_OPTIONS = [
   { value: 'l', label: 'L' },
   { value: 'xl', label: 'XL' },
   { value: 'xxl', label: 'XXL' },
+];
+
+/** Skick: Sello condition (new/used) */
+const CONDITION_OPTIONS = [
+  { value: 'new', label: 'New' },
+  { value: 'used', label: 'Used' },
+];
+
+/** Volymenhet: Sello volume_unit (m3, dm3, cm3, l, ml) */
+const VOLUME_UNIT_OPTIONS = [
+  { value: '', label: '— Välj enhet —' },
+  { value: 'm3', label: 'm³' },
+  { value: 'dm3', label: 'dm³' },
+  { value: 'cm3', label: 'cm³' },
+  { value: 'l', label: 'l' },
+  { value: 'ml', label: 'ml' },
 ];
 
 /** CDON/Fyndiq preset-pattern (Fyndiq-mönster dropdown) */
@@ -535,6 +552,11 @@ type MarketData = {
 type TextData = {
   title: string;
   description: string;
+  /** SEO title, meta description, meta keywords, bulletpoints (one per line in UI) */
+  titleSeo?: string;
+  metaDesc?: string;
+  metaKeywords?: string;
+  bulletpoints?: string;
   /** For non-default languages: which channels get this text (cdon, fyndiq) */
   validFor?: { cdon?: boolean; fyndiq?: boolean };
 };
@@ -595,13 +617,18 @@ type FormData = {
   manufacturerId: string;
   /** Produkt-fliken: lagerplats (frivillig) */
   lagerplats: string;
-  /** Detaljer: färg, storlek, mönster, vikt, mått */
+  /** Detaljer: färg, storlek, mönster, vikt, mått, skick, volym, anteckningar */
   color: string;
   colorText: string;
   size: string;
   sizeText: string;
   pattern: string;
   weight: number | '';
+  condition: 'new' | 'used';
+  groupId: string;
+  volume: number | '';
+  volumeUnit: string;
+  notes: string;
   lengthCm: number | '';
   widthCm: number | '';
   heightCm: number | '';
@@ -660,7 +687,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     };
   };
 
-  const createEmptyText = (): TextData => ({ title: '', description: '' });
+  const createEmptyText = (): TextData => ({
+    title: '',
+    description: '',
+    titleSeo: '',
+    metaDesc: '',
+    metaKeywords: '',
+    bulletpoints: '',
+  });
 
   const initialState: FormData = {
     productNumber: '',
@@ -685,6 +719,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     supplierId: '',
     manufacturerId: '',
     lagerplats: '',
+    condition: 'new',
+    groupId: '',
+    volume: '',
+    volumeUnit: '',
+    notes: '',
     color: '',
     colorText: '',
     size: '',
@@ -724,6 +763,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const [newImage, setNewImage] = useState('');
   const [mediaUploading, setMediaUploading] = useState(false);
   const [statsRange, setStatsRange] = useState<'7d' | '30d' | '3m' | 'all'>('30d');
+  const [selectedTextMarket, setSelectedTextMarket] = useState<MarketKey>('se');
   const [stats, setStats] = useState<{
     soldCount: number;
     bestChannel: string | null;
@@ -1049,16 +1089,42 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         }
         const tData = (cs.cdon as any)?.texts?.[m.key] ?? (cs.fyndiq as any)?.texts?.[m.key];
         const validFor = tData?.validFor ?? { cdon: true, fyndiq: true };
+        const extended = (cs as any)?.textsExtended?.[m.key];
+        const bulletpointsStr =
+          Array.isArray(extended?.bulletpoints)
+            ? (extended.bulletpoints as string[]).filter(Boolean).join('\n')
+            : typeof extended?.bulletpoints === 'string'
+              ? extended.bulletpoints
+              : '';
         texts[m.key] =
           tData && typeof tData === 'object'
             ? {
                 title: tData.title ?? baseTitle,
                 description: tData.description ?? baseDesc,
+                titleSeo: extended?.titleSeo ?? '',
+                metaDesc: extended?.metaDesc ?? '',
+                metaKeywords: extended?.metaKeywords ?? '',
+                bulletpoints: bulletpointsStr,
                 validFor,
               }
             : m.key === 'se'
-              ? { title: baseTitle, description: baseDesc }
-              : { title: '', description: '', validFor: { cdon: true, fyndiq: true } };
+              ? {
+                  title: baseTitle,
+                  description: baseDesc,
+                  titleSeo: extended?.titleSeo ?? '',
+                  metaDesc: extended?.metaDesc ?? '',
+                  metaKeywords: extended?.metaKeywords ?? '',
+                  bulletpoints: bulletpointsStr,
+                }
+              : {
+                  title: '',
+                  description: '',
+                  titleSeo: '',
+                  metaDesc: '',
+                  metaKeywords: '',
+                  bulletpoints: '',
+                  validFor: { cdon: true, fyndiq: true },
+                };
       }
       if (!texts.se.title) {
         texts.se = { title: baseTitle, description: baseDesc };
@@ -1192,6 +1258,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           (currentProduct as any).weight != null && (currentProduct as any).weight !== ''
             ? (currentProduct as any).weight
             : '',
+        condition:
+          (currentProduct as any).condition === 'used' ? 'used' : 'new',
+        groupId: (currentProduct as any).groupId ?? '',
+        volume:
+          (currentProduct as any).volume != null && (currentProduct as any).volume !== ''
+            ? (currentProduct as any).volume
+            : '',
+        volumeUnit: (currentProduct as any).volumeUnit ?? '',
+        notes: (currentProduct as any).notes ?? '',
         lengthCm:
           (currentProduct as any).lengthCm != null && (currentProduct as any).lengthCm !== ''
             ? (currentProduct as any).lengthCm
@@ -1593,7 +1668,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       const fyndiqTitle = buildTextArrays('fyndiq');
       const fyndiqDesc = buildDescArrays('fyndiq');
 
+      const existingCs =
+        currentProduct?.channelSpecific &&
+        typeof currentProduct.channelSpecific === 'object' &&
+        !Array.isArray(currentProduct.channelSpecific)
+          ? (currentProduct.channelSpecific as Record<string, unknown>)
+          : {};
       const channelSpecific: Record<string, unknown> = {
+        ...existingCs,
         cdon: {
           markets: formData.markets,
           texts: formData.texts,
@@ -1615,6 +1697,33 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           ...(fyndiqDesc.length > 0 && { description: fyndiqDesc }),
         },
       };
+      const textsExtended: Record<
+        string,
+        { titleSeo?: string; metaDesc?: string; metaKeywords?: string; bulletpoints?: string[] }
+      > = {};
+      for (const m of MARKETS) {
+        const t = formData.texts[m.key];
+        const bpRaw = (t?.bulletpoints ?? '').trim();
+        const bulletpointsArr = bpRaw
+          ? bpRaw.split(/\n/).map((s) => s.trim()).filter(Boolean)
+          : undefined;
+        if (
+          (t?.titleSeo ?? '').trim() ||
+          (t?.metaDesc ?? '').trim() ||
+          (t?.metaKeywords ?? '').trim() ||
+          (bulletpointsArr?.length ?? 0) > 0
+        ) {
+          textsExtended[m.key] = {
+            ...((t?.titleSeo ?? '').trim() && { titleSeo: (t.titleSeo ?? '').trim() }),
+            ...((t?.metaDesc ?? '').trim() && { metaDesc: (t.metaDesc ?? '').trim() }),
+            ...((t?.metaKeywords ?? '').trim() && { metaKeywords: (t.metaKeywords ?? '').trim() }),
+            ...(bulletpointsArr && bulletpointsArr.length > 0 && { bulletpoints: bulletpointsArr }),
+          };
+        }
+      }
+      if (Object.keys(textsExtended).length > 0) {
+        (channelSpecific as any).textsExtended = textsExtended;
+      }
       const baseAmount =
         typeof formData.priceAmount === 'number' && Number.isFinite(formData.priceAmount)
           ? formData.priceAmount
@@ -2198,37 +2307,53 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           </>
         )}
 
-        {/* Tab: Texter (per-market title/description) */}
+        {/* Tab: Texter (per-market title/description + SEO/bulletpoints) */}
         {!isBatchMode && activeTab === 'texter' && (
           <Card padding="sm" className="shadow-none px-0">
             <Heading level={3} className="mb-3">
               Texter per marknad
             </Heading>
             <p className="text-sm text-gray-600 mb-4">
-              Titel och beskrivning per språk. sv-SE är standard. För andra språk: välj vilka
-              kanaler som ska få texten (annars används svenska).
+              Titel och beskrivning per språk. sv-SE är standard. Välj land till vänster – innehållet visas till höger.
             </p>
-            <div className="space-y-4">
-              {MARKETS.map((m) => {
-                const t = formData.texts[m.key];
-                const isDefault = m.lang === DEFAULT_LANGUAGE;
-                const vf = t?.validFor ?? { cdon: true, fyndiq: true };
-                return (
-                  <Collapsible key={m.key} defaultOpen={m.key === 'se'}>
-                    <CollapsibleTrigger className="group flex items-center gap-2 w-full text-left font-medium py-2">
-                      <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
-                      {m.label} ({m.lang}){' '}
+            <div className="flex gap-0 min-h-[320px]" style={{ minHeight: 'min(320px, 50vh)' }}>
+              {/* Left: country list ~20% */}
+              <div className="w-[20%] min-w-[120px] flex flex-col border-r border-gray-200 pr-2">
+                {MARKETS.map((m) => {
+                  const isDefault = m.lang === DEFAULT_LANGUAGE;
+                  const isSelected = selectedTextMarket === m.key;
+                  return (
+                    <button
+                      key={m.key}
+                      type="button"
+                      onClick={() => setSelectedTextMarket(m.key)}
+                      className={`text-left px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                        isSelected
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {m.label}
                       {isDefault && (
-                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                          Standard
-                        </span>
+                        <span className="ml-1.5 text-xs text-gray-500 font-normal">(standard)</span>
                       )}
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="pt-2 pl-6 space-y-3">
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Right: content for selected country ~80% */}
+              <div className="flex-1 min-w-0 pl-4 space-y-4">
+                {(() => {
+                  const m = MARKETS.find((x) => x.key === selectedTextMarket) ?? MARKETS[0];
+                  const t = formData.texts[m.key];
+                  const isDefault = m.lang === DEFAULT_LANGUAGE;
+                  const vf = t?.validFor ?? { cdon: true, fyndiq: true };
+                  return (
+                    <>
                       <div>
                         <Label className="mb-1">Titel {isDefault && '*'}</Label>
                         <Input
-                          value={t.title}
+                          value={t?.title ?? ''}
                           onChange={(e) => updateText(m.key, 'title', e.target.value)}
                           placeholder={
                             isDefault ? 'Produkttitel' : 'Översättning eller tomt för standard'
@@ -2237,15 +2362,58 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       </div>
                       <div>
                         <Label className="mb-1">Beskrivning</Label>
-                        <Textarea
-                          rows={3}
-                          value={t.description}
-                          onChange={(e) => updateText(m.key, 'description', e.target.value)}
+                        <RichTextEditor
+                          value={t?.description ?? ''}
+                          onChange={(html) => updateText(m.key, 'description', html)}
                           placeholder={isDefault ? 'Produktbeskrivning' : 'Översättning eller tomt'}
+                          minHeight={180}
+                          showSourceToggle
                         />
                       </div>
+                      <Collapsible defaultOpen={false}>
+                        <CollapsibleTrigger className="group flex items-center gap-2 w-full text-left text-sm text-gray-600 hover:text-gray-900 py-1 border-b border-transparent hover:border-gray-200 transition-colors">
+                          <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-data-[state=open]:rotate-90" />
+                          <span>Avancerat</span>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="pt-3 space-y-3">
+                          <div>
+                            <Label className="mb-1 text-gray-600">Bulletpoints</Label>
+                            <Textarea
+                              rows={4}
+                              value={t?.bulletpoints ?? ''}
+                              onChange={(e) => updateText(m.key, 'bulletpoints', e.target.value)}
+                              placeholder="En punkt per rad"
+                            />
+                          </div>
+                          <div>
+                            <Label className="mb-1 text-gray-600">Titel (SEO)</Label>
+                            <Input
+                              value={t?.titleSeo ?? ''}
+                              onChange={(e) => updateText(m.key, 'titleSeo', e.target.value)}
+                              placeholder="SEO-titel (t.ex. för sökresultat)"
+                            />
+                          </div>
+                          <div>
+                            <Label className="mb-1 text-gray-600">Meta-beskrivning</Label>
+                            <Textarea
+                              rows={2}
+                              value={t?.metaDesc ?? ''}
+                              onChange={(e) => updateText(m.key, 'metaDesc', e.target.value)}
+                              placeholder="Kort beskrivning för sökmotorer"
+                            />
+                          </div>
+                          <div>
+                            <Label className="mb-1 text-gray-600">Meta-nyckelord</Label>
+                            <Input
+                              value={t?.metaKeywords ?? ''}
+                              onChange={(e) => updateText(m.key, 'metaKeywords', e.target.value)}
+                              placeholder="Nyckelord, kommaseparerade"
+                            />
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                       {!isDefault && (
-                        <div className="flex flex-wrap gap-4 pt-1">
+                        <div className="flex flex-wrap gap-4 pt-2 border-t border-gray-100">
                           <span className="text-xs text-gray-500 self-center">Skicka till:</span>
                           <label className="flex items-center gap-2">
                             <input
@@ -2271,10 +2439,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           </label>
                         </div>
                       )}
-                    </CollapsibleContent>
-                  </Collapsible>
-                );
-              })}
+                    </>
+                  );
+                })()}
+              </div>
             </div>
           </Card>
         )}
@@ -3346,6 +3514,56 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 </NativeSelect>
               </div>
               <div>
+                <Label htmlFor="condition" className="mb-1">
+                  Skick
+                </Label>
+                <NativeSelect
+                  id="condition"
+                  value={formData.condition || 'new'}
+                  onChange={(e) => {
+                    const v = e.target.value as 'new' | 'used';
+                    updateField('condition', v || 'new');
+                  }}
+                >
+                  {CONDITION_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </div>
+              <div>
+                <Label htmlFor="volume" className="mb-1">
+                  Volym
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="volume"
+                    type="number"
+                    step="any"
+                    min="0"
+                    value={formData.volume === '' ? '' : formData.volume}
+                    onChange={(e) =>
+                      updateField('volume', e.target.value === '' ? '' : Number(e.target.value))
+                    }
+                    placeholder="0"
+                    className="flex-1"
+                  />
+                  <NativeSelect
+                    id="volumeUnit"
+                    value={formData.volumeUnit || ''}
+                    onChange={(e) => updateField('volumeUnit', e.target.value)}
+                    className="w-24"
+                  >
+                    {VOLUME_UNIT_OPTIONS.map((o) => (
+                      <option key={o.value || 'empty'} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </div>
+              </div>
+              <div>
                 <Label htmlFor="weight" className="mb-1">
                   Vikt (kg)
                 </Label>
@@ -3423,6 +3641,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     updateField('depthCm', e.target.value === '' ? '' : Number(e.target.value))
                   }
                   placeholder="0"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label htmlFor="notes" className="mb-1">
+                  Anteckningar
+                </Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => updateField('notes', e.target.value)}
+                  placeholder="Interna anteckningar"
+                  rows={3}
                 />
               </div>
             </div>
