@@ -149,7 +149,9 @@ class ChannelsModel {
 
   /**
    * Get all channel/instance targets for a product (where it is published or enabled).
-   * Used for sync-on-save: push updates to these channels.
+   * Used for sync-on-save and ProductForm channel checkboxes.
+   * Returns targets from: (1) channel_product_map (enabled), (2) channel_product_overrides (active).
+   * Sello import writes to overrides; this ensures those show as targeted in UI.
    * Returns [{ channel, channelInstanceId }] (channelInstanceId null for non-Woo or legacy Woo).
    */
   async getProductChannelTargets(req, productId) {
@@ -164,16 +166,32 @@ class ChannelsModel {
       const pid = String(productId || '').trim();
       if (!pid) return [];
 
-      const sql = `
-        SELECT channel, channel_instance_id
-        FROM ${ChannelsModel.CHANNEL_MAP_TABLE}
-        WHERE user_id = $1 AND product_id = $2 AND enabled = TRUE
-      `;
-      const rows = await db.query(sql, [userId, pid]);
-      return rows.map((r) => ({
-        channel: r.channel,
-        channelInstanceId: r.channel_instance_id != null ? String(r.channel_instance_id) : null,
-      }));
+      const [mapRows, overrideRows] = await Promise.all([
+        db.query(
+          `SELECT channel, channel_instance_id
+           FROM ${ChannelsModel.CHANNEL_MAP_TABLE}
+           WHERE user_id = $1 AND product_id = $2 AND enabled = TRUE`,
+          [userId, pid],
+        ),
+        db.query(
+          `SELECT channel, channel_instance_id
+           FROM ${ChannelsModel.CHANNEL_OVERRIDES_TABLE}
+           WHERE user_id = $1 AND product_id = $2 AND active = TRUE AND channel_instance_id IS NOT NULL`,
+          [userId, pid],
+        ),
+      ]);
+
+      const seen = new Set();
+      const targets = [];
+      for (const r of [...mapRows, ...overrideRows]) {
+        const ch = String(r.channel || '').toLowerCase();
+        const instId = r.channel_instance_id != null ? String(r.channel_instance_id) : null;
+        const key = `${ch}:${instId ?? ''}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        targets.push({ channel: ch, channelInstanceId: instId });
+      }
+      return targets;
     } catch (error) {
       Logger.error('Failed to get product channel targets', error);
       if (error instanceof AppError) throw error;

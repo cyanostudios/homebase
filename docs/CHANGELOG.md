@@ -4,6 +4,32 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03 – Statistik (Sello), kanal-checkboxes, MPN, size/pattern, debug
+
+### Statistik-flik: Antal sålda, Skapad datum, Senast såld
+
+- **Ny kolumner i products** (migration 068): `source_created_at`, `quantity_sold`, `last_sold_at` – hämtas från Sello (`created_at`, `sold`, `last_sold`).
+- **Statistik-flik** visar nu dessa tre fält överst (från Sello); period-baserad statistik (antal sålda i period, bästa kanal, aktivitetstidslinje) oförändrad.
+
+### Kanalsynk – checkboxes från överrides
+
+- **getProductChannelTargets** returnerar nu targets från både `channel_product_map` och `channel_product_overrides` (active=true). Produkter importerade från Sello med aktiva kanaler visas som ikryssade i ProductForm utan manuell markering.
+
+### MPN och Egen referens
+
+- **MPN** hämtar nu från Egen referens (`merchant_sku` / Sello `private_reference`) istället för SKU när inget anges manuellt. I Sello-import: MPN sätts endast om Egen referens finns; ingen fallback till SKU.
+
+### Size/Pattern – undvik dubbel fyllning
+
+- **sizeText** sätts till null när `size` har preset-match; annars från Size/Storlek.
+- **patternText** sätts till null när `pattern` finns; annars från Mönster/pattern_text. Samma logik som colorText.
+
+### Scripts
+
+- **debug-sello-integrations-per-product.js**: Hämtar alla mappade `sello_integration_id` från `channel_instances` dynamiskt istället för hårdkodade ID:n.
+
+---
+
 ## 2026-03 – Sello import: manufacturer_name, product_number borttagen, Produkt-flik
 
 ### Sello import – tillverkare

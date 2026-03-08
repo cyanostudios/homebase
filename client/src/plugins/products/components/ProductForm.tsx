@@ -3730,6 +3730,30 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               <p className="text-sm text-gray-500">Spara produkten först för att se statistik.</p>
             ) : (
               <>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                  <div className="p-3 rounded-lg bg-gray-50">
+                    <div className="text-xs text-gray-500">Antal sålda</div>
+                    <div className="text-lg font-semibold">
+                      {currentProduct?.quantitySold != null ? currentProduct.quantitySold : '—'}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-gray-50">
+                    <div className="text-xs text-gray-500">Skapad datum</div>
+                    <div className="text-lg font-semibold">
+                      {currentProduct?.sourceCreatedAt
+                        ? new Date(currentProduct.sourceCreatedAt).toLocaleDateString('sv-SE')
+                        : '—'}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-gray-50">
+                    <div className="text-xs text-gray-500">Senast såld</div>
+                    <div className="text-lg font-semibold">
+                      {currentProduct?.lastSoldAt
+                        ? new Date(currentProduct.lastSoldAt).toLocaleDateString('sv-SE')
+                        : '—'}
+                    </div>
+                  </div>
+                </div>
                 <div className="flex items-center gap-2 mb-4">
                   <span className="text-sm text-gray-600">Period:</span>
                   <NativeSelect
@@ -3750,7 +3774,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       <div className="p-3 rounded-lg bg-gray-50">
-                        <div className="text-xs text-gray-500">Antal sålda</div>
+                        <div className="text-xs text-gray-500">Antal sålda (period)</div>
                         <div className="text-lg font-semibold">{stats.soldCount}</div>
                       </div>
                       <div className="p-3 rounded-lg bg-gray-50">

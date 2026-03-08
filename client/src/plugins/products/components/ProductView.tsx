@@ -116,7 +116,8 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
             { active: boolean; priceAmount: string; currency: string; category: string }
           > = {};
           for (const inst of insts) {
-            const ov = ovs.find((o) => o.instanceId === inst.id) || null;
+            const ov =
+              ovs.find((o) => String(o.instanceId ?? '') === String(inst.id ?? '')) || null;
             next[inst.id] = {
               active: ov ? !!ov.active : false,
               priceAmount: (ov?.priceAmount ?? null) !== null ? String(ov.priceAmount) : '',

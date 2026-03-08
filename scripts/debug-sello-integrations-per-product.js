@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Debug: vilka integrations har varje produkt i Sello, och matchar de våra channel_instances?
+// Hämtar alla mappade sello_integration_id från channel_instances.
 // PHASE1_PILOT_USER_ID=1 node scripts/debug-sello-integrations-per-product.js
 
 const path = require('path');
@@ -7,14 +8,10 @@ require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const Bootstrap = require('../server/core/Bootstrap');
-const ProductModel = require('../plugins/products/model');
 const SelloModel = require('../plugins/products/selloModel');
 const { Database } = require('@homebase/core');
 
 const USER_ID = Number(process.env.PHASE1_PILOT_USER_ID || 1);
-const SELLO_FYNDIQ_SE = '53270';
-const SELLO_FYNDIQ_FI = '64015';
-const SELLO_MERCHBUTIKEN = '59961';
 
 async function run() {
   const ServiceManager = require('../server/core/ServiceManager');
@@ -31,6 +28,22 @@ async function run() {
   const db = Database.get(req);
   const selloModel = new SelloModel();
   const apiKey = await selloModel.getApiKeyForJobs(req);
+
+  const mappedInstances = await db.query(
+    `SELECT id, channel, instance_key, label, sello_integration_id
+     FROM channel_instances
+     WHERE user_id = $1 AND sello_integration_id IS NOT NULL AND TRIM(sello_integration_id) <> ''
+     ORDER BY channel ASC, instance_key ASC`,
+    [USER_ID],
+  );
+
+  const integrationList = (mappedInstances || []).map((r) => ({
+    id: String(r.sello_integration_id || '').trim(),
+    label: `${r.channel}/${r.instance_key}`,
+  }));
+
+  console.log(`\n=== ${integrationList.length} mappade integrationer ===`);
+  integrationList.forEach((i) => console.log(`  ${i.id}: ${i.label}`));
 
   const products = await db.query(
     `SELECT id, sku, title FROM products WHERE user_id = $1 ORDER BY id`,
@@ -52,16 +65,14 @@ async function run() {
       console.log(`${sku} (${p.title?.slice(0, 30)}): fetch failed`);
       continue;
     }
-    const integrations = raw?.integrations && typeof raw.integrations === 'object' ? raw.integrations : {};
-    const fyndiqSe = integrations[SELLO_FYNDIQ_SE];
-    const fyndiqFi = integrations[SELLO_FYNDIQ_FI];
-    const merch = integrations[SELLO_MERCHBUTIKEN];
-    const activeFySe = fyndiqSe?.active === true;
-    const activeFyFi = fyndiqFi?.active === true;
-    const activeMerch = merch?.active === true;
-    console.log(
-      `SKU ${sku} (id ${p.id}): Fyndiq SE(53270)=${activeFySe}, Fyndiq FI(64015)=${activeFyFi}, Merchbutiken(59961)=${activeMerch}`,
-    );
+    const integrations =
+      raw?.integrations && typeof raw.integrations === 'object' ? raw.integrations : {};
+    const parts = integrationList.map((i) => {
+      const state = integrations[i.id];
+      const active = state?.active === true;
+      return `${i.label}(${i.id})=${active}`;
+    });
+    console.log(`SKU ${sku} (id ${p.id}): ${parts.join(', ')}`);
   }
 
   process.exit(0);

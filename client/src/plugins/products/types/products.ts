@@ -57,6 +57,11 @@ export interface Product {
   listId?: string | null;
   listName?: string | null;
 
+  /** From source (e.g. Sello): created date, total quantity sold, last sold date. */
+  sourceCreatedAt?: string | null;
+  quantitySold?: number | null;
+  lastSoldAt?: string | null;
+
   createdAt: Date | null;
   updatedAt: Date | null;
 }

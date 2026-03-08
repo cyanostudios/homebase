@@ -64,6 +64,9 @@ class ProductModel {
           p.width_cm,
           p.height_cm,
           p.depth_cm,
+          p.source_created_at,
+          p.quantity_sold,
+          p.last_sold_at,
           p.created_at,
           p.updated_at,
           b.name AS brand_name,
@@ -225,6 +228,9 @@ class ProductModel {
           p.width_cm,
           p.height_cm,
           p.depth_cm,
+          p.source_created_at,
+          p.quantity_sold,
+          p.last_sold_at,
           p.created_at,
           p.updated_at,
           b.name AS brand_name,
@@ -307,13 +313,17 @@ class ProductModel {
           length_cm,
           width_cm,
           height_cm,
-          depth_cm
+          depth_cm,
+          source_created_at,
+          quantity_sold,
+          last_sold_at
         )
         VALUES (
           $1,
           $2,  $3,  $4,  $5,  $6,  $7,  $8,
           $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,
-          $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42
+          $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42,
+          $43, $44, $45
         )
         RETURNING
           id,
@@ -354,6 +364,9 @@ class ProductModel {
           width_cm,
           height_cm,
           depth_cm,
+          source_created_at,
+          quantity_sold,
+          last_sold_at,
           created_at,
           updated_at
       `;
@@ -401,6 +414,9 @@ class ProductModel {
         d.widthCm != null ? d.widthCm : null,
         d.heightCm != null ? d.heightCm : null,
         d.depthCm != null ? d.depthCm : null,
+        d.sourceCreatedAt ?? null,
+        d.quantitySold ?? null,
+        d.lastSoldAt ?? null,
       ];
 
       const result = await db.query(sql, params);
@@ -477,9 +493,12 @@ class ProductModel {
           width_cm       = $39,
           height_cm      = $40,
           depth_cm       = $41,
+          source_created_at = $42,
+          quantity_sold     = $43,
+          last_sold_at      = $44,
           updated_at     = CURRENT_TIMESTAMP
-        WHERE user_id = $42
-          AND id::text = $43
+        WHERE user_id = $45
+          AND id::text = $46
         RETURNING
           id,
           user_id,
@@ -519,6 +538,9 @@ class ProductModel {
           width_cm,
           height_cm,
           depth_cm,
+          source_created_at,
+          quantity_sold,
+          last_sold_at,
           created_at,
           updated_at
       `;
@@ -565,6 +587,9 @@ class ProductModel {
         d.widthCm != null ? d.widthCm : null,
         d.heightCm != null ? d.heightCm : null,
         d.depthCm != null ? d.depthCm : null,
+        d.sourceCreatedAt ?? null,
+        d.quantitySold ?? null,
+        d.lastSoldAt ?? null,
         userId,
         String(productId),
       ];
@@ -881,6 +906,9 @@ class ProductModel {
       volumeUnit,
       weight,
       notes,
+      sourceCreatedAt,
+      quantitySold,
+      lastSoldAt,
     },
   ) {
     try {
@@ -951,7 +979,7 @@ class ProductModel {
         categories: Array.isArray(categories)
           ? categories.map((x) => String(x || '').trim()).filter(Boolean)
           : existing?.categories || [],
-        mpn: cleanSku,
+        mpn: merchantSku != null && String(merchantSku).trim() ? String(merchantSku).trim() : null,
         channelSpecific: nextChannelSpecific,
         ean: ean != null ? String(ean).trim() || null : undefined,
         gtin: gtin != null ? String(gtin).trim() || null : undefined,
@@ -961,12 +989,17 @@ class ProductModel {
           manufacturerId != null && Number.isFinite(Number(manufacturerId))
             ? Number(manufacturerId)
             : undefined,
-        purchasePrice: purchasePrice != null && Number.isFinite(Number(purchasePrice))
-          ? Number(purchasePrice)
-          : undefined,
+        purchasePrice:
+          purchasePrice != null && Number.isFinite(Number(purchasePrice))
+            ? Number(purchasePrice)
+            : undefined,
         color: color != null ? String(color).trim() || null : undefined,
         colorText:
-          colorText === undefined ? undefined : colorText != null ? String(colorText).trim() || null : null,
+          colorText === undefined
+            ? undefined
+            : colorText != null
+              ? String(colorText).trim() || null
+              : null,
         size: size != null ? String(size).trim() || null : undefined,
         sizeText: sizeText != null ? String(sizeText).trim() || null : undefined,
         material: material != null ? String(material).trim() || null : undefined,
@@ -1012,6 +1045,9 @@ class ProductModel {
         'weight',
         'notes',
         'privateName',
+        'sourceCreatedAt',
+        'quantitySold',
+        'lastSoldAt',
       ].forEach((k) => {
         if (payloadClean[k] === undefined) delete payloadClean[k];
       });
@@ -1064,6 +1100,7 @@ class ProductModel {
     const safeCurrency = /^[A-Z]{3}$/.test(currency) ? currency : 'SEK';
 
     const sku = clean(data.sku ?? null);
+    const merchantSkuVal = clean(data.merchantSku ?? data.merchant_sku ?? null);
     const mpnRaw = clean(data.mpn ?? null);
     const eanRaw = clean(data.ean ?? null);
     const gtinRaw = clean(data.gtin ?? null);
@@ -1077,7 +1114,7 @@ class ProductModel {
 
     return {
       sku,
-      mpn: mpnRaw || sku,
+      mpn: mpnRaw || merchantSkuVal,
       title: String(titleRaw ?? '').trim(),
       description: clean(data.description) ?? null,
       status: String(data.status ?? 'for sale'),
@@ -1091,7 +1128,7 @@ class ProductModel {
       images: Array.isArray(data.images) ? data.images.filter(Boolean) : [],
       categories: Array.isArray(data.categories) ? data.categories.filter(Boolean) : [],
       brand: clean(data.brand),
-      merchantSku: clean(data.merchantSku ?? data.merchant_sku ?? null),
+      merchantSku: merchantSkuVal,
       brandId:
         data.brandId != null
           ? Number.isFinite(Number(data.brandId))
@@ -1132,6 +1169,13 @@ class ProductModel {
       widthCm: data.widthCm != null ? toFloat(data.widthCm, null) : null,
       heightCm: data.heightCm != null ? toFloat(data.heightCm, null) : null,
       depthCm: data.depthCm != null ? toFloat(data.depthCm, null) : null,
+      sourceCreatedAt:
+        data.sourceCreatedAt != null ? String(data.sourceCreatedAt).trim() || null : null,
+      quantitySold:
+        data.quantitySold != null && Number.isFinite(Number(data.quantitySold))
+          ? Number(data.quantitySold)
+          : null,
+      lastSoldAt: data.lastSoldAt != null ? String(data.lastSoldAt).trim() || null : null,
     };
   }
 
@@ -1212,6 +1256,9 @@ class ProductModel {
       widthCm: row.width_cm != null ? toNumberOr(row.width_cm, null) : null,
       heightCm: row.height_cm != null ? toNumberOr(row.height_cm, null) : null,
       depthCm: row.depth_cm != null ? toNumberOr(row.depth_cm, null) : null,
+      sourceCreatedAt: row.source_created_at ?? null,
+      quantitySold: row.quantity_sold != null ? Number(row.quantity_sold) : null,
+      lastSoldAt: row.last_sold_at ?? null,
       createdAt: row.created_at ?? null,
       updatedAt: row.updated_at ?? null,
       listId: row.list_id != null ? String(row.list_id) : null,

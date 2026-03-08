@@ -1572,10 +1572,10 @@ class ProductController {
             color: getSelloColorPreset(raw),
             colorText: getSelloColorPreset(raw) ? null : (getSelloColorFromProperties(raw) ?? null),
             size: getSelloSize(raw),
-            sizeText: getSelloSizeText(raw),
+            sizeText: getSelloSize(raw) ? null : (getSelloSizeText(raw) ?? null),
             material: getSelloMaterial(raw),
             pattern: getSelloPattern(raw),
-            patternText: getSelloPatternText(raw),
+            patternText: getSelloPattern(raw) ? null : (getSelloPatternText(raw) ?? null),
             lagerplats: raw?.stock_location != null ? String(raw.stock_location).trim() : undefined,
             condition: raw?.condition === 'used' ? 'used' : 'new',
             groupId: raw?.group_id != null ? String(raw.group_id) : undefined,
@@ -1583,6 +1583,10 @@ class ProductController {
             volumeUnit: raw?.volume_unit != null ? String(raw.volume_unit).trim() : undefined,
             weight: raw?.weight != null ? Number(raw.weight) : undefined,
             notes: raw?.notes != null ? String(raw.notes).trim() : undefined,
+            sourceCreatedAt: raw?.created_at != null ? String(raw.created_at).trim() : undefined,
+            quantitySold:
+              raw?.sold != null && Number.isFinite(Number(raw.sold)) ? Number(raw.sold) : undefined,
+            lastSoldAt: raw?.last_sold != null ? String(raw.last_sold).trim() : undefined,
           });
           const createdProductId = String(upsertResult?.product?.id || '').trim();
           if (createdProductId && selloList?.id) {
@@ -1773,10 +1777,10 @@ class ProductController {
             color: getSelloColorPreset(raw),
             colorText: getSelloColorPreset(raw) ? null : (getSelloColorFromProperties(raw) ?? null),
             size: getSelloSize(raw),
-            sizeText: getSelloSizeText(raw),
+            sizeText: getSelloSize(raw) ? null : (getSelloSizeText(raw) ?? null),
             material: getSelloMaterial(raw),
             pattern: getSelloPattern(raw),
-            patternText: getSelloPatternText(raw),
+            patternText: getSelloPattern(raw) ? null : (getSelloPatternText(raw) ?? null),
             lagerplats: raw?.stock_location != null ? String(raw.stock_location).trim() : undefined,
             condition: raw?.condition === 'used' ? 'used' : 'new',
             groupId: raw?.group_id != null ? String(raw.group_id) : undefined,
@@ -1784,6 +1788,10 @@ class ProductController {
             volumeUnit: raw?.volume_unit != null ? String(raw.volume_unit).trim() : undefined,
             weight: raw?.weight != null ? Number(raw.weight) : undefined,
             notes: raw?.notes != null ? String(raw.notes).trim() : undefined,
+            sourceCreatedAt: raw?.created_at != null ? String(raw.created_at).trim() : undefined,
+            quantitySold:
+              raw?.sold != null && Number.isFinite(Number(raw.sold)) ? Number(raw.sold) : undefined,
+            lastSoldAt: raw?.last_sold != null ? String(raw.last_sold).trim() : undefined,
           });
           const productId = String(upsertResult?.product?.id || '').trim();
           if (productId && selloList?.id) {
