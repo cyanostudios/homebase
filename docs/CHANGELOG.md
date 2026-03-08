@@ -4,7 +4,18 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
-## 2026-03 – Statistik (Sello), kanal-checkboxes, MPN, size/pattern, debug
+## 2026-03-10 – Sello import: delivery_times → shipping_time
+
+### Sello import – fraktleveranstid
+
+- **delivery_times** från Sello mappas till `channelSpecific.cdon.shipping_time` och `channelSpecific.fyndiq.shipping_time`.
+- **Endast per-marknad** (SE, DK, FI, NO): Sello `delivery_times.default` används inte. Produkter med bara default får ingen shipping i importen → ProductForm använder plugin-inställningarna (defaultDeliveryCdon/defaultDeliveryFyndiq).
+- **UI:** `shippingMin` och `shippingMax` läggs på varje marknadsobjekt i `channelSpecific.cdon.markets` och `.fyndiq.markets` så att ProductForm visar och redigerar värdena.
+- Lagrade värden begränsas till 1–20; CDON-mappern begränsar till 1–10, Fyndiq till 1–20 vid export.
+
+---
+
+## 2026-03-08 11:40 – Statistik (Sello), kanal-checkboxes, MPN, size/pattern, debug
 
 ### Statistik-flik: Antal sålda, Skapad datum, Senast såld
 
@@ -30,7 +41,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
-## 2026-03 – Sello import: manufacturer_name, product_number borttagen, Produkt-flik
+## 2026-03-07 20:52 – Sello import: manufacturer_name, product_number borttagen, Produkt-flik
 
 ### Sello import – tillverkare
 
@@ -56,7 +67,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
-## 2026-03 – Products: tenant-only (public.products borttagen) + material/pattern_text
+## 2026-03-07 20:52 – Products: tenant-only (public.products borttagen) + material/pattern_text
 
 ### Tenant är enda sanningen för produktdata
 
@@ -81,7 +92,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
-## 2026-03 – Sello-import SEO/EAN/GTIN + Rich text + Texter-flik
+## 2026-03-07 15:59 – Sello-import SEO/EAN/GTIN + Rich text + Texter-flik
 
 ### Sello import – utökad datamappning
 
@@ -108,7 +119,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
-## 2026-03 – Phase 2 Delivery Plan (create/full article)
+## 2026-03-07 15:59 – Phase 2 Delivery Plan (create/full article)
 
 ### Implementerat enligt plan
 
@@ -131,7 +142,7 @@ PHASE1_PILOT_USER_ID=1 node scripts/phase2-write-pilot.js
 
 ---
 
-## 2026-03 – Orders: kollinummerkrav CDON/Fyndiq + batch/enskild "Uppdatera ändå"
+## 2026-03-05 16:46 – Orders: kollinummerkrav CDON/Fyndiq + batch/enskild "Uppdatera ändå"
 
 ### Kollinummerkrav (299 SEK/DKK/NOK, 29,99 EUR)
 
@@ -151,7 +162,7 @@ PHASE1_PILOT_USER_ID=1 node scripts/phase2-write-pilot.js
 
 ---
 
-## 2026-03 – Products migration hardening (Phase 1 + Phase 2 preflight)
+## 2026-03-04 22:35 – Products migration hardening (Phase 1 + Phase 2 preflight)
 
 ### Sello import, mapping och datamodell
 
@@ -236,7 +247,7 @@ PHASE1_PILOT_USER_ID=1 node scripts/phase2-write-pilot.js
   - `Plan_baseline_migrations_cleanup.md`,
   - regler för API-docs-prioritet och no-primary-store-pricing.
 
-## 2026-02 – Homebase 3.1.6
+## 2026-03-02 16:42 – Homebase 3.1.6
 
 ### Analytics – performance-overhaul
 
@@ -336,7 +347,7 @@ PHASE1_PILOT_USER_ID=1 node scripts/phase2-write-pilot.js
 
 ---
 
-## 2026-02 – Homebase 3.1.5 (snapshot before migrating from 3.X)
+## 2026-02-28 13:51 – Homebase 3.1.5 (snapshot before migrating from 3.X)
 
 ### Tvåfaktorsautentisering (TOTP)
 

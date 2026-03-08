@@ -433,6 +433,42 @@ function getSelloPatternText(product) {
   return getSelloPropertyValue(product, ['mönster', 'pattern_text']);
 }
 
+const MARKETS_FOR_SHIPPING = ['SE', 'DK', 'FI', 'NO'];
+
+/**
+ * Parse one delivery_times entry: { min, max } -> { min, max } | null.
+ */
+function parseSelloDeliveryEntry(entry) {
+  if (!entry || typeof entry !== 'object') return null;
+  const min = entry.min != null ? Math.floor(Number(entry.min)) : null;
+  const max = entry.max != null ? Math.floor(Number(entry.max)) : null;
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min < 1 || max < 1 || min > max)
+    return null;
+  return { min, max };
+}
+
+/**
+ * Build shipping_time array for CDON/Fyndiq from Sello delivery_times.
+ * Sello: delivery_times = { SE: { min, max }, DK: { min, max }, ... }.
+ * Only uses per-market values; Sello default is ignored so products without
+ * explicit per-market shipping fall back to plugin settings. Clamped to 1–20.
+ * @param {Object} product - Sello product
+ * @returns {Array<{ market: string, min: number, max: number }> | null}
+ */
+function buildShippingTimeFromSello(product) {
+  const dt = product?.delivery_times;
+  if (!dt || typeof dt !== 'object') return null;
+  const out = [];
+  for (const market of MARKETS_FOR_SHIPPING) {
+    const entry = parseSelloDeliveryEntry(dt[market]);
+    if (!entry) continue;
+    const min = Math.max(1, Math.min(20, entry.min));
+    const max = Math.max(1, Math.min(20, Math.max(min, entry.max)));
+    out.push({ market, min, max });
+  }
+  return out.length > 0 ? out : null;
+}
+
 function buildImportedChannelSpecificCategories(product, instancesByIntegration) {
   const integrations =
     product?.integrations && typeof product.integrations === 'object' ? product.integrations : {};
@@ -465,9 +501,36 @@ function buildImportedChannelSpecificCategories(product, instancesByIntegration)
     }
   }
 
+  const shippingTime = buildShippingTimeFromSello(product);
+  const shippingByMarket = {};
+  if (shippingTime && Array.isArray(shippingTime)) {
+    for (const st of shippingTime) {
+      const mk = String(st.market || '').toLowerCase();
+      if (['se', 'dk', 'fi', 'no'].includes(mk)) {
+        shippingByMarket[mk] = { shippingMin: st.min, shippingMax: st.max };
+      }
+    }
+  }
+  for (const mk of ['se', 'dk', 'fi', 'no']) {
+    const ship = shippingByMarket[mk];
+    if (ship) {
+      if (cdonMarkets[mk]) Object.assign(cdonMarkets[mk], ship);
+      else cdonMarkets[mk] = { category: null, active: false, ...ship };
+      if (fyndiqMarkets[mk]) Object.assign(fyndiqMarkets[mk], ship);
+      else fyndiqMarkets[mk] = { categories: [], active: false, ...ship };
+    }
+  }
   const out = {};
-  out.cdon = { category: null, markets: cdonMarkets };
-  out.fyndiq = { categories: [], markets: fyndiqMarkets };
+  out.cdon = {
+    category: null,
+    markets: cdonMarkets,
+    ...(shippingTime && { shipping_time: shippingTime }),
+  };
+  out.fyndiq = {
+    categories: [],
+    markets: fyndiqMarkets,
+    ...(shippingTime && { shipping_time: shippingTime }),
+  };
   return out;
 }
 
