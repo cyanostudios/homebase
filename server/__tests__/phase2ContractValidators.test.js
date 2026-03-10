@@ -188,7 +188,7 @@ describe('Phase 2 contract validators', () => {
 
     it('returns missing_positive_price when no positive price', () => {
       const product = {
-        sku: 'x',
+        id: 12345,
         title: 'x',
         mainImage: 'http://x',
         quantity: 1,
@@ -203,7 +203,7 @@ describe('Phase 2 contract validators', () => {
   describe('getFyndiqArticleInputIssues', () => {
     it('returns missing_categories when no category for active market', () => {
       const product = {
-        sku: 'x',
+        id: 12345,
         title: 'x',
         mainImage: 'http://x',
         quantity: 1,

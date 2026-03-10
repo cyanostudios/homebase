@@ -169,9 +169,12 @@ class OrdersModel {
       if (!orderRes.length) throw new AppError('Order not found', 404, AppError.CODES.NOT_FOUND);
 
       // order_items has no user_id; filter via JOIN so adapter doesn't inject user_id
+      // Join products to get merchant_sku for display (SKU column shows merchant_sku, not internal ID)
       const itemsRes = await db.query(
-        `SELECT oi.* FROM ${OrdersModel.ITEMS_TABLE} oi
+        `SELECT oi.*, p.merchant_sku
+         FROM ${OrdersModel.ITEMS_TABLE} oi
          INNER JOIN ${OrdersModel.ORDERS_TABLE} o ON o.id = oi.order_id AND o.user_id = $1
+         LEFT JOIN products p ON p.user_id = o.user_id AND p.id = oi.product_id
          WHERE oi.order_id = $2
          ORDER BY oi.id`,
         [userId, Number(id)],
@@ -735,10 +738,15 @@ class OrdersModel {
   }
 
   transformItemRow(row) {
+    // Display merchant_sku (products.sku) when product is linked; otherwise null
+    const displaySku =
+      row.merchant_sku != null && String(row.merchant_sku).trim() !== ''
+        ? String(row.merchant_sku).trim()
+        : null;
     return {
       id: String(row.id),
       orderId: String(row.order_id),
-      sku: row.sku || null,
+      sku: displaySku,
       productId: row.product_id != null ? String(row.product_id) : null,
       title: row.title || null,
       quantity: row.quantity != null ? Number(row.quantity) : 0,

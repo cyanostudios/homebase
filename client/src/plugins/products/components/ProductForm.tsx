@@ -29,8 +29,6 @@ const MARKETS = [
   { key: 'no' as const, label: 'Norge', currency: 'NOK', lang: 'nb-NO' },
 ];
 
-const DEFAULT_LANGUAGE = 'sv-SE'; // Default market/language (Svenska)
-
 /** CDON/Fyndiq preset-size_SML (storlek dropdown) */
 const SIZE_OPTIONS = [
   { value: '', label: '— Välj storlek —' },
@@ -664,6 +662,8 @@ type FormData = {
   markets: Record<MarketKey, MarketData>;
   /** Per-market language: title, description (SE/DK/FI/NO) */
   texts: Record<MarketKey, TextData>;
+  /** Which market's text to use as fallback when a market has no own text (for CDON/Fyndiq) */
+  standardTextMarket: MarketKey;
   /** Per-channel categories: one value for CDON, one for Fyndiq; Woo per instance */
   channelCategories: ChannelCategory;
   /** CDON/Fyndiq advanced (stored in channelSpecific) */
@@ -775,6 +775,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       fi: createEmptyText(),
       no: createEmptyText(),
     },
+    standardTextMarket: 'se',
     channelCategories: {},
   };
 
@@ -1123,25 +1124,28 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           : typeof extended?.bulletpoints === 'string'
             ? extended.bulletpoints
             : '';
+        const titleFromExtended = (extended as any)?.name;
+        const descFromExtended = (extended as any)?.description;
         texts[m.key] =
           tData && typeof tData === 'object'
             ? {
-                title: tData.title ?? baseTitle,
-                description: tData.description ?? baseDesc,
+                title: tData.title ?? titleFromExtended ?? baseTitle,
+                description: tData.description ?? descFromExtended ?? baseDesc,
                 titleSeo: extended?.titleSeo ?? '',
                 metaDesc: extended?.metaDesc ?? '',
                 metaKeywords: extended?.metaKeywords ?? '',
                 bulletpoints: bulletpointsStr,
                 validFor,
               }
-            : m.key === 'se'
+            : titleFromExtended || descFromExtended || m.key === 'se'
               ? {
-                  title: baseTitle,
-                  description: baseDesc,
+                  title: titleFromExtended ?? baseTitle,
+                  description: descFromExtended ?? baseDesc,
                   titleSeo: extended?.titleSeo ?? '',
                   metaDesc: extended?.metaDesc ?? '',
                   metaKeywords: extended?.metaKeywords ?? '',
                   bulletpoints: bulletpointsStr,
+                  validFor,
                 }
               : {
                   title: '',
@@ -1315,6 +1319,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         listId: (currentProduct as any).listId ?? '',
         markets,
         texts,
+        standardTextMarket: (['se', 'dk', 'fi', 'no'] as const).includes((cs as any)?.textsStandard)
+          ? (cs as any).textsStandard
+          : 'se',
         channelCategories: {
           cdon: cdonCategoryForForm,
           fyndiq: fyndiqCategoryForForm,
@@ -1645,24 +1652,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       }).map((m) => ({ market: m.key.toUpperCase(), value: formData.markets[m.key].deliveryType }));
 
       // Build title/description arrays per channel from texts + validFor (API format: { language, value }[])
-      // Default sv-SE always included. Non-default: only if validFor[channel] is true.
+      // Uses standardTextMarket as fallback when a market has no own text.
+      const standardKey = formData.standardTextMarket ?? 'se';
+      const standardText = formData.texts[standardKey];
       const buildTextArrays = (channel: 'cdon' | 'fyndiq') => {
         const arr: Array<{ language: string; value: string }> = [];
-        const se = formData.texts.se;
-        if (se?.title && se.title.trim().length >= 5) {
-          arr.push({ language: 'sv-SE', value: se.title.trim().slice(0, 150) });
-        }
         for (const m of MARKETS) {
-          if (m.key === 'se') {
-            continue;
-          }
           const t = formData.texts[m.key];
           const vf = t?.validFor;
-          const useForChannel = vf?.[channel] === true;
-          if (!useForChannel || !t?.title?.trim()) {
+          const useForChannel = vf?.[channel] !== false;
+          if (!useForChannel) {
             continue;
           }
-          const val = t.title.trim().slice(0, 150);
+          const val = (t?.title?.trim() || standardText?.title?.trim() || '').slice(0, 150);
           if (val.length >= 5) {
             arr.push({ language: m.lang, value: val });
           }
@@ -1671,21 +1673,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       };
       const buildDescArrays = (channel: 'cdon' | 'fyndiq') => {
         const arr: Array<{ language: string; value: string }> = [];
-        const se = formData.texts.se;
-        if (se?.description && se.description.trim().length >= 10) {
-          arr.push({ language: 'sv-SE', value: se.description.trim().slice(0, 4096) });
-        }
         for (const m of MARKETS) {
-          if (m.key === 'se') {
-            continue;
-          }
           const t = formData.texts[m.key];
           const vf = t?.validFor;
-          const useForChannel = vf?.[channel] === true;
-          if (!useForChannel || !t?.description?.trim()) {
+          const useForChannel = vf?.[channel] !== false;
+          if (!useForChannel) {
             continue;
           }
-          const val = t.description.trim().slice(0, 4096);
+          const val = (t?.description?.trim() || standardText?.description?.trim() || '').slice(
+            0,
+            4096,
+          );
           if (val.length >= 10) {
             arr.push({ language: m.lang, value: val });
           }
@@ -1728,7 +1726,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       };
       const textsExtended: Record<
         string,
-        { titleSeo?: string; metaDesc?: string; metaKeywords?: string; bulletpoints?: string[] }
+        {
+          name?: string;
+          description?: string;
+          titleSeo?: string;
+          metaDesc?: string;
+          metaKeywords?: string;
+          bulletpoints?: string[];
+        }
       > = {};
       for (const m of MARKETS) {
         const t = formData.texts[m.key];
@@ -1739,13 +1744,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               .map((s) => s.trim())
               .filter(Boolean)
           : undefined;
-        if (
+        const hasContent =
+          (t?.title ?? '').trim() ||
+          (t?.description ?? '').trim() ||
           (t?.titleSeo ?? '').trim() ||
           (t?.metaDesc ?? '').trim() ||
           (t?.metaKeywords ?? '').trim() ||
-          (bulletpointsArr?.length ?? 0) > 0
-        ) {
+          (bulletpointsArr?.length ?? 0) > 0;
+        if (hasContent) {
           textsExtended[m.key] = {
+            ...((t?.title ?? '').trim() && { name: (t.title ?? '').trim() }),
+            ...((t?.description ?? '').trim() && { description: (t.description ?? '').trim() }),
             ...((t?.titleSeo ?? '').trim() && { titleSeo: (t.titleSeo ?? '').trim() }),
             ...((t?.metaDesc ?? '').trim() && { metaDesc: (t.metaDesc ?? '').trim() }),
             ...((t?.metaKeywords ?? '').trim() && { metaKeywords: (t.metaKeywords ?? '').trim() }),
@@ -1756,6 +1765,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       if (Object.keys(textsExtended).length > 0) {
         (channelSpecific as any).textsExtended = textsExtended;
       }
+      (channelSpecific as any).textsStandard = standardKey;
       const baseAmount =
         typeof formData.priceAmount === 'number' && Number.isFinite(formData.priceAmount)
           ? formData.priceAmount
@@ -2348,29 +2358,46 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               Texter per marknad
             </Heading>
             <p className="text-sm text-gray-600 mb-4">
-              Titel och beskrivning per språk. sv-SE är standard. Välj land till vänster –
-              innehållet visas till höger.
+              Titel och beskrivning per språk. Välj land till vänster – innehållet visas till höger.
+              Markera vilken text som ska användas som standard (fallback) när ett land saknar egen
+              text.
             </p>
             <div className="flex gap-0 min-h-[320px]" style={{ minHeight: 'min(320px, 50vh)' }}>
               {/* Left: country list ~20% */}
               <div className="w-[20%] min-w-[120px] flex flex-col border-r border-gray-200 pr-2">
                 {MARKETS.map((m) => {
-                  const isDefault = m.lang === DEFAULT_LANGUAGE;
+                  const isStandard = formData.standardTextMarket === m.key;
                   const isSelected = selectedTextMarket === m.key;
                   return (
-                    <button
+                    <div
                       key={m.key}
-                      type="button"
-                      onClick={() => setSelectedTextMarket(m.key)}
-                      className={`text-left px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                      className={`flex items-center justify-between gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                         isSelected ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-100'
                       }`}
+                      onClick={() => setSelectedTextMarket(m.key)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedTextMarket(m.key);
+                        }
+                      }}
                     >
-                      {m.label}
-                      {isDefault && (
-                        <span className="ml-1.5 text-xs text-gray-500 font-normal">(standard)</span>
-                      )}
-                    </button>
+                      <span className="flex-1 text-left truncate">{m.label}</span>
+                      <input
+                        type="radio"
+                        name="standardTextMarket"
+                        checked={isStandard}
+                        onChange={() => {
+                          setFormData((prev) => ({ ...prev, standardTextMarket: m.key }));
+                          markDirty();
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 cursor-pointer"
+                        aria-label={`Använd ${m.label} som standard`}
+                      />
+                    </div>
                   );
                 })}
               </div>
@@ -2379,17 +2406,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 {(() => {
                   const m = MARKETS.find((x) => x.key === selectedTextMarket) ?? MARKETS[0];
                   const t = formData.texts[m.key];
-                  const isDefault = m.lang === DEFAULT_LANGUAGE;
+                  const isStandard = formData.standardTextMarket === m.key;
                   const vf = t?.validFor ?? { cdon: true, fyndiq: true };
                   return (
                     <>
                       <div>
-                        <Label className="mb-1">Titel {isDefault && '*'}</Label>
+                        <Label className="mb-1">Titel {isStandard && '*'}</Label>
                         <Input
                           value={t?.title ?? ''}
                           onChange={(e) => updateText(m.key, 'title', e.target.value)}
                           placeholder={
-                            isDefault ? 'Produkttitel' : 'Översättning eller tomt för standard'
+                            isStandard ? 'Produkttitel' : 'Översättning eller tomt för standard'
                           }
                         />
                       </div>
@@ -2398,7 +2425,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         <RichTextEditor
                           value={t?.description ?? ''}
                           onChange={(html) => updateText(m.key, 'description', html)}
-                          placeholder={isDefault ? 'Produktbeskrivning' : 'Översättning eller tomt'}
+                          placeholder={
+                            isStandard ? 'Produktbeskrivning' : 'Översättning eller tomt'
+                          }
                           minHeight={180}
                           showSourceToggle
                         />
@@ -2445,7 +2474,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           </div>
                         </CollapsibleContent>
                       </Collapsible>
-                      {!isDefault && (
+                      {!isStandard && (
                         <div className="flex flex-wrap gap-4 pt-2 border-t border-gray-100">
                           <span className="text-xs text-gray-500 self-center">Skicka till:</span>
                           <label className="flex items-center gap-2">

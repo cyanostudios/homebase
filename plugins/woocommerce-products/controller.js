@@ -11,6 +11,12 @@ const CdonProductsModel = require('../cdon-products/model');
 const FyndiqProductsModel = require('../fyndiq-products/model');
 const { fetchCategoriesFromApi: fetchWooCategoriesFromApi } = require('./fetchCategories');
 
+function isValidImageUrl(s) {
+  if (typeof s !== 'string' || !s.trim()) return false;
+  const t = s.trim();
+  return (t.startsWith('http://') || t.startsWith('https://')) && t.length > 8;
+}
+
 class WooCommerceController {
   constructor(model) {
     this.model = model;
@@ -375,10 +381,10 @@ class WooCommerceController {
         for (const p of products) {
           const pid = String(p?.id || '');
           if (mapByProductId.has(pid)) continue;
-          const sku = String(p?.sku || '').trim();
-          if (!sku) continue;
-          const found = await this.findWooProductBySku(base, sku, settings).catch(() => null);
-          if (found?.id) existingBySku.set(sku, found.id);
+          const exportSku = p?.id != null ? String(p.id) : null;
+          if (!exportSku) continue;
+          const found = await this.findWooProductBySku(base, exportSku, settings).catch(() => null);
+          if (found?.id) existingBySku.set(exportSku, found.id);
         }
 
         const createPayload = [];
@@ -390,9 +396,45 @@ class WooCommerceController {
 
         for (const p of products) {
           const pid = String(p?.id || '');
+          const exportSku = p?.id != null ? String(p.id) : null;
+          const priceAmount = p?.priceAmount != null ? Number(p.priceAmount) : null;
+          if (priceAmount === null || priceAmount === undefined) {
+            aggregated.counts.error += 1;
+            aggregated.items.push({
+              productId: pid,
+              sku: exportSku,
+              status: 'validation_error',
+              reason: 'missing_or_invalid_effective_price',
+            });
+            continue;
+          }
+          if (p?.mainImage && !isValidImageUrl(p.mainImage)) {
+            aggregated.counts.error += 1;
+            aggregated.items.push({
+              productId: pid,
+              sku: exportSku,
+              status: 'validation_error',
+              reason: 'invalid_main_image_url',
+            });
+            continue;
+          }
+          const images = Array.isArray(p?.images) ? p.images : [];
+          const invalidImage = images.find(
+            (u) => u != null && String(u).trim() && !isValidImageUrl(String(u).trim()),
+          );
+          if (invalidImage) {
+            aggregated.counts.error += 1;
+            aggregated.items.push({
+              productId: pid,
+              sku: exportSku,
+              status: 'validation_error',
+              reason: 'invalid_images_url',
+            });
+            continue;
+          }
           const payload = this.mapProductToWoo(p, categoriesByProductId.get(pid) || []);
-          const sku = String(p?.sku || payload?.sku || '').trim();
-          const mappedId = mapByProductId.get(pid) || (sku ? existingBySku.get(sku) : null);
+          const mappedId =
+            mapByProductId.get(pid) || (exportSku ? existingBySku.get(exportSku) : null);
           if (mappedId) {
             updatePayload.push({ id: mappedId, ...payload });
           } else {
@@ -447,8 +489,8 @@ class WooCommerceController {
         const items = [];
         for (const p of products) {
           const pid = String(p?.id || '');
-          const sku = (p?.sku || '').trim();
-          const viaSku = sku ? successes.get(sku) : null;
+          const exportSku = p?.id != null ? String(p.id) : null;
+          const viaSku = exportSku ? successes.get(exportSku) : null;
           const viaMapId = mapByProductId.get(pid);
           const found = viaSku || (viaMapId ? { wooId: viaMapId } : null);
 
@@ -463,7 +505,7 @@ class WooCommerceController {
             });
             items.push({
               productId: pid,
-              sku: sku || null,
+              sku: exportSku || null,
               status: 'success',
               externalId: found.wooId,
             });
@@ -607,14 +649,14 @@ class WooCommerceController {
       const validForInstance = [];
       for (const p of products) {
         const productId = String(p?.id || '').trim();
-        const sku = String(p?.sku || '').trim();
+        const exportSku = p?.id != null ? String(p.id) : null;
         const mappedExternalId = mapByProductId.get(productId);
         if (!mappedExternalId) {
           report.skipped_no_map += 1;
           report.expected_skip += 1;
           report.rows.push({
             productId,
-            sku: sku || null,
+            sku: exportSku || null,
             channel: 'woocommerce',
             instanceKey: instance.instanceKey || null,
             status: 'skipped_no_map',
@@ -626,20 +668,21 @@ class WooCommerceController {
 
         const quantity = Number(p?.quantity);
         const overrideRaw = Number(priceByProductId.get(productId));
-        const overridePrice = Number.isFinite(overrideRaw) && overrideRaw > 0 ? overrideRaw : null;
+        const overridePrice = Number.isFinite(overrideRaw) && overrideRaw >= 0 ? overrideRaw : null;
         const baseRaw = Number(p?.priceAmount);
-        const basePrice = Number.isFinite(baseRaw) && baseRaw > 0 ? baseRaw : null;
+        const basePrice = Number.isFinite(baseRaw) && baseRaw >= 0 ? baseRaw : null;
         const priceAmount = overridePrice != null ? overridePrice : basePrice;
         if (
           !Number.isFinite(quantity) ||
           quantity < 0 ||
-          !Number.isFinite(priceAmount) ||
-          priceAmount <= 0
+          priceAmount === null ||
+          priceAmount === undefined ||
+          !Number.isFinite(priceAmount)
         ) {
           report.validation_error += 1;
           report.rows.push({
             productId,
-            sku: sku || null,
+            sku: exportSku || null,
             channel: 'woocommerce',
             instanceKey: instance.instanceKey || null,
             status: 'validation_error',
@@ -654,7 +697,7 @@ class WooCommerceController {
           stock_quantity: Math.trunc(quantity),
           regular_price: String(priceAmount),
         });
-        validForInstance.push({ productId, sku: sku || null });
+        validForInstance.push({ productId, sku: exportSku || null });
       }
 
       if (!updatePayload.length) {
@@ -1454,10 +1497,10 @@ class WooCommerceController {
   // Transform MVP Product -> Woo product payload
   mapProductToWoo(p, overrideCategories = []) {
     const images = [];
-    if (p?.mainImage) images.push({ src: p.mainImage });
+    if (p?.mainImage && isValidImageUrl(p.mainImage)) images.push({ src: p.mainImage });
     if (Array.isArray(p?.images)) {
       for (const src of p.images) {
-        if (src) images.push({ src });
+        if (src && isValidImageUrl(String(src).trim())) images.push({ src: String(src).trim() });
       }
     }
 
@@ -1473,7 +1516,7 @@ class WooCommerceController {
     if (gtin) metaData.push({ key: 'gtin', value: gtin });
 
     return {
-      sku: p?.sku ?? null,
+      sku: p?.id != null ? String(p.id) : null,
       name: p?.title ?? '',
       status: this.mapStatusToWoo(p?.status),
       regular_price: p?.priceAmount != null ? String(p.priceAmount) : undefined,

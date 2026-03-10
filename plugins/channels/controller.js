@@ -46,6 +46,27 @@ class ChannelsController {
   }
 
   /**
+   * GET /api/channels/product-links?productId=...
+   * Returns channel links with external_id for building product URLs (CDON, Fyndiq, etc.).
+   */
+  async getProductChannelLinks(req, res) {
+    try {
+      const productId = String(req.query?.productId || '').trim();
+      if (!productId) {
+        return res.status(400).json({ error: 'productId is required', code: 'VALIDATION_ERROR' });
+      }
+      const links = await this.model.getProductChannelLinks(req, productId);
+      return res.json({ ok: true, links });
+    } catch (error) {
+      Logger.error('Channels getProductChannelLinks error', error, {
+        userId: Context.getUserId(req),
+      });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      res.status(500).json({ error: 'Failed to fetch product channel links' });
+    }
+  }
+
+  /**
    * GET /api/channels/map?productId=...&channel=...
    * Returns the single channel mapping row (or null) for the given product/channel.
    */

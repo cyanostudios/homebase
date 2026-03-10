@@ -140,17 +140,30 @@ function guessExtension(contentType, sourceUrl) {
   return /^[a-z0-9]{2,5}$/.test(safe) ? safe : 'jpg';
 }
 
+/** Preferred language order for primary title/description when Swedish is missing. */
+const SELLO_LANG_PRIORITY = ['sv', 'fi', 'da', 'nb', 'no', 'en'];
+
+function getSelloTextValue(texts, field, lang) {
+  const t = texts?.default?.[lang];
+  if (!t || typeof t !== 'object') return '';
+  return String(t[field] ?? '').trim();
+}
+
 function getSelloStandardNameSv(product) {
   const texts = product?.texts;
   if (!texts || typeof texts !== 'object') return '';
 
-  const defaultSv = String(texts?.default?.sv?.name ?? '').trim();
-  if (defaultSv) return defaultSv;
-
+  for (const lang of SELLO_LANG_PRIORITY) {
+    const v = getSelloTextValue(texts, 'name', lang);
+    if (v) return v;
+  }
   for (const [integrationKey, integrationTexts] of Object.entries(texts)) {
     if (integrationKey === 'default') continue;
-    const svName = String(integrationTexts?.sv?.name ?? '').trim();
-    if (svName) return svName;
+    if (!integrationTexts || typeof integrationTexts !== 'object') continue;
+    for (const lang of SELLO_LANG_PRIORITY) {
+      const v = String(integrationTexts?.[lang]?.name ?? '').trim();
+      if (v) return v;
+    }
   }
   return '';
 }
@@ -159,13 +172,17 @@ function getSelloStandardDescriptionSv(product) {
   const texts = product?.texts;
   if (!texts || typeof texts !== 'object') return '';
 
-  const defaultSv = String(texts?.default?.sv?.description ?? '').trim();
-  if (defaultSv) return defaultSv;
-
+  for (const lang of SELLO_LANG_PRIORITY) {
+    const v = getSelloTextValue(texts, 'description', lang);
+    if (v) return v;
+  }
   for (const [integrationKey, integrationTexts] of Object.entries(texts)) {
     if (integrationKey === 'default') continue;
-    const svDescription = String(integrationTexts?.sv?.description ?? '').trim();
-    if (svDescription) return svDescription;
+    if (!integrationTexts || typeof integrationTexts !== 'object') continue;
+    for (const lang of SELLO_LANG_PRIORITY) {
+      const v = String(integrationTexts?.[lang]?.description ?? '').trim();
+      if (v) return v;
+    }
   }
   return '';
 }
@@ -276,7 +293,7 @@ function getSelloAllCategoryIds(product) {
   return out;
 }
 
-/** Extract textsExtended (titleSeo, metaDesc, metaKeywords, bulletpoints) from Sello texts per market. */
+/** Extract textsExtended (name, description, titleSeo, metaDesc, metaKeywords, bulletpoints) from Sello texts per market. */
 function getSelloTextsExtended(product) {
   const texts = product?.texts;
   if (!texts || typeof texts !== 'object') return null;
@@ -288,13 +305,17 @@ function getSelloTextsExtended(product) {
     if (!t || typeof t !== 'object') continue;
     const market = langToMarket[lang] || (lang === 'en' ? 'se' : null);
     if (!market || out[market]) continue;
+    const name = String(t.name ?? '').trim();
+    const description = String(t.description ?? '').trim();
     const titleSeo = String(t.title ?? '').trim();
     const metaDesc = String(t.meta_description ?? '').trim();
     const metaKeywords = String(t.meta_keywords ?? '').trim();
     const bp = t.bulletpoints;
     const bulletpoints = Array.isArray(bp) ? bp.filter(Boolean).map(String) : [];
-    if (titleSeo || metaDesc || metaKeywords || bulletpoints.length > 0) {
+    if (name || description || titleSeo || metaDesc || metaKeywords || bulletpoints.length > 0) {
       out[market] = {
+        ...(name && { name }),
+        ...(description && { description }),
         ...(titleSeo && { titleSeo }),
         ...(metaDesc && { metaDesc }),
         ...(metaKeywords && { metaKeywords }),
@@ -431,6 +452,11 @@ function getSelloPattern(product) {
 /** Pattern fritext from Sello property "Mönster" när preset saknas. */
 function getSelloPatternText(product) {
   return getSelloPropertyValue(product, ['mönster', 'pattern_text']);
+}
+
+/** Model (fritext) from Sello property "Model" or "Modell" – för gruppering per modell. */
+function getSelloModel(product) {
+  return getSelloPropertyValue(product, ['model', 'modell']);
 }
 
 const MARKETS_FOR_SHIPPING = ['SE', 'DK', 'FI', 'NO'];
@@ -1501,6 +1527,29 @@ class ProductController {
         : null;
 
       if (selloProductIds && selloProductIds.length > 0) {
+        let groupsByGroupId = new Map();
+        try {
+          const listPath = `/v5/products?size=100&${selloProductIds
+            .map((id) => `filter[id][]=${encodeURIComponent(id)}`)
+            .join('&')}`;
+          const listRes = await this.selloModel.fetchSelloJson({ apiKey, path: listPath });
+          const groups = Array.isArray(listRes?.groups) ? listRes.groups : [];
+          for (const g of groups) {
+            const gid = g.id ?? g.group_id;
+            if (gid != null) {
+              groupsByGroupId.set(String(gid), {
+                mainProduct: g.main_product,
+                type:
+                  g.type && ['color', 'size', 'model'].includes(String(g.type).toLowerCase())
+                    ? String(g.type).toLowerCase()
+                    : null,
+              });
+            }
+          }
+        } catch {
+          groupsByGroupId = new Map();
+        }
+        const selloIdToHomebaseId = new Map();
         for (const productId of selloProductIds) {
           let raw;
           try {
@@ -1547,7 +1596,7 @@ class ProductController {
             summary.rows.push({
               sku,
               status: 'skipped_invalid',
-              reason: 'missing_standard_name_sv',
+              reason: 'missing_title',
               sourceCreatedAt: raw?.created_at || null,
             });
             continue;
@@ -1609,7 +1658,7 @@ class ProductController {
             );
           }
           const upsertResult = await this.model.upsertFromSelloProduct(req, {
-            sku,
+            selloId: sku,
             privateName: (() => {
               const v = raw?.private_name ?? raw?.product?.private_name;
               return v != null ? String(v).trim() : null;
@@ -1639,6 +1688,7 @@ class ProductController {
             material: getSelloMaterial(raw),
             pattern: getSelloPattern(raw),
             patternText: getSelloPattern(raw) ? null : (getSelloPatternText(raw) ?? null),
+            model: getSelloModel(raw) || undefined,
             lagerplats: raw?.stock_location != null ? String(raw.stock_location).trim() : undefined,
             condition: raw?.condition === 'used' ? 'used' : 'new',
             groupId: raw?.group_id != null ? String(raw.group_id) : undefined,
@@ -1652,6 +1702,8 @@ class ProductController {
             lastSoldAt: raw?.last_sold != null ? String(raw.last_sold).trim() : undefined,
           });
           const createdProductId = String(upsertResult?.product?.id || '').trim();
+          const groupIdRaw = raw?.group_id != null ? String(raw.group_id) : null;
+          if (createdProductId && groupIdRaw) selloIdToHomebaseId.set(sku, { groupId: groupIdRaw });
           if (createdProductId && selloList?.id) {
             await this.model.setProductList(req, createdProductId, selloList.id);
           }
@@ -1712,6 +1764,18 @@ class ProductController {
             });
           }
         }
+        for (const [selloId, { groupId }] of selloIdToHomebaseId) {
+          if (!groupId) continue;
+          const groupInfo = groupsByGroupId.get(groupId);
+          if (!groupInfo) continue;
+          const mainSelloId = String(groupInfo.mainProduct ?? '');
+          const isMain = selloId === mainSelloId;
+          const parentProductId = isMain ? null : mainSelloId;
+          await this.model.updateProductGroupRelation(req, selloId, {
+            parentProductId,
+            groupVariationType: groupInfo.type,
+          });
+        }
         return res.json(summary);
       }
 
@@ -1751,7 +1815,7 @@ class ProductController {
             summary.rows.push({
               sku,
               status: 'skipped_invalid',
-              reason: 'missing_standard_name_sv',
+              reason: 'missing_title',
               sourceCreatedAt: raw?.created_at || null,
             });
             continue;
@@ -1814,7 +1878,7 @@ class ProductController {
             );
           }
           const upsertResult = await this.model.upsertFromSelloProduct(req, {
-            sku,
+            selloId: sku,
             privateName: (() => {
               const v = raw?.private_name ?? raw?.product?.private_name;
               return v != null ? String(v).trim() : null;
@@ -1844,6 +1908,7 @@ class ProductController {
             material: getSelloMaterial(raw),
             pattern: getSelloPattern(raw),
             patternText: getSelloPattern(raw) ? null : (getSelloPatternText(raw) ?? null),
+            model: getSelloModel(raw) || undefined,
             lagerplats: raw?.stock_location != null ? String(raw.stock_location).trim() : undefined,
             condition: raw?.condition === 'used' ? 'used' : 'new',
             groupId: raw?.group_id != null ? String(raw.group_id) : undefined,

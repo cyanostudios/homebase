@@ -58,6 +58,18 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
     Record<string, { active: boolean; priceAmount: string; currency: string; category: string }>
   >({});
 
+  // ---- Channel links (external_id from Sello/buildChannelMapFromSello) ----
+  const [channelLinks, setChannelLinks] = useState<
+    Array<{
+      channel: string;
+      market: string | null;
+      label: string | null;
+      externalId: string;
+      url: string;
+    }>
+  >([]);
+  const [loadingChannelLinks, setLoadingChannelLinks] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     async function loadMap() {
@@ -140,6 +152,62 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
       }
     };
     run();
+    return () => {
+      cancelled = true;
+    };
+  }, [productData.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLinks() {
+      if (!productData.id) {
+        setChannelLinks([]);
+        return;
+      }
+      setLoadingChannelLinks(true);
+      try {
+        const res = await channelsApi.getProductChannelLinks(String(productData.id));
+        if (cancelled) {
+          return;
+        }
+        const built: Array<{
+          channel: string;
+          market: string | null;
+          label: string | null;
+          externalId: string;
+          url: string;
+        }> = [];
+        for (const link of res.links || []) {
+          const ch = link.channel.toLowerCase();
+          const tld = link.market || 'se';
+          let url = '';
+          if (ch === 'cdon') {
+            url = `https://cdon.${tld}/produkt/${link.externalId}/`;
+          } else if (ch === 'fyndiq') {
+            url = `https://fyndiq.${tld}/produkt/${link.externalId}/`;
+          }
+          if (url) {
+            built.push({
+              channel: ch,
+              market: link.market,
+              label: link.label,
+              externalId: link.externalId,
+              url,
+            });
+          }
+        }
+        setChannelLinks(built);
+      } catch {
+        if (!cancelled) {
+          setChannelLinks([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingChannelLinks(false);
+        }
+      }
+    }
+    loadLinks();
     return () => {
       cancelled = true;
     };
@@ -506,6 +574,36 @@ export const ProductView: React.FC<ProductViewProps> = ({ item, product }) => {
           )}
         </div>
       </Card>
+
+      {/* Channel links */}
+      {(channelLinks.length > 0 || loadingChannelLinks) && (
+        <Card padding="sm" className="shadow-none px-0">
+          <Heading level={3} className="mb-3">
+            Channel links
+          </Heading>
+          {loadingChannelLinks ? (
+            <div className="text-sm text-gray-500">Loading…</div>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              {channelLinks.map((link) => (
+                <a
+                  key={`${link.channel}-${link.market}-${link.externalId}`}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+                >
+                  <span className="capitalize">{link.channel}</span>
+                  {link.market && (
+                    <span className="text-gray-500">({link.market.toUpperCase()})</span>
+                  )}
+                  <span className="text-gray-400">→</span>
+                </a>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Metadata */}
       <Card padding="sm" className="shadow-none px-0">

@@ -89,6 +89,22 @@ class ChannelsApi {
     return this.request(`/product-targets?${q.toString()}`);
   }
 
+  // GET /api/channels/product-links?productId=...
+  async getProductChannelLinks(productId: string): Promise<{
+    ok: true;
+    links: Array<{
+      channel: string;
+      channelInstanceId: string | null;
+      market: string | null;
+      label: string | null;
+      instanceKey: string | null;
+      externalId: string;
+    }>;
+  }> {
+    const q = new URLSearchParams({ productId });
+    return this.request(`/product-links?${q.toString()}`);
+  }
+
   // GET /api/channels/map?productId=...&channel=...
   async getProductMap(params: {
     productId: string;

@@ -2,6 +2,8 @@
 
 Låst kravmatris för CDON, Fyndiq och WooCommerce. Varje regel är mappad till exakt validering i kod.
 
+**Detaljerad mappning:** [REQUIREMENTS_TO_CODE_MAPPING.md](REQUIREMENTS_TO_CODE_MAPPING.md) – krav → fil, funktion, rad, reason/error.
+
 ## CDON (create/full update)
 
 - **Obligatoriskt payload-innehåll**

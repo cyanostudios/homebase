@@ -376,12 +376,10 @@ class CdonProductsController {
       const merchantId = String(settings?.apiKey ?? '').trim();
       const apiToken = String(settings?.apiSecret ?? '').trim();
       if (!merchantId || !apiToken) {
-        return res
-          .status(400)
-          .json({
-            ok: false,
-            error: 'Missing CDON credentials (merchantID and API token required).',
-          });
+        return res.status(400).json({
+          ok: false,
+          error: 'Missing CDON credentials (merchantID and API token required).',
+        });
       }
 
       // Merchants API: GET /v1/orders?state=CREATED&limit=10&page=1 (docs.cdon.com)
@@ -446,12 +444,10 @@ class CdonProductsController {
       const merchantId = String(settings?.apiKey ?? '').trim();
       const apiToken = String(settings?.apiSecret ?? '').trim();
       if (!merchantId || !apiToken) {
-        return res
-          .status(400)
-          .json({
-            ok: false,
-            error: 'CDON settings not found. Save merchantID and API token first.',
-          });
+        return res.status(400).json({
+          ok: false,
+          error: 'CDON settings not found. Save merchantID and API token first.',
+        });
       }
       const items = await fetchCategoriesFromApiModule(market, language, merchantId, apiToken);
       return res.json({ ok: true, items });
@@ -474,12 +470,10 @@ class CdonProductsController {
     try {
       const settings = await this.model.getSettings(req);
       if (!settings?.apiKey || !settings?.apiSecret) {
-        return res
-          .status(400)
-          .json({
-            ok: false,
-            error: 'CDON settings not found. Save merchantID and API token first.',
-          });
+        return res.status(400).json({
+          ok: false,
+          error: 'CDON settings not found. Save merchantID and API token first.',
+        });
       }
       const body = req.body && typeof req.body === 'object' ? JSON.stringify(req.body) : undefined;
       const url = `${CDON_MERCHANTS_API}/v2/articles/bulk`;
@@ -504,12 +498,10 @@ class CdonProductsController {
     try {
       const settings = await this.model.getSettings(req);
       if (!settings?.apiKey || !settings?.apiSecret) {
-        return res
-          .status(400)
-          .json({
-            ok: false,
-            error: 'CDON settings not found. Save merchantID and API token first.',
-          });
+        return res.status(400).json({
+          ok: false,
+          error: 'CDON settings not found. Save merchantID and API token first.',
+        });
       }
       const body = req.body && typeof req.body === 'object' ? JSON.stringify(req.body) : undefined;
       const url = `${CDON_MERCHANTS_API}/v2/articles/bulk`;
@@ -534,12 +526,10 @@ class CdonProductsController {
     try {
       const settings = await this.model.getSettings(req);
       if (!settings?.apiKey || !settings?.apiSecret) {
-        return res
-          .status(400)
-          .json({
-            ok: false,
-            error: 'CDON settings not found. Save merchantID and API token first.',
-          });
+        return res.status(400).json({
+          ok: false,
+          error: 'CDON settings not found. Save merchantID and API token first.',
+        });
       }
       const body = req.body && typeof req.body === 'object' ? JSON.stringify(req.body) : undefined;
       const url = `${CDON_MERCHANTS_API}/v1/statuses/batch`;
@@ -567,12 +557,10 @@ class CdonProductsController {
     try {
       const settings = await this.model.getSettings(req);
       if (!settings?.apiKey || !settings?.apiSecret) {
-        return res
-          .status(400)
-          .json({
-            ok: false,
-            error: 'CDON settings not found. Save merchantID and API token first.',
-          });
+        return res.status(400).json({
+          ok: false,
+          error: 'CDON settings not found. Save merchantID and API token first.',
+        });
       }
       const body = req.body && typeof req.body === 'object' ? JSON.stringify(req.body) : undefined;
       const url = `${CDON_MERCHANTS_API}/v1/statuses/sku`;
@@ -1701,7 +1689,7 @@ class CdonProductsController {
     let platformProductId = null;
     if (userId && sku) {
       const mapRes = await db.query(
-        `SELECT id::text AS product_id FROM products WHERE user_id = $1 AND sku = $2 LIMIT 1`,
+        `SELECT id::text AS product_id FROM products WHERE user_id = $1 AND id::text = $2 LIMIT 1`,
         [userId, sku],
       );
       if (mapRes.length) platformProductId = String(mapRes[0].product_id);

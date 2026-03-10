@@ -4,6 +4,17 @@
 
 const DEFAULT_CURRENCY_BY_MARKET = { SE: 'SEK', DK: 'DKK', FI: 'EUR', NO: 'NOK' };
 
+const MARKET_TO_LANG = { SE: 'sv-SE', DK: 'da-DK', FI: 'fi-FI', NO: 'nb-NO' };
+
+const SKU_MIN = 1;
+const SKU_MAX = 64;
+
+function isValidUrl(s) {
+  if (typeof s !== 'string' || !s.trim()) return false;
+  const t = s.trim();
+  return (t.startsWith('http://') || t.startsWith('https://')) && t.length > 8;
+}
+
 function parseOverrideCategories(value) {
   if (value == null) return [];
   const raw = String(value).trim();
@@ -34,7 +45,7 @@ function mapProductToFyndiqArticle(
   defaultLanguage,
   marketsFilter = ['se', 'dk', 'fi'],
 ) {
-  const sku = product?.sku != null ? String(product.sku).trim() : '';
+  const sku = product?.id != null ? String(product.id).trim() : '';
   const title = product?.title != null ? String(product.title).trim() : '';
   const mainImage = product?.mainImage != null ? String(product.mainImage).trim() : '';
   const quantity =
@@ -43,7 +54,9 @@ function mapProductToFyndiqArticle(
       : null;
   const status = product?.status === 'paused' ? 'paused' : 'for sale';
 
-  if (!sku || !title || !mainImage) return null;
+  if (!sku || sku.length < SKU_MIN || sku.length > SKU_MAX) return null;
+  if (!title || !mainImage) return null;
+  if (!isValidUrl(mainImage)) return null;
   if (quantity == null || quantity < 0) return null;
 
   const fyndiq =
@@ -52,25 +65,70 @@ function mapProductToFyndiqArticle(
       : {};
   const markets = (marketsFilter || ['se', 'dk', 'fi']).map((m) => String(m).toUpperCase());
 
-  // Title: use per-language from channelSpecific or single default-language entry from product
+  // Title: per-language from fyndiq.title, textsExtended, or single default from product
+  const textsExtended = product?.channelSpecific?.textsExtended;
+  const standardMarket = ['se', 'dk', 'fi', 'no'].includes(
+    String(product?.channelSpecific?.textsStandard || '').toLowerCase(),
+  )
+    ? String(product.channelSpecific.textsStandard).toLowerCase()
+    : 'se';
+  const standardText = textsExtended?.[standardMarket];
   let titleArr = fyndiq.title && Array.isArray(fyndiq.title) ? fyndiq.title : null;
   if (!titleArr || titleArr.length === 0) {
-    const lang = defaultLanguage || 'sv-SE';
-    const value = title || '';
-    if (value.length >= 5 && value.length <= 150) titleArr = [{ language: lang, value }];
-    else if (value) titleArr = [{ language: lang, value: value.slice(0, 150) }];
+    if (textsExtended && typeof textsExtended === 'object') {
+      const arr = [];
+      const seen = new Set();
+      for (const m of markets) {
+        const mk = m.toLowerCase();
+        const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
+        if (seen.has(lang)) continue;
+        const t = textsExtended[mk];
+        // No fallback to product.title when both market and standard are empty (per user rule)
+        const value = (t?.name || standardText?.name || '').slice(0, 150);
+        if (value.length >= 5) {
+          seen.add(lang);
+          arr.push({ language: lang, value });
+        }
+      }
+      if (arr.length > 0) titleArr = arr;
+    }
+    if (!titleArr || titleArr.length === 0) {
+      const lang = defaultLanguage || 'sv-SE';
+      const value = title || '';
+      if (value.length >= 5 && value.length <= 150) titleArr = [{ language: lang, value }];
+      else if (value) titleArr = [{ language: lang, value: value.slice(0, 150) }];
+    }
   }
   if (!titleArr || titleArr.length === 0) return null;
 
-  // Description: same rule (Fyndiq requires 10–4096 chars; no padding/guessing)
+  // Description: per-language from fyndiq.description, textsExtended, or single default
   let descriptionArr =
     fyndiq.description && Array.isArray(fyndiq.description) ? fyndiq.description : null;
   if (!descriptionArr || descriptionArr.length === 0) {
-    const lang = defaultLanguage || 'sv-SE';
-    const raw = product?.description != null ? String(product.description) : '';
-    const value = raw.slice(0, 4096);
-    if (value.length >= 10) descriptionArr = [{ language: lang, value }];
-    else return null;
+    const baseDesc = product?.description != null ? String(product.description) : '';
+    if (textsExtended && typeof textsExtended === 'object') {
+      const arr = [];
+      const seen = new Set();
+      for (const m of markets) {
+        const mk = m.toLowerCase();
+        const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
+        if (seen.has(lang)) continue;
+        const t = textsExtended[mk];
+        // No fallback to product.description when both market and standard are empty (per user rule)
+        const value = (t?.description || standardText?.description || '').slice(0, 4096);
+        if (value.length >= 10) {
+          seen.add(lang);
+          arr.push({ language: lang, value });
+        }
+      }
+      if (arr.length > 0) descriptionArr = arr;
+    }
+    if (!descriptionArr || descriptionArr.length === 0) {
+      const lang = defaultLanguage || 'sv-SE';
+      const value = baseDesc.slice(0, 4096);
+      if (value.length >= 10) descriptionArr = [{ language: lang, value }];
+      else return null;
+    }
   }
   if (!descriptionArr || descriptionArr.length === 0) return null;
 
@@ -140,15 +198,19 @@ function mapProductToFyndiqArticle(
     shipping_time,
   };
 
-  if (fyndiq.parent_sku != null && String(fyndiq.parent_sku).trim())
-    payload.parent_sku = String(fyndiq.parent_sku).trim();
+  if (product?.parentProductId != null && String(product.parentProductId).trim())
+    payload.parent_sku = String(product.parentProductId).trim();
   if (fyndiq.legacy_product_id != null)
     payload.legacy_product_id = Number(fyndiq.legacy_product_id);
-  if (Array.isArray(product?.images) && product.images.length)
-    payload.images = product.images
+  if (Array.isArray(product?.images) && product.images.length) {
+    const trimmed = product.images
       .filter(Boolean)
-      .slice(0, 10)
-      .map((u) => String(u));
+      .map((u) => String(u).trim())
+      .slice(0, 10);
+    const invalid = trimmed.find((u) => !isValidUrl(u));
+    if (invalid !== undefined) return null;
+    payload.images = trimmed;
+  }
   if (product?.brand != null && String(product.brand).trim())
     payload.brand = String(product.brand).trim().slice(0, 50);
   if (product?.gtin != null && String(product.gtin).trim())
@@ -172,7 +234,7 @@ function getFyndiqArticleInputIssues(
   marketsFilter = ['se', 'dk', 'fi'],
 ) {
   const issues = [];
-  const sku = product?.sku != null ? String(product.sku).trim() : '';
+  const sku = product?.id != null ? String(product.id).trim() : '';
   const title = product?.title != null ? String(product.title).trim() : '';
   const mainImage = product?.mainImage != null ? String(product.mainImage).trim() : '';
   const quantity =
@@ -180,8 +242,10 @@ function getFyndiqArticleInputIssues(
       ? Math.max(0, Math.floor(Number(product.quantity)))
       : null;
   if (!sku) issues.push('missing_sku');
+  else if (sku.length < SKU_MIN || sku.length > SKU_MAX) issues.push('invalid_sku_length');
   if (!title) issues.push('missing_title');
   if (!mainImage) issues.push('missing_main_image');
+  else if (!isValidUrl(mainImage)) issues.push('invalid_main_image_url');
   if (quantity == null || quantity < 0) issues.push('invalid_quantity');
 
   const fyndiq =
@@ -229,6 +293,12 @@ function getFyndiqArticleInputIssues(
   });
   if (!hasPositiveMarketPrice) issues.push('missing_positive_price');
 
+  const images = Array.isArray(product?.images) ? product.images : [];
+  const invalidImage = images.find(
+    (u) => u != null && String(u).trim() && !isValidUrl(String(u).trim()),
+  );
+  if (invalidImage) issues.push('invalid_images_url');
+
   return issues;
 }
 
@@ -238,6 +308,8 @@ function validateFyndiqArticlePayload(article) {
   }
   const sku = String(article.sku || '').trim();
   if (!sku) return { ok: false, reason: 'missing_sku' };
+  if (sku.length < SKU_MIN || sku.length > SKU_MAX)
+    return { ok: false, reason: 'invalid_sku_length' };
   const status = String(article.status || '')
     .trim()
     .toLowerCase();
@@ -246,6 +318,7 @@ function validateFyndiqArticlePayload(article) {
   if (!Number.isInteger(quantity) || quantity < 0) return { ok: false, reason: 'invalid_quantity' };
   const mainImage = String(article.main_image || '').trim();
   if (!mainImage) return { ok: false, reason: 'missing_main_image' };
+  if (!isValidUrl(mainImage)) return { ok: false, reason: 'invalid_main_image_url' };
 
   const categories = Array.isArray(article.categories) ? article.categories : [];
   if (!categories.length) return { ok: false, reason: 'missing_categories' };
@@ -304,6 +377,12 @@ function validateFyndiqArticlePayload(article) {
       return { ok: false, reason: 'invalid_shipping_time_range' };
     }
   }
+
+  const images = Array.isArray(article.images) ? article.images : [];
+  const invalidImg = images.find(
+    (u) => u != null && String(u).trim() && !isValidUrl(String(u).trim()),
+  );
+  if (invalidImg) return { ok: false, reason: 'invalid_images_url' };
 
   return { ok: true };
 }

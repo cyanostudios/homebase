@@ -2,11 +2,13 @@
 // Mock Database Adapter for testing
 
 const DatabaseService = require('../DatabaseService');
-const AppError = require('../../../errors/AppError');
+const { AppError } = require('../../../errors/AppError');
 
 class MockAdapter extends DatabaseService {
   constructor(config = {}) {
     super();
+    this._isTestOverride = true; // So ServiceManager.get('database', req) returns this when overridden
+    this.pool = {}; // Required by Database.get(req) - mock for tests
     this.data = {}; // In-memory storage: { tableName: { id: record } }
     this.queryLog = []; // Log all queries for testing
     this.autoIncrement = {}; // Auto-increment counters per table
@@ -20,7 +22,11 @@ class MockAdapter extends DatabaseService {
     this.queryLog.push({ sql, params, context });
 
     const lowerSql = sql.toLowerCase().trim();
-    const tableMatch = sql.match(/from\s+(\w+)/i) || sql.match(/into\s+(\w+)/i) || sql.match(/update\s+(\w+)/i) || sql.match(/delete\s+from\s+(\w+)/i);
+    const tableMatch =
+      sql.match(/from\s+(\w+)/i) ||
+      sql.match(/into\s+(\w+)/i) ||
+      sql.match(/update\s+(\w+)/i) ||
+      sql.match(/delete\s+from\s+(\w+)/i);
     const table = tableMatch ? tableMatch[1] : null;
 
     // SELECT queries
@@ -30,7 +36,7 @@ class MockAdapter extends DatabaseService {
       }
 
       const records = Object.values(this.data[table]);
-      
+
       // Simple WHERE clause matching (basic implementation)
       if (lowerSql.includes('where')) {
         // Match by id if $1 is provided
@@ -39,11 +45,11 @@ class MockAdapter extends DatabaseService {
           const record = this.data[table][id];
           return record ? [record] : [];
         }
-        
+
         // Match by user_id if provided
         if (params.length > 0 && lowerSql.includes('user_id')) {
           const userId = params[params.length - 1]; // Usually last param
-          return records.filter(r => r.user_id === userId);
+          return records.filter((r) => r.user_id === userId);
         }
       }
 
@@ -64,12 +70,12 @@ class MockAdapter extends DatabaseService {
       // Extract column names and values from SQL
       const columnsMatch = sql.match(/\(([^)]+)\)/);
       const valuesMatch = sql.match(/values\s*\(([^)]+)\)/i);
-      
+
       if (!columnsMatch || !valuesMatch) {
         throw new AppError('Invalid INSERT query format', 500, 'INVALID_QUERY');
       }
 
-      const columns = columnsMatch[1].split(',').map(c => c.trim());
+      const columns = columnsMatch[1].split(',').map((c) => c.trim());
       const values = params.slice(0, columns.length);
 
       const record = {};
@@ -118,10 +124,10 @@ class MockAdapter extends DatabaseService {
       const setMatch = sql.match(/set\s+([^where]+)/i);
       if (setMatch) {
         const setClause = setMatch[1];
-        const updates = setClause.split(',').map(s => s.trim());
-        
+        const updates = setClause.split(',').map((s) => s.trim());
+
         updates.forEach((update, i) => {
-          const [column] = update.split('=').map(s => s.trim());
+          const [column] = update.split('=').map((s) => s.trim());
           const paramIndex = parseInt(update.match(/\$(\d+)/)?.[1]) - 1;
           if (paramIndex >= 0 && params[paramIndex] !== undefined) {
             record[column] = params[paramIndex];

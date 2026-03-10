@@ -4,7 +4,7 @@
 const ServiceManager = require('../../ServiceManager');
 const MockDatabaseAdapter = require('../database/adapters/MockAdapter');
 const MockLoggerAdapter = require('../logger/adapters/MockAdapter');
-const AppError = require('../../errors/AppError');
+const { AppError } = require('../../errors/AppError');
 
 describe('Mock Adapters', () => {
   let mockDb;
@@ -72,7 +72,7 @@ describe('Mock Adapters', () => {
 
     it('should throw error when updating non-existent record', async () => {
       await expect(mockDb.update('contacts', '999', { companyName: 'Test' })).rejects.toThrow(
-        AppError
+        AppError,
       );
     });
 

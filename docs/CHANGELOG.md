@@ -4,6 +4,81 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-04 – Texter: standardmarknad, ingen fallback, varning
+
+### Texter-fliken (ProductForm)
+
+- **Radioknapp för standardmarknad:** Välj vilken marknad (SE, DK, FI, NO) som ska användas som fallback när en annan marknad saknar egen titel/beskrivning. Landnamn till vänster, radioknapp till höger.
+- **standardTextMarket:** Nytt fält i FormData, sparas i `channelSpecific.textsStandard`.
+- **buildTextArrays / buildDescArrays:** Använder vald standardmarknad som fallback per kanal (CDON/Fyndiq).
+
+### Ingen fallback när standard är tom
+
+- **CDON/Fyndiq-mappare:** Om en marknad saknar titel/beskrivning och standardmarknaden också är tom används inte längre `product.title` eller `product.description` som fallback. Marknaden hoppas över (null).
+- Anpassat till regeln: ingen fallback till andra språk när både marknad och standard är tomma.
+
+### Varning vid sparande
+
+- **ProductContext saveProduct:** Varning visas när en marknad saknar titel och/eller beskrivning (standard också tom) och den marknaden har aktiva CDON- eller Fyndiq-kanaler.
+- Ingen varning om marknaden inte har aktiva kanaler (t.ex. danska texter saknas men varken CDON DK eller Fyndiq DK är aktiverade).
+
+### Sello-import
+
+- **name + description per språk:** Hämtar och sparar `name` och `description` för alla språk, inte bara SEO-fält.
+- **Språkprioritet:** sv → fi → da → nb → no → en för standardtext vid import.
+- **textsExtended:** Sparar `name` och `description` per marknad vid import och redigering.
+
+### Databas
+
+- **Migration 070:** Droppar `model_text` från products.
+
+---
+
+## 2026-03-04 – Requirements-to-code mapping + valideringar
+
+### Dokumentation
+
+- **REQUIREMENTS_TO_CODE_MAPPING.md:** Ny fil med exakt mappning krav → fil/funktion/rad/reason för CDON, Fyndiq, WooCommerce.
+- **CHANNEL_REQUIREMENTS_MATRIX.md:** Länk till mappningsdokumentet.
+- **phase2_delivery_roadmap:** requirements-to-code-mapping markerad som completed.
+
+### CDON/Fyndiq – nya valideringar
+
+- **sku längd 1–64:** Validering i getCdonArticleInputIssues, getFyndiqArticleInputIssues, validateCdonArticlePayload, validateFyndiqArticlePayload. Reason: `invalid_sku_length`.
+- **main_image URL:** Validering att URL börjar med http:// eller https://. Reason: `invalid_main_image_url`.
+- **images URL:er:** Samma validering för extra bilder. Reason: `invalid_images_url`.
+- **WooCommerce:** Samma main_image och images URL-validering i create/update-path. Reasons: `invalid_main_image_url`, `invalid_images_url`.
+
+### WooCommerce
+
+- **Lokal payload-validering:** Create/update-path validerar effektivt pris före API-anrop (blockera null).
+- **Pris: blockera null, tillåt 0:** update_only_strict och create/update tillåter nu pris 0; blockar endast null/undefined.
+- **Bugfix:** exportSku istället för sku i skipped_no_map-rapport (controller rad 617).
+
+### Fyndiq article_id/UUID
+
+- **Dokumenterat:** UUID-validering för external_id vid update finns i fyndiq-products/controller.js (rad 812–825, validateFyndiqUpdateActionEnvelope).
+
+---
+
+## 2026-03-10 – Grupperade produkter med variationer (Sello)
+
+### Sello import – grupper och variationer
+
+- **Migration 069:** Nya kolumner `parent_product_id`, `group_variation_type`, `model`.
+- **Groups från Sello:** Vid import via selloProductIds hämtas listan först för att få `groups`-array med `main_product` och `type` (color/size/model).
+- **parent_product_id:** Varor som är varianter pekar på parent (main product). Parent har `parent_product_id = null`.
+- **group_variation_type:** Sello grupptyp – "color", "size" eller "model".
+- **model:** Fritext från Sello (Model/Modell) – för gruppering per modell.
+- **getSelloModel:** Helper som läser property "Model" eller "Modell" från Sello.
+
+### API-struktur (Sello list response)
+
+- `groups`: `{ id, main_product, group_sku, image_url, properties, products, type }`
+- `type` = "color" | "size" | "model"
+
+---
+
 ## 2026-03-10 – Sello import: delivery_times → shipping_time
 
 ### Sello import – fraktleveranstid

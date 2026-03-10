@@ -23,6 +23,15 @@ function createChannelsRoutes(controller, context) {
     (req, res) => controller.getProductTargets(req, res),
   );
 
+  // Product channel links (external_id per channel for building URLs)
+  router.get(
+    '/product-links',
+    gate,
+    [query('productId').trim().notEmpty().withMessage('productId is required')],
+    validateRequest,
+    (req, res) => controller.getProductChannelLinks(req, res),
+  );
+
   // Read single product↔channel mapping
   router.get(
     '/map',

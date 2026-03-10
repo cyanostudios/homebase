@@ -204,6 +204,55 @@ class ChannelsModel {
   }
 
   /**
+   * Get all channel links for a product (rows with external_id, for building product URLs).
+   * Returns [{ channel, channelInstanceId, market, label, externalId }].
+   */
+  async getProductChannelLinks(req, productId) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.user?.id;
+
+      if (!userId) {
+        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      }
+
+      const pid = String(productId || '').trim();
+      if (!pid) return [];
+
+      const rows = await db.query(
+        `
+        SELECT
+          m.channel,
+          m.channel_instance_id,
+          m.external_id,
+          ci.market,
+          ci.label,
+          ci.instance_key
+        FROM ${ChannelsModel.CHANNEL_MAP_TABLE} m
+        LEFT JOIN ${ChannelsModel.CHANNEL_INSTANCES_TABLE} ci
+          ON ci.id = m.channel_instance_id AND ci.user_id = m.user_id
+        WHERE m.user_id = $1 AND m.product_id = $2 AND m.external_id IS NOT NULL AND TRIM(m.external_id) <> ''
+        ORDER BY m.channel ASC, COALESCE(ci.market, '') ASC, COALESCE(ci.instance_key, '') ASC
+        `,
+        [userId, pid],
+      );
+
+      return rows.map((r) => ({
+        channel: String(r.channel || '').toLowerCase(),
+        channelInstanceId: r.channel_instance_id != null ? String(r.channel_instance_id) : null,
+        market: r.market != null ? String(r.market).trim().toLowerCase() : null,
+        label: r.label != null ? String(r.label).trim() : null,
+        instanceKey: r.instance_key != null ? String(r.instance_key).trim() : null,
+        externalId: String(r.external_id || '').trim(),
+      }));
+    } catch (error) {
+      Logger.error('Failed to get product channel links', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to get product channel links', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  /**
    * Get a single mapping row for (user, product, channel, channelInstanceId?).
    * When channelInstanceId is provided, matches that instance; otherwise returns first row for channel.
    * Returns the row object or null.

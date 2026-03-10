@@ -5,7 +5,7 @@ Operativ runbook för Phase 2 (create/full article updates) CDON/Fyndiq. Använd
 ## Läsordning
 
 1. [docs/CHANNEL_REQUIREMENTS_MATRIX.md](CHANNEL_REQUIREMENTS_MATRIX.md) – krav per kanal
-2. [.cursor/plans/phase2_delivery_roadmap_75ad0f73.plan.md](../.cursor/plans/phase2_delivery_roadmap_75ad0f73.plan.md) – plan
+2. [docs/Archive/phase2_delivery_roadmap_75ad0f73.plan.md](Archive/phase2_delivery_roadmap_75ad0f73.plan.md) – plan (arkiverad)
 3. Denna runbook
 
 ## Kommandon
@@ -69,10 +69,10 @@ Om write-pilot orsakat fel på kanalerna:
 
 ## Kodkoppling
 
-| Krav | Fil |
-|------|-----|
-| CDON contract | `plugins/cdon-products/mapToCdonArticle.js` |
-| CDON controller | `plugins/cdon-products/controller.js` |
-| Fyndiq contract | `plugins/fyndiq-products/mapToFyndiqArticle.js` |
-| Fyndiq controller | `plugins/fyndiq-products/controller.js` |
-| WooCommerce | `plugins/woocommerce-products/controller.js` |
+| Krav              | Fil                                             |
+| ----------------- | ----------------------------------------------- |
+| CDON contract     | `plugins/cdon-products/mapToCdonArticle.js`     |
+| CDON controller   | `plugins/cdon-products/controller.js`           |
+| Fyndiq contract   | `plugins/fyndiq-products/mapToFyndiqArticle.js` |
+| Fyndiq controller | `plugins/fyndiq-products/controller.js`         |
+| WooCommerce       | `plugins/woocommerce-products/controller.js`    |

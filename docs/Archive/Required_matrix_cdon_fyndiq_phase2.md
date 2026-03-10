@@ -1,3 +1,7 @@
+> **ARKIVERAD:** Denna fil är arkiverad och kan användas som referens i sista hand. Den ska inte gälla som aktuellt dokument. Den ersattes av `docs/CHANNEL_REQUIREMENTS_MATRIX.md`.
+
+---
+
 # Required Matrix — Phase 2 (CDON + Fyndiq)
 
 Purpose: strict preflight contract before create/full article export.  

@@ -140,13 +140,11 @@ class FyndiqProductsController {
           detail: detail || 'Missing Authorization header',
         });
       }
-      return res
-        .status(502)
-        .json({
-          ok: false,
-          error: 'Failed to fetch Fyndiq categories',
-          detail: detail || 'Unknown error',
-        });
+      return res.status(502).json({
+        ok: false,
+        error: 'Failed to fetch Fyndiq categories',
+        detail: detail || 'Unknown error',
+      });
     }
   }
 
@@ -679,7 +677,9 @@ class FyndiqProductsController {
         )
         .filter((m) => allowedMarkets.includes(m));
       if (!normalized.length) {
-        return res.status(400).json({ error: 'markets must include at least one of: se, dk, fi, no' });
+        return res
+          .status(400)
+          .json({ error: 'markets must include at least one of: se, dk, fi, no' });
       }
       marketsFilter = normalized;
     }
@@ -1272,7 +1272,7 @@ class FyndiqProductsController {
     let platformProductId = null;
     if (userId && sku) {
       const mapRes = await db.query(
-        `SELECT id::text AS product_id FROM products WHERE user_id = $1 AND sku = $2 LIMIT 1`,
+        `SELECT id::text AS product_id FROM products WHERE user_id = $1 AND id::text = $2 LIMIT 1`,
         [userId, sku],
       );
       if (mapRes.length) platformProductId = String(mapRes[0].product_id);
@@ -1341,12 +1341,10 @@ class FyndiqProductsController {
           });
           if (!resp.ok) {
             const detail = json && json.message ? String(json.message) : resp.statusText;
-            return res
-              .status(resp.status)
-              .json({
-                error: 'Failed to fetch Fyndiq orders',
-                detail: String(detail).slice(0, 500),
-              });
+            return res.status(resp.status).json({
+              error: 'Failed to fetch Fyndiq orders',
+              detail: String(detail).slice(0, 500),
+            });
           }
           const items = Array.isArray(json) ? json : [];
           allOrders.push(...items);

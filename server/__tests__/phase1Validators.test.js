@@ -68,7 +68,7 @@ describe('Phase 1 strict validators', () => {
     it('accepts valid update_article_price action', () => {
       const result = fyndiqController.validateFyndiqUpdateArticlePriceAction({
         action: 'update_article_price',
-        id: 123,
+        id: '550e8400-e29b-41d4-a716-446655440000',
         body: {
           price: [{ market: 'se', value: { amount: 100, currency: 'SEK' } }],
           original_price: [{ market: 'se', value: { amount: 100, currency: 'SEK' } }],
@@ -81,7 +81,7 @@ describe('Phase 1 strict validators', () => {
     it('rejects price action when original_price is missing', () => {
       const result = fyndiqController.validateFyndiqUpdateArticlePriceAction({
         action: 'update_article_price',
-        id: 123,
+        id: '550e8400-e29b-41d4-a716-446655440000',
         body: {
           price: [{ market: 'se', value: { amount: 100, currency: 'SEK' } }],
         },

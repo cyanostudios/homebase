@@ -583,6 +583,53 @@ export function ProductProvider({
         }
       }
     }
+
+    // Varning: om ett land saknar titel/beskrivning och standard är också tom, fallback till null – varna om marknaden har aktiva kanaler
+    const MARKET_TO_LANG: Record<string, string> = {
+      se: 'sv-SE',
+      dk: 'da-DK',
+      fi: 'fi-FI',
+      no: 'nb-NO',
+    };
+    const MARKET_LABELS: Record<string, string> = {
+      se: 'Sverige',
+      dk: 'Danmark',
+      fi: 'Finland',
+      no: 'Norge',
+    };
+    const cdonFyndiqWithMarket = channelTargetsWithMarket.filter(
+      (m) => ['cdon', 'fyndiq'].includes(String(m.channel).toLowerCase()) && m.market,
+    );
+    const marketsMissingText = new Set<string>();
+    for (const t of cdonFyndiqWithMarket) {
+      const market = String(t.market).toLowerCase().slice(0, 2);
+      if (!['se', 'dk', 'fi', 'no'].includes(market)) {
+        continue;
+      }
+      const lang = MARKET_TO_LANG[market] || 'sv-SE';
+      const cs = data.channelSpecific as any;
+      const channelTitle = t.channel === 'cdon' ? cs?.cdon?.title : cs?.fyndiq?.title;
+      const channelDesc = t.channel === 'cdon' ? cs?.cdon?.description : cs?.fyndiq?.description;
+      const hasTitle =
+        Array.isArray(channelTitle) &&
+        channelTitle.some((e: any) => String(e?.language).toLowerCase() === lang.toLowerCase());
+      const hasDesc =
+        Array.isArray(channelDesc) &&
+        channelDesc.some((e: any) => String(e?.language).toLowerCase() === lang.toLowerCase());
+      if (!hasTitle || !hasDesc) {
+        marketsMissingText.add(market);
+      }
+    }
+    if (marketsMissingText.size > 0) {
+      const labels = Array.from(marketsMissingText)
+        .map((m) => MARKET_LABELS[m] || m)
+        .join(', ');
+      errors.push({
+        field: 'texter',
+        message: `Varning: ${labels} saknar titel och/eller beskrivning (standardtexten är också tom). Fyll i texter under fliken Texter för dessa marknader, eller välj en annan marknad som standard.`,
+      });
+    }
+
     setValidationErrors(errors);
     const isWarningMessage = (message: string) =>
       /^varning\b/i.test(String(message || '').trim()) ||

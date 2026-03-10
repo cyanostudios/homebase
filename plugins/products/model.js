@@ -59,6 +59,9 @@ class ProductModel {
           p.pattern,
           p.material,
           p.pattern_text,
+          p.model,
+          p.parent_product_id,
+          p.group_variation_type,
           p.weight,
           p.length_cm,
           p.width_cm,
@@ -223,6 +226,9 @@ class ProductModel {
           p.pattern,
           p.material,
           p.pattern_text,
+          p.model,
+          p.parent_product_id,
+          p.group_variation_type,
           p.weight,
           p.length_cm,
           p.width_cm,
@@ -269,8 +275,117 @@ class ProductModel {
       }
 
       const d = this.normalizeInput(productData);
+      const explicitId =
+        productData?.id != null && Number.isFinite(Number(productData.id))
+          ? Math.trunc(Number(productData.id))
+          : null;
 
-      const sql = `
+      const sql =
+        explicitId != null
+          ? `
+        INSERT INTO ${ProductModel.TABLE} (
+          id,
+          user_id,
+          sku,
+          mpn,
+          title,
+          description,
+          status,
+          quantity,
+          price_amount,
+          currency,
+          vat_rate,
+          main_image,
+          images,
+          categories,
+          brand,
+          merchant_sku,
+          brand_id,
+          ean,
+          gtin,
+          supplier_id,
+          manufacturer_id,
+          channel_specific,
+          purchase_price,
+          sale_price,
+          lagerplats,
+          condition,
+          group_id,
+          volume,
+          volume_unit,
+          notes,
+          private_name,
+          color,
+          color_text,
+          size,
+          size_text,
+          pattern,
+          material,
+          pattern_text,
+          model,
+          weight,
+          length_cm,
+          width_cm,
+          height_cm,
+          depth_cm,
+          source_created_at,
+          quantity_sold,
+          last_sold_at
+        )
+        VALUES (
+          $1,
+          $2,  $3,  $4,  $5,  $6,  $7,  $8,
+          $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,
+          $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42,
+          $43, $44, $45, $46
+        )
+        RETURNING
+          id,
+          user_id,
+          sku,
+          mpn,
+          title,
+          description,
+          status,
+          quantity,
+          price_amount,
+          currency,
+          vat_rate,
+          main_image,
+          images,
+          categories,
+          brand,
+          merchant_sku,
+          brand_id,
+          ean,
+          gtin,
+          supplier_id,
+          manufacturer_id,
+          channel_specific,
+          purchase_price,
+          sale_price,
+          lagerplats,
+          private_name,
+          color,
+          color_text,
+          size,
+          size_text,
+          pattern,
+          material,
+          pattern_text,
+          model,
+          weight,
+          length_cm,
+          width_cm,
+          height_cm,
+          depth_cm,
+          source_created_at,
+          quantity_sold,
+          last_sold_at,
+          created_at,
+          updated_at
+      `
+          : `
         INSERT INTO ${ProductModel.TABLE} (
           user_id,
           sku,
@@ -309,6 +424,7 @@ class ProductModel {
           pattern,
           material,
           pattern_text,
+          model,
           weight,
           length_cm,
           width_cm,
@@ -323,7 +439,7 @@ class ProductModel {
           $2,  $3,  $4,  $5,  $6,  $7,  $8,
           $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,
           $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42,
-          $43, $44, $45
+          $43, $44, $45, $46
         )
         RETURNING
           id,
@@ -359,6 +475,7 @@ class ProductModel {
           pattern,
           material,
           pattern_text,
+          model,
           weight,
           length_cm,
           width_cm,
@@ -371,7 +488,7 @@ class ProductModel {
           updated_at
       `;
 
-      const params = [
+      const baseParams = [
         userId,
         d.sku,
         d.mpn,
@@ -409,6 +526,7 @@ class ProductModel {
         d.pattern ?? null,
         d.material ?? null,
         d.patternText ?? null,
+        d.model ?? null,
         d.weight != null ? d.weight : null,
         d.lengthCm != null ? d.lengthCm : null,
         d.widthCm != null ? d.widthCm : null,
@@ -418,6 +536,7 @@ class ProductModel {
         d.quantitySold ?? null,
         d.lastSoldAt ?? null,
       ];
+      const params = explicitId != null ? [explicitId, ...baseParams] : baseParams;
 
       const result = await db.query(sql, params);
       Logger.info('Product created', { productId: result[0].id });
@@ -488,17 +607,18 @@ class ProductModel {
           pattern        = $34,
           material       = $35,
           pattern_text   = $36,
-          weight         = $37,
-          length_cm      = $38,
-          width_cm       = $39,
-          height_cm      = $40,
-          depth_cm       = $41,
-          source_created_at = $42,
-          quantity_sold     = $43,
-          last_sold_at      = $44,
+          model          = $37,
+          weight         = $38,
+          length_cm      = $39,
+          width_cm       = $40,
+          height_cm      = $41,
+          depth_cm       = $42,
+          source_created_at = $43,
+          quantity_sold     = $44,
+          last_sold_at      = $45,
           updated_at     = CURRENT_TIMESTAMP
-        WHERE user_id = $45
-          AND id::text = $46
+        WHERE user_id = $46
+          AND id::text = $47
         RETURNING
           id,
           user_id,
@@ -533,6 +653,7 @@ class ProductModel {
           pattern,
           material,
           pattern_text,
+          model,
           weight,
           length_cm,
           width_cm,
@@ -582,6 +703,7 @@ class ProductModel {
         d.pattern ?? null,
         d.material ?? null,
         d.patternText ?? null,
+        d.model ?? null,
         d.weight != null ? d.weight : null,
         d.lengthCm != null ? d.lengthCm : null,
         d.widthCm != null ? d.widthCm : null,
@@ -874,7 +996,7 @@ class ProductModel {
   async upsertFromSelloProduct(
     req,
     {
-      sku,
+      selloId,
       privateName,
       merchantSku,
       title,
@@ -899,6 +1021,7 @@ class ProductModel {
       material,
       pattern,
       patternText,
+      model,
       lagerplats,
       condition,
       groupId,
@@ -916,14 +1039,14 @@ class ProductModel {
       const userId = req.session?.user?.id;
       if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
 
-      const cleanSku = String(sku || '').trim();
-      if (!cleanSku)
+      const selloIdVal = String(selloId ?? '').trim();
+      if (!selloIdVal)
         throw new AppError('Sello product id missing', 400, AppError.CODES.VALIDATION_ERROR);
       const cleanTitle = String(title || '').trim();
       if (!cleanTitle)
         throw new AppError('Sello product title missing', 400, AppError.CODES.VALIDATION_ERROR);
 
-      const existing = await this.getBySku(req, cleanSku);
+      const existing = await this.getById(req, selloIdVal);
       const existingChannelSpecific =
         existing?.channelSpecific &&
         typeof existing.channelSpecific === 'object' &&
@@ -952,7 +1075,8 @@ class ProductModel {
       }
 
       const payload = {
-        sku: cleanSku,
+        id: parseInt(selloIdVal, 10),
+        sku: merchantSku != null ? String(merchantSku).trim() : null,
         privateName: privateName != null ? String(privateName).trim() : null,
         merchantSku: merchantSku != null ? String(merchantSku).trim() : null,
         title: cleanTitle,
@@ -1005,6 +1129,7 @@ class ProductModel {
         material: material != null ? String(material).trim() || null : undefined,
         pattern: pattern != null ? String(pattern).trim() || null : undefined,
         patternText: patternText != null ? String(patternText).trim() || null : undefined,
+        model: model != null ? String(model).trim() || null : undefined,
         lagerplats: lagerplats != null ? String(lagerplats).trim() || null : undefined,
         condition:
           condition === 'new' || condition === 'used'
@@ -1037,6 +1162,7 @@ class ProductModel {
         'material',
         'pattern',
         'patternText',
+        'model',
         'lagerplats',
         'condition',
         'groupId',
@@ -1066,6 +1192,39 @@ class ProductModel {
       if (error instanceof AppError) throw error;
       Logger.error('Failed to upsert Sello product', error);
       throw new AppError('Failed to upsert Sello product', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async updateProductGroupRelation(req, productId, { parentProductId, groupVariationType }) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.user?.id;
+      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const id = parseInt(String(productId), 10);
+      if (!Number.isFinite(id)) return;
+      const parentId =
+        parentProductId != null && String(parentProductId).trim()
+          ? parseInt(String(parentProductId), 10)
+          : null;
+      const type =
+        groupVariationType &&
+        ['color', 'size', 'model'].includes(String(groupVariationType).toLowerCase())
+          ? String(groupVariationType).toLowerCase()
+          : null;
+      await db.query(
+        `UPDATE ${ProductModel.TABLE}
+         SET parent_product_id = $1, group_variation_type = $2, updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = $3 AND id = $4`,
+        [Number.isFinite(parentId) ? parentId : null, type, userId, id],
+      );
+    } catch (error) {
+      Logger.error('Failed to update product group relation', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError(
+        'Failed to update product group relation',
+        500,
+        AppError.CODES.DATABASE_ERROR,
+      );
     }
   }
 
@@ -1164,6 +1323,7 @@ class ProductModel {
       pattern: clean(data.pattern),
       material: clean(data.material),
       patternText: clean(data.patternText ?? data.pattern_text),
+      model: clean(data.model),
       weight: data.weight != null ? toFloat(data.weight, null) : null,
       lengthCm: data.lengthCm != null ? toFloat(data.lengthCm, null) : null,
       widthCm: data.widthCm != null ? toFloat(data.widthCm, null) : null,
@@ -1251,6 +1411,9 @@ class ProductModel {
       pattern: row.pattern ?? null,
       material: row.material ?? null,
       patternText: row.pattern_text ?? null,
+      model: row.model ?? null,
+      parentProductId: row.parent_product_id != null ? String(row.parent_product_id) : null,
+      groupVariationType: row.group_variation_type ?? null,
       weight: row.weight != null ? toNumberOr(row.weight, null) : null,
       lengthCm: row.length_cm != null ? toNumberOr(row.length_cm, null) : null,
       widthCm: row.width_cm != null ? toNumberOr(row.width_cm, null) : null,

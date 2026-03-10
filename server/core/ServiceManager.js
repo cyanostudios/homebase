@@ -38,7 +38,9 @@ class ServiceManager {
 
     // Database service (requires request context for tenant pool)
     if (req) {
-      this.services.database = this._initDatabase(req);
+      if (!this.services.database?._isTestOverride) {
+        this.services.database = this._initDatabase(req);
+      }
     } else if (!this.services.database) {
       // Global database service (for system operations)
       this.services.database = this._initDatabase(null);
@@ -73,14 +75,16 @@ class ServiceManager {
   _initTenantService() {
     const provider = this.config.tenant?.provider || process.env.TENANT_PROVIDER || 'neon';
     const logger = this.services.logger || new ConsoleAdapter();
-    
+
     try {
-      const TenantProvider = require(`./services/tenant/providers/${this._capitalize(provider)}TenantProvider`);
+      const TenantProvider = require(
+        `./services/tenant/providers/${this._capitalize(provider)}TenantProvider`,
+      );
       const config = {
         ...this.config.tenant?.[provider],
         mainPool: this._getDefaultPool(), // Provide main pool for metadata queries
       };
-      
+
       logger.info(`Initializing tenant service with provider: ${provider}`);
       return new TenantProvider(config);
     } catch (error) {
@@ -93,13 +97,16 @@ class ServiceManager {
    * Initialize connection pool service
    */
   _initConnectionPoolService() {
-    const provider = this.config.connectionPool?.provider || process.env.POOL_PROVIDER || 'postgres';
+    const provider =
+      this.config.connectionPool?.provider || process.env.POOL_PROVIDER || 'postgres';
     const logger = this.services.logger || new ConsoleAdapter();
-    
+
     try {
-      const PoolProvider = require(`./services/connection-pool/providers/${this._capitalize(provider)}PoolProvider`);
+      const PoolProvider = require(
+        `./services/connection-pool/providers/${this._capitalize(provider)}PoolProvider`,
+      );
       const config = this.config.connectionPool?.[provider] || {};
-      
+
       logger.info(`Initializing connection pool service with provider: ${provider}`);
       return new PoolProvider(config);
     } catch (error) {
@@ -174,6 +181,10 @@ class ServiceManager {
 
     // For database service, ensure it has the correct tenant context
     if (serviceName === 'database' && req) {
+      // When overridden for testing (e.g. MockAdapter), return it directly
+      if (service && service._isTestOverride) {
+        return service;
+      }
       return this._initDatabase(req);
     }
 
@@ -208,16 +219,16 @@ class ServiceManager {
    */
   async shutdown() {
     const logger = this.services.logger;
-    
+
     if (logger) {
       logger.info('Shutting down ServiceManager...');
     }
-    
+
     // Close connection pool service
     if (this.services.connectionPool) {
       await this.services.connectionPool.closeAllPools();
     }
-    
+
     // Close default pool
     if (this._defaultPool) {
       await this._defaultPool.end();
@@ -225,7 +236,7 @@ class ServiceManager {
         logger.info('Main auth pool closed');
       }
     }
-    
+
     if (logger) {
       logger.info('ServiceManager shutdown complete');
     }
