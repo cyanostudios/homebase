@@ -12,6 +12,8 @@ import { usePluginActions } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { matchesApi } from '../api/matchesApi';
 import { Match, MatchMention, ValidationError, getFormatsForSport } from '../types/match';
@@ -103,6 +105,7 @@ export function MatchProvider({
     registerMatchesNavigation,
     user,
   } = useApp();
+  const { navigateToItem, navigateToBase } = useItemUrl('/matches');
   const pluginActions = usePluginActions('match');
   const hasSlotsPlugin = Boolean(user?.plugins?.includes('slots'));
 
@@ -133,7 +136,8 @@ export function MatchProvider({
     setValidationErrors([]);
     setMentionsDraft(null);
     setShowDiscardQuickEditDialog(false);
-  }, []);
+    navigateToBase();
+  }, [navigateToBase]);
 
   useEffect(() => {
     registerPanelCloseFunction('matches', closeMatchPanel);
@@ -158,6 +162,26 @@ export function MatchProvider({
       setMatches([]);
     }
   }, [isAuthenticated, loadMatches]);
+
+  const didOpenFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (didOpenFromUrlRef.current || matches.length === 0) {
+      return;
+    }
+    const parts = window.location.pathname.split('/');
+    if (parts[1] !== 'matches' || !parts[2]) {
+      return;
+    }
+    const item = resolveSlug(
+      parts[2],
+      matches,
+      (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`,
+    );
+    if (item) {
+      didOpenFromUrlRef.current = true;
+      openMatchForViewRef.current(item as Match);
+    }
+  }, [matches]);
 
   const validateMatch = useCallback((data: any): ValidationError[] => {
     const errors: ValidationError[] = [];
@@ -187,8 +211,11 @@ export function MatchProvider({
       setIsMatchPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      if (match) {
+        navigateToItem(match, matches, (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`);
+      }
     },
-    [onCloseOtherPanels, clearMatchSelectionCore],
+    [onCloseOtherPanels, clearMatchSelectionCore, navigateToItem, matches],
   );
 
   const openMatchForEdit = useCallback(
@@ -200,8 +227,9 @@ export function MatchProvider({
       setIsMatchPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      navigateToItem(match, matches, (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`);
     },
-    [onCloseOtherPanels, clearMatchSelectionCore],
+    [onCloseOtherPanels, clearMatchSelectionCore, navigateToItem, matches],
   );
 
   const openMatchForView = useCallback(
@@ -212,8 +240,9 @@ export function MatchProvider({
       setIsMatchPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      navigateToItem(match, matches, (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`);
     },
-    [onCloseOtherPanels],
+    [onCloseOtherPanels, navigateToItem, matches],
   );
 
   const openMatchForViewRef = useRef(openMatchForView);

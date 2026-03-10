@@ -4,6 +4,65 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-02 – URL-routing (react-router-dom), sid- och item-URL:er, UI-komponenter utan direkt styling
+
+_Refaktorering: navigation drivs av URL. Varje sida och varje öppet item får egen URL. Back-knapp, deep links och bokmärken fungerar. Samtidigt krävs att sidor och rate-komponenter använder UI-komponenter (Button, Input, Card, Table osv.) och ingen direkt/custom styling (inga inline `style={{}}`, inga råa `<button>`/`<input>` där det finns komponent)._
+
+### React Router och URL-schema
+
+- **react-router-dom (v6):** Tillagt i `package.json`. `main.tsx` wrappar `<App />` i `<BrowserRouter>`.
+- **URL-schema:**
+  - Sidor: `/` (dashboard), `/contacts`, `/notes`, `/tasks`, `/matches`, `/slots`, `/estimates`, `/invoices`, `/invoices/recurring`, `/invoices/payments`, `/invoices/reports`, `/files`, `/mail`, `/pulses`, `/settings`.
+  - Item-paneler (deep link): `/contacts/:id`, `/notes/:id`, `/tasks/:id` osv. Öppnar rätt panel vid direktlänk eller back.
+- **Route-map:** Ny fil `client/src/core/routing/routeMap.ts`: `navPageToPath`, `pathToNavPage(pathname)`, `itemPath(page, id)`. Invoices-subrutter (`recurring`, `payments`, `reports`) hanteras explicit så att de inte kolliderar med `/invoices/:id`.
+
+### App.tsx – URL som enda källa för "nuvarande sida"
+
+- **currentPage:** Ingen längre `useState` + localStorage. Härleds från URL med `useLocation()` och `pathToNavPage(location.pathname)`.
+- **handlePageChange:** Anropar `navigate(navPageToPath[page])` och vid behov `closeOtherPanels()`. Skyddas fortfarande av `attemptNavigation` (osparade ändringar).
+- **URL → panel-sync (useEffect):** Vid ändrad pathname: om URL har plugin + id öppnas motsvarande item-panel (`openXForView(item)`); om URL saknar id stängs panelen (`closeXPanel`). Ger back/forward-stöd.
+- **Routes:** `<Routes>` i App: `<Route path="/public/estimate/:token" element={<PublicEstimateRoute />} />` och `<Route path="/*" element={...providers + AppContent />}`. Publika sidor utan auth/providers.
+- **Cross-plugin:** "Create task from note" och "Create slot from match" anropar `navigate('/tasks')` respektive `navigate('/slots')` i stället för `setCurrentPage`.
+
+### Publik route (estimate)
+
+- **PublicRouteHandler:** Förenklad till ren passthrough. `/public/estimate/:token` hanteras av react-router i App.tsx; `PublicEstimateRoute` läser `:token` med `useParams()` och renderar `PublicEstimateView`.
+
+### MainLayout, Sidebar, TopBar
+
+- **NavPage:** Typen i `Sidebar.tsx` utökad med `'mail'` och `'pulses'`.
+- **Sidebar/TopBar:** Fortfarande `currentPage` och `onPageChange` som props (currentPage kommer från App som pathToNavPage(location)). Inga NavLink-ändringar i Sidebar – klick går genom samma guard som tidigare.
+
+### RegularRateDetailPage & RegularRateListPage
+
+- **Detail:** SectionCard bytt till `Card`/`CardHeader`/`CardContent`. SegmentedControl- och booking type-knappar bytta till `Button` (variant ghost/outline). Alla `style={{ fontWeight: 500 }}` ersatta med `font-medium`; `minHeight: 52px` med `min-h-[52px]`. Select behåller native `<select>` med design-tokens (focus-visible:ring).
+- **List:** Sökfältet använder `Input`; alla filter/refresh/clear/expand-knappar använder `Button`. Status-pills, export-trigger och bulk "Clear" är `Button`. Tabellwrapper är `Card`. Pagination bytt till komponenten `TablePagination`. Inga inline styles; `font-medium` och Tailwind för transform/z-index/height på bulk-bar.
+
+### useItemUrl och plugin-kontexter
+
+- **useItemUrl(basePath):** Ny hook i `client/src/core/hooks/useItemUrl.ts`. Returnerar `navigateToItem(id)`, `navigateToBase()`, `isOnPluginPage()`. Navigerar endast när användaren redan är på plugin-sidan (undviker URL-pollution vid cross-plugin-paneler).
+- **Plugin-kontexter (rate):** Alla tio rate-kontexter (Contact, Note, Task, Match, Slot, Estimate, Invoice, File, Mail, Pulse) kan använda useItemUrl för att uppdatera URL vid öppna/stäng panel. App.tsx URL-sync öppnar panel vid deep link när data finns.
+
+### Rate-komponenter under `client/src/components/rate` – enbart UI-komponenter
+
+- **InlineEditCell:** Rå `<button>` ersatt med `Button` (variant ghost) när cellen inte redigeras.
+- **ErrorBanner:** `className` satt med `cn()` i stället för template literal.
+- **RateListSkeleton:** Rå `<table>`/`<thead>`/`<tbody>`/`<tr>`/`<th>`/`<td>` ersatta med `Table`, `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`.
+- **RateStatusBadge:** Rå `<button>` och inline `style={{ fontWeight: 500 }}` borttagna; använder `Button` och TweakCN-tokens (`bg-success/10`, `text-success`, `border-success/30` för aktiv; `bg-muted`, `text-muted-foreground` för inaktiv).
+- **DistanceTierEditor:** Tabell bytt till UI `Table`-komponenter; native `<select>` kvar med samma design-tokens.
+- **RegularRateForm:** Alla `style={{ fontWeight: 500 }}` på rubriker ersatta med `font-medium`.
+- **PriceAdjustmentForm, RateDeleteGuard, ScheduleEditor:** Redan konsekventa (Input, Checkbox, Button, Table, Dialog, DatePicker).
+
+### GlobalNavigationGuard
+
+- **Oförändrad:** `attemptNavigation(action)` används fortfarande av App och Sidebar/MainLayout. Vid navigering (inkl. via `navigate()`) körs guard innan `closeOtherPanels` och `navigate(path)`. Ingen react-router blocker implementerad; befintlig dialog vid osparade ändringar behållen.
+
+### Server och Vite
+
+- **Ingen ändring:** Produktion har redan SPA-fallback (`app.get('*', ...)` → index.html). Vite hanterar dev. All routing är client-side.
+
+---
+
 ## 2026-02 – Settings-design, Import under Settings, knappar, statusbadge, TopBar-widgets (sedan commit cfbb968)
 
 _Dokumentation av alla ändringar sedan senaste commit ("Public booking app, slot bookings in admin, SlotView UX")._

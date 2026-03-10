@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   ReactNode,
 } from 'react';
@@ -13,7 +14,9 @@ import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { useItemUrl } from '@/core/hooks/useItemUrl';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { InvoicesApi, invoicesApi } from '../api/invoicesApi';
 
@@ -97,6 +100,7 @@ export function InvoicesProvider({
 }: ProviderProps) {
   const { t } = useTranslation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { navigateToItem, navigateToBase } = useItemUrl('/invoices');
 
   // Panel
   const [isInvoicesPanelOpen, setIsInvoicesPanelOpen] = useState(false);
@@ -126,6 +130,22 @@ export function InvoicesProvider({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
+
+  const didOpenFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (didOpenFromUrlRef.current || invoices.length === 0) {
+      return;
+    }
+    const parts = window.location.pathname.split('/');
+    if (parts[1] !== 'invoices' || !parts[2]) {
+      return;
+    }
+    const item = resolveSlug(parts[2], invoices, 'invoiceNumber');
+    if (item) {
+      didOpenFromUrlRef.current = true;
+      openInvoiceForViewRef.current(item as Invoice);
+    }
+  }, [invoices]);
 
   // Register panel close once
   useEffect(() => {
@@ -181,6 +201,9 @@ export function InvoicesProvider({
     setIsInvoicesPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
+    if (item) {
+      navigateToItem(item, invoices, 'invoiceNumber');
+    }
   };
 
   const openInvoiceForEdit = (item: Invoice) => {
@@ -190,22 +213,33 @@ export function InvoicesProvider({
     setIsInvoicesPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
+    navigateToItem(item, invoices, 'invoiceNumber');
   };
 
-  const openInvoiceForView = (item: Invoice) => {
-    setCurrentInvoice(item);
-    setPanelMode('view');
-    setIsInvoicesPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  };
+  const openInvoiceForView = useCallback(
+    (item: Invoice) => {
+      setCurrentInvoice(item);
+      setPanelMode('view');
+      setIsInvoicesPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+      navigateToItem(item, invoices, 'invoiceNumber');
+    },
+    [onCloseOtherPanels, navigateToItem, invoices],
+  );
 
-  const closeInvoicesPanel = () => {
+  const openInvoiceForViewRef = useRef(openInvoiceForView);
+  useEffect(() => {
+    openInvoiceForViewRef.current = openInvoiceForView;
+  }, [openInvoiceForView]);
+
+  const closeInvoicesPanel = useCallback(() => {
     setIsInvoicesPanelOpen(false);
     setCurrentInvoice(null);
     setPanelMode('create');
     setValidationErrors([]);
-  };
+    navigateToBase();
+  }, [navigateToBase]);
 
   // ⬇️ singular alias to satisfy UniversalPanel handler name inference (close + Singular + Panel)
   const closeInvoicePanel = () => closeInvoicesPanel();
@@ -218,16 +252,24 @@ export function InvoicesProvider({
   const hasNextItem = currentItemIndex >= 0 && currentItemIndex < totalItems - 1;
 
   const navigateToPrevItem = useCallback(() => {
-    if (!hasPrevItem || currentItemIndex <= 0) return;
+    if (!hasPrevItem || currentItemIndex <= 0) {
+      return;
+    }
     const prev = invoices[currentItemIndex - 1];
-    if (prev) openInvoiceForView(prev);
-  }, [hasPrevItem, currentItemIndex, invoices]);
+    if (prev) {
+      openInvoiceForView(prev);
+    }
+  }, [hasPrevItem, currentItemIndex, invoices, openInvoiceForView]);
 
   const navigateToNextItem = useCallback(() => {
-    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= invoices.length - 1) return;
+    if (!hasNextItem || currentItemIndex < 0 || currentItemIndex >= invoices.length - 1) {
+      return;
+    }
     const next = invoices[currentItemIndex + 1];
-    if (next) openInvoiceForView(next);
-  }, [hasNextItem, currentItemIndex, invoices]);
+    if (next) {
+      openInvoiceForView(next);
+    }
+  }, [hasNextItem, currentItemIndex, invoices, openInvoiceForView]);
 
   const clearValidationErrors = () => setValidationErrors([]);
 

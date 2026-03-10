@@ -13,7 +13,9 @@ import { usePluginActions } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { useItemUrl } from '@/core/hooks/useItemUrl';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
+import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { notesApi } from '../api/notesApi';
 import { Note, ValidationError } from '../types/notes';
@@ -103,6 +105,7 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   } = useApp();
   const pluginActions = usePluginActions('note');
   const hasTasksPlugin = Boolean(user?.plugins?.includes('tasks'));
+  const { navigateToItem, navigateToBase } = useItemUrl('/notes');
 
   // Panel states
   const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
@@ -133,7 +136,8 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setCurrentNote(null);
     setPanelMode('create');
     setValidationErrors([]);
-  }, []);
+    navigateToBase();
+  }, [navigateToBase]);
 
   // Panel registration
   useEffect(() => {
@@ -189,6 +193,23 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   }, [isAuthenticated, loadNotes]);
 
+  // Initial deep-link: if the page loaded at /notes/:slug, open that note once data arrives
+  const didOpenFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (didOpenFromUrlRef.current || notes.length === 0) {
+      return;
+    }
+    const parts = window.location.pathname.split('/');
+    if (parts[1] !== 'notes' || !parts[2]) {
+      return;
+    }
+    const item = resolveSlug(parts[2], notes, 'title');
+    if (item) {
+      didOpenFromUrlRef.current = true;
+      openNoteForViewRef.current(item as Note);
+    }
+  }, [notes]);
+
   const validateNote = useCallback((noteData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
 
@@ -218,8 +239,11 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setIsNotePanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      if (note) {
+        navigateToItem(note, notes, 'title');
+      }
     },
-    [onCloseOtherPanels, clearNoteSelectionCore],
+    [onCloseOtherPanels, clearNoteSelectionCore, navigateToItem, notes],
   );
 
   const openNoteForEdit = useCallback(
@@ -231,8 +255,9 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setIsNotePanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      navigateToItem(note, notes, 'title');
     },
-    [onCloseOtherPanels, clearNoteSelectionCore],
+    [onCloseOtherPanels, clearNoteSelectionCore, navigateToItem, notes],
   );
 
   const openNoteForView = useCallback(
@@ -243,8 +268,9 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setIsNotePanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      navigateToItem(note, notes, 'title');
     },
-    [onCloseOtherPanels],
+    [onCloseOtherPanels, navigateToItem, notes],
   );
 
   const openNoteSettings = useCallback(() => {

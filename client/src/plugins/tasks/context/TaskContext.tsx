@@ -15,7 +15,9 @@ import { useActionRegistry } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { useItemUrl } from '@/core/hooks/useItemUrl';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
+import { resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 
 import { tasksApi } from '../api/tasksApi';
@@ -118,6 +120,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     registerTasksNavigation,
   } = useApp();
   const { registerAction } = useActionRegistry();
+  const { navigateToItem, navigateToBase } = useItemUrl('/tasks');
 
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
@@ -152,7 +155,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     setPanelMode('create');
     setValidationErrors([]);
     setQuickEditDraft(null);
-  }, []);
+    navigateToBase();
+  }, [navigateToBase]);
 
   useEffect(() => {
     registerPanelCloseFunction('tasks', closeTaskPanel);
@@ -205,6 +209,23 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   }, [isAuthenticated, loadTasks]);
 
+  // Initial deep-link: open the task matching the URL on first data load
+  const didOpenFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (didOpenFromUrlRef.current || tasks.length === 0) {
+      return;
+    }
+    const parts = window.location.pathname.split('/');
+    if (parts[1] !== 'tasks' || !parts[2]) {
+      return;
+    }
+    const item = resolveSlug(parts[2], tasks, 'title');
+    if (item) {
+      didOpenFromUrlRef.current = true;
+      openTaskForViewRef.current(item as Task);
+    }
+  }, [tasks]);
+
   const validateTask = useCallback((taskData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
 
@@ -254,8 +275,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setIsTaskPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      if (task) {
+        navigateToItem(task, tasks, 'title');
+      }
     },
-    [onCloseOtherPanels, clearTaskSelectionCore],
+    [onCloseOtherPanels, clearTaskSelectionCore, navigateToItem, tasks],
   );
 
   const openTaskForEdit = useCallback(
@@ -268,8 +292,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setValidationErrors([]);
       setQuickEditDraft(null);
       onCloseOtherPanels();
+      navigateToItem(task, tasks, 'title');
     },
-    [onCloseOtherPanels, clearTaskSelectionCore],
+    [onCloseOtherPanels, clearTaskSelectionCore, navigateToItem, tasks],
   );
 
   const openTaskForView = useCallback(
@@ -281,8 +306,9 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setValidationErrors([]);
       setQuickEditDraft(null);
       onCloseOtherPanels();
+      navigateToItem(task, tasks, 'title');
     },
-    [onCloseOtherPanels],
+    [onCloseOtherPanels, navigateToItem, tasks],
   );
 
   const openTaskSettings = useCallback(() => {

@@ -16,7 +16,9 @@ import { Button } from '@/components/ui/button';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { useItemUrl } from '@/core/hooks/useItemUrl';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import { resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 
 import { estimateShareApi, estimatesApi } from '../api/estimatesApi';
@@ -143,6 +145,7 @@ export function EstimateProvider({
   const { t } = useTranslation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction, registerEstimatesNavigation } =
     useApp();
+  const { navigateToItem, navigateToBase } = useItemUrl('/estimates');
 
   // Panel state
   const [isEstimatePanelOpen, setIsEstimatePanelOpen] = useState(false);
@@ -187,6 +190,22 @@ export function EstimateProvider({
       setEstimates([]);
     }
   }, [isAuthenticated]);
+
+  const didOpenFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (didOpenFromUrlRef.current || estimates.length === 0) {
+      return;
+    }
+    const parts = window.location.pathname.split('/');
+    if (parts[1] !== 'estimates' || !parts[2]) {
+      return;
+    }
+    const item = resolveSlug(parts[2], estimates, 'estimateNumber');
+    if (item) {
+      didOpenFromUrlRef.current = true;
+      openEstimateForViewRef.current(item as Estimate);
+    }
+  }, [estimates]);
 
   // Register panel close function once
   useEffect(() => {
@@ -284,6 +303,9 @@ export function EstimateProvider({
     setIsEstimatePanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
+    if (estimate) {
+      navigateToItem(estimate, estimates, 'estimateNumber');
+    }
   };
 
   const openEstimateForEdit = (estimate: Estimate) => {
@@ -295,6 +317,7 @@ export function EstimateProvider({
     setIsEstimatePanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
+    navigateToItem(estimate, estimates, 'estimateNumber');
   };
 
   const openEstimateForView = useCallback(
@@ -306,8 +329,9 @@ export function EstimateProvider({
       setIsEstimatePanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      navigateToItem(estimate, estimates, 'estimateNumber');
     },
-    [onCloseOtherPanels],
+    [onCloseOtherPanels, navigateToItem, estimates],
   );
 
   const openEstimateForViewRef = useRef(openEstimateForView);
@@ -357,7 +381,8 @@ export function EstimateProvider({
     setPanelMode('create');
     setValidationErrors([]);
     setQuickEditDraft(null);
-  }, []);
+    navigateToBase();
+  }, [navigateToBase]);
 
   const clearValidationErrors = () => setValidationErrors([]);
 

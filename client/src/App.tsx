@@ -10,6 +10,7 @@
 import { Home, Plus, Settings, X } from 'lucide-react';
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { ActionProvider } from '@/core/api/ActionContext';
 import { AppProvider, useApp } from '@/core/api/AppContext';
@@ -18,6 +19,7 @@ import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { getSingularCap } from '@/core/pluginSingular';
 import { createPanelRenderers } from '@/core/rendering/panelRendering';
+import { navPageToPath, pathToNavPage } from '@/core/routing/routeMap';
 import type { ExecuteDuplicateResult } from '@/core/types/pluginContract';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Dashboard } from '@/core/ui/Dashboard';
@@ -28,10 +30,12 @@ import { MainLayout } from '@/core/ui/MainLayout';
 import { createPanelFooter } from '@/core/ui/PanelFooter';
 import { createPanelTitles } from '@/core/ui/PanelTitles';
 import type { NavPage } from '@/core/ui/Sidebar'; // <-- viktig typ-import
+import { resolveSlug } from '@/core/utils/slugUtils';
 import {
   GlobalNavigationGuardProvider,
   useGlobalNavigationGuard,
 } from '@/hooks/useGlobalNavigationGuard';
+import { PublicEstimateView } from '@/plugins/estimates/components/PublicEstimateView';
 import { slotsApi } from '@/plugins/slots/api/slotsApi';
 
 // Dynamic Plugin Providers - scales infinitely without App.tsx changes
@@ -158,16 +162,10 @@ function AppContent() {
     start_time: string;
   } | null>(null);
 
-  // Initialize currentPage from localStorage, default 'dashboard'
-  const [currentPage, setCurrentPage] = useState<NavPage>(() => {
-    const saved = localStorage.getItem('homebase:currentPage');
-    return (saved as NavPage) || 'dashboard';
-  });
-
-  // Save currentPage to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('homebase:currentPage', currentPage);
-  }, [currentPage]);
+  // Derive currentPage from URL
+  const location = useLocation();
+  const navigate = useNavigate();
+  const currentPage: NavPage = useMemo(() => pathToNavPage(location.pathname), [location.pathname]);
 
   // Clear bulk selection in all plugins when user navigates to another page (sidebar)
   // So selection is not cleared when opening view (list unmounts) but is cleared when switching plugin
@@ -224,23 +222,92 @@ function AppContent() {
 
   const validationErrors = currentPluginContext?.validationErrors || [];
 
-  // Protected page change
+  // Protected page change – navigates to the URL for the given page
   const handlePageChange = useCallback(
     (page: NavPage) => {
+      const path = navPageToPath[page];
       // In list view there is no active detail form, so navigation should be immediate.
       if (!isAnyPanelOpen) {
-        setCurrentPage(page);
+        navigate(path);
         return;
       }
 
       // Detail panel open: protect navigation with global unsaved-check, then hard-close panels.
       attemptNavigation(() => {
-        setCurrentPage(page);
+        navigate(path);
         closeOtherPanels();
       });
     },
-    [attemptNavigation, closeOtherPanels, isAnyPanelOpen],
+    [attemptNavigation, closeOtherPanels, isAnyPanelOpen, navigate],
   );
+
+  // Name field used to build/resolve slugs per plugin.
+  // Matches are composed from two fields; a function handles those cases.
+  const PLUGIN_SLUG_FIELD: Record<string, string | ((i: any) => string)> = {
+    notes: 'title',
+    contacts: 'companyName',
+    tasks: 'title',
+    estimates: 'estimateNumber',
+    invoices: 'invoiceNumber',
+    files: 'name',
+    matches: (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`,
+    slots: (i: any) => (i.slot_time ? String(i.slot_time).slice(0, 10) : ''),
+    mail: 'id',
+    pulses: 'id',
+  };
+
+  // URL → panel sync: back/forward button support.
+  // When the URL changes to /plugin/slug, open that item's panel.
+  // When the URL changes to /plugin (no slug), close the panel.
+  // We use `location.pathname` as the dep so this only fires on real URL changes.
+  useEffect(() => {
+    const parts = location.pathname.split('/').filter(Boolean);
+    const pluginName = parts[0];
+    const itemSlug = parts[1];
+
+    // Skip non-plugin pages and invoices sub-routes (recurring/payments/reports)
+    if (!pluginName || ['dashboard', 'settings'].includes(pluginName)) {
+      return;
+    }
+    if (
+      pluginName === 'invoices' &&
+      itemSlug &&
+      ['recurring', 'payments', 'reports'].includes(itemSlug)
+    ) {
+      return;
+    }
+
+    const pluginEntry = pluginContexts.find(({ plugin }) => plugin.name === pluginName);
+    if (!pluginEntry?.context) {
+      return;
+    }
+
+    const { context, plugin } = pluginEntry;
+    const capName = getSingularCap(plugin.name);
+    const isOpen = Boolean(context[plugin.panelKey]);
+    const currentItem = context[`current${capName}`] as { id?: string | number } | null;
+    const nameField = PLUGIN_SLUG_FIELD[plugin.name] ?? 'id';
+
+    if (itemSlug) {
+      // URL has a slug – resolve it then open panel if not already showing that item
+      const items = (context[plugin.name] as unknown as any[]) ?? [];
+      const item = resolveSlug(itemSlug, items, nameField);
+      if (item && (!isOpen || String(currentItem?.id) !== String(item.id))) {
+        const openFn = context[`open${capName}ForView`] as ((item: any) => void) | undefined;
+        if (typeof openFn === 'function') {
+          openFn(item);
+        }
+      }
+    } else {
+      // URL has no slug – close panel if open
+      if (isOpen) {
+        const closeFn = context[`close${capName}Panel`] as (() => void) | undefined;
+        if (typeof closeFn === 'function') {
+          closeFn();
+        }
+      }
+    }
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps -- pluginContexts is stable
 
   // Screen size detection
   useEffect(() => {
@@ -741,7 +808,7 @@ function AppContent() {
           createTask(payload)
             .then((newTask: { id?: string | number } | undefined) => {
               closeNotePanel();
-              attemptNavigation(() => setCurrentPage('tasks'));
+              attemptNavigation(() => navigate('/tasks'));
               if (
                 newTask?.id !== undefined &&
                 newTask?.id !== null &&
@@ -806,7 +873,7 @@ function AppContent() {
               if (typeof refreshSlots === 'function') {
                 await refreshSlots();
               }
-              attemptNavigation(() => setCurrentPage('slots'));
+              attemptNavigation(() => navigate('/slots'));
               if (newSlot?.id !== undefined && typeof setRecentlyDuplicatedSlotId === 'function') {
                 setRecentlyDuplicatedSlotId(String(newSlot.id));
               }
@@ -832,6 +899,15 @@ function AppContent() {
   );
 }
 
+// Thin wrapper that reads :token from URL and renders the public estimate page
+function PublicEstimateRoute() {
+  const { token } = useParams<{ token: string }>();
+  if (!token) {
+    return <div>Invalid link</div>;
+  }
+  return <PublicEstimateView token={token} />;
+}
+
 // Main App component
 function App() {
   // Initialize theme early to prevent flash of wrong theme
@@ -850,15 +926,26 @@ function App() {
   }, []);
 
   return (
-    <AppProvider>
-      <ActionProvider>
-        <GlobalNavigationGuardProvider>
-          <PluginProviders>
-            <AppContent />
-          </PluginProviders>
-        </GlobalNavigationGuardProvider>
-      </ActionProvider>
-    </AppProvider>
+    <Routes>
+      {/* Public routes – no auth / no providers needed */}
+      <Route path="/public/estimate/:token" element={<PublicEstimateRoute />} />
+
+      {/* All private routes – wrapped in full provider stack */}
+      <Route
+        path="/*"
+        element={
+          <AppProvider>
+            <ActionProvider>
+              <GlobalNavigationGuardProvider>
+                <PluginProviders>
+                  <AppContent />
+                </PluginProviders>
+              </GlobalNavigationGuardProvider>
+            </ActionProvider>
+          </AppProvider>
+        }
+      />
+    </Routes>
   );
 }
 

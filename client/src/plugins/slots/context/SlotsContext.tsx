@@ -15,8 +15,10 @@ import { useActionRegistry } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { useItemUrl } from '@/core/hooks/useItemUrl';
 import type { BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
+import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { slotsApi } from '../api/slotsApi';
 import { Slot, ValidationError, type SlotMention } from '../types/slots';
@@ -127,6 +129,7 @@ export function SlotsProvider({
     contacts: appContacts = [],
     user,
   } = useApp();
+  const { navigateToItem, navigateToBase } = useItemUrl('/slots');
   const { registerAction } = useActionRegistry();
   const canSendMessages =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
@@ -248,7 +251,8 @@ export function SlotsProvider({
     setValidationErrors([]);
     setMentionsDraft(null);
     setShowDiscardQuickEditDialog(false);
-  }, []);
+    navigateToBase();
+  }, [navigateToBase]);
 
   useEffect(() => {
     registerPanelCloseFunction('slots', closeSlotPanel);
@@ -280,6 +284,24 @@ export function SlotsProvider({
       setSlots([]);
     }
   }, [isAuthenticated, loadSlots]);
+
+  const didOpenFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (didOpenFromUrlRef.current || slots.length === 0) {
+      return;
+    }
+    const parts = window.location.pathname.split('/');
+    if (parts[1] !== 'slots' || !parts[2]) {
+      return;
+    }
+    const item = resolveSlug(parts[2], slots, (i: any) =>
+      i.slot_time ? String(i.slot_time).slice(0, 10) : '',
+    );
+    if (item) {
+      didOpenFromUrlRef.current = true;
+      openSlotForViewRef.current(item as Slot);
+    }
+  }, [slots]);
 
   // Auto-refresh slots every 30 seconds to catch public bookings
   useEffect(() => {
@@ -315,8 +337,13 @@ export function SlotsProvider({
       setIsSlotsPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      if (slot) {
+        navigateToItem(slot, slots, (i: any) =>
+          i.slot_time ? String(i.slot_time).slice(0, 10) : '',
+        );
+      }
     },
-    [onCloseOtherPanels, clearSlotSelectionCore],
+    [onCloseOtherPanels, clearSlotSelectionCore, navigateToItem, slots],
   );
 
   const openSlotForEdit = useCallback(
@@ -328,8 +355,11 @@ export function SlotsProvider({
       setIsSlotsPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      navigateToItem(slot, slots, (i: any) =>
+        i.slot_time ? String(i.slot_time).slice(0, 10) : '',
+      );
     },
-    [onCloseOtherPanels, clearSlotSelectionCore],
+    [onCloseOtherPanels, clearSlotSelectionCore, navigateToItem, slots],
   );
 
   const openSlotForView = useCallback(
@@ -340,8 +370,11 @@ export function SlotsProvider({
       setIsSlotsPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      navigateToItem(slot, slots, (i: any) =>
+        i.slot_time ? String(i.slot_time).slice(0, 10) : '',
+      );
     },
-    [onCloseOtherPanels],
+    [onCloseOtherPanels, navigateToItem, slots],
   );
 
   const openSlotForViewRef = useRef(openSlotForView);

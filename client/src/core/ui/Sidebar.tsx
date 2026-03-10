@@ -30,6 +30,8 @@ export type NavPage =
   | 'matches'
   | 'slots'
   | 'files'
+  | 'mail'
+  | 'pulses'
   | 'settings';
 
 interface SidebarProps {

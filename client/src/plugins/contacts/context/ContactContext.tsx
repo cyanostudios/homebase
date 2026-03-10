@@ -15,9 +15,11 @@ import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { useItemUrl } from '@/core/hooks/useItemUrl';
 import type { BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
+import { resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 
 import { contactsApi } from '../api/contactsApi';
@@ -112,6 +114,7 @@ export function ContactProvider({
 }: ContactProviderProps) {
   const { t } = useTranslation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData, user } = useApp();
+  const { navigateToItem, navigateToBase } = useItemUrl('/contacts');
   const canSendMessages =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
   const canSendEmail =
@@ -334,6 +337,9 @@ export function ContactProvider({
     setIsContactPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
+    if (contact) {
+      navigateToItem(contact, contacts, 'companyName');
+    }
   };
 
   const openContactForEdit = (contact: Contact) => {
@@ -343,6 +349,7 @@ export function ContactProvider({
     setIsContactPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
+    navigateToItem(contact, contacts, 'companyName');
   };
 
   const openContactForView = useCallback(
@@ -352,8 +359,9 @@ export function ContactProvider({
       setIsContactPanelOpen(true);
       setValidationErrors([]);
       onCloseOtherPanels();
+      navigateToItem(contact, contacts, 'companyName');
     },
-    [onCloseOtherPanels],
+    [onCloseOtherPanels, navigateToItem, contacts],
   );
 
   const openContactSettings = useCallback(() => {
@@ -373,7 +381,8 @@ export function ContactProvider({
     setValidationErrors([]);
     setTagsDraft(null);
     setTagError(null);
-  }, []);
+    navigateToBase();
+  }, [navigateToBase]);
 
   const currentItemIndex = currentContact
     ? contacts.findIndex((c) => c.id === currentContact.id)
@@ -401,6 +410,27 @@ export function ContactProvider({
       openContactForView(next);
     }
   }, [hasNextItem, currentItemIndex, contacts, openContactForView]);
+
+  // Initial deep-link: open the contact matching the URL on first data load
+  const openContactForViewRef = useRef(openContactForView);
+  useEffect(() => {
+    openContactForViewRef.current = openContactForView;
+  }, [openContactForView]);
+  const didOpenFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (didOpenFromUrlRef.current || contacts.length === 0) {
+      return;
+    }
+    const parts = window.location.pathname.split('/');
+    if (parts[1] !== 'contacts' || !parts[2]) {
+      return;
+    }
+    const item = resolveSlug(parts[2], contacts, 'companyName');
+    if (item) {
+      didOpenFromUrlRef.current = true;
+      openContactForViewRef.current(item as Contact);
+    }
+  }, [contacts]);
 
   const clearValidationErrors = () => {
     setValidationErrors([]);

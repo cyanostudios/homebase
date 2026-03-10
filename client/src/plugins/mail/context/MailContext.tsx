@@ -1,7 +1,8 @@
-import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useApp } from '@/core/api/AppContext';
+import { useItemUrl } from '@/core/hooks/useItemUrl';
 
 import { mailApi } from '../api/mailApi';
 import type { MailLogEntry, MailSettings } from '../types/mail';
@@ -74,6 +75,7 @@ interface MailProviderProps {
 export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: MailProviderProps) {
   const { t } = useTranslation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { navigateToItem, navigateToBase } = useItemUrl('/mail');
 
   const [isMailPanelOpen, setIsMailPanelOpen] = useState(false);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('settings');
@@ -153,6 +155,22 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   }, [isAuthenticated, loadHistory, loadSettings]);
 
+  const didOpenFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (didOpenFromUrlRef.current || mailHistory.length === 0) {
+      return;
+    }
+    const parts = window.location.pathname.split('/');
+    if (parts[1] !== 'mail' || !parts[2] || isNaN(Number(parts[2]))) {
+      return;
+    }
+    const item = mailHistory.find((i) => String(i.id) === parts[2]);
+    if (item) {
+      didOpenFromUrlRef.current = true;
+      openMailForViewRef.current(item);
+    }
+  }, [mailHistory]);
+
   // Listen for mail sent from other plugins (e.g. Inspection) – push to cache without refetch
   useEffect(() => {
     const onMailSent = (e: CustomEvent<MailLogEntry>) => {
@@ -174,14 +192,24 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const closeMailPanel = () => {
     setIsMailPanelOpen(false);
+    navigateToBase();
   };
 
-  const openMailForView = (item: MailLogEntry) => {
-    onCloseOtherPanels();
-    setCurrentMail(item);
-    setPanelMode('view');
-    setIsMailPanelOpen(true);
-  };
+  const openMailForView = useCallback(
+    (item: MailLogEntry) => {
+      onCloseOtherPanels();
+      setCurrentMail(item);
+      setPanelMode('view');
+      setIsMailPanelOpen(true);
+      navigateToItem(item.id);
+    },
+    [onCloseOtherPanels, navigateToItem],
+  );
+
+  const openMailForViewRef = useRef(openMailForView);
+  useEffect(() => {
+    openMailForViewRef.current = openMailForView;
+  }, [openMailForView]);
 
   const openMailsSettings = () => {
     setMailContentView('settings');

@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useCallback, ReactNode } fro
 import { useTranslation } from 'react-i18next';
 
 import { useApp } from '@/core/api/AppContext';
+import { useItemUrl } from '@/core/hooks/useItemUrl';
 
 import { pulseApi } from '../api/pulseApi';
 import type { PulseLogEntry, PulseSettings } from '../types/pulse';
@@ -68,6 +69,7 @@ export function PulseProvider({
 }: PulseProviderProps) {
   const { t } = useTranslation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { navigateToBase } = useItemUrl('/pulses');
 
   const [isPulsesPanelOpen, setIsPulsesPanelOpen] = useState(false);
   const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('settings');
@@ -80,7 +82,8 @@ export function PulseProvider({
 
   const closePulsePanel = useCallback(() => {
     setIsPulsesPanelOpen(false);
-  }, []);
+    navigateToBase();
+  }, [navigateToBase]);
 
   useEffect(() => {
     registerPanelCloseFunction('pulses', closePulsePanel);

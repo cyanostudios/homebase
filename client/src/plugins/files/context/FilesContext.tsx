@@ -5,6 +5,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +13,8 @@ import { useTranslation } from 'react-i18next';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
+import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { resolveSlug } from '@/core/utils/slugUtils';
 
 import {
   cloudStorageApi,
@@ -91,6 +94,7 @@ export function FilesProvider({
 }: ProviderProps) {
   const { t } = useTranslation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { navigateToItem, navigateToBase } = useItemUrl('/files');
 
   const [isFilesPanelOpen, setIsFilesPanelOpen] = useState(false);
   const [currentFile, setCurrentFile] = useState<FileItem | null>(null);
@@ -164,6 +168,22 @@ export function FilesProvider({
     }
   }, [isAuthenticated, loadItems]);
 
+  const didOpenFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (didOpenFromUrlRef.current || files.length === 0) {
+      return;
+    }
+    const parts = window.location.pathname.split('/');
+    if (parts[1] !== 'files' || !parts[2]) {
+      return;
+    }
+    const item = resolveSlug(parts[2], files, 'name');
+    if (item) {
+      didOpenFromUrlRef.current = true;
+      openFileForViewRef.current(item as FileItem);
+    }
+  }, [files]);
+
   const validate = (data: any): ValidationError[] => {
     const errs: ValidationError[] = [];
     const hasMany = Array.isArray(data?._files) && data._files.length > 0;
@@ -180,6 +200,9 @@ export function FilesProvider({
     setIsFilesPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
+    if (item) {
+      navigateToItem(item, files, 'name');
+    }
   };
   const openFileForEdit = (item: FileItem) => {
     clearFileSelectionCore();
@@ -188,14 +211,24 @@ export function FilesProvider({
     setIsFilesPanelOpen(true);
     setValidationErrors([]);
     onCloseOtherPanels();
+    navigateToItem(item, files, 'name');
   };
-  const openFileForView = (item: FileItem) => {
-    setCurrentFile(item);
-    setPanelMode('view');
-    setIsFilesPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  };
+  const openFileForView = useCallback(
+    (item: FileItem) => {
+      setCurrentFile(item);
+      setPanelMode('view');
+      setIsFilesPanelOpen(true);
+      setValidationErrors([]);
+      onCloseOtherPanels();
+      navigateToItem(item, files, 'name');
+    },
+    [onCloseOtherPanels, navigateToItem, files],
+  );
+
+  const openFileForViewRef = useRef(openFileForView);
+  useEffect(() => {
+    openFileForViewRef.current = openFileForView;
+  }, [openFileForView]);
   const openFileSettings = () => {
     setFilesContentView('settings');
   };
@@ -207,6 +240,7 @@ export function FilesProvider({
     setCurrentFile(null);
     setPanelMode('create');
     setValidationErrors([]);
+    navigateToBase();
   };
   const closeFilePanel = () => closeFilesPanel();
 
