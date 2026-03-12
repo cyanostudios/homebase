@@ -41,9 +41,9 @@
 | pattern                          | Kolumn             | –                 | Ja       | Flik: Attribut (Fyndiq-preset)                                                                                                                             |
 | pattern_text                     | Kolumn             | –                 | Ja       | Flik: Attribut (fritext)                                                                                                                                   |
 | material                         | Kolumn             | –                 | Ja       | Flik: Attribut                                                                                                                                             |
-| model                            | Kolumn             | –                 | Ja       | Flik: Detaljer. För gruppering per modell (Sello, CDON, Fyndiq).                                                                                           |
+| model                            | Kolumn             | –                 | Ja       | Flik: Detaljer. För varianter (Sello, CDON, Fyndiq, WooCommerce).                                                                                          |
 | condition                        | Kolumn             | CDON, Fyndiq      | Ja       | Flik: Detaljer (Ny / Used / Refurbed). Default Ny. CDON: new→NEW, used→USED, refurb→REFURB. Fyndiq: endast Ny.                                             |
-| group_id                         | Kolumn             | –                 | Nej      | Sätts vid Sello-import, ingen redigeringsfält                                                                                                              |
+| group_id                         | Kolumn             | –                 | Nej      | Sätts vid Sello-import. CDON: används som `parent_sku`. WooCommerce: variable product har SKU = group_id, varianter SKU = V+product.id.                    |
 | volume                           | Kolumn             | –                 | Ja       | Flik: Attribut                                                                                                                                             |
 | volume_unit                      | Kolumn             | –                 | Ja       | Flik: Attribut                                                                                                                                             |
 | weight                           | Kolumn             | –                 | Ja       | Flik: Attribut                                                                                                                                             |
@@ -99,6 +99,7 @@
 
 ## Sammanfattning
 
+- **WooCommerce gruppering:** Produkter med `group_id` och `group_variation_type` (color/size/model) exporteras som variable product (SKU = group_id) + variations (SKU = V+product.id). Uppdatering/lookup utan sparade Woo-ID: GET ?sku= för att hämta Woo id, sedan PUT/POST.
 - **Fält utan UI:** specifications, manufacturer (string), legacy_product_id, products.sale_price (används inte; Reapris/Originalpris är per instans i channel_product_overrides), group_id, variational_properties (importeras, inte redigerbart)
 - **source_created_at, quantity_sold, last_sold_at:** Skrivs vid Sello-import (created_at, sold, last_sold). Visas endast i Statistik-fliken, inte redigerbara.
 - **unique_selling_points = bulletpoints:** CDON:s namn. Fylls i i Bulletpoints (flik Texter) efter Sello-import. Exportas till CDON. Ej importerat från Sello.

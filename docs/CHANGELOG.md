@@ -4,6 +4,30 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-04 – CDON parent_sku från groupId, WooCommerce gruppering, Modell
+
+### CDON
+
+- **parent_sku:** I `mapToCdonArticle.js` används `product.groupId` (Sello group_id) som `parent_sku` till CDON när den finns, annars `parentProductId`. Matchar CDON-portalens "Huvudartikel SKU".
+
+### WooCommerce – gruppering (variable product + variations)
+
+- **plugins/woocommerce-products/controller.js:** Produkter med `groupId` och `groupVariationType` (color/size/model) exporteras som **variable product** (SKU = group_id) och **variations** (SKU = V+product.id). Lookup via GET `?sku=…`; ingen sparad Woo-ID.
+- Hjälpfunktioner: `partitionProductsByWooGroup`, `ensureWooVariableProduct`, `ensureWooVariation`, `buildWooVariationPayload`, `getVariationAttributeValue`. Fristående produkter exporteras som enkla produkter som tidigare.
+- **Modell:** Exporteras till WooCommerce som attribut (samma som färg/storlek). UI-placeholder för Modell ändrad till "För varianter".
+
+### Scripts
+
+- **fetch-group-identifiers-test.js:** Utökad med WooCommerce (Mobilhallen); söker t.ex. 95990276 och V124732563/564/565.
+- **woo-update-stock-by-sku.js:** Nytt script – ökar lager med 1 på varianter via lookup på SKU (V+id). Vid HTTP 5xx rapporteras `store_error`.
+
+### Dokumentation
+
+- **PRODUCT_PROPERTIES_OVERVIEW.md:** Modell för WooCommerce; group_id användning (CDON parent_sku, WooCommerce variable/variations); kort om WooCommerce gruppering (SKU group_id / V+id).
+- **SELLO_CHANNEL_FIELD_MAPPING.md:** CDON parent_sku = products.group_id; WooCommerce gruppering (variable + variations, SKU, Modell som attribut); avsnitt 5.4 utökat med gruppering och model.
+
+---
+
 ## 2026-03-04 – Orders SKU (Egen referens), CDON mapper, Fyndiq shipping 21
 
 ### Orderlistan – SKU = Egen referens
