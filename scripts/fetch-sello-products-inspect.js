@@ -69,6 +69,7 @@ async function run() {
       properties: p.properties,
       texts: p.texts ? { default: p.texts.default } : null,
       categories: p.categories,
+      prices: p.prices,
     })),
   };
 

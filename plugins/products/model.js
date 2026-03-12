@@ -35,11 +35,11 @@ class ProductModel {
           p.main_image,
           p.images,
           p.categories,
-          p.merchant_sku,
           p.brand,
           p.brand_id,
           p.ean,
           p.gtin,
+          p.kn_number,
           p.supplier_id,
           p.manufacturer_id,
           p.channel_specific,
@@ -120,11 +120,11 @@ class ProductModel {
           p.main_image,
           p.images,
           p.categories,
-          p.merchant_sku,
           p.brand,
           p.brand_id,
           p.ean,
           p.gtin,
+          p.kn_number,
           p.supplier_id,
           p.manufacturer_id,
           p.channel_specific,
@@ -202,11 +202,11 @@ class ProductModel {
           p.main_image,
           p.images,
           p.categories,
-          p.merchant_sku,
           p.brand,
           p.brand_id,
           p.ean,
           p.gtin,
+          p.kn_number,
           p.supplier_id,
           p.manufacturer_id,
           p.channel_specific,
@@ -299,10 +299,10 @@ class ProductModel {
           images,
           categories,
           brand,
-          merchant_sku,
           brand_id,
           ean,
           gtin,
+          kn_number,
           supplier_id,
           manufacturer_id,
           channel_specific,
@@ -337,7 +337,7 @@ class ProductModel {
           $2,  $3,  $4,  $5,  $6,  $7,  $8,
           $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,
           $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42,
-          $43, $44, $45, $46
+          $43, $44, $45, $46, $47
         )
         RETURNING
           id,
@@ -355,10 +355,10 @@ class ProductModel {
           images,
           categories,
           brand,
-          merchant_sku,
           brand_id,
           ean,
           gtin,
+          kn_number,
           supplier_id,
           manufacturer_id,
           channel_specific,
@@ -401,10 +401,10 @@ class ProductModel {
           images,
           categories,
           brand,
-          merchant_sku,
           brand_id,
           ean,
           gtin,
+          kn_number,
           supplier_id,
           manufacturer_id,
           channel_specific,
@@ -439,7 +439,7 @@ class ProductModel {
           $2,  $3,  $4,  $5,  $6,  $7,  $8,
           $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,
           $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42,
-          $43, $44, $45, $46
+          $43, $44, $45, $46, $47
         )
         RETURNING
           id,
@@ -457,10 +457,10 @@ class ProductModel {
           images,
           categories,
           brand,
-          merchant_sku,
           brand_id,
           ean,
           gtin,
+          kn_number,
           supplier_id,
           manufacturer_id,
           channel_specific,
@@ -503,10 +503,10 @@ class ProductModel {
         JSON.stringify(d.images || []),
         JSON.stringify(d.categories || []),
         d.brand,
-        d.merchantSku ?? null,
         d.brandId != null ? d.brandId : null,
         d.ean,
         d.gtin,
+        d.knNumber ?? null,
         d.supplierId != null ? d.supplierId : null,
         d.manufacturerId != null ? d.manufacturerId : null,
         d.channelSpecific != null ? JSON.stringify(d.channelSpecific) : null,
@@ -573,21 +573,21 @@ class ProductModel {
         SET
           sku            = $1,
           mpn            = $2,
-          merchant_sku   = $3,
-          title          = $4,
-          description    = $5,
-          status         = $6,
-          quantity       = $7,
-          price_amount   = $8,
-          currency       = $9,
-          vat_rate       = $10,
-          main_image     = $11,
-          images         = $12,
-          categories     = $13,
-          brand          = $14,
-          brand_id       = $15,
-          ean            = $16,
-          gtin           = $17,
+          title          = $3,
+          description    = $4,
+          status         = $5,
+          quantity       = $6,
+          price_amount   = $7,
+          currency       = $8,
+          vat_rate       = $9,
+          main_image     = $10,
+          images         = $11,
+          categories     = $12,
+          brand          = $13,
+          brand_id       = $14,
+          ean            = $15,
+          gtin           = $16,
+          kn_number      = $17,
           supplier_id    = $18,
           manufacturer_id = $19,
           channel_specific = $20,
@@ -635,10 +635,10 @@ class ProductModel {
           images,
           categories,
           brand,
-          merchant_sku,
           brand_id,
           ean,
           gtin,
+          kn_number,
           supplier_id,
           manufacturer_id,
           channel_specific,
@@ -669,7 +669,6 @@ class ProductModel {
       const params = [
         d.sku,
         d.mpn,
-        d.merchantSku ?? null,
         d.title,
         d.description,
         d.status,
@@ -684,6 +683,7 @@ class ProductModel {
         d.brandId != null ? d.brandId : null,
         d.ean,
         d.gtin,
+        d.knNumber ?? null,
         d.supplierId != null ? d.supplierId : null,
         d.manufacturerId != null ? d.manufacturerId : null,
         d.channelSpecific != null ? JSON.stringify(d.channelSpecific) : null,
@@ -1078,7 +1078,6 @@ class ProductModel {
         id: parseInt(selloIdVal, 10),
         sku: merchantSku != null ? String(merchantSku).trim() : null,
         privateName: privateName != null ? String(privateName).trim() : null,
-        merchantSku: merchantSku != null ? String(merchantSku).trim() : null,
         title: cleanTitle,
         description: description != null ? String(description) : '',
         status: 'for sale',
@@ -1132,12 +1131,15 @@ class ProductModel {
         model: model != null ? String(model).trim() || null : undefined,
         lagerplats: lagerplats != null ? String(lagerplats).trim() || null : undefined,
         condition:
-          condition === 'new' || condition === 'used'
+          condition === 'new' || condition === 'used' || condition === 'refurb'
             ? condition
             : condition != null
-              ? String(condition).trim().toLowerCase() === 'used'
-                ? 'used'
-                : 'new'
+              ? (() => {
+                  const s = String(condition).trim().toLowerCase();
+                  if (s === 'used') return 'used';
+                  if (s === 'refurb' || s === 'refurbed') return 'refurb';
+                  return 'new';
+                })()
               : undefined,
         groupId: groupId != null ? String(groupId).trim() || null : undefined,
         volume: volume != null && Number.isFinite(Number(volume)) ? Number(volume) : undefined,
@@ -1145,6 +1147,13 @@ class ProductModel {
         weight: weight != null && Number.isFinite(Number(weight)) ? Number(weight) : undefined,
         notes: notes != null ? String(notes).trim() || null : undefined,
         privateName: privateName != null ? String(privateName).trim() || null : undefined,
+        sourceCreatedAt:
+          sourceCreatedAt != null ? String(sourceCreatedAt).trim() || null : undefined,
+        quantitySold:
+          quantitySold != null && Number.isFinite(Number(quantitySold))
+            ? Number(quantitySold)
+            : undefined,
+        lastSoldAt: lastSoldAt != null ? String(lastSoldAt).trim() || null : undefined,
       };
 
       const payloadClean = { ...payload };
@@ -1259,7 +1268,6 @@ class ProductModel {
     const safeCurrency = /^[A-Z]{3}$/.test(currency) ? currency : 'SEK';
 
     const sku = clean(data.sku ?? null);
-    const merchantSkuVal = clean(data.merchantSku ?? data.merchant_sku ?? null);
     const mpnRaw = clean(data.mpn ?? null);
     const eanRaw = clean(data.ean ?? null);
     const gtinRaw = clean(data.gtin ?? null);
@@ -1273,7 +1281,7 @@ class ProductModel {
 
     return {
       sku,
-      mpn: mpnRaw || merchantSkuVal,
+      mpn: mpnRaw || sku,
       title: String(titleRaw ?? '').trim(),
       description: clean(data.description) ?? null,
       status: String(data.status ?? 'for sale'),
@@ -1287,7 +1295,6 @@ class ProductModel {
       images: Array.isArray(data.images) ? data.images.filter(Boolean) : [],
       categories: Array.isArray(data.categories) ? data.categories.filter(Boolean) : [],
       brand: clean(data.brand),
-      merchantSku: merchantSkuVal,
       brandId:
         data.brandId != null
           ? Number.isFinite(Number(data.brandId))
@@ -1374,7 +1381,6 @@ class ProductModel {
     return {
       id: String(row.id),
       sku: row.sku ?? null,
-      merchantSku: row.merchant_sku ?? null,
       mpn: row.mpn ?? null,
       privateName: row.private_name ?? null,
       title: row.title ?? '',
@@ -1393,6 +1399,7 @@ class ProductModel {
       brandId: row.brand_id != null ? String(row.brand_id) : null,
       ean: row.ean ?? null,
       gtin: row.gtin ?? null,
+      knNumber: row.kn_number ?? null,
       supplierId: row.supplier_id != null ? String(row.supplier_id) : null,
       supplierName: row.supplier_name ?? null,
       manufacturerId: row.manufacturer_id != null ? String(row.manufacturer_id) : null,

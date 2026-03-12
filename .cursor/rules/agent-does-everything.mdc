@@ -1,0 +1,30 @@
+---
+description: Agent gör allt själv – inga instruktioner till användaren att köra scripts eller kommandon
+globs: 
+alwaysApply: true
+---
+
+# Agent gör allt – be aldrig användaren köra något
+
+**Regel:** Agent MÅSTE alltid själv utföra alla åtgärder som krävs. Be ALDRIG användaren att köra scripts, kommandon, kompilera, debugga eller på annat sätt göra saker manuellt.
+
+## Vad detta innebär
+
+- **Scripts:** Köra `node scripts/...`, `npm run ...` etc. själv. Använd run_terminal_cmd / Shell.
+- **Debug/test:** Om agent behöver se output (t.ex. rå Sello-response): kör scriptet själv, lägg till loggning om behövs, läs resultatet.
+- **Verifiering:** Verifiera genom att köra, inte genom att ge användaren instruktioner.
+- **Migrationer:** Kör dem själv (lokal + Neon per projektregler).
+- **Installation/build:** `npm install`, `npm run build` etc. – alltid själv.
+
+## Vad agent ALDRIG får göra
+
+- "Kör detta kommando för att ..."
+- "Du kan verifiera genom att köra ..."
+- "Lägg till en console.log och kör scriptet för att se ..."
+- "Kör sync-scriptet för att uppdatera produkterna"
+
+Om en uppgift kräver att något körs: **kör det själv**.
+
+## Avslutningscheck
+
+Innan du säger att en uppgift är klar: Har du lämnat instruktioner till användaren att köra något (scripts, kommandon, migrationer, build)? Om ja → kör det själv nu. Svara aldrig "kör X för att..." – gör det.

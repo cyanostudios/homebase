@@ -715,7 +715,8 @@ class FyndiqProductsController {
             lower(COALESCE(ci.market, o.instance)) AS market,
             o.price_amount,
             o.currency,
-            o.vat_rate
+            o.vat_rate,
+            o.original_price
           FROM channel_product_overrides o
           LEFT JOIN channel_instances ci ON ci.id = o.channel_instance_id
           WHERE o.user_id = $1
@@ -745,6 +746,10 @@ class FyndiqProductsController {
         priceAmount: row.price_amount != null ? Number(row.price_amount) : null,
         currency: row.currency != null ? String(row.currency).trim().toUpperCase() : null,
         vatRate: row.vat_rate != null ? Number(row.vat_rate) : null,
+        originalPrice:
+          row.original_price != null && Number.isFinite(Number(row.original_price))
+            ? Number(row.original_price)
+            : null,
       });
     }
 
@@ -887,7 +892,18 @@ class FyndiqProductsController {
         const value = { amount, currency };
         if (Number.isFinite(vatRate)) value.vat_rate = vatRate;
         priceRows.push({ market, value });
-        originalPriceRows.push({ market, value: { ...value } });
+        const originalAmount =
+          marketOverride?.originalPrice != null &&
+          Number.isFinite(marketOverride.originalPrice) &&
+          marketOverride.originalPrice > 0
+            ? marketOverride.originalPrice
+            : amount;
+        const originalValue = {
+          amount: originalAmount,
+          currency,
+          ...(Number.isFinite(vatRate) ? { vat_rate: vatRate } : {}),
+        };
+        originalPriceRows.push({ market, value: originalValue });
       }
       if (marketValidationFailed || !priceRows.length) continue;
 

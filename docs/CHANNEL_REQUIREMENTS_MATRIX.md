@@ -39,7 +39,7 @@ Låst kravmatris för CDON, Fyndiq och WooCommerce. Varje regel är mappad till 
   - `title` – array per språk, `value` 5–150 tecken
   - `description` – array per språk, `value` 10–4096 tecken
   - `price` – per market, `amount` > 0, giltig `currency`
-  - `shipping_time` – per market, `min`/`max` 1–20 (heltal)
+  - `shipping_time` – per market, `min`/`max` 1–21 (heltal)
   - `categories` – minst en giltig kategori
 
 - **Blockerande valideringar**

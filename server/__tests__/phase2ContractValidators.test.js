@@ -154,22 +154,22 @@ describe('Phase 2 contract validators', () => {
       expect(result.reason).toBe('invalid_amount');
     });
 
-    it('accepts shipping_time max 20', () => {
-      const withMax20 = {
-        ...validFyndiqArticle,
-        shipping_time: [
-          { market: 'SE', min: 1, max: 20 },
-          { market: 'FI', min: 2, max: 20 },
-        ],
-      };
-      expect(validateFyndiqArticlePayload(withMax20)).toEqual({ ok: true });
-    });
-
-    it('rejects shipping_time max > 20', () => {
-      const bad = {
+    it('accepts shipping_time max 21', () => {
+      const withMax21 = {
         ...validFyndiqArticle,
         shipping_time: [
           { market: 'SE', min: 1, max: 21 },
+          { market: 'FI', min: 2, max: 21 },
+        ],
+      };
+      expect(validateFyndiqArticlePayload(withMax21)).toEqual({ ok: true });
+    });
+
+    it('rejects shipping_time max > 21', () => {
+      const bad = {
+        ...validFyndiqArticle,
+        shipping_time: [
+          { market: 'SE', min: 1, max: 22 },
           { market: 'FI', min: 2, max: 5 },
         ],
       };

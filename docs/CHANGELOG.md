@@ -4,6 +4,29 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-04 – Orders SKU (Egen referens), CDON mapper, Fyndiq shipping 21
+
+### Orderlistan – SKU = Egen referens
+
+- **plugins/orders/model.js:** SKU i orderraderna kommer från `products.sku` (Egen referens) via join. En källa, ingen fallback. Join använder `p.sku AS product_sku`.
+
+### CDON-mappare (mapToCdonArticle.js)
+
+- **Manufacturer:** En källa – `product.manufacturerName` (från manufacturer_id). Skickas som objekt `{ name }`. Ingen fallback till cdon.manufacturer.
+- **Specifications:** Identifikation → Tillverkarens artikelnummer från `product.mpn` (per språk sv/da/fi/nb). Slås ihop med befintliga cdon.specifications. Ingen fallback till sv-SE för okända språk.
+- **Classifications:** CONDITION från `product.condition` (new→NEW, used→USED, refurb→REFURB).
+- **kn_number:** Från `product.knNumber`.
+- **internal_note:** Sätts från `product.sku` (Egen referens) när tillgänglig.
+- **unique_selling_points:** Byggs från `channelSpecific.textsExtended.bulletpoints` (per språk), inte bara cdon.unique_selling_points.
+
+### Fyndiq shipping_time max 21
+
+- **Leveranstid:** Max 21 arbetsdagar (bekräftat av Fyndiq-support; "Integer 1-9" = ental, tiotal tillåtet).
+- **Kod:** `mapToFyndiqArticle.js` clamp och `validateFyndiqArticlePayload` max 21. Sello-import (buildShippingTimeFromSello) tillåter 1–21.
+- **Dokumentation:** REQUIREMENTS_TO_CODE_MAPPING, SELLO_CHANNEL_FIELD_MAPPING, CHANNEL_REQUIREMENTS_MATRIX, tester uppdaterade.
+
+---
+
 ## 2026-03-04 – Texter: standardmarknad, ingen fallback, varning
 
 ### Texter-fliken (ProductForm)
@@ -86,7 +109,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 - **delivery_times** från Sello mappas till `channelSpecific.cdon.shipping_time` och `channelSpecific.fyndiq.shipping_time`.
 - **Endast per-marknad** (SE, DK, FI, NO): Sello `delivery_times.default` används inte. Produkter med bara default får ingen shipping i importen → ProductForm använder plugin-inställningarna (defaultDeliveryCdon/defaultDeliveryFyndiq).
 - **UI:** `shippingMin` och `shippingMax` läggs på varje marknadsobjekt i `channelSpecific.cdon.markets` och `.fyndiq.markets` så att ProductForm visar och redigerar värdena.
-- Lagrade värden begränsas till 1–20; CDON-mappern begränsar till 1–10, Fyndiq till 1–20 vid export.
+- Lagrade värden begränsas till 1–21; CDON-mappern begränsar till 1–10, Fyndiq till 1–21 vid export.
 
 ---
 

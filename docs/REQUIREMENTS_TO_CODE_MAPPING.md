@@ -2,7 +2,7 @@
 
 Exakt mappning från varje krav i [CHANNEL_REQUIREMENTS_MATRIX.md](CHANNEL_REQUIREMENTS_MATRIX.md) till valideringskod. Använd för spårbarhet, felsökning och verifiering att alla krav är täckta.
 
-**Shipping_time:** CDON 1–10, Fyndiq 1–20 (behålls tills support bekräftar API-gränser).
+**Shipping_time:** CDON 1–10 (max 10 arbetsdagar), Fyndiq 1–21 (max 21 arbetsdagar). Bekräftat av CDON/Fyndiq-support; API-dokumentationens "Integer 1-9" betyder ental, tiotal tillåtet.
 
 ---
 
@@ -89,7 +89,7 @@ Exakt mappning från varje krav i [CHANNEL_REQUIREMENTS_MATRIX.md](CHANNEL_REQUI
 | `quantity` ≥ 0            | mapToFyndiqArticle.js | mapProductToFyndiqArticle | 37–38   | return null om ogiltig       |
 | `description` 10–4096     | mapToFyndiqArticle.js | mapProductToFyndiqArticle | 65–73   | return null om &lt;10        |
 | `price` per market &gt; 0 | mapToFyndiqArticle.js | mapProductToFyndiqArticle | 76–94   | return null om ingen positiv |
-| `shipping_time` 1–20      | mapToFyndiqArticle.js | mapProductToFyndiqArticle | 105–110 | clamp 1–20                   |
+| `shipping_time` 1–21      | mapToFyndiqArticle.js | mapProductToFyndiqArticle | 105–110 | clamp 1–21                   |
 | `categories` minst en     | mapToFyndiqArticle.js | mapProductToFyndiqArticle | 114–129 | return null om tom           |
 | `status` for sale/paused  | mapToFyndiqArticle.js | mapProductToFyndiqArticle | 35      | default 'for sale'           |
 | `markets` SE,DK,FI,NO     | mapToFyndiqArticle.js | mapProductToFyndiqArticle | 51      | från marketsFilter           |
@@ -109,7 +109,7 @@ Exakt mappning från varje krav i [CHANNEL_REQUIREMENTS_MATRIX.md](CHANNEL_REQUI
 | `title` 5–150            | mapToFyndiqArticle.js | validateFyndiqArticlePayload | 262–266 | `missing_title_rows`, `invalid_title_value`             |
 | `description` 10–4096    | mapToFyndiqArticle.js | validateFyndiqArticlePayload | 269–275 | `missing_description_rows`, `invalid_description_value` |
 | `price` amount &gt; 0    | mapToFyndiqArticle.js | validateFyndiqArticlePayload | 277–289 | `invalid_amount`, `invalid_currency`                    |
-| `shipping_time` 1–20     | mapToFyndiqArticle.js | validateFyndiqArticlePayload | 292–304 | `invalid_shipping_time_range`                           |
+| `shipping_time` 1–21     | mapToFyndiqArticle.js | validateFyndiqArticlePayload | 292–304 | `invalid_shipping_time_range`                           |
 
 ### article_id/UUID vid update (update_only_strict)
 

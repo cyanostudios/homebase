@@ -163,9 +163,9 @@ function mapProductToFyndiqArticle(
   for (const m of markets) {
     const existing = shippingTimeMap.get(m);
     const min =
-      existing?.min != null ? Math.max(1, Math.min(20, Math.floor(Number(existing.min)))) : 1;
+      existing?.min != null ? Math.max(1, Math.min(21, Math.floor(Number(existing.min)))) : 1;
     const max =
-      existing?.max != null ? Math.max(1, Math.min(20, Math.floor(Number(existing.max)))) : 3;
+      existing?.max != null ? Math.max(1, Math.min(21, Math.floor(Number(existing.max)))) : 3;
     shipping_time.push({ market: m, min, max });
   }
 
@@ -217,12 +217,42 @@ function mapProductToFyndiqArticle(
     payload.gtin = String(product.gtin).trim().slice(0, 13);
   if (fyndiq.delivery_type && Array.isArray(fyndiq.delivery_type) && fyndiq.delivery_type.length)
     payload.delivery_type = fyndiq.delivery_type;
-  if (fyndiq.kn_number != null && String(fyndiq.kn_number).trim())
-    payload.kn_number = String(fyndiq.kn_number).trim().slice(0, 48);
-  if (fyndiq.properties && Array.isArray(fyndiq.properties) && fyndiq.properties.length)
+  if (product?.knNumber != null && String(product.knNumber).trim())
+    payload.kn_number = String(product.knNumber).trim().slice(0, 48);
+  if (product?.sku != null && String(product.sku).trim())
+    payload.internal_note = String(product.sku).trim();
+  if (fyndiq.properties && Array.isArray(fyndiq.properties) && fyndiq.properties.length) {
     payload.properties = fyndiq.properties;
-  if (fyndiq.variational_properties && Array.isArray(fyndiq.variational_properties))
+  } else if (
+    product?.parentProductId != null &&
+    String(product.parentProductId).trim() &&
+    product?.groupVariationType &&
+    ['color', 'size', 'model'].includes(String(product.groupVariationType).toLowerCase())
+  ) {
+    const vt = String(product.groupVariationType).toLowerCase();
+    const lang = defaultLanguage || 'sv-SE';
+    const props = [];
+    if (vt === 'color') {
+      const v = (product.color || product.colorText || '').trim();
+      if (v) props.push({ name: 'color', value: v.slice(0, 100), language: lang });
+    } else if (vt === 'size') {
+      const v = (product.size || product.sizeText || '').trim();
+      if (v) props.push({ name: 'size', value: v.slice(0, 100), language: lang });
+    } else if (vt === 'model') {
+      const v = (product.model || '').trim();
+      if (v) props.push({ name: 'model', value: v.slice(0, 100), language: lang });
+    }
+    if (props.length > 0) payload.properties = props;
+  }
+  if (fyndiq.variational_properties && Array.isArray(fyndiq.variational_properties)) {
     payload.variational_properties = fyndiq.variational_properties;
+  } else if (
+    product?.parentProductId != null &&
+    product?.groupVariationType &&
+    ['color', 'size', 'model'].includes(String(product.groupVariationType).toLowerCase())
+  ) {
+    payload.variational_properties = [String(product.groupVariationType).toLowerCase()];
+  }
 
   return payload;
 }
@@ -373,7 +403,7 @@ function validateFyndiqArticlePayload(article) {
       return { ok: false, reason: 'invalid_shipping_time_market' };
     const min = Number(row?.min);
     const max = Number(row?.max);
-    if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max > 20 || min > max) {
+    if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max > 21 || min > max) {
       return { ok: false, reason: 'invalid_shipping_time_range' };
     }
   }

@@ -204,31 +204,153 @@ function mapProductToCdonArticle(
   if (product?.gtin != null && String(product.gtin).trim())
     payload.gtin = String(product.gtin).trim();
   if (product?.mpn != null && String(product.mpn).trim()) payload.mpn = String(product.mpn).trim();
+  if (product?.sku != null && String(product.sku).trim())
+    payload.internal_note = String(product.sku).trim();
   if (Array.isArray(product?.images) && product.images.length) {
     const trimmed = product.images.filter(Boolean).map((u) => String(u).trim());
     const invalid = trimmed.find((u) => !isValidUrl(u));
     if (invalid !== undefined) return null;
     payload.images = trimmed;
   }
-  if (cdon.unique_selling_points && Array.isArray(cdon.unique_selling_points))
-    payload.unique_selling_points = cdon.unique_selling_points;
-  if (cdon.specifications && Array.isArray(cdon.specifications))
-    payload.specifications = cdon.specifications;
-  if (cdon.classifications && Array.isArray(cdon.classifications))
-    payload.classifications = cdon.classifications;
+  if (textsExtended && typeof textsExtended === 'object') {
+    const uspArr = [];
+    const seen = new Set();
+    for (const m of markets) {
+      const mk = m.toLowerCase();
+      const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
+      if (seen.has(lang)) continue;
+      const t = textsExtended[mk];
+      const bp = t?.bulletpoints ?? standardText?.bulletpoints;
+      let points = [];
+      if (Array.isArray(bp)) {
+        points = bp
+          .filter(Boolean)
+          .map(String)
+          .map((s) => s.trim())
+          .filter(Boolean);
+      } else if (typeof bp === 'string' && bp.trim()) {
+        points = bp
+          .split(/\n/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      if (points.length > 0) {
+        seen.add(lang);
+        uspArr.push({ language: lang, value: points });
+      }
+    }
+    if (uspArr.length > 0) payload.unique_selling_points = uspArr;
+  }
+  // Specifications: always include Identifikation → Tillverkarens artikelnummer from MPN; merge with cdon.specifications if present
+  const mpnValue = product?.mpn != null ? String(product.mpn).trim() : null;
+  const MPN_ATTR_BY_LANG = {
+    'sv-SE': 'Tillverkarens artikelnummer',
+    'da-DK': 'Producentens artikelnummer',
+    'fi-FI': 'Valmistajan tuotenumero',
+    'nb-NO': 'Producentens artikkelnummer',
+  };
+  const identSection = (lang) => {
+    const attrName = MPN_ATTR_BY_LANG[lang];
+    if (!attrName) return null;
+    return {
+      name: 'Identifikation',
+      value: [{ name: attrName, value: mpnValue, description: null }],
+    };
+  };
+  const existingSpecs =
+    cdon.specifications && Array.isArray(cdon.specifications) ? cdon.specifications : [];
+  if (mpnValue) {
+    const langSet = new Set();
+    const specArr = [];
+    for (const m of markets) {
+      const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
+      if (langSet.has(lang)) continue;
+      const attrName = MPN_ATTR_BY_LANG[lang];
+      if (!attrName) continue;
+      langSet.add(lang);
+      const ident = identSection(lang);
+      if (!ident) continue;
+      const existingForLang = existingSpecs.find((s) => s.language === lang);
+      const sections = [ident];
+      if (existingForLang && Array.isArray(existingForLang.value)) {
+        for (const sec of existingForLang.value) {
+          if (sec && sec.name !== 'Identifikation') sections.push(sec);
+        }
+      }
+      specArr.push({ language: lang, value: sections });
+    }
+    for (const ex of existingSpecs) {
+      if (ex && ex.language && !langSet.has(ex.language)) {
+        const ident = identSection(ex.language);
+        if (!ident) continue;
+        langSet.add(ex.language);
+        const sections = [ident];
+        if (Array.isArray(ex.value)) {
+          for (const sec of ex.value) {
+            if (sec && sec.name !== 'Identifikation') sections.push(sec);
+          }
+        }
+        specArr.push({ language: ex.language, value: sections });
+      }
+    }
+    if (specArr.length) payload.specifications = specArr;
+  } else if (existingSpecs.length) {
+    payload.specifications = existingSpecs;
+  }
+
+  // Classifications: CONDITION derived from product.condition (new→NEW, used→USED, refurb→REFURB)
+  const condMap = { new: 'NEW', used: 'USED', refurb: 'REFURB' };
+  const cond = condMap[product?.condition] ?? 'NEW';
+  payload.classifications = [{ name: 'CONDITION', value: cond }];
   if (cdon.delivery_type && Array.isArray(cdon.delivery_type))
     payload.delivery_type = cdon.delivery_type;
-  if (cdon.kn_number != null && String(cdon.kn_number).trim())
-    payload.kn_number = String(cdon.kn_number).trim();
+  if (product?.knNumber != null && String(product.knNumber).trim())
+    payload.kn_number = String(product.knNumber).trim().slice(0, 48);
   if (cdon.shipped_from != null && String(cdon.shipped_from).trim())
     payload.shipped_from = String(cdon.shipped_from).trim();
-  if (cdon.manufacturer != null && String(cdon.manufacturer).trim())
-    payload.manufacturer = String(cdon.manufacturer).trim();
+
+  // Manufacturer: CDON expects object { name, address? }. Single source: product.manufacturerName (from manufacturer_id).
+  const manufacturerName =
+    product?.manufacturerName != null && String(product.manufacturerName).trim()
+      ? String(product.manufacturerName).trim().slice(0, 255)
+      : null;
+  if (manufacturerName) {
+    payload.manufacturer = { name: manufacturerName };
+  }
   if (cdon.availability_dates && Array.isArray(cdon.availability_dates))
     payload.availability_dates = cdon.availability_dates;
-  if (cdon.properties && Array.isArray(cdon.properties)) payload.properties = cdon.properties;
-  if (cdon.variational_properties && Array.isArray(cdon.variational_properties))
+  if (cdon.properties && Array.isArray(cdon.properties)) {
+    payload.properties = cdon.properties;
+  } else if (
+    product?.parentProductId != null &&
+    String(product.parentProductId).trim() &&
+    product?.groupVariationType &&
+    ['color', 'size', 'model'].includes(String(product.groupVariationType).toLowerCase())
+  ) {
+    const vt = String(product.groupVariationType).toLowerCase();
+    const lang = defaultLanguage || 'sv-SE';
+    const props = [];
+    if (vt === 'color') {
+      const v = (product.color || product.colorText || '').trim();
+      if (v) props.push({ name: 'color', value: v.slice(0, 100), language: lang });
+    } else if (vt === 'size') {
+      const v = (product.size || product.sizeText || '').trim();
+      if (v) props.push({ name: 'size', value: v.slice(0, 100), language: lang });
+    } else if (vt === 'model') {
+      const v = (product.model || '').trim();
+      if (v) props.push({ name: 'model', value: v.slice(0, 100), language: lang });
+    }
+    if (props.length > 0) payload.properties = props;
+  }
+  if (cdon.variational_properties && Array.isArray(cdon.variational_properties)) {
     payload.variational_properties = cdon.variational_properties;
+  } else if (
+    product?.parentProductId != null &&
+    product?.groupVariationType &&
+    ['color', 'size', 'model'].includes(String(product.groupVariationType).toLowerCase())
+  ) {
+    payload.variational_properties = [String(product.groupVariationType).toLowerCase()];
+  }
 
   return payload;
 }

@@ -251,6 +251,8 @@ class ChannelsController {
         currency: data.currency,
         vatRate: data.vatRate,
         category: data.category,
+        salePrice: data.salePrice,
+        originalPrice: data.originalPrice,
       });
       return res.json({ ok: true, ...result });
     } catch (error) {

@@ -233,6 +233,57 @@ function getSelloStorePriceForInstance(product, integrationId, market) {
   return null;
 }
 
+/** Sello prices[integrationId].regular (per market/lang) → Fyndiq original_price. */
+function getSelloRegularPriceForInstance(product, integrationId, market) {
+  const entry = getSelloPriceEntry(product, integrationId);
+  if (!entry) return null;
+
+  const marketToLang = { se: 'sv', dk: 'da', fi: 'fi', no: 'nb' };
+  const normalizedMarket = String(market || '')
+    .trim()
+    .toLowerCase();
+  const lang = marketToLang[normalizedMarket] || null;
+  const marketUpper = normalizedMarket ? normalizedMarket.toUpperCase() : null;
+  if (lang) {
+    const localized = toPositiveNumberOrNull(entry?.[lang]?.regular);
+    if (localized != null) return localized;
+  }
+  if (marketUpper && entry?.[marketUpper]) {
+    const v = toPositiveNumberOrNull(entry[marketUpper].regular);
+    if (v != null) return v;
+  }
+  const defaultRegular = toPositiveNumberOrNull(entry?.regular);
+  if (defaultRegular != null) return defaultRegular;
+  if (!lang) {
+    const svRegular = toPositiveNumberOrNull(entry?.sv?.regular);
+    if (svRegular != null) return svRegular;
+  }
+  return null;
+}
+
+/** Sello prices[integrationId].campaign (per market/lang) → WooCommerce sale_price (Reapris). */
+function getSelloCampaignPriceForInstance(product, integrationId, market) {
+  const entry = getSelloPriceEntry(product, integrationId);
+  if (!entry) return null;
+
+  const marketToLang = { se: 'sv', dk: 'da', fi: 'fi', no: 'nb' };
+  const normalizedMarket = String(market || '')
+    .trim()
+    .toLowerCase();
+  const lang = marketToLang[normalizedMarket] || null;
+  if (lang) {
+    const localized = toPositiveNumberOrNull(entry?.[lang]?.campaign);
+    if (localized != null) return localized;
+  }
+  const defaultCampaign = toPositiveNumberOrNull(entry?.campaign);
+  if (defaultCampaign != null) return defaultCampaign;
+  if (!lang) {
+    const svCampaign = toPositiveNumberOrNull(entry?.sv?.campaign);
+    if (svCampaign != null) return svCampaign;
+  }
+  return null;
+}
+
 function getSelloCurrencyForIntegration(product, integrationId) {
   const entry = getSelloPriceEntry(product, integrationId);
   const currency = String(entry?.currency || '')
@@ -477,7 +528,7 @@ function parseSelloDeliveryEntry(entry) {
  * Build shipping_time array for CDON/Fyndiq from Sello delivery_times.
  * Sello: delivery_times = { SE: { min, max }, DK: { min, max }, ... }.
  * Only uses per-market values; Sello default is ignored so products without
- * explicit per-market shipping fall back to plugin settings. Clamped to 1–20.
+ * explicit per-market shipping fall back to plugin settings. Clamped to 1–21 (Fyndiq max).
  * @param {Object} product - Sello product
  * @returns {Array<{ market: string, min: number, max: number }> | null}
  */
@@ -488,8 +539,8 @@ function buildShippingTimeFromSello(product) {
   for (const market of MARKETS_FOR_SHIPPING) {
     const entry = parseSelloDeliveryEntry(dt[market]);
     if (!entry) continue;
-    const min = Math.max(1, Math.min(20, entry.min));
-    const max = Math.max(1, Math.min(20, Math.max(min, entry.max)));
+    const min = Math.max(1, Math.min(21, entry.min));
+    const max = Math.max(1, Math.min(21, Math.max(min, entry.max)));
     out.push({ market, min, max });
   }
   return out.length > 0 ? out : null;
@@ -667,7 +718,18 @@ class ProductController {
 
   async upsertChannelOverride(
     req,
-    { productId, channel, instance, active, priceAmount, currency, vatRate, category },
+    {
+      productId,
+      channel,
+      instance,
+      active,
+      priceAmount,
+      currency,
+      vatRate,
+      category,
+      saleAmount,
+      originalPriceAmount,
+    },
   ) {
     const { Database } = require('@homebase/core');
     const db = Database.get(req);
@@ -698,18 +760,31 @@ class ProductController {
     );
     const channelInstanceId = instRows?.[0]?.id;
 
+    const salePrice =
+      saleAmount != null && Number.isFinite(Number(saleAmount)) && Number(saleAmount) > 0
+        ? Number(saleAmount)
+        : null;
+    const originalPrice =
+      originalPriceAmount != null &&
+      Number.isFinite(Number(originalPriceAmount)) &&
+      Number(originalPriceAmount) > 0
+        ? Number(originalPriceAmount)
+        : null;
+
     const sql = `
       INSERT INTO channel_product_overrides
-        (user_id, product_id, channel, instance, channel_instance_id, active, price_amount, currency, vat_rate, category, created_at, updated_at)
+        (user_id, product_id, channel, instance, channel_instance_id, active, price_amount, currency, vat_rate, category, sale_price, original_price, created_at, updated_at)
       VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       ON CONFLICT (user_id, product_id, channel, instance) DO UPDATE SET
         channel_instance_id = COALESCE(EXCLUDED.channel_instance_id, channel_product_overrides.channel_instance_id),
         active = EXCLUDED.active,
         price_amount = EXCLUDED.price_amount,
         currency = EXCLUDED.currency,
         vat_rate = EXCLUDED.vat_rate,
-        category = CASE WHEN $11 = true THEN EXCLUDED.category ELSE channel_product_overrides.category END,
+        category = CASE WHEN $13 = true THEN EXCLUDED.category ELSE channel_product_overrides.category END,
+        sale_price = COALESCE(EXCLUDED.sale_price, channel_product_overrides.sale_price),
+        original_price = COALESCE(EXCLUDED.original_price, channel_product_overrides.original_price),
         updated_at = CURRENT_TIMESTAMP
     `;
 
@@ -724,6 +799,8 @@ class ProductController {
       currency ? String(currency) : null,
       vatRate != null && Number.isFinite(Number(vatRate)) ? Number(vatRate) : null,
       category != null && String(category).trim() ? String(category).trim() : null,
+      salePrice,
+      originalPrice,
       category !== undefined,
     ]);
   }
@@ -1549,6 +1626,7 @@ class ProductController {
         } catch {
           groupsByGroupId = new Map();
         }
+        const groupsMap = groupsByGroupId;
         const selloIdToHomebaseId = new Map();
         for (const productId of selloProductIds) {
           let raw;
@@ -1612,6 +1690,16 @@ class ProductController {
           const textsExtended = getSelloTextsExtended(raw);
           if (textsExtended) {
             importedChannelSpecific.textsExtended = textsExtended;
+          }
+          const groupIdRaw = raw?.group_id != null ? String(raw.group_id) : null;
+          const groupInfo = groupIdRaw && groupsMap ? groupsMap.get(groupIdRaw) : null;
+          if (
+            groupInfo?.type &&
+            ['color', 'size', 'model'].includes(String(groupInfo.type).toLowerCase())
+          ) {
+            const vp = [String(groupInfo.type).toLowerCase()];
+            importedChannelSpecific.cdon.variational_properties = vp;
+            importedChannelSpecific.fyndiq.variational_properties = vp;
           }
           const selloList = await listsModel.findOrCreateListForSelloFolder(
             req,
@@ -1702,7 +1790,6 @@ class ProductController {
             lastSoldAt: raw?.last_sold != null ? String(raw.last_sold).trim() : undefined,
           });
           const createdProductId = String(upsertResult?.product?.id || '').trim();
-          const groupIdRaw = raw?.group_id != null ? String(raw.group_id) : null;
           if (createdProductId && groupIdRaw) selloIdToHomebaseId.set(sku, { groupId: groupIdRaw });
           if (createdProductId && selloList?.id) {
             await this.model.setProductList(req, createdProductId, selloList.id);
@@ -1726,6 +1813,14 @@ class ProductController {
                   integrationId,
                   inst.market,
                 );
+                const saleAmount =
+                  inst.channel === 'woocommerce'
+                    ? getSelloCampaignPriceForInstance(raw, integrationId, inst.market)
+                    : null;
+                const originalPriceAmount =
+                  inst.channel === 'fyndiq'
+                    ? getSelloRegularPriceForInstance(raw, integrationId, inst.market)
+                    : null;
                 let overrideCategory;
                 if (inst.channel === 'woocommerce') {
                   overrideCategory = catIds.length ? JSON.stringify(catIds) : null;
@@ -1741,6 +1836,8 @@ class ProductController {
                   currency,
                   vatRate: raw?.tax,
                   category: overrideCategory,
+                  saleAmount,
+                  originalPriceAmount,
                 });
                 summary.overrides_updated += 1;
               }
@@ -1794,6 +1891,23 @@ class ProductController {
         }
         if (!products.length) break;
 
+        const pageGroups = Array.isArray(page?.groups) ? page.groups : [];
+        const pageGroupsByGroupId = new Map();
+        for (const g of pageGroups) {
+          const gid = g.id ?? g.group_id;
+          if (gid != null) {
+            pageGroupsByGroupId.set(String(gid), {
+              mainProduct: g.main_product,
+              type:
+                g.type && ['color', 'size', 'model'].includes(String(g.type).toLowerCase())
+                  ? String(g.type).toLowerCase()
+                  : null,
+            });
+          }
+        }
+
+        const groupsMap = pageGroupsByGroupId;
+        const pageProductIdToGroupId = new Map();
         for (const raw of products) {
           if (maxProducts != null && summary.requested >= maxProducts) break;
           summary.requested += 1;
@@ -1832,6 +1946,16 @@ class ProductController {
           const textsExtended = getSelloTextsExtended(raw);
           if (textsExtended) {
             importedChannelSpecific.textsExtended = textsExtended;
+          }
+          const groupIdRaw = raw?.group_id != null ? String(raw.group_id) : null;
+          const groupInfo = groupIdRaw && groupsMap ? groupsMap.get(groupIdRaw) : null;
+          if (
+            groupInfo?.type &&
+            ['color', 'size', 'model'].includes(String(groupInfo.type).toLowerCase())
+          ) {
+            const vp = [String(groupInfo.type).toLowerCase()];
+            importedChannelSpecific.cdon.variational_properties = vp;
+            importedChannelSpecific.fyndiq.variational_properties = vp;
           }
           const selloList = await listsModel.findOrCreateListForSelloFolder(
             req,
@@ -1922,6 +2046,9 @@ class ProductController {
             lastSoldAt: raw?.last_sold != null ? String(raw.last_sold).trim() : undefined,
           });
           const productId = String(upsertResult?.product?.id || '').trim();
+          if (productId && groupIdRaw && groupInfo) {
+            pageProductIdToGroupId.set(productId, { groupId: groupIdRaw });
+          }
           if (productId && selloList?.id) {
             await this.model.setProductList(req, productId, selloList.id);
           }
@@ -1946,6 +2073,14 @@ class ProductController {
                   integrationId,
                   inst.market,
                 );
+                const saleAmount =
+                  inst.channel === 'woocommerce'
+                    ? getSelloCampaignPriceForInstance(raw, integrationId, inst.market)
+                    : null;
+                const originalPriceAmount =
+                  inst.channel === 'fyndiq'
+                    ? getSelloRegularPriceForInstance(raw, integrationId, inst.market)
+                    : null;
                 let overrideCategory;
                 if (inst.channel === 'woocommerce') {
                   if (categoryIds.length) overrideCategory = JSON.stringify(categoryIds);
@@ -1962,6 +2097,8 @@ class ProductController {
                   currency,
                   vatRate: raw?.tax,
                   category: overrideCategory,
+                  saleAmount,
+                  originalPriceAmount,
                 });
                 summary.overrides_updated += 1;
               }
@@ -1984,6 +2121,17 @@ class ProductController {
               sourceCreatedAt: raw?.created_at || null,
             });
           }
+        }
+        for (const [productId, { groupId }] of pageProductIdToGroupId) {
+          const groupInfo = groupsMap.get(groupId);
+          if (!groupInfo) continue;
+          const mainSelloId = String(groupInfo.mainProduct ?? '');
+          const isMain = productId === mainSelloId;
+          const parentProductId = isMain ? null : mainSelloId;
+          await this.model.updateProductGroupRelation(req, productId, {
+            parentProductId,
+            groupVariationType: groupInfo.type,
+          });
         }
 
         offset += products.length;

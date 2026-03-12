@@ -64,6 +64,8 @@ interface ProductContextType {
         channelInstanceId: number | string;
         category?: string | null;
         priceAmount?: number | null;
+        salePrice?: number | null;
+        originalPrice?: number | null;
       }>;
     },
   ) => Promise<boolean>;
@@ -467,11 +469,11 @@ export function ProductProvider({
       images: Array.isArray(raw.images) ? raw.images : [],
       categories: Array.isArray(raw.categories) ? raw.categories : [],
       brand: (raw.brand ?? '').trim(),
-      merchantSku: (raw.merchantSku ?? '').trim() || undefined,
       privateName: (raw.privateName ?? '').trim() || undefined,
       brandId: raw.brandId ? String(raw.brandId).trim() : undefined,
       ean: (raw.ean ?? '').trim() || undefined,
       gtin: (raw.gtin ?? '').trim() || undefined,
+      knNumber: (raw.knNumber ?? raw.kn_number ?? '').trim() || undefined,
       supplierId: raw.supplierId ? String(raw.supplierId).trim() : undefined,
       manufacturerId: raw.manufacturerId ? String(raw.manufacturerId).trim() : undefined,
       lagerplats: (raw.lagerplats ?? '').trim() || undefined,
@@ -482,6 +484,7 @@ export function ProductProvider({
       pattern: (raw.pattern ?? '').trim() || undefined,
       material: (raw.material ?? '').trim() || undefined,
       patternText: (raw.patternText ?? '').trim() || undefined,
+      model: (raw.model ?? '').trim() || undefined,
       weight:
         (raw.weight ?? null) !== null && raw.weight !== '' && Number.isFinite(Number(raw.weight))
           ? Number(raw.weight)
@@ -720,6 +723,8 @@ export function ProductProvider({
                 active: true,
                 category: o.category ?? undefined,
                 priceAmount: o.priceAmount ?? undefined,
+                salePrice: o.salePrice ?? undefined,
+                originalPrice: o.originalPrice ?? undefined,
               })),
             });
           } catch (overrideErr) {
@@ -768,6 +773,15 @@ export function ProductProvider({
                 categories: productForSync.categories,
                 brand: productForSync.brand,
                 gtin: productForSync.gtin,
+                condition: productForSync.condition,
+                knNumber: productForSync.knNumber,
+                channelSpecific: productForSync.channelSpecific,
+                parentProductId: productForSync.parentProductId,
+                groupVariationType: productForSync.groupVariationType,
+                color: productForSync.color,
+                colorText: productForSync.colorText,
+                size: productForSync.size,
+                model: productForSync.model,
                 createdAt: productForSync.createdAt,
                 updatedAt: productForSync.updatedAt,
               };
@@ -843,6 +857,8 @@ export function ProductProvider({
                   active: true,
                   category: o.category ?? undefined,
                   priceAmount: o.priceAmount ?? undefined,
+                  salePrice: o.salePrice ?? undefined,
+                  originalPrice: o.originalPrice ?? undefined,
                 })),
               });
             } catch (overrideErr) {
@@ -890,6 +906,15 @@ export function ProductProvider({
                 categories: productForSync.categories,
                 brand: productForSync.brand,
                 gtin: productForSync.gtin,
+                condition: productForSync.condition,
+                knNumber: productForSync.knNumber,
+                channelSpecific: productForSync.channelSpecific,
+                parentProductId: productForSync.parentProductId,
+                groupVariationType: productForSync.groupVariationType,
+                color: productForSync.color,
+                colorText: productForSync.colorText,
+                size: productForSync.size,
+                model: productForSync.model,
                 createdAt: productForSync.createdAt,
                 updatedAt: productForSync.updatedAt,
               };

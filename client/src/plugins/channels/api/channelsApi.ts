@@ -237,6 +237,8 @@ class ChannelsApi {
       active?: boolean;
       priceAmount?: number | null;
       category?: string | null;
+      salePrice?: number | null;
+      originalPrice?: number | null;
     }>;
   }): Promise<{ ok: true; count: number }> {
     const items = body.items
@@ -250,6 +252,8 @@ class ChannelsApi {
           active: boolean;
           priceAmount?: number;
           category?: string;
+          salePrice?: number;
+          originalPrice?: number;
         } = {
           channelInstanceId: id,
           active: o.active ?? true,
@@ -259,6 +263,12 @@ class ChannelsApi {
         }
         if ((o.category ?? null) !== null && String(o.category).trim() !== '') {
           row.category = String(o.category).trim();
+        }
+        if ((o.salePrice ?? null) !== null && Number.isFinite(Number(o.salePrice))) {
+          row.salePrice = Number(o.salePrice);
+        }
+        if ((o.originalPrice ?? null) !== null && Number.isFinite(Number(o.originalPrice))) {
+          row.originalPrice = Number(o.originalPrice);
         }
         return row;
       })

@@ -25,6 +25,7 @@ export interface Product {
   brandId?: string | null;
   ean?: string | null;
   gtin: string | null;
+  knNumber?: string | null;
   supplierId?: string | null;
   supplierName?: string | null;
   manufacturerId?: string | null;
@@ -39,6 +40,7 @@ export interface Product {
   pattern?: string | null;
   material?: string | null;
   patternText?: string | null;
+  model?: string | null;
   weight?: number | null;
   condition?: 'new' | 'used' | null;
   groupId?: string | null;

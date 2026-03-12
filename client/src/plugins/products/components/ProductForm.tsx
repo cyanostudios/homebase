@@ -42,10 +42,17 @@ const SIZE_OPTIONS = [
   { value: 'xxl', label: 'XXL' },
 ];
 
-/** Skick: Sello condition (new/used) */
+/** Skick: CDON Condition (New / Used / Refurbed) */
 const CONDITION_OPTIONS = [
-  { value: 'new', label: 'New' },
+  { value: 'new', label: 'Ny' },
   { value: 'used', label: 'Used' },
+  { value: 'refurb', label: 'Refurbed' },
+];
+
+/** CDON shipped_from: varifrån produkten skickas */
+const SHIPPED_FROM_OPTIONS = [
+  { value: 'EU', label: 'EU' },
+  { value: 'NON_EU', label: 'Ej EU' },
 ];
 
 /** Volymenhet: Sello volume_unit (m3, dm3, cm3, l, ml) */
@@ -623,7 +630,6 @@ type FormData = {
   currency: string;
   vatRate: number | '';
   sku: string;
-  merchantSku: string;
   privateName: string;
   mpn: string;
   description: string;
@@ -634,6 +640,7 @@ type FormData = {
   brandId: string;
   ean: string;
   gtin: string;
+  knNumber: string;
   supplierId: string;
   manufacturerId: string;
   /** Produkt-fliken: lagerplats (frivillig) */
@@ -646,8 +653,13 @@ type FormData = {
   pattern: string;
   material: string;
   patternText: string;
+  model: string;
   weight: number | '';
-  condition: 'new' | 'used';
+  condition: 'new' | 'used' | 'refurb';
+  /** CDON shipped_from (default EU) */
+  shippedFrom: 'EU' | 'NON_EU';
+  /** CDON availability_dates per market (YYYY-MM-DD) */
+  availabilityDates: Record<MarketKey, string>;
   groupId: string;
   volume: number | '';
   volumeUnit: string;
@@ -728,7 +740,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     priceAmount: 0,
     purchasePrice: '',
     salePrice: '',
-    merchantSku: '',
     privateName: '',
     currency: 'SEK',
     vatRate: 25,
@@ -742,10 +753,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     brandId: '',
     ean: '',
     gtin: '',
+    knNumber: '',
     supplierId: '',
     manufacturerId: '',
     lagerplats: '',
     condition: 'new',
+    shippedFrom: 'EU',
+    availabilityDates: { se: '', dk: '', fi: '', no: '' },
     groupId: '',
     volume: '',
     volumeUnit: '',
@@ -757,6 +771,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     pattern: '',
     material: '',
     patternText: '',
+    model: '',
     weight: '',
     lengthCm: '',
     widthCm: '',
@@ -875,9 +890,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         const ov = (cached.overrides as any[]).find(
           (o: any) => String(o.instanceId) === String(inst.id),
         );
+        const ch = String(inst.channel || '').toLowerCase();
+        const reaprisOrOriginal =
+          ch === 'woocommerce' ? ov?.salePrice : ch === 'fyndiq' ? ov?.originalPrice : null;
         priceInit[String(inst.id)] = {
           priceAmount: ov?.priceAmount != null ? String(ov.priceAmount) : '',
-          salePrice: '',
+          salePrice: reaprisOrOriginal != null ? String(reaprisOrOriginal) : '',
         };
       }
       setChannelPriceOverrides(priceInit);
@@ -1022,9 +1040,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     const priceInit: Record<string, { priceAmount: string; salePrice: string }> = {};
     for (const inst of channelInstances) {
       const ov = channelOverrides.find((o: any) => String(o.instanceId) === String(inst.id));
+      const ch = String(inst.channel || '').toLowerCase();
+      const reaprisOrOriginal =
+        ch === 'woocommerce' ? ov?.salePrice : ch === 'fyndiq' ? ov?.originalPrice : null;
       priceInit[String(inst.id)] = {
         priceAmount: ov?.priceAmount != null ? String(ov.priceAmount) : '',
-        salePrice: ov?.salePrice != null ? String(ov.salePrice) : '',
+        salePrice: reaprisOrOriginal != null ? String(reaprisOrOriginal) : '',
       };
     }
     setChannelPriceOverrides(priceInit);
@@ -1267,7 +1288,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         currency: baseCur,
         vatRate: Number.isFinite(currentProduct.vatRate) ? Number(currentProduct.vatRate) : 25,
         sku,
-        merchantSku: (currentProduct as any).merchantSku ?? '',
         privateName: (currentProduct as any).privateName ?? '',
         mpn,
         description: baseDesc,
@@ -1278,6 +1298,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         brandId: (currentProduct as any).brandId ?? '',
         ean: (currentProduct as any).ean ?? '',
         gtin: currentProduct.gtin ?? '',
+        knNumber: (currentProduct as any).knNumber ?? '',
         supplierId: (currentProduct as any).supplierId ?? '',
         manufacturerId: (currentProduct as any).manufacturerId ?? '',
         lagerplats: currentProduct.lagerplats ?? '',
@@ -1288,11 +1309,32 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         pattern: (currentProduct as any).pattern ?? '',
         material: (currentProduct as any).material ?? '',
         patternText: (currentProduct as any).patternText ?? '',
+        model: (currentProduct as any).model ?? '',
         weight:
           (currentProduct as any).weight != null && (currentProduct as any).weight !== ''
             ? (currentProduct as any).weight
             : '',
-        condition: (currentProduct as any).condition === 'used' ? 'used' : 'new',
+        condition:
+          (currentProduct as any).condition === 'used'
+            ? 'used'
+            : (currentProduct as any).condition === 'refurb'
+              ? 'refurb'
+              : 'new',
+        shippedFrom: (cs.cdon as any)?.shipped_from === 'NON_EU' ? 'NON_EU' : 'EU',
+        availabilityDates: (() => {
+          const arr = Array.isArray((cs.cdon as any)?.availability_dates)
+            ? (cs.cdon as any).availability_dates
+            : [];
+          const map: Record<string, string> = { se: '', dk: '', fi: '', no: '' };
+          for (const e of arr) {
+            const m = String(e?.market || '').toLowerCase();
+            const v = e?.value != null ? String(e.value).trim() : '';
+            if (m && ['se', 'dk', 'fi', 'no'].includes(m)) {
+              map[m] = v;
+            }
+          }
+          return map;
+        })(),
         groupId: (currentProduct as any).groupId ?? '',
         volume:
           (currentProduct as any).volume != null && (currentProduct as any).volume !== ''
@@ -1708,9 +1750,21 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           texts: formData.texts,
           category: (formData.channelCategories?.cdon ?? '').trim() || null,
           shipping_time: shippingTime,
+          shipped_from: formData.shippedFrom || 'EU',
           ...(cdonDeliveryType.length > 0 && { delivery_type: cdonDeliveryType }),
           ...(cdonTitle.length > 0 && { title: cdonTitle }),
           ...(cdonDesc.length > 0 && { description: cdonDesc }),
+          ...(formData.availabilityDates &&
+            Object.keys(formData.availabilityDates).some((m) =>
+              (formData.availabilityDates[m] ?? '').trim(),
+            ) && {
+              availability_dates: (['se', 'dk', 'fi', 'no'] as const)
+                .filter((m) => (formData.availabilityDates[m] ?? '').trim())
+                .map((m) => ({
+                  market: m.toUpperCase(),
+                  value: formData.availabilityDates[m]!.trim(),
+                })),
+            }),
         },
         fyndiq: {
           markets: formData.markets,
@@ -1861,10 +1915,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             priceStr !== '' && Number.isFinite(Number(priceStr)) && Number(priceStr) >= 0
               ? Number(priceStr)
               : null;
+          const saleOrOriginalStr = (po?.salePrice ?? '').trim().replace(',', '.');
+          const saleOrOriginal =
+            saleOrOriginalStr !== '' &&
+            Number.isFinite(Number(saleOrOriginalStr)) &&
+            Number(saleOrOriginalStr) >= 0
+              ? Number(saleOrOriginalStr)
+              : null;
           return {
             channelInstanceId: inst.id,
             category: cat,
             priceAmount,
+            salePrice: ch === 'woocommerce' ? saleOrOriginal : undefined,
+            originalPrice: ch === 'fyndiq' ? saleOrOriginal : undefined,
           };
         })
         .filter((o) => o.channelInstanceId);
@@ -2133,32 +2196,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
                     <Label htmlFor="sku" className="mb-1">
-                      SKU *
+                      Egen referens (SKU)
                     </Label>
                     <Input
                       id="sku"
                       type="text"
                       value={formData.sku}
                       onChange={(e) => updateField('sku', e.target.value)}
-                      placeholder="SKU"
-                      required
+                      placeholder="Intern referens"
                       className={getFieldError('sku') ? 'border-red-500' : ''}
                     />
                     {getFieldError('sku') && (
                       <p className="mt-1 text-sm text-red-600">{getFieldError('sku')?.message}</p>
                     )}
-                  </div>
-                  <div>
-                    <Label htmlFor="merchantSku" className="mb-1">
-                      Egen referens
-                    </Label>
-                    <Input
-                      id="merchantSku"
-                      type="text"
-                      value={formData.merchantSku}
-                      onChange={(e) => updateField('merchantSku', e.target.value)}
-                      placeholder="Intern SKU"
-                    />
                   </div>
                   <div>
                     <Label htmlFor="privateName" className="mb-1">
@@ -3338,6 +3388,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 )}
               </div>
               <div>
+                <Label htmlFor="knNumber" className="mb-1">
+                  KN-nummer
+                </Label>
+                <Input
+                  id="knNumber"
+                  type="text"
+                  value={formData.knNumber}
+                  onChange={(e) => updateField('knNumber', e.target.value)}
+                  placeholder="Tullklassificering (t.ex. 6109100000)"
+                  maxLength={48}
+                />
+              </div>
+              <div>
                 <Label htmlFor="brand" className="mb-1">
                   Märke *
                 </Label>
@@ -3588,6 +3651,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 />
               </div>
               <div>
+                <Label htmlFor="model" className="mb-1">
+                  Modell
+                </Label>
+                <Input
+                  id="model"
+                  type="text"
+                  value={formData.model}
+                  onChange={(e) => updateField('model', e.target.value)}
+                  placeholder="För gruppering per modell (Sello, CDON, Fyndiq)"
+                />
+              </div>
+              <div>
                 <Label htmlFor="pattern" className="mb-1">
                   Fyndiq-mönster (preset)
                 </Label>
@@ -3611,7 +3686,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   id="condition"
                   value={formData.condition || 'new'}
                   onChange={(e) => {
-                    const v = e.target.value as 'new' | 'used';
+                    const v = e.target.value as 'new' | 'used' | 'refurb';
                     updateField('condition', v || 'new');
                   }}
                 >
@@ -3621,6 +3696,45 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     </option>
                   ))}
                 </NativeSelect>
+              </div>
+              <div>
+                <Label htmlFor="shippedFrom" className="mb-1">
+                  Skickas från (CDON)
+                </Label>
+                <NativeSelect
+                  id="shippedFrom"
+                  value={formData.shippedFrom || 'EU'}
+                  onChange={(e) =>
+                    updateField('shippedFrom', e.target.value === 'NON_EU' ? 'NON_EU' : 'EU')
+                  }
+                >
+                  {SHIPPED_FROM_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </div>
+              <div>
+                <Label className="mb-1">Tillgänglighetsdatum (CDON)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {MARKETS.map((m) => (
+                    <div key={m.key}>
+                      <label className="text-xs text-neutral-500">{m.label}</label>
+                      <Input
+                        type="date"
+                        value={formData.availabilityDates?.[m.key] ?? ''}
+                        onChange={(e) =>
+                          updateField('availabilityDates', {
+                            ...formData.availabilityDates,
+                            [m.key]: e.target.value,
+                          })
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
               <div>
                 <Label htmlFor="volume" className="mb-1">

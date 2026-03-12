@@ -150,6 +150,41 @@ class WooCommerceController {
     return out;
   }
 
+  async getWooOverridePriceAndSaleByProduct(req, { productIds, channelInstanceId }) {
+    const userId = req.session?.user?.id;
+    if (!userId || !Array.isArray(productIds) || productIds.length === 0) return new Map();
+
+    const db = Database.get(req);
+    const rows = await db.query(
+      `
+      SELECT product_id::text AS product_id, price_amount, sale_price
+      FROM channel_product_overrides
+      WHERE user_id = $1
+        AND channel = 'woocommerce'
+        AND channel_instance_id = $2
+        AND product_id::text = ANY($3::text[])
+      `,
+      [userId, Number(channelInstanceId), productIds],
+    );
+
+    const out = new Map();
+    for (const row of rows || []) {
+      out.set(String(row.product_id), {
+        priceAmount:
+          row.price_amount != null && Number.isFinite(Number(row.price_amount))
+            ? Number(row.price_amount)
+            : null,
+        salePrice:
+          row.sale_price != null &&
+          Number.isFinite(Number(row.sale_price)) &&
+          Number(row.sale_price) > 0
+            ? Number(row.sale_price)
+            : null,
+      });
+    }
+    return out;
+  }
+
   // ---- Instances (multi-store support) ----
 
   async listInstances(req, res) {
@@ -393,11 +428,21 @@ class WooCommerceController {
           productIds,
           channelInstanceId: instanceId,
         });
+        const overrideByProductId = await this.getWooOverridePriceAndSaleByProduct(req, {
+          productIds,
+          channelInstanceId: instanceId,
+        });
 
         for (const p of products) {
           const pid = String(p?.id || '');
           const exportSku = p?.id != null ? String(p.id) : null;
-          const priceAmount = p?.priceAmount != null ? Number(p.priceAmount) : null;
+          const ov = overrideByProductId.get(pid);
+          const priceAmount =
+            ov?.priceAmount != null && Number.isFinite(ov.priceAmount)
+              ? Number(ov.priceAmount)
+              : p?.priceAmount != null
+                ? Number(p.priceAmount)
+                : null;
           if (priceAmount === null || priceAmount === undefined) {
             aggregated.counts.error += 1;
             aggregated.items.push({
@@ -432,7 +477,10 @@ class WooCommerceController {
             });
             continue;
           }
-          const payload = this.mapProductToWoo(p, categoriesByProductId.get(pid) || []);
+          const payload = this.mapProductToWoo(p, categoriesByProductId.get(pid) || [], {
+            priceAmount: ov?.priceAmount != null ? Number(ov.priceAmount) : undefined,
+            salePrice: ov?.salePrice != null ? Number(ov.salePrice) : undefined,
+          });
           const mappedId =
             mapByProductId.get(pid) || (exportSku ? existingBySku.get(exportSku) : null);
           if (mappedId) {
@@ -627,7 +675,7 @@ class WooCommerceController {
       const overrideRows = productIds.length
         ? await db.query(
             `
-            SELECT product_id::text AS product_id, price_amount
+            SELECT product_id::text AS product_id, price_amount, sale_price
             FROM channel_product_overrides
             WHERE user_id = $1
               AND channel = 'woocommerce'
@@ -637,12 +685,17 @@ class WooCommerceController {
             [userId, Number(instanceId), productIds],
           )
         : [];
-      const priceByProductId = new Map();
+      const overrideByProductId = new Map();
       for (const row of overrideRows || []) {
-        priceByProductId.set(
-          String(row.product_id),
-          row.price_amount != null ? Number(row.price_amount) : null,
-        );
+        overrideByProductId.set(String(row.product_id), {
+          priceAmount: row.price_amount != null ? Number(row.price_amount) : null,
+          salePrice:
+            row.sale_price != null &&
+            Number.isFinite(Number(row.sale_price)) &&
+            Number(row.sale_price) > 0
+              ? Number(row.sale_price)
+              : null,
+        });
       }
 
       const updatePayload = [];
@@ -667,8 +720,11 @@ class WooCommerceController {
         }
 
         const quantity = Number(p?.quantity);
-        const overrideRaw = Number(priceByProductId.get(productId));
-        const overridePrice = Number.isFinite(overrideRaw) && overrideRaw >= 0 ? overrideRaw : null;
+        const ov = overrideByProductId.get(productId);
+        const overridePrice =
+          ov?.priceAmount != null && Number.isFinite(ov.priceAmount) && ov.priceAmount >= 0
+            ? ov.priceAmount
+            : null;
         const baseRaw = Number(p?.priceAmount);
         const basePrice = Number.isFinite(baseRaw) && baseRaw >= 0 ? baseRaw : null;
         const priceAmount = overridePrice != null ? overridePrice : basePrice;
@@ -691,12 +747,16 @@ class WooCommerceController {
           continue;
         }
 
-        updatePayload.push({
+        const payload = {
           id: Number(mappedExternalId),
           manage_stock: true,
           stock_quantity: Math.trunc(quantity),
           regular_price: String(priceAmount),
-        });
+        };
+        if (ov?.salePrice != null && Number.isFinite(ov.salePrice) && ov.salePrice > 0) {
+          payload.sale_price = String(ov.salePrice);
+        }
+        updatePayload.push(payload);
         validForInstance.push({ productId, sku: exportSku || null });
       }
 
@@ -1495,7 +1555,8 @@ class WooCommerceController {
   }
 
   // Transform MVP Product -> Woo product payload
-  mapProductToWoo(p, overrideCategories = []) {
+  // options: { priceAmount?: number, salePrice?: number } for per-instance override (regular_price, sale_price)
+  mapProductToWoo(p, overrideCategories = [], options = {}) {
     const images = [];
     if (p?.mainImage && isValidImageUrl(p.mainImage)) images.push({ src: p.mainImage });
     if (Array.isArray(p?.images)) {
@@ -1515,11 +1576,23 @@ class WooCommerceController {
     if (ean) metaData.push({ key: 'ean', value: ean });
     if (gtin) metaData.push({ key: 'gtin', value: gtin });
 
+    const regularPrice =
+      options.priceAmount != null && Number.isFinite(options.priceAmount)
+        ? String(options.priceAmount)
+        : p?.priceAmount != null
+          ? String(p.priceAmount)
+          : undefined;
+    const salePrice =
+      options.salePrice != null && Number.isFinite(options.salePrice) && options.salePrice > 0
+        ? String(options.salePrice)
+        : undefined;
+
     return {
       sku: p?.id != null ? String(p.id) : null,
       name: p?.title ?? '',
       status: this.mapStatusToWoo(p?.status),
-      regular_price: p?.priceAmount != null ? String(p.priceAmount) : undefined,
+      regular_price: regularPrice,
+      ...(salePrice != null ? { sale_price: salePrice } : {}),
       manage_stock: true,
       stock_quantity: p?.quantity != null ? Number(p.quantity) : undefined,
       description: p?.description || '',

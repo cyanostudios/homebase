@@ -642,6 +642,8 @@ class ChannelsModel {
           o.currency,
           o.vat_rate,
           o.category,
+          o.sale_price,
+          o.original_price,
           o.channel_instance_id,
           ci.instance_key,
           ci.market,
@@ -677,6 +679,8 @@ class ChannelsModel {
         currency: r.currency || null,
         vatRate: r.vat_rate != null ? Number(r.vat_rate) : null,
         category: r.category || null,
+        salePrice: r.sale_price != null ? Number(r.sale_price) : null,
+        originalPrice: r.original_price != null ? Number(r.original_price) : null,
         updatedAt: r.updated_at || null,
       }));
     } catch (error) {
@@ -688,7 +692,17 @@ class ChannelsModel {
 
   async upsertProductOverride(
     req,
-    { productId, channelInstanceId, active, priceAmount, currency, vatRate, category } = {},
+    {
+      productId,
+      channelInstanceId,
+      active,
+      priceAmount,
+      currency,
+      vatRate,
+      category,
+      salePrice,
+      originalPrice,
+    } = {},
   ) {
     try {
       const db = Database.get(req);
@@ -726,13 +740,21 @@ class ChannelsModel {
       const cur =
         currency != null && String(currency).trim() ? String(currency).trim().toUpperCase() : null;
       const cat = category != null && String(category).trim() ? String(category).trim() : null;
+      const sale =
+        salePrice != null && Number.isFinite(Number(salePrice)) && Number(salePrice) > 0
+          ? Number(salePrice)
+          : null;
+      const orig =
+        originalPrice != null && Number.isFinite(Number(originalPrice)) && Number(originalPrice) > 0
+          ? Number(originalPrice)
+          : null;
 
       const rows = await db.query(
         `
         INSERT INTO ${ChannelsModel.CHANNEL_OVERRIDES_TABLE}
-          (user_id, product_id, channel, instance, channel_instance_id, active, price_amount, currency, vat_rate, category, created_at, updated_at)
+          (user_id, product_id, channel, instance, channel_instance_id, active, price_amount, currency, vat_rate, category, sale_price, original_price, created_at, updated_at)
         VALUES
-          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT (user_id, product_id, channel, instance) DO UPDATE SET
           channel_instance_id = EXCLUDED.channel_instance_id,
           active = EXCLUDED.active,
@@ -740,10 +762,12 @@ class ChannelsModel {
           currency = EXCLUDED.currency,
           vat_rate = EXCLUDED.vat_rate,
           category = EXCLUDED.category,
+          sale_price = EXCLUDED.sale_price,
+          original_price = EXCLUDED.original_price,
           updated_at = CURRENT_TIMESTAMP
         RETURNING id
         `,
-        [userId, pid, ch, instanceKey, instId, !!active, price, cur, vat, cat],
+        [userId, pid, ch, instanceKey, instId, !!active, price, cur, vat, cat, sale, orig],
       );
 
       return { ok: true, id: rows?.[0]?.id != null ? String(rows[0].id) : null };
@@ -810,6 +834,16 @@ class ChannelsModel {
             : null;
         const cat =
           o.category != null && String(o.category).trim() ? String(o.category).trim() : null;
+        const sale =
+          o.salePrice != null && Number.isFinite(Number(o.salePrice)) && Number(o.salePrice) > 0
+            ? Number(o.salePrice)
+            : null;
+        const orig =
+          o.originalPrice != null &&
+          Number.isFinite(Number(o.originalPrice)) &&
+          Number(o.originalPrice) > 0
+            ? Number(o.originalPrice)
+            : null;
         rows.push({
           instId,
           ch: inst.channel,
@@ -819,6 +853,8 @@ class ChannelsModel {
           cur,
           vat,
           cat,
+          sale,
+          orig,
         });
       }
       if (rows.length === 0) return { ok: true, count: 0 };
@@ -828,14 +864,25 @@ class ChannelsModel {
       let idx = 3;
       for (const r of rows) {
         values.push(
-          `($1, $2, $${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6}, $${idx + 7}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          `($1, $2, $${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6}, $${idx + 7}, $${idx + 8}, $${idx + 9}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         );
-        params.push(r.ch, r.instanceKey, r.instId, r.active, r.price, r.cur, r.vat, r.cat);
-        idx += 8;
+        params.push(
+          r.ch,
+          r.instanceKey,
+          r.instId,
+          r.active,
+          r.price,
+          r.cur,
+          r.vat,
+          r.cat,
+          r.sale,
+          r.orig,
+        );
+        idx += 10;
       }
       await db.query(
         `INSERT INTO ${ChannelsModel.CHANNEL_OVERRIDES_TABLE}
-          (user_id, product_id, channel, instance, channel_instance_id, active, price_amount, currency, vat_rate, category, created_at, updated_at)
+          (user_id, product_id, channel, instance, channel_instance_id, active, price_amount, currency, vat_rate, category, sale_price, original_price, created_at, updated_at)
          VALUES ${values.join(', ')}
          ON CONFLICT (user_id, product_id, channel, instance) DO UPDATE SET
           channel_instance_id = EXCLUDED.channel_instance_id,
@@ -844,6 +891,8 @@ class ChannelsModel {
           currency = EXCLUDED.currency,
           vat_rate = EXCLUDED.vat_rate,
           category = EXCLUDED.category,
+          sale_price = EXCLUDED.sale_price,
+          original_price = EXCLUDED.original_price,
           updated_at = CURRENT_TIMESTAMP`,
         params,
       );
