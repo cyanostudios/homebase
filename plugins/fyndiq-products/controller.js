@@ -371,7 +371,8 @@ class FyndiqProductsController {
             o.price_amount,
             o.currency,
             o.vat_rate,
-            o.category
+            o.category,
+            o.original_price
           FROM channel_product_overrides o
           LEFT JOIN channel_instances ci
             ON ci.id = o.channel_instance_id
@@ -399,6 +400,10 @@ class FyndiqProductsController {
             currency,
             vatRate: r.vat_rate != null ? Number(r.vat_rate) : null,
             category: r.category != null ? String(r.category).trim() : null,
+            originalPrice:
+              r.original_price != null && Number.isFinite(Number(r.original_price))
+                ? Number(r.original_price)
+                : null,
           };
         }
       }

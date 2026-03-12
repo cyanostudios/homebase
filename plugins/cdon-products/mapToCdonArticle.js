@@ -56,7 +56,7 @@ function mapProductToCdonArticle(
       : {};
   const markets = (marketsFilter || ['se', 'dk', 'fi']).map((m) => String(m).toUpperCase());
 
-  // Title: per-language from cdon.title, textsExtended, or single default from product
+  // Title: per language from textsExtended (per marknad) + textsStandard, else products.title. UI sätter bara textsExtended per land, ingen kanalspecifik titel.
   const textsExtended = product?.channelSpecific?.textsExtended;
   const standardMarket = ['se', 'dk', 'fi', 'no'].includes(
     String(product?.channelSpecific?.textsStandard || '').toLowerCase(),
@@ -64,61 +64,54 @@ function mapProductToCdonArticle(
     ? String(product.channelSpecific.textsStandard).toLowerCase()
     : 'se';
   const standardText = textsExtended?.[standardMarket];
-  let titleArr = cdon.title && Array.isArray(cdon.title) ? cdon.title : null;
-  if (!titleArr || titleArr.length === 0) {
-    if (textsExtended && typeof textsExtended === 'object') {
-      const arr = [];
-      const seen = new Set();
-      for (const m of markets) {
-        const mk = m.toLowerCase();
-        const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
-        if (seen.has(lang)) continue;
-        const t = textsExtended[mk];
-        // No fallback to product.title when both market and standard are empty (per user rule)
-        const value = (t?.name || standardText?.name || '').slice(0, 150);
-        if (value.length >= 5) {
-          seen.add(lang);
-          arr.push({ language: lang, value });
-        }
+  let titleArr = null;
+  if (textsExtended && typeof textsExtended === 'object') {
+    const arr = [];
+    const seen = new Set();
+    for (const m of markets) {
+      const mk = m.toLowerCase();
+      const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
+      if (seen.has(lang)) continue;
+      const t = textsExtended[mk];
+      const value = (t?.name || standardText?.name || '').slice(0, 150);
+      if (value.length >= 5) {
+        seen.add(lang);
+        arr.push({ language: lang, value });
       }
-      if (arr.length > 0) titleArr = arr;
     }
-    if (!titleArr || titleArr.length === 0) {
-      const lang = defaultLanguage || 'sv-SE';
-      const value = (title || '').slice(0, 150);
-      if (value.length >= 5) titleArr = [{ language: lang, value }];
-    }
+    if (arr.length > 0) titleArr = arr;
+  }
+  if (!titleArr || titleArr.length === 0) {
+    const lang = defaultLanguage || 'sv-SE';
+    const value = (title || '').slice(0, 150);
+    if (value.length >= 5) titleArr = [{ language: lang, value }];
   }
   if (!titleArr || titleArr.length === 0) return null;
 
-  // Description (CDON 10–4096 chars; no padding/guessing)
-  let descriptionArr =
-    cdon.description && Array.isArray(cdon.description) ? cdon.description : null;
-  if (!descriptionArr || descriptionArr.length === 0) {
-    const baseDesc = product?.description != null ? String(product.description) : '';
-    if (textsExtended && typeof textsExtended === 'object') {
-      const arr = [];
-      const seen = new Set();
-      for (const m of markets) {
-        const mk = m.toLowerCase();
-        const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
-        if (seen.has(lang)) continue;
-        const t = textsExtended[mk];
-        // No fallback to product.description when both market and standard are empty (per user rule)
-        const value = (t?.description || standardText?.description || '').slice(0, 4096);
-        if (value.length >= 10) {
-          seen.add(lang);
-          arr.push({ language: lang, value });
-        }
+  // Description: per language from textsExtended + textsStandard, else products.description.
+  const baseDesc = product?.description != null ? String(product.description) : '';
+  let descriptionArr = null;
+  if (textsExtended && typeof textsExtended === 'object') {
+    const arr = [];
+    const seen = new Set();
+    for (const m of markets) {
+      const mk = m.toLowerCase();
+      const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
+      if (seen.has(lang)) continue;
+      const t = textsExtended[mk];
+      const value = (t?.description || standardText?.description || '').slice(0, 4096);
+      if (value.length >= 10) {
+        seen.add(lang);
+        arr.push({ language: lang, value });
       }
-      if (arr.length > 0) descriptionArr = arr;
     }
-    if (!descriptionArr || descriptionArr.length === 0) {
-      const lang = defaultLanguage || 'sv-SE';
-      const value = baseDesc.slice(0, 4096);
-      if (value.length >= 10) descriptionArr = [{ language: lang, value }];
-      else return null;
-    }
+    if (arr.length > 0) descriptionArr = arr;
+  }
+  if (!descriptionArr || descriptionArr.length === 0) {
+    const lang = defaultLanguage || 'sv-SE';
+    const value = baseDesc.slice(0, 4096);
+    if (value.length >= 10) descriptionArr = [{ language: lang, value }];
+    else return null;
   }
   if (!descriptionArr || descriptionArr.length === 0) return null;
 
@@ -197,8 +190,14 @@ function mapProductToCdonArticle(
   if (activeCategories.length !== 1) return null;
   payload.category = activeCategories[0];
 
-  if (product?.parentProductId != null && String(product.parentProductId).trim())
-    payload.parent_sku = String(product.parentProductId).trim();
+  // CDON portal uses Sello group_id as "Huvudartikel SKU"; use groupId when present, else parentProductId.
+  const parentSku =
+    product?.groupId != null && String(product.groupId).trim()
+      ? String(product.groupId).trim()
+      : product?.parentProductId != null && String(product.parentProductId).trim()
+        ? String(product.parentProductId).trim()
+        : null;
+  if (parentSku) payload.parent_sku = parentSku;
   if (product?.brand != null && String(product.brand).trim())
     payload.brand = String(product.brand).trim();
   if (product?.gtin != null && String(product.gtin).trim())
@@ -376,26 +375,42 @@ function getCdonArticleInputIssues(
   else if (!isValidUrl(mainImage)) issues.push('invalid_main_image_url');
   if (quantity == null || quantity < 0) issues.push('invalid_quantity');
 
-  const cdon =
-    product?.channelSpecific?.cdon && typeof product.channelSpecific.cdon === 'object'
-      ? product.channelSpecific.cdon
-      : {};
-  const titleArr = cdon.title && Array.isArray(cdon.title) ? cdon.title : null;
-  if ((!titleArr || titleArr.length === 0) && title && title.length < 5) {
-    issues.push('invalid_title_length');
-  }
-
-  const descriptionArr =
-    cdon.description && Array.isArray(cdon.description) ? cdon.description : null;
-  const rawDescription = product?.description != null ? String(product.description) : '';
-  if (
-    (!descriptionArr || descriptionArr.length === 0) &&
-    rawDescription.slice(0, 4096).length < 10
-  ) {
-    issues.push('missing_or_short_description');
-  }
-
   const markets = (marketsFilter || ['se', 'dk', 'fi']).map((m) => String(m).toUpperCase());
+  const textsExtended = product?.channelSpecific?.textsExtended;
+  const standardMarket = ['se', 'dk', 'fi', 'no'].includes(
+    String(product?.channelSpecific?.textsStandard || '').toLowerCase(),
+  )
+    ? String(product.channelSpecific.textsStandard).toLowerCase()
+    : 'se';
+  const standardText = textsExtended?.[standardMarket];
+  let hasValidTitle = title.length >= 5;
+  if (!hasValidTitle && textsExtended && typeof textsExtended === 'object') {
+    for (const m of markets) {
+      const mk = m.toLowerCase();
+      const t = textsExtended[mk];
+      const value = (t?.name || standardText?.name || '').slice(0, 150);
+      if (value.length >= 5) {
+        hasValidTitle = true;
+        break;
+      }
+    }
+  }
+  if (!hasValidTitle) issues.push('invalid_title_length');
+
+  const rawDescription = product?.description != null ? String(product.description) : '';
+  let hasValidDescription = rawDescription.slice(0, 4096).length >= 10;
+  if (!hasValidDescription && textsExtended && typeof textsExtended === 'object') {
+    for (const m of markets) {
+      const mk = m.toLowerCase();
+      const t = textsExtended[mk];
+      const value = (t?.description || standardText?.description || '').slice(0, 4096);
+      if (value.length >= 10) {
+        hasValidDescription = true;
+        break;
+      }
+    }
+  }
+  if (!hasValidDescription) issues.push('missing_or_short_description');
   const basePrice =
     product?.priceAmount != null && Number.isFinite(Number(product.priceAmount))
       ? Number(product.priceAmount)

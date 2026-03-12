@@ -645,6 +645,8 @@ type FormData = {
   manufacturerId: string;
   /** Produkt-fliken: lagerplats (frivillig) */
   lagerplats: string;
+  /** Produkt-fliken: restnotering för WooCommerce (no | yes | notify) */
+  wooBackorders: 'no' | 'yes' | 'notify';
   /** Detaljer: färg, storlek, mönster, vikt, mått, skick, volym, anteckningar */
   color: string;
   colorText: string;
@@ -1373,6 +1375,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               ? (cs.woocommerce as any).categories
               : {},
         },
+        wooBackorders:
+          (cs.woocommerce as any)?.backorders === 'yes' ||
+          (cs.woocommerce as any)?.backorders === 'notify'
+            ? (cs.woocommerce as any).backorders
+            : 'no',
         channelSpecific: cs,
       });
       setIsMpnAuto(!(mpn && mpn !== sku));
@@ -1820,6 +1827,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         (channelSpecific as any).textsExtended = textsExtended;
       }
       (channelSpecific as any).textsStandard = standardKey;
+      (channelSpecific as any).woocommerce = {
+        ...((channelSpecific as any).woocommerce || {}),
+        backorders: formData.wooBackorders,
+      };
       const baseAmount =
         typeof formData.priceAmount === 'number' && Number.isFinite(formData.priceAmount)
           ? formData.priceAmount
@@ -2296,6 +2307,24 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         onChange={(e) => updateField('lagerplats', e.target.value)}
                         placeholder="Plats i lagret"
                       />
+                    </div>
+                    <div>
+                      <Label htmlFor="wooBackorders" className="mb-1">
+                        Restnotering (WooCommerce)
+                      </Label>
+                      <NativeSelect
+                        id="wooBackorders"
+                        value={formData.wooBackorders}
+                        onChange={(e) => {
+                          const v = e.target.value as 'no' | 'yes' | 'notify';
+                          setFormData((prev) => ({ ...prev, wooBackorders: v }));
+                          markDirty();
+                        }}
+                      >
+                        <option value="no">Nej</option>
+                        <option value="yes">Ja</option>
+                        <option value="notify">Meddela kund</option>
+                      </NativeSelect>
                     </div>
                     <div>
                       <Label htmlFor="lista" className="mb-1">
@@ -3659,7 +3688,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   type="text"
                   value={formData.model}
                   onChange={(e) => updateField('model', e.target.value)}
-                  placeholder="För gruppering per modell (Sello, CDON, Fyndiq)"
+                  placeholder="För varianter"
                 />
               </div>
               <div>

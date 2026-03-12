@@ -34,7 +34,7 @@ function parseOverrideCategories(value) {
 /**
  * Build one Fyndiq article payload (single article, possibly multiple markets).
  * @param {Object} product - Base product: id, sku, mpn, title, description, status, quantity, priceAmount, currency, vatRate, mainImage, images, categories, brand, gtin, channelSpecific?.fyndiq
- * @param {Object} overridesByMarket - Per-market overrides: { se?: { priceAmount, currency, vatRate, category, active }, ... } (keys lower case)
+ * @param {Object} overridesByMarket - Per-market overrides: { se?: { priceAmount, currency, vatRate, category, active, originalPrice }, ... } (keys lower case)
  * @param {string} defaultLanguage - Default language code e.g. 'sv-SE' (used for title/description when no per-language data)
  * @param {string[]} marketsFilter - Markets to include e.g. ['se','dk','fi'] (lower case)
  * @returns {Object|null} Fyndiq API article body or null if required fields missing
@@ -65,7 +65,7 @@ function mapProductToFyndiqArticle(
       : {};
   const markets = (marketsFilter || ['se', 'dk', 'fi']).map((m) => String(m).toUpperCase());
 
-  // Title: per-language from fyndiq.title, textsExtended, or single default from product
+  // Title: per language from textsExtended (per marknad) + textsStandard, else products.title. UI sätter bara textsExtended per land.
   const textsExtended = product?.channelSpecific?.textsExtended;
   const standardMarket = ['se', 'dk', 'fi', 'no'].includes(
     String(product?.channelSpecific?.textsStandard || '').toLowerCase(),
@@ -73,62 +73,54 @@ function mapProductToFyndiqArticle(
     ? String(product.channelSpecific.textsStandard).toLowerCase()
     : 'se';
   const standardText = textsExtended?.[standardMarket];
-  let titleArr = fyndiq.title && Array.isArray(fyndiq.title) ? fyndiq.title : null;
-  if (!titleArr || titleArr.length === 0) {
-    if (textsExtended && typeof textsExtended === 'object') {
-      const arr = [];
-      const seen = new Set();
-      for (const m of markets) {
-        const mk = m.toLowerCase();
-        const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
-        if (seen.has(lang)) continue;
-        const t = textsExtended[mk];
-        // No fallback to product.title when both market and standard are empty (per user rule)
-        const value = (t?.name || standardText?.name || '').slice(0, 150);
-        if (value.length >= 5) {
-          seen.add(lang);
-          arr.push({ language: lang, value });
-        }
+  let titleArr = null;
+  if (textsExtended && typeof textsExtended === 'object') {
+    const arr = [];
+    const seen = new Set();
+    for (const m of markets) {
+      const mk = m.toLowerCase();
+      const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
+      if (seen.has(lang)) continue;
+      const t = textsExtended[mk];
+      const value = (t?.name || standardText?.name || '').slice(0, 150);
+      if (value.length >= 5) {
+        seen.add(lang);
+        arr.push({ language: lang, value });
       }
-      if (arr.length > 0) titleArr = arr;
     }
-    if (!titleArr || titleArr.length === 0) {
-      const lang = defaultLanguage || 'sv-SE';
-      const value = title || '';
-      if (value.length >= 5 && value.length <= 150) titleArr = [{ language: lang, value }];
-      else if (value) titleArr = [{ language: lang, value: value.slice(0, 150) }];
-    }
+    if (arr.length > 0) titleArr = arr;
+  }
+  if (!titleArr || titleArr.length === 0) {
+    const lang = defaultLanguage || 'sv-SE';
+    const value = (title || '').slice(0, 150);
+    if (value.length >= 5) titleArr = [{ language: lang, value }];
   }
   if (!titleArr || titleArr.length === 0) return null;
 
-  // Description: per-language from fyndiq.description, textsExtended, or single default
-  let descriptionArr =
-    fyndiq.description && Array.isArray(fyndiq.description) ? fyndiq.description : null;
-  if (!descriptionArr || descriptionArr.length === 0) {
-    const baseDesc = product?.description != null ? String(product.description) : '';
-    if (textsExtended && typeof textsExtended === 'object') {
-      const arr = [];
-      const seen = new Set();
-      for (const m of markets) {
-        const mk = m.toLowerCase();
-        const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
-        if (seen.has(lang)) continue;
-        const t = textsExtended[mk];
-        // No fallback to product.description when both market and standard are empty (per user rule)
-        const value = (t?.description || standardText?.description || '').slice(0, 4096);
-        if (value.length >= 10) {
-          seen.add(lang);
-          arr.push({ language: lang, value });
-        }
+  // Description: per language from textsExtended + textsStandard, else products.description.
+  const baseDesc = product?.description != null ? String(product.description) : '';
+  let descriptionArr = null;
+  if (textsExtended && typeof textsExtended === 'object') {
+    const arr = [];
+    const seen = new Set();
+    for (const m of markets) {
+      const mk = m.toLowerCase();
+      const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
+      if (seen.has(lang)) continue;
+      const t = textsExtended[mk];
+      const value = (t?.description || standardText?.description || '').slice(0, 4096);
+      if (value.length >= 10) {
+        seen.add(lang);
+        arr.push({ language: lang, value });
       }
-      if (arr.length > 0) descriptionArr = arr;
     }
-    if (!descriptionArr || descriptionArr.length === 0) {
-      const lang = defaultLanguage || 'sv-SE';
-      const value = baseDesc.slice(0, 4096);
-      if (value.length >= 10) descriptionArr = [{ language: lang, value }];
-      else return null;
-    }
+    if (arr.length > 0) descriptionArr = arr;
+  }
+  if (!descriptionArr || descriptionArr.length === 0) {
+    const lang = defaultLanguage || 'sv-SE';
+    const value = baseDesc.slice(0, 4096);
+    if (value.length >= 10) descriptionArr = [{ language: lang, value }];
+    else return null;
   }
   if (!descriptionArr || descriptionArr.length === 0) return null;
 
@@ -152,6 +144,25 @@ function mapProductToFyndiqArticle(
     if (amount != null && amount > 0) price.push({ market: m, value: { amount, currency } });
   }
   if (price.length === 0) return null;
+
+  // original_price per market (Fyndiq: "price before sell on Fyndiq") from overrides.originalPrice
+  const original_price = [];
+  for (const m of markets) {
+    const mk = m.toLowerCase();
+    const ov = overridesByMarket && overridesByMarket[mk];
+    if (!ov || ov.active !== true) continue;
+    const amount =
+      ov.originalPrice != null &&
+      Number.isFinite(Number(ov.originalPrice)) &&
+      Number(ov.originalPrice) > 0
+        ? Number(ov.originalPrice)
+        : null;
+    if (amount == null) continue;
+    const currency = (ov.currency || baseCurrency || DEFAULT_CURRENCY_BY_MARKET[m] || 'SEK')
+      .toString()
+      .toUpperCase();
+    original_price.push({ market: m, value: { amount, currency } });
+  }
 
   // Shipping time per market (required by Fyndiq)
   const shippingTimeFromFyndiq =
@@ -197,6 +208,7 @@ function mapProductToFyndiqArticle(
     price,
     shipping_time,
   };
+  if (original_price.length > 0) payload.original_price = original_price;
 
   if (product?.parentProductId != null && String(product.parentProductId).trim())
     payload.parent_sku = String(product.parentProductId).trim();
@@ -278,26 +290,42 @@ function getFyndiqArticleInputIssues(
   else if (!isValidUrl(mainImage)) issues.push('invalid_main_image_url');
   if (quantity == null || quantity < 0) issues.push('invalid_quantity');
 
-  const fyndiq =
-    product?.channelSpecific?.fyndiq && typeof product.channelSpecific.fyndiq === 'object'
-      ? product.channelSpecific.fyndiq
-      : {};
-  const titleArr = fyndiq.title && Array.isArray(fyndiq.title) ? fyndiq.title : null;
-  if ((!titleArr || titleArr.length === 0) && title && title.length < 5) {
-    issues.push('invalid_title_length');
-  }
-
-  const descriptionArr =
-    fyndiq.description && Array.isArray(fyndiq.description) ? fyndiq.description : null;
-  const rawDescription = product?.description != null ? String(product.description) : '';
-  if (
-    (!descriptionArr || descriptionArr.length === 0) &&
-    rawDescription.slice(0, 4096).length < 10
-  ) {
-    issues.push('missing_or_short_description');
-  }
-
   const markets = (marketsFilter || ['se', 'dk', 'fi']).map((m) => String(m).toUpperCase());
+  const textsExtended = product?.channelSpecific?.textsExtended;
+  const standardMarket = ['se', 'dk', 'fi', 'no'].includes(
+    String(product?.channelSpecific?.textsStandard || '').toLowerCase(),
+  )
+    ? String(product.channelSpecific.textsStandard).toLowerCase()
+    : 'se';
+  const standardText = textsExtended?.[standardMarket];
+  let hasValidTitle = title.length >= 5;
+  if (!hasValidTitle && textsExtended && typeof textsExtended === 'object') {
+    for (const m of markets) {
+      const mk = m.toLowerCase();
+      const t = textsExtended[mk];
+      const value = (t?.name || standardText?.name || '').slice(0, 150);
+      if (value.length >= 5) {
+        hasValidTitle = true;
+        break;
+      }
+    }
+  }
+  if (!hasValidTitle) issues.push('invalid_title_length');
+
+  const rawDescription = product?.description != null ? String(product.description) : '';
+  let hasValidDescription = rawDescription.slice(0, 4096).length >= 10;
+  if (!hasValidDescription && textsExtended && typeof textsExtended === 'object') {
+    for (const m of markets) {
+      const mk = m.toLowerCase();
+      const t = textsExtended[mk];
+      const value = (t?.description || standardText?.description || '').slice(0, 4096);
+      if (value.length >= 10) {
+        hasValidDescription = true;
+        break;
+      }
+    }
+  }
+  if (!hasValidDescription) issues.push('missing_or_short_description');
   let categoryCount = 0;
   for (const m of markets) {
     const mk = m.toLowerCase();

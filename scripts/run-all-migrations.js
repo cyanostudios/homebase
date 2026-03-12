@@ -12,13 +12,56 @@ dotenv.config({ path: '.env' });
 
 const MIGRATIONS_DIR = path.join(__dirname, '../server/migrations');
 
+// Migrations that create tables in public schema (reference users(id)); run once, not per-tenant.
+const PUBLIC_ONLY_MIGRATIONS = new Set(['028-user-settings.sql', '054-user-mfa.sql']);
+
+async function runPublicMigrations(pool) {
+  const client = await pool.connect();
+  try {
+    await client.query('SET search_path TO public');
+    const migrationFiles = fs
+      .readdirSync(MIGRATIONS_DIR)
+      .filter((f) => f.endsWith('.sql'))
+      .sort()
+      .filter((f) => PUBLIC_ONLY_MIGRATIONS.has(f));
+    if (migrationFiles.length === 0) return { successCount: 0, skippedCount: 0, errorCount: 0 };
+    console.log('\n📦 Running public-schema migrations (once)...');
+    let successCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+    for (const file of migrationFiles) {
+      const filePath = path.join(MIGRATIONS_DIR, file);
+      const sql = fs.readFileSync(filePath, 'utf8');
+      try {
+        await client.query(sql);
+        console.log(`   ✅ ${file}`);
+        successCount++;
+      } catch (error) {
+        if (error.message.includes('already exists') || error.code === '42P07') {
+          console.log(`   ⚠️  ${file} (already exists)`);
+          skippedCount++;
+        } else {
+          console.error(`   ❌ ${file}: ${error.message}`);
+          errorCount++;
+        }
+      }
+    }
+    console.log(
+      `   Summary: ${successCount} successful, ${skippedCount} skipped, ${errorCount} failed`,
+    );
+    return { successCount, skippedCount, errorCount };
+  } finally {
+    client.release();
+  }
+}
+
 async function runMigrationOnTenant(connectionString, tenantInfo) {
   // Clean connection string - remove duplicate search_path options
   let cleanConnectionString = connectionString;
   if (cleanConnectionString.includes('?options=') && cleanConnectionString.includes('&options=')) {
     cleanConnectionString = cleanConnectionString.split('&options=')[0];
   }
-  
+
   const pool = new Pool({ connectionString: cleanConnectionString });
   const client = await pool.connect();
 
@@ -33,12 +76,16 @@ async function runMigrationOnTenant(connectionString, tenantInfo) {
       await client.query(`SET search_path TO ${tenantInfo.schemaName}`);
     }
 
-    // Get all migration files sorted
-    const migrationFiles = fs.readdirSync(MIGRATIONS_DIR)
-      .filter(f => f.endsWith('.sql'))
+    // Get all migration files sorted (exclude public-only; those run once in runPublicMigrations)
+    const allFiles = fs
+      .readdirSync(MIGRATIONS_DIR)
+      .filter((f) => f.endsWith('.sql'))
       .sort();
+    const migrationFiles = allFiles.filter((f) => !PUBLIC_ONLY_MIGRATIONS.has(f));
 
-    console.log(`   Found ${migrationFiles.length} migration file(s)`);
+    console.log(
+      `   Found ${migrationFiles.length} migration file(s) (${PUBLIC_ONLY_MIGRATIONS.size} public-only skipped)`,
+    );
 
     let successCount = 0;
     let skippedCount = 0;
@@ -64,14 +111,16 @@ async function runMigrationOnTenant(connectionString, tenantInfo) {
       }
     }
 
-    console.log(`   Summary: ${successCount} successful, ${skippedCount} skipped, ${errorCount} failed`);
+    console.log(
+      `   Summary: ${successCount} successful, ${skippedCount} skipped, ${errorCount} failed`,
+    );
 
-    return { 
-      success: errorCount === 0, 
+    return {
+      success: errorCount === 0,
       tenantInfo,
       successCount,
       skippedCount,
-      errorCount
+      errorCount,
     };
   } catch (error) {
     console.error(`   ❌ Migration failed:`, error.message);
@@ -147,7 +196,10 @@ async function main() {
 
     console.log(`📊 Found ${tenants.length} tenant(s) to migrate\n`);
 
-    // Run migrations on each tenant
+    // Phase 1: Run public-schema migrations once (user_settings, user_mfa reference users in public)
+    await runPublicMigrations(mainPool);
+
+    // Phase 2: Run tenant migrations on each tenant
     const results = [];
     for (const tenant of tenants) {
       const connectionString = tenant.connection_string || tenant.neon_connection_string;
@@ -189,7 +241,9 @@ async function main() {
       results
         .filter((r) => !r.success || r.errorCount > 0)
         .forEach((r) => {
-          console.log(`   - User ${r.tenantInfo.userId} (${r.tenantInfo.email}): ${r.error || `${r.errorCount} errors`}`);
+          console.log(
+            `   - User ${r.tenantInfo.userId} (${r.tenantInfo.email}): ${r.error || `${r.errorCount} errors`}`,
+          );
         });
     }
 

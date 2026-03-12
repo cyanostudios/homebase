@@ -400,6 +400,8 @@ class WooCommerceController {
         items: [],
       };
 
+      const { grouped, standalone } = this.partitionProductsByWooGroup(products);
+
       for (const instance of instances) {
         const settings = instance.credentials;
         const instanceId = instance.id;
@@ -412,8 +414,100 @@ class WooCommerceController {
           instanceId,
         );
 
+        const instanceCategories = await this.getWooOverrideCategoriesByProduct(req, {
+          productIds,
+          channelInstanceId: instanceId,
+        });
+        const instanceOverrides = await this.getWooOverridePriceAndSaleByProduct(req, {
+          productIds,
+          channelInstanceId: instanceId,
+        });
+
+        const items = [];
+
+        // ---- Grouped: variable product + variations (SKU = groupId, V+id) ----
+        for (const [groupId, groupProducts] of grouped) {
+          const variationType = String(
+            groupProducts[0]?.groupVariationType || 'color',
+          ).toLowerCase();
+          const variableResult = await this.ensureWooVariableProduct(
+            base,
+            settings,
+            groupId,
+            groupProducts,
+            instanceCategories,
+          );
+          if (!variableResult?.wooParentId) {
+            for (const p of groupProducts) {
+              const pid = String(p?.id || '');
+              await this.model.upsertChannelMap(req, {
+                productId: pid,
+                channel,
+                channelInstanceId: instanceId,
+                externalId: null,
+                status: 'error',
+                error: 'Variable product create/update failed',
+              });
+              items.push({
+                productId: pid,
+                sku: `V${p?.id ?? ''}`,
+                status: 'error',
+                error: 'Variable product create/update failed',
+              });
+              aggregated.counts.error += 1;
+            }
+            continue;
+          }
+          const wooParentId = variableResult.wooParentId;
+          for (const p of groupProducts) {
+            const pid = String(p?.id || '');
+            const wooVariationId = await this.ensureWooVariation(
+              base,
+              settings,
+              wooParentId,
+              p,
+              variationType,
+              instanceOverrides,
+            );
+            if (wooVariationId != null) {
+              await this.model.upsertChannelMap(req, {
+                productId: pid,
+                channel,
+                channelInstanceId: instanceId,
+                externalId: String(wooVariationId),
+                status: 'success',
+                error: null,
+              });
+              items.push({
+                productId: pid,
+                sku: `V${p?.id ?? ''}`,
+                status: 'success',
+                externalId: wooVariationId,
+              });
+              aggregated.counts.success += 1;
+            } else {
+              await this.model.upsertChannelMap(req, {
+                productId: pid,
+                channel,
+                channelInstanceId: instanceId,
+                externalId: null,
+                status: 'error',
+                error: 'Variation create/update failed',
+              });
+              items.push({
+                productId: pid,
+                sku: `V${p?.id ?? ''}`,
+                status: 'error',
+                error: 'Variation create/update failed',
+              });
+              aggregated.counts.error += 1;
+            }
+          }
+        }
+
+        // ---- Standalone: simple products (batch create/update by SKU = product.id) ----
         const existingBySku = new Map();
-        for (const p of products) {
+        for (const p of standalone) {
           const pid = String(p?.id || '');
           if (mapByProductId.has(pid)) continue;
           const exportSku = p?.id != null ? String(p.id) : null;
@@ -424,19 +518,11 @@ class WooCommerceController {
 
         const createPayload = [];
         const updatePayload = [];
-        const categoriesByProductId = await this.getWooOverrideCategoriesByProduct(req, {
-          productIds,
-          channelInstanceId: instanceId,
-        });
-        const overrideByProductId = await this.getWooOverridePriceAndSaleByProduct(req, {
-          productIds,
-          channelInstanceId: instanceId,
-        });
-
-        for (const p of products) {
+        const standaloneValidationErrors = new Map();
+        for (const p of standalone) {
           const pid = String(p?.id || '');
           const exportSku = p?.id != null ? String(p.id) : null;
-          const ov = overrideByProductId.get(pid);
+          const ov = instanceOverrides.get(pid);
           const priceAmount =
             ov?.priceAmount != null && Number.isFinite(ov.priceAmount)
               ? Number(ov.priceAmount)
@@ -444,23 +530,23 @@ class WooCommerceController {
                 ? Number(p.priceAmount)
                 : null;
           if (priceAmount === null || priceAmount === undefined) {
-            aggregated.counts.error += 1;
-            aggregated.items.push({
+            standaloneValidationErrors.set(pid, {
               productId: pid,
               sku: exportSku,
               status: 'validation_error',
               reason: 'missing_or_invalid_effective_price',
             });
+            aggregated.counts.error += 1;
             continue;
           }
           if (p?.mainImage && !isValidImageUrl(p.mainImage)) {
-            aggregated.counts.error += 1;
-            aggregated.items.push({
+            standaloneValidationErrors.set(pid, {
               productId: pid,
               sku: exportSku,
               status: 'validation_error',
               reason: 'invalid_main_image_url',
             });
+            aggregated.counts.error += 1;
             continue;
           }
           const images = Array.isArray(p?.images) ? p.images : [];
@@ -468,16 +554,16 @@ class WooCommerceController {
             (u) => u != null && String(u).trim() && !isValidImageUrl(String(u).trim()),
           );
           if (invalidImage) {
-            aggregated.counts.error += 1;
-            aggregated.items.push({
+            standaloneValidationErrors.set(pid, {
               productId: pid,
               sku: exportSku,
               status: 'validation_error',
               reason: 'invalid_images_url',
             });
+            aggregated.counts.error += 1;
             continue;
           }
-          const payload = this.mapProductToWoo(p, categoriesByProductId.get(pid) || [], {
+          const payload = this.mapProductToWoo(p, instanceCategories.get(pid) || [], {
             priceAmount: ov?.priceAmount != null ? Number(ov.priceAmount) : undefined,
             salePrice: ov?.salePrice != null ? Number(ov.salePrice) : undefined,
           });
@@ -489,123 +575,111 @@ class WooCommerceController {
             createPayload.push(payload);
           }
         }
+        for (const [, item] of standaloneValidationErrors) items.push(item);
 
-        if (createPayload.length === 0 && updatePayload.length === 0) {
-          aggregated.instances.push({
-            instanceId: instanceId,
-            label: instance.label,
-            ok: true,
-            endpoint: `${base}/wp-json/wc/v3/products/batch`,
-            result: { create: [], update: [] },
-            counts: { requested: products.length, success: 0, error: 0 },
-            items: products.map((p) => ({ productId: p.id, sku: p.sku || null, status: 'noop' })),
-          });
-          continue;
-        }
+        if (createPayload.length > 0 || updatePayload.length > 0) {
+          const endpoint = `${base}/wp-json/wc/v3/products/batch`;
+          const response = await this.fetchWithWooAuth(
+            endpoint,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                create: createPayload.length ? createPayload : undefined,
+                update: updatePayload.length ? updatePayload : undefined,
+              }),
+            },
+            settings,
+          );
 
-        const endpoint = `${base}/wp-json/wc/v3/products/batch`;
-        const response = await this.fetchWithWooAuth(
-          endpoint,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              create: createPayload.length ? createPayload : undefined,
-              update: updatePayload.length ? updatePayload : undefined,
-            }),
-          },
-          settings,
-        );
-
-        const rawText = await response.text().catch(() => '');
-        let json;
-        try {
-          json = JSON.parse(rawText);
-        } catch (_) {
-          json = { raw: rawText };
-        }
-
-        const successes = new Map();
-        const markSuccess = (wooItem) => {
-          const sku = (wooItem?.sku || '').trim();
-          if (!sku) return;
-          successes.set(sku, { wooId: wooItem.id });
-        };
-        if (Array.isArray(json?.create)) json.create.forEach(markSuccess);
-        if (Array.isArray(json?.update)) json.update.forEach(markSuccess);
-
-        const items = [];
-        for (const p of products) {
-          const pid = String(p?.id || '');
-          const exportSku = p?.id != null ? String(p.id) : null;
-          const viaSku = exportSku ? successes.get(exportSku) : null;
-          const viaMapId = mapByProductId.get(pid);
-          const found = viaSku || (viaMapId ? { wooId: viaMapId } : null);
-
-          if (found) {
-            await this.model.upsertChannelMap(req, {
-              productId: pid,
-              channel,
-              channelInstanceId: instanceId,
-              externalId: found.wooId,
-              status: 'success',
-              error: null,
-            });
-            items.push({
-              productId: pid,
-              sku: exportSku || null,
-              status: 'success',
-              externalId: found.wooId,
-            });
-          } else {
-            let message = null;
-            if (Array.isArray(json?.errors)) {
-              message =
-                json.errors
-                  .map((e) => e?.message)
-                  .filter(Boolean)
-                  .join('; ') || null;
-            }
-            await this.model.upsertChannelMap(req, {
-              productId: pid,
-              channel,
-              channelInstanceId: instanceId,
-              externalId: null,
-              status: 'error',
-              error: message || 'Export failed',
-            });
-            await this.model.logChannelError(req, {
-              channel,
-              productId: pid,
-              payload: p,
-              response: json,
-              message: message || 'Export failed',
-            });
-            items.push({
-              productId: pid,
-              sku: sku || null,
-              status: 'error',
-              error: message || 'Export failed',
-            });
+          const rawText = await response.text().catch(() => '');
+          let json;
+          try {
+            json = JSON.parse(rawText);
+          } catch (_) {
+            json = { raw: rawText };
           }
+
+          const successes = new Map();
+          const markSuccess = (wooItem) => {
+            const sku = (wooItem?.sku || '').trim();
+            if (!sku) return;
+            successes.set(sku, { wooId: wooItem.id });
+          };
+          if (Array.isArray(json?.create)) json.create.forEach(markSuccess);
+          if (Array.isArray(json?.update)) json.update.forEach(markSuccess);
+
+          for (const p of standalone) {
+            const pid = String(p?.id || '');
+            if (standaloneValidationErrors.has(pid)) continue;
+            const exportSku = p?.id != null ? String(p.id) : null;
+            const viaSku = exportSku ? successes.get(exportSku) : null;
+            const viaMapId = mapByProductId.get(pid);
+            const found = viaSku || (viaMapId ? { wooId: viaMapId } : null);
+
+            if (found) {
+              await this.model.upsertChannelMap(req, {
+                productId: pid,
+                channel,
+                channelInstanceId: instanceId,
+                externalId: found.wooId,
+                status: 'success',
+                error: null,
+              });
+              items.push({
+                productId: pid,
+                sku: exportSku || null,
+                status: 'success',
+                externalId: found.wooId,
+              });
+              aggregated.counts.success += 1;
+            } else {
+              let message = null;
+              if (Array.isArray(json?.errors)) {
+                message =
+                  json.errors
+                    .map((e) => e?.message)
+                    .filter(Boolean)
+                    .join('; ') || null;
+              }
+              await this.model.upsertChannelMap(req, {
+                productId: pid,
+                channel,
+                channelInstanceId: instanceId,
+                externalId: null,
+                status: 'error',
+                error: message || 'Export failed',
+              });
+              await this.model.logChannelError(req, {
+                channel,
+                productId: pid,
+                payload: p,
+                response: json,
+                message: message || 'Export failed',
+              });
+              items.push({
+                productId: pid,
+                sku: exportSku || null,
+                status: 'error',
+                error: message || 'Export failed',
+              });
+              aggregated.counts.error += 1;
+            }
+          }
+          if (Array.isArray(json?.create)) aggregated.result.create.push(...json.create);
+          if (Array.isArray(json?.update)) aggregated.result.update.push(...json.update);
         }
 
         const successCount = items.filter((i) => i.status === 'success').length;
-        const errorCount = items.filter((i) => i.status === 'error').length;
-        aggregated.counts.success += successCount;
-        aggregated.counts.error += errorCount;
-        if (Array.isArray(json?.create)) aggregated.result.create.push(...json.create);
-        if (Array.isArray(json?.update)) aggregated.result.update.push(...json.update);
+        const errorCount = items.filter(
+          (i) => i.status === 'error' || i.status === 'validation_error',
+        ).length;
         aggregated.instances.push({
           instanceId: instanceId,
           label: instance.label,
-          ok: response.ok,
-          endpoint,
-          result: {
-            create: json?.create || [],
-            update: json?.update || [],
-            delete: json?.delete || [],
-          },
+          ok: true,
+          endpoint: `${base}/wp-json/wc/v3/products`,
+          result: aggregated.result,
           counts: { requested: products.length, success: successCount, error: errorCount },
           items,
         });
@@ -1525,6 +1599,209 @@ class WooCommerceController {
     return arr[0]; // expect unique SKU
   }
 
+  /** Partition products into grouped (by groupId) and standalone. Group = same groupId + groupVariationType color/size/model. */
+  partitionProductsByWooGroup(products) {
+    const grouped = new Map();
+    const standalone = [];
+    const VARIATION_TYPES = ['color', 'size', 'model'];
+    for (const p of products) {
+      const gid = p?.groupId != null && String(p.groupId).trim() ? String(p.groupId).trim() : null;
+      const vt =
+        p?.groupVariationType &&
+        VARIATION_TYPES.includes(String(p.groupVariationType).toLowerCase())
+          ? String(p.groupVariationType).toLowerCase()
+          : null;
+      if (gid && vt) {
+        if (!grouped.has(gid)) grouped.set(gid, []);
+        grouped.get(gid).push(p);
+      } else {
+        standalone.push(p);
+      }
+    }
+    return { grouped, standalone };
+  }
+
+  /** Get attribute value for a product by variation type (color/size/model). */
+  getVariationAttributeValue(p, variationType) {
+    const v = String(variationType || '').toLowerCase();
+    if (v === 'color') return (p?.color ?? p?.colorText ?? '').trim() || null;
+    if (v === 'size') return (p?.size ?? p?.sizeText ?? '').trim() || null;
+    if (v === 'model') return (p?.model ?? '').trim() || null;
+    return null;
+  }
+
+  /** Ensure variable product exists in Woo (SKU = groupId). Returns { wooParentId } or null on failure. */
+  async ensureWooVariableProduct(
+    base,
+    settings,
+    groupId,
+    groupProducts,
+    overrideCategoriesByProductId,
+  ) {
+    const existing = await this.findWooProductBySku(base, groupId, settings);
+    if (existing?.id && existing.type === 'variable') {
+      return { wooParentId: Number(existing.id), created: false };
+    }
+    if (existing?.id && existing.type !== 'variable') {
+      Logger.warn('WooCommerce: product with SKU equal to groupId is not variable', {
+        groupId,
+        wooType: existing.type,
+      });
+      return null;
+    }
+    const mainProduct =
+      groupProducts.find((p) => !p.parentProductId || String(p.parentProductId).trim() === '') ||
+      groupProducts[0];
+    const variationType = String(mainProduct?.groupVariationType || 'color').toLowerCase();
+    const attrName = variationType;
+    const options = [];
+    const seen = new Set();
+    for (const p of groupProducts) {
+      const val = this.getVariationAttributeValue(p, variationType);
+      if (val && !seen.has(val)) {
+        seen.add(val);
+        options.push(val);
+      }
+    }
+    if (options.length === 0) options.push('Default');
+    const categories = overrideCategoriesByProductId.get(String(mainProduct?.id || '')) || [];
+    const payload = {
+      type: 'variable',
+      sku: groupId,
+      name: mainProduct?.title ?? 'Variable product',
+      status: this.mapStatusToWoo(mainProduct?.status),
+      description: mainProduct?.description ?? '',
+      manage_stock: false,
+      attributes: [
+        {
+          name: attrName,
+          variation: true,
+          visible: true,
+          options,
+        },
+      ],
+      categories: Array.isArray(categories) && categories.length ? categories : undefined,
+    };
+    if (mainProduct?.mainImage && isValidImageUrl(mainProduct.mainImage)) {
+      payload.images = [{ src: mainProduct.mainImage }];
+    }
+    const url = `${base}/wp-json/wc/v3/products`;
+    const resp = await this.fetchWithWooAuth(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      settings,
+    );
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      Logger.warn('WooCommerce variable product create failed', {
+        groupId,
+        status: resp.status,
+        body: text,
+      });
+      return null;
+    }
+    const created = await resp.json().catch(() => null);
+    const wooParentId = created?.id != null ? Number(created.id) : null;
+    return wooParentId != null ? { wooParentId, created: true } : null;
+  }
+
+  /** Build variation payload for Woo (one variant). options: priceAmount, salePrice from overrides. */
+  buildWooVariationPayload(p, variationType, options = {}) {
+    const attrName = String(variationType || 'color').toLowerCase();
+    const attrValue = this.getVariationAttributeValue(p, variationType) || 'Default';
+    const regularPrice =
+      options.priceAmount != null && Number.isFinite(options.priceAmount)
+        ? String(options.priceAmount)
+        : p?.priceAmount != null
+          ? String(p.priceAmount)
+          : undefined;
+    const salePrice =
+      options.salePrice != null && Number.isFinite(options.salePrice) && options.salePrice > 0
+        ? String(options.salePrice)
+        : undefined;
+    const payload = {
+      sku: `V${p?.id ?? ''}`,
+      attributes: [{ name: attrName, option: attrValue }],
+      regular_price: regularPrice,
+      ...(salePrice != null ? { sale_price: salePrice } : {}),
+      manage_stock: true,
+      stock_quantity: p?.quantity != null ? Math.max(0, Math.floor(Number(p.quantity))) : 0,
+    };
+    if (p?.mainImage && isValidImageUrl(p.mainImage)) {
+      payload.image = { src: p.mainImage };
+    }
+    return payload;
+  }
+
+  /** Ensure variation exists (SKU = V+productId). Returns wooVariationId or null. */
+  async ensureWooVariation(
+    base,
+    settings,
+    wooParentId,
+    product,
+    variationType,
+    overrideByProductId,
+  ) {
+    const variationSku = `V${product?.id ?? ''}`;
+    const existing = await this.findWooProductBySku(base, variationSku, settings);
+    const pid = String(product?.id || '');
+    const ov = overrideByProductId.get(pid) || {};
+    const options = {
+      priceAmount: ov.priceAmount != null ? Number(ov.priceAmount) : undefined,
+      salePrice:
+        ov.salePrice != null && Number.isFinite(ov.salePrice) ? Number(ov.salePrice) : undefined,
+    };
+    const body = this.buildWooVariationPayload(product, variationType, options);
+    if (existing?.id && existing?.parent_id === wooParentId) {
+      const variationId = Number(existing.id);
+      const url = `${base}/wp-json/wc/v3/products/${wooParentId}/variations/${variationId}`;
+      const resp = await this.fetchWithWooAuth(
+        url,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        settings,
+      );
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        Logger.warn('WooCommerce variation update failed', {
+          variationSku,
+          status: resp.status,
+          body: text,
+        });
+        return null;
+      }
+      return variationId;
+    }
+    const url = `${base}/wp-json/wc/v3/products/${wooParentId}/variations`;
+    const resp = await this.fetchWithWooAuth(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+      settings,
+    );
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      Logger.warn('WooCommerce variation create failed', {
+        variationSku,
+        status: resp.status,
+        body: text,
+      });
+      return null;
+    }
+    const created = await resp.json().catch(() => null);
+    return created?.id != null ? Number(created.id) : null;
+  }
+
   mapStatusToWoo(status) {
     switch (String(status || '').toLowerCase()) {
       case 'for sale':
@@ -1566,15 +1843,42 @@ class WooCommerceController {
     }
 
     const attrs = [];
-    if (p?.brand) {
-      attrs.push({ name: 'brand', options: [String(p.brand)] });
-    }
+    if (p?.brand) attrs.push({ name: 'brand', options: [String(p.brand)] });
+    const colorVal = (p?.color ?? p?.colorText ?? '').trim();
+    if (colorVal) attrs.push({ name: 'color', options: [colorVal] });
+    const sizeVal = (p?.size ?? p?.sizeText ?? '').trim();
+    if (sizeVal) attrs.push({ name: 'size', options: [sizeVal] });
+    const modelVal = (p?.model ?? '').trim();
+    if (modelVal) attrs.push({ name: 'model', options: [modelVal] });
+    const materialVal = (p?.material ?? '').trim();
+    if (materialVal) attrs.push({ name: 'material', options: [materialVal] });
+
+    const cs = p?.channelSpecific && typeof p.channelSpecific === 'object' ? p.channelSpecific : {};
+    const standardMarket = ['se', 'dk', 'fi', 'no'].includes(
+      String(cs.textsStandard || '').toLowerCase(),
+    )
+      ? String(cs.textsStandard).toLowerCase()
+      : 'se';
+    const textsExtended =
+      cs.textsExtended && typeof cs.textsExtended === 'object' ? cs.textsExtended : {};
+    const standardText = textsExtended[standardMarket] || textsExtended.se || {};
 
     const metaData = [];
     const ean = (p?.ean ?? '').trim();
     const gtin = (p?.gtin ?? '').trim();
+    const mpn = (p?.mpn ?? '').trim();
     if (ean) metaData.push({ key: 'ean', value: ean });
     if (gtin) metaData.push({ key: 'gtin', value: gtin });
+    if (mpn) metaData.push({ key: 'mpn', value: mpn });
+    const titleSeo = (standardText.titleSeo ?? '').trim();
+    if (titleSeo) metaData.push({ key: 'seo_title', value: titleSeo });
+    const metaDesc = (standardText.metaDesc ?? '').trim();
+    if (metaDesc) metaData.push({ key: 'seo_meta_desc', value: metaDesc });
+    const metaKw = (standardText.metaKeywords ?? '').trim();
+    if (metaKw) metaData.push({ key: 'seo_meta_keywords', value: metaKw });
+    const conditionValue =
+      p?.condition === 'refurb' ? 'refurbished' : p?.condition === 'used' ? 'used' : 'new';
+    metaData.push({ key: 'condition', value: conditionValue });
 
     const regularPrice =
       options.priceAmount != null && Number.isFinite(options.priceAmount)
@@ -1587,6 +1891,37 @@ class WooCommerceController {
         ? String(options.salePrice)
         : undefined;
 
+    const description = p?.description ?? '';
+    const shortDescription =
+      metaDesc || (description.length > 160 ? description.slice(0, 157) + '...' : description);
+
+    const weightKg =
+      p?.weight != null && Number.isFinite(Number(p.weight))
+        ? String(Number(p.weight) / 1000)
+        : undefined;
+
+    const lengthCm =
+      p?.lengthCm != null && Number.isFinite(Number(p.lengthCm)) ? Number(p.lengthCm) : null;
+    const widthCm =
+      p?.widthCm != null && Number.isFinite(Number(p.widthCm)) ? Number(p.widthCm) : null;
+    const heightCm =
+      p?.heightCm != null && Number.isFinite(Number(p.heightCm)) ? Number(p.heightCm) : null;
+    const dimensions =
+      lengthCm != null || widthCm != null || heightCm != null
+        ? {
+            length: lengthCm != null ? String(lengthCm) : '',
+            width: widthCm != null ? String(widthCm) : '',
+            height: heightCm != null ? String(heightCm) : '',
+          }
+        : undefined;
+
+    const woo =
+      p?.channelSpecific?.woocommerce && typeof p.channelSpecific.woocommerce === 'object'
+        ? p.channelSpecific.woocommerce
+        : {};
+    const backorders =
+      woo.backorders === 'yes' || woo.backorders === 'notify' ? woo.backorders : 'no';
+
     return {
       sku: p?.id != null ? String(p.id) : null,
       name: p?.title ?? '',
@@ -1594,8 +1929,12 @@ class WooCommerceController {
       regular_price: regularPrice,
       ...(salePrice != null ? { sale_price: salePrice } : {}),
       manage_stock: true,
+      backorders,
       stock_quantity: p?.quantity != null ? Number(p.quantity) : undefined,
-      description: p?.description || '',
+      description: description || '',
+      short_description: shortDescription || undefined,
+      ...(weightKg != null ? { weight: weightKg } : {}),
+      ...(dimensions ? { dimensions } : {}),
       categories:
         Array.isArray(overrideCategories) && overrideCategories.length > 0
           ? overrideCategories
@@ -1611,12 +1950,18 @@ class WooCommerceController {
     const images = Array.isArray(w?.images) ? w.images.map((i) => i?.src).filter(Boolean) : [];
     const mainImage = images.length ? images[0] : null;
 
-    // find brand attribute
+    // find brand and model (and other variant attrs) from attributes
     let brand = null;
+    let model = null;
     if (Array.isArray(w?.attributes)) {
-      const attr = w.attributes.find((a) => String(a?.name || '').toLowerCase() === 'brand');
-      const opts = Array.isArray(attr?.options) ? attr.options : [];
-      brand = opts.length ? String(opts[0]) : null;
+      const brandAttr = w.attributes.find((a) => String(a?.name || '').toLowerCase() === 'brand');
+      if (brandAttr && Array.isArray(brandAttr?.options) && brandAttr.options.length) {
+        brand = String(brandAttr.options[0]);
+      }
+      const modelAttr = w.attributes.find((a) => String(a?.name || '').toLowerCase() === 'model');
+      if (modelAttr && Array.isArray(modelAttr?.options) && modelAttr.options.length) {
+        model = String(modelAttr.options[0]);
+      }
     }
 
     return {
@@ -1636,6 +1981,7 @@ class WooCommerceController {
         ? w.categories.map((c) => c?.name).filter(Boolean)
         : [],
       brand,
+      model: model || undefined,
       gtin: null,
       createdAt: w?.date_created || null,
       updatedAt: w?.date_modified || null,
