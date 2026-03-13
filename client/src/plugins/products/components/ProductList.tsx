@@ -1,9 +1,28 @@
-import { Trash2, ChevronUp, ChevronDown, Upload, Pencil, Settings, X } from 'lucide-react';
+import {
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+  Upload,
+  Pencil,
+  Settings,
+  X,
+  Minus,
+  Plus,
+} from 'lucide-react';
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -180,6 +199,13 @@ export const ProductList: React.FC = () => {
   const [groupVariationType, setGroupVariationType] = useState<'color' | 'size' | 'model'>('color');
   const [groupMainProductId, setGroupMainProductId] = useState<string>('');
   const [groupApplying, setGroupApplying] = useState(false);
+  const [quantityUpdatingId, setQuantityUpdatingId] = useState<string | null>(null);
+  const [quantityDialog, setQuantityDialog] = useState<{
+    productId: string;
+    currentQty: number;
+    direction: 'plus' | 'minus';
+  } | null>(null);
+  const [quantityDialogInput, setQuantityDialogInput] = useState('1');
 
   // Import-modal state
   const [showImportModal, setShowImportModal] = useState(false);
@@ -202,6 +228,34 @@ export const ProductList: React.FC = () => {
     } else {
       setSortField(field);
       setSortOrder('asc');
+    }
+  };
+
+  const openQuantityDialog = (
+    productId: string,
+    currentQty: number,
+    direction: 'plus' | 'minus',
+  ) => {
+    setQuantityDialog({ productId, currentQty, direction });
+    setQuantityDialogInput('1');
+  };
+
+  const confirmQuantityDialog = async () => {
+    if (!quantityDialog) {
+      return;
+    }
+    const delta = Math.floor(Number(quantityDialogInput));
+    if (!Number.isFinite(delta) || delta < 1) {
+      return;
+    }
+    const { productId, currentQty, direction } = quantityDialog;
+    const newQty = direction === 'plus' ? currentQty + delta : Math.max(0, currentQty - delta);
+    setQuantityDialog(null);
+    setQuantityUpdatingId(productId);
+    try {
+      await batchUpdateProducts([productId], { quantity: newQty });
+    } finally {
+      setQuantityUpdatingId(null);
     }
   };
 
@@ -960,7 +1014,39 @@ export const ProductList: React.FC = () => {
                         <div className="text-sm text-muted-foreground">{p.sku || '—'}</div>
                       </TableCell>
                       <TableCell className={groupInfo ? 'pl-3' : ''}>
-                        <div className="text-sm">{p.quantity}</div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0"
+                            disabled={quantityUpdatingId === p.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const current = Number.isFinite(p.quantity) ? p.quantity : 0;
+                              openQuantityDialog(p.id, current, 'minus');
+                            }}
+                            aria-label="Minska antal"
+                          >
+                            <Minus className="h-3.5 w-3.5" />
+                          </Button>
+                          <span className="min-w-[1.5rem] text-center text-sm tabular-nums">
+                            {p.quantity}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0"
+                            disabled={quantityUpdatingId === p.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const current = Number.isFinite(p.quantity) ? p.quantity : 0;
+                              openQuantityDialog(p.id, current, 'plus');
+                            }}
+                            aria-label="Öka antal"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell className={groupInfo ? 'pl-3' : ''}>
                         <div className="text-sm">
@@ -1027,6 +1113,39 @@ export const ProductList: React.FC = () => {
                           <div className="text-xs text-muted-foreground">
                             #{p.id} · {p.sku || '—'}
                           </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 shrink-0"
+                              disabled={quantityUpdatingId === p.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const current = Number.isFinite(p.quantity) ? p.quantity : 0;
+                                openQuantityDialog(p.id, current, 'minus');
+                              }}
+                              aria-label="Minska antal"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="min-w-[1.25rem] text-center text-xs tabular-nums">
+                              {p.quantity}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 shrink-0"
+                              disabled={quantityUpdatingId === p.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const current = Number.isFinite(p.quantity) ? p.quantity : 0;
+                                openQuantityDialog(p.id, current, 'plus');
+                              }}
+                              aria-label="Öka antal"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
                           <div className="text-xs text-muted-foreground">
                             {p.priceAmount?.toFixed
                               ? p.priceAmount.toFixed(2)
@@ -1053,6 +1172,50 @@ export const ProductList: React.FC = () => {
           </div>
         )}
       </Card>
+
+      {/* Quantity change dialog */}
+      <Dialog
+        open={quantityDialog !== null}
+        onOpenChange={(open) => !open && setQuantityDialog(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {quantityDialog?.direction === 'plus' ? 'Öka lagersaldo' : 'Minska lagersaldo'}
+            </DialogTitle>
+            <DialogDescription>
+              {quantityDialog?.direction === 'plus'
+                ? 'Hur mycket vill du öka lagersaldot med?'
+                : 'Hur mycket vill du minska lagersaldot med?'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              type="number"
+              min={1}
+              value={quantityDialogInput}
+              onChange={(e) => setQuantityDialogInput(e.target.value)}
+              placeholder="1"
+              className="w-24"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuantityDialog(null)}>
+              Avbryt
+            </Button>
+            <Button
+              onClick={confirmQuantityDialog}
+              disabled={
+                !Number.isFinite(Number(quantityDialogInput)) ||
+                Math.floor(Number(quantityDialogInput)) < 1
+              }
+            >
+              Ändra
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Publish-modal */}
       {showPublishModal && (

@@ -16,6 +16,13 @@ const {
   fetchCategoriesFromApi: fetchFyndiqCategories,
 } = require('../fyndiq-products/fetchCategories');
 
+const WooCommerceModel = require('../woocommerce-products/model');
+const WooCommerceController = require('../woocommerce-products/controller');
+const CdonProductsController = require('../cdon-products/controller');
+const CdonProductsModel = require('../cdon-products/model');
+const FyndiqProductsController = require('../fyndiq-products/controller');
+const FyndiqProductsModel = require('../fyndiq-products/model');
+
 const LANGUAGE_TO_MARKET = { 'sv-SE': 'SE', 'da-DK': 'DK', 'fi-FI': 'FI', 'nb-NO': 'NO' };
 
 const IMPORT_MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB
@@ -615,6 +622,198 @@ class ProductController {
   constructor(model, selloModel) {
     this.model = model;
     this.selloModel = selloModel || null;
+    this.wooController = new WooCommerceController(new WooCommerceModel());
+    this.cdonModel = new CdonProductsModel();
+    this.cdonController = new CdonProductsController(this.cdonModel);
+    this.fyndiqModel = new FyndiqProductsModel();
+    this.fyndiqController = new FyndiqProductsController(this.fyndiqModel);
+  }
+
+  /**
+   * Resolve WooCommerce external_id via API lookup when Sello returns item_id=null.
+   * Tries V{productId} (variant) then productId (standalone). Returns null on failure.
+   */
+  async resolveWooExternalIdForSelloImport(req, productId, channelInstanceId) {
+    try {
+      const wooReq = { ...req, query: { instanceId: String(channelInstanceId) } };
+      const wooInst = await this.wooController._getInstanceOrThrow(wooReq);
+      const creds = wooInst.credentials || {};
+      const base = this.wooController.normalizeBaseUrl(creds.storeUrl);
+      const wooSettings = {
+        storeUrl: creds.storeUrl,
+        consumerKey: creds.consumerKey,
+        consumerSecret: creds.consumerSecret,
+        useQueryAuth: creds.useQueryAuth,
+      };
+      let existing = await this.wooController.findWooProductBySku(
+        base,
+        `V${productId}`,
+        wooSettings,
+      );
+      if (!existing?.id) {
+        existing = await this.wooController.findWooProductBySku(
+          base,
+          String(productId),
+          wooSettings,
+        );
+      }
+      return existing?.id ? String(existing.id) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Push product quantity to all enabled channels (Woo, CDON, Fyndiq).
+   * Called from batchUpdate (quantity change) and from Orders (order events).
+   * @param {object} req - request with session
+   * @param {{ productId: string, sku: string, quantity: number, sourceChannel: string|null }} opts - sourceChannel: skip this channel (e.g. 'woocommerce' when order came from Woo)
+   */
+  async pushStockToChannels(req, { productId, sku, quantity, sourceChannel }) {
+    const db = Database.get(req);
+    const userId = req.session?.user?.id;
+    if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+
+    const pid = String(productId ?? '').trim();
+    if (!pid) return;
+
+    const mapRows = await db.query(
+      `SELECT channel, enabled, external_id, channel_instance_id
+       FROM channel_product_map
+       WHERE user_id = $1 AND product_id::text = $2
+         AND (enabled = TRUE OR external_id IS NOT NULL)`,
+      [userId, pid],
+    );
+    const overrideRows = await db.query(
+      `SELECT o.channel, o.active AS enabled, m.external_id, o.channel_instance_id
+       FROM channel_product_overrides o
+       INNER JOIN channel_product_map m
+         ON m.user_id = o.user_id AND m.product_id::text = o.product_id::text
+         AND m.channel = o.channel
+         AND (m.channel_instance_id IS NOT DISTINCT FROM o.channel_instance_id)
+       WHERE o.user_id = $1 AND o.product_id::text = $2
+         AND o.active = TRUE
+         AND o.channel_instance_id IS NOT NULL
+         AND m.external_id IS NOT NULL`,
+      [userId, pid],
+    );
+    const seen = new Set();
+    const rows = [];
+    for (const r of [...mapRows, ...overrideRows]) {
+      const ch = String(r.channel || '')
+        .trim()
+        .toLowerCase();
+      if (!ch) continue;
+      // CDON/Fyndiq: stock push is universal (one API call updates all markets). Use one row per channel, prefer NULL.
+      const isUniversalStock = ch === 'cdon' || ch === 'fyndiq';
+      const key = isUniversalStock ? `${ch}:` : `${ch}:${r.channel_instance_id ?? ''}`;
+      if (seen.has(key)) {
+        if (isUniversalStock && r.channel_instance_id == null) {
+          const idx = rows.findIndex(
+            (x) =>
+              String(x.channel || '')
+                .trim()
+                .toLowerCase() === ch,
+          );
+          if (idx >= 0 && rows[idx].channel_instance_id != null) rows[idx] = r;
+        }
+        continue;
+      }
+      seen.add(key);
+      rows.push(r);
+    }
+
+    for (const r of rows) {
+      const channel = String(r.channel || '')
+        .trim()
+        .toLowerCase();
+      if (!channel || channel === sourceChannel) continue;
+
+      if (channel === 'woocommerce') {
+        const channelInstanceId =
+          r.channel_instance_id != null ? String(r.channel_instance_id) : null;
+        await this.wooController.syncStock(req, {
+          productId: String(productId),
+          sku,
+          quantity,
+          externalId: r.external_id != null ? String(r.external_id) : null,
+          channelInstanceId,
+        });
+        continue;
+      }
+
+      if (channel === 'cdon') {
+        const externalId = r.external_id != null ? String(r.external_id).trim() : null;
+        const result = await this.cdonController.syncStock(req, {
+          productId: String(productId),
+          channelSku: String(productId),
+          quantity,
+        });
+        if (result.ok) {
+          await this.cdonModel.upsertChannelMap(req, {
+            productId,
+            channel: 'cdon',
+            enabled: true,
+            externalId: externalId ?? String(productId),
+            status: 'success',
+            error: null,
+          });
+        } else {
+          await this.cdonModel.upsertChannelMap(req, {
+            productId,
+            channel: 'cdon',
+            enabled: true,
+            externalId: externalId ?? String(productId),
+            status: 'error',
+            error: result.error || 'Stock sync failed',
+          });
+          await this.cdonModel.logChannelError(req, {
+            channel: 'cdon',
+            productId,
+            payload: { sku, quantity },
+            response: null,
+            message: result.error || 'Stock sync failed',
+          });
+        }
+        continue;
+      }
+
+      if (channel === 'fyndiq') {
+        const externalId = r.external_id != null ? String(r.external_id).trim() : '';
+        if (!externalId) continue;
+        const result = await this.fyndiqController.syncStock(req, {
+          productId: String(productId),
+          articleId: externalId,
+          quantity,
+        });
+        if (result.ok) {
+          await this.fyndiqModel.upsertChannelMap(req, {
+            productId,
+            channel: 'fyndiq',
+            enabled: true,
+            externalId,
+            status: 'success',
+            error: null,
+          });
+        } else {
+          await this.fyndiqModel.upsertChannelMap(req, {
+            productId,
+            channel: 'fyndiq',
+            enabled: true,
+            externalId,
+            status: 'error',
+            error: result.error || 'Stock sync failed',
+          });
+          await this.fyndiqModel.logChannelError(req, {
+            channel: 'fyndiq',
+            productId,
+            payload: { sku, quantity },
+            response: null,
+            message: result.error || 'Stock sync failed',
+          });
+        }
+      }
+    }
   }
 
   async getSelloSettings(req, res) {
@@ -1108,6 +1307,47 @@ class ProductController {
       }
 
       const result = await this.model.batchUpdate(req, ids, updates);
+      const quantity = updates.quantity;
+      if (
+        quantity !== undefined &&
+        quantity !== null &&
+        Number.isInteger(Number(quantity)) &&
+        Number(quantity) >= 0 &&
+        ids.length > 0
+      ) {
+        const db = Database.get(req);
+        const userId = req.session?.user?.id;
+        if (userId) {
+          db.query(
+            `SELECT id::text AS id, sku FROM products WHERE user_id = $1 AND id::text = ANY($2::text[])`,
+            [userId, ids],
+          )
+            .then((rows) => {
+              const qty = Math.max(0, Number(quantity));
+              for (const r of rows) {
+                const productId = r.id;
+                const sku = r.sku != null ? String(r.sku).trim() : '';
+                this.pushStockToChannels(req, {
+                  productId,
+                  sku,
+                  quantity: qty,
+                  sourceChannel: null,
+                }).catch((pushErr) => {
+                  Logger.warn('Push stock after batch update failed', pushErr, {
+                    userId: Context.getUserId(req),
+                    productId,
+                  });
+                });
+              }
+            })
+            .catch((err) => {
+              Logger.warn('Push stock: failed to fetch products for channel sync', err, {
+                userId: Context.getUserId(req),
+                productCount: ids.length,
+              });
+            });
+        }
+      }
       return res.json({
         ok: true,
         updatedCount: result.updatedCount ?? 0,
@@ -1878,6 +2118,26 @@ class ProductController {
                   originalPriceAmount,
                 });
                 summary.overrides_updated += 1;
+                let externalId = String(state?.item_id ?? '').trim();
+                if (!externalId && inst.channel === 'woocommerce' && active) {
+                  const resolved = await this.resolveWooExternalIdForSelloImport(
+                    req,
+                    createdProductId,
+                    inst.id,
+                  );
+                  if (resolved) externalId = resolved;
+                }
+                if (externalId) {
+                  await this.upsertChannelProductMap(req, {
+                    productId: createdProductId,
+                    channel: inst.channel,
+                    channelInstanceId: inst.id,
+                    enabled: active,
+                    externalId,
+                    status: 'synced',
+                    reason: null,
+                  });
+                }
               }
             }
           }
@@ -2149,6 +2409,26 @@ class ProductController {
                   originalPriceAmount,
                 });
                 summary.overrides_updated += 1;
+                let externalId = String(state?.item_id ?? '').trim();
+                if (!externalId && inst.channel === 'woocommerce' && active) {
+                  const resolved = await this.resolveWooExternalIdForSelloImport(
+                    req,
+                    productId,
+                    inst.id,
+                  );
+                  if (resolved) externalId = resolved;
+                }
+                if (externalId) {
+                  await this.upsertChannelProductMap(req, {
+                    productId,
+                    channel: inst.channel,
+                    channelInstanceId: inst.id,
+                    enabled: active,
+                    externalId,
+                    status: 'synced',
+                    reason: null,
+                  });
+                }
               }
             }
           }
@@ -2295,36 +2575,64 @@ class ProductController {
         });
       }
 
-      while (true) {
-        if (maxPages != null && pagesFetched >= maxPages) break;
-        if (maxProducts != null && productsProcessed >= maxProducts) break;
+      const selloProductIds = Array.isArray(req.body?.selloProductIds)
+        ? [...new Set(req.body.selloProductIds.map((x) => String(x).trim()).filter(Boolean))]
+        : null;
+
+      const fetchProducts = async () => {
+        if (selloProductIds && selloProductIds.length > 0) {
+          const listPath = `/v5/products?size=100&${selloProductIds
+            .map((id) => `filter[id][]=${encodeURIComponent(id)}`)
+            .join('&')}`;
+          const listRes = await this.selloModel.fetchSelloJson({ apiKey, path: listPath });
+          return {
+            products: Array.isArray(listRes?.products) ? listRes.products : [],
+            total: null,
+          };
+        }
         const page = await this.selloModel.fetchSelloJson({
           apiKey,
           path: '/v5/products',
           query: { size: SELLO_PAGE_SIZE, offset },
         });
+        const pageTotal =
+          total == null && Number.isFinite(Number(page?.duration?.total_count))
+            ? Number(page.duration.total_count)
+            : null;
+        if (pageTotal != null) total = pageTotal;
+        return {
+          products: Array.isArray(page?.products) ? page.products : [],
+          total: pageTotal,
+        };
+      };
+
+      while (true) {
+        if (maxPages != null && pagesFetched >= maxPages) break;
+        if (maxProducts != null && productsProcessed >= maxProducts) break;
+        const { products } = await fetchProducts();
         pagesFetched += 1;
-        const products = Array.isArray(page?.products) ? page.products : [];
-        if (total == null && Number.isFinite(Number(page?.duration?.total_count))) {
-          total = Number(page.duration.total_count);
-        }
         if (!products.length) break;
 
-        const skuList = products.map((p) => String(p?.id ?? '').trim()).filter(Boolean);
-        const homebaseRows = skuList.length
+        const selloIdList = products.map((p) => String(p?.id ?? '').trim()).filter(Boolean);
+        const homebaseRows = selloIdList.length
           ? await db.query(
-              `SELECT id::text AS id, sku FROM products WHERE user_id = $1 AND sku = ANY($2::text[])`,
-              [userId, skuList],
+              `SELECT id::text AS id, sku FROM products
+               WHERE user_id = $1 AND (sku = ANY($2::text[]) OR id::text = ANY($2::text[]))`,
+              [userId, selloIdList],
             )
           : [];
-        const productIdBySku = new Map(homebaseRows.map((r) => [String(r.sku), String(r.id)]));
+        const productIdBySelloId = new Map();
+        for (const r of homebaseRows) {
+          productIdBySelloId.set(String(r.id), String(r.id));
+          if (r.sku) productIdBySelloId.set(String(r.sku), String(r.id));
+        }
 
         for (const raw of products) {
           if (maxProducts != null && productsProcessed >= maxProducts) break;
           productsProcessed += 1;
-          const sku = String(raw?.id ?? '').trim();
-          if (!sku) continue;
-          const productId = productIdBySku.get(sku);
+          const selloId = String(raw?.id ?? '').trim();
+          if (!selloId) continue;
+          const productId = productIdBySelloId.get(selloId);
           if (!productId) {
             summary.skipped_no_product += 1;
             continue;
@@ -2344,7 +2652,7 @@ class ProductController {
               summary.validation_error += 1;
               summary.deviations.push({
                 productId,
-                sku,
+                sku: selloId,
                 channel: null,
                 instanceKey: null,
                 reason: `unknown_integration_id:${integrationId}`,
@@ -2358,7 +2666,7 @@ class ProductController {
               summary.expected_skip += 1;
               summary.deviations.push({
                 productId,
-                sku,
+                sku: selloId,
                 channel: null,
                 instanceKey: null,
                 reason: `missing_sello_integration_map:${integrationId}`,
@@ -2374,7 +2682,7 @@ class ProductController {
               for (const inst of targetInstances) {
                 summary.deviations.push({
                   productId,
-                  sku,
+                  sku: selloId,
                   channel: inst.channel,
                   instanceKey: inst.instanceKey,
                   reason: 'active_without_item_id',
@@ -2399,6 +2707,7 @@ class ProductController {
         }
 
         offset += products.length;
+        if (selloProductIds && selloProductIds.length > 0) break;
         if (products.length < SELLO_PAGE_SIZE) break;
         if (total != null && offset >= total) break;
       }

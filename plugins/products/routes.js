@@ -119,10 +119,8 @@ function createProductRoutes(controller, context) {
     controller.importFromSelloApi(req, res),
   );
 
-  // POST /api/products/map/sello - Build channel map from Sello integrations
-  router.post('/map/sello', gate, csrfProtection, (req, res) =>
-    controller.buildChannelMapFromSello(req, res),
-  );
+  // buildChannelMapFromSello: Gömmen – sker nu automatiskt vid Sello-import.
+  // För backfill, kör: node scripts/run-build-channel-map-sello.js (anropar controllern direkt)
 
   // POST /api/products - Create new product
   router.post(

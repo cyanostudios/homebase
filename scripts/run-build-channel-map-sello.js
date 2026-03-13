@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // scripts/run-build-channel-map-sello.js
-// Kör Bygg kanalkarta från Sello för alla produkter.
+// Bygger channel_product_map från Sello för produkter i Homebase.
+// Endast Homebase-produkter (sku = Sello id) processas – inte hela Sello-katalogen.
 // PHASE1_PILOT_USER_ID=1 node scripts/run-build-channel-map-sello.js
 
 const path = require('path');
@@ -32,16 +33,27 @@ function makeMockRes() {
 async function run() {
   const ServiceManager = require('../server/core/ServiceManager');
   Bootstrap.initializeServices();
+  const model = new ProductModel();
   const req = {
     session: { user: { id: USER_ID }, currentTenantUserId: USER_ID },
     tenantPool: undefined,
-    body: { maxProducts: 5000, maxPages: 100 },
+    body: {},
     query: {},
     params: {},
   };
   ServiceManager.initialize(req);
 
-  const controller = new ProductController(new ProductModel(), new SelloModel());
+  const products = await model.getAll(req);
+  const selloIds = (Array.isArray(products) ? products : [])
+    .map((p) => (p.id != null ? String(p.id).trim() : null))
+    .filter(Boolean);
+  req.body = { selloProductIds: selloIds };
+  console.log(
+    `Bygger kanalkarta för ${selloIds.length} produkt(er) i Homebase (Sello id = product.id):`,
+    selloIds,
+  );
+
+  const controller = new ProductController(model, new SelloModel());
   const res = makeMockRes();
   await controller.buildChannelMapFromSello(req, res);
 

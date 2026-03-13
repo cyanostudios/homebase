@@ -4,6 +4,30 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-13 – Sello Woo map-fix, lager-push fire-and-forget, quantity-popup
+
+### Sello-import – channel_product_map för WooCommerce när item_id saknas
+
+- **plugins/products/controller.js:** Sello returnerar ofta `item_id: null` för WooCommerce-integrationer. Vid import görs nu en WooCommerce API-lookup (SKU = productId eller V+productId) när `item_id` saknas. Om produkten hittas i WooCommerce fylls `channel_product_map` med `external_id`, så att lager-push fungerar direkt utan export. Gäller båda importvägarna (selloProductIds och sidindelad).
+- **docs/SELLO_WOO_MAP_FIX.md:** Dokumentation av problem och lösning.
+
+### Lager-push – fire-and-forget
+
+- **plugins/products/controller.js:** `pushStockToChannels` körs nu asynkront i bakgrunden efter batch update (quantity-ändring). API:t svarar direkt; CDON-, Fyndiq- och WooCommerce-synk sker i bakgrunden. Ger snabb respons i UI även vid långsamma kanal-API:er.
+- **.cursor/rules/fire-and-forget-async.mdc:** Regel – använd fire-and-forget för synk mot externa tjänster där det är rimligt.
+
+### Produktlistan – quantity-popup
+
+- **client/…/ProductList.tsx, ProductContext.tsx:** Plus- och minus-knapparna öppnar nu en popup som frågar "Hur mycket vill du öka/minska lagersaldot med?" – användaren anger ett heltal (inget minustecken) och bekräftar.
+
+### Scripts
+
+- **scripts/check-channel-map.js:** Diagnostik – visar channel_product_map och channel_product_overrides för en produkt.
+- **scripts/debug-sello-woo-map.js:** Diagnostik – visar Sello integrations (item_id per kanal) och channel_instances med sello_integration_id.
+- **scripts/run-quantity-push-test.js, test-push-109512000.js:** Test för lager-push.
+
+---
+
 ## 2026-03-13 – CDON Delete, produktlistan grupp + icke-klickbara rader, docs, create-fix
 
 ### CDON – Delete mot plattformen

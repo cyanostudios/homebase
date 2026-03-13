@@ -1547,6 +1547,120 @@ class WooCommerceController {
 
   // ---- Template parity CRUD (kept) ----
 
+  /**
+   * Push stock quantity to WooCommerce for one product (used by Products pushStockToChannels).
+   * @param {object} req - request with session
+   * @param {{ productId: string, sku: string, quantity: number, externalId: string|null, channelInstanceId: string|null }} opts
+   */
+  async syncStock(req, { productId, sku, quantity, externalId, channelInstanceId }) {
+    let settings = null;
+    if (channelInstanceId) {
+      const instance = await this.model.getInstanceById(req, channelInstanceId);
+      settings = instance?.credentials || null;
+    }
+    if (!settings) {
+      await this.model.upsertChannelMap(req, {
+        productId,
+        channel: 'woocommerce',
+        channelInstanceId: channelInstanceId || null,
+        externalId: externalId || null,
+        status: 'error',
+        error: 'Woo instance missing for this mapping; cannot sync stock',
+      });
+      return;
+    }
+    if (!settings?.storeUrl || !settings?.consumerKey || !settings?.consumerSecret) {
+      await this.model.upsertChannelMap(req, {
+        productId,
+        channel: 'woocommerce',
+        channelInstanceId: channelInstanceId || null,
+        externalId: externalId || null,
+        status: 'error',
+        error: 'Woo settings missing; cannot sync stock',
+      });
+      return;
+    }
+
+    const base = this.normalizeBaseUrl(settings.storeUrl);
+    const wooSettings = {
+      storeUrl: settings.storeUrl,
+      consumerKey: settings.consumerKey,
+      consumerSecret: settings.consumerSecret,
+      useQueryAuth: settings.useQueryAuth,
+    };
+
+    // Look up by variation SKU (V+productId) first, then by productId for standalone
+    const variationSku = `V${productId}`;
+    let existing = await this.findWooProductBySku(base, variationSku, wooSettings);
+    if (!existing?.id) {
+      existing = await this.findWooProductBySku(base, String(productId), wooSettings);
+    }
+    if (!existing?.id) {
+      await this.model.upsertChannelMap(req, {
+        productId,
+        channel: 'woocommerce',
+        channelInstanceId: channelInstanceId || null,
+        externalId: externalId || null,
+        status: 'error',
+        error: `Product not found in WooCommerce (SKU V${productId} or ${productId})`,
+      });
+      await this.model.logChannelError(req, {
+        channel: 'woocommerce',
+        productId,
+        payload: { productId, quantity },
+        response: null,
+        message: 'Product not found in WooCommerce',
+      });
+      return;
+    }
+
+    const wooId = Number(existing.id);
+    const parentId = existing.parent_id != null ? Number(existing.parent_id) : null;
+    const isVariation = parentId != null && parentId > 0;
+
+    const url = isVariation
+      ? `${base}/wp-json/wc/v3/products/${parentId}/variations/${wooId}`
+      : `${base}/wp-json/wc/v3/products/${wooId}`;
+    const resp = await this.fetchWithWooAuth(
+      url,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ manage_stock: true, stock_quantity: Number(quantity) }),
+      },
+      wooSettings,
+    );
+
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      await this.model.upsertChannelMap(req, {
+        productId,
+        channel: 'woocommerce',
+        channelInstanceId: channelInstanceId || null,
+        externalId: wooId,
+        status: 'error',
+        error: text || 'Stock sync failed',
+      });
+      await this.model.logChannelError(req, {
+        channel: 'woocommerce',
+        productId,
+        payload: { sku, quantity, wooId },
+        response: { status: resp.status, statusText: resp.statusText, body: text },
+        message: 'Woo stock sync failed',
+      });
+      return;
+    }
+
+    await this.model.upsertChannelMap(req, {
+      productId,
+      channel: 'woocommerce',
+      channelInstanceId: channelInstanceId || null,
+      externalId: wooId,
+      status: 'success',
+      error: null,
+    });
+  }
+
   // ---- Helpers ----
 
   normalizeBaseUrl(url) {

@@ -1,0 +1,17 @@
+# Fire-and-forget för asynkront arbete
+
+## Regel
+
+När vi ändrar data som ska synkas till externa tjänster (kanaler, API:er), kör synken **asynkront** (fire-and-forget) i stället för att blockera svaret till klienten, så länge det ger rimligt beteende.
+
+**Exempel:**
+- Lagerändring (quantity) → batch update ska svara direkt; `pushStockToChannels` ska köras i bakgrunden.
+- Andra kanal-synk eller externa API-anrop som inte behöver blockera användarens respons.
+
+**Undantag:**
+- När användaren explicit förväntar sig att få bekräftelse att synk lyckades innan nästa steg.
+- När vi måste returnera resultatet av den externa anropet (t.ex. order-id från kanalen).
+
+## Varför
+
+Långsamma externa API:er (t.ex. WooCommerce) gör att UI:t känns segt om vi väntar på svaret. Fire-and-forget ger snabb respons i gränssnittet medan synken sker i bakgrunden.

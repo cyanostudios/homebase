@@ -11,6 +11,10 @@ const CdonProductsModel = require('../cdon-products/model');
 const FyndiqProductsController = require('../fyndiq-products/controller');
 const FyndiqProductsModel = require('../fyndiq-products/model');
 
+const ProductModel = require('../products/model');
+const ProductController = require('../products/controller');
+const SelloModel = require('../products/selloModel');
+
 const orderSyncState = require('./orderSyncState');
 const orderSyncService = require('./orderSyncService');
 const puppeteer = require('puppeteer');
@@ -28,6 +32,7 @@ class OrdersController {
     this.cdonController = new CdonProductsController(this.cdonModel);
     this.fyndiqModel = new FyndiqProductsModel();
     this.fyndiqController = new FyndiqProductsController(this.fyndiqModel);
+    this.productsController = new ProductController(new ProductModel(), new SelloModel());
   }
 
   invalidateAnalyticsCache(req) {
@@ -696,8 +701,7 @@ class OrdersController {
       const sku = String(updated[0].sku || '').trim();
       const newQty = Number(updated[0].quantity);
 
-      // Push new stock to other enabled channels for this product
-      await this.pushStockToChannels(req, {
+      await this.productsController.pushStockToChannels(req, {
         productId,
         sku,
         quantity: newQty,
@@ -721,187 +725,13 @@ class OrdersController {
       const productId = String(updated[0].id);
       const newQty = Number(updated[0].quantity);
 
-      await this.pushStockToChannels(req, {
+      await this.productsController.pushStockToChannels(req, {
         productId,
         sku,
         quantity: newQty,
         sourceChannel,
       });
     }
-  }
-
-  async pushStockToChannels(req, { productId, sku, quantity, sourceChannel }) {
-    const db = Database.get(req);
-    const userId = req.session?.user?.id;
-    if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
-
-    const rows = await db.query(
-      `
-      SELECT channel, enabled, external_id, channel_instance_id
-      FROM channel_product_map
-      WHERE user_id = $1
-        AND product_id = $2
-        AND (enabled = TRUE OR external_id IS NOT NULL)
-      `,
-      [userId, String(productId)],
-    );
-
-    for (const r of rows) {
-      const channel = String(r.channel || '')
-        .trim()
-        .toLowerCase();
-      if (!channel || channel === sourceChannel) continue;
-
-      if (channel === 'woocommerce') {
-        const channelInstanceId =
-          r.channel_instance_id != null ? String(r.channel_instance_id) : null;
-        await this.syncWooStock(req, {
-          productId: String(productId),
-          sku,
-          quantity,
-          externalId: r.external_id != null ? String(r.external_id) : null,
-          channelInstanceId,
-        });
-        continue;
-      }
-
-      if (channel === 'cdon') {
-        await this.cdonModel.upsertChannelMap(req, {
-          productId,
-          channel: 'cdon',
-          enabled: true,
-          externalId: r.external_id != null ? String(r.external_id) : null,
-          status: 'error',
-          error: 'Stock sync not implemented yet',
-        });
-        await this.cdonModel.logChannelError(req, {
-          channel: 'cdon',
-          productId,
-          payload: { sku, quantity },
-          response: null,
-          message: 'Stock sync not implemented yet',
-        });
-        continue;
-      }
-
-      if (channel === 'fyndiq') {
-        await this.fyndiqModel.upsertChannelMap(req, {
-          productId,
-          channel: 'fyndiq',
-          enabled: true,
-          externalId: r.external_id != null ? String(r.external_id) : null,
-          status: 'error',
-          error: 'Stock sync not implemented yet',
-        });
-        await this.fyndiqModel.logChannelError(req, {
-          channel: 'fyndiq',
-          productId,
-          payload: { sku, quantity },
-          response: null,
-          message: 'Stock sync not implemented yet',
-        });
-      }
-    }
-  }
-
-  async syncWooStock(req, { productId, sku, quantity, externalId, channelInstanceId }) {
-    let settings = null;
-    if (channelInstanceId) {
-      const instance = await this.wooModel.getInstanceById(req, channelInstanceId);
-      settings = instance?.credentials || null;
-    }
-    if (!settings) {
-      await this.wooModel.upsertChannelMap(req, {
-        productId,
-        channel: 'woocommerce',
-        channelInstanceId: channelInstanceId || null,
-        externalId: externalId || null,
-        status: 'error',
-        error: 'Woo instance missing for this mapping; cannot sync stock',
-      });
-      return;
-    }
-    if (!settings?.storeUrl || !settings?.consumerKey || !settings?.consumerSecret) {
-      await this.wooModel.upsertChannelMap(req, {
-        productId,
-        channel: 'woocommerce',
-        channelInstanceId: channelInstanceId || null,
-        externalId: externalId || null,
-        status: 'error',
-        error: 'Woo settings missing; cannot sync stock',
-      });
-      return;
-    }
-
-    const base = this.wooController.normalizeBaseUrl(settings.storeUrl);
-
-    let wooId = null;
-    if (externalId && Number.isFinite(Number(externalId))) wooId = Number(externalId);
-    if (!wooId) {
-      const found = await this.wooController
-        .findWooProductBySku(base, sku, settings)
-        .catch(() => null);
-      if (found?.id) wooId = Number(found.id);
-    }
-
-    if (!wooId) {
-      await this.wooModel.upsertChannelMap(req, {
-        productId,
-        channel: 'woocommerce',
-        channelInstanceId: channelInstanceId || null,
-        externalId: null,
-        status: 'error',
-        error: `Woo product not found for SKU "${sku}"`,
-      });
-      await this.wooModel.logChannelError(req, {
-        channel: 'woocommerce',
-        productId,
-        payload: { sku, quantity },
-        response: null,
-        message: `Woo product not found for SKU "${sku}"`,
-      });
-      return;
-    }
-
-    const url = `${base}/wp-json/wc/v3/products/${wooId}`;
-    const resp = await this.wooController.fetchWithWooAuth(
-      url,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manage_stock: true, stock_quantity: Number(quantity) }),
-      },
-      settings,
-    );
-
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      await this.wooModel.upsertChannelMap(req, {
-        productId,
-        channel: 'woocommerce',
-        channelInstanceId: channelInstanceId || null,
-        externalId: wooId,
-        status: 'error',
-        error: text || 'Stock sync failed',
-      });
-      await this.wooModel.logChannelError(req, {
-        channel: 'woocommerce',
-        productId,
-        payload: { sku, quantity, wooId },
-        response: { status: resp.status, statusText: resp.statusText, body: text },
-        message: 'Woo stock sync failed',
-      });
-      return;
-    }
-
-    await this.wooModel.upsertChannelMap(req, {
-      productId,
-      channel: 'woocommerce',
-      channelInstanceId: channelInstanceId || null,
-      externalId: wooId,
-      status: 'success',
-      error: null,
-    });
   }
 
   // ----------------- Status push to channels (MVP) -----------------

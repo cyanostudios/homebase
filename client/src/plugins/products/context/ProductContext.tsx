@@ -1043,7 +1043,9 @@ export function ProductProvider({
     }
     try {
       const result = await productsApi.batchUpdate(uniqueIds, filtered);
-      await loadProducts();
+      setProducts((prev) =>
+        prev.map((p) => (uniqueIds.includes(String(p.id)) ? { ...p, ...filtered } : p)),
+      );
       return { updatedCount: result?.updatedCount ?? 0 };
     } catch (error: any) {
       console.error('Batch update failed:', error);

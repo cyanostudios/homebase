@@ -53,7 +53,7 @@ class ProductsApi {
       };
 
       // Add CSRF token for mutations
-      if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
+      if (options.method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method)) {
         headers['X-CSRF-Token'] = await this.getCsrfToken();
       }
 

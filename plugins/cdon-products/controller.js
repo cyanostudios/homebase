@@ -1171,6 +1171,52 @@ class CdonProductsController {
     return { ok: true };
   }
 
+  /**
+   * Push stock quantity to CDON for one product (used by orders pushStockToChannels).
+   * @param {object} req - request with session
+   * @param {{ productId: string, channelSku: string, quantity: number }} opts
+   * @returns {{ ok: boolean, error?: string }}
+   */
+  async syncStock(req, { productId, channelSku, quantity }) {
+    const sku = String(channelSku ?? '').trim();
+    if (!sku) {
+      return { ok: false, error: 'Missing channel SKU for CDON stock sync' };
+    }
+    const settings = await this.model.getSettings(req);
+    if (!settings?.apiKey || !settings?.apiSecret) {
+      return { ok: false, error: 'CDON settings not found' };
+    }
+    const qty = Math.max(0, Math.min(500_000, Math.trunc(Number(quantity))));
+    const quantityAction = {
+      sku,
+      action: 'update_article_quantity',
+      body: { quantity: qty },
+    };
+    const validation = this.validateCdonUpdateArticleQuantityAction(quantityAction);
+    if (!validation.ok) {
+      return { ok: false, error: validation.reason || 'invalid_quantity' };
+    }
+    const url = `${CDON_MERCHANTS_API}/v2/articles/bulk`;
+    const { resp, text, json } = await this.cdonRequest(url, {
+      merchantId: settings.apiKey,
+      apiToken: settings.apiSecret,
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actions: [quantityAction] }),
+    });
+    if (!resp.ok) {
+      const errMsg =
+        json?.failed?.[0]?.errors?.[0]?.message || json?.message || text || `HTTP ${resp.status}`;
+      return { ok: false, error: errMsg };
+    }
+    const failed = Array.isArray(json?.failed) ? json.failed : [];
+    const failedForSku = failed.find((f) => String(f?.sku || '').trim() === sku);
+    if (failedForSku?.errors?.[0]?.message) {
+      return { ok: false, error: failedForSku.errors[0].message };
+    }
+    return { ok: true };
+  }
+
   async exportProductsUpdateOnlyStrict(req, res) {
     const settings = await this.model.getSettings(req);
     if (!settings?.apiKey || !settings?.apiSecret) {

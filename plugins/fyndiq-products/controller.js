@@ -251,6 +251,38 @@ class FyndiqProductsController {
     );
   }
 
+  /**
+   * Push stock quantity to Fyndiq for one product (used by orders pushStockToChannels).
+   * @param {object} req - request with session
+   * @param {{ productId: string, articleId: string, quantity: number }} opts
+   * @returns {{ ok: boolean, error?: string }}
+   */
+  async syncStock(req, { productId, articleId, quantity }) {
+    const id = String(articleId ?? '').trim();
+    if (!id) {
+      return { ok: false, error: 'Missing Fyndiq article ID for stock sync' };
+    }
+    const settings = await this.model.getSettings(req);
+    if (!settings?.apiKey || !settings?.apiSecret) {
+      return { ok: false, error: 'Fyndiq settings not found' };
+    }
+    const qty = Math.max(0, Math.min(500_000, Math.trunc(Number(quantity))));
+    const path = `/api/v1/articles/${encodeURIComponent(id)}/quantity`;
+    const { resp, text, json } = await this.fyndiqRequest(path, {
+      username: settings.apiKey,
+      password: settings.apiSecret,
+      method: 'PUT',
+      body: JSON.stringify({ quantity: qty }),
+    });
+    if (!resp.ok) {
+      const errMsg = json?.errors
+        ? Object.values(json.errors).flat().join(', ')
+        : json?.description || text || `HTTP ${resp.status}`;
+      return { ok: false, error: errMsg };
+    }
+    return { ok: true };
+  }
+
   async bulkUpdateArticles(req, res) {
     const body =
       req.body != null
