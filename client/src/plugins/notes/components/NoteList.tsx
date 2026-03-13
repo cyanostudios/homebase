@@ -122,14 +122,13 @@ export const NoteList: React.FC = () => {
   };
 
   const sortedNotes = useMemo(() => {
+    const q = searchTerm.toLowerCase();
     const filtered = notes.filter(
       (note) =>
-        note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        note.title.toLowerCase().includes(q) ||
+        stripHtml(note.content).toLowerCase().includes(q) ||
         (note.mentions &&
-          note.mentions.some((mention: any) =>
-            mention.contactName.toLowerCase().includes(searchTerm.toLowerCase()),
-          )),
+          note.mentions.some((mention: any) => mention.contactName.toLowerCase().includes(q))),
     );
 
     return [...filtered].sort((a, b) => {
@@ -274,11 +273,21 @@ export const NoteList: React.FC = () => {
     }
   };
 
-  const truncateContent = (content: string, maxLength: number = 100) => {
-    if (content.length <= maxLength) {
-      return content;
+  const stripHtml = (html: string): string => {
+    if (!html) {
+      return '';
     }
-    return content.substring(0, maxLength) + '...';
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent ?? tmp.innerText ?? '';
+  };
+
+  const truncateContent = (content: string, maxLength: number = 100) => {
+    const plain = stripHtml(content);
+    if (plain.length <= maxLength) {
+      return plain;
+    }
+    return plain.substring(0, maxLength) + '…';
   };
 
   // TopBar search: set placeholder when list view so search shows in header

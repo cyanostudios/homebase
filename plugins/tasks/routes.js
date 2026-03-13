@@ -22,8 +22,8 @@ function createTaskRoutes(controller, context) {
     '/',
     gate,
     /* csrfProtection, */ // Temporarily disabled
-    commonRules.string('title', 1, 255),
-    commonRules.optionalString('content', 10000),
+    commonRules.plainString('title', 1, 255),
+    commonRules.htmlContent('content', 100000),
     commonRules.array('mentions', 50),
     commonRules.enum('status', ['not started', 'in progress', 'completed', 'cancelled']).optional(),
     commonRules.enum('priority', ['Low', 'Medium', 'High']).optional(),
@@ -40,8 +40,8 @@ function createTaskRoutes(controller, context) {
     gate,
     /* csrfProtection, */ // Temporarily disabled
     commonRules.id('id'),
-    commonRules.string('title', 1, 255),
-    commonRules.optionalString('content', 10000),
+    commonRules.plainString('title', 1, 255),
+    commonRules.htmlContent('content', 100000),
     commonRules.array('mentions', 50),
     commonRules.enum('status', ['not started', 'in progress', 'completed', 'cancelled']).optional(),
     commonRules.enum('priority', ['Low', 'Medium', 'High']).optional(),

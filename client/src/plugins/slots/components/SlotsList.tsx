@@ -7,6 +7,7 @@ import {
   Mail,
   MessageSquare,
   Settings,
+  SlidersHorizontal,
   Trash2,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -34,15 +35,15 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 
-import { useSlots } from '../hooks/useSlots';
-import type { Slot } from '../types/slots';
+import { useSlotsContext as useSlots } from '../context/SlotsContext';
+import type { Slot, SlotsViewMode } from '../types/slots';
+import { SLOTS_SETTINGS_KEY } from '../types/slots';
 import { resolveSlotsToContacts, resolveSlotsToEmailContacts } from '../utils/slotContactUtils';
 
+import { BulkPropertiesDialog } from './BulkPropertiesDialog';
 import { CapacityAssignedDots } from './CapacityAssignedDots';
 import { SlotsSettingsView } from './SlotsSettingsView';
 
-const SLOTS_SETTINGS_KEY = 'slots';
-type ViewMode = 'grid' | 'list';
 type SortField = 'slot_time' | 'location' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
 
@@ -51,10 +52,8 @@ export function SlotsList() {
   const {
     slots,
     slotsContentView,
-    openSlotPanel: _openSlotPanel,
     openSlotForView,
     openSlotSettings,
-    deleteSlot: _deleteSlot,
     deleteSlots,
     selectedSlotIds,
     toggleSlotSelected,
@@ -63,31 +62,36 @@ export function SlotsList() {
     selectedCount,
     isSelected,
     recentlyDuplicatedSlotId,
+    refreshSlots,
+    canSendMessages,
+    canSendEmail,
   } = useSlots();
-  const { getSettings, updateSettings, settingsVersion, contacts: appContacts, user } = useApp();
+  const { getSettings, updateSettings, settingsVersion, contacts: appContacts } = useApp();
   const { contacts: hookContacts } = useContacts();
   const contacts = useMemo(() => appContacts ?? hookContacts ?? [], [appContacts, hookContacts]);
   const { setHeaderTrailing } = useContentLayout();
   const { attemptNavigation } = useGlobalNavigationGuard();
-  const canSendMessages =
-    user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
-  const canSendEmail =
-    user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('mail'));
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('slot_time');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [viewMode, setViewModeState] = useState<ViewMode>('list');
+  const [viewMode, setViewModeState] = useState<SlotsViewMode>('list');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
   const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
+  const [showBulkPropertiesDialog, setShowBulkPropertiesDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const selectedSlots = useMemo(
+    () => slots.filter((s) => selectedSlotIds.includes(s.id)),
+    [slots, selectedSlotIds],
+  );
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
     getSettings(SLOTS_SETTINGS_KEY)
-      .then((settings: { viewMode?: ViewMode }) => {
+      .then((settings: { viewMode?: SlotsViewMode }) => {
         if (!cancelled) {
           setViewModeState(settings?.viewMode === 'grid' ? 'grid' : 'list');
         }
@@ -99,7 +103,7 @@ export function SlotsList() {
   }, [getSettings, settingsVersion]);
 
   const setViewMode = useCallback(
-    (mode: ViewMode) => {
+    (mode: SlotsViewMode) => {
       setViewModeState(mode);
       updateSettings(SLOTS_SETTINGS_KEY, { viewMode: mode }).catch(() => {});
     },
@@ -277,7 +281,6 @@ export function SlotsList() {
   );
 
   const handleBulkExportCSV = useCallback(() => {
-    const selectedSlots = slots.filter((s) => selectedSlotIds.includes(s.id));
     exportItems({
       items: selectedSlots,
       format: 'csv',
@@ -309,7 +312,7 @@ export function SlotsList() {
         },
       },
     });
-  }, [slots, selectedSlotIds, t]);
+  }, [selectedSlots, t]);
 
   if (slotsContentView === 'settings') {
     return <SlotsSettingsView />;
@@ -341,6 +344,11 @@ export function SlotsList() {
                 ]
               : []),
             {
+              label: t('slots.properties', 'Properties'),
+              icon: SlidersHorizontal,
+              onClick: () => setShowBulkPropertiesDialog(true),
+            },
+            {
               label: t('common.exportCsv'),
               icon: FileSpreadsheet,
               onClick: handleBulkExportCSV,
@@ -367,6 +375,16 @@ export function SlotsList() {
         onClose={() => setShowBulkEmailDialog(false)}
         recipients={bulkEmailRecipients}
         pluginSource="slots"
+      />
+
+      <BulkPropertiesDialog
+        isOpen={showBulkPropertiesDialog}
+        onClose={() => setShowBulkPropertiesDialog(false)}
+        selectedSlots={selectedSlots}
+        onSuccess={async () => {
+          await refreshSlots();
+          clearSlotSelection();
+        }}
       />
 
       <BulkDeleteModal
@@ -498,7 +516,9 @@ export function SlotsList() {
                   </div>
                 </TableHead>
                 <TableHead>{t('common.capacity')}</TableHead>
-                <TableHead>{t('common.visible')}</TableHead>
+                <TableHead>
+                  {t('common.visible')} / {t('common.notifications')}
+                </TableHead>
                 <TableHead
                   className="text-right cursor-pointer hover:bg-muted/50 select-none"
                   onClick={() => {
@@ -570,7 +590,8 @@ export function SlotsList() {
                     </span>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {slot.visible ? t('common.yes') : t('common.no')}
+                    {slot.visible ? t('common.yes') : t('common.no')} ·{' '}
+                    {slot.notifications_enabled ? t('common.on') : t('common.off')}
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground text-xs">
                     {slot.updated_at ? new Date(slot.updated_at).toLocaleDateString('sv-SE') : '—'}

@@ -56,6 +56,10 @@ class SlotsController {
   async update(req, res) {
     try {
       const slot = await this.model.update(req, req.params.id, req.body);
+      if (slot._changeSummary) {
+        req.activityLogMetadata = { changeSummary: slot._changeSummary };
+        delete slot._changeSummary;
+      }
       res.json(slot);
     } catch (error) {
       Logger.error('Update slot failed', error, {

@@ -38,40 +38,11 @@ function rowToSlot(row: Record<string, unknown>): Slot {
 }
 
 class SlotsApi {
-  private csrfToken: string | null = null;
-
-  async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) {
-      return this.csrfToken;
-    }
-    try {
-      const response = await fetch('/api/csrf-token', { credentials: 'include' });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || response.statusText);
-      }
-      const data = await response.json();
-      if (!data.csrfToken) {
-        throw new Error('CSRF token not found');
-      }
-      this.csrfToken = data.csrfToken;
-      return this.csrfToken;
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Failed to get CSRF token');
-    }
-  }
-
   private async request(endpoint: string, options: RequestInit = {}) {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...((options.headers as Record<string, string>) || {}),
     };
-    if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
-      // CSRF temporarily disabled
-    }
 
     const response = await fetch(`/api${endpoint}`, {
       headers,
@@ -98,11 +69,6 @@ class SlotsApi {
   async getSlots(): Promise<Slot[]> {
     const rows = await this.request('/slots');
     return (rows || []).map((row: Record<string, unknown>) => rowToSlot(row));
-  }
-
-  async getSlot(id: string): Promise<Slot> {
-    const row = await this.request(`/slots/${id}`);
-    return rowToSlot(row);
   }
 
   async createSlot(data: {

@@ -27,11 +27,15 @@ class SettingsModel {
   }
 
   async updateCategory(userId, category, settings) {
+    // Use JSONB || merge so partial updates (e.g. only viewMode) don't wipe
+    // unrelated keys (e.g. tags saved from the settings form).
     const result = await this.pool.query(
       `INSERT INTO user_settings (user_id, category, settings, updated_at)
        VALUES ($1, $2, $3::jsonb, CURRENT_TIMESTAMP)
        ON CONFLICT (user_id, category)
-       DO UPDATE SET settings = $3::jsonb, updated_at = CURRENT_TIMESTAMP
+       DO UPDATE SET
+         settings    = user_settings.settings || EXCLUDED.settings,
+         updated_at  = CURRENT_TIMESTAMP
        RETURNING settings`,
       [userId, category, JSON.stringify(settings)],
     );

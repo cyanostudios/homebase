@@ -1,61 +1,27 @@
 import { Eye, LayoutGrid, List } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { useApp } from '@/core/api/AppContext';
 import { DetailCard } from '@/core/ui/DetailCard';
 import { DetailSection } from '@/core/ui/DetailSection';
 
-export type SlotsViewMode = 'grid' | 'list';
+import { useSlotSettings } from '../hooks/useSlotSettings';
 
 export interface SlotsSettingsFormProps {
   onCancel: () => void;
 }
 
-const SLOTS_SETTINGS_KEY = 'slots';
-
 export function SlotsSettingsForm({ onCancel }: SlotsSettingsFormProps) {
-  const { getSettings, updateSettings } = useApp();
-  const [viewMode, setViewMode] = useState<SlotsViewMode>('list');
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-      try {
-        const settings = await getSettings(SLOTS_SETTINGS_KEY);
-        if (settings?.viewMode === 'list') {
-          setViewMode('list');
-        } else if (settings?.viewMode === 'grid') {
-          setViewMode('grid');
-        }
-      } catch (error) {
-        console.error('Failed to load slots settings:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    load();
-  }, [getSettings]);
-
-  const handleSave = useCallback(async () => {
-    try {
-      await updateSettings(SLOTS_SETTINGS_KEY, { viewMode });
-      onCancel();
-    } catch (error) {
-      console.error('Failed to save slots settings:', error);
-    }
-  }, [viewMode, updateSettings, onCancel]);
-
-  const saveRef = useRef(handleSave);
+  const { viewMode, setViewMode, isLoading, save } = useSlotSettings();
+  const saveRef = useRef(save);
   const cancelRef = useRef(onCancel);
-  saveRef.current = handleSave;
+  saveRef.current = save;
   cancelRef.current = onCancel;
 
   useEffect(() => {
     (window as unknown as { submitSlotsForm?: () => void }).submitSlotsForm = () =>
-      saveRef.current?.();
+      saveRef.current?.().then(() => cancelRef.current?.());
     (window as unknown as { cancelSlotsForm?: () => void }).cancelSlotsForm = () =>
       cancelRef.current?.();
     return () => {

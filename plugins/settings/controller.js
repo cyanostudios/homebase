@@ -80,6 +80,7 @@ class SettingsController {
         limit: validLimit,
         offset: validOffset,
         entityType: req.query.entity_type || null,
+        entityId: req.query.entity_id ?? null,
         action: req.query.action || null,
         startDate: req.query.start_date || null,
         endDate: req.query.end_date || null,

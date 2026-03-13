@@ -24,6 +24,11 @@ import { slotsApi } from '../api/slotsApi';
 import { Slot, ValidationError, type SlotMention } from '../types/slots';
 import { resolveSlotsToContacts, resolveSlotsToEmailContacts } from '../utils/slotContactUtils';
 
+function extractErrorMsg(error: unknown, fallback: string): string {
+  const e = error as { message?: string; error?: string };
+  return e?.message || e?.error || fallback;
+}
+
 interface SlotsContextType {
   isSlotsPanelOpen: boolean;
   currentSlot: Slot | null;
@@ -70,10 +75,16 @@ interface SlotsContextType {
   /** Refetch slots from API (e.g. after creating a slot from match in App). */
   refreshSlots: () => Promise<void>;
 
-  // Quick-edit in view mode (contacts/mentions): draft until "Update" is clicked (same UX as task properties / contact tags)
+  canSendMessages: boolean;
+  canSendEmail: boolean;
+
+  // Quick-edit in view mode (contacts/mentions, visible, notifications): draft until "Update" is clicked (same UX as task properties)
   displayMentions: SlotMention[];
   addContactToDraft: (contact: { id: number | string; companyName?: string }) => void;
   removeContactFromDraft: (contactId: string) => void;
+  /** Draft for visible/notifications in view mode; used by SlotView switches. */
+  propertyDraft: Partial<Pick<Slot, 'visible' | 'notifications_enabled'>> | null;
+  setPropertyDraftField: (field: 'visible' | 'notifications_enabled', value: boolean) => void;
   hasQuickEditChanges: boolean;
   onApplyQuickEdit: () => Promise<void>;
   showDiscardQuickEditDialog: boolean;
@@ -158,6 +169,9 @@ export function SlotsProvider({
   const [slotsContentView, setSlotsContentView] = useState<'list' | 'settings'>('list');
   const [recentlyDuplicatedSlotId, setRecentlyDuplicatedSlotId] = useState<string | null>(null);
   const [mentionsDraft, setMentionsDraft] = useState<SlotMention[] | null>(null);
+  /** Draft for visible/notifications toggles in view mode (like task status/priority). */
+  const [propertyDraft, setPropertyDraft] =
+    useState<Partial<Pick<Slot, 'visible' | 'notifications_enabled'>>>(null);
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
   const [showSendMessageDialog, setShowSendMessageDialog] = useState(false);
   const [sendMessageRecipients, setSendMessageRecipients] = useState<BulkMessageRecipient[]>([]);
@@ -265,11 +279,9 @@ export function SlotsProvider({
       setSlots(data);
     } catch (error: unknown) {
       console.error('Failed to load slots:', error);
-      const msg =
-        (error as { message?: string; error?: string })?.message ||
-        (error as { message?: string; error?: string })?.error ||
-        'Failed to load slots';
-      setValidationErrors([{ field: 'general', message: msg }]);
+      setValidationErrors([
+        { field: 'general', message: extractErrorMsg(error, 'Failed to load slots') },
+      ]);
     }
   }, []);
 
@@ -351,6 +363,8 @@ export function SlotsProvider({
       clearSlotSelectionCore();
       setRecentlyDuplicatedSlotId(null);
       setCurrentSlot(slot);
+      setMentionsDraft(null);
+      setPropertyDraft(null);
       setPanelMode('edit');
       setIsSlotsPanelOpen(true);
       setValidationErrors([]);
@@ -366,6 +380,8 @@ export function SlotsProvider({
     (slot: Slot) => {
       setRecentlyDuplicatedSlotId(null);
       setCurrentSlot(slot);
+      setMentionsDraft(null);
+      setPropertyDraft(null);
       setPanelMode('view');
       setIsSlotsPanelOpen(true);
       setValidationErrors([]);
@@ -415,9 +431,10 @@ export function SlotsProvider({
     }
   }, [hasNextItem, currentItemIndex, slots, openSlotForView]);
 
-  // Clear quick-edit draft when slot changes
+  // Clear quick-edit drafts when slot changes (e.g. navigate or after save)
   useEffect(() => {
     setMentionsDraft(null);
+    setPropertyDraft(null);
     setShowDiscardQuickEditDialog(false);
   }, [currentSlot?.id]);
 
@@ -463,12 +480,35 @@ export function SlotsProvider({
       (() => {
         const saved = Array.isArray(currentSlot.mentions) ? currentSlot.mentions : [];
         const draft = mentionsDraft ?? saved;
-        if (draft.length !== saved.length) {
+        const mentionsChanged =
+          draft.length !== saved.length ||
+          [...saved]
+            .map((m) => String(m.contactId))
+            .sort()
+            .join() !==
+            [...draft]
+              .map((m) => String(m.contactId))
+              .sort()
+              .join();
+        if (mentionsChanged) {
           return true;
         }
-        const savedIds = [...saved].map((m) => String(m.contactId)).sort();
-        const draftIds = [...draft].map((m) => String(m.contactId)).sort();
-        return savedIds.some((id, i) => draftIds[i] !== id);
+        if (propertyDraft) {
+          if (
+            propertyDraft.visible !== undefined &&
+            Boolean(propertyDraft.visible) !== Boolean(currentSlot.visible)
+          ) {
+            return true;
+          }
+          if (
+            propertyDraft.notifications_enabled !== undefined &&
+            Boolean(propertyDraft.notifications_enabled) !==
+              Boolean(currentSlot.notifications_enabled)
+          ) {
+            return true;
+          }
+        }
+        return false;
       })(),
   );
 
@@ -510,11 +550,9 @@ export function SlotsProvider({
         setValidationErrors([]);
         return true;
       } catch (error: unknown) {
-        const msg =
-          (error as { message?: string; error?: string })?.message ||
-          (error as { message?: string; error?: string })?.error ||
-          'Failed to save slot';
-        setValidationErrors([{ field: 'general', message: msg }]);
+        setValidationErrors([
+          { field: 'general', message: extractErrorMsg(error, 'Failed to save slot') },
+        ]);
         return false;
       }
     },
@@ -543,11 +581,9 @@ export function SlotsProvider({
         closeSlotPanel();
         return true;
       } catch (error: unknown) {
-        const msg =
-          (error as { message?: string; error?: string })?.message ||
-          (error as { message?: string; error?: string })?.error ||
-          'Failed to create slots';
-        setValidationErrors([{ field: 'general', message: msg }]);
+        setValidationErrors([
+          { field: 'general', message: extractErrorMsg(error, 'Failed to create slots') },
+        ]);
         return false;
       }
     },
@@ -564,16 +600,18 @@ export function SlotsProvider({
       location: currentSlot.location,
       slot_time: currentSlot.slot_time,
       capacity: currentSlot.capacity,
-      visible: currentSlot.visible,
-      notifications_enabled: currentSlot.notifications_enabled,
+      visible: propertyDraft?.visible ?? currentSlot.visible,
+      notifications_enabled:
+        propertyDraft?.notifications_enabled ?? currentSlot.notifications_enabled,
       contact_id: nextMentions[0]?.contactId ?? null,
       mentions: nextMentions,
     };
     const success = await saveSlot(payload, currentSlot.id);
     if (success) {
       setMentionsDraft(null);
+      setPropertyDraft(null);
     }
-  }, [currentSlot, mentionsDraft, saveSlot]);
+  }, [currentSlot, mentionsDraft, propertyDraft, saveSlot]);
 
   const getCloseHandler = useCallback(
     (defaultClose: () => void) => {
@@ -591,8 +629,16 @@ export function SlotsProvider({
 
   const onDiscardQuickEditAndClose = useCallback(() => {
     setMentionsDraft(null);
+    setPropertyDraft(null);
     setShowDiscardQuickEditDialog(false);
   }, []);
+
+  const setPropertyDraftField = useCallback(
+    (field: 'visible' | 'notifications_enabled', value: boolean) => {
+      setPropertyDraft((prev) => ({ ...prev, [field]: value }));
+    },
+    [],
+  );
 
   const deleteSlot = useCallback(
     async (id: string) => {
@@ -603,11 +649,7 @@ export function SlotsProvider({
           closeSlotPanel();
         }
       } catch (error: unknown) {
-        const msg =
-          (error as { message?: string; error?: string })?.message ||
-          (error as { message?: string; error?: string })?.error ||
-          'Failed to delete slot';
-        alert(msg);
+        alert(extractErrorMsg(error, 'Failed to delete slot'));
       }
     },
     [currentSlot, closeSlotPanel],
@@ -627,11 +669,7 @@ export function SlotsProvider({
         }
         clearSlotSelectionCore();
       } catch (error: unknown) {
-        const msg =
-          (error as { message?: string; error?: string })?.message ||
-          (error as { message?: string; error?: string })?.error ||
-          'Failed to delete slots';
-        alert(msg);
+        alert(extractErrorMsg(error, 'Failed to delete slots'));
       }
     },
     [currentSlot, closeSlotPanel, clearSlotSelectionCore],
@@ -751,9 +789,13 @@ export function SlotsProvider({
     recentlyDuplicatedSlotId,
     setRecentlyDuplicatedSlotId,
     refreshSlots,
+    canSendMessages,
+    canSendEmail,
     displayMentions,
     addContactToDraft,
     removeContactFromDraft,
+    propertyDraft,
+    setPropertyDraftField,
     hasQuickEditChanges,
     onApplyQuickEdit,
     showDiscardQuickEditDialog,

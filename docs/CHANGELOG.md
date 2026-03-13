@@ -4,6 +4,39 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-03 – Slots: plugin cleanup, trekolumns-detail och per-item activity log
+
+_Slots-plugin refaktorering enligt plan: borttagen död kod, centraliserade konstanter, mindre duplicering, utbrutna subkomponenter och dedikerad settings-hook. Detail-vyn får tre kolumner (Info | Properties | Activity) med per-slot activity timeline._
+
+### Slots plugin cleanup
+
+- **Dead code:** Borttaget `csrfToken`/`getCsrfToken`/`getSlot` från slotsApi; `position`/`length` från SlotMention; `setPanelMode` från SlotsContext; `_openSlotPanel`/`_deleteSlot` och shadowing av `selectedSlots` i SlotsList.
+- **Konstanter:** `SLOTS_SETTINGS_KEY` och `SlotsViewMode` centraliserade i `types/slots.ts`; tre duplicerade deklarationer borttagna i SlotsList, SlotsSettingsForm, SlotsSettingsView.
+- **Felhantering:** Helper `extractErrorMsg` i SlotsContext, fem duplicerade felmönster ersatta.
+- **canSendMessages/canSendEmail:** Exponeras från context; duplicat i SlotsList borttaget.
+- **slotContactUtils:** `resolveSlotsToContacts` och `resolveSlotsToEmailContacts` slagna ihop till generisk `resolveSlotMentionsToRecipients`; befintliga anrop oförändrade.
+- **hooks/useSlots.ts:** Borttagen; SlotsList och SlotForm använder `useSlotsContext` direkt; pluginRegistry behåller alias.
+- **SlotView:** `displaySlot` (useMemo) och `hasMatch` tillagda; upprepade draft/null-uttryck ersatta. Subkomponenter utbrutna: SlotPropertiesCard, SlotInfoCard, SlotBookingsCard (samma fil eller egna).
+- **useSlotSettings:** Ny hook `hooks/useSlotSettings.ts`; SlotsSettingsForm och SlotsSettingsView använder den, mindre duplicering.
+
+### Trekolumns detail och activity log
+
+- **DetailLayout:** Ny optional prop `rightSidebar`; vid tre kolumner grid t.ex. `grid-cols-[1fr_280px_280px]` (main | sidebar | rightSidebar). Utan prop oförändrat tvåkolumnslayout.
+- **SlotView:** Kolumn 1 = info-kort (slot number, location, match, time, capacity, visible, notifications). Kolumn 2 = properties + information + Public Bookings. Kolumn 3 = per-slot activity timeline.
+- **Activity log backend:** ActivityLogService.getActivityLogs tar optional `entityId`; WHERE-filtrering på entity_id. Settings-controller skickar `entity_id`/`entity_type` från query till getActivityLogs.
+- **activityLogApi:** Parametrar `entityId` och `entityType` tillagda; anrop med entity-filter för per-item loggar.
+- **DetailActivityLog:** Ny komponent `client/src/core/ui/DetailActivityLog.tsx` – tar `entityType` och `entityId`, hämtar activity logs och visar kompakt timeline. Återanvändbar för andra plugins.
+
+### Övriga ändringar (samma commit)
+
+- **RichText:** Nya komponenter `RichTextContent.tsx` och `RichTextEditor.tsx` (notes/tasks eller annat innehåll).
+- **BulkPropertiesDialog:** Ny komponent i slots för bulk-åtgärder på valda slots.
+- **Notes/Tasks:** Uppdateringar i NoteForm, NoteList, NoteView, TaskForm, TaskList, TaskView (t.ex. rich text eller småfix).
+- **Core:** AppContext, BulkEmailDialog, BulkMessageDialog, DetailSection, LoginComponent, index.css – diverse justeringar.
+- **Backend:** validation, settings controller/model, slots controller/model, notes/tasks routes, ActivityLogService, PostgreSQLAdapter – småfix och stöd för entityId.
+
+---
+
 ## 2026-02 – URL-routing (react-router-dom), sid- och item-URL:er, UI-komponenter utan direkt styling
 
 _Refaktorering: navigation drivs av URL. Varje sida och varje öppet item får egen URL. Back-knapp, deep links och bokmärken fungerar. Samtidigt krävs att sidor och rate-komponenter använder UI-komponenter (Button, Input, Card, Table osv.) och ingen direkt/custom styling (inga inline `style={{}}`, inga råa `<button>`/`<input>` där det finns komponent)._

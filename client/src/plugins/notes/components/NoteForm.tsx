@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
-import { MentionTextarea } from '@/core/ui/MentionTextarea';
+import { RichTextEditor } from '@/core/ui/RichTextEditor';
 import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -259,41 +259,16 @@ export const NoteForm: React.FC<NoteFormProps> = ({
             Note Content
           </Heading>
           <div>
-            <Label htmlFor="note-content" className="mb-1">
-              Content{' '}
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                (Type @ to mention contacts)
-              </span>
-            </Label>
-            <MentionTextarea
+            <RichTextEditor
               value={formData.content}
               onChange={handleContentChange}
               placeholder={t('notes.contentPlaceholder')}
-              rows={12}
               className={getFieldError('content') ? 'border-red-500' : ''}
             />
             {getFieldError('content') && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                 {getFieldError('content')?.message}
               </p>
-            )}
-
-            {/* Mentions preview */}
-            {formData.mentions.length > 0 && (
-              <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-950/30 rounded text-xs">
-                <span className="font-medium text-blue-800 dark:text-blue-400">Mentions:</span>{' '}
-                {/* eslint-disable react/no-array-index-key -- mention list order is stable */}
-                {formData.mentions.map((mention: any, index: number) => (
-                  <span
-                    key={`${mention.contactId ?? 'm'}-${index}`}
-                    className="text-blue-600 dark:text-blue-400"
-                  >
-                    @{mention.contactName}
-                    {index < formData.mentions.length - 1 ? ', ' : ''}
-                  </span>
-                ))}
-                {/* eslint-enable react/no-array-index-key */}
-              </div>
             )}
           </div>
         </Card>

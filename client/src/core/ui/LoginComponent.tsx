@@ -9,8 +9,9 @@ type AuthMode = 'login' | 'signup';
 export function LoginComponent() {
   const { login, signup } = useApp();
   const [mode, setMode] = useState<AuthMode>('login');
-  const [email, setEmail] = useState('admin@homebase.se');
-  const [password, setPassword] = useState('admin123');
+  const isDev = import.meta.env.DEV;
+  const [email, setEmail] = useState(isDev ? 'admin@homebase.se' : '');
+  const [password, setPassword] = useState(isDev ? 'admin123' : '');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -194,14 +195,14 @@ export function LoginComponent() {
             </div>
           </div>
 
-          {mode === 'login' && (
+          {mode === 'login' && isDev && (
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-card text-muted-foreground">Demo credentials</span>
+                  <span className="px-2 bg-card text-muted-foreground">Dev credentials</span>
                 </div>
               </div>
               <div className="mt-3 text-center text-sm text-muted-foreground">

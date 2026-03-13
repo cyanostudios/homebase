@@ -4,13 +4,15 @@ export interface ActivityLogEntry {
   id: number;
   userId: number;
   action: 'create' | 'update' | 'delete' | 'export' | 'settings';
-  entityType: 'contact' | 'note' | 'task' | 'estimate' | 'invoice' | 'file' | 'settings';
+  entityType: 'contact' | 'note' | 'task' | 'estimate' | 'invoice' | 'file' | 'settings' | 'slot';
   entityId: number | null;
   entityName: string | null;
   metadata: {
     ip?: string;
     userAgent?: string;
     exportFormat?: string;
+    /** Human-readable list of changed fields for update actions (e.g. "Capacity, Location") */
+    changeSummary?: string;
     [key: string]: any;
   };
   createdAt: string;
@@ -20,6 +22,7 @@ export interface ActivityLogParams {
   limit?: number;
   offset?: number;
   entityType?: string;
+  entityId?: number | string;
   action?: string;
   startDate?: string;
   endDate?: string;
@@ -67,6 +70,9 @@ class ActivityLogApi {
     }
     if (params.entityType) {
       queryParams.append('entity_type', params.entityType);
+    }
+    if (params.entityId !== undefined && params.entityId !== null && params.entityId !== '') {
+      queryParams.append('entity_id', String(params.entityId));
     }
     if (params.action) {
       queryParams.append('action', params.action);

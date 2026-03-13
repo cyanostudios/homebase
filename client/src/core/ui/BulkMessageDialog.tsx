@@ -146,7 +146,15 @@ export function BulkMessageDialog({
             {phase === 'done' && (
               <div className="text-sm space-y-1">
                 <p className="text-foreground font-medium">{t('bulk.sendMessageDone')}</p>
-                <p className="text-muted-foreground">
+                <p
+                  className={
+                    failedCount === 0
+                      ? 'font-medium text-green-600 dark:text-green-400'
+                      : sentCount === 0
+                        ? 'font-medium text-red-600 dark:text-red-400'
+                        : 'font-medium text-yellow-600 dark:text-yellow-500'
+                  }
+                >
                   {t('bulk.sendMessageResult', { sent: sentCount, failed: failedCount })}
                 </p>
                 {errorMessage && <p className="text-destructive">{errorMessage}</p>}

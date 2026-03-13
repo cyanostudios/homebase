@@ -10,12 +10,6 @@ const { body, param, query, validationResult } = require('express-validator');
 function validateRequest(req, res, next) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    // Log validation errors for debugging
-    console.log('Validation failed for:', req.method, req.path);
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
-    console.log('Request body type:', typeof req.body);
-    console.log('Request body keys:', req.body ? Object.keys(req.body) : 'null/undefined');
-    console.log('Validation errors:', JSON.stringify(errors.array(), null, 2));
     return res.status(400).json({
       error: 'Validation failed',
       code: 'VALIDATION_ERROR',
@@ -43,6 +37,16 @@ const commonRules = {
       .withMessage(`${field} must be between ${min} and ${max} characters`)
       .escape(),
 
+  /**
+   * Plain text (e.g. title) – no .escape(); stored and displayed as-is.
+   * Use for fields rendered as text in React (React escapes on output).
+   */
+  plainString: (field, min = 1, max = 255) =>
+    body(field)
+      .trim()
+      .isLength({ min, max })
+      .withMessage(`${field} must be between ${min} and ${max} characters`),
+
   optionalString: (field, max = 255) =>
     body(field)
       .optional({ values: 'falsy' }) // Allow null, undefined, empty string
@@ -53,6 +57,19 @@ const commonRules = {
       .isLength({ max })
       .withMessage(`${field} must not exceed ${max} characters`)
       .escape(),
+
+  /**
+   * Rich text / HTML content field – skips .escape() so HTML tags are preserved.
+   * Client is responsible for sanitising output with DOMPurify before rendering.
+   */
+  htmlContent: (field, max = 100000) =>
+    body(field)
+      .optional({ values: 'falsy' })
+      .customSanitizer((value) => {
+        return value === null || value === undefined ? '' : String(value).trim();
+      })
+      .isLength({ max })
+      .withMessage(`${field} must not exceed ${max} characters`),
 
   url: (field) => body(field).optional().isURL().withMessage(`${field} must be a valid URL`),
 
@@ -142,19 +159,6 @@ const commonRules = {
     return [
       body(field).custom((value, { req }) => {
         // Additional debug logging for DELETE requests
-        if (req.method === 'DELETE') {
-          console.log(`[requiredArray] Validating ${field} for DELETE request`);
-          console.log(`[requiredArray] Value:`, value);
-          console.log(`[requiredArray] Type:`, typeof value);
-          console.log(`[requiredArray] IsArray:`, Array.isArray(value));
-          console.log(`[requiredArray] req.body:`, req.body);
-          console.log(`[requiredArray] req.body type:`, typeof req.body);
-          console.log(
-            `[requiredArray] req.body keys:`,
-            req.body ? Object.keys(req.body) : 'null/undefined',
-          );
-        }
-
         // Check if field exists
         if (value === undefined || value === null) {
           throw new Error(`${field} is required`);

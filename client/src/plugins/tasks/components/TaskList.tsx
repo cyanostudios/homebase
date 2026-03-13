@@ -123,13 +123,23 @@ export const TaskList: React.FC = () => {
     }
   };
 
+  const stripHtml = (html: string): string => {
+    if (!html) {
+      return '';
+    }
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent ?? tmp.innerText ?? '';
+  };
+
   const sortedTasks = useMemo(() => {
+    const q = searchTerm.toLowerCase();
     const filtered = tasks.filter((task) => {
       const matchesSearch =
-        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.priority.toLowerCase().includes(searchTerm.toLowerCase());
+        task.title.toLowerCase().includes(q) ||
+        stripHtml(task.content).toLowerCase().includes(q) ||
+        task.status.toLowerCase().includes(q) ||
+        task.priority.toLowerCase().includes(q);
 
       // Search in assigned contact
       if (task.assignedTo && contacts.length > 0) {
@@ -138,10 +148,7 @@ export const TaskList: React.FC = () => {
           const assignedId = String(task.assignedTo);
           return contactId === assignedId;
         });
-        if (
-          assignedContact &&
-          assignedContact.companyName.toLowerCase().includes(searchTerm.toLowerCase())
-        ) {
+        if (assignedContact && assignedContact.companyName.toLowerCase().includes(q)) {
           return true;
         }
       }

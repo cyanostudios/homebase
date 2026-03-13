@@ -206,10 +206,8 @@ class PostgreSQLAdapter extends DatabaseService {
     try {
       const startTime = Date.now();
 
-      // Log SQL query details for debugging
-      this.logger?.info('Executing SQL query', {
+      this.logger?.debug('Executing SQL query', {
         sql: finalSql,
-        params: finalParams,
         userId: userId,
         paramCount: finalParams.length,
       });

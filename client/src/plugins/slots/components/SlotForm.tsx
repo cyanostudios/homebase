@@ -20,7 +20,7 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { MatchDateTimePicker } from '@/plugins/matches/components/MatchDateTimePicker';
 
-import { useSlots } from '../hooks/useSlots';
+import { useSlotsContext as useSlots } from '../context/SlotsContext';
 import { CAPACITY_OPTIONS, type SlotMention } from '../types/slots';
 
 import { SlotsSettingsForm } from './SlotsSettingsForm';

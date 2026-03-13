@@ -115,7 +115,7 @@ import { SlotForm } from '@/plugins/slots/components/SlotForm';
 import { SlotsList } from '@/plugins/slots/components/SlotsList';
 import { SlotView } from '@/plugins/slots/components/SlotView';
 import { SlotsProvider } from '@/plugins/slots/context/SlotsContext';
-import { useSlots } from '@/plugins/slots/hooks/useSlots';
+import { useSlotsContext as useSlots } from '@/plugins/slots/context/SlotsContext';
 import { TaskForm } from '@/plugins/tasks/components/TaskForm';
 import { TaskList } from '@/plugins/tasks/components/TaskList';
 import { TasksDashboardWidget } from '@/plugins/tasks/components/TasksDashboardWidget';

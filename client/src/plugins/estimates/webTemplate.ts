@@ -11,6 +11,18 @@ interface _LineItem {
   lineTotal: number;
 }
 
+function escapeHtml(str: string | null | undefined): string {
+  if (str === null || str === undefined) {
+    return '';
+  }
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function formatDate(date: string | Date) {
   return new Date(date).toLocaleDateString('sv-SE');
 }
@@ -79,7 +91,7 @@ export function generateWebHTML(estimate: any): string {
                 <div class="mt-4 space-y-1">
                   <div class="flex items-center text-sm font-medium text-gray-500">
                     <span class="w-24 uppercase">Number</span>
-                    <span class="text-gray-900 font-bold">${estimate.estimateNumber}</span>
+                    <span class="text-gray-900 font-bold">${escapeHtml(estimate.estimateNumber)}</span>
                   </div>
                   <div class="flex items-center text-sm font-medium text-gray-500">
                     <span class="w-24 uppercase">Date</span>
@@ -101,7 +113,7 @@ export function generateWebHTML(estimate: any): string {
                         ? 'bg-red-100 text-red-700'
                         : 'bg-gray-100 text-gray-600'
                   }">
-                  ${estimate.status || 'DRAFT'}
+                  ${escapeHtml(estimate.status) || 'DRAFT'}
                 </div>
               </div>
             </div>
@@ -124,10 +136,10 @@ export function generateWebHTML(estimate: any): string {
             <div>
               <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Bill To</h2>
               <div class="text-gray-900">
-                <div class="font-bold text-lg">${estimate.contactName || 'Customer'}</div>
+                <div class="font-bold text-lg">${escapeHtml(estimate.contactName) || 'Customer'}</div>
                 <div class="text-sm text-gray-500 mt-1">
-                  ${estimate.organizationNumber ? `<p>Org: ${estimate.organizationNumber}</p>` : ''}
-                  <p>${estimate.customerEmail || ''}</p>
+                  ${estimate.organizationNumber ? `<p>Org: ${escapeHtml(estimate.organizationNumber)}</p>` : ''}
+                  <p>${escapeHtml(estimate.customerEmail)}</p>
                 </div>
               </div>
             </div>
@@ -150,7 +162,7 @@ export function generateWebHTML(estimate: any): string {
                     (item: any) => `
                 <tr>
                   <td class="py-6 align-top">
-                    <div class="font-semibold text-gray-900">${item.description || 'Service Item'}</div>
+                    <div class="font-semibold text-gray-900">${escapeHtml(item.description) || 'Service Item'}</div>
                   </td>
                   <td class="py-6 text-right align-top tabular-nums">${item.quantity || 1}</td>
                   <td class="py-6 text-right align-top tabular-nums">${formatCurrency(item.unitPrice || 0, estimate.currency)}</td>
@@ -214,7 +226,7 @@ export function generateWebHTML(estimate: any): string {
           <div class="p-8 md:p-12 border-t border-gray-100">
             <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Terms & Notes</h2>
             <div class="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
-              ${estimate.notes}
+              ${escapeHtml(estimate.notes)}
             </div>
           </div>
           `

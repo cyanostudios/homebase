@@ -384,13 +384,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(true);
       return { success: true };
     } catch (error: any) {
-      console.error('Login failed:', {
-        message: error.message,
-        status: error.status,
-        code: error.code,
-        details: error.details,
-        fullError: error,
-      });
+      console.error('Login failed:', error.message || 'Unknown error');
       const errorMessage =
         error?.message || (error?.status === 401 ? 'Invalid email or password' : 'Login failed');
       return { success: false, error: errorMessage };

@@ -22,8 +22,8 @@ function createNoteRoutes(controller, context) {
     '/',
     gate,
     // /* csrfProtection, */ // Temporarily disabled // Temporarily disabled
-    commonRules.string('title', 1, 255),
-    commonRules.optionalString('content', 10000), // Max 10KB content
+    commonRules.plainString('title', 1, 255),
+    commonRules.htmlContent('content', 100000),
     commonRules.array('mentions', 50), // Max 50 mentions
     validateRequest,
     (req, res) => {
@@ -37,8 +37,8 @@ function createNoteRoutes(controller, context) {
     gate,
     // /* csrfProtection, */ // Temporarily disabled // Temporarily disabled
     commonRules.id('id'),
-    commonRules.string('title', 1, 255),
-    commonRules.optionalString('content', 10000),
+    commonRules.plainString('title', 1, 255),
+    commonRules.htmlContent('content', 100000),
     commonRules.array('mentions', 50),
     validateRequest,
     (req, res) => {

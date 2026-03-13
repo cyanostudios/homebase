@@ -1,9 +1,10 @@
+export const SLOTS_SETTINGS_KEY = 'slots' as const;
+export type SlotsViewMode = 'grid' | 'list';
+
 export interface SlotMention {
   contactId: string;
   contactName: string;
   companyName?: string;
-  position?: number;
-  length?: number;
 }
 
 export interface Slot {

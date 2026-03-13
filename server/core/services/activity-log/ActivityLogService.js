@@ -47,11 +47,16 @@ class ActivityLogService {
         ...additionalMetadata,
       };
 
+      // Log as history: every action inserts a new row. List is ordered by created_at DESC (newest first).
+      const numericEntityId =
+        entityId != null && entityId !== '' ? parseInt(String(entityId), 10) : null;
+      const hasValidEntityId = numericEntityId != null && !Number.isNaN(numericEntityId);
+      const insertEntityId = hasValidEntityId ? numericEntityId : entityId;
       tenantPool
         .query(
           `INSERT INTO activity_log (user_id, action, entity_type, entity_id, entity_name, metadata, created_at)
            VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW())`,
-          [scopeUserId, action, entityType, entityId, entityName, JSON.stringify(metadata)],
+          [scopeUserId, action, entityType, insertEntityId, entityName, JSON.stringify(metadata)],
         )
         .catch((error) => {
           // Log error but don't throw (don't break the request)
@@ -100,6 +105,7 @@ class ActivityLogService {
       limit = 50,
       offset = 0,
       entityType = null,
+      entityId = null,
       action = null,
       startDate = null,
       endDate = null,
@@ -112,6 +118,12 @@ class ActivityLogService {
     if (entityType) {
       conditions.push(`entity_type = $${paramIndex}`);
       params.push(entityType);
+      paramIndex++;
+    }
+
+    if (entityId != null && entityId !== '') {
+      conditions.push(`entity_id = $${paramIndex}`);
+      params.push(parseInt(entityId, 10));
       paramIndex++;
     }
 

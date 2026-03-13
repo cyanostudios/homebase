@@ -1,7 +1,7 @@
 // client/src/plugins/slots/utils/slotContactUtils.ts
 // Resolve selected slots to unique contacts (for bulk message / export)
 
-import type { Slot } from '../types/slots';
+import type { Slot, SlotMention } from '../types/slots';
 
 export interface ResolvedContact {
   id: string;
@@ -15,6 +15,34 @@ export interface ResolvedEmailContact {
   email: string;
 }
 
+function resolveSlotMentionsToRecipients<C, R>(
+  slotIds: string[],
+  slots: Slot[],
+  contacts: C[],
+  getId: (c: C) => string | number,
+  mapContact: (cid: string, m: SlotMention, contact: C | undefined) => R,
+): R[] {
+  const idSet = new Set(slotIds.map(String));
+  const resultMap = new Map<string, R>();
+
+  for (const slot of slots) {
+    if (!idSet.has(String(slot.id))) {
+      continue;
+    }
+    const mentions = slot.mentions ?? [];
+    for (const m of mentions) {
+      const cid = String(m.contactId);
+      if (resultMap.has(cid)) {
+        continue;
+      }
+      const contact = contacts.find((c) => String(getId(c)) === cid);
+      resultMap.set(cid, mapContact(cid, m, contact));
+    }
+  }
+
+  return Array.from(resultMap.values());
+}
+
 /**
  * From selected slot IDs and the slots list, collect all unique contacts
  * from slot mentions. Enrich with phone from the contacts list.
@@ -25,40 +53,21 @@ export function resolveSlotsToContacts(
   slots: Slot[],
   contacts: Array<{ id: string | number; companyName?: string; phone?: string; phone2?: string }>,
 ): ResolvedContact[] {
-  const idSet = new Set(slotIds.map(String));
-  const contactMap = new Map<string, ResolvedContact>();
-
-  for (const slot of slots) {
-    if (!idSet.has(String(slot.id))) {
-      continue;
-    }
-    const mentions = slot.mentions ?? [];
-    for (const m of mentions) {
-      const cid = String(m.contactId);
-      if (contactMap.has(cid)) {
-        continue;
-      }
-      const contact = contacts.find((c) => String(c.id) === cid);
-      if (contact) {
-        contactMap.set(cid, {
-          id: cid,
-          name: contact.companyName ?? m.contactName ?? m.contactId ?? cid,
-          phone:
-            (contact.phone && contact.phone.trim()) ||
-            (contact.phone2 && contact.phone2.trim()) ||
-            '',
-        });
-      } else {
-        contactMap.set(cid, {
-          id: cid,
-          name: m.contactName ?? m.companyName ?? cid,
-          phone: '',
-        });
-      }
-    }
-  }
-
-  return Array.from(contactMap.values());
+  return resolveSlotMentionsToRecipients(
+    slotIds,
+    slots,
+    contacts,
+    (c) => c.id,
+    (cid, m, contact) => ({
+      id: cid,
+      name: contact
+        ? (contact.companyName ?? m.contactName ?? m.contactId ?? cid)
+        : (m.contactName ?? m.companyName ?? cid),
+      phone: contact
+        ? (contact.phone && contact.phone.trim()) || (contact.phone2 && contact.phone2.trim()) || ''
+        : '',
+    }),
+  );
 }
 
 /**
@@ -71,37 +80,19 @@ export function resolveSlotsToEmailContacts(
   slots: Slot[],
   contacts: Array<{ id: string | number; companyName?: string; email?: string }>,
 ): ResolvedEmailContact[] {
-  const idSet = new Set(slotIds.map(String));
-  const contactMap = new Map<string, ResolvedEmailContact>();
-
-  for (const slot of slots) {
-    if (!idSet.has(String(slot.id))) {
-      continue;
-    }
-    const mentions = slot.mentions ?? [];
-    for (const m of mentions) {
-      const cid = String(m.contactId);
-      if (contactMap.has(cid)) {
-        continue;
-      }
-      const contact = contacts.find((c) => String(c.id) === cid);
-      if (contact) {
-        contactMap.set(cid, {
-          id: cid,
-          name: contact.companyName ?? m.contactName ?? m.contactId ?? cid,
-          email: contact.email ? contact.email.trim() : '',
-        });
-      } else {
-        contactMap.set(cid, {
-          id: cid,
-          name: m.contactName ?? m.companyName ?? cid,
-          email: '',
-        });
-      }
-    }
-  }
-
-  return Array.from(contactMap.values());
+  return resolveSlotMentionsToRecipients(
+    slotIds,
+    slots,
+    contacts,
+    (c) => c.id,
+    (cid, m, contact) => ({
+      id: cid,
+      name: contact
+        ? (contact.companyName ?? m.contactName ?? m.contactId ?? cid)
+        : (m.contactName ?? m.companyName ?? cid),
+      email: contact?.email?.trim() ?? '',
+    }),
+  );
 }
 
 /**

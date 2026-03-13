@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { useApp } from '@/core/api/AppContext';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
-import { MentionContent } from '@/core/ui/MentionContent';
+import { RichTextContent } from '@/core/ui/RichTextContent';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
@@ -188,13 +188,11 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         <div className="space-y-6">
           <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
             <DetailSection title={t('notes.noteContent')} className="p-6">
-              <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
-                <MentionContent
-                  content={note.content}
-                  mentions={note.mentions || []}
-                  onMentionClick={handleContactClick}
-                />
-              </div>
+              <RichTextContent
+                content={note.content}
+                mentions={note.mentions || []}
+                onMentionClick={handleContactClick}
+              />
             </DetailSection>
           </Card>
         </div>

@@ -77,6 +77,82 @@ class SlotsModel {
     }
   }
 
+  /**
+   * Build a human-readable list of changed fields for activity log.
+   * Compares raw slotData from the request body against the existing DB row.
+   * Only fields explicitly present in slotData are evaluated.
+   * @param {Object} existing - existing raw DB row
+   * @param {Object} slotData - raw request body from the client
+   * @returns {string|null} e.g. "Capacity, Location" or null if nothing changed
+   */
+  static getChangeSummary(existing, slotData) {
+    const labels = {
+      location: 'Location',
+      slot_time: 'Time',
+      capacity: 'Capacity',
+      visible: 'Visible',
+      notifications_enabled: 'Notifications',
+      contact_id: 'Contact',
+      mentions: 'Contacts assigned',
+    };
+    const changed = [];
+
+    if ('location' in slotData) {
+      const next = (slotData.location || '').trim() || null;
+      const prev = existing.location || null;
+      if (next !== prev) changed.push(labels.location);
+    }
+    if ('slot_time' in slotData) {
+      if (String(slotData.slot_time || '') !== String(existing.slot_time || '')) {
+        changed.push(labels.slot_time);
+      }
+    }
+    if ('capacity' in slotData && slotData.capacity != null) {
+      if (Number(slotData.capacity) !== Number(existing.capacity)) {
+        changed.push(labels.capacity);
+      }
+    }
+    if ('visible' in slotData) {
+      const next = slotData.visible !== false && slotData.visible !== 'false';
+      if (next !== Boolean(existing.visible)) changed.push(labels.visible);
+    }
+    if ('notifications_enabled' in slotData) {
+      const next =
+        slotData.notifications_enabled !== false && slotData.notifications_enabled !== 'false';
+      if (next !== Boolean(existing.notifications_enabled))
+        changed.push(labels.notifications_enabled);
+    }
+    if ('contact_id' in slotData) {
+      // Normalise both sides to integer or null for a type-safe comparison
+      const next =
+        slotData.contact_id != null && slotData.contact_id !== ''
+          ? parseInt(String(slotData.contact_id), 10)
+          : null;
+      const prev = existing.contact_id != null ? parseInt(String(existing.contact_id), 10) : null;
+      if (next !== prev) changed.push(labels.contact_id);
+    }
+    if ('mentions' in slotData) {
+      // Normalise both sides to a sorted array of contactId strings for comparison
+      const toIds = (val) => {
+        let arr = val;
+        if (typeof val === 'string') {
+          try {
+            arr = JSON.parse(val);
+          } catch {
+            arr = [];
+          }
+        }
+        if (!Array.isArray(arr)) return '[]';
+        return JSON.stringify(arr.map((m) => String(m?.contactId ?? m?.contact_id ?? m)).sort());
+      };
+      if (toIds(slotData.mentions) !== toIds(existing.mentions)) {
+        changed.push(labels.mentions);
+      }
+    }
+
+    return changed.length === 0 ? null : changed.join(', ');
+  }
+
   async update(req, slotId, slotData) {
     try {
       const db = Database.get(req);
@@ -101,7 +177,7 @@ class SlotsModel {
       } = slotData;
       const cap = capacity != null ? validateCapacity(capacity) : existing[0].capacity;
 
-      const result = await db.update('slots', slotId, {
+      const updates = {
         location: (location || '').trim() || null,
         slot_time: slot_time || null,
         capacity: cap,
@@ -112,10 +188,17 @@ class SlotsModel {
           mentions !== undefined
             ? JSON.stringify(Array.isArray(mentions) ? mentions : [])
             : existing[0].mentions,
-      });
+      };
 
+      const result = await db.update('slots', slotId, updates);
+
+      const changeSummary = SlotsModel.getChangeSummary(existing[0], slotData);
+      const slot = this.transformRow(result);
+      if (changeSummary) {
+        slot._changeSummary = changeSummary;
+      }
       Logger.info('Slot updated', { slotId });
-      return this.transformRow(result);
+      return slot;
     } catch (error) {
       Logger.error('Failed to update slot', error, { slotId });
       if (error instanceof AppError) throw error;
