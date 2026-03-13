@@ -65,6 +65,12 @@ const VOLUME_UNIT_OPTIONS = [
   { value: 'ml', label: 'ml' },
 ];
 
+/** Viktenhet: g (gram) eller kg. WooCommerce får alltid kg. */
+const WEIGHT_UNIT_OPTIONS = [
+  { value: 'g', label: 'g' },
+  { value: 'kg', label: 'kg' },
+];
+
 /** CDON/Fyndiq preset-färg (färg dropdown) */
 const COLOR_OPTIONS = [
   { value: '', label: '— Välj färg —' },
@@ -626,7 +632,6 @@ type FormData = {
   quantity: number | '';
   priceAmount: number | '';
   purchasePrice: number | '';
-  salePrice: number | '';
   currency: string;
   vatRate: number | '';
   sku: string;
@@ -657,6 +662,8 @@ type FormData = {
   patternText: string;
   model: string;
   weight: number | '';
+  weightUnit: 'g' | 'kg';
+  shoeSizeEu: string;
   condition: 'new' | 'used' | 'refurb';
   /** CDON shipped_from (default EU) */
   shippedFrom: 'EU' | 'NON_EU';
@@ -741,7 +748,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     quantity: 0,
     priceAmount: 0,
     purchasePrice: '',
-    salePrice: '',
     privateName: '',
     currency: 'SEK',
     vatRate: 25,
@@ -775,6 +781,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     patternText: '',
     model: '',
     weight: '',
+    weightUnit: 'g',
+    shoeSizeEu: '',
     lengthCm: '',
     widthCm: '',
     heightCm: '',
@@ -1282,11 +1290,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           Number.isFinite((currentProduct as any).purchasePrice)
             ? (currentProduct as any).purchasePrice
             : '',
-        salePrice:
-          (currentProduct as any).salePrice != null &&
-          Number.isFinite((currentProduct as any).salePrice)
-            ? (currentProduct as any).salePrice
-            : '',
         currency: baseCur,
         vatRate: Number.isFinite(currentProduct.vatRate) ? Number(currentProduct.vatRate) : 25,
         sku,
@@ -1316,6 +1319,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           (currentProduct as any).weight != null && (currentProduct as any).weight !== ''
             ? (currentProduct as any).weight
             : '',
+        weightUnit: (cs as any)?.weightUnit === 'kg' ? 'kg' : 'g',
+        shoeSizeEu: ((cs as any)?.shoeSizeEu ?? '') as string,
         condition:
           (currentProduct as any).condition === 'used'
             ? 'used'
@@ -1752,6 +1757,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           : {};
       const channelSpecific: Record<string, unknown> = {
         ...existingCs,
+        weightUnit: formData.weightUnit,
+        shoeSizeEu: formData.shoeSizeEu?.trim() || null,
         cdon: {
           markets: formData.markets,
           texts: formData.texts,
@@ -3381,6 +3388,43 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             <p className="text-sm text-gray-600 mb-4">
               EAN, Märke, Tillverkarens artikelnummer m.m. Märke är obligatorisk.
             </p>
+            {(() => {
+              const p = currentProduct as {
+                groupId?: string | null;
+                parentProductId?: string | null;
+                groupVariationType?: string | null;
+              } | null;
+              const groupId = p?.groupId ?? null;
+              const parentId = p?.parentProductId ?? null;
+              const type = p?.groupVariationType ?? null;
+              const isGrouped =
+                (groupId != null && String(groupId).trim() !== '') ||
+                (parentId != null && String(parentId).trim() !== '') ||
+                (type != null && ['color', 'size', 'model'].includes(String(type).toLowerCase()));
+              const typeLabel =
+                type === 'color'
+                  ? 'Färg'
+                  : type === 'size'
+                    ? 'Storlek'
+                    : type === 'model'
+                      ? 'Modell'
+                      : (type ?? '—');
+              return (
+                <div className="mb-4 p-3 rounded-md bg-gray-50 border border-gray-200">
+                  <Label className="text-xs font-medium text-gray-500 mb-1 block">Gruppering</Label>
+                  <div className="text-sm text-gray-800">
+                    {isGrouped ? (
+                      <>
+                        Group: {groupId ?? '—'} · Parent: {parentId ?? 'Huvudprodukt'} · Typ:{' '}
+                        {typeLabel}
+                      </>
+                    ) : (
+                      'Not grouped'
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
             <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
               <div>
                 <Label htmlFor="ean" className="mb-1">
@@ -3798,18 +3842,47 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               </div>
               <div>
                 <Label htmlFor="weight" className="mb-1">
-                  Vikt (kg)
+                  Vikt
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="weight"
+                    type="number"
+                    step="any"
+                    min="0"
+                    value={formData.weight === '' ? '' : formData.weight}
+                    onChange={(e) =>
+                      updateField('weight', e.target.value === '' ? '' : Number(e.target.value))
+                    }
+                    placeholder="0"
+                    className="flex-1"
+                  />
+                  <NativeSelect
+                    id="weightUnit"
+                    value={formData.weightUnit || 'g'}
+                    onChange={(e) =>
+                      updateField('weightUnit', e.target.value === 'kg' ? 'kg' : 'g')
+                    }
+                    className="w-20"
+                  >
+                    {WEIGHT_UNIT_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="shoeSizeEu" className="mb-1">
+                  Skostorlek EU
                 </Label>
                 <Input
-                  id="weight"
-                  type="number"
-                  step="any"
-                  min="0"
-                  value={formData.weight === '' ? '' : formData.weight}
-                  onChange={(e) =>
-                    updateField('weight', e.target.value === '' ? '' : Number(e.target.value))
-                  }
-                  placeholder="0"
+                  id="shoeSizeEu"
+                  type="text"
+                  value={formData.shoeSizeEu || ''}
+                  onChange={(e) => updateField('shoeSizeEu', e.target.value)}
+                  placeholder="t.ex. 42"
                 />
               </div>
               <div>

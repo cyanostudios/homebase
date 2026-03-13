@@ -81,6 +81,11 @@ interface ProductContextType {
       currency?: string;
     },
   ) => Promise<{ updatedCount: number }>;
+  groupProducts: (
+    productIds: string[],
+    groupVariationType: 'color' | 'size' | 'model',
+    mainProductId?: string | null,
+  ) => Promise<{ updatedCount: number }>;
   importProducts: (file: File, mode: ProductImportMode) => Promise<ProductImportResult>;
 
   clearValidationErrors: () => void;
@@ -452,12 +457,6 @@ export function ProductProvider({
         Number.isFinite(Number(raw.purchasePrice))
           ? Number(raw.purchasePrice)
           : undefined,
-      salePrice:
-        (raw.salePrice ?? null) !== null &&
-        raw.salePrice !== '' &&
-        Number.isFinite(Number(raw.salePrice))
-          ? Number(raw.salePrice)
-          : undefined,
       currency: (raw.currency ?? 'SEK').toUpperCase(),
       vatRate: Number(raw.vatRate ?? 25),
       sku: (raw.sku ?? '').trim(),
@@ -509,6 +508,12 @@ export function ProductProvider({
         (raw.depthCm ?? null) !== null && raw.depthCm !== '' && Number.isFinite(Number(raw.depthCm))
           ? Number(raw.depthCm)
           : undefined,
+      volume:
+        (raw.volume ?? null) !== null && raw.volume !== '' && Number.isFinite(Number(raw.volume))
+          ? Number(raw.volume)
+          : undefined,
+      volumeUnit: (raw.volumeUnit ?? '').trim() || undefined,
+      notes: (raw.notes ?? '').trim() || undefined,
     };
     if (
       raw.channelSpecific !== undefined &&
@@ -1046,6 +1051,25 @@ export function ProductProvider({
     }
   };
 
+  const groupProducts = async (
+    productIds: string[],
+    groupVariationType: 'color' | 'size' | 'model',
+    mainProductId?: string | null,
+  ) => {
+    const ids = Array.from(new Set((productIds || []).map(String))).filter(Boolean);
+    if (ids.length < 2) {
+      return { updatedCount: 0 };
+    }
+    try {
+      const result = await productsApi.groupProducts(ids, groupVariationType, mainProductId);
+      await loadProducts();
+      return { updatedCount: result?.updatedCount ?? 0 };
+    } catch (error: any) {
+      console.error('Group products failed:', error);
+      throw error;
+    }
+  };
+
   const importProducts = useCallback(
     async (file: File, mode: ProductImportMode): Promise<ProductImportResult> => {
       const result = await productsApi.importProducts(file, mode);
@@ -1145,6 +1169,7 @@ export function ProductProvider({
       deleteProduct,
       deleteProducts,
       batchUpdateProducts,
+      groupProducts,
       importProducts,
       clearValidationErrors,
 

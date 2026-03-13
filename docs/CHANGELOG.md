@@ -4,6 +4,34 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-13 – CDON Delete, produktlistan grupp + icke-klickbara rader, docs, create-fix
+
+### CDON – Delete mot plattformen
+
+- **plugins/cdon-products/controller.js:** `batchDelete` anropar nu CDON Merchants API **PUT /v2/articles/bulk** med action `delete_article`. SKU hämtas från `channel_product_map.external_id`. Vid lyckad delete rensas mappning; vid fel eller saknad SKU rapporteras status. Create/Update var redan aktiva; Delete mot CDON är därmed komplett.
+
+### Produktlistan (ProductList)
+
+- **Visuell gruppindikation:** Produkter som tillhör samma variantgrupp (samma `group_id`, minst 2 st) visas med grön vänsterkant (`border-emerald-400`), ljusgrön bakgrund och badge "N varianter · Färg/Storlek/Modell" (samma stil som sammanhängande ordrar i orderlistan). Gäller både tabellvy och mobilvy.
+- **Rader inte klickbara:** Tabellrader öppnar inte längre redigeringsfönstret vid klick. Text i kolumnerna kan markeras och kopieras. Redigering sker endast via knappen **Edit**.
+
+### Produkter – create-fix (Sello-import)
+
+- **plugins/products/model.js:** Vid skapande med explicit id (t.ex. Sello-import av borttagen produkt) stämde inte antal parametrar mot INSERT. Fix: `parent_product_id` tillagd i INSERT-kolumnlistan för explicit-id-grenen och `null` skickas som 47:e parameter.
+
+### Migrations
+
+- **076-drop-products-sale-price.sql:** Droppar `products.sale_price` (reapris ligger i `channel_product_overrides`).
+- **077-drop-parent-product-id-fk.sql:** Droppar FK `products_parent_product_id_fkey` så att Sello-import kan lagra `parent_product_id` även när parent inte finns i DB.
+
+### Dokumentation
+
+- **docs/API-DOCS/CHANNEL_API_LIMITS.md:** Ny fil – sammanställning av rate limits, batch- och sidstorlekar för Sello (30/min, 100 produkter/sida, 300 ordrar/sida), Fyndiq (100 create, 200 update per anrop; 1000/sida), CDON (ordrar 1000/sida; rekomm. 100–200 artiklar per bulk), WooCommerce (inga explicita gränser i docs).
+- **SELLO_CHANNEL_FIELD_MAPPING.md:** `products.sale_price` borttagen från schema; enproduktsgrupper från Sello (productCount === 1) får ingen gruppdata.
+- **PRODUCT_PROPERTIES_OVERVIEW.md:** Gruppering (group_id, parent_product_id, group_variation_type) visas skrivskyddat i flik Detaljer; sätts via Group… i listan eller Sello-import.
+
+---
+
 ## 2026-03-04 – CDON parent_sku från groupId, WooCommerce gruppering, Modell
 
 ### CDON

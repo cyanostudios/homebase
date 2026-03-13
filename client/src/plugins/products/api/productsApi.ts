@@ -216,6 +216,32 @@ class ProductsApi {
     });
   }
 
+  // ---- Group products (variant group) ----
+  // POST /api/products/group
+  // body: { productIds: string[], groupVariationType: 'color'|'size'|'model', mainProductId?: string }
+  async groupProducts(
+    productIds: string[],
+    groupVariationType: 'color' | 'size' | 'model',
+    mainProductId?: string | null,
+  ): Promise<{
+    ok: true;
+    updatedCount: number;
+    mainProductId: number;
+    groupVariationType: string;
+  }> {
+    const body: { productIds: string[]; groupVariationType: string; mainProductId?: string } = {
+      productIds,
+      groupVariationType,
+    };
+    if (mainProductId != null && String(mainProductId).trim()) {
+      body.mainProductId = String(mainProductId).trim();
+    }
+    return this.request('/products/group', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
   // ---- Batch update ----
   // PATCH /api/products/batch
   // body: { ids: string[], updates: { priceAmount?, quantity?, status?, vatRate?, currency? } }

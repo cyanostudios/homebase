@@ -1895,9 +1895,12 @@ class WooCommerceController {
     const shortDescription =
       metaDesc || (description.length > 160 ? description.slice(0, 157) + '...' : description);
 
+    const weightUnit = (p?.channelSpecific?.weightUnit ?? 'g').toString().trim().toLowerCase();
     const weightKg =
       p?.weight != null && Number.isFinite(Number(p.weight))
-        ? String(Number(p.weight) / 1000)
+        ? weightUnit === 'kg'
+          ? String(Number(p.weight))
+          : String(Number(p.weight) / 1000)
         : undefined;
 
     const lengthCm =

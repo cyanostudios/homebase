@@ -1120,6 +1120,38 @@ class ProductController {
     }
   }
 
+  // ---- Group products (variant group) ----
+  // POST /api/products/group
+  // body: { productIds: string[], groupVariationType: 'color'|'size'|'model', mainProductId?: string }
+  async setProductGroup(req, res) {
+    try {
+      const productIds = req.body?.productIds;
+      const groupVariationType = req.body?.groupVariationType;
+      const mainProductId = req.body?.mainProductId ?? null;
+      if (!Array.isArray(productIds)) {
+        return res
+          .status(400)
+          .json({ error: 'productIds[] required (must be an array)', code: 'VALIDATION_ERROR' });
+      }
+      const result = await this.model.setProductGroup(
+        req,
+        productIds,
+        groupVariationType,
+        mainProductId,
+      );
+      return res.json({
+        ok: true,
+        updatedCount: result.updatedCount,
+        mainProductId: result.mainProductId,
+        groupVariationType: result.groupVariationType,
+      });
+    } catch (error) {
+      Logger.error('Set product group error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json(error.toJSON());
+      return res.status(500).json({ error: 'Failed to group products' });
+    }
+  }
+
   // ---- Bulk delete ----
   // DELETE /api/products/batch
   // body: { ids: string[] }
@@ -1614,12 +1646,14 @@ class ProductController {
           for (const g of groups) {
             const gid = g.id ?? g.group_id;
             if (gid != null) {
+              const productCount = Array.isArray(g.products) ? g.products.length : 0;
               groupsByGroupId.set(String(gid), {
                 mainProduct: g.main_product,
                 type:
                   g.type && ['color', 'size', 'model'].includes(String(g.type).toLowerCase())
                     ? String(g.type).toLowerCase()
                     : null,
+                productCount,
               });
             }
           }
@@ -1693,7 +1727,9 @@ class ProductController {
           }
           const groupIdRaw = raw?.group_id != null ? String(raw.group_id) : null;
           const groupInfo = groupIdRaw && groupsMap ? groupsMap.get(groupIdRaw) : null;
+          const isMultiProductGroup = groupInfo && (groupInfo.productCount ?? 0) > 1;
           if (
+            isMultiProductGroup &&
             groupInfo?.type &&
             ['color', 'size', 'model'].includes(String(groupInfo.type).toLowerCase())
           ) {
@@ -1779,7 +1815,7 @@ class ProductController {
             model: getSelloModel(raw) || undefined,
             lagerplats: raw?.stock_location != null ? String(raw.stock_location).trim() : undefined,
             condition: raw?.condition === 'used' ? 'used' : 'new',
-            groupId: raw?.group_id != null ? String(raw.group_id) : undefined,
+            groupId: isMultiProductGroup && raw?.group_id != null ? String(raw.group_id) : null,
             volume: raw?.volume != null ? Number(raw.volume) : undefined,
             volumeUnit: raw?.volume_unit != null ? String(raw.volume_unit).trim() : undefined,
             weight: raw?.weight != null ? Number(raw.weight) : undefined,
@@ -1790,7 +1826,9 @@ class ProductController {
             lastSoldAt: raw?.last_sold != null ? String(raw.last_sold).trim() : undefined,
           });
           const createdProductId = String(upsertResult?.product?.id || '').trim();
-          if (createdProductId && groupIdRaw) selloIdToHomebaseId.set(sku, { groupId: groupIdRaw });
+          if (createdProductId && groupIdRaw) {
+            selloIdToHomebaseId.set(sku, { groupId: groupIdRaw, isMultiProductGroup });
+          }
           if (createdProductId && selloList?.id) {
             await this.model.setProductList(req, createdProductId, selloList.id);
           }
@@ -1861,16 +1899,19 @@ class ProductController {
             });
           }
         }
-        for (const [selloId, { groupId }] of selloIdToHomebaseId) {
+        for (const [selloId, { groupId, isMultiProductGroup: multi }] of selloIdToHomebaseId) {
           if (!groupId) continue;
           const groupInfo = groupsByGroupId.get(groupId);
           if (!groupInfo) continue;
-          const mainSelloId = String(groupInfo.mainProduct ?? '');
-          const isMain = selloId === mainSelloId;
-          const parentProductId = isMain ? null : mainSelloId;
+          const parentProductId = multi
+            ? selloId === String(groupInfo.mainProduct ?? '')
+              ? null
+              : String(groupInfo.mainProduct ?? '')
+            : null;
+          const groupVariationType = multi ? groupInfo.type : null;
           await this.model.updateProductGroupRelation(req, selloId, {
             parentProductId,
-            groupVariationType: groupInfo.type,
+            groupVariationType,
           });
         }
         return res.json(summary);
@@ -1896,12 +1937,14 @@ class ProductController {
         for (const g of pageGroups) {
           const gid = g.id ?? g.group_id;
           if (gid != null) {
+            const productCount = Array.isArray(g.products) ? g.products.length : 0;
             pageGroupsByGroupId.set(String(gid), {
               mainProduct: g.main_product,
               type:
                 g.type && ['color', 'size', 'model'].includes(String(g.type).toLowerCase())
                   ? String(g.type).toLowerCase()
                   : null,
+              productCount,
             });
           }
         }
@@ -1949,7 +1992,9 @@ class ProductController {
           }
           const groupIdRaw = raw?.group_id != null ? String(raw.group_id) : null;
           const groupInfo = groupIdRaw && groupsMap ? groupsMap.get(groupIdRaw) : null;
+          const isMultiProductGroup = groupInfo && (groupInfo.productCount ?? 0) > 1;
           if (
+            isMultiProductGroup &&
             groupInfo?.type &&
             ['color', 'size', 'model'].includes(String(groupInfo.type).toLowerCase())
           ) {
@@ -2035,7 +2080,7 @@ class ProductController {
             model: getSelloModel(raw) || undefined,
             lagerplats: raw?.stock_location != null ? String(raw.stock_location).trim() : undefined,
             condition: raw?.condition === 'used' ? 'used' : 'new',
-            groupId: raw?.group_id != null ? String(raw.group_id) : undefined,
+            groupId: isMultiProductGroup && raw?.group_id != null ? String(raw.group_id) : null,
             volume: raw?.volume != null ? Number(raw.volume) : undefined,
             volumeUnit: raw?.volume_unit != null ? String(raw.volume_unit).trim() : undefined,
             weight: raw?.weight != null ? Number(raw.weight) : undefined,
@@ -2047,7 +2092,10 @@ class ProductController {
           });
           const productId = String(upsertResult?.product?.id || '').trim();
           if (productId && groupIdRaw && groupInfo) {
-            pageProductIdToGroupId.set(productId, { groupId: groupIdRaw });
+            pageProductIdToGroupId.set(productId, {
+              groupId: groupIdRaw,
+              isMultiProductGroup,
+            });
           }
           if (productId && selloList?.id) {
             await this.model.setProductList(req, productId, selloList.id);
@@ -2122,15 +2170,18 @@ class ProductController {
             });
           }
         }
-        for (const [productId, { groupId }] of pageProductIdToGroupId) {
+        for (const [productId, { groupId, isMultiProductGroup: multi }] of pageProductIdToGroupId) {
           const groupInfo = groupsMap.get(groupId);
           if (!groupInfo) continue;
-          const mainSelloId = String(groupInfo.mainProduct ?? '');
-          const isMain = productId === mainSelloId;
-          const parentProductId = isMain ? null : mainSelloId;
+          const parentProductId = multi
+            ? productId === String(groupInfo.mainProduct ?? '')
+              ? null
+              : String(groupInfo.mainProduct ?? '')
+            : null;
+          const groupVariationType = multi ? groupInfo.type : null;
           await this.model.updateProductGroupRelation(req, productId, {
             parentProductId,
-            groupVariationType: groupInfo.type,
+            groupVariationType,
           });
         }
 

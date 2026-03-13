@@ -193,6 +193,28 @@ function createProductRoutes(controller, context) {
     (req, res) => controller.batchUpdate(req, res),
   );
 
+  // POST /api/products/group - Set selected products as variant group (group_id, parent_product_id, group_variation_type)
+  router.post(
+    '/group',
+    gate,
+    csrfProtection,
+    [
+      body('productIds').isArray().withMessage('productIds must be an array'),
+      body('productIds')
+        .custom((v) => !v || v.length <= 500)
+        .withMessage('productIds at most 500'),
+      body('groupVariationType')
+        .isIn(['color', 'size', 'model'])
+        .withMessage('groupVariationType must be color, size or model'),
+      body('mainProductId')
+        .optional({ values: 'null' })
+        .custom((v) => v === null || v === undefined || typeof v === 'string')
+        .withMessage('mainProductId must be a string'),
+    ],
+    validateRequest,
+    (req, res) => controller.setProductGroup(req, res),
+  );
+
   // DELETE /api/products/batch - Bulk delete (MUST be before '/:id' route)
   router.delete(
     '/batch',

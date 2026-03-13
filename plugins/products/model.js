@@ -44,7 +44,6 @@ class ProductModel {
           p.manufacturer_id,
           p.channel_specific,
           p.purchase_price,
-          p.sale_price,
           p.lagerplats,
           p.condition,
           p.group_id,
@@ -129,10 +128,11 @@ class ProductModel {
           p.manufacturer_id,
           p.channel_specific,
           p.purchase_price,
-          p.sale_price,
           p.lagerplats,
           p.condition,
           p.group_id,
+          p.parent_product_id,
+          p.group_variation_type,
           p.volume,
           p.volume_unit,
           p.notes,
@@ -144,6 +144,7 @@ class ProductModel {
           p.pattern,
           p.material,
           p.pattern_text,
+          p.model,
           p.weight,
           p.length_cm,
           p.width_cm,
@@ -211,7 +212,6 @@ class ProductModel {
           p.manufacturer_id,
           p.channel_specific,
           p.purchase_price,
-          p.sale_price,
           p.lagerplats,
           p.condition,
           p.group_id,
@@ -307,7 +307,6 @@ class ProductModel {
           manufacturer_id,
           channel_specific,
           purchase_price,
-          sale_price,
           lagerplats,
           condition,
           group_id,
@@ -330,7 +329,8 @@ class ProductModel {
           depth_cm,
           source_created_at,
           quantity_sold,
-          last_sold_at
+          last_sold_at,
+          parent_product_id
         )
         VALUES (
           $1,
@@ -363,7 +363,6 @@ class ProductModel {
           manufacturer_id,
           channel_specific,
           purchase_price,
-          sale_price,
           lagerplats,
           private_name,
           color,
@@ -409,7 +408,6 @@ class ProductModel {
           manufacturer_id,
           channel_specific,
           purchase_price,
-          sale_price,
           lagerplats,
           condition,
           group_id,
@@ -439,7 +437,7 @@ class ProductModel {
           $2,  $3,  $4,  $5,  $6,  $7,  $8,
           $9,  $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,
           $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42,
-          $43, $44, $45, $46, $47
+          $43, $44, $45, $46
         )
         RETURNING
           id,
@@ -465,7 +463,6 @@ class ProductModel {
           manufacturer_id,
           channel_specific,
           purchase_price,
-          sale_price,
           lagerplats,
           private_name,
           color,
@@ -511,7 +508,6 @@ class ProductModel {
         d.manufacturerId != null ? d.manufacturerId : null,
         d.channelSpecific != null ? JSON.stringify(d.channelSpecific) : null,
         d.purchasePrice != null ? d.purchasePrice : null,
-        d.salePrice != null ? d.salePrice : null,
         d.lagerplats ?? null,
         d.condition ?? 'new',
         d.groupId ?? null,
@@ -536,7 +532,7 @@ class ProductModel {
         d.quantitySold ?? null,
         d.lastSoldAt ?? null,
       ];
-      const params = explicitId != null ? [explicitId, ...baseParams] : baseParams;
+      const params = explicitId != null ? [explicitId, ...baseParams, null] : baseParams;
 
       const result = await db.query(sql, params);
       Logger.info('Product created', { productId: result[0].id });
@@ -592,33 +588,32 @@ class ProductModel {
           manufacturer_id = $19,
           channel_specific = $20,
           purchase_price = $21,
-          sale_price     = $22,
-          lagerplats     = $23,
-          condition      = $24,
-          group_id       = $25,
-          volume         = $26,
-          volume_unit    = $27,
-          notes          = $28,
-          private_name   = $29,
-          color          = $30,
-          color_text     = $31,
-          size           = $32,
-          size_text      = $33,
-          pattern        = $34,
-          material       = $35,
-          pattern_text   = $36,
-          model          = $37,
-          weight         = $38,
-          length_cm      = $39,
-          width_cm       = $40,
-          height_cm      = $41,
-          depth_cm       = $42,
-          source_created_at = $43,
-          quantity_sold     = $44,
-          last_sold_at      = $45,
+          lagerplats     = $22,
+          condition      = $23,
+          group_id       = $24,
+          volume         = $25,
+          volume_unit    = $26,
+          notes          = $27,
+          private_name   = $28,
+          color          = $29,
+          color_text     = $30,
+          size           = $31,
+          size_text      = $32,
+          pattern        = $33,
+          material       = $34,
+          pattern_text   = $35,
+          model          = $36,
+          weight         = $37,
+          length_cm      = $38,
+          width_cm       = $39,
+          height_cm      = $40,
+          depth_cm       = $41,
+          source_created_at = $42,
+          quantity_sold     = $43,
+          last_sold_at      = $44,
           updated_at     = CURRENT_TIMESTAMP
-        WHERE user_id = $46
-          AND id::text = $47
+        WHERE user_id = $45
+          AND id::text = $46
         RETURNING
           id,
           user_id,
@@ -643,7 +638,6 @@ class ProductModel {
           manufacturer_id,
           channel_specific,
           purchase_price,
-          sale_price,
           lagerplats,
           private_name,
           color,
@@ -688,7 +682,6 @@ class ProductModel {
         d.manufacturerId != null ? d.manufacturerId : null,
         d.channelSpecific != null ? JSON.stringify(d.channelSpecific) : null,
         d.purchasePrice != null ? d.purchasePrice : null,
-        d.salePrice != null ? d.salePrice : null,
         d.lagerplats ?? null,
         d.condition ?? 'new',
         d.groupId ?? null,
@@ -1237,6 +1230,67 @@ class ProductModel {
     }
   }
 
+  /**
+   * Set products as a variant group: same group_id, parent_product_id and group_variation_type.
+   * @param {Object} req
+   * @param {string[]} productIds - IDs of products to group
+   * @param {string} groupVariationType - 'color' | 'size' | 'model'
+   * @param {string|null} mainProductId - ID of main product (parent); others get parent_product_id = this. If null, first in productIds is used.
+   */
+  async setProductGroup(req, productIds, groupVariationType, mainProductId = null) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.user?.id;
+      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      const type =
+        groupVariationType &&
+        ['color', 'size', 'model'].includes(String(groupVariationType).toLowerCase())
+          ? String(groupVariationType).toLowerCase()
+          : null;
+      if (!type) {
+        throw new AppError(
+          'groupVariationType must be color, size or model',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+      const ids = Array.isArray(productIds)
+        ? productIds.map((x) => parseInt(String(x).trim(), 10)).filter(Number.isFinite)
+        : [];
+      if (ids.length < 2) {
+        throw new AppError(
+          'At least 2 products required to group',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+      const mainId =
+        mainProductId != null && String(mainProductId).trim()
+          ? parseInt(String(mainProductId).trim(), 10)
+          : ids[0];
+      if (!ids.includes(mainId)) {
+        throw new AppError(
+          'mainProductId must be one of the selected products',
+          400,
+          AppError.CODES.VALIDATION_ERROR,
+        );
+      }
+      const groupIdStr = String(mainId);
+      await db.query(
+        `UPDATE ${ProductModel.TABLE}
+         SET group_id = $1, parent_product_id = CASE WHEN id = $2 THEN NULL ELSE $2 END, group_variation_type = $3, updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = $4 AND id = ANY($5::int[])`,
+        [groupIdStr, mainId, type, userId, ids],
+      );
+      Logger.info('Products grouped', { count: ids.length, mainId, type });
+      return { updatedCount: ids.length, mainProductId: mainId, groupVariationType: type };
+    } catch (error) {
+      Logger.error('Failed to set product group', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to set product group', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   // ---------- Input / Output helpers ----------
 
   normalizeInput(data = {}) {
@@ -1288,7 +1342,6 @@ class ProductModel {
       quantity: toInt(data.quantity, 0),
       priceAmount: toFloat(data.priceAmount, 0),
       purchasePrice: data.purchasePrice != null ? toFloat(data.purchasePrice, null) : null,
-      salePrice: data.salePrice != null ? toFloat(data.salePrice, null) : null,
       currency: safeCurrency,
       vatRate: toFloat(data.vatRate, 25),
       mainImage: clean(data.mainImage),
@@ -1389,7 +1442,6 @@ class ProductModel {
       quantity: toNumberOr(row.quantity, 0),
       priceAmount: toNumberOr(row.price_amount, 0),
       purchasePrice: row.purchase_price != null ? toNumberOr(row.purchase_price, null) : null,
-      salePrice: row.sale_price != null ? toNumberOr(row.sale_price, null) : null,
       currency: row.currency ?? 'SEK',
       vatRate: toNumberOr(row.vat_rate, 25),
       mainImage: row.main_image ?? null,

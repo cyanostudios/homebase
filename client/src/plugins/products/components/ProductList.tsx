@@ -1,5 +1,5 @@
 import { Trash2, ChevronUp, ChevronDown, Upload, Pencil, Settings, X } from 'lucide-react';
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,34 @@ const PUBLISH_MARKETS = [
   { key: 'fi' as const, label: 'Finland' },
 ];
 
+/** Returns true if product is a variant (has groupVariationType) but the variation value is empty. */
+function variantMissingValue(p: {
+  groupVariationType?: string | null;
+  color?: string | null;
+  colorText?: string | null;
+  size?: string | null;
+  sizeText?: string | null;
+  model?: string | null;
+}): boolean {
+  const t = p?.groupVariationType?.toLowerCase();
+  if (!t || !['color', 'size', 'model'].includes(t)) {
+    return false;
+  }
+  if (t === 'color') {
+    return !(String(p?.color ?? '').trim() || String(p?.colorText ?? '').trim());
+  }
+  if (t === 'size') {
+    return !(String(p?.size ?? '').trim() || String(p?.sizeText ?? '').trim());
+  }
+  return !String(p?.model ?? '').trim();
+}
+
+const VARIATION_TYPE_LABEL: Record<string, string> = {
+  color: 'Färg',
+  size: 'Storlek',
+  model: 'Modell',
+};
+
 export const ProductList: React.FC = () => {
   const {
     products,
@@ -49,6 +77,8 @@ export const ProductList: React.FC = () => {
     deleteProducts,
     // Batch update
     batchUpdateProducts,
+    // Group products (variant group)
+    groupProducts,
     // Import
     importProducts,
   } = useProducts();
@@ -91,6 +121,9 @@ export const ProductList: React.FC = () => {
   const [publishCdonMarkets, setPublishCdonMarkets] = useState<string[]>([]);
   const [publishFyndiqMarkets, setPublishFyndiqMarkets] = useState<string[]>([]);
   const [publishing, setPublishing] = useState(false);
+  const [lastPublishSkipped, setLastPublishSkipped] = useState<
+    Array<{ id: string; title?: string; groupVariationType: string }>
+  >([]);
   const [lastPublishResult, setLastPublishResult] = useState<{
     woo?: {
       ok: boolean;
@@ -143,6 +176,11 @@ export const ProductList: React.FC = () => {
     null,
   );
 
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [groupVariationType, setGroupVariationType] = useState<'color' | 'size' | 'model'>('color');
+  const [groupMainProductId, setGroupMainProductId] = useState<string>('');
+  const [groupApplying, setGroupApplying] = useState(false);
+
   // Import-modal state
   const [showImportModal, setShowImportModal] = useState(false);
   const [showProductSettings, setShowProductSettings] = useState(false);
@@ -176,6 +214,23 @@ export const ProductList: React.FC = () => {
       p?.productId ??
       p?.sku ??
       `${p?.title || 'item'}|${p?.createdAt || ''}|${p?.updatedAt || ''}`;
+    const raw = p?.raw ?? p;
+    const groupId =
+      p?.groupId ??
+      raw?.groupId ??
+      (raw?.group_id !== null && raw?.group_id !== undefined ? String(raw.group_id) : null);
+    const parentProductId =
+      p?.parentProductId ??
+      raw?.parentProductId ??
+      (raw?.parent_product_id !== null && raw?.parent_product_id !== undefined
+        ? String(raw.parent_product_id)
+        : null);
+    const groupVariationType =
+      p?.groupVariationType ??
+      raw?.groupVariationType ??
+      (raw?.group_variation_type !== null && raw?.group_variation_type !== undefined
+        ? String(raw.group_variation_type)
+        : null);
 
     return {
       id: String(rowId),
@@ -194,6 +249,13 @@ export const ProductList: React.FC = () => {
       gtin: p.gtin || null,
       listId: p.listId ?? null,
       listName: p.listName ?? null,
+      groupId: groupId && String(groupId).trim() ? String(groupId).trim() : null,
+      parentProductId:
+        parentProductId && String(parentProductId).trim() ? String(parentProductId).trim() : null,
+      groupVariationType:
+        groupVariationType && String(groupVariationType).trim()
+          ? String(groupVariationType).trim()
+          : null,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
       raw: p,
@@ -295,6 +357,52 @@ export const ProductList: React.FC = () => {
     }
     headerCheckboxRef.current.indeterminate = !allVisibleSelected && someVisibleSelected;
   }, [allVisibleSelected, someVisibleSelected]);
+
+  /** Product groups by groupId (only groups with ≥2 products) for visual grouping like in order list. */
+  const productGroups = useMemo(() => {
+    const map = new Map<string, typeof filteredAndSorted>();
+    for (const p of filteredAndSorted) {
+      const key = p.groupId ?? null;
+      if (key) {
+        const arr = map.get(key) ?? [];
+        arr.push(p);
+        map.set(key, arr);
+      }
+    }
+    for (const [k, v] of map.entries()) {
+      if (v.length < 2) {
+        map.delete(k);
+      }
+    }
+    return map;
+  }, [filteredAndSorted]);
+
+  const getGroupInfo = useCallback(
+    (p: { id: string; groupId?: string | null }) => {
+      const key = p.groupId ?? null;
+      if (!key || !productGroups.has(key)) {
+        return null;
+      }
+      const arr = productGroups.get(key)!;
+      const idx = arr.findIndex((x) => String(x.id) === String(p.id));
+      if (idx < 0) {
+        return null;
+      }
+      const typeLabel =
+        VARIATION_TYPE_LABEL[arr[0]?.groupVariationType ?? ''] ??
+        arr[0]?.groupVariationType ??
+        'variant';
+      return {
+        key,
+        index: idx,
+        total: arr.length,
+        isFirst: idx === 0,
+        isLast: idx === arr.length - 1,
+        typeLabel,
+      };
+    },
+    [productGroups],
+  );
 
   const onToggleAllVisible = () => {
     if (allVisibleSelected) {
@@ -481,6 +589,7 @@ export const ProductList: React.FC = () => {
                   setPublishCdonMarkets(isCdonConfigured ? ['se'] : []);
                   setPublishFyndiqMarkets(isFyndiqConfigured ? ['se'] : []);
                   setLastPublishResult(null);
+                  setLastPublishSkipped([]);
                   setShowPublishModal(true);
                 }}
               >
@@ -497,6 +606,20 @@ export const ProductList: React.FC = () => {
                 <Pencil className="w-4 h-4 mr-1" />
                 Batch Edit…
               </button>
+
+              {/* Group… — set variant group (color/size/model) + parent */}
+              {selectedProductIds.length >= 2 && (
+                <button
+                  className="inline-flex items-center px-3 py-1.5 rounded-md border border-violet-600 text-violet-700 hover:bg-violet-50 text-sm"
+                  onClick={() => {
+                    setGroupVariationType('color');
+                    setGroupMainProductId(selectedProductIds[0] ?? '');
+                    setShowGroupModal(true);
+                  }}
+                >
+                  Group…
+                </button>
+              )}
 
               {/* Delete… */}
               <button
@@ -566,6 +689,30 @@ export const ProductList: React.FC = () => {
       </div>
 
       {/* Publish-feedback after execution */}
+      {lastPublishSkipped.length > 0 && (
+        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <div className="font-medium">
+            {lastPublishSkipped.length} produkt(er) exporterades inte: varianter saknar{' '}
+            {[
+              ...new Set(
+                lastPublishSkipped.map(
+                  (s) => VARIATION_TYPE_LABEL[s.groupVariationType] || s.groupVariationType,
+                ),
+              ),
+            ].join(' eller ')}
+            .
+          </div>
+          <ul className="mt-2 list-disc list-inside text-xs">
+            {lastPublishSkipped.slice(0, 10).map((s) => (
+              <li key={s.id}>
+                {s.title || s.id} (saknar{' '}
+                {VARIATION_TYPE_LABEL[s.groupVariationType] || s.groupVariationType})
+              </li>
+            ))}
+            {lastPublishSkipped.length > 10 && <li>… och {lastPublishSkipped.length - 10} till</li>}
+          </ul>
+        </div>
+      )}
       {lastPublishResult && (
         <div className="mb-4">
           <div
@@ -704,6 +851,7 @@ export const ProductList: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-5 p-0" aria-hidden />
                 <TableHead className="w-12">
                   <input
                     ref={headerCheckboxRef}
@@ -764,7 +912,7 @@ export const ProductList: React.FC = () => {
             <TableBody>
               {filteredAndSorted.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="p-6 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="p-6 text-center text-muted-foreground">
                     {searchTerm
                       ? 'No products found matching your search.'
                       : 'No products yet. Click "Add Product" to get started.'}
@@ -774,43 +922,47 @@ export const ProductList: React.FC = () => {
                 filteredAndSorted.map((p: any) => {
                   const raw = p.raw;
                   const isSelected = selectedProductIds.includes(p.id);
+                  const groupInfo = getGroupInfo(p);
                   return (
                     <TableRow
                       key={p.id}
-                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50"
-                      tabIndex={0}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-900/50 ${groupInfo ? 'bg-emerald-50 dark:bg-emerald-950/40' : ''}`}
                       data-list-item={JSON.stringify(raw)}
                       data-plugin-name="products"
-                      role="button"
-                      aria-label={`Open product ${p.title}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleOpenProduct(raw);
-                      }}
                     >
-                      <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                      <TableCell
+                        className={`w-5 p-0 align-top ${groupInfo ? 'border-l-2 border-emerald-400' : ''}`}
+                        aria-hidden
+                      />
+                      <TableCell className={`w-12 ${groupInfo ? 'pl-3' : ''}`}>
                         <input
                           type="checkbox"
                           className="h-4 w-4 cursor-pointer rounded border-input"
                           checked={isSelected}
-                          onClick={(e) => e.stopPropagation()}
                           onChange={() => toggleProductSelected(p.id)}
                           aria-label={isSelected ? 'Unselect product' : 'Select product'}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className={groupInfo ? 'pl-3' : ''}>
                         <div className="text-sm font-mono font-medium">#{p.id}</div>
                       </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{p.title}</div>
+                      <TableCell className={groupInfo ? 'pl-3' : ''}>
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium">{p.title}</div>
+                          {groupInfo ? (
+                            <Badge variant="secondary" className="text-xs font-normal shrink-0">
+                              {groupInfo.total} varianter · {groupInfo.typeLabel}
+                            </Badge>
+                          ) : null}
+                        </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className={groupInfo ? 'pl-3' : ''}>
                         <div className="text-sm text-muted-foreground">{p.sku || '—'}</div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className={groupInfo ? 'pl-3' : ''}>
                         <div className="text-sm">{p.quantity}</div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className={groupInfo ? 'pl-3' : ''}>
                         <div className="text-sm">
                           {p.priceAmount?.toFixed
                             ? p.priceAmount.toFixed(2)
@@ -818,15 +970,12 @@ export const ProductList: React.FC = () => {
                           {p.currency}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className={`text-right ${groupInfo ? 'pl-3' : ''}`}>
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="secondary"
                             size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenProduct(raw);
-                            }}
+                            onClick={() => handleOpenProduct(raw)}
                           >
                             Edit
                           </Button>
@@ -849,8 +998,12 @@ export const ProductList: React.FC = () => {
             ) : (
               filteredAndSorted.map((p: any) => {
                 const isSelected = selectedProductIds.includes(p.id);
+                const groupInfo = getGroupInfo(p);
                 return (
-                  <div key={p.id} className="p-4">
+                  <div
+                    key={p.id}
+                    className={`p-4 ${groupInfo ? 'border-l-4 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 pl-3' : ''}`}
+                  >
                     <div className="flex items-start gap-3">
                       <div className="pt-1">
                         <input
@@ -862,7 +1015,14 @@ export const ProductList: React.FC = () => {
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium">{p.title}</h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-sm font-medium">{p.title}</h3>
+                          {groupInfo ? (
+                            <Badge variant="secondary" className="text-xs font-normal">
+                              {groupInfo.total} varianter · {groupInfo.typeLabel}
+                            </Badge>
+                          ) : null}
+                        </div>
                         <div className="mt-1 space-y-1">
                           <div className="text-xs text-muted-foreground">
                             #{p.id} · {p.sku || '—'}
@@ -1045,17 +1205,29 @@ export const ProductList: React.FC = () => {
                       color: p.color,
                       colorText: p.colorText,
                       size: p.size,
+                      sizeText: p.sizeText,
                       model: p.model,
                       createdAt: p.createdAt,
                       updatedAt: p.updatedAt,
                     }));
+                    const skippedMissingVariation = payload.filter((p: any) =>
+                      variantMissingValue(p),
+                    );
+                    const exportPayload = payload.filter((p: any) => !variantMissingValue(p));
+                    setLastPublishSkipped(
+                      skippedMissingVariation.map((p: any) => ({
+                        id: String(p.id),
+                        title: p.title,
+                        groupVariationType: p.groupVariationType || 'color',
+                      })),
+                    );
                     setPublishing(true);
                     const result: NonNullable<typeof lastPublishResult> = {};
                     try {
                       if (publishWooInstanceIds.length > 0 && isWooConfigured) {
                         try {
                           const r = await woocommerceApi.exportProducts(
-                            payload,
+                            exportPayload,
                             publishWooInstanceIds.length > 0
                               ? { instanceIds: publishWooInstanceIds }
                               : undefined,
@@ -1073,7 +1245,7 @@ export const ProductList: React.FC = () => {
                       }
                       if (publishCdonMarkets.length > 0 && isCdonConfigured) {
                         try {
-                          const r = await cdonApi.exportProducts(payload, {
+                          const r = await cdonApi.exportProducts(exportPayload, {
                             markets: publishCdonMarkets as ('se' | 'dk' | 'fi')[],
                           });
                           result.cdon = { ok: !!r?.ok, counts: r?.counts, endpoint: r?.endpoint };
@@ -1084,7 +1256,7 @@ export const ProductList: React.FC = () => {
                       }
                       if (publishFyndiqMarkets.length > 0 && isFyndiqConfigured) {
                         try {
-                          const r = await fyndiqApi.exportProducts(payload, {
+                          const r = await fyndiqApi.exportProducts(exportPayload, {
                             markets: publishFyndiqMarkets as ('se' | 'dk' | 'fi')[],
                           });
                           result.fyndiq = { ok: !!r?.ok, counts: r?.counts, endpoint: r?.endpoint };
@@ -1384,6 +1556,95 @@ export const ProductList: React.FC = () => {
                   {batchEditApplying
                     ? 'Applying…'
                     : `Apply to ${selectedProductIds.length} products`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Group modal — set variant group type (color/size/model) and main product */}
+      {showGroupModal && selectedProductIds.length >= 2 && (
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => !groupApplying && setShowGroupModal(false)}
+          />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-md">
+            <div className="bg-white rounded-xl shadow-xl border">
+              <div className="p-4 border-b">
+                <h3 className="mb-0 text-lg font-semibold">Group as variants</h3>
+                <div className="text-xs text-gray-500">
+                  {selectedProductIds.length} products. Choose variation type (Färg/Storlek/Modell).
+                  Each variant must have that field filled before export.
+                </div>
+              </div>
+              <div className="p-4 space-y-4">
+                <div>
+                  <label className="text-sm font-medium block mb-1">Variation type</label>
+                  <select
+                    value={groupVariationType}
+                    onChange={(e) =>
+                      setGroupVariationType(e.target.value as 'color' | 'size' | 'model')
+                    }
+                    className="w-full border rounded-md px-3 py-2 text-sm"
+                  >
+                    <option value="color">Färg</option>
+                    <option value="size">Storlek</option>
+                    <option value="model">Modell</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium block mb-1">Huvudprodukt (valfri)</label>
+                  <select
+                    value={groupMainProductId}
+                    onChange={(e) => setGroupMainProductId(e.target.value)}
+                    className="w-full border rounded-md px-3 py-2 text-sm"
+                  >
+                    {selectedProductIds.map((id) => {
+                      const p = products.find((x) => String(x.id) === id);
+                      return (
+                        <option key={id} value={id}>
+                          {p ? `${p.title || 'Untitled'} (${p.id})` : id}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Övriga produkter blir varianter under denna.
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 border-t flex items-center justify-end gap-2">
+                <button
+                  className="px-3 py-1.5 rounded-md border text-sm"
+                  onClick={() => setShowGroupModal(false)}
+                  disabled={groupApplying}
+                >
+                  Avbryt
+                </button>
+                <button
+                  className="px-3 py-1.5 rounded-md bg-violet-600 text-white text-sm disabled:opacity-50"
+                  disabled={groupApplying}
+                  onClick={async () => {
+                    setGroupApplying(true);
+                    try {
+                      await groupProducts(
+                        selectedProductIds,
+                        groupVariationType,
+                        groupMainProductId || undefined,
+                      );
+                      setShowGroupModal(false);
+                      clearProductSelection();
+                    } catch (err: any) {
+                      console.error('Group failed', err);
+                      alert(err?.message || err?.error || 'Failed to group products');
+                    } finally {
+                      setGroupApplying(false);
+                    }
+                  }}
+                >
+                  {groupApplying ? 'Applying…' : 'Group'}
                 </button>
               </div>
             </div>

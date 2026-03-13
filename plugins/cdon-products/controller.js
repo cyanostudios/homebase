@@ -1451,6 +1451,7 @@ class CdonProductsController {
 
   // DELETE /api/cdon-products/batch
   // body: { productIds: string[] }
+  // Calls CDON Merchants API PUT /v2/articles/bulk with action delete_article (SKU from channel map).
   async batchDelete(req, res) {
     try {
       const productIdsRaw = Array.isArray(req.body?.productIds) ? req.body.productIds : [];
@@ -1459,7 +1460,7 @@ class CdonProductsController {
       );
 
       if (productIds.length === 0) {
-        return res.json({ ok: true, deleted: 0, items: [] });
+        return res.json({ ok: true, deleted: 0, failed: 0, skipped: 0, items: [] });
       }
       if (productIds.length > 500) {
         return res
@@ -1467,22 +1468,170 @@ class CdonProductsController {
           .json({ error: 'Too many productIds (max 500)', code: 'VALIDATION_ERROR' });
       }
 
+      const settings = await this.model.getSettings(req);
+      if (!settings?.apiKey || !settings?.apiSecret) {
+        return res
+          .status(400)
+          .json({ error: 'CDON settings not found. Save merchantID and API token first.' });
+      }
+
+      const db = Database.get(req);
+      const userId = req.session?.user?.id;
+      if (!userId) return res.status(401).json({ error: 'User not authenticated' });
+
+      const mapRows =
+        productIds.length > 0
+          ? await db.query(
+              `
+              SELECT product_id::text AS product_id, external_id
+              FROM channel_product_map
+              WHERE user_id = $1 AND channel = 'cdon' AND product_id::text = ANY($2::text[])
+              `,
+              [userId, productIds],
+            )
+          : [];
+      const externalIdByProductId = new Map();
+      for (const r of mapRows) {
+        const pid = String(r.product_id);
+        const ext = r.external_id != null ? String(r.external_id).trim() : '';
+        if (ext) externalIdByProductId.set(pid, ext);
+      }
+
       const items = [];
+      const toDelete = []; // { productId, sku }
+
       for (const pid of productIds) {
-        await this.model.upsertChannelMap(req, {
-          productId: pid,
-          channel: 'cdon',
-          enabled: false,
-          externalId: null,
-          status: 'idle',
-          error: null,
+        const sku = externalIdByProductId.get(pid);
+        if (!sku) {
+          await this.model.upsertChannelMap(req, {
+            productId: pid,
+            channel: 'cdon',
+            enabled: false,
+            externalId: null,
+            status: 'idle',
+            error: null,
+          });
+          items.push({ productId: pid, status: 'skipped', reason: 'no_external_id' });
+          continue;
+        }
+        toDelete.push({ productId: pid, sku });
+      }
+
+      if (toDelete.length === 0) {
+        return res.json({
+          ok: true,
+          deleted: 0,
+          failed: 0,
+          skipped: items.length,
+          items,
         });
-        items.push({ productId: pid, status: 'deleted' });
+      }
+
+      const actions = toDelete.map(({ sku }) => ({
+        sku,
+        action: 'delete_article',
+        body: {},
+      }));
+      const url = `${CDON_MERCHANTS_API}/v2/articles/bulk`;
+      const {
+        resp,
+        text,
+        json: resJson,
+      } = await this.cdonRequest(url, {
+        merchantId: String(settings.apiKey).trim(),
+        apiToken: String(settings.apiSecret).trim(),
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actions }),
+      });
+
+      const successSkus = new Set();
+      const failedBySku = new Map();
+      if (resp.ok && resJson) {
+        const successList = Array.isArray(resJson.success) ? resJson.success : [];
+        for (const s of successList) {
+          const sku = s?.sku != null ? String(s.sku).trim() : null;
+          if (sku) successSkus.add(sku);
+        }
+        const failedList = Array.isArray(resJson.failed) ? resJson.failed : [];
+        for (const f of failedList) {
+          const sku = f?.sku != null ? String(f.sku).trim() : null;
+          if (!sku) continue;
+          const errMsg =
+            Array.isArray(f.errors) && f.errors.length
+              ? f.errors
+                  .map((e) => e?.message || '')
+                  .filter(Boolean)
+                  .join('; ') || 'Delete failed'
+              : 'Delete failed';
+          failedBySku.set(sku, errMsg);
+        }
+      }
+
+      if (!resp.ok) {
+        const message =
+          (resJson && resJson.message) != null ? resJson.message : text || resp.statusText;
+        for (const { productId, sku } of toDelete) {
+          await this.model.upsertChannelMap(req, {
+            productId,
+            channel: 'cdon',
+            enabled: false,
+            externalId: sku,
+            status: 'error',
+            error: `API error ${resp.status}: ${String(message).slice(0, 200)}`,
+          });
+          items.push({
+            productId,
+            sku,
+            status: 'error',
+            error: `API ${resp.status}`,
+          });
+        }
+        return res.status(resp.status).json({
+          ok: false,
+          error: 'CDON delete bulk failed',
+          detail: message,
+          deleted: 0,
+          failed: toDelete.length,
+          skipped: items.filter((x) => x.status === 'skipped').length,
+          items,
+        });
+      }
+
+      let deletedCount = 0;
+      let failedCount = 0;
+      for (const { productId, sku } of toDelete) {
+        if (successSkus.has(sku)) {
+          await this.model.upsertChannelMap(req, {
+            productId,
+            channel: 'cdon',
+            enabled: false,
+            externalId: null,
+            status: 'idle',
+            error: null,
+          });
+          items.push({ productId, sku, status: 'deleted' });
+          deletedCount += 1;
+        } else {
+          const errMsg = failedBySku.get(sku) || 'Delete failed';
+          await this.model.upsertChannelMap(req, {
+            productId,
+            channel: 'cdon',
+            enabled: false,
+            externalId: sku,
+            status: 'error',
+            error: errMsg,
+          });
+          items.push({ productId, sku, status: 'error', error: errMsg });
+          failedCount += 1;
+        }
       }
 
       return res.json({
         ok: true,
-        deleted: items.length,
+        deleted: deletedCount,
+        failed: failedCount,
+        skipped: items.filter((x) => x.status === 'skipped').length,
         items,
       });
     } catch (error) {

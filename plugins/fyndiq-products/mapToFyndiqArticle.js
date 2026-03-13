@@ -15,6 +15,56 @@ function isValidUrl(s) {
   return (t.startsWith('http://') || t.startsWith('https://')) && t.length > 8;
 }
 
+/** Fyndiq/CDON: volume mL/L, weight g/kg, shoe_size_eu. Values string 1–50. */
+function buildNumericalProperties(product) {
+  const out = [];
+  const vol =
+    product?.volume != null && Number.isFinite(Number(product.volume))
+      ? Number(product.volume)
+      : null;
+  const volUnit =
+    product?.volumeUnit != null ? String(product.volumeUnit).trim().toLowerCase() : '';
+  if (vol != null && vol >= 0) {
+    if (volUnit === 'ml') out.push({ name: 'volume_ml', value: String(vol).slice(0, 50) });
+    else if (volUnit === 'l') out.push({ name: 'volume_l', value: String(vol).slice(0, 50) });
+  }
+  const weight =
+    product?.weight != null && Number.isFinite(Number(product.weight))
+      ? Number(product.weight)
+      : null;
+  if (weight != null && weight >= 0) {
+    const weightUnit = (product?.channelSpecific?.weightUnit ?? 'g')
+      .toString()
+      .trim()
+      .toLowerCase();
+    if (weightUnit === 'kg') {
+      out.push({ name: 'weight_kg', value: String(weight).slice(0, 50) });
+    } else {
+      out.push({ name: 'weight_g', value: String(weight).slice(0, 50) });
+    }
+  }
+  const shoeEu =
+    product?.channelSpecific?.shoeSizeEu ??
+    product?.shoeSizeEu ??
+    (product?.shoe_size_eu != null ? String(product.shoe_size_eu).trim() : null);
+  if (shoeEu != null && String(shoeEu).trim()) {
+    out.push({ name: 'shoe_size_eu', value: String(shoeEu).trim().slice(0, 50) });
+  }
+  return out;
+}
+
+function mergeProperties(numericalProps, existingProps) {
+  const names = new Set(existingProps.map((p) => p?.name).filter(Boolean));
+  const merged = [...existingProps];
+  for (const p of numericalProps) {
+    if (p?.name && !names.has(p.name)) {
+      merged.push(p);
+      names.add(p.name);
+    }
+  }
+  return merged;
+}
+
 function parseOverrideCategories(value) {
   if (value == null) return [];
   const raw = String(value).trim();
@@ -233,8 +283,9 @@ function mapProductToFyndiqArticle(
     payload.kn_number = String(product.knNumber).trim().slice(0, 48);
   if (product?.sku != null && String(product.sku).trim())
     payload.internal_note = String(product.sku).trim();
+  const numericalProps = buildNumericalProperties(product);
   if (fyndiq.properties && Array.isArray(fyndiq.properties) && fyndiq.properties.length) {
-    payload.properties = fyndiq.properties;
+    payload.properties = mergeProperties(numericalProps, fyndiq.properties);
   } else if (
     product?.parentProductId != null &&
     String(product.parentProductId).trim() &&
@@ -254,7 +305,9 @@ function mapProductToFyndiqArticle(
       const v = (product.model || '').trim();
       if (v) props.push({ name: 'model', value: v.slice(0, 100), language: lang });
     }
-    if (props.length > 0) payload.properties = props;
+    if (props.length > 0) payload.properties = mergeProperties(numericalProps, props);
+  } else if (numericalProps.length > 0) {
+    payload.properties = numericalProps;
   }
   if (fyndiq.variational_properties && Array.isArray(fyndiq.variational_properties)) {
     payload.variational_properties = fyndiq.variational_properties;

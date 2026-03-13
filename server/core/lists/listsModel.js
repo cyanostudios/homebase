@@ -33,7 +33,7 @@ async function getLists(req, namespace) {
        FROM ${TABLE}
        WHERE user_id = $1 AND namespace = $2
        ORDER BY name ASC`,
-      [userId, ns]
+      [userId, ns],
     );
     return (rows || []).map((r) => ({
       id: String(r.id),
@@ -63,7 +63,8 @@ async function createList(req, namespace, name) {
     const ns = String(namespace || '').trim();
     const listName = String(name ?? '').trim();
     if (!ns) throw new AppError('Namespace is required', 400, AppError.CODES.VALIDATION_ERROR);
-    if (!listName) throw new AppError('List name is required', 400, AppError.CODES.VALIDATION_ERROR);
+    if (!listName)
+      throw new AppError('List name is required', 400, AppError.CODES.VALIDATION_ERROR);
 
     // Do not pass user_id: PostgreSQLAdapter.insert() appends it from context
     const result = await db.insert(TABLE, {
@@ -98,15 +99,21 @@ async function renameList(req, namespace, listId, name) {
     const ns = String(namespace || '').trim();
     const id = String(listId || '').trim();
     const listName = String(name ?? '').trim();
-    if (!ns || !id) throw new AppError('Namespace and list id are required', 400, AppError.CODES.VALIDATION_ERROR);
-    if (!listName) throw new AppError('List name is required', 400, AppError.CODES.VALIDATION_ERROR);
+    if (!ns || !id)
+      throw new AppError(
+        'Namespace and list id are required',
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
+    if (!listName)
+      throw new AppError('List name is required', 400, AppError.CODES.VALIDATION_ERROR);
 
     const result = await db.query(
       `UPDATE ${TABLE}
        SET name = $1, updated_at = CURRENT_TIMESTAMP
        WHERE id = $2 AND user_id = $3 AND namespace = $4
        RETURNING id, name, namespace, created_at, updated_at`,
-      [listName, id, userId, ns]
+      [listName, id, userId, ns],
     );
     if (!result || result.length === 0) {
       throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
@@ -135,13 +142,18 @@ async function deleteList(req, namespace, listId) {
     const userId = getUserId(req);
     const ns = String(namespace || '').trim();
     const id = String(listId || '').trim();
-    if (!ns || !id) throw new AppError('Namespace and list id are required', 400, AppError.CODES.VALIDATION_ERROR);
+    if (!ns || !id)
+      throw new AppError(
+        'Namespace and list id are required',
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
 
     const result = await db.query(
       `DELETE FROM ${TABLE}
        WHERE id = $1 AND user_id = $2 AND namespace = $3
        RETURNING id`,
-      [id, userId, ns]
+      [id, userId, ns],
     );
     if (!result || result.length === 0) {
       throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
@@ -171,6 +183,8 @@ async function findOrCreateListForSelloFolder(req, namespace, folderId, folderNa
   const fname = String(folderName ?? '').trim();
   if (!ns) return null;
   if (!fid && !fname) return null;
+  // Sello folder 0 = huvudmapp → Homebase Huvudlista (list_id = null)
+  if (fid === '0') return null;
 
   if (fid) {
     const byId = await db.query(
@@ -222,7 +236,7 @@ async function getListById(req, namespace, listId) {
        FROM ${TABLE}
        WHERE id = $1 AND user_id = $2 AND namespace = $3
        LIMIT 1`,
-      [id, userId, ns]
+      [id, userId, ns],
     );
     if (!rows || rows.length === 0) return null;
     const r = rows[0];
@@ -255,7 +269,7 @@ async function getFileListItems(req, listId) {
     const rows = await db.query(
       `SELECT file_id FROM ${FILE_LIST_ITEMS_TABLE}
        WHERE list_id = $1 AND user_id = $2 ORDER BY created_at ASC`,
-      [listId, userId]
+      [listId, userId],
     );
     return (rows || []).map((r) => String(r.file_id));
   } catch (error) {
@@ -277,7 +291,7 @@ async function getContactListItems(req, listId) {
     const rows = await db.query(
       `SELECT contact_id FROM ${CONTACT_LIST_ITEMS_TABLE}
        WHERE list_id = $1 AND user_id = $2 ORDER BY created_at ASC`,
-      [listId, userId]
+      [listId, userId],
     );
     return (rows || []).map((r) => String(r.contact_id));
   } catch (error) {
@@ -294,7 +308,8 @@ async function addContactsToList(req, namespace, listId, contactIds) {
   try {
     const list = await getListById(req, namespace, listId);
     if (!list) throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
-    if (namespace !== 'contacts') throw new AppError('Namespace must be contacts', 400, AppError.CODES.VALIDATION_ERROR);
+    if (namespace !== 'contacts')
+      throw new AppError('Namespace must be contacts', 400, AppError.CODES.VALIDATION_ERROR);
 
     const db = Database.get(req);
     const userId = getUserId(req);
@@ -329,7 +344,8 @@ async function removeContactFromList(req, namespace, listId, contactId) {
   try {
     const list = await getListById(req, namespace, listId);
     if (!list) throw new AppError('List not found', 404, AppError.CODES.NOT_FOUND);
-    if (namespace !== 'contacts') throw new AppError('Namespace must be contacts', 400, AppError.CODES.VALIDATION_ERROR);
+    if (namespace !== 'contacts')
+      throw new AppError('Namespace must be contacts', 400, AppError.CODES.VALIDATION_ERROR);
 
     const db = Database.get(req);
     const userId = getUserId(req);
@@ -337,7 +353,7 @@ async function removeContactFromList(req, namespace, listId, contactId) {
       `DELETE FROM ${CONTACT_LIST_ITEMS_TABLE}
        WHERE list_id = $1 AND contact_id = $2 AND user_id = $3
        RETURNING contact_id`,
-      [listId, contactId, userId]
+      [listId, contactId, userId],
     );
     return { removed: result && result.length > 0 };
   } catch (error) {
