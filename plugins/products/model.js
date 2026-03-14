@@ -150,6 +150,9 @@ class ProductModel {
           p.width_cm,
           p.height_cm,
           p.depth_cm,
+          p.source_created_at,
+          p.quantity_sold,
+          p.last_sold_at,
           p.created_at,
           p.updated_at,
           b.name AS brand_name,
@@ -565,7 +568,7 @@ class ProductModel {
       const d = this.normalizeInput(productData);
 
       const sql = `
-        UPDATE ${ProductModel.TABLE}
+        UPDATE ${ProductModel.TABLE} AS p
         SET
           sku            = $1,
           mpn            = $2,
@@ -608,12 +611,12 @@ class ProductModel {
           width_cm       = $39,
           height_cm      = $40,
           depth_cm       = $41,
-          source_created_at = $42,
-          quantity_sold     = $43,
-          last_sold_at      = $44,
+          source_created_at = COALESCE($42, p.source_created_at),
+          quantity_sold     = COALESCE($43, p.quantity_sold),
+          last_sold_at      = COALESCE($44, p.last_sold_at),
           updated_at     = CURRENT_TIMESTAMP
-        WHERE user_id = $45
-          AND id::text = $46
+        WHERE p.user_id = $45
+          AND p.id::text = $46
         RETURNING
           id,
           user_id,

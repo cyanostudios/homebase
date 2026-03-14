@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 import { ordersApi } from '../api/ordersApi';
+import { validateTrackingRequirement } from '../utils/validateTrackingRequirement';
 import { getCarriersForChannel } from '../constants/carriers';
 import type { OrderDetails, OrderItem, OrderStatus } from '../types/orders';
 import { statusDisplayLabel } from '../utils/statusDisplay';
@@ -129,16 +130,35 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
   const [status, setStatus] = useState<OrderStatus>(order.status as OrderStatus);
   const [carrier, setCarrier] = useState(order.shippingCarrier ?? '');
   const [tracking, setTracking] = useState(order.shippingTrackingNumber ?? '');
-  const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveErrorTrackingValidation, setSaveErrorTrackingValidation] = useState(false);
 
-  const handleSave = async (forceUpdate = false) => {
-    setSaving(true);
+  const handleSave = (forceUpdate = false) => {
     setSaveError(null);
     setSaveErrorTrackingValidation(false);
-    try {
-      const updated = await ordersApi.updateStatus(
+
+    const trackingErr = validateTrackingRequirement(order, status, tracking.trim() || undefined);
+    if (trackingErr && !forceUpdate) {
+      setSaveError(trackingErr.message);
+      setSaveErrorTrackingValidation(true);
+      return;
+    }
+
+    const next: OrderDetails = {
+      ...order,
+      status,
+      shippingCarrier: carrier.trim() || undefined,
+      shippingTrackingNumber: tracking.trim() || undefined,
+      items: order.items,
+      customer: order.customer,
+      shippingAddress: order.shippingAddress,
+      billingAddress: order.billingAddress,
+    };
+    onUpdated?.(next);
+    setEditing(false);
+
+    ordersApi
+      .updateStatus(
         order.id,
         {
           status,
@@ -146,25 +166,10 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
           trackingNumber: tracking.trim() || undefined,
         },
         forceUpdate ? { forceUpdate: true } : undefined,
-      );
-      const next: OrderDetails = {
-        ...order,
-        ...updated,
-        items: order.items,
-        customer: order.customer,
-        shippingAddress: order.shippingAddress,
-        billingAddress: order.billingAddress,
-      };
-      onUpdated?.(next);
-      setEditing(false);
-    } catch (e: any) {
-      const message = e?.message || e?.toString?.() || 'Kunde inte uppdatera order.';
-      setSaveError(message);
-      setSaveErrorTrackingValidation(e?.errors?.[0]?.field === 'trackingNumber');
-      console.error('Update order status failed', e);
-    } finally {
-      setSaving(false);
-    }
+      )
+      .catch((e: any) => {
+        console.error('Update order status failed (background):', e);
+      });
   };
 
   const lines = customerLines(order.customer as Record<string, unknown>);
@@ -218,9 +223,8 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
                 {saveErrorTrackingValidation && (
                   <button
                     type="button"
-                    onClick={() => void handleSave(true)}
-                    disabled={saving}
-                    className="px-3 py-2 rounded-md border border-red-300 bg-white text-red-800 hover:bg-red-100 text-sm disabled:opacity-50"
+                    onClick={() => handleSave(true)}
+                    className="px-3 py-2 rounded-md border border-red-300 bg-white text-red-800 hover:bg-red-100 text-sm"
                   >
                     Uppdatera ändå
                   </button>
@@ -229,11 +233,10 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
             )}
             <button
               type="button"
-              onClick={() => void handleSave()}
-              disabled={saving}
-              className="px-3 py-2 rounded-md bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 text-sm"
+              onClick={() => handleSave()}
+              className="px-3 py-2 rounded-md bg-gray-900 text-white hover:bg-gray-800 text-sm"
             >
-              {saving ? 'Saving…' : 'Save'}
+              Save
             </button>
             <button
               type="button"

@@ -1,0 +1,30 @@
+---
+description: No fallbacks or guessing anywhere; CDON/Fyndiq are strict – ask the user when unsure
+alwaysApply: true
+---
+
+# No Fallbacks (and No "Fix Later")
+
+## Regel
+
+1. **Do NOT** add fallback logic (e.g. "if field A missing use B", "try ID X then Y") unless clearly best practice per spec/API.
+2. **Do NOT** add code "for the transition" or "we can clean this up later". We are in dev; such code is never removed.
+3. **Do** implement one clear path. If missing/invalid → fail or return null; do not guess.
+4. **Ask the user** when unsure what should happen.
+
+## Varför
+
+Fallbacks och temporär kompatibilitetskod hopar sig och tas aldrig bort. I dev fixar vi data/schema istället.
+
+---
+
+# CDON & Fyndiq: Extra strikt
+
+När logik gäller **CDON** eller **Fyndiq** (orders, products, fulfill, cancel, carriers, IDs, payloads):
+
+1. **Do NOT** fallback (t.ex. "om ID A misslyckas, prova ID B").
+2. **Do NOT** gissa värden, fältnamn eller format. API:erna är strikta; fel ger tysta fel.
+3. **Do** använd endast exakta identifiers, carrier-strängar och payloads enligt dokumentation/support.
+4. **Ask the user** vid hinder – gissa aldrig.
+
+**Scope:** `plugins/cdon-products/**`, `plugins/fyndiq-products/**`, `plugins/orders/**` (CDON/Fyndiq), samt klient som skickar CDON/Fyndiq-data.

@@ -72,7 +72,7 @@ function formatCustomer(c: Record<string, unknown> | null | undefined) {
 }
 
 export const OrdersView: React.FC<{ order?: OrderDetails; item?: any }> = ({ order, item }) => {
-  const { currentOrder, openOrderForEdit } = useOrders();
+  const { currentOrder } = useOrders();
   const o: OrderDetails | OrderListItem | null = (order || item || currentOrder) as any;
 
   if (!o) {
@@ -92,15 +92,6 @@ export const OrdersView: React.FC<{ order?: OrderDetails; item?: any }> = ({ ord
             {fmtDate(o.placedAt)} · {fmtMoney(o.totalAmount, o.currency)}
           </div>
         </div>
-
-        {'items' in o ? (
-          <button
-            onClick={() => openOrderForEdit(o as OrderDetails)}
-            className="px-3 py-2 rounded-md border border-gray-300 bg-white hover:bg-gray-50"
-          >
-            Edit status
-          </button>
-        ) : null}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

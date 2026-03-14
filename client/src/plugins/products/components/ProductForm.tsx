@@ -617,6 +617,7 @@ interface ProductFormProps {
       }>;
       channelOverridesToSave?: Array<{
         channelInstanceId: number | string;
+        active?: boolean;
         category?: string | null;
         priceAmount?: number | null;
       }>;
@@ -700,6 +701,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const {
     validationErrors,
     clearValidationErrors,
+    validateProductForm,
     batchProductIds,
     batchUpdateProducts,
     closeProductPanel,
@@ -707,12 +709,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     getChannelDataCache,
     setChannelDataCache,
     getChannelCategories,
+    setProductFormSaving,
   } = useProducts();
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
     useGlobalNavigationGuard();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isCurrentlySubmitting = externalIsSubmitting || isSubmitting;
   const currentProduct = currentItem;
   const isBatchMode = batchProductIds.length > 0;
 
@@ -826,22 +830,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   } | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [lists, setLists] = useState<Array<{ id: string; name: string }>>([]);
-  // Kanaler tab: instances + targets + overrides
+  // Kanaler tab: instances + targets + overrides (enabled only, for display)
   const [channelInstances, setChannelInstances] = useState<ChannelInstance[]>([]);
+  /** All instances including disabled – used only for validation lookups (targets can reference disabled instances). */
+  const [channelInstancesAll, setChannelInstancesAll] = useState<ChannelInstance[]>([]);
   const [channelOverrides, setChannelOverrides] = useState<any[]>([]);
   /** Per-butik (per instance) price overrides for Priser tab. Key = instance id. */
   const [channelPriceOverrides, setChannelPriceOverrides] = useState<
     Record<string, { priceAmount: string; salePrice: string }>
   >({});
-  /** Marknadspriser SE/DK/FI/NO: amount + source (auto = beräknat från baspris, manual = användarinskrivet). */
-  const [marketPrices, setMarketPrices] = useState<
-    Record<MarketKey, { amount: number | ''; source: 'auto' | 'manual' }>
-  >({
-    se: { amount: '', source: 'auto' },
-    dk: { amount: '', source: 'auto' },
-    fi: { amount: '', source: 'auto' },
-    no: { amount: '', source: 'auto' },
-  });
   const [lastFxObservedAt, setLastFxObservedAt] = useState<string | null>(null);
   const [fxUpdating, setFxUpdating] = useState(false);
   const [channelTargetsLoading, setChannelTargetsLoading] = useState(false);
@@ -909,22 +906,37 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         };
       }
       setChannelPriceOverrides(priceInit);
-      setCurrentTargetKeys(new Set(cached.targetKeys));
-      setSelectedTargetKeys(new Set(cached.targetKeys));
+      const cachedEnabledKeySet = new Set(
+        cached.instances.map((i: any) =>
+          targetKey(String(i.channel).toLowerCase(), String(i.id)),
+        ),
+      );
+      const filteredTargetKeys = (cached.targetKeys as string[]).filter((k) => {
+        const colonIdx = k.indexOf(':');
+        const ch = colonIdx >= 0 ? k.slice(0, colonIdx).toLowerCase() : k.toLowerCase();
+        const id = colonIdx >= 0 ? k.slice(colonIdx + 1) : '';
+        return cachedEnabledKeySet.has(targetKey(ch, id || null));
+      });
+      setCurrentTargetKeys(new Set(filteredTargetKeys));
+      setSelectedTargetKeys(new Set(filteredTargetKeys));
       setChannelInstances(cached.instances);
+      setChannelInstancesAll(cached.instances);
 
       // Stale-while-revalidate: fetch fresh instances in background so labels stay up-to-date (e.g. after editing in Channels)
       let revalidateCancelled = false;
-      channelsApi
-        .getInstances()
-        .then((resp) => {
-          if (revalidateCancelled) {
-            return;
-          }
-          const insts = resp?.items ?? [];
-          setChannelInstances(insts);
-          setChannelDataCache(productKey, { ...cached, instances: insts });
-        })
+      Promise.all([
+        channelsApi.getInstances(),
+        channelsApi.getInstances({ includeDisabled: true }),
+      ]).then(([resp, respAll]) => {
+        if (revalidateCancelled) {
+          return;
+        }
+        const insts = resp?.items ?? [];
+        const instsAll = respAll?.items ?? [];
+        setChannelInstances(insts);
+        setChannelInstancesAll(instsAll);
+        setChannelDataCache(productKey, { ...cached, instances: insts });
+      })
         .catch(() => {
           // Keep cached data on error
         });
@@ -937,12 +949,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     setChannelTargetsLoading(true);
     (async () => {
       try {
-        const instResp = await channelsApi.getInstances();
+        const [instResp, instAllResp] = await Promise.all([
+          channelsApi.getInstances(),
+          channelsApi.getInstances({ includeDisabled: true }),
+        ]);
         if (cancelled) {
           return;
         }
         const insts = instResp?.items ?? [];
+        const instsAll = instAllResp?.items ?? [];
         setChannelInstances(insts);
+        setChannelInstancesAll(instsAll);
 
         if (!currentProduct?.id) {
           setChannelOverrides([]);
@@ -962,9 +979,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         const targets = targetsResp?.targets ?? [];
         const ovs = ovResp?.items ?? [];
         setChannelOverrides(ovs);
+        const enabledKeySet = new Set(
+          insts.map((i) => targetKey(String(i.channel).toLowerCase(), String(i.id))),
+        );
         const keys = new Set<string>();
         for (const t of targets) {
-          keys.add(targetKey(t.channel, t.channelInstanceId ?? null));
+          const k = targetKey(
+            String(t.channel).toLowerCase(),
+            t.channelInstanceId != null ? String(t.channelInstanceId) : null,
+          );
+          if (enabledKeySet.has(k)) {
+            keys.add(k);
+          }
         }
         const keyList = Array.from(keys);
         setCurrentTargetKeys(keys);
@@ -977,6 +1003,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       } catch (err) {
         if (!cancelled) {
           setChannelInstances([]);
+          setChannelInstancesAll([]);
           setChannelOverrides([]);
           setCurrentTargetKeys(new Set());
           if (currentProduct?.id) {
@@ -994,6 +1021,83 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       cancelled = true;
     };
   }, [currentProduct?.id, isBatchMode, getChannelDataCache, setChannelDataCache]);
+
+  // Run validation for footer (price warning etc.) when form state changes.
+  // Skip during submit so the footer doesn't flicker between Ignore and Save.
+  useEffect(() => {
+    if (isCurrentlySubmitting || isBatchMode || channelInstances.length === 0) {
+      if (!isCurrentlySubmitting && (isBatchMode || channelInstances.length === 0)) {
+        clearValidationErrors();
+      }
+      return;
+    }
+    const channelTargets = Array.from(selectedTargetKeys).map((k) => {
+      const colonIdx = k.indexOf(':');
+      const ch = colonIdx >= 0 ? k.slice(0, colonIdx) : k;
+      const instId = colonIdx >= 0 ? k.slice(colonIdx + 1) : '';
+      return {
+        channel: ch,
+        channelInstanceId: instId && Number.isFinite(Number(instId)) ? Number(instId) : null,
+      };
+    });
+    const instsForMarketLookup = channelInstancesAll.length > 0 ? channelInstancesAll : channelInstances;
+    const channelTargetsWithMarket = Array.from(selectedTargetKeys)
+      .map((k) => {
+        const colonIdx = k.indexOf(':');
+        const ch = colonIdx >= 0 ? k.slice(0, colonIdx) : k;
+        const instIdStr = colonIdx >= 0 ? k.slice(colonIdx + 1) : '';
+        const inst = instsForMarketLookup.find(
+          (i) =>
+            String(i.channel).toLowerCase() === ch.toLowerCase() &&
+            String(i.id) === instIdStr,
+        );
+        const marketRaw = inst?.market?.trim();
+        if (!marketRaw) return null;
+        const market = marketRaw.toLowerCase().slice(0, 2);
+        if (!['se', 'dk', 'fi', 'no'].includes(market)) return null;
+        return {
+          channel: ch,
+          channelInstanceId:
+            instIdStr && Number.isFinite(Number(instIdStr)) ? Number(instIdStr) : null,
+          market,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null);
+    const channelOverridesToSave = channelInstances
+      .filter((i) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()))
+      .map((inst) => {
+        const ch = String(inst.channel).toLowerCase();
+        const key = `${ch}:${inst.id}`;
+        const active = selectedTargetKeys.has(key);
+        const po = channelPriceOverrides[String(inst.id)];
+        const priceStr = (po?.priceAmount ?? '').trim().replace(',', '.');
+        const priceAmount =
+          priceStr !== '' && Number.isFinite(Number(priceStr)) && Number(priceStr) >= 0
+            ? Number(priceStr)
+            : null;
+        return {
+          channelInstanceId: inst.id,
+          active,
+          priceAmount,
+        };
+      })
+      .filter((o) => o.channelInstanceId);
+    validateProductForm(formData, {
+      channelTargets,
+      channelTargetsWithMarket,
+      channelOverridesToSave,
+    });
+  }, [
+    isBatchMode,
+    isCurrentlySubmitting,
+    formData,
+    selectedTargetKeys,
+    channelInstances,
+    channelInstancesAll,
+    channelPriceOverrides,
+    validateProductForm,
+    clearValidationErrors,
+  ]);
 
   // Parse WooCommerce category from override (single id or JSON array)
   const parseWooCategory = (cat: string | null): string[] => {
@@ -1041,8 +1145,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         ...prev,
         channelCategories: {
           ...prev.channelCategories,
-          cdon: prev.channelCategories?.cdon ?? '',
-          fyndiq: prev.channelCategories?.fyndiq ?? '',
           woocommerce: nextWoo,
         },
       };
@@ -1243,43 +1345,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       };
       const cdonCategoryForForm = pickCdonCategoryFromChannelSpecific();
       const fyndiqCategoryForForm = pickFyndiqCategoryFromChannelSpecific();
-      const pricing = (cs as any)?.pricing;
       const baseAmount = Number.isFinite(currentProduct.priceAmount)
         ? Number(currentProduct.priceAmount)
         : 0;
       const baseCur = currentProduct.currency ?? 'SEK';
-      const initMarketPrices: Record<
-        MarketKey,
-        { amount: number | ''; source: 'auto' | 'manual' }
-      > = {
-        se: { amount: '', source: 'auto' },
-        dk: { amount: '', source: 'auto' },
-        fi: { amount: '', source: 'auto' },
-        no: { amount: '', source: 'auto' },
-      };
-      if (pricing?.markets && typeof pricing.markets === 'object') {
-        for (const m of MARKETS) {
-          const pm = pricing.markets[m.key];
-          if (pm && typeof pm === 'object') {
-            const amt = pm.amount;
-            initMarketPrices[m.key] = {
-              amount: amt != null && Number.isFinite(Number(amt)) ? Number(amt) : '',
-              source: pm.source === 'manual' ? 'manual' : 'auto',
-            };
-          }
-        }
-      } else {
-        initMarketPrices.se = { amount: baseAmount || '', source: 'auto' };
-        for (const m of MARKETS) {
-          if (markets[m.key]?.price != null && Number.isFinite(markets[m.key].price)) {
-            initMarketPrices[m.key].amount = markets[m.key].price;
-          }
-        }
-      }
-      setMarketPrices(initMarketPrices);
-      setLastFxObservedAt(
-        typeof pricing?.lastFxObservedAt === 'string' ? pricing.lastFxObservedAt : null,
-      );
+      const fxAt = (cs as any)?.lastFxObservedAt;
+      setLastFxObservedAt(typeof fxAt === 'string' ? fxAt : null);
       setFormData({
         title: baseTitle,
         status: (currentProduct.status as FormData['status']) ?? 'for sale',
@@ -1394,12 +1465,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       markClean();
     } else {
       setFormData(initialState);
-      setMarketPrices({
-        se: { amount: '', source: 'auto' },
-        dk: { amount: '', source: 'auto' },
-        fi: { amount: '', source: 'auto' },
-        no: { amount: '', source: 'auto' },
-      });
       setLastFxObservedAt(null);
       setIsMpnAuto(true);
       markClean();
@@ -1637,7 +1702,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     }
   };
 
+  const submittingGuardRef = useRef(false);
   const handleSubmit = useCallback(async () => {
+    if (submittingGuardRef.current) return;
     clearValidationErrors();
 
     if (isBatchMode) {
@@ -1675,6 +1742,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       if (Object.keys(updates).length === 0) {
         return;
       }
+      submittingGuardRef.current = true;
       setIsSubmitting(true);
       try {
         await batchUpdateProducts(batchProductIds, updates);
@@ -1683,12 +1751,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       } catch (err) {
         console.error('Batch update failed', err);
       } finally {
+        submittingGuardRef.current = false;
         setIsSubmitting(false);
+        setProductFormSaving?.(false);
       }
       return;
     }
 
+    submittingGuardRef.current = true;
+    const ignorePriceWarning = ignorePriceWarningRef.current;
+    ignorePriceWarningRef.current = false;
+
     setIsSubmitting(true);
+    setProductFormSaving?.(true);
     try {
       const hadChanges = !!currentProduct && isDirty;
       // Build API-shaped channelSpecific: shipping_time, delivery_type, title[], description[]
@@ -1755,14 +1830,36 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         !Array.isArray(currentProduct.channelSpecific)
           ? (currentProduct.channelSpecific as Record<string, unknown>)
           : {};
+      const cdonCat = (formData.channelCategories?.cdon ?? '').trim() || null;
+      const fyndiqCat = (formData.channelCategories?.fyndiq ?? '').trim()
+        ? [String(formData.channelCategories!.fyndiq).trim()]
+        : [];
+      const cdonMarketsWithCategory = Object.fromEntries(
+        Object.entries(formData.markets).map(([k, m]) => [
+          k,
+          {
+            ...m,
+            ...(cdonCat && { category: cdonCat }),
+          },
+        ]),
+      );
+      const fyndiqMarketsWithCategories = Object.fromEntries(
+        Object.entries(formData.markets).map(([k, m]) => [
+          k,
+          {
+            ...m,
+            ...(fyndiqCat.length > 0 && { categories: fyndiqCat }),
+          },
+        ]),
+      );
       const channelSpecific: Record<string, unknown> = {
         ...existingCs,
         weightUnit: formData.weightUnit,
         shoeSizeEu: formData.shoeSizeEu?.trim() || null,
         cdon: {
-          markets: formData.markets,
+          markets: cdonMarketsWithCategory,
           texts: formData.texts,
-          category: (formData.channelCategories?.cdon ?? '').trim() || null,
+          category: cdonCat,
           shipping_time: shippingTime,
           shipped_from: formData.shippedFrom || 'EU',
           ...(cdonDeliveryType.length > 0 && { delivery_type: cdonDeliveryType }),
@@ -1781,11 +1878,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             }),
         },
         fyndiq: {
-          markets: formData.markets,
+          markets: fyndiqMarketsWithCategories,
           texts: formData.texts,
-          categories: (formData.channelCategories?.fyndiq ?? '').trim()
-            ? [String(formData.channelCategories.fyndiq).trim()]
-            : [],
+          categories: fyndiqCat,
           shipping_time: shippingTime,
           ...(fyndiqDeliveryType.length > 0 && { delivery_type: fyndiqDeliveryType }),
           ...(fyndiqTitle.length > 0 && { title: fyndiqTitle }),
@@ -1838,41 +1933,27 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         ...((channelSpecific as any).woocommerce || {}),
         backorders: formData.wooBackorders,
       };
-      const baseAmount =
-        typeof formData.priceAmount === 'number' && Number.isFinite(formData.priceAmount)
-          ? formData.priceAmount
-          : 0;
-      const baseCurrency = (formData.currency || 'SEK').trim().toUpperCase();
-      const pricing = {
-        base: { amount: baseAmount, currency: baseCurrency },
-        markets: {
-          se: {
-            amount: marketPrices.se.amount === '' ? undefined : Number(marketPrices.se.amount),
-            currency: 'SEK',
-            source: marketPrices.se.source,
-          },
-          dk: {
-            amount: marketPrices.dk.amount === '' ? undefined : Number(marketPrices.dk.amount),
-            currency: 'DKK',
-            source: marketPrices.dk.source,
-          },
-          fi: {
-            amount: marketPrices.fi.amount === '' ? undefined : Number(marketPrices.fi.amount),
-            currency: 'EUR',
-            source: marketPrices.fi.source,
-          },
-          no: {
-            amount: marketPrices.no.amount === '' ? undefined : Number(marketPrices.no.amount),
-            currency: 'NOK',
-            source: marketPrices.no.source,
-          },
-        },
-        ...(lastFxObservedAt && { lastFxObservedAt }),
-      };
-      (channelSpecific as any).pricing = pricing;
+      (channelSpecific as any).lastFxObservedAt =
+        lastFxObservedAt && typeof lastFxObservedAt === 'string' ? lastFxObservedAt : undefined;
       const payload = { ...formData, channelSpecific };
-      // Build desired channel targets from Kanaler tab selections
-      const channelTargets = Array.from(selectedTargetKeys).map((k) => {
+      // Fetch fresh instances (incl. disabled) at save – need full list for lookups
+      const instResp = await channelsApi.getInstances({ includeDisabled: true });
+      const saveInstances = instResp?.items ?? [];
+      const enabledInstances = saveInstances.filter((i) => i.enabled !== false);
+      const enabledKeys = new Set(
+        enabledInstances.map((i) => targetKey(String(i.channel).toLowerCase(), String(i.id))),
+      );
+      const normalizeKey = (k: string) => {
+        const colonIdx = k.indexOf(':');
+        const ch = colonIdx >= 0 ? k.slice(0, colonIdx).toLowerCase() : k.toLowerCase();
+        const id = colonIdx >= 0 ? k.slice(colonIdx + 1) : '';
+        return id ? targetKey(ch, id) : ch;
+      };
+      // Only include targets for ENABLED instances – don’t save/export to disabled channels (e.g. NO)
+      const effectiveSelectedKeys = Array.from(selectedTargetKeys)
+        .map(normalizeKey)
+        .filter((k) => enabledKeys.has(k));
+      const channelTargets = effectiveSelectedKeys.map((k) => {
         const colonIdx = k.indexOf(':');
         const ch = colonIdx >= 0 ? k.slice(0, colonIdx) : k;
         const instId = colonIdx >= 0 ? k.slice(colonIdx + 1) : '';
@@ -1882,13 +1963,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         };
       });
       // Endast kanaler med angiven marknad (ingen fallback – CDON/Fyndiq kräver rätt marknad)
-      const channelTargetsWithMarket = Array.from(selectedTargetKeys)
+      const channelTargetsWithMarket = effectiveSelectedKeys
         .map((k) => {
           const colonIdx = k.indexOf(':');
           const ch = colonIdx >= 0 ? k.slice(0, colonIdx) : k;
           const instIdStr = colonIdx >= 0 ? k.slice(colonIdx + 1) : '';
-          const inst = channelInstances.find(
-            (i) => String(i.channel) === ch && String(i.id) === instIdStr,
+          const inst = saveInstances.find(
+            (i) =>
+              String(i.channel).toLowerCase() === ch.toLowerCase() &&
+              String(i.id) === instIdStr,
           );
           const marketRaw = inst?.market?.trim();
           if (!marketRaw) {
@@ -1906,17 +1989,23 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           };
         })
         .filter((x): x is NonNullable<typeof x> => x != null);
-      // Use fresh instances from API at save time so Woo (and all instances) are included for override save
-      const instResp = await channelsApi.getInstances({ includeDisabled: true });
-      const saveInstances = instResp?.items ?? [];
       const channelOverridesToSave = saveInstances
         .filter((i) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()))
         .map((inst) => {
           const ch = String(inst.channel).toLowerCase();
+          const key = targetKey(ch, String(inst.id));
+          const active = effectiveSelectedKeys.includes(key);
+          const existingOv = channelOverrides.find(
+            (o: any) => String(o.instanceId) === String(inst.id),
+          );
           const rawCat =
             ch === 'woocommerce'
               ? formData.channelCategories?.woocommerce?.[inst.instanceKey]
-              : null;
+              : ch === 'cdon'
+                ? formData.channelCategories?.cdon
+                : ch === 'fyndiq'
+                  ? formData.channelCategories?.fyndiq
+                  : null;
           const cat =
             ch === 'woocommerce'
               ? Array.isArray(rawCat)
@@ -1926,7 +2015,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 : typeof rawCat === 'string' && rawCat?.trim()
                   ? rawCat.trim()
                   : null
-              : null;
+              : typeof rawCat === 'string' && rawCat?.trim()
+                ? rawCat.trim()
+                : existingOv?.category != null && String(existingOv.category).trim()
+                  ? String(existingOv.category).trim()
+                  : null;
           const po = channelPriceOverrides[String(inst.id)];
           const priceStr = (po?.priceAmount ?? '').trim().replace(',', '.');
           const priceAmount =
@@ -1942,6 +2035,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               : null;
           return {
             channelInstanceId: inst.id,
+            active,
             category: cat,
             priceAmount,
             salePrice: ch === 'woocommerce' ? saleOrOriginal : undefined,
@@ -1951,6 +2045,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         .filter((o) => o.channelInstanceId);
       const success = await onSave(payload, {
         hadChanges,
+        ignorePriceWarning,
         channelTargets,
         channelTargetsWithMarket,
         channelOverridesToSave,
@@ -1970,7 +2065,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         }
       }
     } finally {
+      submittingGuardRef.current = false;
       setIsSubmitting(false);
+      setProductFormSaving?.(false);
     }
   }, [
     formData,
@@ -1983,16 +2080,22 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     batchProductIds,
     batchUpdateProducts,
     closeProductPanel,
+    setProductFormSaving,
     selectedTargetKeys,
     channelInstances,
+    channelOverrides,
     channelPriceOverrides,
-    marketPrices,
     lastFxObservedAt,
   ]);
 
   // Listen for submit/cancel events from panel footer (cancelProductForm fires after user already confirmed in global nav guard, so close directly)
+  const ignorePriceWarningRef = React.useRef(false);
   useEffect(() => {
-    const onSubmit = () => handleSubmit();
+    const onSubmit = (e: Event) => {
+      ignorePriceWarningRef.current =
+        (e instanceof CustomEvent && e.detail?.ignorePriceWarning) === true;
+      handleSubmit();
+    };
     const onCancelEvent = () => onCancel();
     window.addEventListener('submitProductForm', onSubmit);
     window.addEventListener('cancelProductForm', onCancelEvent);
@@ -2896,25 +2999,41 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         return;
                       }
                       const round = (n: number, decimals: number) => {
-                        if (decimals === 0) {
-                          return Math.round(n);
-                        }
+                        if (decimals === 0) return Math.round(n);
                         const f = 10 ** decimals;
                         return Math.round(n * f) / f;
                       };
-                      setMarketPrices((prev) => {
+                      const amountsByMarket: Record<string, string> = {
+                        se: String(round(baseSEK, 0)),
+                        dk: String(round(baseSEK / dkk, 0)),
+                        fi: String(round(baseSEK / eur, 2)),
+                        no: String(round(baseSEK / nok, 0)),
+                      };
+                      const pricerInstances = channelInstances.filter(
+                        (i) =>
+                          ['cdon', 'fyndiq', 'woocommerce'].includes(
+                            String(i.channel).toLowerCase(),
+                          ) && hasValidMarket(i),
+                      );
+                      setChannelPriceOverrides((prev) => {
                         const next = { ...prev };
-                        if (prev.se.source === 'auto') {
-                          next.se = { amount: round(baseSEK, 0), source: 'auto' };
-                        }
-                        if (prev.dk.source === 'auto') {
-                          next.dk = { amount: round(baseSEK / dkk, 0), source: 'auto' };
-                        }
-                        if (prev.fi.source === 'auto') {
-                          next.fi = { amount: round(baseSEK / eur, 2), source: 'auto' };
-                        }
-                        if (prev.no.source === 'auto') {
-                          next.no = { amount: round(baseSEK / nok, 0), source: 'auto' };
+                        for (const inst of pricerInstances) {
+                          const id = String(inst.id);
+                          const ch = String(inst.channel).toLowerCase();
+                          let amount = '';
+                          if (ch === 'woocommerce') {
+                            amount = String(round(baseSEK, 0));
+                          } else {
+                            const rawMk = (inst.market ?? '').toLowerCase().slice(0, 2);
+                            const mk = rawMk === 'sv' ? 'se' : rawMk;
+                            amount = amountsByMarket[mk] ?? amountsByMarket.se ?? '';
+                          }
+                          if (amount) {
+                            next[id] = {
+                              ...(prev[id] ?? { priceAmount: '', salePrice: '' }),
+                              priceAmount: amount,
+                            };
+                          }
                         }
                         return next;
                       });
@@ -2984,11 +3103,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         ? 'se'
                         : ((['se', 'dk', 'fi', 'no'].includes(rawMk) ? rawMk : 'se') as MarketKey);
                     const m = MARKETS.find((x) => x.key === mk) ?? MARKETS[0];
-                    const mp = marketPrices[mk];
-                    const marketVal = mp.amount === '' ? '' : String(mp.amount);
                     const isFyndiq = String(inst.channel).toLowerCase() === 'fyndiq';
                     const isWoo = String(inst.channel).toLowerCase() === 'woocommerce';
-                    const pricePlaceholder = marketVal || '';
                     return (
                       <div
                         key={inst.id}
@@ -3006,6 +3122,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                             type="text"
                             className="w-[8ch] text-right"
                             value={po.priceAmount}
+                            placeholder=""
                             onChange={(e) => {
                               const v = e.target.value;
                               setChannelPriceOverrides((prev) => ({
@@ -3017,7 +3134,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                               }));
                               markDirty();
                             }}
-                            placeholder={pricePlaceholder}
                           />
                           <span className="text-xs text-gray-500 w-10">{m.currency}</span>
                         </div>

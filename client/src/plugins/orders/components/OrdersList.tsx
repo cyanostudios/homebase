@@ -22,6 +22,7 @@ import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceAp
 import { ordersApi } from '../api/ordersApi';
 import { BATCH_CARRIERS } from '../constants/carriers';
 import { useOrders } from '../hooks/useOrders';
+import { validateTrackingRequirement } from '../utils/validateTrackingRequirement';
 import type { OrderDetails, OrderListItem, OrderStatus } from '../types/orders';
 import { statusDisplayLabel } from '../utils/statusDisplay';
 
@@ -81,7 +82,7 @@ function normalizeDetails(raw: any): OrderDetails {
 }
 
 export const OrdersList: React.FC = () => {
-  const { orders, totalOrders, filters, setFilters, reloadOrders } = useOrders();
+  const { orders, totalOrders, filters, setFilters, reloadOrders, updateOrderInList, updateOrdersInList } = useOrders();
   const { openBookModal } = useShipping();
   const [search, setSearch] = useState('');
   const [importing, setImporting] = useState<{ channel: string | null }>({ channel: null });
@@ -99,7 +100,6 @@ export const OrdersList: React.FC = () => {
   const [detailCache, setDetailCache] = useState<Record<string, OrderDetails>>({});
   const [detailLoading, setDetailLoading] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [batchUpdating, setBatchUpdating] = useState(false);
   const [showBatchDialog, setShowBatchDialog] = useState(false);
   const [batchStatus, setBatchStatus] = useState<OrderStatus>('processing');
   const [batchCarrier, setBatchCarrier] = useState('');
@@ -107,7 +107,9 @@ export const OrdersList: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [exportingPlocklista, setExportingPlocklista] = useState(false);
   const [batchUpdateResult, setBatchUpdateResult] = useState<
-    { updated: number; requested: number } | { error: string; trackingValidation?: boolean } | null
+    | { updated: number; requested: number }
+    | { error: string; trackingValidation?: boolean }
+    | null
   >(null);
 
   // Quick-sync on open: trigger sync in background; if started, show spinner and poll until done, then refetch list
@@ -384,9 +386,9 @@ export const OrdersList: React.FC = () => {
         next.delete(String(updated.id));
         return next;
       });
-      void reloadOrders();
+      updateOrderInList(updated);
     },
-    [reloadOrders],
+    [updateOrderInList],
   );
 
   const handleDeleteAll = async () => {
@@ -450,39 +452,48 @@ export const OrdersList: React.FC = () => {
     }
   };
 
-  const handleBatchUpdate = async (forceUpdate = false) => {
+  const handleBatchUpdate = (forceUpdate = false) => {
     if (selectedIds.size === 0) {
       setBatchUpdateResult({ error: 'Välj minst en order.' });
       return;
     }
 
-    try {
-      setBatchUpdating(true);
-      setBatchUpdateResult(null);
-      const result = await ordersApi.batchUpdateStatus(
-        Array.from(selectedIds),
-        {
-          status: batchStatus,
-          carrier: batchCarrier.trim() || undefined,
-          trackingNumber: batchTracking.trim() || undefined,
-        },
-        forceUpdate ? { forceUpdate: true } : undefined,
-      );
-      setBatchUpdateResult({ updated: result.updated, requested: result.requested });
-      setSelectedIds(new Set());
-      setShowBatchDialog(false);
-      setBatchCarrier('');
-      setBatchTracking('');
-      void reloadOrders();
-    } catch (err: any) {
-      setBatchUpdateResult({
-        error: err?.message || err?.toString?.() || 'Kunde inte uppdatera order.',
-        trackingValidation: err?.errors?.[0]?.field === 'trackingNumber',
-      });
-      console.error('Batch update error:', err);
-    } finally {
-      setBatchUpdating(false);
+    const ids = Array.from(selectedIds);
+    const data = {
+      status: batchStatus,
+      carrier: batchCarrier.trim() || undefined,
+      trackingNumber: batchTracking.trim() || undefined,
+    };
+
+    if (!forceUpdate) {
+      for (const id of ids) {
+        const order = orders.find((o) => String(o.id) === id);
+        if (!order) continue;
+        const err = validateTrackingRequirement(order, data.status, data.trackingNumber);
+        if (err) {
+          setBatchUpdateResult({ error: err.message, trackingValidation: true });
+          return;
+        }
+      }
     }
+
+    setBatchUpdateResult(null);
+    setSelectedIds(new Set());
+    setShowBatchDialog(false);
+    setBatchCarrier('');
+    setBatchTracking('');
+
+    updateOrdersInList(ids, {
+      status: data.status,
+      shippingCarrier: data.carrier ?? undefined,
+      shippingTrackingNumber: data.trackingNumber ?? undefined,
+    });
+
+    ordersApi
+      .batchUpdateStatus(ids, data, forceUpdate ? { forceUpdate: true } : undefined)
+      .catch((err: any) => {
+        console.error('Batch update error (background):', err);
+      });
   };
 
   const handleExportPlocklista = async () => {
@@ -670,11 +681,9 @@ export const OrdersList: React.FC = () => {
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
           role="presentation"
           onClick={() => {
-            if (!batchUpdating) {
-              setShowBatchDialog(false);
-              setBatchCarrier('');
-              setBatchTracking('');
-            }
+            setShowBatchDialog(false);
+            setBatchCarrier('');
+            setBatchTracking('');
           }}
         >
           <Card className="max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
@@ -688,8 +697,7 @@ export const OrdersList: React.FC = () => {
                     variant="outline"
                     size="sm"
                     className="self-start border-red-300 text-red-800 hover:bg-red-100"
-                    onClick={() => void handleBatchUpdate(true)}
-                    disabled={batchUpdating}
+                    onClick={() => handleBatchUpdate(true)}
                   >
                     Uppdatera ändå
                   </Button>
@@ -734,12 +742,8 @@ export const OrdersList: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-2 mt-6">
-              <Button
-                onClick={() => void handleBatchUpdate()}
-                disabled={batchUpdating}
-                className="flex-1"
-              >
-                {batchUpdating ? 'Updating…' : 'Update'}
+              <Button onClick={() => handleBatchUpdate()} className="flex-1">
+                Update
               </Button>
               <Button
                 onClick={() => {
@@ -747,7 +751,6 @@ export const OrdersList: React.FC = () => {
                   setBatchCarrier('');
                   setBatchTracking('');
                 }}
-                disabled={batchUpdating}
                 variant="outline"
               >
                 Cancel

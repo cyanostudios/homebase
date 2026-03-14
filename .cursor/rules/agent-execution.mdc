@@ -1,0 +1,25 @@
+---
+description: Agent kör allt själv; Neon MCP för DB – inga instruktioner till användaren
+globs:
+alwaysApply: true
+---
+
+# Agent kör allt – be aldrig användaren köra något
+
+Agent MÅSTE själv utföra alla åtgärder. Be ALDRIG användaren köra scripts, kommandon, kompilera eller debugga.
+
+**Exempel:** Scripts, `npm run ...`, migrationer, build – alltid själv via run_terminal_cmd / Shell.
+
+**ALDRIG:** "Kör detta kommando...", "Du kan verifiera genom att köra...", "Lägg till console.log och kör..."
+
+Om uppgiften kräver att något körs → **kör det själv**. Innan du säger att något är klart: Har du lämnat instruktioner? Om ja → kör det nu.
+
+---
+
+# Neon MCP – DB-operationer
+
+- **Projekt:** Läs projectId från [.cursor/neon-homebase.md](.cursor/neon-homebase.md). Använd i alla Neon MCP-anrop (run_sql, describe_project, prepare_database_migration, etc.).
+- **Migrationer/SQL mot Neon:** Använd `run_sql` med projectId. Fråga inte användaren om projectId.
+- **Schema:** För tenant-scheman (t.ex. tenant_1) sätt `search_path` eller kör mot rätt schema.
+- **Efter ny migration:** Kör både lokalt (npm run migrate:all) och mot Neon om det är måldatabas.
+- **Regel:** Allt som körs i Neon ska finnas som migrationfil.

@@ -133,7 +133,6 @@ import { FyndiqSettingsForm } from '@/plugins/fyndiq-products/components/FyndiqS
 import { FyndiqProductsProvider } from '@/plugins/fyndiq-products/context/FyndiqProductsContext';
 import { useFyndiqProducts } from '@/plugins/fyndiq-products/hooks/useFyndiqProducts';
 // Orders
-import { OrdersForm } from '@/plugins/orders/components/OrdersForm';
 import { OrdersList } from '@/plugins/orders/components/OrdersList';
 import { OrdersView } from '@/plugins/orders/components/OrdersView';
 import { OrdersProvider } from '@/plugins/orders/context/OrdersContext';
@@ -389,7 +388,6 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     panelKey: 'isOrdersPanelOpen',
     components: {
       List: OrdersList,
-      Form: OrdersForm,
       View: OrdersView,
     },
     navigation: {

@@ -14,6 +14,7 @@ import { createPanelHandlers } from '@/core/handlers/panelHandlers';
 import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { createPanelRenderers } from '@/core/rendering/panelRendering';
+import { ErrorLogProvider } from '@/core/errorLog/ErrorLogContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Dashboard } from '@/core/ui/Dashboard';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
@@ -623,7 +624,9 @@ function App() {
     <AppProvider>
       <GlobalNavigationGuardProvider>
         <PluginProviders>
-          <AppContent />
+          <ErrorLogProvider>
+            <AppContent />
+          </ErrorLogProvider>
         </PluginProviders>
       </GlobalNavigationGuardProvider>
     </AppProvider>

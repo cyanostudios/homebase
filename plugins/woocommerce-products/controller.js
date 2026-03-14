@@ -1199,6 +1199,7 @@ class WooCommerceController {
           url.searchParams.set('per_page', String(perPage));
           url.searchParams.set('orderby', 'date');
           url.searchParams.set('order', 'desc');
+          url.searchParams.set('status', 'processing,pending,on-hold');
           if (after) url.searchParams.set('after', after);
 
           const settings = {

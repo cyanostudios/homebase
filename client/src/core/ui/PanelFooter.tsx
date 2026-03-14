@@ -16,6 +16,7 @@ interface PanelFooterProps {
   onSaveClick: () => void;
   onCancelClick: () => void;
   isSubmitting?: boolean;
+  showEditButton?: boolean;
 }
 
 const EXPORT_FORMAT_LABELS: Record<string, string> = {
@@ -39,10 +40,23 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   onSaveClick,
   onCancelClick,
   isSubmitting = false,
+  showEditButton = true,
 }) => {
   const hasBlockingErrors = validationErrors.some(
     (e: any) => !String(e?.message || '').includes('Warning'),
   );
+  const hasPriceWarning =
+    currentPlugin?.name === 'products' &&
+    validationErrors.some(
+      (e: any) =>
+        e?.field === 'priceAmount' && /effektivt pris/i.test(String(e?.message || '')),
+    );
+  const priceWarningMessage = hasPriceWarning
+    ? validationErrors.find(
+        (e: any) =>
+          e?.field === 'priceAmount' && /effektivt pris/i.test(String(e?.message || '')),
+      )?.message
+    : null;
 
   const exportFormats = currentPluginContext?.exportFormats as string[] | undefined;
   const onExportItem = currentPluginContext?.onExportItem as
@@ -151,10 +165,12 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
             <X className="h-4 w-4" />
             Close
           </Button>
-          <Button type="button" onClick={onEditItem} variant="primary" size={BTN_XS}>
-            <Edit className="h-4 w-4" />
-            Edit
-          </Button>
+          {showEditButton && (
+            <Button type="button" onClick={onEditItem} variant="primary" size={BTN_XS}>
+              <Edit className="h-4 w-4" />
+              Edit
+            </Button>
+          )}
           {currentPlugin?.name === 'tasks' &&
             typeof (currentPluginContext as any)?.hasQuickEditChanges === 'boolean' &&
             (currentPluginContext as any).hasQuickEditChanges && (
@@ -188,30 +204,58 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
     );
   }
 
-  // create / edit mode
+  const onIgnorePriceWarning =
+    hasPriceWarning && typeof (window as any).submitProductsFormIgnorePriceWarning === 'function'
+      ? () => (window as any).submitProductsFormIgnorePriceWarning()
+      : undefined;
+
+  const saveBlocked = hasBlockingErrors || isSubmitting;
+  const showIgnoreButton = hasPriceWarning && onIgnorePriceWarning;
+
   return (
-    <div className="flex justify-end space-x-2">
-      <Button
-        type="button"
-        onClick={onCancelClick}
-        variant="secondary"
-        size={BTN_XS}
-        disabled={isSubmitting}
-      >
-        <X className="h-4 w-4" />
-        Cancel
-      </Button>
-      <Button
-        type="button"
-        onClick={onSaveClick}
-        variant="primary"
-        size={BTN_XS}
-        disabled={hasBlockingErrors || isSubmitting}
-        className="bg-green-600 hover:bg-green-700 text-white border-none"
-      >
-        <Check className="h-4 w-4" />
-        {isSubmitting ? 'Saving...' : currentMode === 'edit' ? 'Update' : 'Save'}
-      </Button>
+    <div className="flex flex-col gap-2 w-full">
+      {hasPriceWarning && priceWarningMessage && (
+        <div className="text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 text-sm">
+          {priceWarningMessage}
+        </div>
+      )}
+      <div className="flex justify-end space-x-2">
+        <Button
+          type="button"
+          onClick={onCancelClick}
+          variant="secondary"
+          size={BTN_XS}
+          disabled={isSubmitting}
+        >
+          <X className="h-4 w-4" />
+          Cancel
+        </Button>
+        {showIgnoreButton ? (
+          <Button
+            type="button"
+            onClick={onIgnorePriceWarning}
+            variant="primary"
+            size={BTN_XS}
+            disabled={isSubmitting}
+            className="bg-amber-600 hover:bg-amber-700 text-white border-none"
+          >
+            <Check className="h-4 w-4" />
+            {isSubmitting ? 'Saving...' : 'Ignore and update anyway'}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            onClick={onSaveClick}
+            variant="primary"
+            size={BTN_XS}
+            disabled={saveBlocked}
+            className="bg-green-600 hover:bg-green-700 text-white border-none"
+          >
+            <Check className="h-4 w-4" />
+            {isSubmitting ? 'Saving...' : currentMode === 'edit' ? 'Update' : 'Save'}
+          </Button>
+        )}
+      </div>
     </div>
   );
 };
@@ -286,6 +330,10 @@ export const createPanelFooter = (
     }
   };
 
+  const showEditButton = !!(
+    pluginName && findOpenFunction(currentPluginContext, 'edit', pluginName)
+  );
+
   return (
     <PanelFooter
       currentMode={currentMode}
@@ -300,6 +348,7 @@ export const createPanelFooter = (
       onSaveClick={handleSave}
       onCancelClick={handleCancel}
       isSubmitting={handlers.isSubmitting ?? false}
+      showEditButton={showEditButton}
     />
   );
 };

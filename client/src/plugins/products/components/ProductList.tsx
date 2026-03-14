@@ -680,8 +680,8 @@ export const ProductList: React.FC = () => {
                 className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-600 text-red-700 hover:bg-red-50 text-sm"
                 onClick={() => {
                   setDeleteFromWooInstanceIds([]);
-                  setDeleteFromCdonMarkets(isCdonConfigured ? ['se'] : []);
-                  setDeleteFromFyndiqMarkets(isFyndiqConfigured ? ['se'] : []);
+                  setDeleteFromCdonMarkets([]);
+                  setDeleteFromFyndiqMarkets([]);
                   setAlsoDeleteFromPlatform(false);
                   setShowDeleteModal(true);
                 }}
@@ -1930,7 +1930,7 @@ export const ProductList: React.FC = () => {
                       checked={alsoDeleteFromPlatform}
                       onChange={(e) => setAlsoDeleteFromPlatform(e.target.checked)}
                     />
-                    <span>Also delete from platform</span>
+                    <span>Delete from platform</span>
                   </label>
                   <div className="text-xs text-gray-500 ml-6">
                     If checked, products will be permanently deleted from the platform database

@@ -11,14 +11,14 @@ import React, {
 import { useApp } from '@/core/api/AppContext';
 
 import { ordersApi, type OrdersListFilters } from '../api/ordersApi';
-import type { OrderDetails, OrderListItem, OrderStatus, ValidationError } from '../types/orders';
+import type { OrderDetails, OrderListItem } from '../types/orders';
 
 interface OrdersContextType {
-  // Panel state
+  // Panel state (orders panel is view-only)
   isOrdersPanelOpen: boolean;
   currentOrder: OrderDetails | null;
-  panelMode: 'create' | 'edit' | 'view';
-  validationErrors: ValidationError[];
+  panelMode: 'view';
+  validationErrors: { field: string; message: string }[];
 
   // Data
   orders: OrderListItem[];
@@ -28,17 +28,13 @@ interface OrdersContextType {
   // Actions
   setFilters: (filters: OrdersListFilters) => void;
   reloadOrders: () => Promise<void>;
+  /** Optimistic update: replace order(s) in list without refetch. For fire-and-forget. */
+  updateOrderInList: (updated: OrderListItem | OrderDetails) => void;
+  updateOrdersInList: (ids: string[], updates: Partial<OrderListItem>) => void;
   openOrderPanel: (order: OrderDetails | null) => void;
-  openOrderForEdit: (order: OrderDetails) => void;
   openOrderForView: (order: OrderListItem | OrderDetails) => Promise<void>;
   closeOrderPanel: () => void;
-  saveOrder: (data: {
-    status: OrderStatus;
-    carrier?: string;
-    trackingNumber?: string;
-  }) => Promise<boolean>;
   deleteOrder: (_id: string) => Promise<void>;
-  clearValidationErrors: () => void;
 }
 
 const OrdersContext = createContext<OrdersContextType | undefined>(undefined);
@@ -76,8 +72,6 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
 
   const [isOrdersPanelOpen, setIsOrdersPanelOpen] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<OrderDetails | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view'>('view');
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
 
   const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [totalOrders, setTotalOrders] = useState(0);
@@ -86,8 +80,6 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
     limit: 50,
     offset: 0,
   });
-
-  const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
 
   const reloadOrders = useCallback(async () => {
     try {
@@ -109,15 +101,12 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
       setTotalOrders(0);
       setCurrentOrder(null);
       setIsOrdersPanelOpen(false);
-      setValidationErrors([]);
     }
   }, [isAuthenticated, reloadOrders]);
 
   const closeOrderPanel = useCallback(() => {
     setIsOrdersPanelOpen(false);
     setCurrentOrder(null);
-    setPanelMode('view');
-    setValidationErrors([]);
   }, []);
 
   // Register panel-close with AppContext (empty deps is required by the system)
@@ -127,41 +116,50 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Global form actions
-  useEffect(() => {
-    (window as any).submitOrdersForm = () => {
-      window.dispatchEvent(new CustomEvent('submitOrderForm'));
-    };
-    (window as any).cancelOrdersForm = () => {
-      window.dispatchEvent(new CustomEvent('cancelOrderForm'));
-    };
-    return () => {
-      delete (window as any).submitOrdersForm;
-      delete (window as any).cancelOrdersForm;
-    };
-  }, []);
-
   const setFilters = useCallback((next: OrdersListFilters) => {
     setFiltersState(next);
   }, []);
 
+  const updateOrderInList = useCallback(
+    (updated: OrderListItem | OrderDetails) => {
+      const normalized = normalizeOrderListItem(updated);
+      const statusFilter = filters.status;
+      setOrders((prev) => {
+        if (statusFilter && normalized.status !== statusFilter) {
+          const removed = prev.some((o) => String(o.id) === String(updated.id));
+          if (removed) setTotalOrders((t) => Math.max(0, t - 1));
+          return prev.filter((o) => String(o.id) !== String(updated.id));
+        }
+        return prev.map((o) => (String(o.id) === String(updated.id) ? normalized : o));
+      });
+    },
+    [filters.status],
+  );
+
+  const updateOrdersInList = useCallback(
+    (ids: string[], updates: Partial<OrderListItem>) => {
+      const idSet = new Set(ids.map(String));
+      const statusFilter = filters.status;
+      setOrders((prev) => {
+        const next = prev.flatMap((o) => {
+          if (!idSet.has(String(o.id))) return [o];
+          const merged = { ...o, ...updates };
+          const newStatus = (merged.status ?? o.status) as string | undefined;
+          if (statusFilter && newStatus !== statusFilter) return [];
+          return [normalizeOrderListItem(merged)];
+        });
+        const removedCount = prev.length - next.length;
+        if (removedCount > 0) setTotalOrders((t) => Math.max(0, t - removedCount));
+        return next;
+      });
+    },
+    [filters.status],
+  );
+
   const openOrderPanel = useCallback(
     (order: OrderDetails | null) => {
       setCurrentOrder(order);
-      setPanelMode(order ? 'view' : 'view');
       setIsOrdersPanelOpen(true);
-      setValidationErrors([]);
-      onCloseOtherPanels();
-    },
-    [onCloseOtherPanels],
-  );
-
-  const openOrderForEdit = useCallback(
-    (order: OrderDetails) => {
-      setCurrentOrder(order);
-      setPanelMode('edit');
-      setIsOrdersPanelOpen(true);
-      setValidationErrors([]);
       onCloseOtherPanels();
     },
     [onCloseOtherPanels],
@@ -177,94 +175,48 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
         // fallback: show whatever we have
         setCurrentOrder(order as any);
       }
-      setPanelMode('view');
       setIsOrdersPanelOpen(true);
-      setValidationErrors([]);
       onCloseOtherPanels();
     },
     [onCloseOtherPanels],
   );
 
-  const saveOrder = useCallback(
-    async (data: {
-      status: OrderStatus;
-      carrier?: string;
-      trackingNumber?: string;
-    }): Promise<boolean> => {
-      clearValidationErrors();
-
-      if (!currentOrder?.id) {
-        setValidationErrors([{ field: 'general', message: 'No order selected' }]);
-        return false;
-      }
-
-      try {
-        const updated = await ordersApi.updateStatus(currentOrder.id, data);
-        const updatedNormalized = normalizeOrderListItem(updated) as any;
-
-        setOrders((prev) => prev.map((o) => (o.id === currentOrder.id ? updatedNormalized : o)));
-        setCurrentOrder((prev) =>
-          prev
-            ? ({ ...(prev as any), ...updatedNormalized } as OrderDetails)
-            : (updatedNormalized as OrderDetails),
-        );
-        setPanelMode('view');
-        return true;
-      } catch (err: any) {
-        console.error('Failed to update order:', err);
-        if (err?.errors) {
-          setValidationErrors(err.errors);
-        } else {
-          setValidationErrors([
-            { field: 'general', message: err?.message || 'Failed to update order' },
-          ]);
-        }
-        return false;
-      }
-    },
-    [clearValidationErrors, currentOrder?.id],
-  );
-
   const deleteOrder = useCallback(async (_id: string) => {
-    setValidationErrors([{ field: 'general', message: 'Delete is not supported for orders' }]);
+    // Delete is not supported for orders
   }, []);
 
   const value: OrdersContextType = useMemo(
     () => ({
       isOrdersPanelOpen,
       currentOrder,
-      panelMode,
-      validationErrors,
+      panelMode: 'view' as const,
+      validationErrors: [],
       orders,
       totalOrders,
       filters,
       setFilters,
       reloadOrders,
+      updateOrderInList,
+      updateOrdersInList,
       openOrderPanel,
-      openOrderForEdit,
       openOrderForView,
       closeOrderPanel,
-      saveOrder,
       deleteOrder,
-      clearValidationErrors,
     }),
     [
       isOrdersPanelOpen,
       currentOrder,
-      panelMode,
-      validationErrors,
       orders,
       totalOrders,
       filters,
       setFilters,
       reloadOrders,
+      updateOrderInList,
+      updateOrdersInList,
       openOrderPanel,
-      openOrderForEdit,
       openOrderForView,
       closeOrderPanel,
-      saveOrder,
       deleteOrder,
-      clearValidationErrors,
     ],
   );
 

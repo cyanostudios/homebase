@@ -4,6 +4,33 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-14 – Orders optimistic update, API-fellogg, Orders view-only
+
+### Orders – optimistisk uppdatering
+
+- **client/…/OrdersContext.tsx, OrdersList.tsx, OrderDetailInline.tsx:** Status- och spårningsuppdateringar (enskilt eller batch) uppdaterar listan direkt utan att vänta på API-svar. Vid ändring till status som inte matchar aktiv filter (t.ex. processing → delivered) tas ordrarna bort ur listan direkt och `totalOrders` uppdateras.
+- Fire-and-forget: API-anrop körs i bakgrunden; popup stängs direkt.
+
+### API-fellogg (global)
+
+- **client/src/core/errorLog/:** Ny modul – `apiErrorStore` (localStorage), `installFetchWrapper` (loggar misslyckade /api/ anrop), `ErrorLogContext`, `ErrorLogButton`. Knapp med badge visas i ContentToolbar (högerställd) när det finns fel. Popup med expanderbara rader, Close och Clear and Close.
+- **App.tsx, ContentToolbar.tsx:** ErrorLogProvider och knappen integrerade.
+
+### Orders – view-only panel
+
+- **OrdersForm borttagen:** Orders-panelen är endast view. Edit-knappen dold; PanelFooter och OrdersView uppdaterade.
+
+---
+
+## 2026-03-14 – Docs: Sello-dokumentation konsoliderad
+
+### Dokumentation slagen ihop
+
+- **docs/SELLO_CHANNEL_FIELD_MAPPING.md:** Nu enda referensen för Sello-fältmappning. Innehållet från `SELLO_IMPORT_SEKTION5_VANLIGA_FALT.md` och `SELLO_PRODUCT_FIELDS_COMPLETE.md` har slagits in (sektion 6.3: import-status, aktiva kanaler, Sello properties API). HTML (style, div, table) i översiktstabellen (sektion 8) är ersatt med Markdown.
+- **Borttagna filer:** `docs/SELLO_IMPORT_SEKTION5_VANLIGA_FALT.md`, `docs/SELLO_PRODUCT_FIELDS_COMPLETE.md`.
+
+---
+
 ## 2026-03-13 – Sello Woo map-fix, lager-push fire-and-forget, quantity-popup
 
 ### Sello-import – channel_product_map för WooCommerce när item_id saknas
@@ -237,7 +264,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ### Dokumentation
 
-- `docs/SELLO_IMPORT_SEKTION5_VANLIGA_FALT.md`: manufacturer_name tillagd som Sello-källa för manufacturer_id.
+- `docs/SELLO_CHANNEL_FIELD_MAPPING.md`: manufacturer_name tillagd som Sello-källa för manufacturer_id (tidigare SELLO_IMPORT_SEKTION5).
 
 ---
 
@@ -288,7 +315,7 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ### Dokumentation
 
-- `docs/SELLO_PRODUCT_FIELDS_COMPLETE.md`, `docs/SELLO_IMPORT_SEKTION5_VANLIGA_FALT.md`.
+- `docs/SELLO_CHANNEL_FIELD_MAPPING.md` (innehållet från SELLO_PRODUCT_FIELDS_COMPLETE och SELLO_IMPORT_SEKTION5 är nu samlat här).
 - Migration `062-sello-sektion1-fields.sql`: `import_folder_id`, `import_brand_id` på lists/brands.
 
 ---

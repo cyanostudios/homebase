@@ -25,6 +25,8 @@ interface ProductContextType {
   currentProduct: Product | null;
   panelMode: 'create' | 'edit';
   validationErrors: ValidationError[];
+  isSaving: boolean;
+  setProductFormSaving: (saving: boolean) => void;
 
   // Data
   products: Product[];
@@ -50,10 +52,29 @@ interface ProductContextType {
   batchProductIds: string[];
 
   // CRUD actions
+  /** Run validation and update validationErrors (for footer display). Does not save. */
+  validateProductForm: (
+    data: any,
+    options?: {
+      channelTargets?: Array<{ channel: string; channelInstanceId: number | null }>;
+      channelTargetsWithMarket?: Array<{
+        channel: string;
+        channelInstanceId: number | null;
+        market: string;
+      }>;
+      channelOverridesToSave?: Array<{
+        channelInstanceId: number | string;
+        active?: boolean;
+        category?: string | null;
+        priceAmount?: number | null;
+      }>;
+    },
+  ) => void;
   saveProduct: (
     data: any,
     options?: {
       hadChanges?: boolean;
+      ignorePriceWarning?: boolean;
       channelTargets?: Array<{ channel: string; channelInstanceId: number | null }>;
       channelTargetsWithMarket?: Array<{
         channel: string;
@@ -134,6 +155,8 @@ export function ProductProvider({
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const [panelMode, setPanelMode] = useState<'create' | 'edit'>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const setProductFormSaving = useCallback((saving: boolean) => setIsSaving(saving), []);
   const [batchProductIds, setBatchProductIds] = useState<string[]>([]);
 
   // Data state
@@ -315,11 +338,15 @@ export function ProductProvider({
     (window as any).submitProductsForm = () => {
       window.dispatchEvent(new CustomEvent('submitProductForm'));
     };
+    (window as any).submitProductsFormIgnorePriceWarning = () => {
+      window.dispatchEvent(new CustomEvent('submitProductForm', { detail: { ignorePriceWarning: true } }));
+    };
     (window as any).cancelProductsForm = () => {
       window.dispatchEvent(new CustomEvent('cancelProductForm'));
     };
     return () => {
       delete (window as any).submitProductsForm;
+      delete (window as any).submitProductsFormIgnorePriceWarning;
       delete (window as any).cancelProductsForm;
     };
   }, []);
@@ -426,224 +453,266 @@ export function ProductProvider({
 
   const clearValidationErrors = () => setValidationErrors([]);
 
+  /** Build data + run validation. Used by validateProductForm and saveProduct. */
+  const buildDataAndValidate = useCallback(
+    (
+      raw: any,
+      options?: {
+        channelTargets?: Array<{ channel: string; channelInstanceId: number | null }>;
+        channelTargetsWithMarket?: Array<{
+          channel: string;
+          channelInstanceId: number | null;
+          market: string;
+        }>;
+        channelOverridesToSave?: Array<{
+          channelInstanceId: number | string;
+          active?: boolean;
+          category?: string | null;
+          priceAmount?: number | null;
+        }>;
+      },
+    ): { errors: ValidationError[]; data: Record<string, unknown> } => {
+      const data: Record<string, unknown> = {
+        title: (raw.title ?? '').trim(),
+        status: raw.status,
+        quantity: Number(raw.quantity ?? 0),
+        priceAmount: Number(raw.priceAmount ?? 0),
+        purchasePrice:
+          (raw.purchasePrice ?? null) !== null &&
+          raw.purchasePrice !== '' &&
+          Number.isFinite(Number(raw.purchasePrice))
+            ? Number(raw.purchasePrice)
+            : undefined,
+        currency: (raw.currency ?? 'SEK').toUpperCase(),
+        vatRate: Number(raw.vatRate ?? 25),
+        sku: (raw.sku ?? '').trim(),
+        mpn: (raw.mpn ?? '').trim() || (raw.sku ?? '').trim(),
+        description: raw.description ?? '',
+        mainImage: raw.mainImage ?? '',
+        images: Array.isArray(raw.images) ? raw.images : [],
+        categories: Array.isArray(raw.categories) ? raw.categories : [],
+        brand: (raw.brand ?? '').trim(),
+        privateName: (raw.privateName ?? '').trim() || undefined,
+        brandId: raw.brandId ? String(raw.brandId).trim() : undefined,
+        ean: (raw.ean ?? '').trim() || undefined,
+        gtin: (raw.gtin ?? '').trim() || undefined,
+        knNumber: (raw.knNumber ?? raw.kn_number ?? '').trim() || undefined,
+        supplierId: raw.supplierId ? String(raw.supplierId).trim() : undefined,
+        manufacturerId: raw.manufacturerId ? String(raw.manufacturerId).trim() : undefined,
+        lagerplats: (raw.lagerplats ?? '').trim() || undefined,
+        color: (raw.color ?? '').trim() || undefined,
+        colorText: (raw.colorText ?? '').trim() || undefined,
+        size: (raw.size ?? '').trim() || undefined,
+        sizeText: (raw.sizeText ?? '').trim() || undefined,
+        pattern: (raw.pattern ?? '').trim() || undefined,
+        material: (raw.material ?? '').trim() || undefined,
+        patternText: (raw.patternText ?? '').trim() || undefined,
+        model: (raw.model ?? '').trim() || undefined,
+        weight:
+          (raw.weight ?? null) !== null &&
+          raw.weight !== '' &&
+          Number.isFinite(Number(raw.weight))
+            ? Number(raw.weight)
+            : undefined,
+        lengthCm:
+          (raw.lengthCm ?? null) !== null &&
+          raw.lengthCm !== '' &&
+          Number.isFinite(Number(raw.lengthCm))
+            ? Number(raw.lengthCm)
+            : undefined,
+        widthCm:
+          (raw.widthCm ?? null) !== null &&
+          raw.widthCm !== '' &&
+          Number.isFinite(Number(raw.widthCm))
+            ? Number(raw.widthCm)
+            : undefined,
+        heightCm:
+          (raw.heightCm ?? null) !== null &&
+          raw.heightCm !== '' &&
+          Number.isFinite(Number(raw.heightCm))
+            ? Number(raw.heightCm)
+            : undefined,
+        depthCm:
+          (raw.depthCm ?? null) !== null &&
+          raw.depthCm !== '' &&
+          Number.isFinite(Number(raw.depthCm))
+            ? Number(raw.depthCm)
+            : undefined,
+        volume:
+          (raw.volume ?? null) !== null &&
+          raw.volume !== '' &&
+          Number.isFinite(Number(raw.volume))
+            ? Number(raw.volume)
+            : undefined,
+        volumeUnit: (raw.volumeUnit ?? '').trim() || undefined,
+        notes: (raw.notes ?? '').trim() || undefined,
+      };
+      if (
+        raw.channelSpecific !== undefined &&
+        raw.channelSpecific !== null &&
+        typeof raw.channelSpecific === 'object' &&
+        !Array.isArray(raw.channelSpecific)
+      ) {
+        data.channelSpecific = raw.channelSpecific;
+      }
+
+      const errors = validateProduct(data);
+      const channelTargets = options?.channelTargets ?? [];
+      const channelTargetsWithMarket = options?.channelTargetsWithMarket ?? [];
+      const channelOverridesToSave = options?.channelOverridesToSave ?? [];
+
+      for (const t of channelTargets.filter(
+        (x) =>
+          (x.channelInstanceId ?? null) !== null &&
+          ['cdon', 'fyndiq'].includes(String(x.channel).toLowerCase()),
+      )) {
+        const withMarket = channelTargetsWithMarket.find(
+          (m) => String(m.channelInstanceId) === String(t.channelInstanceId),
+        );
+        if (!withMarket?.market) {
+          errors.push({
+            field: 'kanaler',
+            message:
+              'En eller flera valda butiker saknar marknad. Gå till fliken Kanaler och ange vilken marknad (SE, DK, NO eller FI) varje CDON- och Fyndiq-butik gäller.',
+          });
+          break;
+        }
+      }
+
+      if (channelTargets.length > 0) {
+        const globalPrice = Number(data.priceAmount ?? 0);
+        const hasGlobalPrice = Number.isFinite(globalPrice) && globalPrice > 0;
+        for (const t of channelTargets) {
+          if ((t.channelInstanceId ?? null) === null) continue;
+          const ov = channelOverridesToSave.find(
+            (o) => String(o.channelInstanceId) === String(t.channelInstanceId),
+          );
+          const instancePriceOverride = ov?.priceAmount;
+          const hasInstancePriceOverride =
+            (instancePriceOverride ?? null) !== null &&
+            Number.isFinite(Number(instancePriceOverride)) &&
+            Number(instancePriceOverride) > 0;
+          const hasEffectivePrice = hasGlobalPrice || hasInstancePriceOverride;
+          if (!hasEffectivePrice) {
+            errors.push({
+              field: 'priceAmount',
+              message:
+                'Varning: Minst en aktiv kanal saknar effektivt pris. Ange baspris eller fyll i pris per butik under Priser.',
+            });
+            break;
+          }
+        }
+      }
+
+      const cdonFyndiqWithMarket = channelTargetsWithMarket.filter(
+        (m) => ['cdon', 'fyndiq'].includes(String(m.channel).toLowerCase()) && m.market,
+      );
+      const marketsMissingText = new Set<string>();
+      const MARKET_TO_LANG: Record<string, string> = {
+        se: 'sv-SE',
+        dk: 'da-DK',
+        fi: 'fi-FI',
+        no: 'nb-NO',
+      };
+      const MARKET_LABELS: Record<string, string> = {
+        se: 'Sverige',
+        dk: 'Danmark',
+        fi: 'Finland',
+        no: 'Norge',
+      };
+      for (const t of cdonFyndiqWithMarket) {
+        const market = String(t.market).toLowerCase().slice(0, 2);
+        if (!['se', 'dk', 'fi', 'no'].includes(market)) continue;
+        const lang = MARKET_TO_LANG[market] || 'sv-SE';
+        const cs = data.channelSpecific as any;
+        const channelTitle = t.channel === 'cdon' ? cs?.cdon?.title : cs?.fyndiq?.title;
+        const channelDesc = t.channel === 'cdon' ? cs?.cdon?.description : cs?.fyndiq?.description;
+        const hasTitle =
+          Array.isArray(channelTitle) &&
+          channelTitle.some((e: any) => String(e?.language).toLowerCase() === lang.toLowerCase());
+        const hasDesc =
+          Array.isArray(channelDesc) &&
+          channelDesc.some((e: any) => String(e?.language).toLowerCase() === lang.toLowerCase());
+        if (!hasTitle || !hasDesc) {
+          marketsMissingText.add(market);
+        }
+      }
+      if (marketsMissingText.size > 0) {
+        const labels = Array.from(marketsMissingText)
+          .map((m) => MARKET_LABELS[m] || m)
+          .join(', ');
+        errors.push({
+          field: 'texter',
+          message: `Varning: ${labels} saknar titel och/eller beskrivning (standardtexten är också tom). Fyll i texter under fliken Texter för dessa marknader, eller välj en annan marknad som standard.`,
+        });
+      }
+
+      return { errors, data };
+    },
+    [validateProduct],
+  );
+
+  const validateProductForm = useCallback(
+    (
+      raw: any,
+      options?: {
+        channelTargets?: Array<{ channel: string; channelInstanceId: number | null }>;
+        channelTargetsWithMarket?: Array<{
+          channel: string;
+          channelInstanceId: number | null;
+          market: string;
+        }>;
+        channelOverridesToSave?: Array<{
+          channelInstanceId: number | string;
+          active?: boolean;
+          category?: string | null;
+          priceAmount?: number | null;
+        }>;
+      },
+    ) => {
+      const { errors } = buildDataAndValidate(raw, options);
+      setValidationErrors(errors);
+    },
+    [buildDataAndValidate],
+  );
+
   const saveProduct = async (
     raw: any,
     options?: {
       hadChanges?: boolean;
+      ignorePriceWarning?: boolean;
       channelTargets?: Array<{ channel: string; channelInstanceId: number | null }>;
-      /** Targets with market (se/dk/fi/no) for effective-price validation. */
       channelTargetsWithMarket?: Array<{
         channel: string;
         channelInstanceId: number | null;
         market: string;
       }>;
       categoryOverrides?: Array<{ channelInstanceId: string; category: string | null }>;
-      /** Per-channel category + price overrides (overrides categoryOverrides when present). */
       channelOverridesToSave?: Array<{
         channelInstanceId: number | string;
+        active?: boolean;
         category?: string | null;
         priceAmount?: number | null;
       }>;
     },
   ): Promise<boolean> => {
-    const data: Record<string, unknown> = {
-      title: (raw.title ?? '').trim(),
-      status: raw.status,
-      quantity: Number(raw.quantity ?? 0),
-      priceAmount: Number(raw.priceAmount ?? 0),
-      purchasePrice:
-        (raw.purchasePrice ?? null) !== null &&
-        raw.purchasePrice !== '' &&
-        Number.isFinite(Number(raw.purchasePrice))
-          ? Number(raw.purchasePrice)
-          : undefined,
-      currency: (raw.currency ?? 'SEK').toUpperCase(),
-      vatRate: Number(raw.vatRate ?? 25),
-      sku: (raw.sku ?? '').trim(),
-      // MPN is only used by marketplace connectors (CDON/Fyndiq).
-      // If user leaves it blank, auto-copy SKU so exports won't miss required identifiers.
-      mpn: (raw.mpn ?? '').trim() || (raw.sku ?? '').trim(),
-      description: raw.description ?? '',
-      mainImage: raw.mainImage ?? '',
-      images: Array.isArray(raw.images) ? raw.images : [],
-      categories: Array.isArray(raw.categories) ? raw.categories : [],
-      brand: (raw.brand ?? '').trim(),
-      privateName: (raw.privateName ?? '').trim() || undefined,
-      brandId: raw.brandId ? String(raw.brandId).trim() : undefined,
-      ean: (raw.ean ?? '').trim() || undefined,
-      gtin: (raw.gtin ?? '').trim() || undefined,
-      knNumber: (raw.knNumber ?? raw.kn_number ?? '').trim() || undefined,
-      supplierId: raw.supplierId ? String(raw.supplierId).trim() : undefined,
-      manufacturerId: raw.manufacturerId ? String(raw.manufacturerId).trim() : undefined,
-      lagerplats: (raw.lagerplats ?? '').trim() || undefined,
-      color: (raw.color ?? '').trim() || undefined,
-      colorText: (raw.colorText ?? '').trim() || undefined,
-      size: (raw.size ?? '').trim() || undefined,
-      sizeText: (raw.sizeText ?? '').trim() || undefined,
-      pattern: (raw.pattern ?? '').trim() || undefined,
-      material: (raw.material ?? '').trim() || undefined,
-      patternText: (raw.patternText ?? '').trim() || undefined,
-      model: (raw.model ?? '').trim() || undefined,
-      weight:
-        (raw.weight ?? null) !== null && raw.weight !== '' && Number.isFinite(Number(raw.weight))
-          ? Number(raw.weight)
-          : undefined,
-      lengthCm:
-        (raw.lengthCm ?? null) !== null &&
-        raw.lengthCm !== '' &&
-        Number.isFinite(Number(raw.lengthCm))
-          ? Number(raw.lengthCm)
-          : undefined,
-      widthCm:
-        (raw.widthCm ?? null) !== null && raw.widthCm !== '' && Number.isFinite(Number(raw.widthCm))
-          ? Number(raw.widthCm)
-          : undefined,
-      heightCm:
-        (raw.heightCm ?? null) !== null &&
-        raw.heightCm !== '' &&
-        Number.isFinite(Number(raw.heightCm))
-          ? Number(raw.heightCm)
-          : undefined,
-      depthCm:
-        (raw.depthCm ?? null) !== null && raw.depthCm !== '' && Number.isFinite(Number(raw.depthCm))
-          ? Number(raw.depthCm)
-          : undefined,
-      volume:
-        (raw.volume ?? null) !== null && raw.volume !== '' && Number.isFinite(Number(raw.volume))
-          ? Number(raw.volume)
-          : undefined,
-      volumeUnit: (raw.volumeUnit ?? '').trim() || undefined,
-      notes: (raw.notes ?? '').trim() || undefined,
-    };
-    if (
-      raw.channelSpecific !== undefined &&
-      raw.channelSpecific !== null &&
-      typeof raw.channelSpecific === 'object' &&
-      !Array.isArray(raw.channelSpecific)
-    ) {
-      data.channelSpecific = raw.channelSpecific;
-    }
-
-    const errors = validateProduct(data);
-    const channelTargets = options?.channelTargets ?? [];
-    const channelTargetsWithMarket = options?.channelTargetsWithMarket ?? [];
-    const channelOverridesToSave = options?.channelOverridesToSave ?? [];
-
-    // CDON/Fyndiq: varje vald butik måste ha marknad – annars kan vi inte veta vilket pris som gäller
-    const cdonFyndiqTargets = channelTargets.filter(
-      (t) =>
-        (t.channelInstanceId ?? null) !== null &&
-        ['cdon', 'fyndiq'].includes(String(t.channel).toLowerCase()),
-    );
-    for (const t of cdonFyndiqTargets) {
-      const withMarket = channelTargetsWithMarket.find(
-        (m) => m.channelInstanceId === t.channelInstanceId,
-      );
-      if (!withMarket?.market) {
-        errors.push({
-          field: 'kanaler',
-          message:
-            'En eller flera valda butiker saknar marknad. Gå till fliken Kanaler och ange vilken marknad (SE, DK, NO eller FI) varje CDON- och Fyndiq-butik gäller.',
-        });
-        break;
-      }
-    }
-
-    // Warn if product is active on a channel but has no effective price (per-butikspris överstyring eller baspris/marknadspris)
-    const pricing = (data.channelSpecific as any)?.pricing;
-    const markets =
-      pricing?.markets && typeof pricing.markets === 'object' ? pricing.markets : null;
-    if (channelTargets.length > 0) {
-      const globalPrice = Number(data.priceAmount ?? 0);
-      const hasGlobalPrice = Number.isFinite(globalPrice) && globalPrice > 0;
-      for (const t of channelTargets) {
-        if ((t.channelInstanceId ?? null) === null) {
-          continue;
-        }
-        const ov = channelOverridesToSave.find(
-          (o) => String(o.channelInstanceId) === String(t.channelInstanceId),
-        );
-        const instancePriceOverride = ov?.priceAmount;
-        const hasInstancePriceOverride =
-          (instancePriceOverride ?? null) !== null &&
-          Number.isFinite(Number(instancePriceOverride)) &&
-          Number(instancePriceOverride) > 0;
-        let hasEffectivePrice = hasGlobalPrice || hasInstancePriceOverride;
-        if (!hasEffectivePrice && markets && channelTargetsWithMarket.length > 0) {
-          const withMarket = channelTargetsWithMarket.find(
-            (m) => String(m.channelInstanceId) === String(t.channelInstanceId),
-          );
-          if (withMarket?.market) {
-            const marketAmount = markets[withMarket.market]?.amount;
-            hasEffectivePrice =
-              (marketAmount ?? null) !== null &&
-              Number.isFinite(Number(marketAmount)) &&
-              Number(marketAmount) > 0;
-          }
-        }
-        if (!hasEffectivePrice) {
-          errors.push({
-            field: 'priceAmount',
-            message:
-              'Varning: Minst en aktiv kanal saknar effektivt pris. Ange baspris eller fyll i pris per butik under Priser.',
-          });
-          break;
-        }
-      }
-    }
-
-    // Varning: om ett land saknar titel/beskrivning och standard är också tom, fallback till null – varna om marknaden har aktiva kanaler
-    const MARKET_TO_LANG: Record<string, string> = {
-      se: 'sv-SE',
-      dk: 'da-DK',
-      fi: 'fi-FI',
-      no: 'nb-NO',
-    };
-    const MARKET_LABELS: Record<string, string> = {
-      se: 'Sverige',
-      dk: 'Danmark',
-      fi: 'Finland',
-      no: 'Norge',
-    };
-    const cdonFyndiqWithMarket = channelTargetsWithMarket.filter(
-      (m) => ['cdon', 'fyndiq'].includes(String(m.channel).toLowerCase()) && m.market,
-    );
-    const marketsMissingText = new Set<string>();
-    for (const t of cdonFyndiqWithMarket) {
-      const market = String(t.market).toLowerCase().slice(0, 2);
-      if (!['se', 'dk', 'fi', 'no'].includes(market)) {
-        continue;
-      }
-      const lang = MARKET_TO_LANG[market] || 'sv-SE';
-      const cs = data.channelSpecific as any;
-      const channelTitle = t.channel === 'cdon' ? cs?.cdon?.title : cs?.fyndiq?.title;
-      const channelDesc = t.channel === 'cdon' ? cs?.cdon?.description : cs?.fyndiq?.description;
-      const hasTitle =
-        Array.isArray(channelTitle) &&
-        channelTitle.some((e: any) => String(e?.language).toLowerCase() === lang.toLowerCase());
-      const hasDesc =
-        Array.isArray(channelDesc) &&
-        channelDesc.some((e: any) => String(e?.language).toLowerCase() === lang.toLowerCase());
-      if (!hasTitle || !hasDesc) {
-        marketsMissingText.add(market);
-      }
-    }
-    if (marketsMissingText.size > 0) {
-      const labels = Array.from(marketsMissingText)
-        .map((m) => MARKET_LABELS[m] || m)
-        .join(', ');
-      errors.push({
-        field: 'texter',
-        message: `Varning: ${labels} saknar titel och/eller beskrivning (standardtexten är också tom). Fyll i texter under fliken Texter för dessa marknader, eller välj en annan marknad som standard.`,
-      });
-    }
+    const { errors, data } = buildDataAndValidate(raw, {
+      channelTargets: options?.channelTargets,
+      channelTargetsWithMarket: options?.channelTargetsWithMarket,
+      channelOverridesToSave: options?.channelOverridesToSave,
+    });
 
     setValidationErrors(errors);
     const isWarningMessage = (message: string) =>
       /^varning\b/i.test(String(message || '').trim()) ||
       /^warning\b/i.test(String(message || '').trim());
     const blocking = errors.filter((e) => !isWarningMessage(e.message));
-    if (blocking.length > 0) {
+    const hasPriceWarning = errors.some(
+      (e) =>
+        e.field === 'priceAmount' &&
+        /effektivt pris/i.test(String(e.message || '')),
+    );
+    if (blocking.length > 0 || (hasPriceWarning && !options?.ignorePriceWarning)) {
       return false;
     }
 
@@ -725,7 +794,7 @@ export function ProductProvider({
               productId: String(saved.id),
               items: overridesToSave.map((o) => ({
                 channelInstanceId: o.channelInstanceId,
-                active: true,
+                active: o.active !== false,
                 category: o.category ?? undefined,
                 priceAmount: o.priceAmount ?? undefined,
                 salePrice: o.salePrice ?? undefined,
@@ -859,7 +928,7 @@ export function ProductProvider({
                 productId: String(saved.id),
                 items: overridesToSaveNew.map((o) => ({
                   channelInstanceId: o.channelInstanceId,
-                  active: true,
+                  active: o.active !== false,
                   category: o.category ?? undefined,
                   priceAmount: o.priceAmount ?? undefined,
                   salePrice: o.salePrice ?? undefined,
@@ -1150,6 +1219,8 @@ export function ProductProvider({
       currentProduct,
       panelMode,
       validationErrors,
+      isSaving,
+      setProductFormSaving,
       products,
       productSettings,
       loadProductSettings,
@@ -1167,6 +1238,7 @@ export function ProductProvider({
       openProductPanelForBatch,
       closeProductPanel,
       batchProductIds,
+      validateProductForm,
       saveProduct,
       deleteProduct,
       deleteProducts,
@@ -1192,6 +1264,8 @@ export function ProductProvider({
       panelMode,
       batchProductIds,
       validationErrors,
+      isSaving,
+      setProductFormSaving,
       products,
       productSettings,
       loadProductSettings,
