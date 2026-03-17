@@ -988,6 +988,42 @@ class WooCommerceController {
     }
   }
 
+  /**
+   * POST /api/woocommerce-products/category-cache/sync
+   * Manual sync: fetch categories from WooCommerce API and upsert to category_cache.
+   * Body: { instanceId: string }
+   */
+  async syncCategoryCache(req, res) {
+    try {
+      const inst = await this._getInstanceOrThrow(req);
+      const credentials = {
+        storeUrl: inst.credentials?.storeUrl || inst.credentials?.store_url,
+        consumerKey: inst.credentials?.consumerKey || inst.credentials?.consumer_key || '',
+        consumerSecret: inst.credentials?.consumerSecret || inst.credentials?.consumer_secret || '',
+        useQueryAuth: !!inst.credentials?.useQueryAuth,
+      };
+      const items = await fetchWooCategoriesFromApi(credentials, 200);
+      const cacheKey = `woo:${inst.id}`;
+      const userId = req.session?.user?.id;
+      const db = Database.get(req);
+      const fetchedAt = new Date();
+      const payload = JSON.stringify(items);
+
+      await db.query(
+        `INSERT INTO category_cache (cache_key, user_id, payload, fetched_at)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (cache_key, COALESCE(user_id, -1))
+         DO UPDATE SET payload = EXCLUDED.payload, fetched_at = EXCLUDED.fetched_at`,
+        [cacheKey, userId, payload, fetchedAt],
+      );
+      return res.json({ ok: true, count: items.length });
+    } catch (error) {
+      Logger.error('Woo syncCategoryCache error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) return res.status(error.statusCode).json({ error: error.message });
+      return res.status(502).json({ ok: false, error: 'Failed to sync categories' });
+    }
+  }
+
   // ---- Categories (read-only) ----
   // GET /api/woocommerce-products/categories?perPage=100&search=...
   // Fetches all pages and concatenates results so the full category tree is returned.

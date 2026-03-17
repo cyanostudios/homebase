@@ -73,6 +73,9 @@ class CdonApi {
       if (payload?.detail) {
         err.detail = payload.detail;
       }
+      if (payload?.diagnose) {
+        err.diagnose = payload.diagnose;
+      }
       throw err;
     }
 
@@ -93,12 +96,15 @@ class CdonApi {
 
   async exportProducts(
     products: any[],
-    opts?: { markets?: ('se' | 'dk' | 'fi')[] },
+    opts?: { markets?: ('se' | 'dk' | 'fi')[]; diagnose?: boolean },
   ): Promise<CdonExportResult> {
-    const body: { products: any[]; markets?: ('se' | 'dk' | 'fi')[] } = { products };
+    const body: { products: any[]; markets?: ('se' | 'dk' | 'fi')[]; diagnose?: boolean } = {
+      products,
+    };
     if (opts?.markets?.length) {
       body.markets = opts.markets;
     }
+    if (opts?.diagnose) body.diagnose = true;
     return this.request('/products/export', { method: 'POST', body: JSON.stringify(body) });
   }
 

@@ -177,6 +177,14 @@ class WooCommerceApi {
     });
   }
 
+  // ---- Category cache sync (manual) ----
+  async syncCategoryCache(instanceId: string): Promise<{ ok: boolean; count: number }> {
+    return this.request('/category-cache/sync', {
+      method: 'POST',
+      body: JSON.stringify({ instanceId }),
+    });
+  }
+
   // ---- Instances (multi-store support) ----
   // GET /api/woocommerce-products/categories?instanceId=...&perPage=100&search=...
   async getCategories(params?: {

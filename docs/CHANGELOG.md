@@ -4,6 +4,31 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-14 – Kategori-cache scheduler, CDON/Fyndiq/Woo förbättringar, produkt-UI
+
+### Kategori-cache – schemalagd jobb
+
+- **server/core/categoryCacheScheduler.js:** Ny scheduler som kör category-cache-jobbet för alla tenants vid start och sedan var 4:e timme (CDON, Fyndiq, WooCommerce).
+- **server/core/routes/index.js, server/index.ts:** Scheduler startas vid server-bootstrap.
+
+### CDON / Fyndiq / WooCommerce
+
+- **plugins/cdon-products/controller.js, mapToCdonArticle.js:** Utökad logik för artiklar och kategori-cache.
+- **plugins/fyndiq-products/controller.js, mapToFyndiqArticle.js:** Förbättringar och kategori-cache.
+- **plugins/woocommerce-products/controller.js, routes.js:** Utökad Woo-stöd och routes.
+- **client:** cdonApi, fyndiqApi, woocommerceApi och WooExportPanel uppdaterade.
+
+### Produkter (backend + frontend)
+
+- **plugins/products/controller.js, model.js, routes.js:** Justeringar och nya endpoints.
+- **client/…/ProductForm.tsx, ProductList.tsx, ProductContext.tsx:** UI- och kontextförbättringar.
+
+### Övrigt
+
+- **scripts/check-product-main-image.js, scripts/sello-fetch-one.js:** Nya diagnostikscripts.
+
+---
+
 ## 2026-03-14 – Orders optimistic update, API-fellogg, Orders view-only
 
 ### Orders – optimistisk uppdatering

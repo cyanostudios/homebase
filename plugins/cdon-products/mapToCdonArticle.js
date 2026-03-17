@@ -32,7 +32,7 @@ function buildNumericalProperties(product) {
     product?.weight != null && Number.isFinite(Number(product.weight))
       ? Number(product.weight)
       : null;
-  if (weight != null && weight >= 0) {
+  if (weight != null && weight > 0) {
     const weightUnit = (product?.channelSpecific?.weightUnit ?? 'g')
       .toString()
       .trim()
@@ -65,11 +65,14 @@ function mergeProperties(numericalProps, existingProps) {
   return merged;
 }
 
+/** CDON API: category string max 10 chars. Path "3868.3937.3938" → use leaf "3938". */
 function normalizeCategory(value) {
   if (value == null) return null;
   const s = String(value).trim();
   if (!s || s === '0') return null;
-  return s;
+  if (s.length <= 10) return s;
+  const leaf = s.split('.').pop();
+  return leaf && leaf.length <= 10 ? leaf : s.slice(0, 10);
 }
 
 /**
@@ -183,10 +186,16 @@ function mapProductToCdonArticle(
       ov?.priceAmount != null && Number.isFinite(Number(ov.priceAmount))
         ? Number(ov.priceAmount)
         : basePrice;
-    const currency = (ov?.currency || baseCurrency || DEFAULT_CURRENCY_BY_MARKET[m] || 'SEK')
-      .toString()
-      .toUpperCase();
-    const vatRate = ov?.vatRate != null ? Number(ov.vatRate) : baseVat;
+    // CDON requires market-specific currency (DKK for DK, EUR for FI, SEK for SE). Use override if set, else market default.
+    const currencyRaw =
+      ov?.currency != null && String(ov.currency).trim()
+        ? String(ov.currency).trim()
+        : (DEFAULT_CURRENCY_BY_MARKET[m] || baseCurrency);
+    const currency = currencyRaw.toString().toUpperCase();
+    let vatRate = ov?.vatRate != null ? Number(ov.vatRate) : baseVat;
+    if (vatRate != null && Number.isFinite(vatRate) && vatRate >= 1 && vatRate <= 100) {
+      vatRate = vatRate / 100;
+    }
     if (amount != null && amount > 0) {
       const value = { amount_including_vat: amount, currency };
       if (vatRate != null && Number.isFinite(vatRate)) value.vat_rate = vatRate;
@@ -237,7 +246,7 @@ function mapProductToCdonArticle(
     activeCategories.push(cat);
   }
   if (activeCategories.length === 0) return null;
-  if (activeCategories.length !== 1) return null;
+  // CDON API: single category per article. Use first when multiple markets have different categories.
   payload.category = activeCategories[0];
 
   // CDON portal uses Sello group_id as "Huvudartikel SKU"; use groupId when present, else parentProductId.
@@ -252,14 +261,32 @@ function mapProductToCdonArticle(
     payload.brand = String(product.brand).trim();
   if (product?.gtin != null && String(product.gtin).trim())
     payload.gtin = String(product.gtin).trim();
-  if (product?.mpn != null && String(product.mpn).trim()) payload.mpn = String(product.mpn).trim();
+  // MPN: use product.mpn when set, else SKU (Homebase auto-sets MPN from SKU when not filled)
+  const mpnVal =
+    product?.mpn != null && String(product.mpn).trim()
+      ? String(product.mpn).trim()
+      : product?.sku != null && String(product.sku).trim()
+        ? String(product.sku).trim()
+        : null;
+  if (mpnVal) payload.mpn = mpnVal;
   if (product?.sku != null && String(product.sku).trim())
     payload.internal_note = String(product.sku).trim();
   if (Array.isArray(product?.images) && product.images.length) {
-    const trimmed = product.images.filter(Boolean).map((u) => String(u).trim());
+    const mainNorm = mainImage ? mainImage.trim().toLowerCase() : '';
+    const seen = new Set();
+    const trimmed = product.images
+      .filter(Boolean)
+      .map((u) => String(u).trim())
+      .filter((u) => {
+        const key = u.toLowerCase();
+        if (mainNorm && key === mainNorm) return false;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     const invalid = trimmed.find((u) => !isValidUrl(u));
     if (invalid !== undefined) return null;
-    payload.images = trimmed;
+    if (trimmed.length) payload.images = trimmed;
   }
   if (textsExtended && typeof textsExtended === 'object') {
     const uspArr = [];
@@ -498,7 +525,6 @@ function getCdonArticleInputIssues(
     activeCategories.push(cat);
   }
   if (activeCategories.length === 0) issues.push('missing_category');
-  if (activeCategories.length > 1) issues.push('conflicting_active_market_categories');
 
   return issues;
 }
@@ -579,6 +605,7 @@ function validateCdonArticlePayload(article) {
 
   const category = String(article.category || '').trim();
   if (!category) return { ok: false, reason: 'missing_category' };
+  if (category.length > 10) return { ok: false, reason: 'category_max_10_chars' };
 
   const images = Array.isArray(article.images) ? article.images : [];
   const invalidImg = images.find(

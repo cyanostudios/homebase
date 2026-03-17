@@ -120,6 +120,8 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 let csrfToken: string | null = null;
+/** Only run initial checkAuth once per page load to avoid StrictMode double-mount sending a second getMe that can see a newly-created empty session. */
+let authCheckDoneThisLoad = false;
 
 async function getCsrfToken(): Promise<string> {
   if (csrfToken) {
@@ -292,6 +294,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (authCheckDoneThisLoad) return;
+    authCheckDoneThisLoad = true;
     checkAuth();
   }, []);
 

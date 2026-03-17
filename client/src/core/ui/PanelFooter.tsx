@@ -42,8 +42,10 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   isSubmitting = false,
   showEditButton = true,
 }) => {
+  const isWarningMessage = (msg: string) =>
+    /warning/i.test(msg) || /varning/i.test(msg);
   const hasBlockingErrors = validationErrors.some(
-    (e: any) => !String(e?.message || '').includes('Warning'),
+    (e: any) => !isWarningMessage(String(e?.message || '')),
   );
   const hasPriceWarning =
     currentPlugin?.name === 'products' &&

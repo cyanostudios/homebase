@@ -151,6 +151,16 @@ function createWooCommerceRoutes(controller, context) {
   // GET /api/woocommerce-products/categories?perPage=100&search=...
   router.get('/categories', gate, (req, res) => controller.getCategories(req, res));
 
+  // ---- Category cache sync (manual) ----
+  router.post(
+    '/category-cache/sync',
+    gate,
+    csrfProtection,
+    [body('instanceId').trim().notEmpty().withMessage('instanceId is required')],
+    validateRequest,
+    (req, res) => controller.syncCategoryCache(req, res),
+  );
+
   // ---- Batch delete (Woo) ----
   // DELETE /api/woocommerce-products/batch
   router.delete(

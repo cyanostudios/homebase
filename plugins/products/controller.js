@@ -1744,6 +1744,32 @@ class ProductController {
     }
   }
 
+  /**
+   * Build image URLs from Sello API response. Sello may return images as:
+   * - array of { url_large, url_small } (GET product list/single)
+   * - array of plain URL strings
+   * - or other shapes; we accept url_large, url_small, url, image.
+   * Used at import so we store public Sello URLs; CDON/Fyndiq/WooCommerce can fetch them when we export.
+   * TODO: When done with Sello phase, switch to proper storage (download to server or cloud).
+   */
+  getSelloImageUrls(images) {
+    const imageItems = Array.isArray(images) ? images : [];
+    const urls = [];
+    for (let i = 0; i < imageItems.length; i += 1) {
+      const item = imageItems[i];
+      let u = '';
+      if (typeof item === 'string') {
+        u = item.trim();
+      } else if (item && typeof item === 'object') {
+        u = String(
+          item.url_large ?? item.url_small ?? item.url ?? item.image ?? '',
+        ).trim();
+      }
+      if (u && (u.startsWith('http://') || u.startsWith('https://'))) urls.push(u);
+    }
+    return { urls, downloaded: urls.length, failed: 0 };
+  }
+
   async downloadSelloImages(req, sku, images) {
     const userId = Context.getUserId(req);
     if (!userId) return { urls: [], downloaded: 0, failed: 0 };
@@ -1953,7 +1979,7 @@ class ProductController {
             });
             continue;
           }
-          const imageResult = await this.downloadSelloImages(req, sku, raw?.images);
+          const imageResult = this.getSelloImageUrls(raw?.images);
           summary.image_downloaded += imageResult.downloaded;
           summary.image_failed += imageResult.failed;
           const categoryIds = getSelloAllCategoryIds(raw);
@@ -2238,7 +2264,7 @@ class ProductController {
             continue;
           }
 
-          const imageResult = await this.downloadSelloImages(req, sku, raw?.images);
+          const imageResult = this.getSelloImageUrls(raw?.images);
           summary.image_downloaded += imageResult.downloaded;
           summary.image_failed += imageResult.failed;
           const categoryIds = getSelloAllCategoryIds(raw);

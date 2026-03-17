@@ -1359,6 +1359,7 @@ class ProductModel {
           : null,
       ean: eanRaw,
       gtin: gtinRaw,
+      knNumber: clean(data.knNumber ?? data.kn_number ?? null),
       supplierId:
         data.supplierId != null
           ? Number.isFinite(Number(data.supplierId))

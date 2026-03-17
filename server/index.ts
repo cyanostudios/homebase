@@ -80,6 +80,13 @@ sessionPool.on('error', (err: Error) => {
   );
 });
 
+// Force session store to always read/write public.sessions (avoids wrong schema when DB/role has custom search_path)
+sessionPool.on('connect', (client: any) => {
+  client.query('SET search_path TO public').catch((err: Error) => {
+    console.error('[SESSION_POOL] Failed to set search_path:', err.message);
+  });
+});
+
 // Security middleware
 app.use(
   helmet({
@@ -108,7 +115,7 @@ app.use(
   }),
 );
 
-// Session (dedicated pool so session load/save never competes with app queries)
+// Session: dedicated pool + explicit public schema so tenant search_path can never affect session store.
 // In prod: idle timeout – session expires after X min of inactivity (rolling). Dev: 24h, no timeout.
 const isProd = process.env.NODE_ENV === 'production';
 const sessionIdleMinutes = isProd ? Number(process.env.SESSION_IDLE_TIMEOUT_MINUTES || 15) : null;
@@ -119,6 +126,7 @@ app.use(
   session({
     store: new (pgSession(session))({
       pool: sessionPool,
+      schemaName: 'public',
       tableName: 'sessions',
     }),
     secret:
@@ -141,12 +149,20 @@ app.use(
 );
 
 // DEBUG: Log session state after session is loaded (for troubleshooting logout on reload)
+// Also log when a response sends Set-Cookie so we can see which request overwrote the browser session.
 app.use((req: Request, res: Response, next: NextFunction) => {
+  const sid = req.sessionID;
+  const sidShort = typeof sid === 'string' ? sid.slice(0, 8) + '...' : '(no id)';
+  const hasUser = !!(req.session && req.session.user);
+  const userId = req.session?.user?.id;
   if (req.path.startsWith('/api')) {
-    const sid = req.sessionID;
-    const sidShort = typeof sid === 'string' ? sid.slice(0, 8) + '...' : '(no id)';
-    const hasUser = !!(req.session && req.session.user);
-    const userId = req.session?.user?.id;
+    res.locals._sessionLog = {
+      path: req.path,
+      method: req.method,
+      sidShort,
+      hasUser,
+      userId: userId ?? null,
+    };
     console.log(
       '[SESSION]',
       req.method,
@@ -159,6 +175,27 @@ app.use((req: Request, res: Response, next: NextFunction) => {
       userId ?? '—',
     );
   }
+  const origSetHeader = res.setHeader.bind(res);
+  res.setHeader = function (key: string, ...args: any[]): any {
+    if (key && String(key).toLowerCase() === 'set-cookie') {
+      const log = (res as any).locals?._sessionLog;
+      const val = args[0];
+      const preview =
+        typeof val === 'string' ? val : Array.isArray(val) ? (val[0] ?? '') : String(val ?? '');
+      console.log(
+        '[SET_COOKIE]',
+        log?.method ?? req.method,
+        log?.path ?? req.path,
+        '| sid:',
+        log?.sidShort ?? sidShort,
+        '| hasUser:',
+        log?.hasUser ?? hasUser,
+        '| preview:',
+        String(preview).slice(0, 70) + (String(preview).length > 70 ? '...' : ''),
+      );
+    }
+    return origSetHeader(key, ...args);
+  };
   next();
 });
 

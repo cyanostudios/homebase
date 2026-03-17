@@ -2,6 +2,12 @@
 import { ChevronDown, ChevronRight, Plus, Star, Trash2, Upload } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -19,6 +25,7 @@ import { channelsApi } from '@/plugins/channels/api/channelsApi';
 import type { ChannelInstance } from '@/plugins/channels/types/channels';
 import { filesApi } from '@/plugins/files/api/filesApi';
 
+import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
 import { productsApi } from '../api/productsApi';
 import { useProducts } from '../hooks/useProducts';
 
@@ -852,6 +859,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     {},
   );
   const [channelCategoriesError, setChannelCategoriesError] = useState<Record<string, string>>({});
+  const [cdonDiagnoseResult, setCdonDiagnoseResult] = useState<any>(null);
+  const [cdonDiagnoseLoading, setCdonDiagnoseLoading] = useState(false);
   const categoryFetchStartedRef = useRef<Set<string>>(new Set());
   /** WooCommerce: which category nodes are expanded (key = instance id). Default all collapsed. */
   const [wooExpandedIds, setWooExpandedIds] = useState<Record<string, Set<string>>>({});
@@ -1020,7 +1029,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [currentProduct?.id, isBatchMode, getChannelDataCache, setChannelDataCache]);
+    // Intentionally omit getChannelDataCache/setChannelDataCache: when they change (e.g. new ref on context re-render),
+    // we must not re-run and overwrite selectedTargetKeys with stale cached targetKeys, or the user's Kanaler
+    // checkbox changes (e.g. Fyndiq DK) are lost before Save.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when product or batch mode changes
+  }, [currentProduct?.id, isBatchMode]);
 
   // Run validation for footer (price warning etc.) when form state changes.
   // Skip during submit so the footer doesn't flicker between Ignore and Save.
@@ -1116,7 +1129,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     return [s];
   };
 
-  // Sync overrides into channelCategories (Woo only) and channelPriceOverrides when overrides first load. CDON/Fyndiq category come from channelSpecific only.
+  // Sync overrides into channelCategories and channelPriceOverrides when overrides load. One source: channel_product_overrides.
   const hasSyncedOverridesRef = React.useRef(false);
   useEffect(() => {
     if (
@@ -1130,22 +1143,29 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     hasSyncedOverridesRef.current = true;
     setFormData((prev) => {
       const nextWoo = { ...(prev.channelCategories?.woocommerce ?? {}) };
+      let nextCdon = prev.channelCategories?.cdon ?? '';
+      let nextFyndiq = prev.channelCategories?.fyndiq ?? '';
       for (const ov of channelOverrides) {
-        if (!ov.instanceId) {
-          continue;
-        }
+        if (!ov.instanceId) continue;
         const inst = channelInstances.find((i) => i.id === ov.instanceId);
-        if (!inst || String(inst.channel).toLowerCase() !== 'woocommerce') {
-          continue;
+        if (!inst) continue;
+        const ch = String(inst.channel).toLowerCase();
+        if (ch === 'woocommerce') {
+          const key = inst.instanceKey;
+          nextWoo[key] = ov.category != null ? parseWooCategory(ov.category) : [];
+        } else if (ch === 'cdon' && ov.category != null && String(ov.category).trim()) {
+          if (!nextCdon) nextCdon = String(ov.category).trim();
+        } else if (ch === 'fyndiq' && ov.category != null && String(ov.category).trim()) {
+          if (!nextFyndiq) nextFyndiq = String(ov.category).trim();
         }
-        const key = inst.instanceKey;
-        nextWoo[key] = ov.category != null ? parseWooCategory(ov.category) : [];
       }
       return {
         ...prev,
         channelCategories: {
           ...prev.channelCategories,
           woocommerce: nextWoo,
+          cdon: nextCdon,
+          fyndiq: nextFyndiq,
         },
       };
     });
@@ -2921,6 +2941,37 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 })}
               </div>
             )}
+            {!isBatchMode &&
+              currentProduct?.id &&
+              channelInstances.some((i) => String(i.channel).toLowerCase() === 'cdon') && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={cdonDiagnoseLoading}
+                    onClick={async () => {
+                      setCdonDiagnoseLoading(true);
+                      setCdonDiagnoseResult(null);
+                      try {
+                        const r = await cdonApi.exportProducts([currentProduct], {
+                          markets: ['se', 'dk', 'fi'],
+                          diagnose: true,
+                        });
+                        setCdonDiagnoseResult((r as any)?.diagnose ?? r);
+                      } catch (e) {
+                        setCdonDiagnoseResult(
+                          (e as any)?.diagnose ?? { error: String((e as any)?.message ?? e) },
+                        );
+                      } finally {
+                        setCdonDiagnoseLoading(false);
+                      }
+                    }}
+                  >
+                    {cdonDiagnoseLoading ? 'Kör…' : 'Kör CDON-diagnostik'}
+                  </Button>
+                </div>
+              )}
           </Card>
         )}
 
@@ -4181,6 +4232,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           </Card>
         )}
       </form>
+
+      <Dialog open={cdonDiagnoseResult != null} onOpenChange={(o) => !o && setCdonDiagnoseResult(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>CDON-diagnostik</DialogTitle>
+          </DialogHeader>
+          <pre className="text-xs overflow-auto p-4 bg-gray-50 rounded border flex-1 min-h-0">
+            {JSON.stringify(cdonDiagnoseResult, null, 2)}
+          </pre>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

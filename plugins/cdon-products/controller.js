@@ -810,6 +810,7 @@ class CdonProductsController {
         .trim()
         .toLowerCase();
       const dryRun = req.body?.dryRun === true;
+      const diagnose = req.body?.diagnose === true;
       if (mode === 'update_only_strict') {
         return this.exportProductsUpdateOnlyStrict(req, res);
       }
@@ -834,6 +835,10 @@ class CdonProductsController {
           .filter((m) => allowedMarkets.includes(m));
         if (normalized.length) marketsFilter = normalized;
       }
+
+      const diagnoseTrace = diagnose
+        ? { productIds: [], overrideRows: [], mapRows: [], perProduct: {}, bulkResponse: null }
+        : null;
 
       // Build normalized product payloads (simple products only, MVP)
       const normalized = [];
@@ -920,14 +925,18 @@ class CdonProductsController {
       }
 
       if (!normalized.length) {
-        return res.status(400).json({
+        const errResponse = {
           ok: false,
           error:
             'No valid products to export (check required fields: id, title, priceAmount, sku or gtin)',
           counts: { requested: rawProducts.length, success: 0, error: items.length },
           items,
-        });
+        };
+        if (diagnoseTrace) errResponse.diagnose = diagnoseTrace;
+        return res.status(400).json(errResponse);
       }
+
+      if (diagnoseTrace) diagnoseTrace.productIds = normalized.map((p) => p.productId);
 
       // Pull per-market overrides (SE/DK/FI) from channel_product_overrides
       const db = Database.get(req);
@@ -969,6 +978,46 @@ class CdonProductsController {
             category: r.category || null,
           };
         }
+        if (diagnoseTrace) diagnoseTrace.overrideRows = rows.map((r) => ({ ...r }));
+
+        // Merge channel_product_map (enabled): if user enabled product for CDON market in Kanaler
+        // and saved, map is updated but overrides may not have active=true yet.
+        const mapRows = await db.query(
+          `
+          SELECT
+            m.product_id::text AS product_id,
+            LOWER(TRIM(ci.market)) AS market
+          FROM channel_product_map m
+          LEFT JOIN channel_instances ci ON ci.id = m.channel_instance_id AND ci.user_id = m.user_id
+          WHERE m.user_id = $1
+            AND m.channel = 'cdon'
+            AND m.enabled = TRUE
+            AND m.product_id::text = ANY($2::text[])
+            AND TRIM(COALESCE(ci.market, '')) <> ''
+          `,
+          [userId, productIds],
+        );
+        if (diagnoseTrace) diagnoseTrace.mapRows = mapRows.map((r) => ({ ...r }));
+
+        for (const r of mapRows) {
+          const pid = String(r.product_id);
+          const market = r.market != null ? String(r.market).trim().toLowerCase() : null;
+          if (!market || !['se', 'dk', 'fi', 'no'].includes(market)) continue;
+          if (!marketsFilter.includes(market)) continue;
+          if (!overridesByProductId.has(pid)) overridesByProductId.set(pid, {});
+          const perMarket = overridesByProductId.get(pid);
+          if (!perMarket[market]) {
+            perMarket[market] = {
+              active: true,
+              priceAmount: null,
+              currency: null,
+              vatRate: null,
+              category: null,
+            };
+          } else {
+            perMarket[market].active = perMarket[market].active || true;
+          }
+        }
       }
 
       // Merchants API: POST /v2/articles/bulk (JSON body) — build payloads via mapper (exact API shape; no guessing).
@@ -984,6 +1033,15 @@ class CdonProductsController {
         });
         if (!hasActiveTarget) {
           expectedSkip += 1;
+          if (diagnoseTrace) {
+            diagnoseTrace.perProduct[p.productId] = {
+              skip: 'no_active_channel_market',
+              overrides: Object.fromEntries(
+                Object.entries(overrides).map(([k, v]) => [k, { ...v }]),
+              ),
+              marketsFilter,
+            };
+          }
           items.push({
             productId: p.productId,
             sku: p.sku || null,
@@ -996,6 +1054,15 @@ class CdonProductsController {
         if (article) {
           const payloadCheck = validateCdonArticlePayload(article);
           if (!payloadCheck.ok) {
+            if (diagnoseTrace) {
+              diagnoseTrace.perProduct[p.productId] = {
+                skip: 'contract_validation_failed',
+                reason: payloadCheck.reason,
+                overrides: Object.fromEntries(
+                  Object.entries(overrides).map(([k, v]) => [k, { ...v }]),
+                ),
+              };
+            }
             items.push({
               productId: p.productId,
               status: 'error',
@@ -1003,11 +1070,29 @@ class CdonProductsController {
             });
             continue;
           }
+          if (diagnoseTrace) {
+            diagnoseTrace.perProduct[p.productId] = {
+              ok: true,
+              payloadMarkets: [...(article.markets || [])],
+              payloadCategories: [...(article.categories || [])],
+              sku: article.sku,
+            };
+          }
           articles.push(article);
           articlesMeta.push({ productId: p.productId, sku: article.sku });
         } else {
           const issues = getCdonArticleInputIssues(raw, overrides, defaultLanguage, marketsFilter);
           const reason = issues.length ? issues.join(',') : 'mapper_rejected_unknown';
+          if (diagnoseTrace) {
+            diagnoseTrace.perProduct[p.productId] = {
+              skip: 'mapper_rejected',
+              reason,
+              issues,
+              overrides: Object.fromEntries(
+                Object.entries(overrides).map(([k, v]) => [k, { ...v }]),
+              ),
+            };
+          }
           items.push({
             productId: p.productId,
             status: 'error',
@@ -1034,7 +1119,7 @@ class CdonProductsController {
       }
 
       if (articles.length === 0) {
-        return res.status(400).json({
+        const errPayload = {
           ok: false,
           error: 'No valid articles to export (mapper rejected all; check required fields)',
           counts: {
@@ -1044,7 +1129,9 @@ class CdonProductsController {
             expected_skip: expectedSkip,
           },
           items,
-        });
+        };
+        if (diagnoseTrace) errPayload.diagnose = diagnoseTrace;
+        return res.status(400).json(errPayload);
       }
 
       const url = `${CDON_MERCHANTS_API}/v2/articles/bulk`;
@@ -1062,6 +1149,14 @@ class CdonProductsController {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bulkBody),
       });
+
+      if (diagnoseTrace) {
+        diagnoseTrace.bulkResponse = {
+          status: resp.status,
+          ok: resp.ok,
+          json: resJson,
+        };
+      }
 
       if (!resp.ok) {
         const message =
@@ -1090,7 +1185,7 @@ class CdonProductsController {
         items.push({ productId, status: 'synced', externalId: sku || productId });
       }
 
-      return res.json({
+      const jsonResponse = {
         ok: true,
         endpoint: url,
         counts: {
@@ -1100,7 +1195,9 @@ class CdonProductsController {
           expected_skip: expectedSkip,
         },
         items,
-      });
+      };
+      if (diagnoseTrace) jsonResponse.diagnose = diagnoseTrace;
+      return res.json(jsonResponse);
     } catch (error) {
       Logger.error('CDON export error', error, { userId: Context.getUserId(req) });
       return res

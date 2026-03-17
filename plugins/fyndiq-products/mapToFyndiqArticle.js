@@ -32,7 +32,7 @@ function buildNumericalProperties(product) {
     product?.weight != null && Number.isFinite(Number(product.weight))
       ? Number(product.weight)
       : null;
-  if (weight != null && weight >= 0) {
+  if (weight != null && weight > 0) {
     const weightUnit = (product?.channelSpecific?.weightUnit ?? 'g')
       .toString()
       .trim()
@@ -188,9 +188,9 @@ function mapProductToFyndiqArticle(
       ov?.priceAmount != null && Number.isFinite(Number(ov.priceAmount))
         ? Number(ov.priceAmount)
         : basePrice;
-    const currency = (ov?.currency || baseCurrency || DEFAULT_CURRENCY_BY_MARKET[m] || 'SEK')
-      .toString()
-      .toUpperCase();
+    // Fyndiq requires market-specific currency (DKK for DK, EUR for FI, SEK for SE). Use override currency if set, else market default.
+    const currencyRaw = ov?.currency != null && String(ov.currency).trim() ? String(ov.currency).trim() : (DEFAULT_CURRENCY_BY_MARKET[m] || baseCurrency);
+    const currency = currencyRaw.toString().toUpperCase();
     if (amount != null && amount > 0) price.push({ market: m, value: { amount, currency } });
   }
   if (price.length === 0) return null;
@@ -208,9 +208,8 @@ function mapProductToFyndiqArticle(
         ? Number(ov.originalPrice)
         : null;
     if (amount == null) continue;
-    const currency = (ov.currency || baseCurrency || DEFAULT_CURRENCY_BY_MARKET[m] || 'SEK')
-      .toString()
-      .toUpperCase();
+    const currencyRaw = ov.currency != null && String(ov.currency).trim() ? String(ov.currency).trim() : (DEFAULT_CURRENCY_BY_MARKET[m] || baseCurrency);
+    const currency = currencyRaw.toString().toUpperCase();
     original_price.push({ market: m, value: { amount, currency } });
   }
 
@@ -268,10 +267,11 @@ function mapProductToFyndiqArticle(
     const trimmed = product.images
       .filter(Boolean)
       .map((u) => String(u).trim())
+      .filter((u) => u !== mainImage)
       .slice(0, 10);
     const invalid = trimmed.find((u) => !isValidUrl(u));
     if (invalid !== undefined) return null;
-    payload.images = trimmed;
+    if (trimmed.length) payload.images = trimmed;
   }
   if (product?.brand != null && String(product.brand).trim())
     payload.brand = String(product.brand).trim().slice(0, 50);

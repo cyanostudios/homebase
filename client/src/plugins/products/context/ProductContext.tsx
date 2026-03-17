@@ -324,6 +324,18 @@ export function ProductProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intended: run only when products change
   }, [products]);
 
+  // Listen for category-cache invalidation (e.g. from WooCommerce manual sync)
+  useEffect(() => {
+    const handler = (e: CustomEvent<{ key: string }>) => {
+      const key = e?.detail?.key;
+      if (key && channelCategoriesCacheRef.current[key]) {
+        delete channelCategoriesCacheRef.current[key];
+      }
+    };
+    window.addEventListener('category-cache-invalidated', handler as EventListener);
+    return () => window.removeEventListener('category-cache-invalidated', handler as EventListener);
+  }, []);
+
   // Register panel-close with AppContext
   useEffect(() => {
     registerPanelCloseFunction('products', closeProductPanel);
@@ -500,6 +512,9 @@ export function ProductProvider({
         supplierId: raw.supplierId ? String(raw.supplierId).trim() : undefined,
         manufacturerId: raw.manufacturerId ? String(raw.manufacturerId).trim() : undefined,
         lagerplats: (raw.lagerplats ?? '').trim() || undefined,
+        condition:
+          raw.condition === 'used' || raw.condition === 'refurb' ? raw.condition : 'new',
+        groupId: (raw.groupId ?? '').trim() || undefined,
         color: (raw.color ?? '').trim() || undefined,
         colorText: (raw.colorText ?? '').trim() || undefined,
         size: (raw.size ?? '').trim() || undefined,
@@ -546,6 +561,10 @@ export function ProductProvider({
             : undefined,
         volumeUnit: (raw.volumeUnit ?? '').trim() || undefined,
         notes: (raw.notes ?? '').trim() || undefined,
+        listId:
+          (raw.listId ?? null) != null && String(raw.listId).trim() !== ''
+            ? String(raw.listId).trim()
+            : undefined,
       };
       if (
         raw.channelSpecific !== undefined &&
@@ -849,6 +868,9 @@ export function ProductProvider({
                 gtin: productForSync.gtin,
                 condition: productForSync.condition,
                 knNumber: productForSync.knNumber,
+                weight: productForSync.weight ?? null,
+                volume: productForSync.volume ?? null,
+                volumeUnit: productForSync.volumeUnit ?? null,
                 channelSpecific: productForSync.channelSpecific,
                 parentProductId: productForSync.parentProductId,
                 groupVariationType: productForSync.groupVariationType,
@@ -920,43 +942,46 @@ export function ProductProvider({
           } catch (channelErr) {
             console.warn('Channel enable after create failed', channelErr);
           }
-          // Per-instance overrides for new product (category + price) in one bulk request
-          const overridesToSaveNew = options?.channelOverridesToSave;
-          if (overridesToSaveNew?.length) {
+        }
+        // Per-instance overrides (category + price) – save even when no channels enabled,
+        // so CDON/Fyndiq category is persisted when user selects it before enabling the channel.
+        const overridesToSaveNew = options?.channelOverridesToSave;
+        if (overridesToSaveNew?.length) {
+          try {
+            await channelsApi.upsertOverridesBulk({
+              productId: String(saved.id),
+              items: overridesToSaveNew.map((o) => ({
+                channelInstanceId: o.channelInstanceId,
+                active: o.active !== false,
+                category: o.category ?? undefined,
+                priceAmount: o.priceAmount ?? undefined,
+                salePrice: o.salePrice ?? undefined,
+                originalPrice: o.originalPrice ?? undefined,
+              })),
+            });
+          } catch (overrideErr) {
+            console.warn('Channel overrides after create failed', overrideErr);
+          }
+        } else {
+          const catOverrides = options?.categoryOverrides;
+          if (catOverrides?.length) {
             try {
-              await channelsApi.upsertOverridesBulk({
-                productId: String(saved.id),
-                items: overridesToSaveNew.map((o) => ({
-                  channelInstanceId: o.channelInstanceId,
-                  active: o.active !== false,
-                  category: o.category ?? undefined,
-                  priceAmount: o.priceAmount ?? undefined,
-                  salePrice: o.salePrice ?? undefined,
-                  originalPrice: o.originalPrice ?? undefined,
-                })),
-              });
-            } catch (overrideErr) {
-              console.warn('Channel overrides after create failed', overrideErr);
-            }
-          } else {
-            const catOverrides = options?.categoryOverrides;
-            if (catOverrides?.length) {
-              try {
-                await Promise.all(
-                  catOverrides.map((o) =>
-                    channelsApi.upsertOverride({
-                      productId: String(saved.id),
-                      channelInstanceId: o.channelInstanceId,
-                      category: o.category,
-                    }),
-                  ),
-                );
-              } catch (catErr) {
-                console.warn('Category overrides after create failed', catErr);
-              }
+              await Promise.all(
+                catOverrides.map((o) =>
+                  channelsApi.upsertOverride({
+                    productId: String(saved.id),
+                    channelInstanceId: o.channelInstanceId,
+                    category: o.category,
+                  }),
+                ),
+              );
+            } catch (catErr) {
+              console.warn('Category overrides after create failed', catErr);
             }
           }
-          // Export to enabled channels in background (do not block UI)
+        }
+        // Export to enabled channels in background (do not block UI)
+        if (desiredTargets.length > 0) {
           const productForSync = saved;
           (async () => {
             try {
@@ -982,6 +1007,9 @@ export function ProductProvider({
                 gtin: productForSync.gtin,
                 condition: productForSync.condition,
                 knNumber: productForSync.knNumber,
+                weight: productForSync.weight ?? null,
+                volume: productForSync.volume ?? null,
+                volumeUnit: productForSync.volumeUnit ?? null,
                 channelSpecific: productForSync.channelSpecific,
                 parentProductId: productForSync.parentProductId,
                 groupVariationType: productForSync.groupVariationType,

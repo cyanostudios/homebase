@@ -8,6 +8,7 @@ const intakeRoutes = require('./intake');
 const settingsRoutes = require('./settings');
 const activityLogRoutes = require('./activityLog');
 const fxRoutes = require('./fx');
+const { startCategoryCacheScheduler } = require('../categoryCacheScheduler');
 
 /**
  * Setup all core routes
@@ -48,6 +49,9 @@ function setupCoreRoutes(app, dependencies) {
 
   // Start FX scheduler (fetch on startup + every 6h)
   fxRoutes.startFxScheduler(pool);
+
+  // Start category cache scheduler (CDON/Fyndiq/Woo categories, every 4h)
+  startCategoryCacheScheduler(pool);
 }
 
 module.exports = { setupCoreRoutes };

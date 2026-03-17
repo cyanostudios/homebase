@@ -359,6 +359,7 @@ class FyndiqProductsController {
         .trim()
         .toLowerCase();
       const dryRun = req.body?.dryRun === true;
+      const diagnose = req.body?.diagnose === true;
       if (mode === 'update_only_strict') {
         return this.exportProductsUpdateOnlyStrict(req, res);
       }
@@ -385,11 +386,15 @@ class FyndiqProductsController {
       const userId = req.session?.user?.id;
       if (!userId) return res.status(401).json({ error: 'User not authenticated' });
 
+      const diagnoseTrace = diagnose ? { productIds: [], overrideRows: [], mapRows: [], perProduct: {} } : null;
+
       // Load per-instance overrides (Selloklon): active/price/currency/category per market instance.
       const db = Database.get(req);
       const productIds = Array.from(
         new Set(products.map((p) => String(p?.id || '').trim()).filter(Boolean)),
       );
+      if (diagnoseTrace) diagnoseTrace.productIds = productIds;
+
       const overridesByProductId = new Map(); // productId -> market -> override
 
       if (productIds.length) {
@@ -414,6 +419,7 @@ class FyndiqProductsController {
           `,
           [userId, productIds],
         );
+        if (diagnoseTrace) diagnoseTrace.overrideRows = rows.map((r) => ({ ...r }));
 
         for (const r of rows) {
           const pid = String(r.product_id);
@@ -438,6 +444,48 @@ class FyndiqProductsController {
                 : null,
           };
         }
+
+        // Also consider channel_product_map (enabled): if user enabled product for a Fyndiq market
+        // in Kanaler and saved, map is updated but overrides may not have active=true yet.
+        // So treat enabled map rows as active for that market (merge into overrides so mapper sees it).
+        const mapRows = await db.query(
+          `
+          SELECT
+            m.product_id::text AS product_id,
+            LOWER(TRIM(ci.market)) AS market
+          FROM channel_product_map m
+          LEFT JOIN channel_instances ci ON ci.id = m.channel_instance_id AND ci.user_id = m.user_id
+          WHERE m.user_id = $1
+            AND m.channel = 'fyndiq'
+            AND m.enabled = TRUE
+            AND m.product_id::text = ANY($2::text[])
+            AND TRIM(COALESCE(ci.market, '')) <> ''
+          `,
+          [userId, productIds],
+        );
+        if (diagnoseTrace) diagnoseTrace.mapRows = mapRows.map((r) => ({ ...r }));
+
+        for (const r of mapRows) {
+          const pid = String(r.product_id);
+          const market = r.market != null ? String(r.market).trim().toLowerCase() : null;
+          if (!market || !['se', 'dk', 'fi', 'no'].includes(market)) continue;
+          if (!marketsFilter.includes(market)) continue;
+          if (!overridesByProductId.has(pid)) overridesByProductId.set(pid, {});
+          const perMarket = overridesByProductId.get(pid);
+          if (!perMarket[market]) {
+            perMarket[market] = {
+              instanceKey: null,
+              active: true,
+              priceAmount: null,
+              currency: null,
+              vatRate: null,
+              category: null,
+              originalPrice: null,
+            };
+          } else {
+            perMarket[market].active = perMarket[market].active || true;
+          }
+        }
       }
 
       // Build one Fyndiq article payload per product via mapper (exact API shape; no guessing).
@@ -457,6 +505,20 @@ class FyndiqProductsController {
         });
         if (!hasActiveTarget) {
           expectedSkip += 1;
+          if (diagnoseTrace) {
+            diagnoseTrace.perProduct[productId] = {
+              skip: 'no_active_channel_market',
+              overrides: Object.fromEntries(
+                Object.entries(overrides).map(([k, v]) => [k, { ...v }]),
+              ),
+              marketsFilter,
+            };
+          }
+          Logger.info('Fyndiq export skip (no active market)', {
+            productId,
+            marketsFilter,
+            overrideMarkets: Object.keys(overrides),
+          });
           items.push({
             productId,
             sku: p?.sku || null,
@@ -470,6 +532,17 @@ class FyndiqProductsController {
         if (!payload) {
           const issues = getFyndiqArticleInputIssues(p, overrides, defaultLanguage, marketsFilter);
           const reason = issues.length ? issues.join(',') : 'mapper_rejected_unknown';
+          if (diagnoseTrace) {
+            diagnoseTrace.perProduct[productId] = {
+              skip: 'mapper_rejected',
+              reason,
+              issues,
+              overrides: Object.fromEntries(
+                Object.entries(overrides).map(([k, v]) => [k, { ...v }]),
+              ),
+            };
+          }
+          Logger.warn('Fyndiq export mapper rejected', { productId, reason, issues });
           if (!dryRun) {
             await this.model.upsertChannelMap(req, {
               productId,
@@ -509,6 +582,13 @@ class FyndiqProductsController {
           continue;
         }
 
+        if (diagnoseTrace) {
+          diagnoseTrace.perProduct[productId] = {
+            ok: true,
+            payloadMarkets: payload.markets,
+            payloadCategories: payload.categories,
+          };
+        }
         payloadsWithMeta.push({ productId, sku: payload.sku, payload });
         items.push({ productId, sku: payload.sku, status: 'queued' });
       }
@@ -531,7 +611,7 @@ class FyndiqProductsController {
       }
 
       if (payloadsWithMeta.length === 0) {
-        return res.status(400).json({
+        const errResponse = {
           ok: false,
           error:
             'No products to export (mapper rejected all; check required fields and categories)',
@@ -543,7 +623,9 @@ class FyndiqProductsController {
             expected_skip: expectedSkip,
           },
           items,
-        });
+        };
+        if (diagnoseTrace) errResponse.diagnose = diagnoseTrace;
+        return res.status(400).json(errResponse);
       }
 
       const bulkPayload = payloadsWithMeta.map((x) => x.payload);
@@ -557,10 +639,13 @@ class FyndiqProductsController {
       const responses = json && Array.isArray(json.responses) ? json.responses : [];
       for (let i = 0; i < payloadsWithMeta.length; i++) {
         const { productId, sku } = payloadsWithMeta[i];
-        const r = responses[i];
+        const payload = bulkPayload[i] || null;
+        let r = responses[i];
         const statusCode = r?.status_code != null ? Number(r.status_code) : null;
-        const success = statusCode === 202;
-        const errMsg = success
+        // Bulk create success: item has id+description (no status_code); failure: status_code 400/409 etc.
+        const success =
+          statusCode === 202 || (resp.ok && r?.id != null && r?.description != null);
+        let errMsg = success
           ? null
           : r?.description != null
             ? String(r.description)
@@ -569,6 +654,148 @@ class FyndiqProductsController {
               : resp.ok
                 ? null
                 : 'Export failed';
+
+        if (!success && statusCode != null) {
+          Logger.info('Fyndiq export item response', {
+            productId,
+            statusCode,
+            description: r?.description,
+            errors: r?.errors,
+          });
+        }
+
+        // 409 = SKU already used: article exists on Fyndiq. Get article_id (from response or by SKU), then PUT to update markets/prices.
+        if (!success && statusCode === 409 && payload) {
+          let articleId = r?.errors?.article_id != null ? String(r.errors.article_id).trim() : null;
+          if (!articleId && payload.sku) {
+            const getResp = await this.fyndiqRequest(
+              `/api/v1/articles/sku/${encodeURIComponent(String(payload.sku))}`,
+              {
+                username: settings.apiKey,
+                password: settings.apiSecret,
+                method: 'GET',
+              },
+            );
+            if (diagnoseTrace?.perProduct?.[productId]) {
+              diagnoseTrace.perProduct[productId].getBySku = {
+                status: getResp.resp?.status,
+                hasArticleId: !!(getResp.json?.content?.article?.id),
+              };
+            }
+            Logger.info('Fyndiq GET by SKU (after 409)', {
+              productId,
+              sku: payload.sku,
+              getStatus: getResp.resp?.status,
+              hasArticleId: !!(getResp.json?.content?.article?.id),
+            });
+            if (getResp.resp.ok && getResp.json?.content?.article?.id) {
+              articleId = String(getResp.json.content.article.id).trim();
+            }
+          }
+          if (articleId) {
+            // Fyndiq: article PUT accepts only: sku, parent_sku, legacy_product_id, status, categories,
+            // properties, variational_properties, brand, gtin, main_image, images, markets, title,
+            // description, shipping_time, kn_number, internal_note, delivery_type.
+            // NOT price, original_price, quantity (separate endpoints).
+            const putAllowed = [
+              'sku',
+              'parent_sku',
+              'legacy_product_id',
+              'status',
+              'categories',
+              'properties',
+              'variational_properties',
+              'brand',
+              'gtin',
+              'main_image',
+              'images',
+              'markets',
+              'title',
+              'description',
+              'shipping_time',
+              'kn_number',
+              'internal_note',
+              'delivery_type',
+            ];
+            const articlePayload = {};
+            for (const k of putAllowed) {
+              if (payload[k] !== undefined) articlePayload[k] = payload[k];
+            }
+            const { price, original_price } = payload;
+            const putResp = await this.fyndiqRequest(
+              `/api/v1/articles/${encodeURIComponent(articleId)}`,
+              {
+                username: settings.apiKey,
+                password: settings.apiSecret,
+                method: 'PUT',
+                body: JSON.stringify(articlePayload),
+              },
+            );
+            const putOk =
+              putResp.resp.ok ||
+              putResp.resp.status === 200 ||
+              putResp.resp.status === 202 ||
+              putResp.resp.status === 204;
+            if (diagnoseTrace?.perProduct?.[productId]) {
+              diagnoseTrace.perProduct[productId].putAfter409 = {
+                articleId,
+                status: putResp.resp?.status,
+                ok: putOk,
+                error: putOk ? null : (putResp.json?.description || putResp.json?.errors),
+              };
+            }
+            Logger.info('Fyndiq PUT (after 409)', {
+              productId,
+              articleId,
+              putStatus: putResp.resp?.status,
+              putOk,
+              putError: putOk ? null : (putResp.json?.description || putResp.json?.errors),
+            });
+            if (putOk && price && Array.isArray(price) && price.length > 0) {
+              const priceBody = { price };
+              if (original_price && Array.isArray(original_price) && original_price.length > 0) {
+                priceBody.original_price = original_price;
+              }
+              const priceResp = await this.fyndiqRequest(
+                `/api/v1/articles/${encodeURIComponent(articleId)}/price`,
+                {
+                  username: settings.apiKey,
+                  password: settings.apiSecret,
+                  method: 'PUT',
+                  body: JSON.stringify(priceBody),
+                },
+              );
+              const priceOk =
+                priceResp.resp.ok ||
+                priceResp.resp.status === 200 ||
+                priceResp.resp.status === 204;
+              if (diagnoseTrace?.perProduct?.[productId]) {
+                diagnoseTrace.perProduct[productId].putPrice = {
+                  status: priceResp.resp?.status,
+                  ok: priceOk,
+                  error: priceOk ? null : (priceResp.json?.description || priceResp.json?.errors),
+                };
+              }
+              if (!priceOk) {
+                errMsg =
+                  priceResp.json?.description ||
+                  (priceResp.json?.errors ? JSON.stringify(priceResp.json.errors) : null) ||
+                  `Price update failed (${priceResp.resp.status})`;
+                success = false;
+              }
+            }
+            if (putOk && success !== false) {
+              success = true;
+              errMsg = null;
+            } else if (!putOk) {
+              errMsg =
+                putResp.json?.description ||
+                (putResp.json?.errors ? JSON.stringify(putResp.json.errors) : null) ||
+                `Update failed (${putResp.resp.status})`;
+              r = putResp.json || r;
+            }
+          }
+        }
 
         await this.model.upsertChannelMap(req, {
           productId,
@@ -587,14 +814,14 @@ class FyndiqProductsController {
           await this.model.logChannelError(req, {
             channel: 'fyndiq',
             productId,
-            payload: bulkPayload[i] || null,
+            payload,
             response: r,
             message: errMsg,
           });
         }
       }
 
-      return res.json({
+      const jsonResponse = {
         ok: true,
         endpoint: '/api/v1/articles/bulk',
         result: { status: resp.status, url, responses: json?.responses },
@@ -606,7 +833,12 @@ class FyndiqProductsController {
           expected_skip: expectedSkip,
         },
         items,
-      });
+      };
+      if (diagnoseTrace) {
+        diagnoseTrace.bulkResponse = { status: resp.status, responses: json?.responses };
+        jsonResponse.diagnose = diagnoseTrace;
+      }
+      return res.json(jsonResponse);
     } catch (error) {
       Logger.error('Fyndiq export error', error, { userId: Context.getUserId(req) });
       return res

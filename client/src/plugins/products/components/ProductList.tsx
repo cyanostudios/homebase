@@ -1347,7 +1347,7 @@ export const ProductList: React.FC = () => {
                     const payload = selectedProducts.map((p: any) => ({
                       id: p.id,
                       sku: p.sku,
-                      mpn: p.mpn,
+                      mpn: p.mpn ?? null,
                       title: p.title,
                       status: p.status,
                       quantity: p.quantity,
@@ -1362,6 +1362,9 @@ export const ProductList: React.FC = () => {
                       gtin: p.gtin,
                       condition: p.condition,
                       knNumber: p.knNumber,
+                      weight: p.weight ?? null,
+                      volume: p.volume ?? null,
+                      volumeUnit: p.volumeUnit ?? null,
                       channelSpecific: p.channelSpecific,
                       parentProductId: p.parentProductId,
                       groupVariationType: p.groupVariationType,

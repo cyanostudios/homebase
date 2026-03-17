@@ -1,4 +1,4 @@
-import { ShoppingCart, Trash2 } from 'lucide-react';
+import { RefreshCw, ShoppingCart, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ export const WooExportPanel: React.FC = () => {
   const { instances, openWooSettingsPanel, openWooSettingsForEdit, loadWooSettings } =
     useWooCommerce();
   const [loadingInstances, setLoadingInstances] = useState(false);
+  const [syncCategoryInstanceId, setSyncCategoryInstanceId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     instanceId: string;
@@ -102,6 +103,20 @@ export const WooExportPanel: React.FC = () => {
       instanceId: '',
       instanceName: '',
     });
+  };
+
+  const handleSyncCategories = async (inst: WooInstance) => {
+    setSyncCategoryInstanceId(inst.id);
+    try {
+      await woocommerceApi.syncCategoryCache(inst.id);
+      window.dispatchEvent(
+        new CustomEvent('category-cache-invalidated', { detail: { key: `woo:${inst.id}` } }),
+      );
+    } catch (err) {
+      console.error('Failed to sync categories:', err);
+    } finally {
+      setSyncCategoryInstanceId(null);
+    }
   };
 
   return (
@@ -211,6 +226,17 @@ export const WooExportPanel: React.FC = () => {
                               }
                             >
                               Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSyncCategories(inst)}
+                              disabled={syncCategoryInstanceId === inst.id}
+                              title="Sync categories"
+                            >
+                              <RefreshCw
+                                className={`w-4 h-4 ${syncCategoryInstanceId === inst.id ? 'animate-spin' : ''}`}
+                              />
                             </Button>
                             <Button
                               variant="ghost"

@@ -35,4 +35,6 @@ Items to address before production launch. Not blocking but recommended.
 
 ## Other
 
-- Images: In dev, mainImage/images often use localhost URLs, causing full export to fail. Quantity-only sync (above) would avoid that for quantity edits. A proper fix would be configurable image base URL or proxy for dev.
+- **Sello import – bildlagring:** Vid Sello-import sparas idag **Sello-bild-URL:er** (images.sello.io) direkt i `main_image`/`images`, så att export till CDON/Fyndiq/Woo fungerar utan att appen behöver vara publikt tillgänglig. **När vi är färdiga med Sello-fasen:** byt till riktig lagring (nedladdning till server eller moln, t.ex. R2/S3 eller `server/uploads`) och använd dessa URL:er i export-payloaden. Se `plugins/products/controller.js` – `getSelloImageUrls` (nu) vs `downloadSelloImages` (behålls för framtida användning).
+
+- Images: In dev, mainImage/images often use localhost URLs, causing full export to fail. Quantity-only sync (above) would avoid that for quantity edits. (Sello-import använder nu Sello-URL:er, så nyimporterade produkter har publika bild-URL:er.)
