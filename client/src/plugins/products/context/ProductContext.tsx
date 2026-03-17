@@ -44,8 +44,6 @@ interface ProductContextType {
   // Panel actions (single product or batch: same panel, always editable)
   openProductPanel: (product: Product | null) => void;
   openProductForEdit: (product: Product) => void;
-  /** Opens the product in the editable form (no separate view). Kept for API compatibility. */
-  openProductForView: (product: Product) => void;
   openProductPanelForBatch: (productIds: string[]) => void;
   closeProductPanel: () => void;
   /** When non-empty, panel is in batch-edit mode: same form, only filled fields are applied on save. */
@@ -429,15 +427,6 @@ export function ProductProvider({
   };
 
   const openProductForEdit = (product: Product) => {
-    setCurrentProduct(product);
-    setPanelMode('edit');
-    setBatchProductIds([]);
-    setIsProductPanelOpen(true);
-    setValidationErrors([]);
-    onCloseOtherPanels();
-  };
-
-  const openProductForView = (product: Product) => {
     setCurrentProduct(product);
     setPanelMode('edit');
     setBatchProductIds([]);
@@ -1262,7 +1251,6 @@ export function ProductProvider({
       // actions
       openProductPanel,
       openProductForEdit,
-      openProductForView,
       openProductPanelForBatch,
       closeProductPanel,
       batchProductIds,

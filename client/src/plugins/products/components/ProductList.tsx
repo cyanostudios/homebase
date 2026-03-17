@@ -43,6 +43,7 @@ import { productsApi } from '../api/productsApi';
 import { useProducts } from '../hooks/useProducts';
 
 import { ProductSettingsForm } from './ProductSettingsForm';
+import { ProductTitleWithLinksHover } from './ProductTitleWithLinksHover';
 
 type SortField = 'id' | 'title' | 'quantity' | 'priceAmount' | 'sku';
 type SortOrder = 'asc' | 'desc';
@@ -1001,14 +1002,15 @@ export const ProductList: React.FC = () => {
                         <div className="text-sm font-mono font-medium">#{p.id}</div>
                       </TableCell>
                       <TableCell className={groupInfo ? 'pl-3' : ''}>
-                        <div className="flex items-center gap-2">
-                          <div className="font-medium">{p.title}</div>
-                          {groupInfo ? (
-                            <Badge variant="secondary" className="text-xs font-normal shrink-0">
-                              {groupInfo.total} varianter · {groupInfo.typeLabel}
-                            </Badge>
-                          ) : null}
-                        </div>
+                        <ProductTitleWithLinksHover
+                          productId={p.id}
+                          title={p.title}
+                          groupInfo={
+                            groupInfo
+                              ? { total: groupInfo.total, typeLabel: groupInfo.typeLabel }
+                              : undefined
+                          }
+                        />
                       </TableCell>
                       <TableCell className={groupInfo ? 'pl-3' : ''}>
                         <div className="text-sm text-muted-foreground">{p.sku || '—'}</div>
@@ -1102,12 +1104,15 @@ export const ProductList: React.FC = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-sm font-medium">{p.title}</h3>
-                          {groupInfo ? (
-                            <Badge variant="secondary" className="text-xs font-normal">
-                              {groupInfo.total} varianter · {groupInfo.typeLabel}
-                            </Badge>
-                          ) : null}
+                          <ProductTitleWithLinksHover
+                            productId={p.id}
+                            title={p.title}
+                            groupInfo={
+                              groupInfo
+                                ? { total: groupInfo.total, typeLabel: groupInfo.typeLabel }
+                                : undefined
+                            }
+                          />
                         </div>
                         <div className="mt-1 space-y-1">
                           <div className="text-xs text-muted-foreground">

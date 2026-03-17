@@ -125,7 +125,7 @@ export const createKeyboardHandler = (
               } else {
                 openForViewFunction(itemData);
               }
-            } else {
+            } else if (pluginData.plugin.name !== 'products') {
               console.warn(`OpenForView function not found for plugin: ${pluginData.plugin.name}`);
             }
           }

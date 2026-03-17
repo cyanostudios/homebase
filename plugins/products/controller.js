@@ -558,6 +558,8 @@ function buildImportedChannelSpecificCategories(product, instancesByIntegration)
     product?.integrations && typeof product.integrations === 'object' ? product.integrations : {};
   const cdonMarkets = {};
   const fyndiqMarkets = {};
+  let cdonCategory = null;
+  let fyndiqCategories = [];
 
   for (const [integrationIdRaw, stateRaw] of Object.entries(integrations)) {
     const integrationId = String(integrationIdRaw || '').trim();
@@ -572,15 +574,11 @@ function buildImportedChannelSpecificCategories(product, instancesByIntegration)
         .toLowerCase();
       if (!['se', 'dk', 'fi', 'no'].includes(market)) continue;
       if (inst.channel === 'cdon') {
-        cdonMarkets[market] = {
-          category: categoryIds[0],
-          active: state.active === true,
-        };
+        cdonCategory = categoryIds[0];
+        cdonMarkets[market] = { active: state.active === true };
       } else if (inst.channel === 'fyndiq') {
-        fyndiqMarkets[market] = {
-          categories: categoryIds,
-          active: state.active === true,
-        };
+        if (market === 'se') fyndiqCategories = categoryIds;
+        fyndiqMarkets[market] = { active: state.active === true };
       }
     }
   }
@@ -599,19 +597,19 @@ function buildImportedChannelSpecificCategories(product, instancesByIntegration)
     const ship = shippingByMarket[mk];
     if (ship) {
       if (cdonMarkets[mk]) Object.assign(cdonMarkets[mk], ship);
-      else cdonMarkets[mk] = { category: null, active: false, ...ship };
+      else cdonMarkets[mk] = { active: false, ...ship };
       if (fyndiqMarkets[mk]) Object.assign(fyndiqMarkets[mk], ship);
-      else fyndiqMarkets[mk] = { categories: [], active: false, ...ship };
+      else fyndiqMarkets[mk] = { active: false, ...ship };
     }
   }
   const out = {};
   out.cdon = {
-    category: null,
+    category: cdonCategory,
     markets: cdonMarkets,
     ...(shippingTime && { shipping_time: shippingTime }),
   };
   out.fyndiq = {
-    categories: [],
+    categories: fyndiqCategories,
     markets: fyndiqMarkets,
     ...(shippingTime && { shipping_time: shippingTime }),
   };
@@ -2128,9 +2126,8 @@ class ProductController {
                 let overrideCategory;
                 if (inst.channel === 'woocommerce') {
                   overrideCategory = catIds.length ? JSON.stringify(catIds) : null;
-                } else if (inst.channel === 'cdon' || inst.channel === 'fyndiq') {
-                  overrideCategory = firstCategoryId;
                 }
+                // CDON/Fyndiq: category lives in channelSpecific only, not in overrides.
                 await this.upsertChannelOverride(req, {
                   productId: createdProductId,
                   channel: inst.channel,
@@ -2419,9 +2416,8 @@ class ProductController {
                 if (inst.channel === 'woocommerce') {
                   if (categoryIds.length) overrideCategory = JSON.stringify(categoryIds);
                   else overrideCategory = null;
-                } else if (inst.channel === 'cdon' || inst.channel === 'fyndiq') {
-                  overrideCategory = firstCategoryId;
                 }
+                // CDON/Fyndiq: category lives in channelSpecific only, not in overrides.
                 await this.upsertChannelOverride(req, {
                   productId,
                   channel: inst.channel,

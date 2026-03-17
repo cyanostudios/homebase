@@ -232,22 +232,10 @@ function mapProductToCdonArticle(
     shipping_time,
   };
 
-  // Category: explicit from active market overrides only (no fallback).
-  const activeCategories = [];
-  const seenCats = new Set();
-  for (const m of markets) {
-    const mk = m.toLowerCase();
-    const ov = overridesByMarket && overridesByMarket[mk];
-    if (!ov || ov.active !== true) continue;
-    const cat = normalizeCategory(ov.category);
-    if (!cat) continue;
-    if (seenCats.has(cat)) continue;
-    seenCats.add(cat);
-    activeCategories.push(cat);
-  }
-  if (activeCategories.length === 0) return null;
-  // CDON API: single category per article. Use first when multiple markets have different categories.
-  payload.category = activeCategories[0];
+  // Category: from channelSpecific.cdon.category only (same ID for all markets).
+  const cat = normalizeCategory(cdon.category);
+  if (!cat) return null;
+  payload.category = cat;
 
   // CDON portal uses Sello group_id as "Huvudartikel SKU"; use groupId when present, else parentProductId.
   const parentSku =
@@ -512,19 +500,12 @@ function getCdonArticleInputIssues(
   );
   if (invalidImage) issues.push('invalid_images_url');
 
-  const activeCategories = [];
-  const seenCats = new Set();
-  for (const m of markets) {
-    const mk = m.toLowerCase();
-    const ov = overridesByMarket && overridesByMarket[mk];
-    if (!ov || ov.active !== true) continue;
-    const cat = normalizeCategory(ov.category);
-    if (!cat) continue;
-    if (seenCats.has(cat)) continue;
-    seenCats.add(cat);
-    activeCategories.push(cat);
-  }
-  if (activeCategories.length === 0) issues.push('missing_category');
+  const cdon =
+    product?.channelSpecific?.cdon && typeof product.channelSpecific.cdon === 'object'
+      ? product.channelSpecific.cdon
+      : {};
+  const cat = normalizeCategory(cdon.category);
+  if (!cat) issues.push('missing_category');
 
   return issues;
 }

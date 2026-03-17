@@ -81,6 +81,14 @@ function parseOverrideCategories(value) {
   return [raw];
 }
 
+/** Read categories from channelSpecific.fyndiq.categories (same ID for all markets). */
+function parseFyndiqCategories(fyndiq) {
+  if (!fyndiq || typeof fyndiq !== 'object') return [];
+  const raw = fyndiq.categories;
+  if (!Array.isArray(raw)) return [];
+  return raw.map((c) => String(c).trim()).filter((c) => c && c !== '0');
+}
+
 /**
  * Build one Fyndiq article payload (single article, possibly multiple markets).
  * @param {Object} product - Base product: id, sku, mpn, title, description, status, quantity, priceAmount, currency, vatRate, mainImage, images, categories, brand, gtin, channelSpecific?.fyndiq
@@ -229,21 +237,9 @@ function mapProductToFyndiqArticle(
     shipping_time.push({ market: m, min, max });
   }
 
-  // Categories: explicit from active market overrides only (no fallback).
-  const categories = [];
-  const seenCategories = new Set();
-  for (const m of markets) {
-    const mk = m.toLowerCase();
-    const ov = overridesByMarket && overridesByMarket[mk];
-    if (!ov || ov.active !== true) continue;
-    const marketCategories = parseOverrideCategories(ov.category);
-    for (const cat of marketCategories) {
-      if (seenCategories.has(cat)) continue;
-      seenCategories.add(cat);
-      categories.push(cat);
-    }
-  }
-  if (categories.length === 0) return null;
+  // Categories: from channelSpecific.fyndiq.categories only (same ID for all markets).
+  const categories = parseFyndiqCategories(fyndiq);
+  if (!categories.length) return null;
 
   const payload = {
     sku,
@@ -379,16 +375,12 @@ function getFyndiqArticleInputIssues(
     }
   }
   if (!hasValidDescription) issues.push('missing_or_short_description');
-  let categoryCount = 0;
-  for (const m of markets) {
-    const mk = m.toLowerCase();
-    const ov = overridesByMarket && overridesByMarket[mk];
-    if (!ov || ov.active !== true) continue;
-    const cats = parseOverrideCategories(ov.category);
-    if (cats.length === 0) issues.push(`missing_category_for_market:${mk}`);
-    categoryCount += cats.length;
-  }
-  if (categoryCount === 0) issues.push('missing_categories');
+  const fyndiq =
+    product?.channelSpecific?.fyndiq && typeof product.channelSpecific.fyndiq === 'object'
+      ? product.channelSpecific.fyndiq
+      : {};
+  const categories = parseFyndiqCategories(fyndiq);
+  if (!categories.length) issues.push('missing_categories');
   const basePrice =
     product?.priceAmount != null && Number.isFinite(Number(product.priceAmount))
       ? Number(product.priceAmount)

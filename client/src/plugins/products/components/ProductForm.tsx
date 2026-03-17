@@ -1314,54 +1314,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         texts.se = { title: baseTitle, description: baseDesc };
       }
       const pickCdonCategoryFromChannelSpecific = (): string => {
-        const marketsObj = (cs.cdon as any)?.markets;
-        if (!marketsObj || typeof marketsObj !== 'object') {
-          return '';
-        }
-        const preferred = ['se', 'dk', 'fi', 'no'];
-        for (const key of preferred) {
-          const m = (marketsObj as any)?.[key];
-          const cat = m?.category != null ? String(m.category).trim() : '';
-          if (!cat || cat === '0') {
-            continue;
-          }
-          return cat;
-        }
-        for (const m of Object.values(marketsObj as Record<string, any>)) {
-          const cat = m?.category != null ? String(m.category).trim() : '';
-          if (!cat || cat === '0') {
-            continue;
-          }
-          return cat;
+        const cat = (cs.cdon as any)?.category;
+        if (cat != null && String(cat).trim() && String(cat).trim() !== '0') {
+          return String(cat).trim();
         }
         return '';
       };
       const pickFyndiqCategoryFromChannelSpecific = (): string => {
-        const marketsObj = (cs.fyndiq as any)?.markets;
-        if (!marketsObj || typeof marketsObj !== 'object') {
-          return '';
-        }
-        const preferred = ['se', 'dk', 'fi', 'no'];
-        for (const key of preferred) {
-          const m = (marketsObj as any)?.[key];
-          const arr = Array.isArray(m?.categories) ? m.categories : [];
-          const first = arr.find(
-            (x: any) => x != null && String(x).trim() !== '' && String(x).trim() !== '0',
-          );
-          if (first != null) {
-            return String(first).trim();
-          }
-        }
-        for (const m of Object.values(marketsObj as Record<string, any>)) {
-          const arr = Array.isArray((m as any)?.categories) ? (m as any).categories : [];
-          const first = arr.find(
-            (x: any) => x != null && String(x).trim() !== '' && String(x).trim() !== '0',
-          );
-          if (first != null) {
-            return String(first).trim();
-          }
-        }
-        return '';
+        const arr = Array.isArray((cs.fyndiq as any)?.categories) ? (cs.fyndiq as any).categories : [];
+        const first = arr.find(
+          (x: any) => x != null && String(x).trim() !== '' && String(x).trim() !== '0',
+        );
+        return first != null ? String(first).trim() : '';
       };
       const cdonCategoryForForm = pickCdonCategoryFromChannelSpecific();
       const fyndiqCategoryForForm = pickFyndiqCategoryFromChannelSpecific();
@@ -1854,30 +1818,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       const fyndiqCat = (formData.channelCategories?.fyndiq ?? '').trim()
         ? [String(formData.channelCategories!.fyndiq).trim()]
         : [];
-      const cdonMarketsWithCategory = Object.fromEntries(
-        Object.entries(formData.markets).map(([k, m]) => [
-          k,
-          {
-            ...m,
-            ...(cdonCat && { category: cdonCat }),
-          },
-        ]),
-      );
-      const fyndiqMarketsWithCategories = Object.fromEntries(
-        Object.entries(formData.markets).map(([k, m]) => [
-          k,
-          {
-            ...m,
-            ...(fyndiqCat.length > 0 && { categories: fyndiqCat }),
-          },
-        ]),
-      );
       const channelSpecific: Record<string, unknown> = {
         ...existingCs,
         weightUnit: formData.weightUnit,
         shoeSizeEu: formData.shoeSizeEu?.trim() || null,
         cdon: {
-          markets: cdonMarketsWithCategory,
+          markets: formData.markets,
           texts: formData.texts,
           category: cdonCat,
           shipping_time: shippingTime,
@@ -1898,7 +1844,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             }),
         },
         fyndiq: {
-          markets: fyndiqMarketsWithCategories,
+          markets: formData.markets,
           texts: formData.texts,
           categories: fyndiqCat,
           shipping_time: shippingTime,

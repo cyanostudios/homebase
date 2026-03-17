@@ -4,6 +4,29 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-14 – Kanallänkar på hover i produktlistan, ProductView borttagen
+
+### Produktlistan – hover visar kanallänkar
+
+- **client/…/ProductTitleWithLinksHover.tsx, useProductChannelLinks.ts:** Hover på produktitel i listan öppnar en HoverCard med länkar till CDON, Fyndiq och WooCommerce (Sello-format: UUID utan bindestreck, första 16 tecken).
+- **client/src/components/ui/hover-card.tsx:** Ny UI-komponent (Radix HoverCard).
+- **ChannelsContext, products controller:** Stöd för att föredra Sello-rader i channel_product_map och korrekt URL-byggnad.
+
+### Produkter – ProductView borttagen
+
+- **ProductView.tsx borttagen:** Vy/redigering hanteras via ProductForm och listan; ProductList och ProductContext uppdaterade.
+
+### CDON / Fyndiq – map
+
+- **plugins/cdon-products/mapToCdonArticle.js, plugins/fyndiq-products/mapToFyndiqArticle.js:** Justeringar för kategori/artikel-mappning.
+
+### Dokumentation och script
+
+- **docs/PRODUCT_CHANNEL_LINKS_INVESTIGATION.md:** Beskriver kanallänkar (Sello vs sync), URL-format och nuvarande fix.
+- **scripts/debug-product-channel-links.js:** Diagnostik för kanallänkar per produkt.
+
+---
+
 ## 2026-03-14 – Kategori-cache scheduler, CDON/Fyndiq/Woo förbättringar, produkt-UI
 
 ### Kategori-cache – schemalagd jobb

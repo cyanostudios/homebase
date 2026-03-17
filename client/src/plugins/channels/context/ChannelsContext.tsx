@@ -40,7 +40,7 @@ interface ChannelsContextType {
   // Loader
   loadChannels: () => Promise<void>;
 
-  // Per-product toggle (used by ProductView)
+  // Per-product toggle (used when toggling product channel enable)
   setProductEnabled: (args: { productId: string; channel: string; enabled: boolean }) => Promise<{
     ok: boolean;
     row: any;
