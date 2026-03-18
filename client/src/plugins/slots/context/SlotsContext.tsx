@@ -82,9 +82,12 @@ interface SlotsContextType {
   displayMentions: SlotMention[];
   addContactToDraft: (contact: { id: number | string; companyName?: string }) => void;
   removeContactFromDraft: (contactId: string) => void;
-  /** Draft for visible/notifications in view mode; used by SlotView switches. */
-  propertyDraft: Partial<Pick<Slot, 'visible' | 'notifications_enabled'>> | null;
-  setPropertyDraftField: (field: 'visible' | 'notifications_enabled', value: boolean) => void;
+  /** Draft for visible/notifications/location in view mode; used by SlotView switches and inline location edit. */
+  propertyDraft: Partial<Pick<Slot, 'visible' | 'notifications_enabled' | 'location'>> | null;
+  setPropertyDraftField: (
+    field: 'visible' | 'notifications_enabled' | 'location',
+    value: boolean | string | null,
+  ) => void;
   hasQuickEditChanges: boolean;
   onApplyQuickEdit: () => Promise<void>;
   showDiscardQuickEditDialog: boolean;
@@ -169,9 +172,9 @@ export function SlotsProvider({
   const [slotsContentView, setSlotsContentView] = useState<'list' | 'settings'>('list');
   const [recentlyDuplicatedSlotId, setRecentlyDuplicatedSlotId] = useState<string | null>(null);
   const [mentionsDraft, setMentionsDraft] = useState<SlotMention[] | null>(null);
-  /** Draft for visible/notifications toggles in view mode (like task status/priority). */
+  /** Draft for visible/notifications/location in view mode (like task status/priority). */
   const [propertyDraft, setPropertyDraft] =
-    useState<Partial<Pick<Slot, 'visible' | 'notifications_enabled'>>>(null);
+    useState<Partial<Pick<Slot, 'visible' | 'notifications_enabled' | 'location'>>>(null);
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
   const [showSendMessageDialog, setShowSendMessageDialog] = useState(false);
   const [sendMessageRecipients, setSendMessageRecipients] = useState<BulkMessageRecipient[]>([]);
@@ -507,6 +510,12 @@ export function SlotsProvider({
           ) {
             return true;
           }
+          if (
+            propertyDraft.location !== undefined &&
+            (propertyDraft.location ?? '') !== (currentSlot.location ?? '')
+          ) {
+            return true;
+          }
         }
         return false;
       })(),
@@ -597,7 +606,7 @@ export function SlotsProvider({
     const nextMentions =
       mentionsDraft ?? (Array.isArray(currentSlot.mentions) ? currentSlot.mentions : []);
     const payload = {
-      location: currentSlot.location,
+      location: propertyDraft?.location ?? currentSlot.location,
       slot_time: currentSlot.slot_time,
       capacity: currentSlot.capacity,
       visible: propertyDraft?.visible ?? currentSlot.visible,
@@ -634,7 +643,7 @@ export function SlotsProvider({
   }, []);
 
   const setPropertyDraftField = useCallback(
-    (field: 'visible' | 'notifications_enabled', value: boolean) => {
+    (field: 'visible' | 'notifications_enabled' | 'location', value: boolean | string | null) => {
       setPropertyDraft((prev) => ({ ...prev, [field]: value }));
     },
     [],

@@ -1,10 +1,11 @@
 import { Info, SlidersHorizontal, Trash2, User, X } from 'lucide-react';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -298,10 +299,12 @@ function SlotBookingsCard({ bookings, bookingsLoading, onRequestDelete }: SlotBo
 
 interface SlotInfoCardProps {
   slot: Slot;
-  displaySlot: Slot & Partial<Pick<Slot, 'visible' | 'notifications_enabled'>>;
+  displaySlot: Slot & Partial<Pick<Slot, 'visible' | 'notifications_enabled' | 'location'>>;
   hasMatch: boolean;
   sourceMatch: Match | null;
   onMatchClick: () => void;
+  /** When provided, location is editable in view; changes go to draft and require "Update" to save (same as visible/notifications). */
+  onLocationDraftChange?: (value: string | null) => void;
 }
 
 function SlotInfoCard({
@@ -310,8 +313,59 @@ function SlotInfoCard({
   hasMatch,
   sourceMatch,
   onMatchClick,
+  onLocationDraftChange,
 }: SlotInfoCardProps) {
   const { t } = useTranslation();
+  const [isEditingLocation, setIsEditingLocation] = useState(false);
+  const [locationEditValue, setLocationEditValue] = useState(
+    () => displaySlot?.location ?? slot.location ?? '',
+  );
+  const locationInputRef = useRef<HTMLInputElement>(null);
+
+  const startEditingLocation = useCallback(() => {
+    if (!onLocationDraftChange) {
+      return;
+    }
+    setLocationEditValue(displaySlot?.location ?? slot.location ?? '');
+    setIsEditingLocation(true);
+    setTimeout(() => locationInputRef.current?.focus(), 0);
+  }, [onLocationDraftChange, displaySlot?.location, slot.location]);
+
+  const applyLocationDraft = useCallback(() => {
+    if (!onLocationDraftChange) {
+      return;
+    }
+    const trimmed = locationEditValue.trim();
+    const current = (displaySlot?.location ?? slot.location ?? '') || '';
+    if (trimmed === current) {
+      setIsEditingLocation(false);
+      return;
+    }
+    onLocationDraftChange(trimmed || null);
+    setIsEditingLocation(false);
+  }, [onLocationDraftChange, locationEditValue, displaySlot?.location, slot.location]);
+
+  const handleLocationKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyLocationDraft();
+      }
+      if (e.key === 'Escape') {
+        setLocationEditValue(displaySlot?.location ?? slot.location ?? '');
+        setIsEditingLocation(false);
+        locationInputRef.current?.blur();
+      }
+    },
+    [applyLocationDraft, displaySlot?.location, slot.location],
+  );
+
+  useEffect(() => {
+    if (!isEditingLocation) {
+      setLocationEditValue(displaySlot?.location ?? slot.location ?? '');
+    }
+  }, [displaySlot?.location, slot.location, isEditingLocation]);
+
   return (
     <Card
       padding="none"
@@ -327,11 +381,31 @@ function SlotInfoCard({
               {formatDisplayNumber('slots', slot.id)}
             </div>
           </div>
-          <div className="text-right">
+          <div className="text-right min-w-0 flex-1 max-w-[55%]">
             <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
               {t('common.location')}
             </div>
-            <div className="text-base font-medium">{slot.location || '—'}</div>
+            {onLocationDraftChange && isEditingLocation ? (
+              <Input
+                ref={locationInputRef}
+                value={locationEditValue}
+                onChange={(e) => setLocationEditValue(e.target.value)}
+                onBlur={applyLocationDraft}
+                onKeyDown={handleLocationKeyDown}
+                className="h-8 text-base font-medium"
+                placeholder={t('slots.locationPlaceholder', 'Location')}
+              />
+            ) : onLocationDraftChange ? (
+              <button
+                type="button"
+                onClick={startEditingLocation}
+                className="text-base font-medium text-left w-full rounded px-2 py-1 -mx-2 -my-1 hover:bg-muted/60 transition-colors truncate"
+              >
+                {displaySlot?.location ?? slot.location ?? '—'}
+              </button>
+            ) : (
+              <div className="text-base font-medium">{slot.location ?? '—'}</div>
+            )}
           </div>
         </div>
         {hasMatch && (
@@ -587,6 +661,7 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
             hasMatch={hasMatch}
             sourceMatch={sourceMatch}
             onMatchClick={handleMatchClick}
+            onLocationDraftChange={(value) => setPropertyDraftField('location', value ?? null)}
           />
         </div>
       </DetailLayout>
