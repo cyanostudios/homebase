@@ -1,7 +1,7 @@
 // client/src/plugins/slots/utils/slotContactUtils.ts
 // Resolve selected slots to unique contacts (for bulk message / export)
 
-import type { Slot, SlotMention } from '../types/slots';
+import type { Slot, SlotBooking, SlotMention } from '../types/slots';
 
 export interface ResolvedContact {
   id: string;
@@ -93,6 +93,90 @@ export function resolveSlotsToEmailContacts(
       email: contact?.email?.trim() ?? '',
     }),
   );
+}
+
+function normalizePhoneKey(phone: string): string {
+  return phone.replace(/\s/g, '').replace(/^\+/, '');
+}
+
+/**
+ * Append public slot bookings to SMS recipients. Dedupes by phone against
+ * existing rows and between bookings. Bookings without phone are listed (greyed in UI).
+ */
+export function appendPublicBookingsToMessageRecipients(
+  mentionRecipients: ResolvedContact[],
+  bookings: SlotBooking[],
+): ResolvedContact[] {
+  const seenPhones = new Set<string>();
+  for (const r of mentionRecipients) {
+    const p = normalizePhoneKey(r.phone || '');
+    if (p) {
+      seenPhones.add(p);
+    }
+  }
+  const out = [...mentionRecipients];
+  for (const b of bookings) {
+    const raw = (b.phone && b.phone.trim()) || '';
+    const key = normalizePhoneKey(raw);
+    if (!key) {
+      out.push({
+        id: `slot-booking:${b.id}`,
+        name: (b.name && b.name.trim()) || '—',
+        phone: '',
+      });
+      continue;
+    }
+    if (seenPhones.has(key)) {
+      continue;
+    }
+    seenPhones.add(key);
+    out.push({
+      id: `slot-booking:${b.id}`,
+      name: (b.name && b.name.trim()) || '—',
+      phone: raw,
+    });
+  }
+  return out;
+}
+
+/**
+ * Append public slot bookings to email recipients. Dedupes by email (case-insensitive).
+ */
+export function appendPublicBookingsToEmailRecipients(
+  mentionRecipients: ResolvedEmailContact[],
+  bookings: SlotBooking[],
+): ResolvedEmailContact[] {
+  const seenEmails = new Set<string>();
+  for (const r of mentionRecipients) {
+    const e = (r.email && r.email.trim().toLowerCase()) || '';
+    if (e && e.includes('@')) {
+      seenEmails.add(e);
+    }
+  }
+  const out = [...mentionRecipients];
+  for (const b of bookings) {
+    const raw = (b.email && b.email.trim()) || '';
+    const lower = raw.toLowerCase();
+    const valid = raw.includes('@');
+    if (!valid) {
+      out.push({
+        id: `slot-booking:${b.id}`,
+        name: (b.name && b.name.trim()) || '—',
+        email: '',
+      });
+      continue;
+    }
+    if (seenEmails.has(lower)) {
+      continue;
+    }
+    seenEmails.add(lower);
+    out.push({
+      id: `slot-booking:${b.id}`,
+      name: (b.name && b.name.trim()) || '—',
+      email: raw,
+    });
+  }
+  return out;
 }
 
 /**

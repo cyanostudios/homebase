@@ -39,8 +39,8 @@ export function useSlotSettings() {
     try {
       await updateSettings(SLOTS_SETTINGS_KEY, { viewMode });
       setInitialViewMode(viewMode);
-    } catch (error) {
-      console.error('Failed to save slots settings:', error);
+    } catch {
+      /* settings save failed; user can retry */
     } finally {
       setIsSaving(false);
     }

@@ -267,25 +267,28 @@ export function Sidebar({
     </div>
   );
 
-  const SidebarContent = () => (
-    <div className="flex h-full flex-col pt-14">
-      <div className="flex-1 overflow-y-auto px-2 pt-4">{renderCategories()}</div>
-    </div>
+  const SidebarNav = () => (
+    <div className="flex-1 overflow-y-auto px-2 pt-4">{renderCategories()}</div>
   );
 
   return (
     <>
-      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-[220px] flex-shrink-0 bg-muted z-10 ml-8">
-        <SidebarContent />
+      {/* Full 252px column (matches TopBar left); pl-8 indents nav — no white body strip at far left */}
+      <aside className="fixed left-0 top-0 z-10 hidden h-screen w-[252px] flex-shrink-0 bg-workspace md:flex">
+        <div className="flex h-full flex-col pl-8 pt-14">
+          <SidebarNav />
+        </div>
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
-        <SheetContent side="left" className="w-72 p-0">
+        <SheetContent side="left" className="w-72 border-border/60 bg-workspace p-0">
           <SheetHeader className="px-4 pt-4">
             <SheetTitle>{t('nav.navigation')}</SheetTitle>
           </SheetHeader>
-          <div className="px-2 pb-6">
-            <SidebarContent />
+          <div className="px-2 pb-6 pt-2">
+            <div className="flex flex-col">
+              <SidebarNav />
+            </div>
           </div>
         </SheetContent>
       </Sheet>

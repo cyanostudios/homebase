@@ -135,8 +135,13 @@
     "matchNumber": "Matchnummer",
     "deletedMatch": "Borttagen match",
     "publicBookings": "Publika bokningar",
+    "activity": "Aktivitet",
+    "properties": "Egenskaper",
     "deleteBooking": "Ta bort bokning",
-    "deleteBookingConfirm": "Är du säker på att du vill ta bort denna bokning?"
+    "deleteBookingConfirm": "Är du säker på att du vill ta bort bokningen från \"{{name}}\"?",
+    "deleteSlotFailed": "Kunde inte ta bort sloten",
+    "deleteSlotsFailed": "Kunde inte ta bort valda slots",
+    "loadFailed": "Kunde inte ladda slots"
   },
   "bulk": {
     "selected": "{{count}} valda",
@@ -169,7 +174,13 @@
     "sendEmailSending": "Skickar… {{sent}} / {{total}}",
     "sendEmailDone": "Klart",
     "sendEmailResult": "{{sent}} skickade, {{failed}} misslyckades.",
-    "sendEmailAttachmentPreview": "Följande information bifogas:"
+    "sendEmailAttachmentPreview": "Följande information bifogas:",
+    "selectAllRecipients": "Markera alla",
+    "deselectAllRecipients": "Avmarkera alla",
+    "recipientNoPhone": "(inget telefonnummer)",
+    "recipientNoEmail": "(ingen e-post)",
+    "recipientsSelectedForSms": "{{selected}} av {{eligible}} med telefon valda att ta emot SMS.",
+    "recipientsSelectedForEmail": "{{selected}} av {{eligible}} med e-post valda att ta emot."
   },
   "panel": {
     "close": "Stäng",

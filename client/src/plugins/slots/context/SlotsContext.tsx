@@ -194,6 +194,42 @@ export function SlotsProvider({
     setSendEmailSlot(null);
   }, []);
 
+  const openSlotSendMessage = useCallback(
+    (item: Slot) => {
+      const base = resolveSlotsToContacts(
+        [item.id],
+        slots,
+        appContacts as Array<{
+          id: string | number;
+          companyName?: string;
+          phone?: string;
+          phone2?: string;
+        }>,
+      );
+      setSendMessageRecipients(base);
+      setShowSendMessageDialog(true);
+    },
+    [slots, appContacts],
+  );
+
+  const openSlotSendEmail = useCallback(
+    (item: Slot) => {
+      const base = resolveSlotsToEmailContacts(
+        [item.id],
+        slots,
+        appContacts as Array<{
+          id: string | number;
+          companyName?: string;
+          email?: string;
+        }>,
+      );
+      setSendEmailRecipients(base);
+      setSendEmailSlot(item);
+      setShowSendEmailDialog(true);
+    },
+    [slots, appContacts],
+  );
+
   const detailFooterActions = useMemo(() => {
     const actions: Array<{
       id: string;
@@ -208,20 +244,7 @@ export function SlotsProvider({
         id: 'send-message',
         label: t('bulk.sendMessageTitle'),
         icon: MessageCircle,
-        onClick: (item: Slot) => {
-          const recipients = resolveSlotsToContacts(
-            [item.id],
-            slots,
-            appContacts as Array<{
-              id: string | number;
-              companyName?: string;
-              phone?: string;
-              phone2?: string;
-            }>,
-          );
-          setSendMessageRecipients(recipients);
-          setShowSendMessageDialog(true);
-        },
+        onClick: openSlotSendMessage,
         className: 'h-9 text-xs px-3',
       });
     }
@@ -231,26 +254,13 @@ export function SlotsProvider({
         id: 'send-email',
         label: t('bulk.sendEmailTitle'),
         icon: Mail,
-        onClick: (item: Slot) => {
-          const recipients = resolveSlotsToEmailContacts(
-            [item.id],
-            slots,
-            appContacts as Array<{
-              id: string | number;
-              companyName?: string;
-              email?: string;
-            }>,
-          );
-          setSendEmailRecipients(recipients);
-          setSendEmailSlot(item);
-          setShowSendEmailDialog(true);
-        },
+        onClick: openSlotSendEmail,
         className: 'h-9 text-xs px-3',
       });
     }
 
     return actions;
-  }, [t, slots, appContacts, canSendMessages, canSendEmail]);
+  }, [t, canSendMessages, canSendEmail, openSlotSendMessage, openSlotSendEmail]);
 
   const {
     selectedIds: selectedSlotIds,
@@ -281,12 +291,11 @@ export function SlotsProvider({
       const data = await slotsApi.getSlots();
       setSlots(data);
     } catch (error: unknown) {
-      console.error('Failed to load slots:', error);
       setValidationErrors([
-        { field: 'general', message: extractErrorMsg(error, 'Failed to load slots') },
+        { field: 'general', message: extractErrorMsg(error, t('slots.loadFailed')) },
       ]);
     }
-  }, []);
+  }, [t]);
 
   const refreshSlots = useCallback(async () => {
     await loadSlots();
@@ -658,10 +667,11 @@ export function SlotsProvider({
           closeSlotPanel();
         }
       } catch (error: unknown) {
-        alert(extractErrorMsg(error, 'Failed to delete slot'));
+        const detail = extractErrorMsg(error, '');
+        alert(detail ? `${t('slots.deleteSlotFailed')}: ${detail}` : t('slots.deleteSlotFailed'));
       }
     },
-    [currentSlot, closeSlotPanel],
+    [currentSlot, closeSlotPanel, t],
   );
 
   const deleteSlots = useCallback(

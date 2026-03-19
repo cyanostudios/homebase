@@ -1,7 +1,8 @@
 // client/src/core/ui/BulkMessageDialog.tsx
 // Modal to compose and send bulk SMS to a list of recipients (from slots or contacts)
 
-import React, { useState, useCallback } from 'react';
+import { ListChecks, XCircle } from 'lucide-react';
+import React, { useState, useCallback, useMemo, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -20,15 +21,22 @@ export interface BulkMessageDialogProps {
   onClose: () => void;
   recipients: BulkMessageRecipient[];
   pluginSource: string;
+  /** When true, show checkboxes to choose which recipients with phone receive the SMS */
+  showRecipientSelection?: boolean;
 }
 
 type SendPhase = 'idle' | 'sending' | 'done';
+
+function hasPhone(r: BulkMessageRecipient): boolean {
+  return !!(r.phone && r.phone.trim());
+}
 
 export function BulkMessageDialog({
   isOpen,
   onClose,
   recipients,
   pluginSource,
+  showRecipientSelection = false,
 }: BulkMessageDialogProps) {
   const { t } = useTranslation();
   const [body, setBody] = useState('');
@@ -36,20 +44,44 @@ export function BulkMessageDialog({
   const [sentCount, setSentCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const sendBatchTotalRef = useRef(0);
 
-  const withPhone = recipients.filter((r) => r.phone && r.phone.trim());
+  const withPhone = useMemo(() => recipients.filter((r) => hasPhone(r)), [recipients]);
   const withoutPhone = recipients.length - withPhone.length;
 
+  useLayoutEffect(() => {
+    if (isOpen && showRecipientSelection) {
+      setSelectedIds(new Set(withPhone.map((r) => r.id)));
+    }
+  }, [isOpen, showRecipientSelection, withPhone]);
+
+  const eligibleSelectedCount = useMemo(
+    () => withPhone.filter((r) => selectedIds.has(r.id)).length,
+    [withPhone, selectedIds],
+  );
+
+  const recipientsToSend = useMemo(() => {
+    if (!showRecipientSelection) {
+      return withPhone;
+    }
+    return withPhone.filter((r) => selectedIds.has(r.id));
+  }, [showRecipientSelection, withPhone, selectedIds]);
+
   const handleSend = useCallback(async () => {
-    if (withPhone.length === 0) {
+    const toSend = showRecipientSelection
+      ? withPhone.filter((r) => selectedIds.has(r.id))
+      : withPhone;
+    if (toSend.length === 0) {
       return;
     }
+    sendBatchTotalRef.current = toSend.length;
     setPhase('sending');
     setErrorMessage(null);
     let sent = 0;
     let failed = 0;
     let firstError: string | null = null;
-    for (const r of withPhone) {
+    for (const r of toSend) {
       try {
         const res = await pulseApi.send({
           to: r.phone.trim(),
@@ -66,7 +98,6 @@ export function BulkMessageDialog({
         if (!firstError) {
           firstError = e?.message || 'Failed to send message';
         }
-        // If the error is due to configuration/auth/access, abort remaining sends to avoid noise.
         const status = e?.status;
         if (status === 400 || status === 401 || status === 403) {
           break;
@@ -79,7 +110,7 @@ export function BulkMessageDialog({
       setErrorMessage(firstError);
     }
     setPhase('done');
-  }, [body, withPhone, pluginSource]);
+  }, [body, withPhone, pluginSource, showRecipientSelection, selectedIds]);
 
   const handleClose = useCallback(() => {
     setBody('');
@@ -87,12 +118,37 @@ export function BulkMessageDialog({
     setSentCount(0);
     setFailedCount(0);
     setErrorMessage(null);
+    setSelectedIds(new Set());
     onClose();
   }, [onClose]);
+
+  const allEligibleSelected = withPhone.length > 0 && eligibleSelectedCount === withPhone.length;
+
+  const handleToggleSelectAll = useCallback(() => {
+    if (allEligibleSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(withPhone.map((r) => r.id)));
+    }
+  }, [allEligibleSelected, withPhone]);
+
+  const toggleRecipient = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
 
   if (!isOpen) {
     return null;
   }
+
+  const canSend = recipientsToSend.length > 0 && !!body.trim();
 
   return (
     <div className="fixed inset-0 z-50">
@@ -108,10 +164,27 @@ export function BulkMessageDialog({
               {t('bulk.sendMessageTitle')}
             </Heading>
             <div className="text-xs text-muted-foreground mt-1">
-              {t('bulk.sendMessageRecipients', {
-                total: recipients.length,
-                withPhone: withPhone.length,
-              })}
+              {showRecipientSelection ? (
+                <>
+                  <span>
+                    {t('bulk.recipientsSelectedForSms', {
+                      selected: eligibleSelectedCount,
+                      eligible: withPhone.length,
+                    })}
+                  </span>
+                  <span className="block mt-0.5">
+                    {t('bulk.sendMessageRecipients', {
+                      total: recipients.length,
+                      withPhone: withPhone.length,
+                    })}
+                  </span>
+                </>
+              ) : (
+                t('bulk.sendMessageRecipients', {
+                  total: recipients.length,
+                  withPhone: withPhone.length,
+                })
+              )}
               {withoutPhone > 0 && (
                 <span className="block mt-1 text-amber-600 dark:text-amber-400">
                   {t('bulk.sendMessageNoPhone', { count: withoutPhone })}
@@ -123,6 +196,67 @@ export function BulkMessageDialog({
           <div className="p-4 flex flex-col gap-3 min-h-0 overflow-auto">
             {phase === 'idle' && (
               <>
+                {showRecipientSelection && recipients.length > 0 && (
+                  <div className="rounded-md border border-border bg-muted/30 min-h-0 max-h-40 flex flex-col">
+                    <div className="px-2 py-1.5 border-b border-border shrink-0">
+                      {allEligibleSelected ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={XCircle}
+                          type="button"
+                          className="h-8 text-xs px-2 -ml-2 text-red-600 underline decoration-red-600/50 hover:text-red-700 hover:decoration-red-700 hover:bg-transparent dark:text-red-400 dark:decoration-red-400/50 dark:hover:text-red-300 dark:hover:bg-transparent"
+                          onClick={handleToggleSelectAll}
+                        >
+                          {t('bulk.deselectAllRecipients')}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={ListChecks}
+                          type="button"
+                          className="h-8 text-xs px-2 -ml-2 text-primary hover:text-primary hover:bg-primary/5 disabled:opacity-50"
+                          onClick={handleToggleSelectAll}
+                          disabled={withPhone.length === 0}
+                        >
+                          {t('bulk.selectAllRecipients')}
+                        </Button>
+                      )}
+                    </div>
+                    <ul className="overflow-y-auto text-xs divide-y divide-border">
+                      {recipients.map((r) => {
+                        const eligible = hasPhone(r);
+                        const checked = eligible && selectedIds.has(r.id);
+                        return (
+                          <li
+                            key={r.id}
+                            className={
+                              eligible
+                                ? 'flex items-center gap-2 px-2 py-2.5'
+                                : 'flex items-center gap-2 px-2 py-2.5 opacity-50'
+                            }
+                          >
+                            <input
+                              type="checkbox"
+                              className="rounded border-input shrink-0"
+                              checked={checked}
+                              disabled={!eligible}
+                              onChange={() => eligible && toggleRecipient(r.id)}
+                              aria-label={r.name}
+                            />
+                            <span className="text-xs text-foreground truncate min-w-0">
+                              {r.name}
+                            </span>
+                            <span className="text-muted-foreground truncate ml-auto shrink-0 max-w-[45%]">
+                              {eligible ? r.phone.trim() : t('bulk.recipientNoPhone')}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
                 <label className="text-sm font-medium text-foreground">
                   {t('bulk.sendMessageBodyLabel')}
                 </label>
@@ -139,7 +273,7 @@ export function BulkMessageDialog({
               <p className="text-sm text-muted-foreground">
                 {t('bulk.sendMessageSending', {
                   sent: sentCount,
-                  total: withPhone.length,
+                  total: sendBatchTotalRef.current,
                 })}
               </p>
             )}
@@ -177,11 +311,7 @@ export function BulkMessageDialog({
                 >
                   {t('common.cancel')}
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSend}
-                  disabled={phase === 'sending' || withPhone.length === 0 || !body.trim()}
-                >
+                <Button size="sm" onClick={handleSend} disabled={phase === 'sending' || !canSend}>
                   {phase === 'sending'
                     ? t('bulk.sendMessageSendingShort')
                     : t('bulk.sendMessageSend')}

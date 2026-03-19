@@ -74,7 +74,7 @@ export function MainLayout({
   };
 
   return (
-    <div className="min-h-screen bg-muted">
+    <div className="min-h-screen bg-workspace">
       <Sidebar
         currentPage={currentPage}
         onPageChange={handlePageChange}
@@ -91,7 +91,7 @@ export function MainLayout({
         detailPanelPluginName={detailPanelOpen ? detailPanelPluginName : undefined}
       />
 
-      <main className="flex h-[calc(100vh-3.5rem)] pt-14 md:pl-[252px] md:pr-4">
+      <main className="flex h-[calc(100vh-3.5rem)] pt-14 md:pl-[252px] md:pr-4 bg-workspace">
         {/* Mobile: Show DetailPanel as overlay, hide list view when open */}
         {/* Desktop: Show DetailPanel as column alongside list view */}
         {isMobile ? (
@@ -138,7 +138,7 @@ export function MainLayout({
           <>
             {/* Desktop: Show DetailPanel as column when open, otherwise show list view */}
             {detailPanelOpen ? (
-              <ContentSurface>
+              <ContentSurface flush>
                 <DetailPanel
                   isOpen={detailPanelOpen}
                   onClose={onDetailPanelClose}

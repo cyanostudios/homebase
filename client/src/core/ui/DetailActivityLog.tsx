@@ -89,7 +89,10 @@ export function DetailActivityLog({
     <>
       <Card
         padding="none"
-        className={cn('overflow-hidden border-none shadow-sm bg-background/50', className)}
+        className={cn(
+          'overflow-hidden border border-border/70 bg-gray-50 shadow-sm dark:bg-gray-900/40',
+          className,
+        )}
       >
         <DetailSection
           title={title ?? t('activityLog.title', 'Activity')}

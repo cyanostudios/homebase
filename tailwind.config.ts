@@ -43,6 +43,7 @@ export default {
           DEFAULT: 'hsl(var(--muted))',
           foreground: 'hsl(var(--muted-foreground))',
         },
+        workspace: 'var(--workspace)',
         accent: {
           DEFAULT: 'hsl(var(--accent))',
           foreground: 'hsl(var(--accent-foreground))',
@@ -89,19 +90,10 @@ export default {
             height: '0',
           },
         },
-        'border-pulse': {
-          '0%, 100%': {
-            borderColor: 'hsl(var(--primary) / 0.2)',
-          },
-          '50%': {
-            borderColor: 'hsl(var(--primary) / 0.8)',
-          },
-        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        'border-pulse': 'border-pulse 3s ease-in-out infinite',
       },
     },
   },

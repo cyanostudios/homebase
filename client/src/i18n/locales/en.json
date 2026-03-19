@@ -135,8 +135,13 @@
     "matchNumber": "Match number",
     "deletedMatch": "Deleted Match",
     "publicBookings": "Public Bookings",
+    "activity": "Activity",
+    "properties": "Properties",
     "deleteBooking": "Delete Booking",
-    "deleteBookingConfirm": "Are you sure you want to delete this booking?"
+    "deleteBookingConfirm": "Are you sure you want to delete the booking from \"{{name}}\"?",
+    "deleteSlotFailed": "Could not delete slot",
+    "deleteSlotsFailed": "Could not delete selected slots",
+    "loadFailed": "Failed to load slots"
   },
   "bulk": {
     "selected": "{{count}} selected",
@@ -169,7 +174,13 @@
     "sendEmailSending": "Sending… {{sent}} / {{total}}",
     "sendEmailDone": "Done",
     "sendEmailResult": "{{sent}} sent, {{failed}} failed.",
-    "sendEmailAttachmentPreview": "The following information will be attached:"
+    "sendEmailAttachmentPreview": "The following information will be attached:",
+    "selectAllRecipients": "Select all",
+    "deselectAllRecipients": "Deselect all",
+    "recipientNoPhone": "(no phone)",
+    "recipientNoEmail": "(no email)",
+    "recipientsSelectedForSms": "{{selected}} of {{eligible}} with phone selected to receive SMS.",
+    "recipientsSelectedForEmail": "{{selected}} of {{eligible}} with email selected to receive."
   },
   "panel": {
     "close": "Close",

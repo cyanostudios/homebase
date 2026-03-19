@@ -26,8 +26,8 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
-import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
+import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
+import { BulkMessageDialog, type BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { exportItems } from '@/core/utils/exportUtils';
@@ -35,10 +35,18 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 
+import { slotsApi } from '../api/slotsApi';
 import { useSlotsContext as useSlots } from '../context/SlotsContext';
 import type { Slot, SlotsViewMode } from '../types/slots';
 import { SLOTS_SETTINGS_KEY } from '../types/slots';
-import { resolveSlotsToContacts, resolveSlotsToEmailContacts } from '../utils/slotContactUtils';
+import {
+  appendPublicBookingsToEmailRecipients,
+  appendPublicBookingsToMessageRecipients,
+  formatSlotInfoHtml,
+  formatSlotInfoText,
+  resolveSlotsToContacts,
+  resolveSlotsToEmailContacts,
+} from '../utils/slotContactUtils';
 
 import { BulkPropertiesDialog } from './BulkPropertiesDialog';
 import { CapacityAssignedDots } from './CapacityAssignedDots';
@@ -81,6 +89,10 @@ export function SlotsList() {
   const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
   const [showBulkPropertiesDialog, setShowBulkPropertiesDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [bulkMessageRecipients, setBulkMessageRecipients] = useState<BulkMessageRecipient[]>([]);
+  const [bulkEmailRecipients, setBulkEmailRecipients] = useState<BulkEmailRecipient[]>([]);
+  /** Slots snapshot when bulk email opens (slot info appended to mail like single-slot send). */
+  const [bulkEmailContextSlots, setBulkEmailContextSlots] = useState<Slot[]>([]);
 
   const selectedSlots = useMemo(
     () => slots.filter((s) => selectedSlotIds.includes(s.id)),
@@ -251,34 +263,56 @@ export function SlotsList() {
   const formatDateTime = (s: string | null) =>
     s ? new Date(s).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 
-  const bulkMessageRecipients = useMemo(
-    () =>
-      resolveSlotsToContacts(
-        selectedSlotIds,
-        slots,
-        contacts as Array<{
-          id: string | number;
-          companyName?: string;
-          phone?: string;
-          phone2?: string;
-        }>,
-      ),
-    [selectedSlotIds, slots, contacts],
-  );
+  const openBulkMessageDialog = useCallback(async () => {
+    const base = resolveSlotsToContacts(
+      selectedSlotIds,
+      slots,
+      contacts as Array<{
+        id: string | number;
+        companyName?: string;
+        phone?: string;
+        phone2?: string;
+      }>,
+    );
+    try {
+      const lists = await Promise.all(selectedSlotIds.map((id) => slotsApi.getBookings(id)));
+      setBulkMessageRecipients(appendPublicBookingsToMessageRecipients(base, lists.flat()));
+    } catch {
+      setBulkMessageRecipients(base);
+    }
+    setShowBulkMessageDialog(true);
+  }, [selectedSlotIds, slots, contacts]);
 
-  const bulkEmailRecipients = useMemo(
-    () =>
-      resolveSlotsToEmailContacts(
-        selectedSlotIds,
-        slots,
-        contacts as Array<{
-          id: string | number;
-          companyName?: string;
-          email?: string;
-        }>,
-      ),
-    [selectedSlotIds, slots, contacts],
-  );
+  const openBulkEmailDialog = useCallback(async () => {
+    const base = resolveSlotsToEmailContacts(
+      selectedSlotIds,
+      slots,
+      contacts as Array<{
+        id: string | number;
+        companyName?: string;
+        email?: string;
+      }>,
+    );
+    try {
+      const lists = await Promise.all(selectedSlotIds.map((id) => slotsApi.getBookings(id)));
+      setBulkEmailRecipients(appendPublicBookingsToEmailRecipients(base, lists.flat()));
+    } catch {
+      setBulkEmailRecipients(base);
+    }
+    setBulkEmailContextSlots(selectedSlots);
+    setShowBulkEmailDialog(true);
+  }, [selectedSlotIds, selectedSlots, slots, contacts]);
+
+  const closeBulkMessageDialog = useCallback(() => {
+    setShowBulkMessageDialog(false);
+    setBulkMessageRecipients([]);
+  }, []);
+
+  const closeBulkEmailDialog = useCallback(() => {
+    setShowBulkEmailDialog(false);
+    setBulkEmailRecipients([]);
+    setBulkEmailContextSlots([]);
+  }, []);
 
   const handleBulkExportCSV = useCallback(() => {
     exportItems({
@@ -330,7 +364,7 @@ export function SlotsList() {
                   {
                     label: t('bulk.sendMessageTitle'),
                     icon: MessageSquare,
-                    onClick: () => setShowBulkMessageDialog(true),
+                    onClick: openBulkMessageDialog,
                   },
                 ]
               : []),
@@ -339,12 +373,12 @@ export function SlotsList() {
                   {
                     label: t('bulk.sendEmailTitle'),
                     icon: Mail,
-                    onClick: () => setShowBulkEmailDialog(true),
+                    onClick: openBulkEmailDialog,
                   },
                 ]
               : []),
             {
-              label: t('slots.properties', 'Properties'),
+              label: t('slots.properties'),
               icon: SlidersHorizontal,
               onClick: () => setShowBulkPropertiesDialog(true),
             },
@@ -365,16 +399,58 @@ export function SlotsList() {
 
       <BulkMessageDialog
         isOpen={showBulkMessageDialog}
-        onClose={() => setShowBulkMessageDialog(false)}
+        onClose={closeBulkMessageDialog}
         recipients={bulkMessageRecipients}
         pluginSource="slots"
+        showRecipientSelection
       />
 
       <BulkEmailDialog
         isOpen={showBulkEmailDialog}
-        onClose={() => setShowBulkEmailDialog(false)}
+        onClose={closeBulkEmailDialog}
         recipients={bulkEmailRecipients}
         pluginSource="slots"
+        showRecipientSelection
+        additionalText={
+          bulkEmailContextSlots.length > 0
+            ? bulkEmailContextSlots.map((s) => formatSlotInfoText(s)).join('\n\n')
+            : undefined
+        }
+        additionalHtml={
+          bulkEmailContextSlots.length > 0
+            ? bulkEmailContextSlots.map((s) => formatSlotInfoHtml(s)).join('')
+            : undefined
+        }
+        additionalPreview={
+          bulkEmailContextSlots.length > 0 ? (
+            <div className="text-xs text-muted-foreground space-y-3">
+              {bulkEmailContextSlots.map((s) => (
+                <div
+                  key={s.id}
+                  className="space-y-1 border-b border-border/50 pb-2 last:border-0 last:pb-0"
+                >
+                  {s.location && (
+                    <div>
+                      <span className="font-medium">{t('common.location')}:</span> {s.location}
+                    </div>
+                  )}
+                  {s.slot_time && (
+                    <div>
+                      <span className="font-medium">{t('common.time')}:</span>{' '}
+                      {new Date(s.slot_time).toLocaleString('sv-SE', {
+                        dateStyle: 'long',
+                        timeStyle: 'short',
+                      })}
+                    </div>
+                  )}
+                  <div>
+                    <span className="font-medium">{t('common.capacity')}:</span> {s.capacity}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : undefined
+        }
       />
 
       <BulkPropertiesDialog

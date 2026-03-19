@@ -308,8 +308,8 @@ export function TopBar({
   }, [pomodoroClockEnabled, timeTrackingEnabled]);
 
   return (
-    <header className="fixed left-0 right-0 top-0 h-14 bg-background border-b border-border z-40">
-      <div className="h-full flex items-center justify-between pl-4 pr-2 sm:pr-4 md:pr-6">
+    <header className="fixed left-0 right-0 top-0 z-40 flex h-14 w-full border-b border-border bg-workspace">
+      <div className="flex h-full min-w-0 w-full items-center justify-between pl-3 pr-2 sm:pl-4 sm:pr-4 md:pl-4 md:pr-6">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <Button
             variant="ghost"
@@ -321,7 +321,7 @@ export function TopBar({
             <Menu className="h-4 w-4" />
           </Button>
 
-          <div className="hidden md:flex items-center gap-2 ml-8 mr-4 flex-shrink-0">
+          <div className="mr-4 hidden flex-shrink-0 items-center gap-2 md:flex">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
               <span className="text-xs font-bold">H</span>
             </div>

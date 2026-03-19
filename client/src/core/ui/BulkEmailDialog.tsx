@@ -1,7 +1,8 @@
 // client/src/core/ui/BulkEmailDialog.tsx
 // Modal to compose and send email to a list of recipients
 
-import React, { useState, useCallback } from 'react';
+import { ListChecks, XCircle } from 'lucide-react';
+import React, { useState, useCallback, useMemo, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -27,9 +28,15 @@ export interface BulkEmailDialogProps {
   additionalHtml?: string;
   /** Optional preview of additional content shown in the dialog */
   additionalPreview?: React.ReactNode;
+  /** When true, show checkboxes to choose which recipients with email receive the message */
+  showRecipientSelection?: boolean;
 }
 
 type SendPhase = 'idle' | 'sending' | 'done';
+
+function hasValidEmail(r: BulkEmailRecipient): boolean {
+  return !!(r.email && r.email.trim() && r.email.includes('@'));
+}
 
 export function BulkEmailDialog({
   isOpen,
@@ -39,6 +46,7 @@ export function BulkEmailDialog({
   additionalText,
   additionalHtml,
   additionalPreview,
+  showRecipientSelection = false,
 }: BulkEmailDialogProps) {
   const { t } = useTranslation();
   const [subject, setSubject] = useState('');
@@ -47,21 +55,45 @@ export function BulkEmailDialog({
   const [sentCount, setSentCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const sendBatchTotalRef = useRef(0);
 
-  const withEmail = recipients.filter((r) => r.email && r.email.trim() && r.email.includes('@'));
+  const withEmail = useMemo(() => recipients.filter((r) => hasValidEmail(r)), [recipients]);
   const withoutEmail = recipients.length - withEmail.length;
 
+  useLayoutEffect(() => {
+    if (isOpen && showRecipientSelection) {
+      setSelectedIds(new Set(withEmail.map((r) => r.id)));
+    }
+  }, [isOpen, showRecipientSelection, withEmail]);
+
+  const eligibleSelectedCount = useMemo(
+    () => withEmail.filter((r) => selectedIds.has(r.id)).length,
+    [withEmail, selectedIds],
+  );
+
+  const recipientsToSend = useMemo(() => {
+    if (!showRecipientSelection) {
+      return withEmail;
+    }
+    return withEmail.filter((r) => selectedIds.has(r.id));
+  }, [showRecipientSelection, withEmail, selectedIds]);
+
   const handleSend = useCallback(async () => {
-    if (withEmail.length === 0) {
+    const toSend = showRecipientSelection
+      ? withEmail.filter((r) => selectedIds.has(r.id))
+      : withEmail;
+    if (toSend.length === 0) {
       return;
     }
+    sendBatchTotalRef.current = toSend.length;
     setPhase('sending');
     setErrorMessage(null);
     let sent = 0;
     let failed = 0;
     let firstError: string | null = null;
 
-    for (const r of withEmail) {
+    for (const r of toSend) {
       try {
         const fullText = additionalText ? `${body}\n\n${additionalText}` : body;
         const fullHtml = additionalHtml
@@ -97,7 +129,16 @@ export function BulkEmailDialog({
       setErrorMessage(firstError);
     }
     setPhase('done');
-  }, [subject, body, withEmail, pluginSource, additionalText, additionalHtml]);
+  }, [
+    subject,
+    body,
+    withEmail,
+    pluginSource,
+    additionalText,
+    additionalHtml,
+    showRecipientSelection,
+    selectedIds,
+  ]);
 
   const handleClose = useCallback(() => {
     setSubject('');
@@ -106,12 +147,37 @@ export function BulkEmailDialog({
     setSentCount(0);
     setFailedCount(0);
     setErrorMessage(null);
+    setSelectedIds(new Set());
     onClose();
   }, [onClose]);
+
+  const allEligibleSelected = withEmail.length > 0 && eligibleSelectedCount === withEmail.length;
+
+  const handleToggleSelectAll = useCallback(() => {
+    if (allEligibleSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(withEmail.map((r) => r.id)));
+    }
+  }, [allEligibleSelected, withEmail]);
+
+  const toggleRecipient = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
 
   if (!isOpen) {
     return null;
   }
+
+  const canSend = recipientsToSend.length > 0 && !!subject.trim() && !!body.trim();
 
   return (
     <div className="fixed inset-0 z-50">
@@ -127,10 +193,27 @@ export function BulkEmailDialog({
               {t('bulk.sendEmailTitle')}
             </Heading>
             <div className="text-xs text-muted-foreground mt-1">
-              {t('bulk.sendEmailRecipients', {
-                total: recipients.length,
-                withEmail: withEmail.length,
-              })}
+              {showRecipientSelection ? (
+                <>
+                  <span>
+                    {t('bulk.recipientsSelectedForEmail', {
+                      selected: eligibleSelectedCount,
+                      eligible: withEmail.length,
+                    })}
+                  </span>
+                  <span className="block mt-0.5">
+                    {t('bulk.sendEmailRecipients', {
+                      total: recipients.length,
+                      withEmail: withEmail.length,
+                    })}
+                  </span>
+                </>
+              ) : (
+                t('bulk.sendEmailRecipients', {
+                  total: recipients.length,
+                  withEmail: withEmail.length,
+                })
+              )}
               {withoutEmail > 0 && (
                 <span className="block mt-1 text-amber-600 dark:text-amber-400">
                   {t('bulk.sendEmailNoEmail', { count: withoutEmail })}
@@ -142,6 +225,67 @@ export function BulkEmailDialog({
           <div className="p-4 flex flex-col gap-3 min-h-0 overflow-auto">
             {phase === 'idle' && (
               <>
+                {showRecipientSelection && recipients.length > 0 && (
+                  <div className="rounded-md border border-border bg-muted/30 min-h-0 max-h-40 flex flex-col">
+                    <div className="px-2 py-1.5 border-b border-border shrink-0">
+                      {allEligibleSelected ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={XCircle}
+                          type="button"
+                          className="h-8 text-xs px-2 -ml-2 text-red-600 underline decoration-red-600/50 hover:text-red-700 hover:decoration-red-700 hover:bg-transparent dark:text-red-400 dark:decoration-red-400/50 dark:hover:text-red-300 dark:hover:bg-transparent"
+                          onClick={handleToggleSelectAll}
+                        >
+                          {t('bulk.deselectAllRecipients')}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={ListChecks}
+                          type="button"
+                          className="h-8 text-xs px-2 -ml-2 text-primary hover:text-primary hover:bg-primary/5 disabled:opacity-50"
+                          onClick={handleToggleSelectAll}
+                          disabled={withEmail.length === 0}
+                        >
+                          {t('bulk.selectAllRecipients')}
+                        </Button>
+                      )}
+                    </div>
+                    <ul className="overflow-y-auto text-xs divide-y divide-border">
+                      {recipients.map((r) => {
+                        const eligible = hasValidEmail(r);
+                        const checked = eligible && selectedIds.has(r.id);
+                        return (
+                          <li
+                            key={r.id}
+                            className={
+                              eligible
+                                ? 'flex items-center gap-2 px-2 py-2.5'
+                                : 'flex items-center gap-2 px-2 py-2.5 opacity-50'
+                            }
+                          >
+                            <input
+                              type="checkbox"
+                              className="rounded border-input shrink-0"
+                              checked={checked}
+                              disabled={!eligible}
+                              onChange={() => eligible && toggleRecipient(r.id)}
+                              aria-label={r.name}
+                            />
+                            <span className="text-xs text-foreground truncate min-w-0">
+                              {r.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground truncate ml-auto shrink-0 max-w-[45%]">
+                              {eligible ? r.email.trim() : t('bulk.recipientNoEmail')}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
                 <div>
                   <label className="text-sm font-medium text-foreground">
                     {t('bulk.sendEmailSubjectLabel')}
@@ -180,7 +324,7 @@ export function BulkEmailDialog({
               <p className="text-sm text-muted-foreground">
                 {t('bulk.sendEmailSending', {
                   sent: sentCount,
-                  total: withEmail.length,
+                  total: sendBatchTotalRef.current,
                 })}
               </p>
             )}
@@ -218,13 +362,7 @@ export function BulkEmailDialog({
                 >
                   {t('common.cancel')}
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSend}
-                  disabled={
-                    phase === 'sending' || withEmail.length === 0 || !subject.trim() || !body.trim()
-                  }
-                >
+                <Button size="sm" onClick={handleSend} disabled={phase === 'sending' || !canSend}>
                   {phase === 'sending' ? t('bulk.sendEmailSendingShort') : t('bulk.sendEmailSend')}
                 </Button>
               </>

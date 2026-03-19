@@ -30,6 +30,8 @@
 
     /* Muted: gray-200 (#EFF2F5) */
     --muted: 210 15% 95%;
+    /* Main workspace: sidebar, topbar, main area, slot detail canvas */
+    --workspace: #f5f8fa;
     /* Muted foreground: gray-900 (#181C32) - darker for sidebar nav items */
     --muted-foreground: 220 35% 15%;
 
@@ -100,6 +102,8 @@
 
     --muted: 215 14% 21%;
     --muted-foreground: 217 10% 58%;
+
+    --workspace: hsl(215 22% 10%);
 
     --accent: 212 92% 61%;
     --accent-foreground: 213 12% 84%;

@@ -78,7 +78,7 @@ export function DetailPanel({
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent
           side="right"
-          className="w-full sm:w-[90%] sm:max-w-lg p-0 flex flex-col min-h-0 h-full"
+          className="w-full sm:w-[90%] sm:max-w-lg p-0 flex flex-col min-h-0 h-full border-0 shadow-none"
         >
           <SheetHeader className="px-6 pt-6 pb-4 flex-shrink-0 flex flex-row items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
@@ -113,7 +113,7 @@ export function DetailPanel({
 
           {/* Fixed Footer */}
           {footer && (
-            <div className="py-4 px-6 border-t border-border flex-shrink-0 flex flex-col sm:flex-row sm:justify-end gap-3">
+            <div className="flex flex-shrink-0 flex-col gap-3 px-6 py-4 sm:flex-row sm:justify-end">
               {footer}
             </div>
           )}
@@ -128,9 +128,9 @@ export function DetailPanel({
   }
 
   return (
-    <div className="w-full h-full min-h-0 flex flex-col overflow-hidden border-2 border-primary/30 rounded-md animate-border-pulse">
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border-0 bg-card">
       {/* Fixed Header */}
-      <div className="flex items-center justify-between py-4 px-6 flex-shrink-0">
+      <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
         <div className="flex flex-1 items-center gap-4 min-w-0 mr-4">
           {typeof title === 'string' ? (
             <h2 className="text-lg font-semibold tracking-tight truncate shrink-0">
@@ -169,7 +169,7 @@ export function DetailPanel({
 
       {/* Fixed Footer */}
       {footer && (
-        <div className="py-4 px-6 border-t border-border flex-shrink-0 flex flex-col sm:flex-row sm:justify-end gap-3">
+        <div className="flex flex-shrink-0 flex-col gap-3 px-6 py-4 sm:flex-row sm:justify-end">
           {footer}
         </div>
       )}
