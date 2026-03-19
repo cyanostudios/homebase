@@ -181,7 +181,13 @@ class PulseModel {
       if (!userId) {
         throw new AppError('Unauthorized', 401, AppError.CODES.UNAUTHORIZED);
       }
-      const activeProvider = (data.activeProvider || 'twilio') === 'mock' ? 'mock' : 'twilio';
+      const rawProvider = data.activeProvider || 'twilio';
+      const activeProvider =
+        rawProvider === 'mock'
+          ? 'mock'
+          : rawProvider === 'apple-messages'
+            ? 'apple-messages'
+            : 'twilio';
       const twilioAccountSid =
         data.twilioAccountSid != null ? String(data.twilioAccountSid).trim() : null;
       const twilioAuthToken =

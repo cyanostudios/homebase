@@ -31,7 +31,7 @@ interface PulseContextType {
   testSettings: (data: {
     testTo: string;
     useSaved?: boolean;
-    activeProvider?: 'twilio' | 'mock';
+    activeProvider?: 'twilio' | 'mock' | 'apple-messages';
     twilioAccountSid?: string;
     twilioAuthToken?: string;
     twilioFromNumber?: string;
@@ -40,7 +40,7 @@ interface PulseContextType {
   getPanelSubtitle: (mode?: string, _item?: unknown) => string;
   getDeleteMessage: (_item?: unknown) => string;
   saveSettings: (data: {
-    activeProvider?: 'twilio' | 'mock';
+    activeProvider?: 'twilio' | 'mock' | 'apple-messages';
     twilioAccountSid?: string;
     twilioAuthToken?: string;
     twilioFromNumber?: string;
@@ -188,7 +188,7 @@ export function PulseProvider({
   const testSettings = async (data: {
     testTo: string;
     useSaved?: boolean;
-    activeProvider?: 'twilio' | 'mock';
+    activeProvider?: 'twilio' | 'mock' | 'apple-messages';
     twilioAccountSid?: string;
     twilioAuthToken?: string;
     twilioFromNumber?: string;
@@ -200,7 +200,7 @@ export function PulseProvider({
   };
 
   const saveSettings = async (data: {
-    activeProvider?: 'twilio' | 'mock';
+    activeProvider?: 'twilio' | 'mock' | 'apple-messages';
     twilioAccountSid?: string;
     twilioAuthToken?: string;
     twilioFromNumber?: string;

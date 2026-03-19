@@ -141,7 +141,9 @@
     "deleteBookingConfirm": "Are you sure you want to delete the booking from \"{{name}}\"?",
     "deleteSlotFailed": "Could not delete slot",
     "deleteSlotsFailed": "Could not delete selected slots",
-    "loadFailed": "Failed to load slots"
+    "loadFailed": "Failed to load slots",
+    "slotDatePassed": "This slot’s date has passed and is not visible for bookings",
+    "visibleDisabledPast": "Past slots are not shown for public booking; visibility cannot be changed"
   },
   "bulk": {
     "selected": "{{count}} selected",
@@ -364,6 +366,8 @@
     "source": "Source",
     "settingsTitle": "SMS settings",
     "settingsDescription": "Configure Twilio to send SMS from other plugins. Use Mock for development without sending real messages.",
+    "appleMessages": "Apple Messages",
+    "appleMessagesDescription": "Sends SMS via your iPhone's carrier using the Mac's Messages app. Requires your iPhone to be on the same Apple ID as this Mac with Text Message Forwarding enabled (iPhone Settings → Messages → Text Message Forwarding). Messages are sent as regular SMS to any phone number — not as iMessage.",
     "provider": "Provider",
     "active": "Active",
     "twilioHint": "Get Account SID, Auth Token and a phone number from",

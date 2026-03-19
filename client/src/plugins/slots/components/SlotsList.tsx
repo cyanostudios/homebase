@@ -47,6 +47,7 @@ import {
   resolveSlotsToContacts,
   resolveSlotsToEmailContacts,
 } from '../utils/slotContactUtils';
+import { isSlotTimePast } from '../utils/slotTimeUtils';
 
 import { BulkPropertiesDialog } from './BulkPropertiesDialog';
 import { CapacityAssignedDots } from './CapacityAssignedDots';
@@ -514,7 +515,16 @@ export function SlotsList() {
                 </div>
                 <h3 className="font-semibold text-sm">{slot.location || '—'}</h3>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {formatDateTime(slot.slot_time)} · {t('common.capacity')} {slot.capacity}{' '}
+                  <span
+                    className={cn(
+                      isSlotTimePast(slot.slot_time) &&
+                        'text-red-600 dark:text-red-400 font-medium',
+                    )}
+                  >
+                    {formatDateTime(slot.slot_time)}
+                  </span>
+                  {' · '}
+                  {t('common.capacity')} {slot.capacity}{' '}
                   <CapacityAssignedDots
                     capacity={slot.capacity}
                     assignedCount={(slot.mentions?.length ?? 0) + (slot.booked_count ?? 0)}
@@ -653,7 +663,14 @@ export function SlotsList() {
                   <TableCell>
                     <span className="font-medium">{slot.location || '—'}</span>
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
+                  <TableCell
+                    className={cn(
+                      'text-sm',
+                      isSlotTimePast(slot.slot_time)
+                        ? 'text-red-600 dark:text-red-400 font-medium'
+                        : 'text-muted-foreground',
+                    )}
+                  >
                     {formatDateTime(slot.slot_time)}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">

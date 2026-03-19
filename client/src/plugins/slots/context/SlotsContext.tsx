@@ -23,6 +23,7 @@ import { resolveSlug } from '@/core/utils/slugUtils';
 import { slotsApi } from '../api/slotsApi';
 import { Slot, ValidationError, type SlotMention } from '../types/slots';
 import { resolveSlotsToContacts, resolveSlotsToEmailContacts } from '../utils/slotContactUtils';
+import { isSlotTimePast } from '../utils/slotTimeUtils';
 
 function extractErrorMsg(error: unknown, fallback: string): string {
   const e = error as { message?: string; error?: string };
@@ -719,10 +720,18 @@ export function SlotsProvider({
     (mode: string, item: Slot | null) => {
       if (mode === 'view' && item) {
         const d = item.slot_time ? new Date(item.slot_time) : null;
+        const passed = isSlotTimePast(item.slot_time);
         return (
-          <span className="text-xs text-muted-foreground">
-            {item.location || '—'}
-            {d ? ` · ${d.toLocaleString('sv-SE')}` : ''}
+          <span className="flex flex-col gap-1 items-start">
+            <span className="text-xs text-muted-foreground">
+              {item.location || '—'}
+              {d ? ` · ${d.toLocaleString('sv-SE')}` : ''}
+            </span>
+            {passed && (
+              <span className="text-xs font-semibold text-red-600 dark:text-red-400">
+                {t('slots.slotDatePassed')}
+              </span>
+            )}
           </span>
         );
       }

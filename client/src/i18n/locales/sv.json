@@ -141,7 +141,9 @@
     "deleteBookingConfirm": "Är du säker på att du vill ta bort bokningen från \"{{name}}\"?",
     "deleteSlotFailed": "Kunde inte ta bort sloten",
     "deleteSlotsFailed": "Kunde inte ta bort valda slots",
-    "loadFailed": "Kunde inte ladda slots"
+    "loadFailed": "Kunde inte ladda slots",
+    "slotDatePassed": "Datumet för denna slot har passerat och visas inte för bokningar",
+    "visibleDisabledPast": "Passerade slots visas inte för publik bokning; synlighet kan inte ändras"
   },
   "bulk": {
     "selected": "{{count}} valda",
@@ -364,6 +366,8 @@
     "source": "Källa",
     "settingsTitle": "SMS-inställningar",
     "settingsDescription": "Konfigurera Twilio för att skicka SMS från andra plugins. Använd Mock vid utveckling utan att skicka riktiga meddelanden.",
+    "appleMessages": "Apple Messages",
+    "appleMessagesDescription": "Skickar SMS via din iPhones operatör med hjälp av Meddelanden-appen på Mac. Kräver att din iPhone är inloggad på samma Apple-ID som denna Mac och att Vidarebefordran av textmeddelanden är aktiverat (iPhone-inställningar → Meddelanden → Vidarebefordra textmeddelanden). Meddelanden skickas som vanliga SMS till vilket telefonnummer som helst — inte som iMessage.",
     "provider": "Leverantör",
     "active": "Aktiv",
     "twilioHint": "Hämta Account SID, Auth Token och ett telefonnummer från",

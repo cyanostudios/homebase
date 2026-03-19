@@ -37,6 +37,7 @@ import {
   formatSlotInfoHtml,
   formatSlotInfoText,
 } from '../utils/slotContactUtils';
+import { isSlotTimePast } from '../utils/slotTimeUtils';
 
 import { CapacityAssignedDots } from './CapacityAssignedDots';
 
@@ -144,6 +145,7 @@ function SlotInfoCard({
   bookingsLoading,
   onRequestDeleteBooking,
 }: SlotInfoCardProps) {
+  const slotDatePassed = isSlotTimePast(slot.slot_time);
   const addableContacts = assignableContacts.filter(
     (c) => !displayMentions?.some((m) => String(m.contactId) === String(c.id)),
   );
@@ -277,7 +279,14 @@ function SlotInfoCard({
             <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
               {t('common.time')}
             </div>
-            <div className="text-sm font-medium">{formatDateTime(slot.slot_time)}</div>
+            <div
+              className={cn(
+                'text-sm font-medium',
+                isSlotTimePast(slot.slot_time) && 'text-red-600 dark:text-red-400',
+              )}
+            >
+              {formatDateTime(slot.slot_time)}
+            </div>
           </div>
           <div>
             <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
@@ -294,13 +303,20 @@ function SlotInfoCard({
         </div>
         <div className="pt-5 border-t border-border/50">
           <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
+            <div
+              className={cn(
+                'flex items-center justify-between gap-2 rounded-md',
+                slotDatePassed && 'opacity-55 text-muted-foreground',
+              )}
+              title={slotDatePassed ? t('slots.visibleDisabledPast') : undefined}
+            >
               <div className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
                 {t('common.visible')}
               </div>
               <Switch
                 checked={!!displaySlot.visible}
                 onCheckedChange={(checked) => setPropertyDraftField('visible', checked)}
+                disabled={slotDatePassed}
                 className="h-4 w-7 data-[state=checked]:bg-primary [&>span]:h-3 [&>span]:w-3 [&[data-state=checked]>span]:translate-x-3"
               />
             </div>

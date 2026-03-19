@@ -51,7 +51,7 @@ class PulseApi {
   async testSettings(data: {
     testTo: string;
     useSaved?: boolean;
-    activeProvider?: 'twilio' | 'mock';
+    activeProvider?: 'twilio' | 'mock' | 'apple-messages';
     twilioAccountSid?: string;
     twilioAuthToken?: string;
     twilioFromNumber?: string;
@@ -63,7 +63,7 @@ class PulseApi {
   }
 
   async saveSettings(data: {
-    activeProvider?: 'twilio' | 'mock';
+    activeProvider?: 'twilio' | 'mock' | 'apple-messages';
     twilioAccountSid?: string;
     twilioAuthToken?: string;
     twilioFromNumber?: string;

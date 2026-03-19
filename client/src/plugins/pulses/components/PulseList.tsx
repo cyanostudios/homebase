@@ -72,6 +72,12 @@ export const PulseList: React.FC = () => {
     if (provider === 'mock') {
       return { label: 'Mock', isOk: true };
     }
+    if (provider === 'apple-messages' && settings.configured?.appleMessages) {
+      return { label: t('pulses.appleMessages'), isOk: true };
+    }
+    if (provider === 'apple-messages') {
+      return { label: t('pulses.appleMessages'), isOk: false };
+    }
     if (provider === 'twilio' && settings.configured?.twilio) {
       return { label: 'Twilio', isOk: true };
     }

@@ -21,7 +21,7 @@ export interface PulseTwilioSettings {
 }
 
 export interface PulseSettings {
-  activeProvider: 'twilio' | 'mock';
-  configured: { twilio: boolean; mock: boolean };
+  activeProvider: 'twilio' | 'mock' | 'apple-messages';
+  configured: { twilio: boolean; mock: boolean; appleMessages: boolean };
   twilio: PulseTwilioSettings | null;
 }

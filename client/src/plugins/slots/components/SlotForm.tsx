@@ -18,10 +18,12 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { cn } from '@/lib/utils';
 import { MatchDateTimePicker } from '@/plugins/matches/components/MatchDateTimePicker';
 
 import { useSlotsContext as useSlots } from '../context/SlotsContext';
 import { CAPACITY_OPTIONS, type SlotMention } from '../types/slots';
+import { isSlotTimePast } from '../utils/slotTimeUtils';
 
 import { SlotsSettingsForm } from './SlotsSettingsForm';
 
@@ -488,7 +490,15 @@ export function SlotForm({
                 <p className="text-sm text-destructive">{getFieldError('capacity')?.message}</p>
               )}
             </div>
-            <div className="flex items-center justify-between rounded-lg border border-border p-4">
+            <div
+              className={cn(
+                'flex items-center justify-between rounded-lg border border-border p-4',
+                isSlotTimePast(formData.slot_time) && 'opacity-55 text-muted-foreground',
+              )}
+              title={
+                isSlotTimePast(formData.slot_time) ? t('slots.visibleDisabledPast') : undefined
+              }
+            >
               <div className="space-y-0.5">
                 <Label className="text-sm font-medium">{t('slots.visibleLabel')}</Label>
                 <p className="text-[11px] text-muted-foreground">{t('slots.visibleHelp')}</p>
@@ -496,6 +506,7 @@ export function SlotForm({
               <Switch
                 checked={formData.visible}
                 onCheckedChange={(checked) => updateField('visible', checked)}
+                disabled={isSlotTimePast(formData.slot_time)}
               />
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-4">

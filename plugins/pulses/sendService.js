@@ -5,6 +5,7 @@
 const model = require('./model');
 const TwilioAdapter = require('./adapters/TwilioAdapter');
 const MockAdapter = require('./adapters/MockAdapter');
+const AppleMessagesAdapter = require('./adapters/AppleMessagesAdapter');
 const { AppError } = require('../../server/core/errors/AppError');
 
 async function getSmsAdapterForUser(req) {
@@ -13,6 +14,16 @@ async function getSmsAdapterForUser(req) {
   const provider = userSettings?.activeProvider || 'mock';
   if (provider === 'mock') {
     return { adapter: new MockAdapter(), provider: 'mock' };
+  }
+  if (provider === 'apple-messages') {
+    if (process.platform !== 'darwin') {
+      throw new AppError(
+        'Apple Messages is only available on macOS. Switch provider to Twilio or Mock.',
+        400,
+        AppError.CODES.BAD_REQUEST,
+      );
+    }
+    return { adapter: new AppleMessagesAdapter(), provider: 'apple-messages' };
   }
   if (
     userSettings?.twilioAccountSidRaw &&

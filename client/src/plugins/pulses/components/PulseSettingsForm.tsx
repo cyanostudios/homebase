@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 
 import { usePulses } from '../hooks/usePulses';
 
-type Provider = 'twilio' | 'mock';
+type Provider = 'twilio' | 'mock' | 'apple-messages';
 
 interface PulseSettingsFormProps {
   onCancel?: () => void;
@@ -27,6 +27,7 @@ export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({
   const { settings, loadSettings, saveSettings, testSettings, closePulsePanel, pulseHistory } =
     usePulses();
   const [provider, setProvider] = useState<Provider>('twilio');
+  const isAppleMessagesConfigured = settings?.configured?.appleMessages === true;
   const [, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testSuccess, setTestSuccess] = useState<string | null>(null);
@@ -121,6 +122,7 @@ export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({
       const twilioConfigured = settings?.configured?.twilio === true;
       const useSavedCredentials =
         twilioConfigured ||
+        provider === 'apple-messages' ||
         (provider === 'twilio' &&
           (twilioAccountSid.startsWith('••••') || twilioAuthToken.startsWith('••••')));
       const payload: Record<string, unknown> = {
@@ -148,20 +150,29 @@ export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({
 
   const isTwilioConfigured = settings?.configured?.twilio === true;
 
+  const providerButtons: { id: Provider; label: string; isConfigured: boolean }[] = [
+    { id: 'twilio', label: 'Twilio', isConfigured: isTwilioConfigured },
+    {
+      id: 'apple-messages',
+      label: t('pulses.appleMessages'),
+      isConfigured: isAppleMessagesConfigured,
+    },
+    { id: 'mock', label: 'Mock', isConfigured: true },
+  ];
+
   return (
     <div className="plugin-pulses space-y-6 p-4">
       {/* Provider Section */}
       <DetailSection title={t('pulses.provider')} icon={Smartphone}>
         <p className="text-sm text-muted-foreground mb-4">{t('pulses.settingsDescription')}</p>
-        <div className="flex gap-2">
-          {(['twilio', 'mock'] as const).map((p) => {
-            const isConfigured = p === 'mock' || isTwilioConfigured;
-            const isActive = provider === p;
+        <div className="flex gap-2 flex-wrap">
+          {providerButtons.map(({ id, label, isConfigured }) => {
+            const isActive = provider === id;
             return (
               <button
-                key={p}
+                key={id}
                 type="button"
-                onClick={() => setProvider(p)}
+                onClick={() => setProvider(id)}
                 className={cn(
                   'flex items-center gap-2 px-4 py-2 rounded-md border text-sm font-medium transition-colors',
                   isActive
@@ -175,7 +186,7 @@ export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({
                     isConfigured ? 'bg-green-500' : 'bg-red-500',
                   )}
                 />
-                {p === 'twilio' ? 'Twilio' : 'Mock'}
+                {label}
                 {isActive && <Check className="h-3.5 w-3.5" />}
               </button>
             );
@@ -236,6 +247,13 @@ export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({
             </div>
           </div>
         </DetailSection>
+      )}
+
+      {/* Apple Messages description */}
+      {provider === 'apple-messages' && (
+        <div className="border-t border-border pt-6">
+          <p className="text-sm text-muted-foreground">{t('pulses.appleMessagesDescription')}</p>
+        </div>
       )}
 
       {/* Mock description */}
