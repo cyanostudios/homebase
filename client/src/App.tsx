@@ -338,7 +338,7 @@ function AppContent() {
   }, [currentPage]);
 
   const contentTitle = useMemo(() => {
-    if (currentPage === 'slots') {
+    if (currentPage === 'slots' || currentPage === 'notes') {
       return '';
     }
     if (currentPage === 'dashboard') {
@@ -360,7 +360,7 @@ function AppContent() {
   }, [currentPage, currentPagePlugin]);
 
   const contentIcon = useMemo(() => {
-    if (currentPage === 'slots') {
+    if (currentPage === 'slots' || currentPage === 'notes') {
       return undefined;
     }
     if (currentPage === 'dashboard') {
@@ -385,7 +385,7 @@ function AppContent() {
     if (!currentPagePlugin || currentPagePlugin.name !== currentPage) {
       return null;
     }
-    if (currentPagePlugin.name === 'slots') {
+    if (currentPagePlugin.name === 'slots' || currentPagePlugin.name === 'notes') {
       return null;
     }
 
@@ -396,23 +396,8 @@ function AppContent() {
       return null;
     }
 
-    // Notes / Contacts (and future plugins) with settings view: show Close instead of Add
-    const notesContentView = context.notesContentView as 'list' | 'settings' | undefined;
-    const closeNoteSettingsView = context.closeNoteSettingsView as (() => void) | undefined;
     const contactsContentView = context.contactsContentView as 'list' | 'settings' | undefined;
     const closeContactSettingsView = context.closeContactSettingsView as (() => void) | undefined;
-    if (
-      currentPagePlugin.name === 'notes' &&
-      notesContentView === 'settings' &&
-      typeof closeNoteSettingsView === 'function'
-    ) {
-      return {
-        label: t('common.close'),
-        icon: X,
-        onClick: closeNoteSettingsView,
-        variant: 'secondary' as const,
-      };
-    }
     if (
       currentPagePlugin.name === 'contacts' &&
       contactsContentView === 'settings' &&
@@ -746,7 +731,7 @@ function AppContent() {
         detailPanelShowCloseButton={!useHeaderActionButtons}
         onDetailPanelClose={onDetailPanelClose}
         detailPanelPluginName={currentPlugin?.name}
-        contentFlush={currentPage === 'slots'}
+        contentFlush={currentPage === 'slots' || currentPage === 'notes'}
       >
         {currentPage === 'dashboard' ? (
           <Dashboard onPageChange={handlePageChange} />

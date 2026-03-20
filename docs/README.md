@@ -7,6 +7,7 @@ Det här är den **aktuella** ingången till dokumentationen. Målet är att hå
 - **Arkitektur & core services:** `CORE_SERVICES_ARCHITECTURE.md`
 - **Plugin-arkitektur (V3 Action Registry):** `PLUGIN_ARCHITECTURE_V3.md`
 - **UI/UX-regler:** `UI_AND_UX_STANDARDS_V3.md`
+- **Plugin design (slots/notes-mönster):** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`
 - **Säkerhet:** `SECURITY_GUIDELINES.md`
 - **Dev/Deploy:** `DEVELOPMENT_GUIDE_V2.md`, `DEPLOYMENT_V2.md`
 
@@ -21,6 +22,7 @@ Det här är den **aktuella** ingången till dokumentationen. Målet är att hå
 - **Mentions & cross-plugin UI:** `MENTIONS_AND_CROSS_PLUGIN_UI.md`
 - **Tenant/users/RBAC:** `TENANT_USERS_AND_RBAC.md`
 - **UI/UX:** `UI_AND_UX_STANDARDS_V3.md`
+- **Plugin design-alignment (checklista):** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`
 - **Security:** `SECURITY_GUIDELINES.md`
 - **Deploy:** `DEPLOYMENT_V2.md`
 - **Lessons learned / vanliga misstag:** `LESSONS_LEARNED.md`

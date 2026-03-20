@@ -1,5 +1,5 @@
-import { Copy, Edit, Info, Trash2, Users, Zap } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import { Copy, Edit, ExternalLink, Info, Trash2, Users, Zap } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,19 @@ interface NoteQuickActionsCardProps {
   }>;
 }
 
+function getQuickActionIconColorClass(actionId: string): string {
+  if (actionId === 'send-message') {
+    return 'text-violet-600 dark:text-violet-400';
+  }
+  if (actionId === 'send-email') {
+    return 'text-red-600 dark:text-red-400';
+  }
+  if (actionId === 'create-task-from-note') {
+    return 'text-green-600 dark:text-green-400';
+  }
+  return '';
+}
+
 function NoteQuickActionsCard({
   note,
   onEdit,
@@ -44,16 +57,22 @@ function NoteQuickActionsCard({
 }: NoteQuickActionsCardProps) {
   const { t } = useTranslation();
   const canDuplicate = Boolean(getDuplicateConfig(note));
+  const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
   return (
     <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
       <DetailSection title={t('notes.quickActions')} icon={Zap} iconPlugin="notes" className="p-4">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col items-start gap-1.5">
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            icon={Edit}
-            className="h-9 w-full justify-start rounded-md bg-muted/60 px-3 text-xs hover:bg-muted"
+            icon={(props) => (
+              <Edit
+                {...props}
+                className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
+              />
+            )}
+            className={quickActionButtonClass}
             onClick={() => onEdit(note)}
           >
             {t('common.edit')}
@@ -62,8 +81,13 @@ function NoteQuickActionsCard({
             type="button"
             variant="ghost"
             size="sm"
-            icon={Trash2}
-            className="h-9 w-full justify-start rounded-md bg-muted/60 px-3 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+            icon={(props) => (
+              <Trash2
+                {...props}
+                className={cn(props.className, 'text-red-600 dark:text-red-400')}
+              />
+            )}
+            className="h-9 justify-start rounded-md px-3 text-xs hover:bg-red-50 dark:hover:bg-red-950/30"
             onClick={onDeleteClick}
           >
             {t('common.delete')}
@@ -73,8 +97,13 @@ function NoteQuickActionsCard({
               type="button"
               variant="ghost"
               size="sm"
-              icon={Copy}
-              className="h-9 w-full justify-start rounded-md bg-muted/60 px-3 text-xs hover:bg-muted"
+              icon={(props) => (
+                <Copy
+                  {...props}
+                  className={cn(props.className, 'text-green-600 dark:text-green-400')}
+                />
+              )}
+              className={quickActionButtonClass}
               onClick={() => onDuplicate(note)}
             >
               {t('common.duplicate')}
@@ -83,15 +112,16 @@ function NoteQuickActionsCard({
           {Array.isArray(detailFooterActions) &&
             detailFooterActions.map((action) => {
               const Icon = action.icon;
+              const iconTint = getQuickActionIconColorClass(action.id);
               return (
                 <Button
                   key={action.id}
                   type="button"
                   variant="ghost"
                   size="sm"
-                  icon={Icon}
+                  icon={(props) => <Icon {...props} className={cn(props.className, iconTint)} />}
                   disabled={action.disabled}
-                  className="h-9 w-full justify-start rounded-md bg-muted/60 px-3 text-xs hover:bg-muted disabled:opacity-50"
+                  className={cn(quickActionButtonClass, 'disabled:opacity-50', action.className)}
                   onClick={() => action.onClick(note)}
                 >
                   {action.label}
@@ -182,6 +212,16 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     }
   };
 
+  const uniqueMentions = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          (note?.mentions || []).map((m: { contactId: string }) => [m.contactId, m]),
+        ).values(),
+      ),
+    [note?.mentions],
+  );
+
   if (!note) {
     return null;
   }
@@ -208,73 +248,57 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
               />
               {note.mentions && note.mentions.length > 0 && (
                 <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
-                  <DetailSection
-                    title={t('notes.mentionedContacts')}
-                    icon={Users}
-                    iconPlugin="contacts"
-                    className="p-4"
-                  >
-                    <div className="space-y-2">
-                      {(() => {
-                        // De-duplicate mentions by contactId
-                        const uniqueMentions = Array.from(
-                          new Map((note.mentions || []).map((m: any) => [m.contactId, m])).values(),
-                        );
-
-                        return uniqueMentions.map((mention: any) => {
+                  <div className="space-y-1.5 p-3 sm:p-4">
+                    <div className="mb-0.5 flex min-w-0 items-center gap-2">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
+                        <Users className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="truncate text-sm font-semibold text-foreground">
+                        {t('notes.mentionedContacts')}
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 pt-0">
+                      {uniqueMentions.map(
+                        (mention: { contactId: string; contactName?: string }) => {
                           const contactData = contactsData.find(
-                            (c: any) => c.id === mention.contactId,
-                          );
+                            (c: { id: string | number }) =>
+                              String(c.id) === String(mention.contactId),
+                          ) as { id: string; companyName?: string } | undefined;
 
-                          const getDisplayText = () => {
-                            if (!contactData) {
-                              const contactNumber = formatDisplayNumber(
-                                'contacts',
-                                mention.contactId,
-                              );
-                              const name = mention.contactName;
-                              return `${contactNumber} • ${name} (deleted)`;
-                            }
-
-                            const contactNumber = formatDisplayNumber(
-                              'contacts',
-                              contactData.contactNumber || contactData.id,
-                            );
-                            const name = mention.contactName;
-                            const orgPersonNumber =
-                              contactData.organizationNumber || contactData.personalNumber || '';
-
-                            return `${contactNumber} • ${name}${orgPersonNumber ? ` • ${orgPersonNumber}` : ''}`;
-                          };
+                          const name =
+                            contactData?.companyName ?? mention.contactName ?? mention.contactId;
 
                           return (
                             <div
                               key={`mention-${mention.contactId}`}
-                              className="flex justify-between items-center text-[11px] plugin-contacts bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
+                              className="rounded-lg border border-border px-3 py-2"
                             >
-                              <span className="text-muted-foreground truncate mr-4">
-                                {getDisplayText()}
-                              </span>
-                              <Button
-                                size="sm"
-                                variant="link"
-                                onClick={() =>
-                                  contactData ? handleContactClick(mention.contactId) : null
-                                }
-                                disabled={!contactData}
-                                className={cn(
-                                  'h-auto p-0 text-[10px] shrink-0 font-medium',
-                                  contactData ? 'text-plugin' : 'text-muted-foreground',
-                                )}
-                              >
-                                {contactData ? 'View' : 'Deleted'}
-                              </Button>
+                              <div className="flex min-w-0 items-center justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <span className="truncate text-sm font-medium">{name}</span>
+                                </div>
+                                <div className="shrink-0">
+                                  {contactData ? (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      icon={ExternalLink}
+                                      className="h-9 w-9 shrink-0 p-0 plugin-contacts text-plugin hover:bg-accent"
+                                      onClick={() => handleContactClick(mention.contactId)}
+                                      aria-label={`${t('common.open')} ${name}`}
+                                    >
+                                      <span className="sr-only">{t('common.open')}</span>
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              </div>
                             </div>
                           );
-                        });
-                      })()}
+                        },
+                      )}
                     </div>
-                  </DetailSection>
+                  </div>
                 </Card>
               )}
 

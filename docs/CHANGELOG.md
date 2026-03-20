@@ -4,6 +4,19 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-03 – Plugin design-checklista: view/edit + hooks
+
+- **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`:** Utökad sektion **E (Form)** med instruktioner för kortordning, egenskaper- och kontakter-kort i linje med slots view. Ny sektion **I** (hooks, vit sida, side-by-side-jämförelse, i18n). **H** kompletterad med tips om edit-läge efter form-ändringar.
+
+---
+
+## 2026-03 – Plugin design-checklista (docs)
+
+- **Ny fil:** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` – återanvändbar checklista (A–H) för att aligna list/settings/detail/App med slots/notes-mönster.
+- **Index:** `docs/README.md` länkar checklistan under snabbstart och canonical-dokument.
+
+---
+
 ## 2026-03 – Slots categories, header actions och unsaved-close harmonisering
 
 _Slots har utökats med kategorier/taggar end-to-end, detail-panelens actions har flyttats till headern, och close/unsaved-flöden har harmoniserats mellan header och footer._

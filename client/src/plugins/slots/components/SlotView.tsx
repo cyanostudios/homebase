@@ -467,22 +467,21 @@ function SlotSettingsCard({
 
       <Card padding="none" className={SLOT_DETAIL_CARD_CLASS}>
         <div className="p-6 space-y-2">
-          <div className="mb-1 flex items-center gap-2 min-w-0">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
-              <Users className="h-3.5 w-3.5" />
-            </span>
-            <span className="truncate text-sm font-semibold text-foreground">
-              {t('common.contacts')}
-            </span>
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <div />
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
+                <Users className="h-3.5 w-3.5" />
+              </span>
+              <span className="truncate text-sm font-semibold text-foreground">
+                {t('common.contacts')}
+              </span>
+            </div>
             <Popover
               open={showContactSuggestions && addableContacts.length > 0}
               onOpenChange={setShowContactSuggestions}
             >
               <PopoverAnchor asChild>
-                <div className="relative w-full max-w-[260px]">
+                <div className="relative w-full min-w-0 sm:max-w-[260px] sm:shrink-0">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     value={contactSearch}

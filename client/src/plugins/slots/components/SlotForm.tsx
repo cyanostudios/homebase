@@ -1,10 +1,12 @@
-import { Info, X } from 'lucide-react';
+import { Info, Search, SlidersHorizontal, Trash2, User, Users } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -160,6 +162,39 @@ export function SlotForm({
   });
   /** Selected contact IDs for this slot (multiple contacts). */
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  /** Add-contact UX aligned with SlotView (search + popover). */
+  const [contactSearch, setContactSearch] = useState('');
+  const [showContactSuggestions, setShowContactSuggestions] = useState(false);
+
+  const addableContactsForForm = useMemo(
+    () =>
+      assignableContacts.filter(
+        (c: { id: number | string }) => !selectedContactIds.includes(String(c.id)),
+      ),
+    [assignableContacts, selectedContactIds],
+  );
+  const filteredContactSuggestions = useMemo(() => {
+    const query = contactSearch.trim().toLowerCase();
+    if (!query) {
+      return addableContactsForForm;
+    }
+    return addableContactsForForm.filter((contact) => {
+      const c = contact as {
+        companyName?: string;
+        name?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        phone?: string;
+        phone2?: string;
+      };
+      const fullName = [c.firstName, c.lastName].filter(Boolean).join(' ');
+      return [c.companyName, c.name, fullName, c.email, c.phone, c.phone2]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+  }, [addableContactsForForm, contactSearch]);
+
   /** Series mode: generate multiple slots from start time + duration + gap */
   const [isSeries, setIsSeries] = useState(false);
   const [seriesCount, setSeriesCount] = useState(2);
@@ -712,106 +747,196 @@ export function SlotForm({
                       rows={4}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>{t('common.contacts')}</Label>
-                    <div className="flex gap-2">
-                      <Select
-                        value="__add__"
-                        onValueChange={(v) => {
-                          if (v && v !== '__add__' && !selectedContactIds.includes(v)) {
-                            setSelectedContactIds((prev) => [...prev, v]);
-                            markDirty();
-                            clearValidationErrors();
+                </div>
+              </DetailSection>
+            </Card>
+
+            <Card padding="none" className={SLOT_FORM_CARD_CLASS}>
+              <div className="space-y-2 p-6">
+                <div className="mb-1 flex min-w-0 items-center gap-2">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="truncate text-sm font-semibold text-foreground">
+                    {t('slots.properties')}
+                  </span>
+                </div>
+                <div
+                  className={cn(
+                    'flex items-center justify-between rounded-lg border border-border p-4',
+                    isSlotTimePast(formData.slot_time) && 'opacity-55 text-muted-foreground',
+                  )}
+                  title={
+                    isSlotTimePast(formData.slot_time) ? t('slots.visibleDisabledPast') : undefined
+                  }
+                >
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium">{t('slots.visibleLabel')}</div>
+                    <p className="text-[11px] text-muted-foreground">{t('slots.visibleHelp')}</p>
+                  </div>
+                  <Switch
+                    checked={formData.visible}
+                    onCheckedChange={(checked) => updateField('visible', checked)}
+                    disabled={isSlotTimePast(formData.slot_time)}
+                    className="h-4 w-7 data-[state=checked]:bg-primary [&>span]:h-3 [&>span]:w-3 [&[data-state=checked]>span]:translate-x-3"
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-border p-4">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium">{t('slots.notificationsLabel')}</div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {t('slots.notificationsHelp')}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={formData.notifications_enabled}
+                    onCheckedChange={(checked) => updateField('notifications_enabled', checked)}
+                    className="h-4 w-7 data-[state=checked]:bg-primary [&>span]:h-3 [&>span]:w-3 [&[data-state=checked]>span]:translate-x-3"
+                  />
+                </div>
+              </div>
+            </Card>
+
+            <Card padding="none" className={SLOT_FORM_CARD_CLASS}>
+              <div className="space-y-2 p-6">
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
+                      <Users className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="truncate text-sm font-semibold text-foreground">
+                      {t('common.contacts')}
+                    </span>
+                  </div>
+                  <Popover
+                    open={showContactSuggestions && addableContactsForForm.length > 0}
+                    onOpenChange={setShowContactSuggestions}
+                  >
+                    <PopoverAnchor asChild>
+                      <div className="relative w-full min-w-0 sm:max-w-[260px] sm:shrink-0">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={contactSearch}
+                          onChange={(event) => {
+                            setContactSearch(event.target.value);
+                            setShowContactSuggestions(true);
+                          }}
+                          onFocus={() => setShowContactSuggestions(true)}
+                          placeholder={
+                            addableContactsForForm.length === 0
+                              ? t('slots.noMoreToAdd')
+                              : t('common.addContact')
                           }
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder={t('common.addContact')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__add__" className="text-muted-foreground">
-                            {t('common.addContact')}
-                          </SelectItem>
-                          {assignableContacts
-                            .filter(
-                              (c: { id: number | string }) =>
-                                !selectedContactIds.includes(String(c.id)),
-                            )
-                            .map((contact: { id: number | string; companyName?: string }) => (
-                              <SelectItem key={contact.id} value={String(contact.id)}>
-                                {contact.companyName ?? `Contact ${contact.id}`}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {selectedContactIds.length > 0 && (
-                      <ul className="flex flex-wrap gap-2 mt-2">
-                        {selectedContactIds.map((id) => {
-                          const contact = assignableContacts.find(
-                            (c: { id: number | string }) => String(c.id) === id,
-                          );
-                          const name =
-                            (contact as { companyName?: string } | undefined)?.companyName ?? id;
+                          className="h-9 bg-background pl-9 text-xs"
+                          disabled={addableContactsForForm.length === 0}
+                        />
+                      </div>
+                    </PopoverAnchor>
+                    <PopoverContent
+                      align="end"
+                      side="bottom"
+                      sideOffset={6}
+                      className="z-[120] w-[var(--radix-popover-trigger-width)] max-h-64 overflow-y-auto rounded-xl border border-border/60 bg-popover p-1 shadow-xl"
+                    >
+                      {filteredContactSuggestions.length > 0 ? (
+                        filteredContactSuggestions.map((contact) => {
+                          const contactName = contact.companyName ?? `Contact ${contact.id}`;
+                          const contactMeta = [
+                            (contact as { email?: string }).email,
+                            (contact as { phone?: string }).phone,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ');
                           return (
-                            <li
-                              key={id}
-                              className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-medium"
+                            <button
+                              key={contact.id}
+                              type="button"
+                              className="flex w-full items-start justify-between gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-accent"
+                              onClick={() => {
+                                setSelectedContactIds((prev) => [...prev, String(contact.id)]);
+                                setContactSearch('');
+                                setShowContactSuggestions(false);
+                                markDirty();
+                                clearValidationErrors();
+                              }}
                             >
-                              {name}
-                              <button
+                              <span className="min-w-0">
+                                <span className="block truncate text-xs font-medium">
+                                  {contactName}
+                                </span>
+                                {contactMeta ? (
+                                  <span className="block truncate text-[11px] text-muted-foreground">
+                                    {contactMeta}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="px-2.5 py-2 text-[11px] text-muted-foreground">
+                          {contactSearch.trim() ? t('common.noResults') : t('common.addContact')}
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                {selectedContactIds.length > 0 && (
+                  <div className="space-y-2 pt-0.5">
+                    {selectedContactIds.map((id) => {
+                      const contact = assignableContacts.find(
+                        (c: { id: number | string }) => String(c.id) === id,
+                      ) as
+                        | {
+                            id: number | string;
+                            companyName?: string;
+                            email?: string;
+                            phone?: string;
+                            phone2?: string;
+                          }
+                        | undefined;
+                      const name = contact?.companyName ?? id;
+                      const meta = [contact?.email, contact?.phone, contact?.phone2].filter(
+                        Boolean,
+                      );
+                      return (
+                        <div key={id} className="rounded-lg border border-border p-4">
+                          <div className="flex min-w-0 items-center justify-between gap-3">
+                            <div className="min-w-0 space-y-0.5">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                <span className="truncate text-sm font-medium">{name}</span>
+                              </div>
+                              {meta.length > 0 && (
+                                <div className="min-w-0 truncate text-xs text-muted-foreground">
+                                  {meta.join(' · ')}
+                                </div>
+                              )}
+                            </div>
+                            <div className="shrink-0">
+                              <Button
                                 type="button"
+                                variant="ghost"
+                                size="sm"
+                                icon={Trash2}
+                                className="h-9 px-3 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
                                 onClick={() => {
                                   setSelectedContactIds((prev) => prev.filter((x) => x !== id));
                                   markDirty();
                                   clearValidationErrors();
                                 }}
-                                className="rounded hover:bg-muted-foreground/20 p-0.5"
                                 aria-label={`${t('common.removeContact')} ${name}`}
                               >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
+                                {t('common.delete')}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div
-                    className={cn(
-                      'flex items-center justify-between rounded-lg border border-border p-4',
-                      isSlotTimePast(formData.slot_time) && 'opacity-55 text-muted-foreground',
-                    )}
-                    title={
-                      isSlotTimePast(formData.slot_time)
-                        ? t('slots.visibleDisabledPast')
-                        : undefined
-                    }
-                  >
-                    <div className="space-y-0.5">
-                      <Label className="text-sm font-medium">{t('slots.visibleLabel')}</Label>
-                      <p className="text-[11px] text-muted-foreground">{t('slots.visibleHelp')}</p>
-                    </div>
-                    <Switch
-                      checked={formData.visible}
-                      onCheckedChange={(checked) => updateField('visible', checked)}
-                      disabled={isSlotTimePast(formData.slot_time)}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border border-border p-4">
-                    <div className="space-y-0.5">
-                      <Label className="text-sm font-medium">{t('slots.notificationsLabel')}</Label>
-                      <p className="text-[11px] text-muted-foreground">
-                        {t('slots.notificationsHelp')}
-                      </p>
-                    </div>
-                    <Switch
-                      checked={formData.notifications_enabled}
-                      onCheckedChange={(checked) => updateField('notifications_enabled', checked)}
-                    />
-                  </div>
-                </div>
-              </DetailSection>
+                )}
+              </div>
             </Card>
           </form>
         </DetailLayout>

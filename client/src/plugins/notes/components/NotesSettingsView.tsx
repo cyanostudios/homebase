@@ -1,7 +1,7 @@
-// Notes settings as full-page content (like Core Settings): tab row + card + footer.
+// Notes settings: same embedding pattern as SlotsSettingsView (inline header row + card).
 
 import { Check, LayoutGrid, List, Upload } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,8 @@ const NOTES_SETTINGS_KEY = 'notes';
 
 type NoteViewMode = 'grid' | 'list';
 
+export type NotesSettingsCategory = 'view' | 'import';
+
 const getNoteImportSchema = (t: (key: string) => string): ImportSchema => ({
   fields: [
     { key: 'title', label: t('notes.title'), required: true },
@@ -26,42 +28,56 @@ const getNoteImportSchema = (t: (key: string) => string): ImportSchema => ({
   ],
 });
 
-interface NotesSettingsCategory {
-  id: string;
+interface NotesSettingsCategoryDef {
+  id: NotesSettingsCategory;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
-const notesSettingsCategories: NotesSettingsCategory[] = [
+const notesSettingsCategories: NotesSettingsCategoryDef[] = [
   { id: 'view', label: 'View', icon: LayoutGrid },
   { id: 'import', label: 'Import', icon: Upload },
 ];
 
-export function NotesSettingsView() {
+interface NotesSettingsViewProps {
+  selectedCategory?: NotesSettingsCategory;
+  onSelectedCategoryChange?: (category: NotesSettingsCategory) => void;
+  renderCategoryButtonsInline?: boolean;
+  inlineTrailing?: React.ReactNode;
+}
+
+export function NotesSettingsView({
+  selectedCategory,
+  onSelectedCategoryChange,
+  renderCategoryButtonsInline = false,
+  inlineTrailing,
+}: NotesSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { setHeaderTrailing } = useContentLayout();
-  const { getSettings, updateSettings } = useApp();
+  const { getSettings, updateSettings, settingsVersion } = useApp();
   const { importNotes } = useNotes();
 
-  const [selectedCategory, setSelectedCategory] = useState<string>(notesSettingsCategories[0].id);
+  const [internalCategory, setInternalCategory] = useState<NotesSettingsCategory>('view');
+  const activeCategory = selectedCategory ?? internalCategory;
+  const setActiveCategory = onSelectedCategoryChange ?? setInternalCategory;
+
   const [viewMode, setViewMode] = useState<NoteViewMode>('grid');
   const [initialViewMode, setInitialViewMode] = useState<NoteViewMode>('grid');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
-  // Tabs (View, Import) on same row as title – set as header trailing
-  useEffect(() => {
-    setHeaderTrailing(
-      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+  const categoryButtons = useMemo(
+    () => (
+      <div className="flex items-center gap-1">
         {notesSettingsCategories.map((category) => {
           const Icon = category.icon;
-          const isActive = selectedCategory === category.id;
+          const isActive = activeCategory === category.id;
           return (
             <Button
               key={category.id}
               variant="ghost"
-              onClick={() => !isActive && setSelectedCategory(category.id)}
+              onClick={() => !isActive && setActiveCategory(category.id)}
               className={cn(
                 'h-9 text-xs px-3 rounded-lg font-medium transition-colors',
                 'flex items-center gap-1.5 sm:gap-2',
@@ -75,10 +91,19 @@ export function NotesSettingsView() {
             </Button>
           );
         })}
-      </div>,
-    );
+      </div>
+    ),
+    [activeCategory, setActiveCategory],
+  );
+
+  useEffect(() => {
+    if (renderCategoryButtonsInline) {
+      setHeaderTrailing(null);
+      return;
+    }
+    setHeaderTrailing(categoryButtons);
     return () => setHeaderTrailing(null);
-  }, [setHeaderTrailing, selectedCategory]);
+  }, [setHeaderTrailing, renderCategoryButtonsInline, categoryButtons]);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,7 +125,7 @@ export function NotesSettingsView() {
     return () => {
       cancelled = true;
     };
-  }, [getSettings]);
+  }, [getSettings, settingsVersion]);
 
   const isDirty = viewMode !== initialViewMode;
 
@@ -131,13 +156,26 @@ export function NotesSettingsView() {
 
   return (
     <div className="space-y-4">
-      <Card
-        padding="md"
-        className="overflow-hidden border border-border/60 bg-background/50 shadow-sm"
-      >
-        {selectedCategory === 'view' && (
+      {renderCategoryButtonsInline ? (
+        <div className="flex flex-shrink-0 items-center justify-between">
+          <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
+            <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
+              {t('notes.settingsNotes')}
+            </h2>
+          </div>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            {categoryButtons}
+            {inlineTrailing}
+          </div>
+        </div>
+      ) : (
+        <h2 className="text-lg font-semibold tracking-tight">{t('notes.settingsNotes')}</h2>
+      )}
+
+      <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+        {activeCategory === 'view' && (
           <DetailSection title="Default view" className="pt-0">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
               {viewModes.map((mode) => {
                 const ModeIcon = mode.icon;
                 const isActive = viewMode === mode.id;
@@ -160,14 +198,15 @@ export function NotesSettingsView() {
                 );
               })}
             </div>
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="mt-2 text-sm text-muted-foreground">
               Notes will be displayed in the selected layout by default.
             </p>
           </DetailSection>
         )}
-        {selectedCategory === 'import' && (
+
+        {activeCategory === 'import' && (
           <DetailSection title={t('common.import')} className="pt-0">
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="mb-4 text-sm text-muted-foreground">
               {t('notes.importDescription') ||
                 'Import notes from a CSV file. The file should have columns for title and content.'}
             </p>
@@ -201,7 +240,7 @@ export function NotesSettingsView() {
             size="sm"
             icon={Check}
             disabled={isSaving}
-            className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
+            className="h-9 border-none bg-green-600 px-3 text-xs text-white hover:bg-green-700"
           >
             {isSaving ? t('common.saving') : t('common.save')}
           </Button>

@@ -246,6 +246,7 @@
     "noMatch": "No notes found matching your search.",
     "noYet": "No notes yet. Click \"Add Note\" to get started.",
     "addNote": "Add Note",
+    "settings": "Settings",
     "deleteTitle": "Delete Note",
     "importTitle": "Import Notes",
     "title": "Title",
