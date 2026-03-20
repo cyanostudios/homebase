@@ -29,4 +29,5 @@ Det här är den **aktuella** ingången till dokumentationen. Målet är att hå
 
 - **Sanningen om “vad som ändrats”** ska hamna i `CHANGELOG.md` (kronologiskt, kortfattat, med länkar till relevanta filer).
 - **Referenser till filer/paths** i docs ska uppdateras när filer flyttas/byter namn.
+- **UI-handlingar i paneler** ska beskrivas som delade panel-actions (header/footer) när logiken är gemensam; undvik footer-only formuleringar om implementationen använder båda.
 - **Redundanta “V2”-översikter** som duplicerar ovanstående ska tas bort efter att ev. unika delar har flyttats in i canonical docs eller `CHANGELOG.md`.

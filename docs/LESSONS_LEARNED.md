@@ -549,15 +549,15 @@ const handleDiscardChanges = () => {
 ### Close med "osparade ändringar" – plugin tillhandahåller getCloseHandler
 
 ❌ **What we did (that didn't work):**
-Tasks quick-edit behövde visa "Discard changes?" när användaren klickar Close med osparade ändringar. Footern har bara en generisk close-handler.
+Tasks quick-edit behövde visa "Discard changes?" när användaren klickar Close med osparade ändringar. Generisk close-handler utan plugin-wrapper räckte inte.
 
 ✅ **What we do instead (that works):**
 
 - TaskContext exponerar `getCloseHandler(defaultClose)` som returnerar en funktion: om `hasQuickEditChanges` → visa dialog och spara `defaultClose` i ref; annars anropa `defaultClose()`.
-- I `createPanelFooter`: för plugin tasks används `currentPluginContext.getCloseHandler(baseClose)` som `onClosePanel` i stället för bara `baseClose`.
+- I panel-actions (header/footer): använd pluginens wrapper `currentPluginContext.getCloseHandler(baseClose)` i stället för bara `baseClose`.
 
 💡 **Why (lesson learned):**
-För att en plugin ska kunna "fånga" Close (t.ex. visa dialog) behöver core använda en plugin-specifik wrapper. Genom att låta context exponera `getCloseHandler(defaultClose)` kan footern bygga rätt close-handler per plugin utan att känna till dialog-state.
+För att en plugin ska kunna "fånga" Close (t.ex. visa dialog) behöver core använda en plugin-specifik wrapper. Genom att låta context exponera `getCloseHandler(defaultClose)` kan både header och footer använda samma korrekta close-handler utan att känna till dialog-state.
 
 ### "Discard changes" = stanna i detail view, bara kasta draft
 
@@ -590,6 +590,6 @@ const onDiscardQuickEditAndClose = useCallback(() => {
 
 ---
 
-**Senast uppdaterad:** 2026-02-10  
+**Senast uppdaterad:** 2026-03-20  
 **Syfte:** Undvika att upprepa samma misstag  
 **Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles, använd PluginLoader för dynamiska plugin-listor, ta bort oanvända filer, PostgreSQLAdapter returnerar rows direkt (array) - använd inte .rows i core services, hybrid-lösning för bulk delete: plugin-specifik pre-deletion + generisk core-helper, PostgreSQLAdapter.\_addTenantFilter() måste hantera RETURNING-klausuler korrekt. Valfria fält: använd optional({ values: 'falsy' }) i express-validator så att tom sträng inte triggar formatvalidering. Flex-scroll: min-h-0 på flex-barn så att bara scroll-området rullar. Discard changes i edit: anropa onCancel() explicit för att växla tillbaka till view. Plugin-specifik close: exponera getCloseHandler(defaultClose) från context och använd i createPanelFooter. Quick-edit "Discard": kasta bara draft, anropa inte panel-close om användaren ska stanna i detail view. **Auth/tenant:** När nya sökvägar (tabeller/kolumner) införs för tenant-context: kör legacy-sökvägen (som fungerar i nuvarande schema) först så att inloggning inte bryts.

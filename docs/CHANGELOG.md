@@ -4,6 +4,34 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-03 – Slots categories, header actions och unsaved-close harmonisering
+
+_Slots har utökats med kategorier/taggar end-to-end, detail-panelens actions har flyttats till headern, och close/unsaved-flöden har harmoniserats mellan header och footer._
+
+### Slots: kategori/taggar (end-to-end)
+
+- **Databas:** Ny migration `039-slots-add-category.sql` lägger till `slots.category`.
+- **Migreringsscript:** `scripts/run-slots-category-migration.js` + npm-script `migrate:slots-category` för att köra migrationen på befintliga tenants.
+- **Backend:** `plugins/slots/model.js` och `plugins/slots/routes.js` stöder `category` i create/update/batch + change summary och validering.
+- **Frontend data:** `types/slots.ts` + `slotsApi.ts` uppdaterade för `category`.
+- **Settings:** Slots settings har nu kategorihantering (lägga till/ta bort) enligt samma mönster som contact tags.
+- **Form/View/List:** SlotForm kan välja kategori, SlotView visar kategori i detail, och SlotsList visar kategori-badge i grid/list.
+
+### Detail-panel actions (header-first)
+
+- **Header i view-läge:** `ItemNavigation` + `Edit/Update` + `Close` ligger i headern; `Update` visas när quick-edit/tags ändrats och `Edit` döljs då.
+- **Header i edit-läge:** `Close` + `Update` visas i headern.
+- **Footer i view-läge:** `Close/Edit/Update` borttagna från footer för att undvika dubbel-UI; kvar är vänstersidans actions (Delete/Duplicate/Send/Export).
+- **Close-beteende:** Header-close använder samma guardade close som footer (inkl. plugin-specifik `getCloseHandler` där tillgängligt), så osparade ändringar hanteras konsekvent.
+
+### Slots UX/cleanup
+
+- **Inline location-edit i view borttagen:** Location kan nu endast ändras i edit-läge.
+- **Quick actions i slots:** Edit/Update borttagna därifrån; färgsättning/hover och knappbredd harmoniserade med sidebar-stilen.
+- **Kodstädning:** Oanvänd kod/imports i slots-filer borttagna och formatering/lint justerad.
+
+---
+
 ## 2026-03 – Slots: plugin cleanup, trekolumns-detail och per-item activity log
 
 _Slots-plugin refaktorering enligt plan: borttagen död kod, centraliserade konstanter, mindre duplicering, utbrutna subkomponenter och dedikerad settings-hook. Detail-vyn får tre kolumner (Info | Properties | Activity) med per-slot activity timeline._
@@ -360,4 +388,4 @@ _Dokumentation av alla ändringar sedan senaste commit ("Public booking app, slo
 
 ---
 
-**Senast uppdaterad:** 2026-02-10
+**Senast uppdaterad:** 2026-03-20

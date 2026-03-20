@@ -131,7 +131,7 @@ List views use `ContentToolbar` and set it via `useContentLayout().setHeaderTrai
 
 - **Component:** `Button` from `@/components/ui/button`.
 - **Variant:** `variant="secondary"` for secondary actions.
-- **Size:** `size="sm"`, `className="h-7 text-[10px] px-2"`.
+- **Size:** `size="sm"`, `className="h-9 text-xs px-3"`.
 - **Icon + label:** Use the `icon` prop (e.g. `icon={Settings}`) and put the label as children (e.g. `Settings`). Do not use icon-only buttons for primary toolbar actions like Settings—use the same style as in Files, Contacts, and Mail.
 
 ### 3.2 Plugin settings panel
@@ -139,7 +139,7 @@ List views use `ContentToolbar` and set it via `useContentLayout().setHeaderTrai
 When a plugin has a settings screen that opens in the detail panel (e.g. Files cloud storage, Mail SMTP):
 
 - **Content:** Use `DetailSection` to group settings (e.g. "Cloud storage", "Email provider").
-- **Footer:** The panel shows Close (Cancel) and Save. For settings, Save may persist and then close, or simply close; Close always closes the panel.
+- **Header/Footer actions:** In form modes (create/edit/settings), the panel uses Close + Save/Update actions with shared behavior. Actions may be rendered in header and/or footer, but the close/save handlers must be the same to keep unsaved-changes behavior consistent.
 - **Core behaviour:** If the plugin’s Form component returns early when `panelMode === 'settings'` (and therefore does not register submit/cancel event listeners), core panel handlers must close the panel for that plugin when in `settings` mode by calling the context’s close function directly. See `PLUGIN_DEVELOPMENT_STANDARDS_V2.md` §7 (Plugin settings page).
 
 ## 4. Typography Scale

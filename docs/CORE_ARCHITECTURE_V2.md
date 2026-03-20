@@ -352,12 +352,12 @@ return handleCancelClick; // Check unsaved changes
 }
 };
 Global Form Functions
-Forms integrate with the DetailPanel footer (`PanelFooter`):
+Forms integrate with shared panel actions (header/footer) via global callbacks:
 typescript// Each plugin registers global functions (plural naming!)
 window.submitMyPluginsForm = handleSubmit;
 window.cancelMyPluginsForm = handleCancel;
 
-// App.tsx calls these from panel footer
+// App.tsx calls these from panel actions (header/footer)
 const handleSaveClick = () => {
 const submitFunction = window[`submit${currentPlugin.name}Form`];
 if (submitFunction) submitFunction();
