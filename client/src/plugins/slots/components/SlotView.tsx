@@ -1,17 +1,21 @@
-import { Copy, Info, Trash2, User, X, Zap } from 'lucide-react';
+import {
+  CalendarDays,
+  Copy,
+  Info,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+  User,
+  Users,
+  Zap,
+} from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { useApp } from '@/core/api/AppContext';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
@@ -20,6 +24,7 @@ import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
@@ -382,30 +387,62 @@ function SlotSettingsCard({
   setPropertyDraftField,
   assignableContacts,
   contacts,
-  openContactForView,
   bookings,
   bookingsLoading,
   onRequestDeleteBooking,
 }: SlotSettingsCardProps) {
   const slotDatePassed = isSlotTimePast(slot.slot_time);
+  const [contactSearch, setContactSearch] = useState('');
+  const [showContactSuggestions, setShowContactSuggestions] = useState(false);
   const addableContacts = assignableContacts.filter(
     (c) => !displayMentions?.some((m) => String(m.contactId) === String(c.id)),
   );
+  const filteredContactSuggestions = useMemo(() => {
+    const query = contactSearch.trim().toLowerCase();
+    if (!query) {
+      return addableContacts;
+    }
+
+    return addableContacts.filter((contact) => {
+      const c = contact as {
+        companyName?: string;
+        name?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        phone?: string;
+        phone2?: string;
+      };
+      const fullName = [c.firstName, c.lastName].filter(Boolean).join(' ');
+      return [c.companyName, c.name, fullName, c.email, c.phone, c.phone2]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+  }, [addableContacts, contactSearch]);
   const { t } = useTranslation();
 
   return (
-    <Card padding="none" className={cn(SLOT_DETAIL_CARD_CLASS, 'plugin-slots')}>
-      <div className="p-6 space-y-5">
-        <div className="space-y-2">
+    <div className="space-y-4 plugin-slots">
+      <Card padding="none" className={cn(SLOT_DETAIL_CARD_CLASS, 'overflow-visible relative z-30')}>
+        <div className="p-6 space-y-2">
+          <div className="mb-1 flex items-center gap-2 min-w-0">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+            </span>
+            <span className="truncate text-sm font-semibold text-foreground">
+              {t('slots.properties')}
+            </span>
+          </div>
           <div
             className={cn(
-              'flex items-center justify-between gap-2 rounded-md',
+              'flex items-center justify-between rounded-lg border border-border p-4',
               slotDatePassed && 'opacity-55 text-muted-foreground',
             )}
             title={slotDatePassed ? t('slots.visibleDisabledPast') : undefined}
           >
-            <div className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
-              {t('common.visible')}
+            <div className="space-y-0.5">
+              <div className="text-sm font-medium">{t('slots.visibleLabel')}</div>
+              <p className="text-[11px] text-muted-foreground">{t('slots.visibleHelp')}</p>
             </div>
             <Switch
               checked={!!displaySlot.visible}
@@ -414,9 +451,10 @@ function SlotSettingsCard({
               className="h-4 w-7 data-[state=checked]:bg-primary [&>span]:h-3 [&>span]:w-3 [&[data-state=checked]>span]:translate-x-3"
             />
           </div>
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
-              {t('common.notifications')}
+          <div className="flex items-center justify-between rounded-lg border border-border p-4">
+            <div className="space-y-0.5">
+              <div className="text-sm font-medium">{t('slots.notificationsLabel')}</div>
+              <p className="text-[11px] text-muted-foreground">{t('slots.notificationsHelp')}</p>
             </div>
             <Switch
               checked={!!displaySlot.notifications_enabled}
@@ -425,86 +463,148 @@ function SlotSettingsCard({
             />
           </div>
         </div>
-        <div className="space-y-2 border-t border-border/50 pt-5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+      </Card>
+
+      <Card padding="none" className={SLOT_DETAIL_CARD_CLASS}>
+        <div className="p-6 space-y-2">
+          <div className="mb-1 flex items-center gap-2 min-w-0">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
+              <Users className="h-3.5 w-3.5" />
+            </span>
+            <span className="truncate text-sm font-semibold text-foreground">
               {t('common.contacts')}
-            </div>
-            <Select
-              value="__add_contact__"
-              onValueChange={(val) => {
-                if (val && val !== '__add_contact__') {
-                  const contact = assignableContacts.find((c) => String(c.id) === val);
-                  if (contact) {
-                    addContactToDraft(contact);
-                  }
-                }
-              }}
-              disabled={addableContacts.length === 0}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <div />
+            <Popover
+              open={showContactSuggestions && addableContacts.length > 0}
+              onOpenChange={setShowContactSuggestions}
             >
-              <SelectTrigger className="h-7 w-[140px] bg-background border-border/50 hover:bg-accent/50 transition-colors shadow-none rounded-md px-2 text-[10px] font-medium">
-                <SelectValue placeholder={t('common.addContact')} />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl border-border/50 shadow-xl min-w-[180px]">
-                <SelectItem
-                  value="__add_contact__"
-                  className="py-2 focus:bg-accent rounded-md text-muted-foreground"
-                >
-                  {addableContacts.length === 0 ? t('slots.noMoreToAdd') : t('common.addContact')}
-                </SelectItem>
-                {assignableContacts.map((contact) => (
-                  <SelectItem
-                    key={contact.id}
-                    value={String(contact.id)}
-                    className="py-2 focus:bg-accent rounded-md text-[10px]"
-                  >
-                    {contact.companyName ?? `Contact ${contact.id}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <PopoverAnchor asChild>
+                <div className="relative w-full max-w-[260px]">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={contactSearch}
+                    onChange={(event) => {
+                      setContactSearch(event.target.value);
+                      setShowContactSuggestions(true);
+                    }}
+                    onFocus={() => setShowContactSuggestions(true)}
+                    placeholder={
+                      addableContacts.length === 0 ? t('slots.noMoreToAdd') : t('common.addContact')
+                    }
+                    className="h-9 bg-background pl-9 text-xs"
+                    disabled={addableContacts.length === 0}
+                  />
+                </div>
+              </PopoverAnchor>
+              <PopoverContent
+                align="end"
+                side="bottom"
+                sideOffset={6}
+                className="z-[120] w-[var(--radix-popover-trigger-width)] max-h-64 overflow-y-auto rounded-xl border border-border/60 bg-popover p-1 shadow-xl"
+              >
+                {filteredContactSuggestions.length > 0 ? (
+                  filteredContactSuggestions.map((contact) => {
+                    const contactName = contact.companyName ?? `Contact ${contact.id}`;
+                    const contactMeta = [
+                      (contact as { email?: string }).email,
+                      (contact as { phone?: string }).phone,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ');
+                    return (
+                      <button
+                        key={contact.id}
+                        type="button"
+                        className="flex w-full items-start justify-between gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-accent"
+                        onClick={() => {
+                          addContactToDraft(contact);
+                          setContactSearch('');
+                          setShowContactSuggestions(false);
+                        }}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-medium">{contactName}</span>
+                          {contactMeta && (
+                            <span className="block truncate text-[11px] text-muted-foreground">
+                              {contactMeta}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="px-2.5 py-2 text-[11px] text-muted-foreground">
+                    {contactSearch.trim() ? t('common.noResults') : t('common.addContact')}
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
           {displayMentions && displayMentions.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-0.5">
+            <div className="space-y-2 pt-0.5">
               {displayMentions.map((m) => {
-                const contact = contacts.find((c) => String(c.id) === String(m.contactId));
+                const contact = contacts.find((c) => String(c.id) === String(m.contactId)) as
+                  | {
+                      id: number | string;
+                      companyName?: string;
+                      email?: string;
+                      phone?: string;
+                      phone2?: string;
+                    }
+                  | undefined;
                 const name = contact?.companyName ?? m.contactName ?? m.contactId;
+                const meta = [contact?.email, contact?.phone, contact?.phone2].filter(Boolean);
+
                 return (
-                  <Badge
-                    key={m.contactId}
-                    variant="secondary"
-                    className="flex items-center gap-1 text-[10px] font-medium px-2 h-5 border-transparent plugin-slots"
-                  >
-                    <User className="h-3 w-3 shrink-0" />
-                    <span className="truncate max-w-[100px]">{name}</span>
-                    {contact && (
-                      <Button
-                        size="sm"
-                        variant="link"
-                        onClick={() => openContactForView(contact)}
-                        className="h-auto p-0 text-[9px] shrink-0 font-medium text-plugin"
-                      >
-                        {t('common.view')}
-                      </Button>
-                    )}
-                    <button
-                      type="button"
-                      className="ml-0.5 rounded hover:bg-muted p-0.5 disabled:opacity-50"
-                      onClick={() => removeContactFromDraft(m.contactId)}
-                      aria-label={`${t('common.removeContact')} ${name}`}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
+                  <div key={m.contactId} className="rounded-lg border border-border p-4">
+                    <div className="flex min-w-0 items-center justify-between gap-3">
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <span className="truncate text-sm font-medium">{name}</span>
+                        </div>
+                        {meta.length > 0 && (
+                          <div className="min-w-0 truncate text-xs text-muted-foreground">
+                            {meta.join(' · ')}
+                          </div>
+                        )}
+                      </div>
+                      <div className="shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          icon={Trash2}
+                          className="h-9 px-3 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+                          onClick={() => removeContactFromDraft(m.contactId)}
+                          aria-label={`${t('common.removeContact')} ${name}`}
+                        >
+                          {t('common.delete')}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 );
               })}
             </div>
           )}
         </div>
-        {(bookings.length > 0 || bookingsLoading) && (
-          <div className="border-t border-border/50 pt-5 space-y-3">
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
-              {t('slots.publicBookings')}
+      </Card>
+
+      {(bookings.length > 0 || bookingsLoading) && (
+        <Card padding="none" className={SLOT_DETAIL_CARD_CLASS}>
+          <div className="p-6 space-y-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
+                <CalendarDays className="h-3.5 w-3.5" />
+              </span>
+              <span className="truncate text-sm font-semibold text-foreground">
+                {t('slots.publicBookings')}
+              </span>
             </div>
             {bookingsLoading ? (
               <div className="text-sm text-muted-foreground py-1">{t('common.loading')}</div>
@@ -514,43 +614,44 @@ function SlotSettingsCard({
                   const metaParts = [
                     booking.email || null,
                     booking.phone || null,
+                    formatDateTime(booking.created_at),
                     booking.message ? `"${booking.message}"` : null,
                   ].filter(Boolean);
                   return (
                     <div
                       key={booking.id}
-                      className="rounded-lg border border-border/60 bg-background/80 px-3 py-2 text-card-foreground"
+                      className="rounded-lg border border-border p-4 text-card-foreground"
                     >
-                      <div className="flex min-w-0 items-center justify-between gap-2">
-                        <span className="truncate text-sm font-medium">{booking.name}</span>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <span className="whitespace-nowrap text-[10px] text-muted-foreground tabular-nums">
-                            {formatDateTime(booking.created_at)}
-                          </span>
+                      <div className="flex min-w-0 items-center justify-between gap-3">
+                        <div className="min-w-0 space-y-0.5">
+                          <span className="block truncate text-sm font-medium">{booking.name}</span>
+                          {metaParts.length > 0 && (
+                            <div className="min-w-0 truncate text-xs text-muted-foreground">
+                              {metaParts.join(' · ')}
+                            </div>
+                          )}
+                        </div>
+                        <div className="shrink-0">
                           <Button
                             variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            size="sm"
+                            icon={Trash2}
+                            className="h-9 px-3 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
                             onClick={() => onRequestDeleteBooking(booking)}
                           >
-                            <Trash2 className="h-3 w-3" />
+                            {t('common.delete')}
                           </Button>
                         </div>
                       </div>
-                      {metaParts.length > 0 && (
-                        <div className="mt-0.5 min-w-0 truncate text-xs text-muted-foreground">
-                          {metaParts.join(' · ')}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
               </div>
             )}
           </div>
-        )}
-      </div>
-    </Card>
+        </Card>
+      )}
+    </div>
   );
 }
 
@@ -564,7 +665,7 @@ interface SlotViewProps {
 export function SlotView({ slot: slotProp, item }: SlotViewProps) {
   const { t } = useTranslation();
   const slot = slotProp ?? item ?? null;
-  const { contacts, openContactForView } = useContacts();
+  const { contacts } = useContacts();
   const { contacts: appContacts } = useApp();
   const { openMatchForView, matches } = useMatches();
   const assignableContacts = (appContacts ?? contacts).filter(
@@ -589,6 +690,7 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
     deleteSlot,
     getDuplicateConfig,
     executeDuplicate,
+    setRecentlyDuplicatedSlotId,
     detailFooterActions,
     getDeleteMessage,
   } = useSlotsContext();
@@ -599,6 +701,7 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [bookingToDelete, setBookingToDelete] = useState<SlotBooking | null>(null);
   const [showDeleteSlotConfirm, setShowDeleteSlotConfirm] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
 
   const mergedMessageRecipients = useMemo(
     () => appendPublicBookingsToMessageRecipients(sendMessageRecipients, bookings),
@@ -701,7 +804,7 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
               <SlotQuickActionsCard
                 slot={slot}
                 onDeleteClick={() => setShowDeleteSlotConfirm(true)}
-                onDuplicate={(s) => executeDuplicate(s, '')}
+                onDuplicate={() => setShowDuplicateDialog(true)}
                 getDuplicateConfig={getDuplicateConfig}
                 detailFooterActions={detailFooterActions}
               />
@@ -738,7 +841,6 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
               setPropertyDraftField={setPropertyDraftField}
               assignableContacts={assignableContacts}
               contacts={contacts}
-              openContactForView={openContactForView}
               bookings={bookings}
               bookingsLoading={bookingsLoading}
               onRequestDeleteBooking={setBookingToDelete}
@@ -772,6 +874,27 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
         }}
         onCancel={() => setShowDeleteSlotConfirm(false)}
         variant="danger"
+      />
+
+      <DuplicateDialog
+        isOpen={showDuplicateDialog}
+        onConfirm={(newName) => {
+          executeDuplicate(slot, newName)
+            .then(({ closePanel, highlightId }) => {
+              closePanel();
+              if (highlightId) {
+                setRecentlyDuplicatedSlotId(highlightId);
+              }
+              setShowDuplicateDialog(false);
+            })
+            .catch(() => {
+              setShowDuplicateDialog(false);
+            });
+        }}
+        onCancel={() => setShowDuplicateDialog(false)}
+        defaultName={getDuplicateConfig(slot)?.defaultName ?? ''}
+        nameLabel={getDuplicateConfig(slot)?.nameLabel ?? 'Name'}
+        confirmOnly={Boolean(getDuplicateConfig(slot)?.confirmOnly)}
       />
 
       <BulkMessageDialog

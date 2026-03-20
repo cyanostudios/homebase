@@ -765,16 +765,25 @@ export function SlotsProvider({
     if (!item) {
       return null;
     }
-    return { defaultName: '', nameLabel: '', confirmOnly: true };
+    const baseName =
+      item.name?.trim() ||
+      item.location?.trim() ||
+      (item.slot_time ? new Date(item.slot_time).toLocaleString('sv-SE') : 'Slot');
+    return {
+      defaultName: `Copy of ${baseName}`,
+      nameLabel: 'Name',
+      confirmOnly: false,
+    };
   }, []);
 
   const executeDuplicate = useCallback(
     async (
       item: Slot,
-      _newName: string,
+      newName: string,
     ): Promise<{ closePanel: () => void; highlightId?: string }> => {
+      const nextName = (newName ?? '').trim();
       const copy = {
-        name: item.name ?? null,
+        name: nextName || (item.name ?? null),
         location: item.location ?? null,
         slot_time: item.slot_time,
         slot_end: item.slot_end ?? null,
