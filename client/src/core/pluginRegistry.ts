@@ -112,7 +112,7 @@ import { SettingsList } from '@/plugins/settings/components/SettingsList';
 import { SettingsProvider } from '@/plugins/settings/context/SettingsContext';
 import { useSettings } from '@/plugins/settings/hooks/useSettings';
 import { SlotForm } from '@/plugins/slots/components/SlotForm';
-import { SlotsList } from '@/plugins/slots/components/SlotsList';
+import { SlotsListDraft } from '@/plugins/slots/components/SlotsListDraft';
 import { SlotView } from '@/plugins/slots/components/SlotView';
 import { SlotsProvider } from '@/plugins/slots/context/SlotsContext';
 import { useSlotsContext as useSlots } from '@/plugins/slots/context/SlotsContext';
@@ -260,7 +260,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
     hook: useSlots,
     panelKey: 'isSlotsPanelOpen',
     components: {
-      List: SlotsList,
+      List: SlotsListDraft,
       Form: SlotForm,
       View: SlotView,
     },

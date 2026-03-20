@@ -6,6 +6,8 @@ import {
   List,
   Mail,
   MessageSquare,
+  Plus,
+  Search,
   Settings,
   SlidersHorizontal,
   Trash2,
@@ -16,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -29,8 +32,6 @@ import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog, type BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog, type BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
-import { useContentLayout } from '@/core/ui/ContentLayoutContext';
-import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { exportItems } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -75,11 +76,11 @@ export function SlotsList() {
     refreshSlots,
     canSendMessages,
     canSendEmail,
+    openSlotPanel,
   } = useSlots();
   const { getSettings, updateSettings, settingsVersion, contacts: appContacts } = useApp();
   const { contacts: hookContacts } = useContacts();
   const contacts = useMemo(() => appContacts ?? hookContacts ?? [], [appContacts, hookContacts]);
-  const { setHeaderTrailing } = useContentLayout();
   const { attemptNavigation } = useGlobalNavigationGuard();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -196,62 +197,6 @@ export function SlotsList() {
 
   const handleOpenForView = (slot: Slot) => attemptNavigation(() => openSlotForView(slot));
 
-  useEffect(() => {
-    if (slotsContentView !== 'list') {
-      setHeaderTrailing(null);
-      return () => setHeaderTrailing(null);
-    }
-    setHeaderTrailing(
-      <ContentToolbar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder={t('slots.searchPlaceholder')}
-        rightActions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Settings}
-              onClick={() => openSlotSettings()}
-              className="h-9 text-xs px-3"
-              title={t('common.settings')}
-            >
-              {t('common.settings')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Grid3x3}
-              onClick={() => setViewMode('grid')}
-              className={cn('h-9 text-xs px-3', viewMode === 'grid' && 'text-primary')}
-            >
-              {t('slots.grid')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={List}
-              onClick={() => setViewMode('list')}
-              className={cn('h-9 text-xs px-3', viewMode === 'list' && 'text-primary')}
-            >
-              {t('slots.list')}
-            </Button>
-          </div>
-        }
-      />,
-    );
-    return () => setHeaderTrailing(null);
-  }, [
-    t,
-    searchTerm,
-    setSearchTerm,
-    viewMode,
-    setViewMode,
-    setHeaderTrailing,
-    openSlotSettings,
-    slotsContentView,
-  ]);
-
   const handleBulkDelete = useCallback(async () => {
     setDeleting(true);
     try {
@@ -355,7 +300,64 @@ export function SlotsList() {
   }
 
   return (
-    <div className="space-y-4 plugin-slots">
+    <div
+      className={cn(
+        'plugin-slots min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl space-y-4',
+        'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="relative w-full max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder={t('slots.searchPlaceholder')}
+            className="h-9 pl-9 text-xs bg-background"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Settings}
+            onClick={() => openSlotSettings()}
+            className="h-9 text-xs px-3"
+            title={t('common.settings')}
+          >
+            {t('common.settings')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Grid3x3}
+            onClick={() => setViewMode('grid')}
+            className={cn('h-9 text-xs px-3', viewMode === 'grid' && 'text-primary')}
+          >
+            {t('slots.grid')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={List}
+            onClick={() => setViewMode('list')}
+            className={cn('h-9 text-xs px-3', viewMode === 'list' && 'text-primary')}
+          >
+            {t('slots.list')}
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            icon={Plus}
+            className="h-9 text-xs px-3"
+            onClick={() => attemptNavigation(() => openSlotPanel(null))}
+          >
+            {t('common.add')}
+          </Button>
+        </div>
+      </div>
+
       {selectedCount > 0 && (
         <BulkActionBar
           selectedCount={selectedCount}
@@ -475,7 +477,7 @@ export function SlotsList() {
       />
 
       {filteredAndSorted.length === 0 ? (
-        <Card className="shadow-none p-6 text-center text-muted-foreground">
+        <Card className="border border-border/70 bg-card shadow-sm p-6 text-center text-muted-foreground">
           {searchTerm ? t('slots.noSlotsMatch') : t('slots.noSlotsYet')}
         </Card>
       ) : viewMode === 'grid' ? (
@@ -486,7 +488,7 @@ export function SlotsList() {
               <Card
                 key={slot.id}
                 className={cn(
-                  'relative p-5 cursor-pointer transition-all flex flex-col min-h-[140px] border-transparent bg-gray-50 dark:bg-gray-900/40',
+                  'relative p-5 cursor-pointer transition-all flex flex-col min-h-[140px] border border-border/70 bg-card shadow-sm',
                   selected
                     ? 'plugin-slots bg-plugin-subtle ring-1 border-plugin-subtle'
                     : 'hover:border-plugin-subtle hover:plugin-slots hover:shadow-md',
@@ -551,7 +553,7 @@ export function SlotsList() {
           })}
         </div>
       ) : (
-        <Card className="shadow-none plugin-slots">
+        <Card className="border border-border/70 bg-card shadow-sm plugin-slots overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>

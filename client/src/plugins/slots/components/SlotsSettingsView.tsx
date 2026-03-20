@@ -1,7 +1,7 @@
 // Slots settings as full-page content (like Core Settings): tab row + card + footer.
 
 import { Check, LayoutGrid, List, Plus, Tag, X } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
@@ -29,13 +29,59 @@ const viewModes: {
   { id: 'list', label: 'List', icon: List },
 ];
 
-export function SlotsSettingsView() {
+type SlotsSettingsCategory = 'view' | 'categories';
+
+interface SlotsSettingsViewProps {
+  selectedCategory?: SlotsSettingsCategory;
+  onSelectedCategoryChange?: (category: SlotsSettingsCategory) => void;
+  renderCategoryButtonsInline?: boolean;
+  inlineTrailing?: React.ReactNode;
+}
+
+export function SlotsSettingsView({
+  selectedCategory,
+  onSelectedCategoryChange,
+  renderCategoryButtonsInline = false,
+  inlineTrailing,
+}: SlotsSettingsViewProps = {}) {
   const { t } = useTranslation();
   const { setHeaderTrailing } = useContentLayout();
   const { viewMode, setViewMode, tags, setTags, isDirty, isLoading, isSaving, save } =
     useSlotSettings();
-  const [selectedCategory, setSelectedCategory] = useState<string>('view');
+  const [internalSelectedCategory, setInternalSelectedCategory] =
+    useState<SlotsSettingsCategory>('view');
   const [newTag, setNewTag] = useState('');
+  const activeCategory = selectedCategory ?? internalSelectedCategory;
+  const setActiveCategory = onSelectedCategoryChange ?? setInternalSelectedCategory;
+
+  const categoryButtons = useMemo(
+    () => (
+      <div className="flex items-center gap-1">
+        {slotsSettingsCategories.map((category) => {
+          const Icon = category.icon;
+          const isActive = activeCategory === category.id;
+          return (
+            <Button
+              key={category.id}
+              variant="ghost"
+              onClick={() => !isActive && setActiveCategory(category.id as SlotsSettingsCategory)}
+              className={cn(
+                'h-9 text-xs px-3 rounded-lg font-medium transition-colors',
+                'flex items-center gap-1.5 sm:gap-2',
+                isActive
+                  ? 'bg-primary/10 text-primary border border-primary hover:bg-primary/15'
+                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+              )}
+            >
+              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span>{category.label}</span>
+            </Button>
+          );
+        })}
+      </div>
+    ),
+    [activeCategory, setActiveCategory],
+  );
 
   const addTag = useCallback(() => {
     const next = newTag.trim();
@@ -59,33 +105,13 @@ export function SlotsSettingsView() {
   );
 
   useEffect(() => {
-    setHeaderTrailing(
-      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-        {slotsSettingsCategories.map((category) => {
-          const Icon = category.icon;
-          const isActive = selectedCategory === category.id;
-          return (
-            <Button
-              key={category.id}
-              variant="ghost"
-              onClick={() => !isActive && setSelectedCategory(category.id)}
-              className={cn(
-                'h-9 text-xs px-3 rounded-lg font-medium transition-colors',
-                'flex items-center gap-1.5 sm:gap-2',
-                isActive
-                  ? 'bg-primary/10 text-primary border border-primary hover:bg-primary/15'
-                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-              )}
-            >
-              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>{category.label}</span>
-            </Button>
-          );
-        })}
-      </div>,
-    );
+    if (renderCategoryButtonsInline) {
+      setHeaderTrailing(null);
+      return;
+    }
+    setHeaderTrailing(categoryButtons);
     return () => setHeaderTrailing(null);
-  }, [setHeaderTrailing, selectedCategory]);
+  }, [setHeaderTrailing, renderCategoryButtonsInline, categoryButtons]);
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
@@ -93,11 +119,23 @@ export function SlotsSettingsView() {
 
   return (
     <div className="space-y-4">
-      <Card
-        padding="md"
-        className="overflow-hidden border border-border/60 bg-background/50 shadow-sm"
-      >
-        {selectedCategory === 'view' && (
+      {renderCategoryButtonsInline ? (
+        <div className="flex flex-shrink-0 items-center justify-between">
+          <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
+            <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
+              Slots - Settings
+            </h2>
+          </div>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            {categoryButtons}
+            {inlineTrailing}
+          </div>
+        </div>
+      ) : (
+        <h2 className="text-lg font-semibold tracking-tight">Slots - Settings</h2>
+      )}
+      <Card padding="md" className="overflow-hidden border border-border/70 bg-card shadow-sm">
+        {activeCategory === 'view' && (
           <DetailSection title="Default view" className="pt-0">
             <div className="flex items-center gap-2 flex-wrap">
               {viewModes.map((mode) => {
@@ -128,7 +166,7 @@ export function SlotsSettingsView() {
           </DetailSection>
         )}
 
-        {selectedCategory === 'categories' && (
+        {activeCategory === 'categories' && (
           <DetailSection title="Categories" className="pt-0">
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">

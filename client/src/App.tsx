@@ -338,6 +338,9 @@ function AppContent() {
   }, [currentPage]);
 
   const contentTitle = useMemo(() => {
+    if (currentPage === 'slots') {
+      return '';
+    }
     if (currentPage === 'dashboard') {
       return 'Dashboard';
     }
@@ -357,6 +360,9 @@ function AppContent() {
   }, [currentPage, currentPagePlugin]);
 
   const contentIcon = useMemo(() => {
+    if (currentPage === 'slots') {
+      return undefined;
+    }
     if (currentPage === 'dashboard') {
       return Home;
     }
@@ -377,6 +383,9 @@ function AppContent() {
 
   const primaryAction = useMemo(() => {
     if (!currentPagePlugin || currentPagePlugin.name !== currentPage) {
+      return null;
+    }
+    if (currentPagePlugin.name === 'slots') {
       return null;
     }
 
@@ -737,6 +746,7 @@ function AppContent() {
         detailPanelShowCloseButton={!useHeaderActionButtons}
         onDetailPanelClose={onDetailPanelClose}
         detailPanelPluginName={currentPlugin?.name}
+        contentFlush={currentPage === 'slots'}
       >
         {currentPage === 'dashboard' ? (
           <Dashboard onPageChange={handlePageChange} />

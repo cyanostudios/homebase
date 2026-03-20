@@ -29,6 +29,8 @@ interface MainLayoutProps {
   detailPanelShowCloseButton?: boolean;
   onDetailPanelClose: () => void;
   detailPanelPluginName?: string;
+  /** When true, list ContentSurface uses p-0 (like detail panel) so the plugin controls its own padding. */
+  contentFlush?: boolean;
 }
 
 export function MainLayout({
@@ -50,6 +52,7 @@ export function MainLayout({
   detailPanelShowCloseButton = true,
   onDetailPanelClose,
   detailPanelPluginName,
+  contentFlush = false,
 }: MainLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [headerTrailing, setHeaderTrailing] = useState<React.ReactNode>(null);
@@ -74,6 +77,9 @@ export function MainLayout({
   const handlePageChange = (page: NavPage) => {
     onPageChange(page);
   };
+  const shouldShowContentHeader = Boolean(
+    contentTitle || contentIcon || headerTitleSuffix || contentActionLabel || headerTrailing,
+  );
 
   return (
     <div className="min-h-screen bg-workspace">
@@ -100,22 +106,24 @@ export function MainLayout({
           <>
             {/* Mobile: Always show list view when DetailPanel is closed */}
             {!detailPanelOpen && (
-              <ContentSurface>
+              <ContentSurface flush={contentFlush}>
                 <ContentLayoutProvider
                   onTrailingChange={setHeaderTrailing}
                   onTitleSuffixChange={setHeaderTitleSuffix}
                 >
                   <div className="flex h-full flex-col gap-4">
-                    <ContentHeader
-                      title={contentTitle}
-                      icon={contentIcon}
-                      titleSuffix={headerTitleSuffix}
-                      actionLabel={contentActionLabel}
-                      actionIcon={contentActionIcon}
-                      actionVariant={contentActionVariant}
-                      onAction={onContentAction}
-                      trailing={headerTrailing}
-                    />
+                    {shouldShowContentHeader && (
+                      <ContentHeader
+                        title={contentTitle}
+                        icon={contentIcon}
+                        titleSuffix={headerTitleSuffix}
+                        actionLabel={contentActionLabel}
+                        actionIcon={contentActionIcon}
+                        actionVariant={contentActionVariant}
+                        onAction={onContentAction}
+                        trailing={headerTrailing}
+                      />
+                    )}
                     <div className="flex flex-1 flex-col overflow-hidden">
                       <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
                     </div>
@@ -156,22 +164,24 @@ export function MainLayout({
                 </DetailPanel>
               </ContentSurface>
             ) : (
-              <ContentSurface>
+              <ContentSurface flush={contentFlush}>
                 <ContentLayoutProvider
                   onTrailingChange={setHeaderTrailing}
                   onTitleSuffixChange={setHeaderTitleSuffix}
                 >
                   <div className="flex h-full flex-col gap-4">
-                    <ContentHeader
-                      title={contentTitle}
-                      icon={contentIcon}
-                      titleSuffix={headerTitleSuffix}
-                      actionLabel={contentActionLabel}
-                      actionIcon={contentActionIcon}
-                      actionVariant={contentActionVariant}
-                      onAction={onContentAction}
-                      trailing={headerTrailing}
-                    />
+                    {shouldShowContentHeader && (
+                      <ContentHeader
+                        title={contentTitle}
+                        icon={contentIcon}
+                        titleSuffix={headerTitleSuffix}
+                        actionLabel={contentActionLabel}
+                        actionIcon={contentActionIcon}
+                        actionVariant={contentActionVariant}
+                        onAction={onContentAction}
+                        trailing={headerTrailing}
+                      />
+                    )}
                     <div className="flex flex-1 flex-col overflow-hidden">
                       <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
                     </div>
