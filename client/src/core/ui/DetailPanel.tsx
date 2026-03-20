@@ -13,6 +13,8 @@ interface DetailPanelProps {
   footer?: React.ReactNode;
   /** Rendered between title and close (X) button, e.g. prev/next navigation */
   headerRight?: React.ReactNode;
+  /** Hide default close (X) button when custom close is rendered in headerRight. */
+  showCloseButton?: boolean;
   mode?: 'view' | 'create' | 'edit';
   isMobile?: boolean;
 }
@@ -25,6 +27,7 @@ export function DetailPanel({
   children,
   footer,
   headerRight,
+  showCloseButton = true,
   mode: _mode = 'view',
   isMobile = false,
 }: DetailPanelProps) {
@@ -91,15 +94,17 @@ export function DetailPanel({
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               {headerRight}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClose}
-                className="h-8 w-8"
-                aria-label="Close panel"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              {showCloseButton && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onClose}
+                  className="h-8 w-8"
+                  aria-label="Close panel"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </SheetHeader>
 
@@ -147,15 +152,17 @@ export function DetailPanel({
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {headerRight}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="h-8 w-8 flex-shrink-0"
-            aria-label="Close panel"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          {showCloseButton && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-8 w-8 flex-shrink-0"
+              aria-label="Close panel"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 

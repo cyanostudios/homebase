@@ -56,6 +56,7 @@ class SlotsModel {
         name,
         slot_end,
         address,
+        category,
       } = slotData;
       const cap = validateCapacity(capacity);
 
@@ -65,6 +66,7 @@ class SlotsModel {
         slot_time: slot_time || null,
         slot_end: slot_end || null,
         address: (address || '').trim() || null,
+        category: (category || '').trim() || null,
         capacity: cap,
         visible: visible !== false && visible !== 'false',
         notifications_enabled: notifications_enabled !== false && notifications_enabled !== 'false',
@@ -106,6 +108,7 @@ class SlotsModel {
       contact_id: 'Contact',
       mentions: 'Contacts assigned',
       description: 'Description',
+      category: 'Category',
     };
     const changed = [];
 
@@ -163,6 +166,11 @@ class SlotsModel {
       const prev = (existing.description || '').trim() || null;
       if (next !== prev) changed.push(labels.description);
     }
+    if ('category' in slotData) {
+      const next = (slotData.category || '').trim() || null;
+      const prev = (existing.category || '').trim() || null;
+      if (next !== prev) changed.push(labels.category);
+    }
     if ('mentions' in slotData) {
       // Normalise both sides to a sorted array of contactId strings for comparison
       const toIds = (val) => {
@@ -210,6 +218,7 @@ class SlotsModel {
         name,
         slot_end,
         address,
+        category,
       } = slotData;
       const cap = capacity != null ? validateCapacity(capacity) : existing[0].capacity;
 
@@ -229,6 +238,12 @@ class SlotsModel {
               ? String(address).trim() || null
               : null
             : existing[0].address,
+        category:
+          category !== undefined
+            ? category != null
+              ? String(category).trim() || null
+              : null
+            : existing[0].category,
         capacity: cap,
         visible: visible !== false && visible !== 'false',
         notifications_enabled: notifications_enabled !== false && notifications_enabled !== 'false',
@@ -313,6 +328,7 @@ class SlotsModel {
           const slot_time = slotData.slot_time || null;
           const slot_end = slotData.slot_end || null;
           const address = (slotData.address || '').trim() || null;
+          const category = (slotData.category || '').trim() || null;
           if (!slot_time) {
             throw new AppError(
               'slot_time is required for each slot',
@@ -330,14 +346,15 @@ class SlotsModel {
           const description =
             slotData.description != null ? String(slotData.description).trim() || null : null;
 
-          const sql = `INSERT INTO slots (name, location, slot_time, slot_end, address, capacity, visible, notifications_enabled, contact_id, mentions, description, user_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`;
+          const sql = `INSERT INTO slots (name, location, slot_time, slot_end, address, category, capacity, visible, notifications_enabled, contact_id, mentions, description, user_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`;
           const params = [
             name,
             location,
             slot_time,
             slot_end,
             address,
+            category,
             cap,
             visible,
             notifications_enabled,
@@ -460,6 +477,7 @@ class SlotsModel {
       mentions,
       description: row.description != null ? row.description : null,
       address: row.address != null ? row.address : null,
+      category: row.category != null ? row.category : null,
       created_at: row.created_at,
       updated_at: row.updated_at,
       match_id: row.match_id != null ? row.match_id.toString() : null,

@@ -7,11 +7,12 @@
  * Last Modified: August 2025 - Global Navigation Guard Integration
  */
 
-import { Home, Plus, Settings, X } from 'lucide-react';
+import { Check, Edit, Home, Plus, Settings, X } from 'lucide-react';
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import { Button } from '@/components/ui/button';
 import { ActionProvider } from '@/core/api/ActionContext';
 import { AppProvider, useApp } from '@/core/api/AppContext';
 import { createPanelHandlers } from '@/core/handlers/panelHandlers';
@@ -599,22 +600,122 @@ function AppContent() {
   const detailPanelSubtitle = panelTitles.getPanelSubtitle();
   const detailPanelContent = renderers.renderPanelContent();
   const detailPanelFooter = panelFooter;
-  const onDetailPanelClose = handlers.getCloseHandler();
+  const baseDetailPanelClose = handlers.getCloseHandler();
+  const onDetailPanelClose =
+    typeof currentPluginContext?.getCloseHandler === 'function' &&
+    (currentPlugin?.name === 'tasks' ||
+      currentPlugin?.name === 'contacts' ||
+      currentPlugin?.name === 'estimates' ||
+      currentPlugin?.name === 'slots' ||
+      currentPlugin?.name === 'matches')
+      ? currentPluginContext.getCloseHandler(baseDetailPanelClose)
+      : baseDetailPanelClose;
+  const hasBlockingErrors = validationErrors.some(
+    (e: any) => !String(e?.message || '').includes('Warning'),
+  );
+  const useHeaderActionButtons = currentMode === 'view' || currentMode === 'edit';
+  const pluginName = currentPlugin?.name;
+  const hasViewQuickUpdate =
+    currentMode === 'view' &&
+    ((Boolean(
+      (pluginName === 'tasks' ||
+        pluginName === 'estimates' ||
+        pluginName === 'slots' ||
+        pluginName === 'matches') &&
+        typeof (currentPluginContext as any)?.hasQuickEditChanges === 'boolean' &&
+        (currentPluginContext as any).hasQuickEditChanges,
+    ) ||
+      Boolean(
+        pluginName === 'contacts' &&
+          typeof (currentPluginContext as any)?.hasTagsChanges === 'boolean' &&
+          (currentPluginContext as any).hasTagsChanges,
+      )) as boolean);
 
   const detailPanelHeaderRight =
-    currentMode === 'view' &&
-    currentPluginContext &&
-    typeof currentPluginContext.navigateToPrevItem === 'function' &&
-    typeof currentPluginContext.navigateToNextItem === 'function' &&
-    currentPluginContext.totalItems > 1
-      ? React.createElement(ItemNavigation, {
-          onPrev: currentPluginContext.navigateToPrevItem,
-          onNext: currentPluginContext.navigateToNextItem,
-          hasPrev: currentPluginContext.hasPrevItem,
-          hasNext: currentPluginContext.hasNextItem,
-          label: `${currentPluginContext.currentItemIndex} / ${currentPluginContext.totalItems}`,
-        })
-      : undefined;
+    currentMode === 'view' && currentPluginContext && currentItem ? (
+      <div className="flex items-center gap-1">
+        {typeof currentPluginContext.navigateToPrevItem === 'function' &&
+          typeof currentPluginContext.navigateToNextItem === 'function' &&
+          currentPluginContext.totalItems > 1 &&
+          React.createElement(ItemNavigation, {
+            onPrev: currentPluginContext.navigateToPrevItem,
+            onNext: currentPluginContext.navigateToNextItem,
+            hasPrev: currentPluginContext.hasPrevItem,
+            hasNext: currentPluginContext.hasNextItem,
+            label: `${currentPluginContext.currentItemIndex} / ${currentPluginContext.totalItems}`,
+          })}
+        {hasViewQuickUpdate ? (
+          <Button
+            type="button"
+            onClick={() => {
+              if (
+                pluginName === 'tasks' ||
+                pluginName === 'estimates' ||
+                pluginName === 'slots' ||
+                pluginName === 'matches'
+              ) {
+                (currentPluginContext as any)?.onApplyQuickEdit?.();
+                return;
+              }
+              if (pluginName === 'contacts') {
+                (currentPluginContext as any)?.onApplyTagsEdit?.();
+              }
+            }}
+            variant="primary"
+            size="sm"
+            icon={Check}
+            className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
+          >
+            {t('common.update')}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            onClick={handlers.handleEditItem}
+            variant="primary"
+            size="sm"
+            icon={Edit}
+            className="h-9 text-xs px-3"
+          >
+            {t('common.edit')}
+          </Button>
+        )}
+        <Button
+          type="button"
+          onClick={onDetailPanelClose}
+          variant="secondary"
+          size="sm"
+          icon={X}
+          className="h-9 text-xs px-3"
+        >
+          {t('common.close')}
+        </Button>
+      </div>
+    ) : currentMode === 'edit' ? (
+      <div className="flex items-center gap-1">
+        <Button
+          type="button"
+          onClick={handlers.handleCancelClick}
+          variant="secondary"
+          size="sm"
+          icon={X}
+          className="h-9 text-xs px-3"
+        >
+          {t('common.close')}
+        </Button>
+        <Button
+          type="button"
+          onClick={handlers.handleSaveClick}
+          variant="primary"
+          size="sm"
+          icon={Check}
+          disabled={hasBlockingErrors || Boolean(currentPluginContext?.isSaving)}
+          className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
+        >
+          {currentPluginContext?.isSaving ? t('common.saving') : t('common.update')}
+        </Button>
+      </div>
+    ) : undefined;
 
   return (
     <>
@@ -633,6 +734,7 @@ function AppContent() {
         detailPanelContent={detailPanelContent}
         detailPanelFooter={detailPanelFooter}
         detailPanelHeaderRight={detailPanelHeaderRight}
+        detailPanelShowCloseButton={!useHeaderActionButtons}
         onDetailPanelClose={onDetailPanelClose}
         detailPanelPluginName={currentPlugin?.name}
       >

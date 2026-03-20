@@ -16,6 +16,7 @@ export interface Slot {
   /** End datetime; optional. */
   slot_end?: string | null;
   address?: string | null;
+  category?: string | null;
   capacity: number;
   visible: boolean;
   notifications_enabled: boolean;

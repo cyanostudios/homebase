@@ -13,6 +13,7 @@ import {
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -514,6 +515,13 @@ export function SlotsList() {
                   />
                 </div>
                 <h3 className="font-semibold text-sm">{slot.location || '—'}</h3>
+                {slot.category?.trim() && (
+                  <div className="mt-1">
+                    <Badge variant="secondary" className="text-[10px] h-5 px-2">
+                      {slot.category.trim()}
+                    </Badge>
+                  </div>
+                )}
                 <div className="text-xs text-muted-foreground mt-1">
                   <span
                     className={cn(
@@ -661,7 +669,14 @@ export function SlotsList() {
                     />
                   </TableCell>
                   <TableCell>
-                    <span className="font-medium">{slot.location || '—'}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{slot.location || '—'}</span>
+                      {slot.category?.trim() && (
+                        <Badge variant="secondary" className="text-[10px] h-5 px-2">
+                          {slot.category.trim()}
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell
                     className={cn(

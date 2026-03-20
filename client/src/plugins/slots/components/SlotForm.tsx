@@ -38,10 +38,16 @@ interface SlotFormState {
   slot_end: string;
   location: string;
   address: string;
+  category: string;
   capacity: number;
   visible: boolean;
   notifications_enabled: boolean;
   description: string;
+}
+
+interface SlotFormBaseline {
+  formData: SlotFormState;
+  selectedContactIds: string[];
 }
 
 const DURATION_OPTIONS = [
@@ -69,6 +75,7 @@ interface SlotFormProps {
     slot_end?: string | null;
     location: string | null;
     address?: string | null;
+    category?: string | null;
     capacity: number;
     visible: boolean;
     notifications_enabled: boolean;
@@ -129,20 +136,13 @@ export function SlotForm({
   isSubmitting: _isSubmitting = false,
 }: SlotFormProps) {
   const { t } = useTranslation();
-  const { contacts } = useApp();
+  const { contacts, getSettings, settingsVersion } = useApp();
   const { validationErrors, clearValidationErrors, panelMode } = useSlots();
   const assignableContacts = contacts.filter(
     (c: { isAssignable?: boolean }) => c.isAssignable !== false,
   );
-  const {
-    isDirty,
-    showWarning,
-    markDirty,
-    markClean,
-    attemptAction,
-    confirmDiscard,
-    cancelDiscard,
-  } = useUnsavedChanges();
+  const { showWarning, markDirty, markClean, attemptAction, confirmDiscard, cancelDiscard } =
+    useUnsavedChanges();
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
     useGlobalNavigationGuard();
 
@@ -152,6 +152,7 @@ export function SlotForm({
     slot_end: '',
     location: '',
     address: '',
+    category: '',
     capacity: 1,
     visible: true,
     notifications_enabled: true,
@@ -164,26 +165,84 @@ export function SlotForm({
   const [seriesCount, setSeriesCount] = useState(2);
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [gapMinutes, setGapMinutes] = useState(30);
-
-  useEffect(() => {
-    const formKey = `slot-form-${currentSlot?.id || 'new'}`;
-    registerUnsavedChangesChecker(formKey, () => isDirty);
-    return () => unregisterUnsavedChangesChecker(formKey);
-  }, [isDirty, currentSlot, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
-
-  const resetForm = useCallback(() => {
-    setFormData({
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  const baselineRef = useRef<SlotFormBaseline>({
+    formData: {
       name: '',
       slot_time: '',
       slot_end: '',
       location: '',
       address: '',
+      category: '',
       capacity: 1,
       visible: true,
       notifications_enabled: true,
       description: '',
-    });
+    },
+    selectedContactIds: [],
+  });
+
+  const hasActualChanges = useCallback(() => {
+    const normalizeIds = (ids: string[]) => [...ids].map(String).sort();
+    const sameFormData = JSON.stringify(formData) === JSON.stringify(baselineRef.current.formData);
+    const sameContacts =
+      JSON.stringify(normalizeIds(selectedContactIds)) ===
+      JSON.stringify(normalizeIds(baselineRef.current.selectedContactIds));
+    return !(sameFormData && sameContacts);
+  }, [formData, selectedContactIds]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSettings('slots')
+      .then((settings: { tags?: unknown[] }) => {
+        if (cancelled) {
+          return;
+        }
+        const tags = Array.isArray(settings?.tags)
+          ? settings.tags
+              .filter((tag): tag is string => typeof tag === 'string')
+              .map((tag) => tag.trim())
+              .filter(Boolean)
+          : [];
+        setAvailableCategories(tags);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAvailableCategories([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getSettings, settingsVersion]);
+
+  useEffect(() => {
+    const formKey = `slot-form-${currentSlot?.id || 'new'}`;
+    registerUnsavedChangesChecker(formKey, () => hasActualChanges());
+    return () => unregisterUnsavedChangesChecker(formKey);
+  }, [
+    currentSlot,
+    hasActualChanges,
+    registerUnsavedChangesChecker,
+    unregisterUnsavedChangesChecker,
+  ]);
+
+  const resetForm = useCallback(() => {
+    const nextFormData: SlotFormState = {
+      name: '',
+      slot_time: '',
+      slot_end: '',
+      location: '',
+      address: '',
+      category: '',
+      capacity: 1,
+      visible: true,
+      notifications_enabled: true,
+      description: '',
+    };
+    setFormData(nextFormData);
     setSelectedContactIds([]);
+    baselineRef.current = { formData: nextFormData, selectedContactIds: [] };
     setIsSeries(false);
     setSeriesCount(2);
     setDurationMinutes(60);
@@ -199,27 +258,38 @@ export function SlotForm({
     const intervalMs = (durationMinutes + gapMinutes) * 60_000;
     return Array.from({ length: seriesCount }, (_, i) => new Date(startMs + i * intervalMs));
   }, [isSeries, formData.slot_time, seriesCount, durationMinutes, gapMinutes]);
+  const categoryOptions = useMemo(() => {
+    const current = formData.category.trim();
+    if (!current || availableCategories.includes(current)) {
+      return availableCategories;
+    }
+    return [current, ...availableCategories];
+  }, [availableCategories, formData.category]);
 
   useEffect(() => {
     if (currentSlot) {
-      setFormData({
+      const nextFormData: SlotFormState = {
         name: currentSlot.name ?? '',
         slot_time: toDatetimeLocal(currentSlot.slot_time),
         slot_end: currentSlot.slot_end ? toDatetimeLocal(currentSlot.slot_end) : '',
         location: currentSlot.location ?? '',
         address: currentSlot.address ?? '',
+        category: currentSlot.category ?? '',
         capacity: currentSlot.capacity,
         visible: currentSlot.visible,
         notifications_enabled: currentSlot.notifications_enabled,
         description: currentSlot.description ?? '',
-      });
+      };
+      setFormData(nextFormData);
       const fromMentions =
         currentSlot.mentions?.map((m) => String(m.contactId)).filter(Boolean) ?? [];
       const fromContactId =
         currentSlot.contact_id && !fromMentions.includes(String(currentSlot.contact_id))
           ? [String(currentSlot.contact_id)]
           : [];
-      setSelectedContactIds(fromMentions.length > 0 ? fromMentions : fromContactId);
+      const nextSelectedContactIds = fromMentions.length > 0 ? fromMentions : fromContactId;
+      setSelectedContactIds(nextSelectedContactIds);
+      baselineRef.current = { formData: nextFormData, selectedContactIds: nextSelectedContactIds };
       markClean();
     } else if (panelMode !== 'settings') {
       resetForm();
@@ -245,6 +315,7 @@ export function SlotForm({
         name: formData.name.trim() || null,
         location: formData.location.trim() || null,
         address: formData.address.trim() || null,
+        category: formData.category.trim() || null,
         slot_time: date.toISOString(),
         slot_end: formData.slot_end ? new Date(formData.slot_end).toISOString() : null,
         capacity: formData.capacity,
@@ -269,6 +340,7 @@ export function SlotForm({
       slot_end: formData.slot_end ? new Date(formData.slot_end).toISOString() : null,
       location: formData.location.trim() || null,
       address: formData.address.trim() || null,
+      category: formData.category.trim() || null,
       contact_id: selectedContactIds[0] ?? null,
       mentions,
       description: formData.description.trim() || null,
@@ -296,8 +368,12 @@ export function SlotForm({
   ]);
 
   const handleCancel = useCallback(() => {
+    if (!hasActualChanges()) {
+      onCancel();
+      return;
+    }
     attemptAction(() => onCancel());
-  }, [attemptAction, onCancel]);
+  }, [attemptAction, hasActualChanges, onCancel]);
 
   const submitRef = useRef(handleSubmit);
   const cancelRef = useRef(handleCancel);
@@ -581,6 +657,27 @@ export function SlotForm({
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
+                      <Label>{t('slots.categoryLabel')}</Label>
+                      <Select
+                        value={formData.category || '__none__'}
+                        onValueChange={(v) =>
+                          updateField('category', v === '__none__' ? '' : String(v))
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder={t('slots.categoryPlaceholder')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">{t('slots.categoryNone')}</SelectItem>
+                          {categoryOptions.map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
                       <Label>{t('slots.capacityLabel')}</Label>
                       <Select
                         value={String(formData.capacity)}
@@ -602,10 +699,6 @@ export function SlotForm({
                           {getFieldError('capacity')?.message}
                         </p>
                       )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-muted-foreground">{t('slots.reservedForLater')}</Label>
-                      <Input disabled placeholder={t('slots.reservedForLaterPlaceholder')} />
                     </div>
                   </div>
                   <div className="space-y-2">

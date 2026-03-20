@@ -1,4 +1,4 @@
-import { Check, X, Edit, Trash2, Copy, Download } from 'lucide-react';
+import { Check, X, Trash2, Copy, Download } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -13,7 +13,6 @@ interface PanelFooterProps {
   onDeleteItem: () => void;
   onDuplicateItem: () => void;
   onClosePanel: () => void;
-  onEditItem: () => void;
   onSaveClick: () => void;
   onCancelClick: () => void;
   isSubmitting?: boolean;
@@ -34,7 +33,6 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
   onDeleteItem,
   onDuplicateItem,
   onClosePanel,
-  onEditItem,
   onSaveClick,
   onCancelClick,
   isSubmitting = false,
@@ -197,59 +195,6 @@ export const PanelFooter: React.FC<PanelFooterProps> = ({
               </Button>
             ))}
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            onClick={onClosePanel}
-            variant="secondary"
-            size="sm"
-            icon={X}
-            className="h-9 text-xs px-3"
-          >
-            {t('common.close')}
-          </Button>
-          <Button
-            type="button"
-            onClick={onEditItem}
-            variant="primary"
-            size="sm"
-            icon={Edit}
-            className="h-9 text-xs px-3"
-          >
-            {t('common.edit')}
-          </Button>
-          {(currentPlugin?.name === 'tasks' ||
-            currentPlugin?.name === 'estimates' ||
-            currentPlugin?.name === 'slots' ||
-            currentPlugin?.name === 'matches') &&
-            typeof (currentPluginContext as any)?.hasQuickEditChanges === 'boolean' &&
-            (currentPluginContext as any).hasQuickEditChanges && (
-              <Button
-                type="button"
-                onClick={() => (currentPluginContext as any)?.onApplyQuickEdit?.()}
-                variant="primary"
-                size="sm"
-                icon={Check}
-                className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
-              >
-                {t('common.update')}
-              </Button>
-            )}
-          {currentPlugin?.name === 'contacts' &&
-            typeof (currentPluginContext as any)?.hasTagsChanges === 'boolean' &&
-            (currentPluginContext as any).hasTagsChanges && (
-              <Button
-                type="button"
-                onClick={() => (currentPluginContext as any)?.onApplyTagsEdit?.()}
-                variant="primary"
-                size="sm"
-                icon={Check}
-                className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
-              >
-                {t('common.update')}
-              </Button>
-            )}
-        </div>
       </div>
     );
   }
@@ -331,7 +276,6 @@ export const createPanelFooter = (
       onDeleteItem={handlers.handleDeleteItem}
       onDuplicateItem={handlers.handleDuplicateItem}
       onClosePanel={onClosePanel}
-      onEditItem={handlers.handleEditItem}
       onSaveClick={handleSave}
       onCancelClick={handleCancel}
       isSubmitting={handlers.isSubmitting ?? false}

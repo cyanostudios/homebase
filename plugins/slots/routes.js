@@ -5,8 +5,7 @@ const config = require('./plugin.config');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
 
 function createSlotsRoutes(controller, context) {
-  const requirePlugin =
-    context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
+  const requirePlugin = context?.middleware?.requirePlugin || (() => (req, res, next) => next());
   const gate = requirePlugin(config.name);
 
   router.get('/', gate, (req, res) => controller.getAll(req, res));
@@ -19,6 +18,7 @@ function createSlotsRoutes(controller, context) {
     commonRules.requiredDate('slot_time'),
     commonRules.optionalDate('slot_end'),
     commonRules.optionalString('address', 500),
+    commonRules.optionalString('category', 100),
     commonRules.optionalInteger('capacity', 1, 5),
     commonRules.optionalInteger('contact_id', 1, Number.MAX_SAFE_INTEGER),
     commonRules.optionalString('description', 5000),
@@ -56,6 +56,7 @@ function createSlotsRoutes(controller, context) {
     commonRules.requiredDate('slot_time'),
     commonRules.optionalDate('slot_end'),
     commonRules.optionalString('address', 500),
+    commonRules.optionalString('category', 100),
     commonRules.optionalInteger('capacity', 1, 5),
     commonRules.optionalInteger('contact_id', 1, Number.MAX_SAFE_INTEGER),
     commonRules.optionalString('description', 5000),

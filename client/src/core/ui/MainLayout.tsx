@@ -26,6 +26,7 @@ interface MainLayoutProps {
   detailPanelContent: React.ReactNode;
   detailPanelFooter?: React.ReactNode;
   detailPanelHeaderRight?: React.ReactNode;
+  detailPanelShowCloseButton?: boolean;
   onDetailPanelClose: () => void;
   detailPanelPluginName?: string;
 }
@@ -46,6 +47,7 @@ export function MainLayout({
   detailPanelContent,
   detailPanelFooter,
   detailPanelHeaderRight,
+  detailPanelShowCloseButton = true,
   onDetailPanelClose,
   detailPanelPluginName,
 }: MainLayoutProps) {
@@ -129,6 +131,7 @@ export function MainLayout({
               subtitle={detailPanelSubtitle}
               footer={detailPanelFooter}
               headerRight={detailPanelHeaderRight}
+              showCloseButton={detailPanelShowCloseButton}
               isMobile={isMobile}
             >
               {detailPanelContent}
@@ -146,6 +149,7 @@ export function MainLayout({
                   subtitle={detailPanelSubtitle}
                   footer={detailPanelFooter}
                   headerRight={detailPanelHeaderRight}
+                  showCloseButton={detailPanelShowCloseButton}
                   isMobile={isMobile}
                 >
                   {detailPanelContent}

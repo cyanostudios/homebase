@@ -621,6 +621,7 @@ export function SlotsProvider({
       slot_time: currentSlot.slot_time,
       slot_end: currentSlot.slot_end ?? null,
       address: currentSlot.address ?? null,
+      category: currentSlot.category ?? null,
       capacity: currentSlot.capacity,
       visible: propertyDraft?.visible ?? currentSlot.visible,
       notifications_enabled:
@@ -778,6 +779,7 @@ export function SlotsProvider({
         slot_time: item.slot_time,
         slot_end: item.slot_end ?? null,
         address: item.address ?? null,
+        category: item.category ?? null,
         capacity: item.capacity,
         visible: item.visible,
         notifications_enabled: item.notifications_enabled,

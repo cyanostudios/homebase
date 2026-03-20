@@ -27,6 +27,10 @@ function rowToSlot(row: Record<string, unknown>): Slot {
     slot_end: row.slot_end !== null && row.slot_end !== undefined ? String(row.slot_end) : null,
     address:
       row.address !== null && row.address !== undefined ? String(row.address).trim() || null : null,
+    category:
+      row.category !== null && row.category !== undefined
+        ? String(row.category).trim() || null
+        : null,
     capacity: Number.isNaN(cap) ? 1 : Math.min(5, Math.max(1, cap)),
     visible: Boolean(row.visible),
     notifications_enabled: Boolean(row.notifications_enabled),
@@ -85,6 +89,7 @@ class SlotsApi {
     slot_time: string;
     slot_end?: string | null;
     address?: string | null;
+    category?: string | null;
     capacity?: number;
     visible?: boolean;
     notifications_enabled?: boolean;
@@ -101,6 +106,10 @@ class SlotsApi {
       address:
         data.address !== null && data.address !== undefined
           ? String(data.address).trim() || null
+          : null,
+      category:
+        data.category !== null && data.category !== undefined
+          ? String(data.category).trim() || null
           : null,
       capacity: data.capacity ?? 1,
       visible: data.visible !== false,
@@ -126,6 +135,7 @@ class SlotsApi {
       notifications_enabled?: boolean;
       contact_id?: string | null;
       mentions?: SlotMention[];
+      category?: string | null;
     }>,
   ): Promise<Slot[]> {
     const body = { slots };
@@ -161,6 +171,12 @@ class SlotsApi {
       body.description =
         data.description !== null && data.description !== undefined
           ? String(data.description).trim() || null
+          : null;
+    }
+    if (data.category !== undefined) {
+      body.category =
+        data.category !== null && data.category !== undefined
+          ? String(data.category).trim() || null
           : null;
     }
     const row = await this.request(`/slots/${id}`, { method: 'PUT', body: JSON.stringify(body) });

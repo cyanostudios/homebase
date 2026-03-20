@@ -1,11 +1,13 @@
 // Slots settings as full-page content (like Core Settings): tab row + card + footer.
 
-import { Check, LayoutGrid, List } from 'lucide-react';
-import React, { useEffect } from 'react';
+import { Check, LayoutGrid, List, Plus, Tag, X } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { cn } from '@/lib/utils';
@@ -13,7 +15,10 @@ import { cn } from '@/lib/utils';
 import { useSlotSettings } from '../hooks/useSlotSettings';
 import type { SlotsViewMode } from '../types/slots';
 
-const slotsSettingsCategories = [{ id: 'view', label: 'View', icon: LayoutGrid }];
+const slotsSettingsCategories = [
+  { id: 'view', label: 'View', icon: LayoutGrid },
+  { id: 'categories', label: 'Categories', icon: Tag },
+];
 
 const viewModes: {
   id: SlotsViewMode;
@@ -27,18 +32,43 @@ const viewModes: {
 export function SlotsSettingsView() {
   const { t } = useTranslation();
   const { setHeaderTrailing } = useContentLayout();
-  const { viewMode, setViewMode, isDirty, isLoading, isSaving, save } = useSlotSettings();
+  const { viewMode, setViewMode, tags, setTags, isDirty, isLoading, isSaving, save } =
+    useSlotSettings();
+  const [selectedCategory, setSelectedCategory] = useState<string>('view');
+  const [newTag, setNewTag] = useState('');
+
+  const addTag = useCallback(() => {
+    const next = newTag.trim();
+    if (!next) {
+      return;
+    }
+    const exists = tags.some((tag) => tag.toLowerCase() === next.toLowerCase());
+    if (exists) {
+      setNewTag('');
+      return;
+    }
+    setTags((prev) => [...prev, next]);
+    setNewTag('');
+  }, [newTag, tags, setTags]);
+
+  const removeTag = useCallback(
+    (tag: string) => {
+      setTags((prev) => prev.filter((t) => t !== tag));
+    },
+    [setTags],
+  );
 
   useEffect(() => {
     setHeaderTrailing(
       <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
         {slotsSettingsCategories.map((category) => {
           const Icon = category.icon;
-          const isActive = category.id === 'view';
+          const isActive = selectedCategory === category.id;
           return (
             <Button
               key={category.id}
               variant="ghost"
+              onClick={() => !isActive && setSelectedCategory(category.id)}
               className={cn(
                 'h-9 text-xs px-3 rounded-lg font-medium transition-colors',
                 'flex items-center gap-1.5 sm:gap-2',
@@ -55,7 +85,7 @@ export function SlotsSettingsView() {
       </div>,
     );
     return () => setHeaderTrailing(null);
-  }, [setHeaderTrailing]);
+  }, [setHeaderTrailing, selectedCategory]);
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
@@ -67,34 +97,92 @@ export function SlotsSettingsView() {
         padding="md"
         className="overflow-hidden border border-border/60 bg-background/50 shadow-sm"
       >
-        <DetailSection title="Default view" className="pt-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            {viewModes.map((mode) => {
-              const ModeIcon = mode.icon;
-              const isActive = viewMode === mode.id;
-              return (
+        {selectedCategory === 'view' && (
+          <DetailSection title="Default view" className="pt-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              {viewModes.map((mode) => {
+                const ModeIcon = mode.icon;
+                const isActive = viewMode === mode.id;
+                return (
+                  <Button
+                    key={mode.id}
+                    variant="ghost"
+                    onClick={() => setViewMode(mode.id)}
+                    className={cn(
+                      'h-9 text-xs px-3 rounded-lg font-medium',
+                      'flex items-center gap-1.5',
+                      isActive
+                        ? 'bg-primary/10 text-primary border border-primary'
+                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
+                    )}
+                  >
+                    <ModeIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span>{mode.label}</span>
+                  </Button>
+                );
+              })}
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Slots will be displayed in the selected layout by default.
+            </p>
+          </DetailSection>
+        )}
+
+        {selectedCategory === 'categories' && (
+          <DetailSection title="Categories" className="pt-0">
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Categories can be assigned to slots in Slot form.
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  placeholder="Add a category (e.g. VIP, Stand A)"
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addTag();
+                    }
+                  }}
+                />
                 <Button
-                  key={mode.id}
-                  variant="ghost"
-                  onClick={() => setViewMode(mode.id)}
-                  className={cn(
-                    'h-9 text-xs px-3 rounded-lg font-medium',
-                    'flex items-center gap-1.5',
-                    isActive
-                      ? 'bg-primary/10 text-primary border border-primary'
-                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground border-transparent',
-                  )}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  icon={Plus}
+                  onClick={addTag}
+                  disabled={!newTag.trim()}
+                  className="h-9 text-xs px-3"
                 >
-                  <ModeIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <span>{mode.label}</span>
+                  Add
                 </Button>
-              );
-            })}
-          </div>
-          <p className="text-sm text-muted-foreground mt-2">
-            Slots will be displayed in the selected layout by default.
-          </p>
-        </DetailSection>
+              </div>
+              {tags.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No categories yet.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="flex items-center gap-1 pr-1">
+                      <span>{tag}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 min-w-5 p-0 rounded hover:bg-muted"
+                        onClick={() => removeTag(tag)}
+                        aria-label={`Remove category ${tag}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </DetailSection>
+        )}
       </Card>
 
       {isDirty && (

@@ -1,11 +1,10 @@
-import { Check, Copy, Edit, Info, Trash2, User, X, Zap } from 'lucide-react';
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Copy, Info, Trash2, User, X, Zap } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -69,7 +68,6 @@ const SLOT_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card 
 
 interface SlotQuickActionsCardProps {
   slot: Slot;
-  onEdit: (slot: Slot) => void;
   onDeleteClick: () => void;
   onDuplicate: (slot: Slot) => void;
   getDuplicateConfig: (
@@ -83,42 +81,41 @@ interface SlotQuickActionsCardProps {
     className?: string;
     disabled?: boolean;
   }>;
-  hasQuickEditChanges: boolean;
-  onApplyQuickEdit: () => Promise<void>;
 }
 
 function SlotQuickActionsCard({
   slot,
-  onEdit,
   onDeleteClick,
   onDuplicate,
   getDuplicateConfig,
   detailFooterActions,
-  hasQuickEditChanges,
-  onApplyQuickEdit,
 }: SlotQuickActionsCardProps) {
   const { t } = useTranslation();
   const canDuplicate = Boolean(getDuplicateConfig(slot));
+  const getActionIconColorClass = (actionId: string) => {
+    if (actionId === 'send-message') {
+      return 'text-violet-600 dark:text-violet-400';
+    }
+    if (actionId === 'send-email') {
+      return 'text-red-600 dark:text-red-400';
+    }
+    return '';
+  };
   return (
     <Card padding="none" className={SLOT_DETAIL_CARD_CLASS}>
       <DetailSection title={t('slots.quickActions')} icon={Zap} iconPlugin="slots" className="p-4">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col items-start gap-1.5">
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            icon={Edit}
-            className="h-9 w-full justify-start rounded-md bg-muted/60 px-3 text-xs hover:bg-muted"
-            onClick={() => onEdit(slot)}
-          >
-            {t('common.edit')}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={Trash2}
-            className="h-9 w-full justify-start rounded-md bg-muted/60 px-3 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+            icon={(props) => (
+              <Trash2
+                {...props}
+                className={cn(props.className, 'text-red-600 dark:text-red-400')}
+              />
+            )}
+            className="h-9 justify-start rounded-md px-3 text-xs hover:bg-red-50 dark:hover:bg-red-950/30"
             onClick={onDeleteClick}
           >
             {t('common.delete')}
@@ -128,8 +125,13 @@ function SlotQuickActionsCard({
               type="button"
               variant="ghost"
               size="sm"
-              icon={Copy}
-              className="h-9 w-full justify-start rounded-md bg-muted/60 px-3 text-xs hover:bg-muted"
+              icon={(props) => (
+                <Copy
+                  {...props}
+                  className={cn(props.className, 'text-green-600 dark:text-green-400')}
+                />
+              )}
+              className="h-9 justify-start rounded-md px-3 text-xs hover:bg-muted"
               onClick={() => onDuplicate(slot)}
             >
               {t('common.duplicate')}
@@ -144,27 +146,23 @@ function SlotQuickActionsCard({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  icon={Icon}
+                  icon={(props) => (
+                    <Icon
+                      {...props}
+                      className={cn(props.className, getActionIconColorClass(action.id))}
+                    />
+                  )}
                   disabled={action.disabled}
-                  className="h-9 w-full justify-start rounded-md bg-muted/60 px-3 text-xs hover:bg-muted disabled:opacity-50"
+                  className={cn(
+                    'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted disabled:opacity-50',
+                    action.className,
+                  )}
                   onClick={() => action.onClick(slot)}
                 >
                   {action.label}
                 </Button>
               );
             })}
-          {hasQuickEditChanges && (
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              icon={Check}
-              className="h-9 w-full justify-start rounded-md bg-green-600 px-3 text-xs text-white hover:bg-green-700"
-              onClick={() => onApplyQuickEdit()}
-            >
-              {t('common.update')}
-            </Button>
-          )}
         </div>
       </DetailSection>
     </Card>
@@ -225,72 +223,14 @@ function SlotMetadataCard({ slot, hasMatch, sourceMatch, onMatchClick }: SlotMet
 
 interface SlotMainInfoCardProps {
   slot: Slot;
-  displaySlot: Slot & Partial<Pick<Slot, 'location'>>;
   hasMatch: boolean;
   sourceMatch: Match | null;
   onMatchClick: () => void;
-  onLocationDraftChange?: (value: string | null) => void;
 }
 
-function SlotMainInfoCard({
-  slot,
-  displaySlot,
-  hasMatch,
-  sourceMatch,
-  onMatchClick,
-  onLocationDraftChange,
-}: SlotMainInfoCardProps) {
+function SlotMainInfoCard({ slot, hasMatch, sourceMatch, onMatchClick }: SlotMainInfoCardProps) {
   const slotDatePassed = isSlotTimePast(slot.slot_time);
   const { t } = useTranslation();
-  const [isEditingLocation, setIsEditingLocation] = useState(false);
-  const [locationEditValue, setLocationEditValue] = useState(
-    () => displaySlot?.location ?? slot.location ?? '',
-  );
-  const locationInputRef = useRef<HTMLInputElement>(null);
-
-  const startEditingLocation = useCallback(() => {
-    if (!onLocationDraftChange) {
-      return;
-    }
-    setLocationEditValue(displaySlot?.location ?? slot.location ?? '');
-    setIsEditingLocation(true);
-    setTimeout(() => locationInputRef.current?.focus(), 0);
-  }, [onLocationDraftChange, displaySlot?.location, slot.location]);
-
-  const applyLocationDraft = useCallback(() => {
-    if (!onLocationDraftChange) {
-      return;
-    }
-    const trimmed = locationEditValue.trim();
-    const current = (displaySlot?.location ?? slot.location ?? '') || '';
-    if (trimmed === current) {
-      setIsEditingLocation(false);
-      return;
-    }
-    onLocationDraftChange(trimmed || null);
-    setIsEditingLocation(false);
-  }, [onLocationDraftChange, locationEditValue, displaySlot?.location, slot.location]);
-
-  const handleLocationKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        applyLocationDraft();
-      }
-      if (e.key === 'Escape') {
-        setLocationEditValue(displaySlot?.location ?? slot.location ?? '');
-        setIsEditingLocation(false);
-        locationInputRef.current?.blur();
-      }
-    },
-    [applyLocationDraft, displaySlot?.location, slot.location],
-  );
-
-  useEffect(() => {
-    if (!isEditingLocation) {
-      setLocationEditValue(displaySlot?.location ?? slot.location ?? '');
-    }
-  }, [displaySlot?.location, slot.location, isEditingLocation]);
 
   const displayName = slot.name?.trim() || `SLT ${formatDisplayNumber('slots', slot.id)}`;
 
@@ -335,27 +275,7 @@ function SlotMainInfoCard({
           <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
             {t('slots.locationLabel')}
           </div>
-          {onLocationDraftChange && isEditingLocation ? (
-            <Input
-              ref={locationInputRef}
-              value={locationEditValue}
-              onChange={(e) => setLocationEditValue(e.target.value)}
-              onBlur={applyLocationDraft}
-              onKeyDown={handleLocationKeyDown}
-              className="h-8 text-base font-medium"
-              placeholder={t('slots.locationPlaceholder')}
-            />
-          ) : onLocationDraftChange ? (
-            <button
-              type="button"
-              onClick={startEditingLocation}
-              className="text-base font-medium text-left w-full rounded px-2 py-1 -mx-2 -my-1 hover:bg-muted/60 transition-colors truncate"
-            >
-              {displaySlot?.location ?? slot.location ?? '—'}
-            </button>
-          ) : (
-            <div className="text-base font-medium">{slot.location ?? '—'}</div>
-          )}
+          <div className="text-base font-medium">{slot.location ?? '—'}</div>
         </div>
         {slot.address !== null && slot.address !== undefined && slot.address.trim() !== '' && (
           <div>
@@ -368,6 +288,14 @@ function SlotMainInfoCard({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+              {t('slots.categoryLabel')}
+            </div>
+            <div className="text-sm font-medium">
+              {slot.category?.trim() || t('slots.categoryNone')}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
               {t('slots.capacityLabel')}
             </div>
             <div className="text-sm font-medium flex items-center gap-2">
@@ -377,12 +305,6 @@ function SlotMainInfoCard({
                 assignedCount={(slot.mentions?.length ?? 0) + (slot.booked_count ?? 0)}
               />
             </div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
-              {t('slots.reservedForLater')}
-            </div>
-            <div className="text-sm font-medium text-muted-foreground">—</div>
           </div>
         </div>
         {slotDatePassed && (
@@ -665,12 +587,9 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
     propertyDraft,
     setPropertyDraftField,
     deleteSlot,
-    openSlotForEdit,
     getDuplicateConfig,
     executeDuplicate,
     detailFooterActions,
-    hasQuickEditChanges,
-    onApplyQuickEdit,
     getDeleteMessage,
   } = useSlotsContext();
 
@@ -781,13 +700,10 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
             <div className="space-y-4">
               <SlotQuickActionsCard
                 slot={slot}
-                onEdit={openSlotForEdit}
                 onDeleteClick={() => setShowDeleteSlotConfirm(true)}
                 onDuplicate={(s) => executeDuplicate(s, '')}
                 getDuplicateConfig={getDuplicateConfig}
                 detailFooterActions={detailFooterActions}
-                hasQuickEditChanges={hasQuickEditChanges}
-                onApplyQuickEdit={onApplyQuickEdit}
               />
               <SlotMetadataCard
                 slot={slot}
@@ -809,11 +725,9 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
           <div className="space-y-4">
             <SlotMainInfoCard
               slot={slot}
-              displaySlot={displaySlot!}
               hasMatch={hasMatch}
               sourceMatch={sourceMatch}
               onMatchClick={handleMatchClick}
-              onLocationDraftChange={(value) => setPropertyDraftField('location', value ?? null)}
             />
             <SlotSettingsCard
               slot={slot}
