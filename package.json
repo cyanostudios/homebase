@@ -37,6 +37,7 @@
     "migrate:rename-slots-plugin": "node scripts/run-rename-slots-plugin-migration.js",
     "migrate:rename-slots-table": "node scripts/run-rename-slots-table-migration.js",
     "migrate:slot-bookings": "node scripts/run-slot-bookings-migration.js",
+    "migrate:slots-description-name-address": "node scripts/run-slots-description-name-address-migration.js",
     "twilio": "npm install twilio"
   },
   "dependencies": {

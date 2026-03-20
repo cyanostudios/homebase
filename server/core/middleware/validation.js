@@ -133,6 +133,19 @@ const commonRules = {
         value === null || value === undefined || value === '' ? null : new Date(value),
       ),
 
+  /** Optional date (ISO 8601). Use when DB column allows NULL. */
+  optionalDate: (field) =>
+    body(field)
+      .optional({ values: 'falsy' })
+      .custom((value) => {
+        if (value === null || value === undefined || value === '') return true;
+        const iso8601Regex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/;
+        if (!iso8601Regex.test(value)) {
+          throw new Error(`${field} must be a valid ISO 8601 date`);
+        }
+        return true;
+      }),
+
   enum: (field, values) =>
     body(field)
       .optional()

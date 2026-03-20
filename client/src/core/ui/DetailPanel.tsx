@@ -78,7 +78,7 @@ export function DetailPanel({
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent
           side="right"
-          className="w-full sm:w-[90%] sm:max-w-lg p-0 flex flex-col min-h-0 h-full border-0 shadow-none"
+          className="w-full sm:w-[90%] sm:max-w-lg p-0 flex flex-col min-h-0 h-full border-0 shadow-none bg-background"
         >
           <SheetHeader className="px-6 pt-6 pb-4 flex-shrink-0 flex flex-row items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
@@ -128,7 +128,7 @@ export function DetailPanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border-0 bg-card">
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border-0 bg-background">
       {/* Fixed Header */}
       <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
         <div className="flex flex-1 items-center gap-4 min-w-0 mr-4">

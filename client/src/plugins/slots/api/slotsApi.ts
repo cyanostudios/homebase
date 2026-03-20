@@ -21,14 +21,22 @@ function rowToSlot(row: Record<string, unknown>): Slot {
     row.booked_count !== undefined && row.booked_count !== null ? Number(row.booked_count) : 0;
   return {
     id: String(row.id),
+    name: row.name !== null && row.name !== undefined ? String(row.name).trim() || null : null,
     location: (row.location as string) ?? null,
     slot_time: (row.slot_time as string) ?? '',
+    slot_end: row.slot_end !== null && row.slot_end !== undefined ? String(row.slot_end) : null,
+    address:
+      row.address !== null && row.address !== undefined ? String(row.address).trim() || null : null,
     capacity: Number.isNaN(cap) ? 1 : Math.min(5, Math.max(1, cap)),
     visible: Boolean(row.visible),
     notifications_enabled: Boolean(row.notifications_enabled),
     contact_id:
       row.contact_id !== null && row.contact_id !== undefined ? String(row.contact_id) : null,
     mentions: parseMentions(row),
+    description:
+      row.description !== null && row.description !== undefined
+        ? String(row.description).trim() || null
+        : null,
     created_at: (row.created_at as string) ?? '',
     updated_at: (row.updated_at as string) ?? '',
     match_id:
@@ -72,24 +80,38 @@ class SlotsApi {
   }
 
   async createSlot(data: {
+    name?: string | null;
     location?: string | null;
     slot_time: string;
+    slot_end?: string | null;
+    address?: string | null;
     capacity?: number;
     visible?: boolean;
     notifications_enabled?: boolean;
     contact_id?: string | null;
     mentions?: SlotMention[];
     match_id?: string | null;
+    description?: string | null;
   }): Promise<Slot> {
     const body = {
+      name: data.name !== null && data.name !== undefined ? String(data.name).trim() || null : null,
       location: data.location ?? null,
       slot_time: data.slot_time,
+      slot_end: data.slot_end ?? null,
+      address:
+        data.address !== null && data.address !== undefined
+          ? String(data.address).trim() || null
+          : null,
       capacity: data.capacity ?? 1,
       visible: data.visible !== false,
       notifications_enabled: data.notifications_enabled !== false,
       contact_id: data.contact_id ?? null,
       mentions: data.mentions ?? [],
       match_id: data.match_id ?? null,
+      description:
+        data.description !== null && data.description !== undefined
+          ? String(data.description).trim() || null
+          : null,
     };
     const row = await this.request('/slots', { method: 'POST', body: JSON.stringify(body) });
     return rowToSlot(row);
@@ -115,15 +137,32 @@ class SlotsApi {
   }
 
   async updateSlot(id: string, data: Partial<Slot>): Promise<Slot> {
-    const body = {
+    const body: Record<string, unknown> = {
       location: data.location ?? null,
       slot_time: data.slot_time,
+      slot_end: data.slot_end ?? null,
       capacity: data.capacity ?? 1,
       visible: data.visible !== false,
       notifications_enabled: data.notifications_enabled !== false,
       contact_id: data.contact_id ?? null,
       mentions: data.mentions ?? [],
     };
+    if (data.name !== undefined) {
+      body.name =
+        data.name !== null && data.name !== undefined ? String(data.name).trim() || null : null;
+    }
+    if (data.address !== undefined) {
+      body.address =
+        data.address !== null && data.address !== undefined
+          ? String(data.address).trim() || null
+          : null;
+    }
+    if (data.description !== undefined) {
+      body.description =
+        data.description !== null && data.description !== undefined
+          ? String(data.description).trim() || null
+          : null;
+    }
     const row = await this.request(`/slots/${id}`, { method: 'PUT', body: JSON.stringify(body) });
     return rowToSlot(row);
   }

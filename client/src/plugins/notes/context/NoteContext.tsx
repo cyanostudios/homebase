@@ -413,26 +413,19 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const deleteNote = useCallback(
     async (id: string) => {
-      console.log('Deleting note with id:', id);
       try {
         await notesApi.deleteNote(id);
-        setNotes((prev) => {
-          const newNotes = prev.filter((note) => note.id !== id);
-          console.log('Notes after delete:', newNotes);
-          return newNotes;
-        });
-        // Remove from selection if selected
+        setNotes((prev) => prev.filter((note) => note.id !== id));
         if (isSelected(id)) {
           toggleNoteSelectedCore(id);
         }
-      } catch (error: any) {
-        console.error('Failed to delete note:', error);
-        // V2: Handle standardized error format
-        const errorMessage = error?.message || error?.error || 'Failed to delete note';
+      } catch (error: unknown) {
+        const err = error as { message?: string; error?: string };
+        const errorMessage = err?.message || err?.error || t('notes.deleteFailed');
         alert(errorMessage);
       }
     },
-    [isSelected, toggleNoteSelectedCore],
+    [isSelected, toggleNoteSelectedCore, t],
   );
 
   // Bulk delete using core bulkApi

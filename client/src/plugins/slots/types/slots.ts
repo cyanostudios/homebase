@@ -9,13 +9,20 @@ export interface SlotMention {
 
 export interface Slot {
   id: string;
+  /** Display name (På slot); when empty show as SLT {id}. */
+  name?: string | null;
   location: string | null;
   slot_time: string;
+  /** End datetime; optional. */
+  slot_end?: string | null;
+  address?: string | null;
   capacity: number;
   visible: boolean;
   notifications_enabled: boolean;
   contact_id: string | null;
   mentions: SlotMention[];
+  /** Optional text description for the slot. */
+  description?: string | null;
   created_at: string;
   updated_at: string;
   /** Set when slot was created via "To slot" from a match. */

@@ -616,8 +616,11 @@ export function SlotsProvider({
     const nextMentions =
       mentionsDraft ?? (Array.isArray(currentSlot.mentions) ? currentSlot.mentions : []);
     const payload = {
+      name: currentSlot.name ?? null,
       location: propertyDraft?.location ?? currentSlot.location,
       slot_time: currentSlot.slot_time,
+      slot_end: currentSlot.slot_end ?? null,
+      address: currentSlot.address ?? null,
       capacity: currentSlot.capacity,
       visible: propertyDraft?.visible ?? currentSlot.visible,
       notifications_enabled:
@@ -770,11 +773,17 @@ export function SlotsProvider({
       _newName: string,
     ): Promise<{ closePanel: () => void; highlightId?: string }> => {
       const copy = {
+        name: item.name ?? null,
         location: item.location ?? null,
         slot_time: item.slot_time,
+        slot_end: item.slot_end ?? null,
+        address: item.address ?? null,
         capacity: item.capacity,
         visible: item.visible,
         notifications_enabled: item.notifications_enabled,
+        contact_id: item.contact_id ?? null,
+        mentions: item.mentions ?? [],
+        description: item.description ?? null,
       };
       const newSlot = await slotsApi.createSlot(copy);
       setSlots((prev) => [newSlot, ...prev]);

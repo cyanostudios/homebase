@@ -52,18 +52,26 @@ class SlotsModel {
         contact_id,
         mentions,
         match_id,
+        description,
+        name,
+        slot_end,
+        address,
       } = slotData;
       const cap = validateCapacity(capacity);
 
       const result = await db.insert('slots', {
+        name: (name || '').trim() || null,
         location: (location || '').trim() || null,
         slot_time: slot_time || null,
+        slot_end: slot_end || null,
+        address: (address || '').trim() || null,
         capacity: cap,
         visible: visible !== false && visible !== 'false',
         notifications_enabled: notifications_enabled !== false && notifications_enabled !== 'false',
         contact_id: contact_id || null,
         mentions: JSON.stringify(Array.isArray(mentions) ? mentions : []),
         match_id: match_id != null && match_id !== '' ? parseInt(match_id, 10) : null,
+        description: description != null ? String(description).trim() || null : null,
       });
 
       Logger.info('Slot created', { slotId: result.id });
@@ -87,16 +95,25 @@ class SlotsModel {
    */
   static getChangeSummary(existing, slotData) {
     const labels = {
+      name: 'Name',
       location: 'Location',
-      slot_time: 'Time',
+      slot_time: 'Start',
+      slot_end: 'End',
+      address: 'Address',
       capacity: 'Capacity',
       visible: 'Visible',
       notifications_enabled: 'Notifications',
       contact_id: 'Contact',
       mentions: 'Contacts assigned',
+      description: 'Description',
     };
     const changed = [];
 
+    if ('name' in slotData) {
+      const next = (slotData.name || '').trim() || null;
+      const prev = (existing.name || '').trim() || null;
+      if (next !== prev) changed.push(labels.name);
+    }
     if ('location' in slotData) {
       const next = (slotData.location || '').trim() || null;
       const prev = existing.location || null;
@@ -106,6 +123,16 @@ class SlotsModel {
       if (String(slotData.slot_time || '') !== String(existing.slot_time || '')) {
         changed.push(labels.slot_time);
       }
+    }
+    if ('slot_end' in slotData) {
+      if (String(slotData.slot_end || '') !== String(existing.slot_end || '')) {
+        changed.push(labels.slot_end);
+      }
+    }
+    if ('address' in slotData) {
+      const next = (slotData.address || '').trim() || null;
+      const prev = (existing.address || '').trim() || null;
+      if (next !== prev) changed.push(labels.address);
     }
     if ('capacity' in slotData && slotData.capacity != null) {
       if (Number(slotData.capacity) !== Number(existing.capacity)) {
@@ -130,6 +157,11 @@ class SlotsModel {
           : null;
       const prev = existing.contact_id != null ? parseInt(String(existing.contact_id), 10) : null;
       if (next !== prev) changed.push(labels.contact_id);
+    }
+    if ('description' in slotData) {
+      const next = (slotData.description || '').trim() || null;
+      const prev = (existing.description || '').trim() || null;
+      if (next !== prev) changed.push(labels.description);
     }
     if ('mentions' in slotData) {
       // Normalise both sides to a sorted array of contactId strings for comparison
@@ -174,12 +206,29 @@ class SlotsModel {
         notifications_enabled,
         contact_id,
         mentions,
+        description,
+        name,
+        slot_end,
+        address,
       } = slotData;
       const cap = capacity != null ? validateCapacity(capacity) : existing[0].capacity;
 
       const updates = {
+        name:
+          name !== undefined
+            ? name != null
+              ? String(name).trim() || null
+              : null
+            : existing[0].name,
         location: (location || '').trim() || null,
         slot_time: slot_time || null,
+        slot_end: slot_end !== undefined ? slot_end || null : existing[0].slot_end,
+        address:
+          address !== undefined
+            ? address != null
+              ? String(address).trim() || null
+              : null
+            : existing[0].address,
         capacity: cap,
         visible: visible !== false && visible !== 'false',
         notifications_enabled: notifications_enabled !== false && notifications_enabled !== 'false',
@@ -188,6 +237,12 @@ class SlotsModel {
           mentions !== undefined
             ? JSON.stringify(Array.isArray(mentions) ? mentions : [])
             : existing[0].mentions,
+        description:
+          description !== undefined
+            ? description != null
+              ? String(description).trim() || null
+              : null
+            : existing[0].description,
       };
 
       const result = await db.update('slots', slotId, updates);
@@ -253,8 +308,11 @@ class SlotsModel {
         const inserted = [];
         for (const slotData of slotsData) {
           const cap = validateCapacity(slotData.capacity);
+          const name = (slotData.name || '').trim() || null;
           const location = (slotData.location || '').trim() || null;
           const slot_time = slotData.slot_time || null;
+          const slot_end = slotData.slot_end || null;
+          const address = (slotData.address || '').trim() || null;
           if (!slot_time) {
             throw new AppError(
               'slot_time is required for each slot',
@@ -269,17 +327,23 @@ class SlotsModel {
           const mentions = JSON.stringify(
             Array.isArray(slotData.mentions) ? slotData.mentions : [],
           );
+          const description =
+            slotData.description != null ? String(slotData.description).trim() || null : null;
 
-          const sql = `INSERT INTO slots (location, slot_time, capacity, visible, notifications_enabled, contact_id, mentions, user_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`;
+          const sql = `INSERT INTO slots (name, location, slot_time, slot_end, address, capacity, visible, notifications_enabled, contact_id, mentions, description, user_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`;
           const params = [
+            name,
             location,
             slot_time,
+            slot_end,
+            address,
             cap,
             visible,
             notifications_enabled,
             contact_id,
             mentions,
+            description,
             userId,
           ];
           const res = await tx.query(sql, params);
@@ -385,13 +449,17 @@ class SlotsModel {
     }
     return {
       id: row.id.toString(),
+      name: row.name != null ? row.name : null,
       location: row.location,
       slot_time: row.slot_time,
+      slot_end: row.slot_end != null ? row.slot_end : null,
       capacity: row.capacity,
       visible: Boolean(row.visible),
       notifications_enabled: Boolean(row.notifications_enabled),
       contact_id: row.contact_id != null ? row.contact_id.toString() : null,
       mentions,
+      description: row.description != null ? row.description : null,
+      address: row.address != null ? row.address : null,
       created_at: row.created_at,
       updated_at: row.updated_at,
       match_id: row.match_id != null ? row.match_id.toString() : null,

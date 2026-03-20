@@ -1,3 +1,4 @@
+import { Info } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -5,14 +6,20 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
+import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailSection } from '@/core/ui/DetailSection';
 import { RichTextEditor } from '@/core/ui/RichTextEditor';
-import { Heading } from '@/core/ui/Typography';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { cn } from '@/lib/utils';
 
 import { useNotes } from '../hooks/useNotes';
 
 import { NoteSettingsForm } from './NoteSettingsForm';
+
+const NOTE_FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 
 interface NoteFormState {
   title: string;
@@ -179,112 +186,123 @@ export const NoteForm: React.FC<NoteFormProps> = ({
     return <NoteSettingsForm onCancel={onCancel} />;
   }
 
-  return (
+  const formSidebar = currentNote ? (
     <div className="space-y-4">
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSubmit();
-        }}
+      <Card padding="none" className={NOTE_FORM_CARD_CLASS}>
+        <DetailSection
+          title={t('notes.information')}
+          icon={Info}
+          iconPlugin="notes"
+          className="p-4"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">ID</span>
+              <span className="font-mono font-medium">
+                {formatDisplayNumber('notes', currentNote.id)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Created</span>
+              <span className="font-medium">
+                {currentNote.createdAt ? new Date(currentNote.createdAt).toLocaleDateString() : '—'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Updated</span>
+              <span className="font-medium">
+                {currentNote.updatedAt ? new Date(currentNote.updatedAt).toLocaleDateString() : '—'}
+              </span>
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+      <DetailActivityLog entityType="note" entityId={currentNote.id} title={t('notes.activity')} />
+    </div>
+  ) : undefined;
+
+  return (
+    <>
+      <div
+        className={cn(
+          'plugin-notes min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl',
+          'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
+        )}
       >
-        {/* Validation Summary */}
-        {hasBlockingErrors && (
-          <Card padding="sm" className="shadow-none px-0">
-            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg
-                    className="h-5 w-5 text-red-400 dark:text-red-500"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                      clipRule="evenodd"
+        <DetailLayout mainClassName="max-w-[920px]" sidebar={formSidebar}>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit();
+            }}
+          >
+            {hasBlockingErrors && (
+              <Card className="shadow-none border-destructive/50 bg-destructive/5 p-4">
+                <div className="text-sm text-destructive font-medium">{t('common.cannotSave')}</div>
+                <ul className="list-disc list-inside mt-2 text-sm text-destructive/90">
+                  {validationErrors
+                    .filter((error) => !error.message.includes('Warning'))
+                    .map((error) => (
+                      <li key={`${error.field}-${error.message}`}>{error.message}</li>
+                    ))}
+                </ul>
+              </Card>
+            )}
+
+            <Card padding="none" className={NOTE_FORM_CARD_CLASS}>
+              <DetailSection title={t('notes.noteContent')} iconPlugin="notes" className="p-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="note-title" className="mb-1">
+                      {t('notes.title')}
+                    </Label>
+                    <Input
+                      id="note-title"
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => updateField('title', e.target.value)}
+                      placeholder={t('notes.titlePlaceholder')}
+                      className={getFieldError('title') ? 'border-red-500' : ''}
+                      required
                     />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800 dark:text-red-400">
-                    Cannot save note
-                  </h3>
-                  <div className="mt-2 text-sm text-red-700 dark:text-red-300">
-                    <p>Please fix the following errors before saving:</p>
-                    <ul className="list-disc list-inside mt-1">
-                      {validationErrors
-                        .filter((error) => !error.message.includes('Warning'))
-                        .map((error, index) => (
-                          // eslint-disable-next-line react/no-array-index-key -- validation list order is stable
-                          <li key={`${error.field}-${index}`}>{error.message}</li>
-                        ))}
-                    </ul>
+                    {getFieldError('title') && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {getFieldError('title')?.message}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="mb-1">{t('notes.content')}</Label>
+                    <RichTextEditor
+                      value={formData.content}
+                      onChange={handleContentChange}
+                      placeholder={t('notes.contentPlaceholder')}
+                      className={getFieldError('content') ? 'border-red-500' : ''}
+                    />
+                    {getFieldError('content') && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {getFieldError('content')?.message}
+                      </p>
+                    )}
                   </div>
                 </div>
-              </div>
-            </div>
-          </Card>
-        )}
+              </DetailSection>
+            </Card>
+          </form>
+        </DetailLayout>
+      </div>
 
-        {/* Note Title */}
-        <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">
-            Note Title
-          </Heading>
-          <div>
-            <Label htmlFor="note-title" className="mb-1">
-              Title
-            </Label>
-            <Input
-              id="note-title"
-              type="text"
-              value={formData.title}
-              onChange={(e) => updateField('title', e.target.value)}
-              placeholder={t('notes.titlePlaceholder')}
-              className={getFieldError('title') ? 'border-red-500' : ''}
-              required
-            />
-            {getFieldError('title') && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {getFieldError('title')?.message}
-              </p>
-            )}
-          </div>
-        </Card>
-
-        {/* Note Content with @mentions */}
-        <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">
-            Note Content
-          </Heading>
-          <div>
-            <RichTextEditor
-              value={formData.content}
-              onChange={handleContentChange}
-              placeholder={t('notes.contentPlaceholder')}
-              className={getFieldError('content') ? 'border-red-500' : ''}
-            />
-            {getFieldError('content') && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {getFieldError('content')?.message}
-              </p>
-            )}
-          </div>
-        </Card>
-      </form>
-
-      {/* Unsaved Changes Warning Dialog */}
       <ConfirmDialog
         isOpen={showWarning}
         title={t('dialog.unsavedChanges')}
         message={currentNote ? t('dialog.discardAndReturn') : t('dialog.discardAndClose')}
-        confirmText={t('dialog.discardChanges')}
-        cancelText={t('dialog.continueEditing')}
+        confirmText={t('common.discard')}
+        cancelText={t('common.continueEditing')}
         onConfirm={handleDiscardChanges}
         onCancel={cancelDiscard}
         variant="warning"
       />
-    </div>
+    </>
   );
 };
