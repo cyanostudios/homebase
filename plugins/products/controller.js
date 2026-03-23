@@ -18,6 +18,7 @@ const {
 
 const WooCommerceModel = require('../woocommerce-products/model');
 const WooCommerceController = require('../woocommerce-products/controller');
+const CredentialsCrypto = require('../../server/core/services/security/CredentialsCrypto');
 const CdonProductsController = require('../cdon-products/controller');
 const CdonProductsModel = require('../cdon-products/model');
 const FyndiqProductsController = require('../fyndiq-products/controller');
@@ -2109,6 +2110,7 @@ class ProductController {
               const currency = getSelloCurrencyForIntegration(raw, integrationId);
               const catIds = getSelloCategoriesForIntegration(raw, integrationId);
               const firstCategoryId = catIds.length ? catIds[0] : null;
+              const channelsDone = new Set();
               for (const inst of targetInstances) {
                 const perInstancePrice = getSelloStorePriceForInstance(
                   raw,
@@ -2150,7 +2152,33 @@ class ProductController {
                   );
                   if (resolved) externalId = resolved;
                 }
-                if (externalId) {
+                if (inst.channel === 'cdon' || inst.channel === 'fyndiq') {
+                  const itemId = String(state?.item_id ?? '').trim();
+                  if (!itemId || channelsDone.has(inst.channel)) continue;
+                  channelsDone.add(inst.channel);
+                  if (inst.channel === 'cdon') {
+                    await this.upsertChannelProductMap(req, {
+                      productId: createdProductId,
+                      channel: 'cdon',
+                      channelInstanceId: null,
+                      enabled: active,
+                      externalId: sku,
+                      cdonArticleId: itemId,
+                      status: 'synced',
+                      reason: null,
+                    });
+                  } else {
+                    await this.upsertChannelProductMap(req, {
+                      productId: createdProductId,
+                      channel: 'fyndiq',
+                      channelInstanceId: null,
+                      enabled: active,
+                      externalId: itemId,
+                      status: 'synced',
+                      reason: null,
+                    });
+                  }
+                } else if (externalId) {
                   await this.upsertChannelProductMap(req, {
                     productId: createdProductId,
                     channel: inst.channel,
@@ -2502,21 +2530,27 @@ class ProductController {
 
   async upsertChannelProductMap(
     req,
-    { productId, channel, channelInstanceId, enabled, externalId, status, reason },
+    { productId, channel, channelInstanceId, enabled, externalId, cdonArticleId, status, reason },
   ) {
     const db = Database.get(req);
     const userId = Context.getUserId(req);
     if (!userId) return;
 
+    const instId =
+      channelInstanceId != null && channelInstanceId !== ''
+        ? Number(channelInstanceId)
+        : null;
+
     await db.query(
       `
       INSERT INTO channel_product_map
-        (user_id, product_id, channel, channel_instance_id, enabled, external_id, last_synced_at, last_sync_status, last_error, created_at, updated_at)
+        (user_id, product_id, channel, channel_instance_id, enabled, external_id, cdon_article_id, last_synced_at, last_sync_status, last_error, created_at, updated_at)
       VALUES
-        ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       ON CONFLICT (user_id, product_id, channel, channel_instance_id) DO UPDATE SET
         enabled = EXCLUDED.enabled,
         external_id = EXCLUDED.external_id,
+        cdon_article_id = EXCLUDED.cdon_article_id,
         last_synced_at = CURRENT_TIMESTAMP,
         last_sync_status = EXCLUDED.last_sync_status,
         last_error = EXCLUDED.last_error,
@@ -2526,9 +2560,10 @@ class ProductController {
         userId,
         String(productId),
         String(channel),
-        Number(channelInstanceId),
+        instId,
         !!enabled,
         externalId != null ? String(externalId) : null,
+        cdonArticleId != null ? String(cdonArticleId) : null,
         status || 'synced',
         reason || null,
       ],
@@ -2644,9 +2679,11 @@ class ProductController {
             )
           : [];
         const productIdBySelloId = new Map();
+        const productSkuByProductId = new Map();
         for (const r of homebaseRows) {
           productIdBySelloId.set(String(r.id), String(r.id));
           if (r.sku) productIdBySelloId.set(String(r.sku), String(r.id));
+          productSkuByProductId.set(String(r.id), r.sku || null);
         }
 
         for (const raw of products) {
@@ -2696,10 +2733,10 @@ class ProductController {
               });
               continue;
             }
-            const externalId = String(state.item_id ?? '').trim();
-            const hasExternalId = !!externalId;
+            const itemId = String(state.item_id ?? '').trim();
+            const hasItemId = !!itemId;
 
-            if (active && !hasExternalId) {
+            if (active && !hasItemId) {
               summary.validation_error += targetInstances.length;
               for (const inst of targetInstances) {
                 summary.deviations.push({
@@ -2713,13 +2750,43 @@ class ProductController {
               continue;
             }
 
-            for (const inst of targetInstances) {
+            const cdonInsts = targetInstances.filter((i) => i.channel === 'cdon');
+            const fyndiqInsts = targetInstances.filter((i) => i.channel === 'fyndiq');
+            const wooInsts = targetInstances.filter((i) => i.channel === 'woocommerce');
+            const productSku = productSkuByProductId.get(productId) || selloId;
+
+            if (cdonInsts.length && hasItemId) {
+              await this.upsertChannelProductMap(req, {
+                productId,
+                channel: 'cdon',
+                channelInstanceId: null,
+                enabled: active,
+                externalId: productSku,
+                cdonArticleId: itemId,
+                status: 'synced',
+                reason: null,
+              });
+              summary.updated += 1;
+            }
+            if (fyndiqInsts.length && hasItemId) {
+              await this.upsertChannelProductMap(req, {
+                productId,
+                channel: 'fyndiq',
+                channelInstanceId: null,
+                enabled: active,
+                externalId: itemId,
+                status: 'synced',
+                reason: null,
+              });
+              summary.updated += 1;
+            }
+            for (const inst of wooInsts) {
               await this.upsertChannelProductMap(req, {
                 productId,
                 channel: inst.channel,
                 channelInstanceId: inst.id,
-                enabled: active && hasExternalId,
-                externalId: hasExternalId ? externalId : null,
+                enabled: active && hasItemId,
+                externalId: hasItemId ? itemId : null,
                 status: 'synced',
                 reason: null,
               });
@@ -2790,27 +2857,31 @@ class ProductController {
                 [userId],
               );
               const c = credsRows?.[0];
-              if (!c?.api_key || !c?.api_secret) {
+              const cdonApiKey = c?.api_key ? CredentialsCrypto.decrypt(c.api_key) : '';
+              const cdonApiSecret = c?.api_secret ? CredentialsCrypto.decrypt(c.api_secret) : '';
+              if (!cdonApiKey || !cdonApiSecret) {
                 return res.status(502).json({
                   error: 'CDON credentials missing',
                   detail: 'Configure CDON in settings',
                 });
               }
-              items = await fetchCdonCategories(market, lang, c.api_key, c.api_secret);
+              items = await fetchCdonCategories(market, lang, cdonApiKey, cdonApiSecret);
             } else {
               const credsRows = await db.query(
                 'SELECT api_key, api_secret FROM fyndiq_settings WHERE user_id = $1 LIMIT 1',
                 [userId],
               );
               const c = credsRows?.[0];
-              if (!c?.api_key || !c?.api_secret) {
+              const fyndiqApiKey = c?.api_key ? CredentialsCrypto.decrypt(c.api_key) : '';
+              const fyndiqApiSecret = c?.api_secret ? CredentialsCrypto.decrypt(c.api_secret) : '';
+              if (!fyndiqApiKey || !fyndiqApiSecret) {
                 return res.status(502).json({
                   error: 'Fyndiq credentials missing',
                   detail: 'Configure Fyndiq in settings',
                 });
               }
               const marketLower = market.toLowerCase();
-              items = await fetchFyndiqCategories(marketLower, lang, c.api_key, c.api_secret);
+              items = await fetchFyndiqCategories(marketLower, lang, fyndiqApiKey, fyndiqApiSecret);
             }
             const payload = Array.isArray(items) ? items : [];
             const fetchedAt = new Date();

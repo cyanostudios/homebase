@@ -1,6 +1,9 @@
 // plugins/cdon-products/mapToCdonArticle.js
 // Builds a CDON Merchants API v2 article payload (for bulk create/update) from product + overrides + default language.
 // Uses only fields and shapes from docs/CDON_API_DOCUMENTATION.md. No guessing.
+// CDON recommends plain text without HTML for title and description.
+
+const { htmlToPlainText } = require('../../server/core/utils/htmlToPlainText');
 
 const DEFAULT_CURRENCY_BY_MARKET = { SE: 'SEK', DK: 'DKK', FI: 'EUR', NO: 'NOK' };
 
@@ -90,7 +93,9 @@ function mapProductToCdonArticle(
   marketsFilter = ['se', 'dk', 'fi'],
 ) {
   const sku = product?.id != null ? String(product.id).trim() : '';
-  const title = product?.title != null ? String(product.title).trim() : '';
+  const title = htmlToPlainText(
+    product?.title != null ? String(product.title).trim() : '',
+  );
   const mainImage = product?.mainImage != null ? String(product.mainImage).trim() : '';
   const quantity =
     product?.quantity != null && Number.isFinite(Number(product.quantity))
@@ -126,7 +131,7 @@ function mapProductToCdonArticle(
       const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
       if (seen.has(lang)) continue;
       const t = textsExtended[mk];
-      const value = (t?.name || standardText?.name || '').slice(0, 150);
+      const value = htmlToPlainText(t?.name || standardText?.name || '').slice(0, 150);
       if (value.length >= 5) {
         seen.add(lang);
         arr.push({ language: lang, value });
@@ -136,13 +141,15 @@ function mapProductToCdonArticle(
   }
   if (!titleArr || titleArr.length === 0) {
     const lang = defaultLanguage || 'sv-SE';
-    const value = (title || '').slice(0, 150);
+    const value = htmlToPlainText(title || '').slice(0, 150);
     if (value.length >= 5) titleArr = [{ language: lang, value }];
   }
   if (!titleArr || titleArr.length === 0) return null;
 
   // Description: per language from textsExtended + textsStandard, else products.description.
-  const baseDesc = product?.description != null ? String(product.description) : '';
+  const baseDesc = htmlToPlainText(
+    product?.description != null ? String(product.description) : '',
+  );
   let descriptionArr = null;
   if (textsExtended && typeof textsExtended === 'object') {
     const arr = [];
@@ -152,7 +159,9 @@ function mapProductToCdonArticle(
       const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
       if (seen.has(lang)) continue;
       const t = textsExtended[mk];
-      const value = (t?.description || standardText?.description || '').slice(0, 4096);
+      const value = htmlToPlainText(
+        t?.description || standardText?.description || '',
+      ).slice(0, 4096);
       if (value.length >= 10) {
         seen.add(lang);
         arr.push({ language: lang, value });
@@ -430,7 +439,9 @@ function getCdonArticleInputIssues(
 ) {
   const issues = [];
   const sku = product?.id != null ? String(product.id).trim() : '';
-  const title = product?.title != null ? String(product.title).trim() : '';
+  const title = htmlToPlainText(
+    product?.title != null ? String(product.title).trim() : '',
+  );
   const mainImage = product?.mainImage != null ? String(product.mainImage).trim() : '';
   const quantity =
     product?.quantity != null && Number.isFinite(Number(product.quantity))

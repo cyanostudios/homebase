@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { getFxLatest } from '@/core/api/fxApi';
+import { decodeHtmlEntities } from '@/core/utils/decodeHtmlEntities';
 import { RichTextEditor } from '@/core/ui/RichTextEditor';
 import { Heading } from '@/core/ui/Typography';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -1217,8 +1218,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     if (currentProduct) {
       const sku = currentProduct.sku ?? '';
       const mpn = currentProduct.mpn ?? '';
-      const baseTitle = currentProduct.title ?? '';
-      const baseDesc = currentProduct.description ?? '';
+      const baseTitle = decodeHtmlEntities(currentProduct.title ?? '');
+      const baseDesc = decodeHtmlEntities(currentProduct.description ?? '');
       const cs =
         currentProduct.channelSpecific && typeof currentProduct.channelSpecific === 'object'
           ? currentProduct.channelSpecific
@@ -1277,13 +1278,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           : typeof extended?.bulletpoints === 'string'
             ? extended.bulletpoints
             : '';
-        const titleFromExtended = (extended as any)?.name;
-        const descFromExtended = (extended as any)?.description;
+        const titleFromExtended = decodeHtmlEntities((extended as any)?.name ?? '');
+        const descFromExtended = decodeHtmlEntities((extended as any)?.description ?? '');
         texts[m.key] =
           tData && typeof tData === 'object'
             ? {
-                title: tData.title ?? titleFromExtended ?? baseTitle,
-                description: tData.description ?? descFromExtended ?? baseDesc,
+                title: decodeHtmlEntities(tData.title ?? '') || titleFromExtended || baseTitle,
+                description: decodeHtmlEntities(tData.description ?? '') || descFromExtended || baseDesc,
                 titleSeo: extended?.titleSeo ?? '',
                 metaDesc: extended?.metaDesc ?? '',
                 metaKeywords: extended?.metaKeywords ?? '',

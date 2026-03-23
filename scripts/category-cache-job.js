@@ -11,6 +11,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.join(__dirname, '../.env.local') });
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
+const CredentialsCrypto = require('../server/core/services/security/CredentialsCrypto');
 const { fetchCategoriesFromApi: fetchCdonCategories } = require('../plugins/cdon-products/fetchCategories');
 const { fetchCategoriesFromApi: fetchFyndiqCategories } = require('../plugins/fyndiq-products/fetchCategories');
 const { fetchCategoriesFromApi: fetchWooCategories } = require('../plugins/woocommerce-products/fetchCategories');
@@ -106,10 +107,12 @@ async function runJobForTenant(connectionString, tenantInfo) {
       [userId],
     );
     const cdonSettings = cdonSettingsRes?.rows?.[0];
-    if (cdonSettings?.api_key && cdonSettings?.api_secret) {
+    const cdonApiKey = cdonSettings?.api_key ? CredentialsCrypto.decrypt(cdonSettings.api_key) : '';
+    const cdonApiSecret = cdonSettings?.api_secret ? CredentialsCrypto.decrypt(cdonSettings.api_secret) : '';
+    if (cdonApiKey && cdonApiSecret) {
       const cdonCacheKey = `cdon:categories:${categoryLanguage}`;
       try {
-        const items = await fetchCdonCategories(market, categoryLanguage, cdonSettings.api_key, cdonSettings.api_secret);
+        const items = await fetchCdonCategories(market, categoryLanguage, cdonApiKey, cdonApiSecret);
         await upsertCategoryCache(client, cdonCacheKey, null, items);
       } catch (err) {
         const msg = err?.message ?? err?.stack ?? String(err);
@@ -122,10 +125,12 @@ async function runJobForTenant(connectionString, tenantInfo) {
       [userId],
     );
     const fyndiqSettings = fyndiqSettingsRes?.rows?.[0];
-    if (fyndiqSettings?.api_key && fyndiqSettings?.api_secret) {
+    const fyndiqApiKey = fyndiqSettings?.api_key ? CredentialsCrypto.decrypt(fyndiqSettings.api_key) : '';
+    const fyndiqApiSecret = fyndiqSettings?.api_secret ? CredentialsCrypto.decrypt(fyndiqSettings.api_secret) : '';
+    if (fyndiqApiKey && fyndiqApiSecret) {
       const fyndiqCacheKey = `fyndiq:categories:${categoryLanguage}`;
       try {
-        const items = await fetchFyndiqCategories(marketLower, categoryLanguage, fyndiqSettings.api_key, fyndiqSettings.api_secret);
+        const items = await fetchFyndiqCategories(marketLower, categoryLanguage, fyndiqApiKey, fyndiqApiSecret);
         await upsertCategoryCache(client, fyndiqCacheKey, null, items);
       } catch (err) {
         const msg = err?.message ?? err?.stack ?? String(err);

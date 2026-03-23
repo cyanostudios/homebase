@@ -1173,16 +1173,25 @@ class CdonProductsController {
         });
       }
 
+      const successById = new Map();
+      for (const s of resJson?.success || []) {
+        const skuKey = s?.sku != null ? String(s.sku).trim() : null;
+        const id = s?.id != null ? String(s.id).trim() : null;
+        if (skuKey && id) successById.set(skuKey, id);
+      }
       for (const { productId, sku } of articlesMeta) {
+        const skuKey = sku || productId;
+        const cdonArticleId = successById.get(skuKey) || null;
         await this.model.upsertChannelMap(req, {
           productId,
           channel: 'cdon',
           enabled: true,
-          externalId: sku || productId,
+          externalId: skuKey,
+          cdonArticleId,
           status: 'synced',
           error: null,
         });
-        items.push({ productId, status: 'synced', externalId: sku || productId });
+        items.push({ productId, status: 'synced', externalId: skuKey, cdonArticleId });
       }
 
       const jsonResponse = {

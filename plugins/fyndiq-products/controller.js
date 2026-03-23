@@ -448,6 +448,8 @@ class FyndiqProductsController {
         // Also consider channel_product_map (enabled): if user enabled product for a Fyndiq market
         // in Kanaler and saved, map is updated but overrides may not have active=true yet.
         // So treat enabled map rows as active for that market (merge into overrides so mapper sees it).
+        // For map rows with channel_instance_id set: get market from channel_instances.
+        // For map rows with channel_instance_id NULL: get active markets from channel_product_overrides.
         const mapRows = await db.query(
           `
           SELECT
@@ -458,6 +460,21 @@ class FyndiqProductsController {
           WHERE m.user_id = $1
             AND m.channel = 'fyndiq'
             AND m.enabled = TRUE
+            AND m.product_id::text = ANY($2::text[])
+            AND TRIM(COALESCE(ci.market, '')) <> ''
+          UNION
+          SELECT
+            o.product_id::text AS product_id,
+            LOWER(TRIM(ci.market)) AS market
+          FROM channel_product_map m
+          INNER JOIN channel_product_overrides o
+            ON o.user_id = m.user_id AND o.product_id::text = m.product_id::text
+            AND o.channel = 'fyndiq' AND o.active = TRUE AND o.channel_instance_id IS NOT NULL
+          INNER JOIN channel_instances ci ON ci.id = o.channel_instance_id AND ci.user_id = o.user_id
+          WHERE m.user_id = $1
+            AND m.channel = 'fyndiq'
+            AND m.enabled = TRUE
+            AND m.channel_instance_id IS NULL
             AND m.product_id::text = ANY($2::text[])
             AND TRIM(COALESCE(ci.market, '')) <> ''
           `,
@@ -643,7 +660,7 @@ class FyndiqProductsController {
         let r = responses[i];
         const statusCode = r?.status_code != null ? Number(r.status_code) : null;
         // Bulk create success: item has id+description (no status_code); failure: status_code 400/409 etc.
-        const success =
+        let success =
           statusCode === 202 || (resp.ok && r?.id != null && r?.description != null);
         let errMsg = success
           ? null
@@ -654,6 +671,7 @@ class FyndiqProductsController {
               : resp.ok
                 ? null
                 : 'Export failed';
+        let resolvedArticleId = success && r?.id ? String(r.id).trim() : null;
 
         if (!success && statusCode != null) {
           Logger.info('Fyndiq export item response', {
@@ -693,6 +711,7 @@ class FyndiqProductsController {
             }
           }
           if (articleId) {
+            resolvedArticleId = articleId;
             // Fyndiq: article PUT accepts only: sku, parent_sku, legacy_product_id, status, categories,
             // properties, variational_properties, brand, gtin, main_image, images, markets, title,
             // description, shipping_time, kn_number, internal_note, delivery_type.
@@ -801,7 +820,7 @@ class FyndiqProductsController {
           productId,
           channel: 'fyndiq',
           enabled: true,
-          externalId: sku || null,
+          externalId: resolvedArticleId || sku || null,
           status: success ? 'success' : 'error',
           error: errMsg,
         });

@@ -79,6 +79,17 @@ const commonRules = {
       .isLength({ max })
       .withMessage(`${field} must not exceed ${max} characters`)
       .escape(),
+
+  /** Same as optionalString but WITHOUT escape – for HTML/RichText (description, notes).
+   *  Escape corrupts HTML; content is sanitized client-side (DOMPurify) and stored as-is. */
+  optionalHtmlString: (field, max = 5000) =>
+    body(field)
+      .optional({ values: 'falsy' })
+      .customSanitizer((value) => {
+        return value === null || value === undefined ? '' : String(value).trim();
+      })
+      .isLength({ max })
+      .withMessage(`${field} must not exceed ${max} characters`),
   
   url: (field) =>
     body(field)

@@ -153,7 +153,7 @@ class PostgreSQLAdapter extends DatabaseService {
       /;\s*DROP\s+TABLE/i,
       /;\s*DELETE\s+FROM/i,
       /;\s*TRUNCATE/i,
-      /UNION\s+SELECT/i,
+      // /UNION\s+SELECT/i - removed: causes false positives for legitimate UNION queries (e.g. Fyndiq export)
       /--/,
       /\/\*/,
     ];

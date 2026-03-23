@@ -57,10 +57,11 @@ export function useProductChannelLinks(productId: string, enabled = true) {
               : link.externalId;
 
           let url = '';
+          const pathSegment = tld === 'fi' ? 'tuote' : 'produkt';
           if (ch === 'cdon') {
-            url = `https://cdon.${tld}/produkt/${slug}/`;
+            url = `https://cdon.${tld}/${pathSegment}/${slug}/`;
           } else if (ch === 'fyndiq') {
-            url = `https://fyndiq.${tld}/produkt/${slug}/`;
+            url = `https://fyndiq.${tld}/${pathSegment}/${slug}/`;
           }
           if (url) {
             built.push({

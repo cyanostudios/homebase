@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 
 import { Button } from '@/components/ui/button';
+import { decodeHtmlEntities } from '@/core/utils/decodeHtmlEntities';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useOrders } from '@/plugins/orders/hooks/useOrders';
 
@@ -763,7 +764,9 @@ export function AnalyticsList() {
                     onClick={() => setSelectedSku(p.sku)}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium">{p.title || 'Okänd produkt'}</div>
+                      <div className="font-medium">
+                        {decodeHtmlEntities(p.title ?? '') || 'Okänd produkt'}
+                      </div>
                       <div className="text-gray-500">
                         {p.sku || '—'} · {intFmt.format(p.unitsSold)} st
                       </div>

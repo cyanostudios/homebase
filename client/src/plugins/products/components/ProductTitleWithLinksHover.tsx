@@ -6,6 +6,7 @@ import {
   HoverCardTrigger,
 } from '@/components/ui/hover-card';
 import { Badge } from '@/components/ui/badge';
+import { decodeHtmlEntities } from '@/core/utils/decodeHtmlEntities';
 
 import { useProductChannelLinks } from '../hooks/useProductChannelLinks';
 
@@ -27,7 +28,7 @@ export function ProductTitleWithLinksHover({
     <HoverCard open={open} onOpenChange={setOpen} openDelay={300}>
       <HoverCardTrigger asChild>
         <div className="flex items-center gap-2 cursor-default">
-          <div className="font-medium">{title}</div>
+          <div className="font-medium">{decodeHtmlEntities(title)}</div>
           {groupInfo ? (
             <Badge variant="secondary" className="text-xs font-normal shrink-0">
               {groupInfo.total} varianter · {groupInfo.typeLabel}

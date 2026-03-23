@@ -11,6 +11,7 @@ import React, {
 } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import { decodeHtmlEntities } from '@/core/utils/decodeHtmlEntities';
 import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
 import { channelsApi } from '@/plugins/channels/api/channelsApi';
 import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
@@ -1190,7 +1191,7 @@ export function ProductProvider({
     }
     if (mode === 'edit' && item) {
       const displayId = item.id;
-      const title = item.title;
+      const title = decodeHtmlEntities(item.title ?? '');
       const price = `${item.priceAmount} ${item.currency}`;
       if (isMobileView && price) {
         return (
@@ -1226,7 +1227,7 @@ export function ProductProvider({
     if (!item) {
       return 'Are you sure you want to delete this product?';
     }
-    const itemName = item.title || 'this product';
+    const itemName = decodeHtmlEntities(item.title ?? '') || 'this product';
     return `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
   };
 

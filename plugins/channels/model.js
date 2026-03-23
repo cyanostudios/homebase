@@ -206,6 +206,7 @@ class ChannelsModel {
   /**
    * Get all channel links for a product (rows with external_id, for building product URLs).
    * Returns [{ channel, channelInstanceId, market, label, externalId }].
+   * For map rows with channel_instance_id = NULL (CDON/Fyndiq), expands to one link per active market from overrides.
    */
   async getProductChannelLinks(req, productId) {
     try {
@@ -225,26 +226,77 @@ class ChannelsModel {
           m.channel,
           m.channel_instance_id,
           m.external_id,
+          m.cdon_article_id,
           ci.market,
           ci.label,
           ci.instance_key
         FROM ${ChannelsModel.CHANNEL_MAP_TABLE} m
         LEFT JOIN ${ChannelsModel.CHANNEL_INSTANCES_TABLE} ci
           ON ci.id = m.channel_instance_id AND ci.user_id = m.user_id
-        WHERE m.user_id = $1 AND m.product_id = $2 AND m.external_id IS NOT NULL AND TRIM(m.external_id) <> ''
+        WHERE m.user_id = $1 AND m.product_id = $2
+          AND (
+            (m.external_id IS NOT NULL AND TRIM(m.external_id) <> '')
+            OR (m.channel = 'cdon' AND m.cdon_article_id IS NOT NULL AND TRIM(m.cdon_article_id) <> '')
+          )
         ORDER BY m.channel ASC, COALESCE(ci.market, '') ASC, COALESCE(ci.instance_key, '') ASC
         `,
         [userId, pid],
       );
 
-      return rows.map((r) => ({
-        channel: String(r.channel || '').toLowerCase(),
-        channelInstanceId: r.channel_instance_id != null ? String(r.channel_instance_id) : null,
-        market: r.market != null ? String(r.market).trim().toLowerCase() : null,
-        label: r.label != null ? String(r.label).trim() : null,
-        instanceKey: r.instance_key != null ? String(r.instance_key).trim() : null,
-        externalId: String(r.external_id || '').trim(),
-      }));
+      const result = [];
+      for (const r of rows) {
+        const ch = String(r.channel || '').toLowerCase();
+        const linkId =
+          ch === 'cdon' && r.cdon_article_id != null && String(r.cdon_article_id).trim()
+            ? String(r.cdon_article_id).trim()
+            : String(r.external_id || '').trim();
+
+        if (r.channel_instance_id == null && (ch === 'cdon' || ch === 'fyndiq')) {
+          const overrideRows = await db.query(
+            `
+            SELECT ci.market, ci.label, ci.instance_key
+            FROM ${ChannelsModel.CHANNEL_OVERRIDES_TABLE} o
+            INNER JOIN ${ChannelsModel.CHANNEL_INSTANCES_TABLE} ci
+              ON ci.id = o.channel_instance_id AND ci.user_id = o.user_id
+            WHERE o.user_id = $1 AND o.product_id::text = $2 AND o.channel = $3 AND o.active = TRUE
+              AND o.channel_instance_id IS NOT NULL
+            ORDER BY COALESCE(ci.market, '') ASC, COALESCE(ci.instance_key, '') ASC
+            `,
+            [userId, pid, ch],
+          );
+          if (overrideRows.length > 0) {
+            for (const ov of overrideRows) {
+              result.push({
+                channel: ch,
+                channelInstanceId: null,
+                market: ov.market != null ? String(ov.market).trim().toLowerCase() : null,
+                label: ov.label != null ? String(ov.label).trim() : null,
+                instanceKey: ov.instance_key != null ? String(ov.instance_key).trim() : null,
+                externalId: linkId,
+              });
+            }
+          } else {
+            result.push({
+              channel: ch,
+              channelInstanceId: null,
+              market: null,
+              label: null,
+              instanceKey: null,
+              externalId: linkId,
+            });
+          }
+        } else {
+          result.push({
+            channel: ch,
+            channelInstanceId: r.channel_instance_id != null ? String(r.channel_instance_id) : null,
+            market: r.market != null ? String(r.market).trim().toLowerCase() : null,
+            label: r.label != null ? String(r.label).trim() : null,
+            instanceKey: r.instance_key != null ? String(r.instance_key).trim() : null,
+            externalId: linkId,
+          });
+        }
+      }
+      return result;
     } catch (error) {
       Logger.error('Failed to get product channel links', error);
       if (error instanceof AppError) throw error;

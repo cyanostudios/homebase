@@ -78,7 +78,7 @@ class CdonProductsModel {
     };
   }
 
-  async upsertChannelMap(req, { productId, channel, enabled, externalId, status, error }) {
+  async upsertChannelMap(req, { productId, channel, enabled, externalId, cdonArticleId, status, error }) {
     try {
       const db = Database.get(req);
       const userId = req.session?.user?.id;
@@ -86,13 +86,14 @@ class CdonProductsModel {
 
       const sql = `
         INSERT INTO ${CdonProductsModel.CHANNEL_MAP_TABLE} (
-          user_id, product_id, channel, channel_instance_id, enabled, external_id, last_synced_at, last_sync_status, last_error, created_at, updated_at
+          user_id, product_id, channel, channel_instance_id, enabled, external_id, cdon_article_id, last_synced_at, last_sync_status, last_error, created_at, updated_at
         ) VALUES (
-          $1,       $2,         $3,      NULL,                $4,      $5,          CURRENT_TIMESTAMP, $6,              $7,         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          $1,       $2,         $3,      NULL,                $4,      $5,          $6,              CURRENT_TIMESTAMP, $7,              $8,         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         )
         ON CONFLICT (user_id, product_id, channel, channel_instance_id) DO UPDATE SET
           enabled = EXCLUDED.enabled,
           external_id = EXCLUDED.external_id,
+          cdon_article_id = EXCLUDED.cdon_article_id,
           last_synced_at = CURRENT_TIMESTAMP,
           last_sync_status = EXCLUDED.last_sync_status,
           last_error = EXCLUDED.last_error,
@@ -104,6 +105,7 @@ class CdonProductsModel {
         String(channel),
         !!enabled,
         externalId || null,
+        cdonArticleId != null ? String(cdonArticleId) : null,
         status || 'idle',
         error || null,
       ]);

@@ -4,6 +4,32 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-14 – CDON article ID, HTML-dekod, kanaler-modell, produkter
+
+### CDON – article ID för länkar
+
+- **078-channel-product-map-cdon-article-id.sql:** Ny kolumn `cdon_article_id` i `channel_product_map` – CDON URL använder artikel-ID, API använder SKU i `external_id`.
+- **plugins/cdon-products, channels/model.js:** Stöd för att spara och använda `cdon_article_id` vid export/länkbyggnad.
+
+### HTML till ren text / dekodning
+
+- **server/core/utils/htmlToPlainText.js:** Ny util – konverterar HTML till plain text och dekoderar entiteter. Används av CDON- och Fyndiq-mappning vid export.
+- **client/core/utils/decodeHtmlEntities.ts:** Ny util för visning av produktitel/beskrivning (Sello-import kan innehålla &amp;#x27; etc.). Används i ProductForm, ProductContext, ProductTitleWithLinksHover, AnalyticsList.
+
+### Kanaler, produkter, CDON/Fyndiq/Woo
+
+- **plugins/channels/model.js:** Utökad logik för channel_product_map.
+- **plugins/products/controller.js, routes.js:** Justeringar och nya endpoints.
+- **plugins/cdon-products, fyndiq-products, woocommerce-products:** Controllers, maps och modeller uppdaterade.
+- **scripts/category-cache-job.js:** Justeringar.
+
+### Övrigt
+
+- **server/core/middleware/validation.js:** Ytterligare validering.
+- **docs/SELLO_CHANNEL_FIELD_MAPPING.md:** Uppdateringar.
+
+---
+
 ## 2026-03-14 – Kanallänkar på hover i produktlistan, ProductView borttagen
 
 ### Produktlistan – hover visar kanallänkar
