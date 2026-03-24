@@ -1,28 +1,62 @@
 // client/src/plugins/woocommerce-products/api/woocommerceApi.ts
 // WooCommerce API client with CSRF token support
 
+import { getSharedCsrfToken } from '@/core/api/csrf';
+
 import type { WooTestResult, WooExportResult } from '../types/woocommerce';
 
 export type ApiFieldError = { field: string; message: string };
 
+const WOO_INSTANCES_CACHE_TTL_MS = 5_000;
+
 class WooCommerceApi {
-  private csrfToken: string | null = null;
+  private instancesCache: {
+    fetchedAt: number;
+    value: {
+      ok: boolean;
+      items: Array<{
+        id: string;
+        channel: string;
+        instanceKey: string;
+        market: string | null;
+        label: string | null;
+        credentials: {
+          storeUrl: string;
+          consumerKey: string;
+          consumerSecret: string;
+          useQueryAuth: boolean;
+        } | null;
+        createdAt: string | null;
+        updatedAt: string | null;
+      }>;
+    };
+  } | null = null;
+  private instancesPromise: Promise<{
+    ok: boolean;
+    items: Array<{
+      id: string;
+      channel: string;
+      instanceKey: string;
+      market: string | null;
+      label: string | null;
+      credentials: {
+        storeUrl: string;
+        consumerKey: string;
+        consumerSecret: string;
+        useQueryAuth: boolean;
+      } | null;
+      createdAt: string | null;
+      updatedAt: string | null;
+    }>;
+  }> | null = null;
 
   private async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) {
-      return this.csrfToken;
-    }
+    return getSharedCsrfToken();
+  }
 
-    const response = await fetch('/api/csrf-token', {
-      credentials: 'include',
-    });
-    const data = await response.json();
-    const token = data.csrfToken;
-    if (typeof token !== 'string' || !token) {
-      throw new Error('CSRF token not returned by server');
-    }
-    this.csrfToken = token;
-    return token;
+  private clearInstancesCache() {
+    this.instancesCache = null;
+    this.instancesPromise = null;
   }
 
   private async request(path: string, options: RequestInit = {}) {
@@ -206,7 +240,7 @@ class WooCommerceApi {
     if (params?.instanceId) {
       q.set('instanceId', params.instanceId);
     }
-    if (params?.perPage != null) {
+    if (params?.perPage !== undefined && params?.perPage !== null) {
       q.set('perPage', String(params.perPage));
     }
     if (params?.search) {
@@ -233,7 +267,27 @@ class WooCommerceApi {
       updatedAt: string | null;
     }>;
   }> {
-    return this.request('/instances');
+    if (
+      this.instancesCache &&
+      Date.now() - this.instancesCache.fetchedAt < WOO_INSTANCES_CACHE_TTL_MS
+    ) {
+      return this.instancesCache.value;
+    }
+    if (this.instancesPromise) {
+      return this.instancesPromise;
+    }
+    this.instancesPromise = this.request('/instances')
+      .then((value) => {
+        this.instancesCache = {
+          fetchedAt: Date.now(),
+          value,
+        };
+        return value;
+      })
+      .finally(() => {
+        this.instancesPromise = null;
+      });
+    return this.instancesPromise;
   }
 
   async createInstance(data: {
@@ -261,6 +315,7 @@ class WooCommerceApi {
       updatedAt: string | null;
     };
   }> {
+    this.clearInstancesCache();
     return this.request('/instances', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -294,6 +349,7 @@ class WooCommerceApi {
       updatedAt: string | null;
     };
   }> {
+    this.clearInstancesCache();
     return this.request(`/instances/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -304,6 +360,7 @@ class WooCommerceApi {
     ok: boolean;
     deleted: { id: string };
   }> {
+    this.clearInstancesCache();
     return this.request(`/instances/${id}`, {
       method: 'DELETE',
     });

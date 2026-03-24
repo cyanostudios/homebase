@@ -1,6 +1,8 @@
 /* eslint-disable eqeqeq */
 // Dedicated API client for Products (with 409-aware error handling and CSRF)
 
+import { getSharedCsrfToken } from '@/core/api/csrf';
+
 import type { Product } from '../types/products';
 
 export type ApiFieldError = { field: string; message: string };
@@ -26,22 +28,22 @@ export type SelloSettings = {
 };
 
 class ProductsApi {
-  private csrfToken: string | null = null;
+  private listsCache: {
+    items: Array<{
+      id: string;
+      name: string;
+      namespace: string;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    fetchedAt: number;
+  } | null = null;
+  private listsPromise: Promise<
+    Array<{ id: string; name: string; namespace: string; createdAt: string; updatedAt: string }>
+  > | null = null;
 
   private async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) {
-      return this.csrfToken;
-    }
-
-    const response = await fetch('/api/csrf-token', {
-      credentials: 'include',
-    });
-    const data = await response.json();
-    this.csrfToken = data.csrfToken ?? null;
-    if (this.csrfToken == null) {
-      throw new Error('CSRF token not returned by server');
-    }
-    return this.csrfToken;
+    return getSharedCsrfToken();
   }
 
   private async request(endpoint: string, options: RequestInit = {}) {
@@ -157,7 +159,23 @@ class ProductsApi {
   async getLists(): Promise<
     Array<{ id: string; name: string; namespace: string; createdAt: string; updatedAt: string }>
   > {
-    return this.request('/products/lists');
+    const now = Date.now();
+    if (this.listsCache && now - this.listsCache.fetchedAt < 30_000) {
+      return this.listsCache.items;
+    }
+    if (this.listsPromise) {
+      return this.listsPromise;
+    }
+    this.listsPromise = this.request('/products/lists')
+      .then((items) => {
+        const normalized = Array.isArray(items) ? items : [];
+        this.listsCache = { items: normalized, fetchedAt: Date.now() };
+        return normalized;
+      })
+      .finally(() => {
+        this.listsPromise = null;
+      });
+    return this.listsPromise;
   }
 
   async setProductList(productId: string, listId: string | null): Promise<Product> {

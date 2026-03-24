@@ -10,6 +10,15 @@ export interface ProductChannelLink {
   url: string;
 }
 
+const PRODUCT_LINKS_CACHE_TTL_MS = 5_000;
+const productLinksCache = new Map<
+  string,
+  {
+    fetchedAt: number;
+    links: ProductChannelLink[];
+  }
+>();
+
 export function useProductChannelLinks(productId: string, enabled = true) {
   const [links, setLinks] = useState<ProductChannelLink[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,6 +35,12 @@ export function useProductChannelLinks(productId: string, enabled = true) {
         setLinks([]);
         return;
       }
+      const cached = productLinksCache.get(productId);
+      if (cached && Date.now() - cached.fetchedAt < PRODUCT_LINKS_CACHE_TTL_MS) {
+        setLinks(cached.links);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
         const res = await channelsApi.getProductChannelLinks(productId);
@@ -39,8 +54,10 @@ export function useProductChannelLinks(productId: string, enabled = true) {
           const tld = link.market || 'se';
           const key = `${ch}:${tld}`;
           const existing = byKey.get(key);
-          const hasInstance = link.channelInstanceId != null;
-          const existingHasInstance = existing?.channelInstanceId != null;
+          const hasInstance =
+            link.channelInstanceId !== undefined && link.channelInstanceId !== null;
+          const existingHasInstance =
+            existing?.channelInstanceId !== undefined && existing?.channelInstanceId !== null;
           if (!existing || (hasInstance && !existingHasInstance)) {
             byKey.set(key, link);
           }
@@ -51,10 +68,9 @@ export function useProductChannelLinks(productId: string, enabled = true) {
           const ch = (link.channel || '').toLowerCase();
           const tld = link.market || 'se';
           // CDON/Fyndiq: Sello UUID format is hyphenated; URL uses first 16 chars without hyphens
-          const slug =
-            link.externalId.includes('-')
-              ? link.externalId.replace(/-/g, '').slice(0, 16)
-              : link.externalId;
+          const slug = link.externalId.includes('-')
+            ? link.externalId.replace(/-/g, '').slice(0, 16)
+            : link.externalId;
 
           let url = '';
           const pathSegment = tld === 'fi' ? 'tuote' : 'produkt';
@@ -73,6 +89,10 @@ export function useProductChannelLinks(productId: string, enabled = true) {
             });
           }
         }
+        productLinksCache.set(productId, {
+          fetchedAt: Date.now(),
+          links: built,
+        });
         setLinks(built);
       } catch {
         if (!cancelled) {

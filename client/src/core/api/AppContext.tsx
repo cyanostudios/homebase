@@ -122,6 +122,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 let csrfToken: string | null = null;
 /** Only run initial checkAuth once per page load to avoid StrictMode double-mount sending a second getMe that can see a newly-created empty session. */
 let authCheckDoneThisLoad = false;
+const settingsRequestPromises = new Map<string, Promise<any>>();
 
 async function getCsrfToken(): Promise<string> {
   if (csrfToken) {
@@ -235,10 +236,16 @@ const api = {
   },
 
   async getSettings(category?: string) {
-    if (category) {
-      return this.request(`/settings/${category}`);
+    const key = category ? `/settings/${category}` : '/settings';
+    const pending = settingsRequestPromises.get(key);
+    if (pending) {
+      return pending;
     }
-    return this.request('/settings');
+    const requestPromise = this.request(key).finally(() => {
+      settingsRequestPromises.delete(key);
+    });
+    settingsRequestPromises.set(key, requestPromise);
+    return requestPromise;
   },
 
   async updateSettings(category: string, settings: any) {
@@ -294,7 +301,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (authCheckDoneThisLoad) return;
+    if (authCheckDoneThisLoad) {
+      return;
+    }
     authCheckDoneThisLoad = true;
     checkAuth();
   }, []);
@@ -564,7 +573,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getSettings = async (category?: string) => {
+  const getSettings = useCallback(async (category?: string) => {
     try {
       const response = await api.getSettings(category);
       return response.settings;
@@ -572,11 +581,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Failed to fetch settings:', error);
       return {};
     }
-  };
+  }, []);
 
   const [settingsVersion, setSettingsVersion] = useState(0);
 
-  const updateSettings = async (category: string, settings: any) => {
+  const updateSettings = useCallback(async (category: string, settings: any) => {
     try {
       const response = await api.updateSettings(category, settings);
       // Trigger re-render of components listening to settings
@@ -586,7 +595,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Failed to update settings:', error);
       throw error;
     }
-  };
+  }, []);
 
   const getMfaStatus = async () => api.getMfaStatus();
   const mfaSetup = async () => api.mfaSetup();

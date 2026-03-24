@@ -4,6 +4,24 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-14 – Delad CSRF-klient, API-klientförbättringar, category-cache-job
+
+### Delad CSRF-hantering i klienten
+
+- **client/src/core/api/csrf.ts:** Ny central CSRF-helper med delad token/promise och reset-funktion.
+- **API-klienter uppdaterade:** Channels, Products, WooCommerce, CDON och Fyndiq använder nu delad CSRF-hämtning i stället för lokala varianter.
+
+### API-förbättringar och produkter
+
+- **client/src/core/api/AppContext.tsx:** Små justeringar i API-anrop/flöden.
+- **client/src/plugins/products/components/ProductForm.tsx, useProductChannelLinks.ts:** Förbättringar kring produktkanallänkar och formulärintegration.
+
+### Server/script
+
+- **scripts/category-cache-job.js:** Uppdaterat jobbflöde för kategori-cache.
+
+---
+
 ## 2026-03-14 – TypeScript-fixar (npm run check)
 
 ### RichTextEditor (TipTap)

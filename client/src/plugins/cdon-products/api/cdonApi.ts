@@ -1,24 +1,14 @@
 // client/src/plugins/cdon-products/api/cdonApi.ts
 
+import { getSharedCsrfToken } from '@/core/api/csrf';
+
 import type { CdonExportResult, CdonSettings, CdonTestResult } from '../types/cdon';
 
 export type ApiFieldError = { field: string; message: string };
 
 class CdonApi {
-  private csrfToken: string | null = null;
-
   private async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) {
-      return this.csrfToken;
-    }
-    const response = await fetch('/api/csrf-token', { credentials: 'include' });
-    const data = await response.json();
-    const token = data?.csrfToken;
-    if (typeof token !== 'string' || !token) {
-      throw new Error('CSRF token missing from response');
-    }
-    this.csrfToken = token;
-    return token;
+    return getSharedCsrfToken();
   }
 
   private async request(path: string, options: RequestInit = {}) {
@@ -109,8 +99,12 @@ class CdonApi {
     if (opts?.markets?.length) {
       body.markets = opts.markets;
     }
-    if (opts?.diagnose) body.diagnose = true;
-    if (opts?.mode) body.mode = opts.mode;
+    if (opts?.diagnose) {
+      body.diagnose = true;
+    }
+    if (opts?.mode) {
+      body.mode = opts.mode;
+    }
     return this.request('/products/export', { method: 'POST', body: JSON.stringify(body) });
   }
 

@@ -2,31 +2,26 @@
 import { ChevronDown, ChevronRight, Plus, Star, Trash2, Upload } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { getFxLatest } from '@/core/api/fxApi';
-import { decodeHtmlEntities } from '@/core/utils/decodeHtmlEntities';
 import { RichTextEditor } from '@/core/ui/RichTextEditor';
 import { Heading } from '@/core/ui/Typography';
+import { decodeHtmlEntities } from '@/core/utils/decodeHtmlEntities';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
 import { channelsApi } from '@/plugins/channels/api/channelsApi';
 import type { ChannelInstance } from '@/plugins/channels/types/channels';
 import { filesApi } from '@/plugins/files/api/filesApi';
 
-import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
 import { productsApi } from '../api/productsApi';
 import { useProducts } from '../hooks/useProducts';
 import type { ProductSaveChangeSet, ProductSyncChannel } from '../types/products';
@@ -828,7 +823,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     'notes',
     'brandId',
   ];
-  const PRODUCT_STRICT_KEYS: Array<keyof FormData> = ['quantity', 'priceAmount', 'currency', 'vatRate'];
+  const PRODUCT_STRICT_KEYS: Array<keyof FormData> = [
+    'quantity',
+    'priceAmount',
+    'currency',
+    'vatRate',
+  ];
   const PRODUCT_FULL_ALL_KEYS: Array<keyof FormData> = [
     'sku',
     'mpn',
@@ -888,17 +888,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     }, {});
 
   const buildMarketArticleSnapshot = (source: FormData) =>
-    MARKETS.reduce<Record<string, { shippingMin: number; shippingMax: number; deliveryType: string }>>(
-      (acc, market) => {
-        acc[market.key] = {
-          shippingMin: Number(source.markets[market.key].shippingMin ?? 0),
-          shippingMax: Number(source.markets[market.key].shippingMax ?? 0),
-          deliveryType: String(source.markets[market.key].deliveryType ?? ''),
-        };
-        return acc;
-      },
-      {},
-    );
+    MARKETS.reduce<
+      Record<string, { shippingMin: number; shippingMax: number; deliveryType: string }>
+    >((acc, market) => {
+      acc[market.key] = {
+        shippingMin: Number(source.markets[market.key].shippingMin ?? 0),
+        shippingMax: Number(source.markets[market.key].shippingMax ?? 0),
+        deliveryType: String(source.markets[market.key].deliveryType ?? ''),
+      };
+      return acc;
+    }, {});
 
   const toComparableOverrideValue = (value: string | number | null | undefined): string | null => {
     if (value == null) {
@@ -912,11 +911,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     return Number.isFinite(numeric) && numeric >= 0 ? String(numeric) : null;
   };
 
-  const initialFormStateRef = useRef<FormData>(JSON.parse(JSON.stringify(initialState)) as FormData);
-  const initialSelectedTargetKeysRef = useRef<Set<string>>(new Set());
-  const initialChannelPriceOverridesRef = useRef<Record<string, { priceAmount: string; salePrice: string }>>(
-    {},
+  const initialFormStateRef = useRef<FormData>(
+    JSON.parse(JSON.stringify(initialState)) as FormData,
   );
+  const initialSelectedTargetKeysRef = useRef<Set<string>>(new Set());
+  const initialChannelPriceOverridesRef = useRef<
+    Record<string, { priceAmount: string; salePrice: string }>
+  >({});
 
   const [formData, setFormData] = useState<FormData>(initialState);
   const [activeTab, setActiveTab] = useState<
@@ -1004,10 +1005,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     const productKey = currentProduct?.id ?? 'new';
     const cached = getChannelDataCache(productKey);
     if (cached) {
+      const cachedAllInstances = cached.instances as ChannelInstance[];
+      const cachedEnabledInstances = cachedAllInstances.filter((i) => i.enabled !== false);
       setChannelOverrides(cached.overrides);
       setChannelOverridesLoaded(true);
       const priceInit: Record<string, { priceAmount: string; salePrice: string }> = {};
-      for (const inst of cached.instances) {
+      for (const inst of cachedEnabledInstances) {
         const ov = (cached.overrides as any[]).find(
           (o: any) => String(o.instanceId) === String(inst.id),
         );
@@ -1025,7 +1028,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       >;
       setChannelPriceOverrides(priceInit);
       const cachedEnabledKeySet = new Set(
-        cached.instances.map((i: any) =>
+        cachedEnabledInstances.map((i: any) =>
           targetKey(String(i.channel).toLowerCase(), String(i.id)),
         ),
       );
@@ -1039,24 +1042,23 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       initialSelectedTargetKeysRef.current = new Set(filteredTargetKeys);
       setCurrentTargetKeys(cachedKeys);
       setSelectedTargetKeys(new Set(filteredTargetKeys));
-      setChannelInstances(cached.instances);
-      setChannelInstancesAll(cached.instances);
+      setChannelInstances(cachedEnabledInstances);
+      setChannelInstancesAll(cachedAllInstances);
 
       // Stale-while-revalidate: fetch fresh instances in background so labels stay up-to-date (e.g. after editing in Channels)
       let revalidateCancelled = false;
-      Promise.all([
-        channelsApi.getInstances(),
-        channelsApi.getInstances({ includeDisabled: true }),
-      ]).then(([resp, respAll]) => {
-        if (revalidateCancelled) {
-          return;
-        }
-        const insts = resp?.items ?? [];
-        const instsAll = respAll?.items ?? [];
-        setChannelInstances(insts);
-        setChannelInstancesAll(instsAll);
-        setChannelDataCache(productKey, { ...cached, instances: insts });
-      })
+      channelsApi
+        .getInstances({ includeDisabled: true })
+        .then((respAll) => {
+          if (revalidateCancelled) {
+            return;
+          }
+          const instsAll = respAll?.items ?? [];
+          const insts = instsAll.filter((i) => i.enabled !== false);
+          setChannelInstances(insts);
+          setChannelInstancesAll(instsAll);
+          setChannelDataCache(productKey, { ...cached, instances: instsAll });
+        })
         .catch(() => {
           // Keep cached data on error
         });
@@ -1070,15 +1072,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     setChannelOverridesLoaded(false);
     (async () => {
       try {
-        const [instResp, instAllResp] = await Promise.all([
-          channelsApi.getInstances(),
-          channelsApi.getInstances({ includeDisabled: true }),
-        ]);
+        const instAllResp = await channelsApi.getInstances({ includeDisabled: true });
         if (cancelled) {
           return;
         }
-        const insts = instResp?.items ?? [];
         const instsAll = instAllResp?.items ?? [];
+        const insts = instsAll.filter((i) => i.enabled !== false);
         setChannelInstances(insts);
         setChannelInstancesAll(instsAll);
 
@@ -1088,7 +1087,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           initialSelectedTargetKeysRef.current = new Set();
           initialChannelPriceOverridesRef.current = {};
           setCurrentTargetKeys(new Set());
-          setChannelDataCache('new', { instances: insts, overrides: [], targetKeys: [] });
+          setChannelDataCache('new', { instances: instsAll, overrides: [], targetKeys: [] });
           setChannelTargetsLoading(false);
           return;
         }
@@ -1122,7 +1121,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         setCurrentTargetKeys(keys);
         setSelectedTargetKeys(keys);
         setChannelDataCache(String(currentProduct.id), {
-          instances: insts,
+          instances: instsAll,
           overrides: ovs,
           targetKeys: keyList,
         });
@@ -1152,7 +1151,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     // Intentionally omit getChannelDataCache/setChannelDataCache: when they change (e.g. new ref on context re-render),
     // we must not re-run and overwrite selectedTargetKeys with stale cached targetKeys, or the user's Kanaler
     // checkbox changes (e.g. Fyndiq DK) are lost before Save.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when product or batch mode changes
   }, [currentProduct?.id, isBatchMode]);
 
   // Run validation for footer (price warning etc.) when form state changes.
@@ -1173,21 +1171,24 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         channelInstanceId: instId && Number.isFinite(Number(instId)) ? Number(instId) : null,
       };
     });
-    const instsForMarketLookup = channelInstancesAll.length > 0 ? channelInstancesAll : channelInstances;
+    const instsForMarketLookup =
+      channelInstancesAll.length > 0 ? channelInstancesAll : channelInstances;
     const channelTargetsWithMarket = Array.from(selectedTargetKeys)
       .map((k) => {
         const colonIdx = k.indexOf(':');
         const ch = colonIdx >= 0 ? k.slice(0, colonIdx) : k;
         const instIdStr = colonIdx >= 0 ? k.slice(colonIdx + 1) : '';
         const inst = instsForMarketLookup.find(
-          (i) =>
-            String(i.channel).toLowerCase() === ch.toLowerCase() &&
-            String(i.id) === instIdStr,
+          (i) => String(i.channel).toLowerCase() === ch.toLowerCase() && String(i.id) === instIdStr,
         );
         const marketRaw = inst?.market?.trim();
-        if (!marketRaw) return null;
+        if (!marketRaw) {
+          return null;
+        }
         const market = marketRaw.toLowerCase().slice(0, 2);
-        if (!['se', 'dk', 'fi', 'no'].includes(market)) return null;
+        if (!['se', 'dk', 'fi', 'no'].includes(market)) {
+          return null;
+        }
         return {
           channel: ch,
           channelInstanceId:
@@ -1266,17 +1267,25 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       let nextCdon = prev.channelCategories?.cdon ?? '';
       let nextFyndiq = prev.channelCategories?.fyndiq ?? '';
       for (const ov of channelOverrides) {
-        if (!ov.instanceId) continue;
+        if (!ov.instanceId) {
+          continue;
+        }
         const inst = channelInstances.find((i) => i.id === ov.instanceId);
-        if (!inst) continue;
+        if (!inst) {
+          continue;
+        }
         const ch = String(inst.channel).toLowerCase();
         if (ch === 'woocommerce') {
           const key = inst.instanceKey;
           nextWoo[key] = ov.category != null ? parseWooCategory(ov.category) : [];
         } else if (ch === 'cdon' && ov.category != null && String(ov.category).trim()) {
-          if (!nextCdon) nextCdon = String(ov.category).trim();
+          if (!nextCdon) {
+            nextCdon = String(ov.category).trim();
+          }
         } else if (ch === 'fyndiq' && ov.category != null && String(ov.category).trim()) {
-          if (!nextFyndiq) nextFyndiq = String(ov.category).trim();
+          if (!nextFyndiq) {
+            nextFyndiq = String(ov.category).trim();
+          }
         }
       }
       const nextFormData: FormData = {
@@ -1417,12 +1426,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             ? Number(currentProduct.priceAmount)
             : markets[m.key].price;
           markets[m.key].currency = currentProduct.currency ?? markets[m.key].currency;
-          markets[m.key].shippingMin = Number.isFinite(shippingTime?.min)
+          ((markets[m.key].shippingMin = Number.isFinite(shippingTime?.min)
             ? Number(shippingTime!.min)
-              : (defShip?.shippingMin ?? 1),
-          markets[m.key].shippingMax = Number.isFinite(shippingTime?.max)
-            ? Number(shippingTime!.max)
-            : (defShip?.shippingMax ?? 3);
+            : (defShip?.shippingMin ?? 1)),
+            (markets[m.key].shippingMax = Number.isFinite(shippingTime?.max)
+              ? Number(shippingTime!.max)
+              : (defShip?.shippingMax ?? 3)));
           markets[m.key].deliveryType = deliveryType;
         }
         const tData = (cs.cdon as any)?.texts?.[m.key] ?? (cs.fyndiq as any)?.texts?.[m.key];
@@ -1435,7 +1444,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             : '';
         const titleFromExtended = decodeHtmlEntities((extended as any)?.name ?? '');
         const descFromExtended = decodeHtmlEntities((extended as any)?.description ?? '');
-        const isStandardMarket = m.key === (((cs as any)?.textsStandard as MarketKey | undefined) ?? 'se');
+        const isStandardMarket =
+          m.key === (((cs as any)?.textsStandard as MarketKey | undefined) ?? 'se');
         texts[m.key] =
           titleFromExtended || descFromExtended || isStandardMarket
             ? {
@@ -1471,7 +1481,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         return '';
       };
       const pickFyndiqCategoryFromChannelSpecific = (): string => {
-        const arr = Array.isArray((cs.fyndiq as any)?.categories) ? (cs.fyndiq as any).categories : [];
+        const arr = Array.isArray((cs.fyndiq as any)?.categories)
+          ? (cs.fyndiq as any).categories
+          : [];
         const first = arr.find(
           (x: any) => x != null && String(x).trim() !== '' && String(x).trim() !== '0',
         );
@@ -1852,7 +1864,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       priceSource: Record<string, { priceAmount: string; salePrice: string }>,
     ) =>
       instances
-        .filter((inst) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(inst.channel).toLowerCase()))
+        .filter((inst) =>
+          ['cdon', 'fyndiq', 'woocommerce'].includes(String(inst.channel).toLowerCase()),
+        )
         .map((inst) => {
           const channel = String(inst.channel).toLowerCase() as ProductSyncChannel;
           const key = targetKey(channel, String(inst.id));
@@ -1992,12 +2006,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             strictChannels.add(channel);
             strictCompanionChannels.add(channel);
           }
-          if (fullAllChanged) fullChannels.add(channel);
+          if (fullAllChanged) {
+            fullChannels.add(channel);
+          }
         }
       }
       if (cdonFyndiqArticleChanged) {
-        if (selectedChannels.has('cdon')) fullChannels.add('cdon');
-        if (selectedChannels.has('fyndiq')) fullChannels.add('fyndiq');
+        if (selectedChannels.has('cdon')) {
+          fullChannels.add('cdon');
+        }
+        if (selectedChannels.has('fyndiq')) {
+          fullChannels.add('fyndiq');
+        }
       }
       if (wooArticleChanged && selectedChannels.has('woocommerce')) {
         fullChannels.add('woocommerce');
@@ -2042,7 +2062,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       );
 
       const productChanged =
-        internalOnlyChanged || strictBaseChanged || fullAllChanged || cdonFyndiqArticleChanged || wooArticleChanged;
+        internalOnlyChanged ||
+        strictBaseChanged ||
+        fullAllChanged ||
+        cdonFyndiqArticleChanged ||
+        wooArticleChanged;
       const hasChanges = productChanged || listChanged || targetsChanged || overridesChanged;
 
       return {
@@ -2066,7 +2090,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   const submittingGuardRef = useRef(false);
   const handleSubmit = useCallback(async () => {
-    if (submittingGuardRef.current) return;
+    if (submittingGuardRef.current) {
+      return;
+    }
     clearValidationErrors();
 
     if (isBatchMode) {
@@ -2279,9 +2305,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       (channelSpecific as any).lastFxObservedAt =
         lastFxObservedAt && typeof lastFxObservedAt === 'string' ? lastFxObservedAt : undefined;
       const payload = { ...formData, channelSpecific };
-      // Fetch fresh instances (incl. disabled) at save – need full list for lookups
-      const instResp = await channelsApi.getInstances({ includeDisabled: true });
-      const saveInstances = instResp?.items ?? [];
+      const saveInstances = channelInstancesAll;
       const enabledInstances = saveInstances.filter((i) => i.enabled !== false);
       const enabledKeys = new Set(
         enabledInstances.map((i) => targetKey(String(i.channel).toLowerCase(), String(i.id))),
@@ -2313,8 +2337,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           const instIdStr = colonIdx >= 0 ? k.slice(colonIdx + 1) : '';
           const inst = saveInstances.find(
             (i) =>
-              String(i.channel).toLowerCase() === ch.toLowerCase() &&
-              String(i.id) === instIdStr,
+              String(i.channel).toLowerCase() === ch.toLowerCase() && String(i.id) === instIdStr,
           );
           const marketRaw = inst?.market?.trim();
           if (!marketRaw) {
@@ -3330,7 +3353,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         return;
                       }
                       const round = (n: number, decimals: number) => {
-                        if (decimals === 0) return Math.round(n);
+                        if (decimals === 0) {
+                          return Math.round(n);
+                        }
                         const f = 10 ** decimals;
                         return Math.round(n * f) / f;
                       };
@@ -4513,7 +4538,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         )}
       </form>
 
-      <Dialog open={cdonDiagnoseResult != null} onOpenChange={(o) => !o && setCdonDiagnoseResult(null)}>
+      <Dialog
+        open={cdonDiagnoseResult != null}
+        onOpenChange={(o) => !o && setCdonDiagnoseResult(null)}
+      >
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>CDON-diagnostik</DialogTitle>

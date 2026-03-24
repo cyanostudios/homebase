@@ -1,6 +1,8 @@
 // client/src/plugins/channels/api/channelsApi.ts
 // Channels API client: lists channel summaries and toggles per-product enable/disable.
 
+import { getSharedCsrfToken } from '@/core/api/csrf';
+
 import type {
   ChannelErrorLogItem,
   ChannelSummary,
@@ -12,20 +14,67 @@ import type {
 export type ApiFieldError = { field: string; message: string };
 export type { ChannelMapRow };
 
+const INSTANCES_CACHE_TTL_MS = 5_000;
+const PRODUCT_LINKS_CACHE_TTL_MS = 5_000;
+
 class ChannelsApi {
-  private csrfToken: string | null = null;
+  private instancesCache = new Map<
+    string,
+    {
+      fetchedAt: number;
+      value: { ok: true; items: ChannelInstance[] };
+    }
+  >();
+  private instancesPromises = new Map<string, Promise<{ ok: true; items: ChannelInstance[] }>>();
+  private productLinksCache = new Map<
+    string,
+    {
+      fetchedAt: number;
+      value: {
+        ok: true;
+        links: Array<{
+          channel: string;
+          channelInstanceId: string | null;
+          market: string | null;
+          label: string | null;
+          instanceKey: string | null;
+          externalId: string;
+        }>;
+      };
+    }
+  >();
+  private productLinksPromises = new Map<
+    string,
+    Promise<{
+      ok: true;
+      links: Array<{
+        channel: string;
+        channelInstanceId: string | null;
+        market: string | null;
+        label: string | null;
+        instanceKey: string | null;
+        externalId: string;
+      }>;
+    }>
+  >();
 
   private async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) {
-      return this.csrfToken;
-    }
+    return getSharedCsrfToken();
+  }
 
-    const response = await fetch('/api/csrf-token', {
-      credentials: 'include',
-    });
-    const data = await response.json();
-    this.csrfToken = String(data?.csrfToken || '');
-    return this.csrfToken;
+  private clearInstancesCache() {
+    this.instancesCache.clear();
+    this.instancesPromises.clear();
+  }
+
+  private clearProductLinksCache(productId?: string) {
+    if (productId) {
+      this.productLinksCache.delete(String(productId));
+      this.productLinksPromises.delete(String(productId));
+      return;
+    }
+    this.productLinksCache.clear();
+    this.productLinksPromises.clear();
   }
 
   private async request(path: string, options: RequestInit = {}) {
@@ -101,8 +150,29 @@ class ChannelsApi {
       externalId: string;
     }>;
   }> {
+    const cacheKey = String(productId);
+    const cached = this.productLinksCache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < PRODUCT_LINKS_CACHE_TTL_MS) {
+      return cached.value;
+    }
+    const pending = this.productLinksPromises.get(cacheKey);
+    if (pending) {
+      return pending;
+    }
     const q = new URLSearchParams({ productId });
-    return this.request(`/product-links?${q.toString()}`);
+    const promise = this.request(`/product-links?${q.toString()}`)
+      .then((value) => {
+        this.productLinksCache.set(cacheKey, {
+          fetchedAt: Date.now(),
+          value,
+        });
+        return value;
+      })
+      .finally(() => {
+        this.productLinksPromises.delete(cacheKey);
+      });
+    this.productLinksPromises.set(cacheKey, promise);
+    return promise;
   }
 
   // GET /api/channels/map?productId=...&channel=...
@@ -126,6 +196,7 @@ class ChannelsApi {
     row: ChannelMapRow;
     summary: ChannelSummary | null;
   }> {
+    this.clearProductLinksCache(body.productId);
     return this.request('/map', {
       method: 'PUT',
       body: JSON.stringify(body),
@@ -140,6 +211,7 @@ class ChannelsApi {
     if (!body.updates?.length) {
       return Promise.resolve({ ok: true, count: 0 });
     }
+    this.clearProductLinksCache(body.productId);
     return this.request('/map/bulk', {
       method: 'PUT',
       body: JSON.stringify(body),
@@ -171,7 +243,28 @@ class ChannelsApi {
       q.set('includeDisabled', 'true');
     }
     const suffix = q.toString() ? `?${q.toString()}` : '';
-    return this.request(`/instances${suffix}`);
+    const cacheKey = suffix || '__all__';
+    const cached = this.instancesCache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < INSTANCES_CACHE_TTL_MS) {
+      return cached.value;
+    }
+    const pending = this.instancesPromises.get(cacheKey);
+    if (pending) {
+      return pending;
+    }
+    const promise = this.request(`/instances${suffix}`)
+      .then((value) => {
+        this.instancesCache.set(cacheKey, {
+          fetchedAt: Date.now(),
+          value,
+        });
+        return value;
+      })
+      .finally(() => {
+        this.instancesPromises.delete(cacheKey);
+      });
+    this.instancesPromises.set(cacheKey, promise);
+    return promise;
   }
 
   async createInstance(body: {
@@ -181,6 +274,7 @@ class ChannelsApi {
     label?: string | null;
     credentials?: any | null;
   }): Promise<{ ok: true; row: ChannelInstance }> {
+    this.clearInstancesCache();
     return this.request('/instances', {
       method: 'POST',
       body: JSON.stringify(body),
@@ -196,6 +290,7 @@ class ChannelsApi {
       enabled?: boolean;
     },
   ): Promise<{ ok: true; row: ChannelInstance }> {
+    this.clearInstancesCache();
     return this.request(`/instances/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify(body),
@@ -223,6 +318,7 @@ class ChannelsApi {
     vatRate?: number | string | null;
     category?: string | null;
   }): Promise<{ ok: true; id?: string | null }> {
+    this.clearProductLinksCache(body.productId);
     return this.request('/overrides', {
       method: 'PUT',
       body: JSON.stringify(body),
@@ -276,6 +372,7 @@ class ChannelsApi {
     if (items.length === 0) {
       return Promise.resolve({ ok: true, count: 0 });
     }
+    this.clearProductLinksCache(body.productId);
     return this.request('/overrides/bulk', {
       method: 'PUT',
       body: JSON.stringify({ productId: body.productId, items }),

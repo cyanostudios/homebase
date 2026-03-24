@@ -1,24 +1,14 @@
 // client/src/plugins/fyndiq-products/api/fyndiqApi.ts
 
+import { getSharedCsrfToken } from '@/core/api/csrf';
+
 import type { FyndiqExportResult, FyndiqSettings, FyndiqTestResult } from '../types/fyndiq';
 
 export type ApiFieldError = { field: string; message: string };
 
 class FyndiqApi {
-  private csrfToken: string | null = null;
-
   private async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) {
-      return this.csrfToken;
-    }
-    const response = await fetch('/api/csrf-token', { credentials: 'include' });
-    const data = await response.json();
-    const token = data?.csrfToken;
-    if (typeof token !== 'string' || !token) {
-      throw new Error('CSRF token missing from response');
-    }
-    this.csrfToken = token;
-    return token;
+    return getSharedCsrfToken();
   }
 
   private async request(path: string, options: RequestInit = {}) {
@@ -112,8 +102,12 @@ class FyndiqApi {
     if (opts?.markets?.length) {
       body.markets = opts.markets;
     }
-    if (opts?.diagnose) body.diagnose = true;
-    if (opts?.mode) body.mode = opts.mode;
+    if (opts?.diagnose) {
+      body.diagnose = true;
+    }
+    if (opts?.mode) {
+      body.mode = opts.mode;
+    }
     if (opts?.includePriceAndQuantity === false) {
       body.includePriceAndQuantity = false;
     }
@@ -159,10 +153,10 @@ class FyndiqApi {
     for_sale?: boolean;
   }): Promise<unknown[]> {
     const q = new URLSearchParams();
-    if (params?.limit != null) {
+    if (params?.limit !== undefined && params?.limit !== null) {
       q.set('limit', String(params.limit));
     }
-    if (params?.page != null) {
+    if (params?.page !== undefined && params?.page !== null) {
       q.set('page', String(params.page));
     }
     if (params?.for_sale !== undefined) {
