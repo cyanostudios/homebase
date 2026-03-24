@@ -9,6 +9,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
 import { useActionRegistry } from '@/core/api/ActionContext';
@@ -47,6 +48,7 @@ interface TaskContextType {
     priority?: string;
     dueDate?: Date | null;
     assignedTo?: string | null;
+    assignedToIds?: string[];
     mentions?: any[];
   }) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
@@ -80,11 +82,11 @@ interface TaskContextType {
     status: string;
     priority: string;
     dueDate: Date | null;
-    assignedTo: string | null;
+    assignedToIds: string[];
   }> | null;
   setQuickEditField: (
-    field: 'status' | 'priority' | 'dueDate' | 'assignedTo',
-    value: string | Date | null,
+    field: 'status' | 'priority' | 'dueDate' | 'assignedToIds',
+    value: string | Date | null | string[],
   ) => void;
   hasQuickEditChanges: boolean;
   onApplyQuickEdit: () => Promise<void>;
@@ -112,6 +114,7 @@ interface TaskProviderProps {
 
 export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: TaskProviderProps) {
   const { t } = useTranslation();
+  const location = useLocation();
   const {
     registerPanelCloseFunction,
     unregisterPanelCloseFunction,
@@ -134,7 +137,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     status: string;
     priority: string;
     dueDate: Date | null;
-    assignedTo: string | null;
+    assignedToIds: string[];
   }> | null>(null);
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
   const pendingCloseRef = useRef<(() => void) | null>(null);
@@ -208,23 +211,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setTasks([]);
     }
   }, [isAuthenticated, loadTasks]);
-
-  // Initial deep-link: open the task matching the URL on first data load
-  const didOpenFromUrlRef = useRef(false);
-  useEffect(() => {
-    if (didOpenFromUrlRef.current || tasks.length === 0) {
-      return;
-    }
-    const parts = window.location.pathname.split('/');
-    if (parts[1] !== 'tasks' || !parts[2]) {
-      return;
-    }
-    const item = resolveSlug(parts[2], tasks, 'title');
-    if (item) {
-      didOpenFromUrlRef.current = true;
-      openTaskForViewRef.current(item as Task);
-    }
-  }, [tasks]);
 
   const validateTask = useCallback((taskData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
@@ -326,6 +312,31 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   useEffect(() => {
     openTaskForViewRef.current = openTaskForView;
   }, [openTaskForView]);
+
+  const tasksDeepLinkPathSyncedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (tasks.length === 0) {
+      return;
+    }
+    const segments = location.pathname.split('/').filter(Boolean);
+    if (segments[0] !== 'tasks') {
+      return;
+    }
+    const slug = segments[1] ?? '';
+    if (!slug) {
+      tasksDeepLinkPathSyncedRef.current = location.pathname;
+      return;
+    }
+    const pathKey = location.pathname;
+    if (tasksDeepLinkPathSyncedRef.current === pathKey) {
+      return;
+    }
+    const item = resolveSlug(slug, tasks, 'title');
+    tasksDeepLinkPathSyncedRef.current = pathKey;
+    if (item) {
+      openTaskForViewRef.current(item as Task);
+    }
+  }, [location.pathname, tasks]);
 
   const openTaskForViewBridge = useCallback((task: Task) => {
     openTaskForViewRef.current(task);
@@ -465,7 +476,10 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   );
 
   const setQuickEditField = useCallback(
-    (field: 'status' | 'priority' | 'dueDate' | 'assignedTo', value: string | Date | null) => {
+    (
+      field: 'status' | 'priority' | 'dueDate' | 'assignedToIds',
+      value: string | Date | null | string[],
+    ) => {
       setQuickEditDraft((prev) => ({
         ...prev,
         [field]: value,
@@ -484,10 +498,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           priority: (quickEditDraft.priority ?? currentTask.priority) as string,
           dueDate:
             quickEditDraft.dueDate !== undefined ? quickEditDraft.dueDate : currentTask.dueDate,
-          assignedTo:
-            quickEditDraft.assignedTo !== undefined
-              ? quickEditDraft.assignedTo
-              : currentTask.assignedTo,
+          assignedToIds:
+            quickEditDraft.assignedToIds !== undefined
+              ? quickEditDraft.assignedToIds
+              : (currentTask.assignedToIds ??
+                (currentTask.assignedTo ? [String(currentTask.assignedTo)] : [])),
         };
         const sameStatus = merged.status === currentTask.status;
         const samePriority = merged.priority === currentTask.priority;
@@ -499,8 +514,10 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
             currentTask.dueDate !== null &&
             currentTask.dueDate !== undefined &&
             new Date(merged.dueDate).getTime() === new Date(currentTask.dueDate).getTime());
+        const currentAssignedToIds = currentTask.assignedToIds ?? [];
         const sameAssignee =
-          String(merged.assignedTo ?? '') === String(currentTask.assignedTo ?? '');
+          JSON.stringify((merged.assignedToIds ?? []).map(String).sort()) ===
+          JSON.stringify(currentAssignedToIds.map(String).sort());
         return !sameStatus || !samePriority || !sameDue || !sameAssignee;
       })(),
   );
@@ -516,10 +533,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       status: quickEditDraft.status ?? currentTask.status,
       priority: quickEditDraft.priority ?? currentTask.priority,
       dueDate: quickEditDraft.dueDate !== undefined ? quickEditDraft.dueDate : currentTask.dueDate,
-      assignedTo:
-        quickEditDraft.assignedTo !== undefined
-          ? quickEditDraft.assignedTo
-          : currentTask.assignedTo,
+      assignedToIds:
+        quickEditDraft.assignedToIds !== undefined
+          ? quickEditDraft.assignedToIds
+          : (currentTask.assignedToIds ??
+            (currentTask.assignedTo ? [String(currentTask.assignedTo)] : [])),
     };
     const success = await saveTask(merged, currentTask.id);
     if (success) {
@@ -565,6 +583,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
             priority: 'Medium',
             dueDate: null,
             assignedTo: null,
+            assignedToIds: [],
             createdFromNote: note.id,
           };
 
@@ -628,16 +647,20 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     [currentTask, closeTaskPanel, clearTaskSelectionCore],
   );
 
-  const getDuplicateConfig = useCallback((item: Task | null) => {
-    if (!item) {
-      return null;
-    }
-    return {
-      defaultName: `Copy of ${item.title || 'Item'}`,
-      nameLabel: 'Title',
-      confirmOnly: false,
-    };
-  }, []);
+  const getDuplicateConfig = useCallback(
+    (item: Task | null) => {
+      if (!item) {
+        return null;
+      }
+      const baseTitle = item.title?.trim() || 'Item';
+      return {
+        defaultName: `Copy of ${baseTitle}`,
+        nameLabel: t('tasks.title'),
+        confirmOnly: false,
+      };
+    },
+    [t],
+  );
 
   const createTask = useCallback(
     async (taskData: {
@@ -647,6 +670,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       priority?: string;
       dueDate?: Date | null;
       assignedTo?: string | null;
+      assignedToIds?: string[];
       mentions?: any[];
     }): Promise<Task> => {
       const newTask = await tasksApi.createTask(taskData);
@@ -667,13 +691,15 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       item: Task,
       newName: string,
     ): Promise<{ closePanel: () => void; highlightId?: string }> => {
+      const nextName = (newName ?? '').trim();
       const payload = {
-        title: (newName ?? item.title ?? '').trim() || 'Untitled',
+        title: nextName || item.title?.trim() || 'Untitled',
         content: item.content ?? '',
         status: item.status ?? 'not started',
         priority: item.priority ?? 'Medium',
         dueDate: item.dueDate ?? null,
         assignedTo: item.assignedTo ?? null,
+        assignedToIds: item.assignedToIds ?? (item.assignedTo ? [String(item.assignedTo)] : []),
         mentions: item.mentions ?? [],
       };
       const newTask = await createTask(payload);
@@ -753,13 +779,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         };
         const dueDateInfo = formatDueDateForHeader(item.dueDate);
 
-        const assignedContact = item.assignedTo
-          ? contacts.find((c: any) => {
-              const contactId = String(c.id);
-              const assignedId = String(item.assignedTo);
-              return contactId === assignedId;
-            })
-          : null;
+        const assignedToIds =
+          item.assignedToIds ?? (item.assignedTo ? [String(item.assignedTo)] : []);
+        const assignedContacts = assignedToIds
+          .map((id) => contacts.find((c: any) => String(c.id) === String(id)))
+          .filter(Boolean) as any[];
 
         return (
           <div className="flex items-center gap-3 flex-wrap">
@@ -779,11 +803,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
                 </Badge>
               ))}
 
-              {assignedContact && (
+              {assignedContacts.length > 0 && (
                 <div className="flex items-center gap-1 shrink-0">
                   <User className="w-3 h-3 text-blue-500 dark:text-blue-400" />
                   <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium whitespace-nowrap">
-                    {assignedContact.companyName}
+                    {assignedContacts.map((c) => c.companyName).join(', ')}
                   </span>
                 </div>
               )}

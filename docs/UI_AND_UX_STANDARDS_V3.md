@@ -150,6 +150,26 @@ When a plugin has a settings screen that opens in the detail panel (e.g. Files c
 - **Labels:** `text-xs text-muted-foreground`
 - **Micro-copy:** `text-[10px] text-muted-foreground` (Footers, IDs)
 
+### 4.1 Properties cards (Detail + Edit)
+
+When a plugin uses the "properties card" pattern (slots-style), use these tokens consistently:
+
+- **Section header row:** icon container `h-7 w-7`, title `text-sm font-semibold`.
+- **Property row shell:** `rounded-lg border border-border p-4`.
+- **Property label:** `text-sm font-medium`.
+- **Property control:** `h-9` with `text-xs` content.
+- **Helper/meta text inside row:** `text-[11px] text-muted-foreground`.
+
+Do not mix compact legacy values (`text-[10px]`, `h-7`, narrow triggers) in the same properties area when reference uses the standard above.
+
+### 4.2 Date and time picker visual parity
+
+If a form has both date and time fields in the same semantic group:
+
+- Date and time triggers must share the same visual shell (height, border, bg, icon alignment, hover/disabled states).
+- Prefer popover-based interaction for both if one of them already uses popover.
+- Include clear/reset affordance where reference includes it.
+
 ## 5. Semantic Plugin Colors
 
 To ensure a consistent visual identity, each plugin has a dedicated color theme defined in `index.css`.

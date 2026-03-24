@@ -28,6 +28,7 @@ function createTaskRoutes(controller, context) {
     commonRules.enum('status', ['not started', 'in progress', 'completed', 'cancelled']).optional(),
     commonRules.enum('priority', ['Low', 'Medium', 'High']).optional(),
     commonRules.date('due_date').optional(),
+    commonRules.array('assigned_to_ids', 50),
     validateRequest,
     (req, res) => {
       controller.create(req, res);
@@ -46,6 +47,7 @@ function createTaskRoutes(controller, context) {
     commonRules.enum('status', ['not started', 'in progress', 'completed', 'cancelled']).optional(),
     commonRules.enum('priority', ['Low', 'Medium', 'High']).optional(),
     commonRules.date('due_date').optional(),
+    commonRules.array('assigned_to_ids', 50),
     validateRequest,
     (req, res) => {
       controller.update(req, res);

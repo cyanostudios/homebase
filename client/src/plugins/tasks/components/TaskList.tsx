@@ -132,6 +132,20 @@ export const TaskList: React.FC = () => {
     return tmp.textContent ?? tmp.innerText ?? '';
   };
 
+  const getAssignedContacts = useCallback(
+    (task: Task) => {
+      const ids = Array.isArray(task.assignedToIds)
+        ? task.assignedToIds
+        : task.assignedTo
+          ? [String(task.assignedTo)]
+          : [];
+      return ids
+        .map((id) => contacts.find((c: any) => String(c.id) === String(id)))
+        .filter(Boolean) as any[];
+    },
+    [contacts],
+  );
+
   const sortedTasks = useMemo(() => {
     const q = searchTerm.toLowerCase();
     const filtered = tasks.filter((task) => {
@@ -141,14 +155,16 @@ export const TaskList: React.FC = () => {
         task.status.toLowerCase().includes(q) ||
         task.priority.toLowerCase().includes(q);
 
-      // Search in assigned contact
-      if (task.assignedTo && contacts.length > 0) {
-        const assignedContact = contacts.find((c: any) => {
-          const contactId = String(c.id);
-          const assignedId = String(task.assignedTo);
-          return contactId === assignedId;
-        });
-        if (assignedContact && assignedContact.companyName.toLowerCase().includes(q)) {
+      // Search in assigned contacts
+      if (contacts.length > 0) {
+        const assignedContacts = getAssignedContacts(task);
+        if (
+          assignedContacts.some((c) =>
+            String(c.companyName || '')
+              .toLowerCase()
+              .includes(q),
+          )
+        ) {
           return true;
         }
       }
@@ -205,7 +221,7 @@ export const TaskList: React.FC = () => {
         }
       }
     });
-  }, [tasks, searchTerm, sortField, sortOrder, contacts]);
+  }, [tasks, searchTerm, sortField, sortOrder, contacts, getAssignedContacts]);
 
   // Visible task IDs for selection
   const visibleTaskIds = useMemo(() => sortedTasks.map((task) => String(task.id)), [sortedTasks]);
@@ -437,9 +453,7 @@ export const TaskList: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {sortedTasks.map((task) => {
               const taskIsSelected = isSelected(task.id);
-              const assignedContact = task.assignedTo
-                ? contacts.find((c: any) => String(c.id) === String(task.assignedTo))
-                : null;
+              const assignedContacts = getAssignedContacts(task);
               return (
                 <Card
                   key={task.id}
@@ -489,9 +503,9 @@ export const TaskList: React.FC = () => {
                           {formatDueDate(task.dueDate)?.text}
                         </div>
                       )}
-                      {assignedContact && (
+                      {assignedContacts.length > 0 && (
                         <div className="plugin-contacts text-plugin font-medium truncate">
-                          Assigned: {assignedContact.companyName}
+                          Assigned: {assignedContacts.map((c) => c.companyName).join(', ')}
                         </div>
                       )}
                       <div>Updated {new Date(task.updatedAt).toLocaleDateString()}</div>
@@ -507,9 +521,7 @@ export const TaskList: React.FC = () => {
             <div className="space-y-2 p-4">
               {sortedTasks.map((task) => {
                 const taskIsSelected = isSelected(task.id);
-                const assignedContact = task.assignedTo
-                  ? contacts.find((c: any) => String(c.id) === String(task.assignedTo))
-                  : null;
+                const assignedContacts = getAssignedContacts(task);
                 return (
                   <Card
                     key={task.id}
@@ -557,9 +569,9 @@ export const TaskList: React.FC = () => {
                               {formatDueDate(task.dueDate)?.text}
                             </div>
                           )}
-                          {assignedContact && (
+                          {assignedContacts.length > 0 && (
                             <div className="plugin-contacts text-plugin">
-                              Assigned: {assignedContact.companyName}
+                              Assigned: {assignedContacts.map((c) => c.companyName).join(', ')}
                             </div>
                           )}
                           <div className="text-muted-foreground">
@@ -717,24 +729,17 @@ export const TaskList: React.FC = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        {task.assignedTo ? (
-                          (() => {
-                            const assignedContact = contacts.find((c: any) => {
-                              const contactId = String(c.id);
-                              const assignedId = String(task.assignedTo);
-                              return contactId === assignedId;
-                            });
-                            return assignedContact ? (
-                              <div className="text-sm plugin-contacts text-plugin">
-                                {assignedContact.companyName}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground text-sm">—</span>
-                            );
-                          })()
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
+                        {(() => {
+                          const assignedContacts = getAssignedContacts(task);
+                          if (assignedContacts.length === 0) {
+                            return <span className="text-muted-foreground text-sm">—</span>;
+                          }
+                          return (
+                            <div className="text-sm plugin-contacts text-plugin">
+                              {assignedContacts.map((c) => c.companyName).join(', ')}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(task.updatedAt).toLocaleDateString()}

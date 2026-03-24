@@ -1,3 +1,4 @@
+import { Info, SlidersHorizontal } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -5,17 +6,22 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
-import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DetailLayout } from '@/core/ui/DetailLayout';
+import { DetailSection } from '@/core/ui/DetailSection';
 import { RichTextEditor } from '@/core/ui/RichTextEditor';
-import { Heading } from '@/core/ui/Typography';
+import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { cn } from '@/lib/utils';
 
 import { useTasks } from '../hooks/useTasks';
 import { TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS } from '../types/tasks';
 
+import { TaskAssigneeSelect } from './TaskAssigneeSelect';
 import { TaskSettingsForm } from './TaskSettingsForm';
+
+const TASK_FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
 
 type TaskStatus = (typeof TASK_STATUS_OPTIONS)[number];
 type TaskPriority = (typeof TASK_PRIORITY_OPTIONS)[number];
@@ -27,7 +33,7 @@ interface TaskFormState {
   status: TaskStatus;
   priority: TaskPriority;
   dueDate: Date | null;
-  assignedTo: string | null;
+  assignedToIds: string[];
 }
 
 interface TaskFormProps {
@@ -45,7 +51,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({
 }) => {
   const { t } = useTranslation();
   const { validationErrors, clearValidationErrors, panelMode } = useTasks();
-  const { contacts } = useApp();
   const {
     isDirty,
     showWarning,
@@ -66,7 +71,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     status: 'not started',
     priority: 'Medium',
     dueDate: null,
-    assignedTo: null,
+    assignedToIds: [],
   });
 
   // Use internal state or external prop (external takes precedence)
@@ -90,7 +95,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       status: 'not started',
       priority: 'Medium',
       dueDate: null,
-      assignedTo: null,
+      assignedToIds: [],
     });
     markClean();
   }, [markClean]);
@@ -105,7 +110,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         status: (currentTask.status as TaskStatus) || 'not started',
         priority: (currentTask.priority as TaskPriority) || 'Medium',
         dueDate: currentTask.dueDate || null,
-        assignedTo: currentTask.assignedTo || null,
+        assignedToIds: Array.isArray(currentTask.assignedToIds)
+          ? currentTask.assignedToIds.map((id: any) => String(id))
+          : currentTask.assignedTo
+            ? [String(currentTask.assignedTo)]
+            : [],
       });
       markClean();
     } else {
@@ -221,189 +230,179 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     return date.toISOString().split('T')[0];
   };
 
-  // Get assignable contacts
-  const assignableContacts = contacts.filter((contact: any) => contact.isAssignable !== false);
+  const formSidebar = currentTask ? (
+    <div className="space-y-4">
+      <Card padding="none" className={TASK_FORM_CARD_CLASS}>
+        <DetailSection
+          title={t('tasks.information')}
+          icon={Info}
+          iconPlugin="tasks"
+          className="p-4"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">ID</span>
+              <span className="font-mono font-medium">
+                {formatDisplayNumber('tasks', currentTask.id)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Created</span>
+              <span className="font-medium">
+                {currentTask.createdAt ? new Date(currentTask.createdAt).toLocaleDateString() : '—'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Updated</span>
+              <span className="font-medium">
+                {currentTask.updatedAt ? new Date(currentTask.updatedAt).toLocaleDateString() : '—'}
+              </span>
+            </div>
+          </div>
+        </DetailSection>
+      </Card>
+    </div>
+  ) : undefined;
 
   return (
-    <div className="space-y-4">
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSubmit();
-        }}
+    <>
+      <div
+        className={cn(
+          'plugin-tasks min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl',
+          'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
+        )}
       >
-        {/* Validation Summary */}
-        {hasBlockingErrors && (
-          <Card padding="sm" className="shadow-none px-0">
-            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg
-                    className="h-5 w-5 text-red-400 dark:text-red-500"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                      clipRule="evenodd"
+        <DetailLayout mainClassName="max-w-[920px]" sidebar={formSidebar}>
+          <form
+            className="space-y-6"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit();
+            }}
+          >
+            {hasBlockingErrors && (
+              <Card className="shadow-none border-destructive/50 bg-destructive/5 p-4">
+                <div className="text-sm text-destructive font-medium">{t('common.cannotSave')}</div>
+                <ul className="list-disc list-inside mt-2 text-sm text-destructive/90">
+                  {validationErrors
+                    .filter((error) => !error.message.includes('Warning'))
+                    .map((error) => (
+                      <li key={`${error.field}-${error.message}`}>{error.message}</li>
+                    ))}
+                </ul>
+              </Card>
+            )}
+
+            <Card padding="none" className={TASK_FORM_CARD_CLASS}>
+              <DetailSection title={t('tasks.taskContent')} iconPlugin="tasks" className="p-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="task-title" className="mb-1">
+                      Title
+                    </Label>
+                    <Input
+                      id="task-title"
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => updateField('title', e.target.value)}
+                      placeholder={t('tasks.titlePlaceholder')}
+                      className={getFieldError('title') ? 'border-red-500' : ''}
+                      required
                     />
-                  </svg>
+                    {getFieldError('title') && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {getFieldError('title')?.message}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="mb-1">Description</Label>
+                    <RichTextEditor
+                      value={formData.content}
+                      onChange={handleContentChange}
+                      placeholder={t('tasks.contentPlaceholder')}
+                      className={getFieldError('content') ? 'border-red-500' : ''}
+                    />
+                    {getFieldError('content') && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {getFieldError('content')?.message}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800 dark:text-red-400">
-                    Cannot save task
-                  </h3>
-                  <div className="mt-2 text-sm text-red-700 dark:text-red-300">
-                    <p>Please fix the following errors before saving:</p>
-                    <ul className="list-disc list-inside mt-1">
-                      {validationErrors
-                        .filter((error) => !error.message.includes('Warning'))
-                        .map((error, index) => (
-                          // eslint-disable-next-line react/no-array-index-key -- validation list order is stable
-                          <li key={`${error.field}-${index}`}>{error.message}</li>
-                        ))}
-                    </ul>
+              </DetailSection>
+            </Card>
+
+            <Card padding="none" className={TASK_FORM_CARD_CLASS}>
+              <div className="space-y-2 p-6">
+                <div className="mb-1 flex min-w-0 items-center gap-2">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="truncate text-sm font-semibold text-foreground">
+                    {t('tasks.taskProperties')}
+                  </span>
+                </div>
+
+                <div className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-sm font-medium">Status</div>
+                    <NativeSelect
+                      id="task-status"
+                      className="h-9 max-w-[180px] text-xs"
+                      value={formData.status}
+                      onChange={(e) => updateField('status', e.target.value as TaskStatus)}
+                    >
+                      {TASK_STATUS_OPTIONS.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-sm font-medium">Priority</div>
+                    <NativeSelect
+                      id="task-priority"
+                      className="h-9 max-w-[180px] text-xs"
+                      value={formData.priority}
+                      onChange={(e) => updateField('priority', e.target.value as TaskPriority)}
+                    >
+                      {TASK_PRIORITY_OPTIONS.map((priority) => (
+                        <option key={priority} value={priority}>
+                          {priority}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-sm font-medium">Due Date</div>
+                    <Input
+                      id="task-due-date"
+                      type="date"
+                      className="h-9 max-w-[180px] text-xs"
+                      value={formatDateForInput(formData.dueDate)}
+                      onChange={(e) => handleDateChange(e.target.value)}
+                    />
                   </div>
                 </div>
               </div>
-            </div>
-          </Card>
-        )}
+            </Card>
 
-        {/* Task Title */}
-        <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">
-            Task Title
-          </Heading>
-          <div>
-            <Label htmlFor="task-title" className="mb-1">
-              Title
-            </Label>
-            <Input
-              id="task-title"
-              type="text"
-              value={formData.title}
-              onChange={(e) => updateField('title', e.target.value)}
-              placeholder={t('tasks.titlePlaceholder')}
-              className={getFieldError('title') ? 'border-red-500' : ''}
-              required
+            <TaskAssigneeSelect
+              task={{ assignedToIds: formData.assignedToIds }}
+              onAssigneeChange={(ids) => updateField('assignedToIds', ids)}
             />
-            {getFieldError('title') && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {getFieldError('title')?.message}
-              </p>
-            )}
-          </div>
-        </Card>
+          </form>
+        </DetailLayout>
+      </div>
 
-        {/* Task Status and Priority */}
-        <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">
-            Task Details
-          </Heading>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Status */}
-            <div>
-              <Label htmlFor="task-status" className="mb-1">
-                Status
-              </Label>
-              <NativeSelect
-                id="task-status"
-                value={formData.status}
-                onChange={(e) => updateField('status', e.target.value as TaskStatus)}
-              >
-                {TASK_STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
-
-            {/* Priority */}
-            <div>
-              <Label htmlFor="task-priority" className="mb-1">
-                Priority
-              </Label>
-              <NativeSelect
-                id="task-priority"
-                value={formData.priority}
-                onChange={(e) => updateField('priority', e.target.value as TaskPriority)}
-              >
-                {TASK_PRIORITY_OPTIONS.map((priority) => (
-                  <option key={priority} value={priority}>
-                    {priority}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
-          </div>
-        </Card>
-
-        {/* Due Date and Assignment */}
-        <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">
-            Scheduling
-          </Heading>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Due Date */}
-            <div>
-              <Label htmlFor="task-due-date" className="mb-1">
-                Due Date
-              </Label>
-              <Input
-                id="task-due-date"
-                type="date"
-                value={formatDateForInput(formData.dueDate)}
-                onChange={(e) => handleDateChange(e.target.value)}
-              />
-            </div>
-
-            {/* Assigned To */}
-            <div>
-              <Label htmlFor="task-assigned-to" className="mb-1">
-                Assigned To
-              </Label>
-              <NativeSelect
-                id="task-assigned-to"
-                value={formData.assignedTo || ''}
-                onChange={(e) => updateField('assignedTo', e.target.value || null)}
-              >
-                <option value="">Not assigned</option>
-                {assignableContacts.map((contact) => (
-                  <option key={contact.id} value={contact.id}>
-                    {contact.companyName}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
-          </div>
-        </Card>
-
-        {/* Task Content with @mentions */}
-        <Card padding="sm" className="shadow-none px-0">
-          <Heading level={3} className="mb-3">
-            Task Description
-          </Heading>
-          <div>
-            <RichTextEditor
-              value={formData.content}
-              onChange={handleContentChange}
-              placeholder={t('tasks.contentPlaceholder')}
-              className={getFieldError('content') ? 'border-red-500' : ''}
-            />
-            {getFieldError('content') && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {getFieldError('content')?.message}
-              </p>
-            )}
-          </div>
-        </Card>
-      </form>
-
-      {/* Unsaved Changes Warning Dialog */}
       <ConfirmDialog
         isOpen={showWarning}
         title={t('dialog.unsavedChanges')}
@@ -414,6 +413,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         onCancel={cancelDiscard}
         variant="warning"
       />
-    </div>
+    </>
   );
 };

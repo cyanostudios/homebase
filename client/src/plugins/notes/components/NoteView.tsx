@@ -1,4 +1,4 @@
-import { Copy, Edit, ExternalLink, Info, Trash2, Users, Zap } from 'lucide-react';
+import { Copy, Download, Edit, ExternalLink, Info, Trash2, Users, Zap } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -8,8 +8,10 @@ import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { RichTextContent } from '@/core/ui/RichTextContent';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import type { ExportFormat } from '@/core/utils/exportUtils';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { useNotes } from '@/plugins/notes/hooks/useNotes';
@@ -138,6 +140,53 @@ interface NoteViewProps {
   note: any;
 }
 
+interface NoteExportOptionsCardProps {
+  note: Note;
+  exportFormats: ExportFormat[];
+  onExportItem: (format: ExportFormat, item: Note) => void;
+}
+
+function NoteExportOptionsCard({ note, exportFormats, onExportItem }: NoteExportOptionsCardProps) {
+  const { t } = useTranslation();
+  if (!Array.isArray(exportFormats) || exportFormats.length === 0) {
+    return null;
+  }
+
+  const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
+  const exportLabelByFormat: Record<ExportFormat, string> = {
+    txt: t('common.exportTxt'),
+    csv: t('common.exportCsv'),
+    pdf: t('common.exportPdf'),
+  };
+
+  return (
+    <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
+      <DetailSection
+        title={t('notes.exportOptions')}
+        icon={Download}
+        iconPlugin="notes"
+        className="p-4"
+      >
+        <div className="flex flex-col items-start gap-1.5">
+          {exportFormats.map((format) => (
+            <Button
+              key={format}
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={Download}
+              className={quickActionButtonClass}
+              onClick={() => onExportItem(format, note)}
+            >
+              {exportLabelByFormat[format]}
+            </Button>
+          ))}
+        </div>
+      </DetailSection>
+    </Card>
+  );
+}
+
 export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
   const { t } = useTranslation();
   const { openContactForView } = useContacts();
@@ -147,7 +196,10 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
     openNoteForEdit,
     getDuplicateConfig,
     executeDuplicate,
+    setRecentlyDuplicatedNoteId,
     detailFooterActions,
+    exportFormats,
+    onExportItem,
     getDeleteMessage,
   } = useNotes();
 
@@ -162,6 +214,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
 
   const [contactsData, setContactsData] = useState<any[]>([]);
   const [showDeleteNoteConfirm, setShowDeleteNoteConfirm] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
 
   useEffect(() => {
     const fetchContactsData = async () => {
@@ -242,9 +295,14 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
                 note={note}
                 onEdit={openNoteForEdit}
                 onDeleteClick={() => setShowDeleteNoteConfirm(true)}
-                onDuplicate={(n) => executeDuplicate(n, '')}
+                onDuplicate={() => setShowDuplicateDialog(true)}
                 getDuplicateConfig={getDuplicateConfig}
                 detailFooterActions={detailFooterActions}
+              />
+              <NoteExportOptionsCard
+                note={note}
+                exportFormats={exportFormats}
+                onExportItem={onExportItem}
               />
               {note.mentions && note.mentions.length > 0 && (
                 <Card padding="none" className={NOTE_DETAIL_CARD_CLASS}>
@@ -357,6 +415,27 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         onConfirm={handleConfirmDelete}
         onCancel={() => setShowDeleteNoteConfirm(false)}
         variant="danger"
+      />
+
+      <DuplicateDialog
+        isOpen={showDuplicateDialog}
+        onConfirm={(newName) => {
+          executeDuplicate(note, newName)
+            .then(({ closePanel, highlightId }) => {
+              closePanel();
+              if (highlightId) {
+                setRecentlyDuplicatedNoteId(highlightId);
+              }
+              setShowDuplicateDialog(false);
+            })
+            .catch(() => {
+              setShowDuplicateDialog(false);
+            });
+        }}
+        onCancel={() => setShowDuplicateDialog(false)}
+        defaultName={getDuplicateConfig(note)?.defaultName ?? ''}
+        nameLabel={getDuplicateConfig(note)?.nameLabel ?? t('notes.title')}
+        confirmOnly={Boolean(getDuplicateConfig(note)?.confirmOnly)}
       />
     </>
   );

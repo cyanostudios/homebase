@@ -6,7 +6,8 @@ export interface Task {
   status: 'not started' | 'in progress' | 'completed' | 'cancelled';
   priority: 'Low' | 'Medium' | 'High';
   dueDate: Date | null;
-  assignedTo: string | null; // Contact ID
+  assignedTo: string | null; // Legacy single contact ID (kept for compatibility)
+  assignedToIds: string[]; // Multi-assignee contact IDs
   createdFromNote: string | null; // Note ID
   createdAt: Date;
   updatedAt: Date;

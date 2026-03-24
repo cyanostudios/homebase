@@ -24,15 +24,13 @@ export function TaskDueDatePicker({ task, onDueDateChange }: TaskDueDatePickerPr
   };
 
   return (
-    <div className="flex items-center justify-between gap-2">
-      <div className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
-        Due Date
-      </div>
+    <div className="flex items-center justify-between gap-4">
+      <div className="text-sm font-medium text-foreground whitespace-nowrap">Due Date</div>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="h-7 w-[120px] flex items-center justify-between rounded-md border border-border/50 bg-background px-2 text-[10px] font-medium transition-colors hover:bg-accent/50 cursor-pointer"
+            className="h-9 w-[180px] flex items-center justify-between rounded-md border border-border/50 bg-background px-2 text-xs font-medium transition-colors hover:bg-accent/50 cursor-pointer"
           >
             <span className={cn(!task.dueDate && 'text-muted-foreground')}>{displayDate}</span>
             <CalendarIcon className="w-3 h-3 text-muted-foreground opacity-50" />
@@ -51,7 +49,7 @@ export function TaskDueDatePicker({ task, onDueDateChange }: TaskDueDatePickerPr
               type="button"
               variant="ghost"
               size="sm"
-              className="w-full h-7 text-xs"
+              className="w-full h-9 text-xs"
               onClick={() => {
                 onDueDateChange(null);
                 setOpen(false);

@@ -8,6 +8,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
 import { usePluginActions } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
@@ -96,6 +97,7 @@ interface NoteProviderProps {
 
 export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: NoteProviderProps) {
   const { t } = useTranslation();
+  const location = useLocation();
   const {
     registerPanelCloseFunction,
     unregisterPanelCloseFunction,
@@ -193,23 +195,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   }, [isAuthenticated, loadNotes]);
 
-  // Initial deep-link: if the page loaded at /notes/:slug, open that note once data arrives
-  const didOpenFromUrlRef = useRef(false);
-  useEffect(() => {
-    if (didOpenFromUrlRef.current || notes.length === 0) {
-      return;
-    }
-    const parts = window.location.pathname.split('/');
-    if (parts[1] !== 'notes' || !parts[2]) {
-      return;
-    }
-    const item = resolveSlug(parts[2], notes, 'title');
-    if (item) {
-      didOpenFromUrlRef.current = true;
-      openNoteForViewRef.current(item as Note);
-    }
-  }, [notes]);
-
   const validateNote = useCallback((noteData: any): ValidationError[] => {
     const errors: ValidationError[] = [];
 
@@ -287,6 +272,32 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   useEffect(() => {
     openNoteForViewRef.current = openNoteForView;
   }, [openNoteForView]);
+
+  /** Open the note for the current URL once per pathname; list refetches must not re-call openNoteForView. */
+  const notesDeepLinkPathSyncedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (notes.length === 0) {
+      return;
+    }
+    const segments = location.pathname.split('/').filter(Boolean);
+    if (segments[0] !== 'notes') {
+      return;
+    }
+    const slug = segments[1] ?? '';
+    if (!slug) {
+      notesDeepLinkPathSyncedRef.current = location.pathname;
+      return;
+    }
+    const pathKey = location.pathname;
+    if (notesDeepLinkPathSyncedRef.current === pathKey) {
+      return;
+    }
+    const item = resolveSlug(slug, notes, 'title');
+    notesDeepLinkPathSyncedRef.current = pathKey;
+    if (item) {
+      openNoteForViewRef.current(item as Note);
+    }
+  }, [location.pathname, notes]);
 
   const openNoteForViewBridge = useCallback((note: Note) => {
     openNoteForViewRef.current(note);
@@ -468,16 +479,20 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     clearNoteSelectionCore();
   }, [clearNoteSelectionCore]);
 
-  const getDuplicateConfig = useCallback((item: Note | null) => {
-    if (!item) {
-      return null;
-    }
-    return {
-      defaultName: `Copy of ${item.title || 'Item'}`,
-      nameLabel: 'Title',
-      confirmOnly: false,
-    };
-  }, []);
+  const getDuplicateConfig = useCallback(
+    (item: Note | null) => {
+      if (!item) {
+        return null;
+      }
+      const baseTitle = item.title?.trim() || 'Item';
+      return {
+        defaultName: `Copy of ${baseTitle}`,
+        nameLabel: t('notes.title'),
+        confirmOnly: false,
+      };
+    },
+    [t],
+  );
 
   const createNote = useCallback(
     async (noteData: { title: string; content?: string; mentions?: any[] }): Promise<Note> => {
@@ -498,8 +513,9 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       item: Note,
       newName: string,
     ): Promise<{ closePanel: () => void; highlightId?: string }> => {
+      const nextName = (newName ?? '').trim();
       const payload = {
-        title: (newName ?? item.title ?? '').trim() || 'Untitled',
+        title: nextName || item.title?.trim() || 'Untitled',
         content: item.content ?? '',
         mentions: item.mentions ?? [],
       };

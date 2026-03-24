@@ -47,6 +47,48 @@ Om en referens (funktion/konstant) används men inte är importerad, kastar Java
 
 ---
 
+### Plugin-ombyggnad: ändra inte bara UI, ändra hela kedjan
+
+❌ **What we did (that didn't work):**  
+Vi började med att uppdatera enskilda UI-delar (t.ex. Assigned/properties) utan att samtidigt uppdatera hela dataflödet (list/search/export/context/backend) för den nya semantiken.
+
+✅ **What we do instead (that works):**
+
+- Behandla funktionsändringar som **end-to-end**:
+  - migration
+  - model/routes validering
+  - API mapping
+  - typer
+  - context/quick-edit
+  - list/search/export
+  - detail/form UI
+- Behåll bakåtkompatibel fallback under övergång (legacy-fält + normalisering).
+
+💡 **Why (lesson learned):**  
+Delvis implementation skapar inkonsekvenser: view kan se rätt ut men list/export/quick-edit visar fel data eller ignorerar nya fält.
+
+---
+
+### Design-alignering måste vara konsekvent per sektion
+
+❌ **What we did (that didn't work):**  
+Vi blandade patterns i samma sektion (t.ex. mentions i tasks med en tredje variant som inte matchade notes/slots fullt ut).
+
+✅ **What we do instead (that works):**
+
+- Välj ett referensmönster per sektion (slots eller notes) och kopiera:
+  - struktur
+  - spacing
+  - typografi
+  - actions (ikon-only vs textknapp)
+- För properties: håll `text-sm` labels + `h-9` controls + `text-xs` control text.
+- För date/time i samma fältgrupp: matcha samma trigger/popover-utseende.
+
+💡 **Why (lesson learned):**  
+Konsekvent mönster minskar visuell friktion och gör att användaren kan återanvända muskelminne mellan plugins.
+
+---
+
 ### Följ befintliga patterns strikt
 
 ❌ **What we did (that didn't work):**
@@ -590,6 +632,140 @@ const onDiscardQuickEditAndClose = useCallback(() => {
 
 ---
 
+---
+
+## Duplicate: grön highlight försvinner direkt
+
+### Deep-link-effekt som beror på `[data]`-array rensar `recentlyDuplicatedId`
+
+❌ **What we did (that didn't work):**
+
+```tsx
+// ❌ FEL – beror på [notes/tasks/slots], körs om varje gång listan ändras
+const didOpenFromUrlRef = useRef(false);
+useEffect(() => {
+  if (didOpenFromUrlRef.current || items.length === 0) return;
+  const slug = getSlugFromUrl();
+  if (!slug) return;
+  const item = resolveSlug(slug, items);
+  if (item) {
+    didOpenFromUrlRef.current = true;
+    openForView(item); // ← nollsätter recentlyDuplicatedId
+  }
+}, [items]); // ← triggas vid VARJE listuppdatering, t.ex. efter duplicering
+```
+
+Konsekvens: efter duplicering läggs ny post till i listan → `[items]` ändras → effekten körs → `openForView` anropas → `recentlyDuplicatedId` nollsätts → grön highlight försvinner omedelbart.
+
+✅ **What we do instead (that works):**
+
+```tsx
+// ✅ RÄTT – beror på location.pathname, ej [items]
+const myPluginDeepLinkPathSyncedRef = useRef<string | null>(null);
+useEffect(() => {
+  if (items.length === 0) return;
+  const segments = location.pathname.split('/').filter(Boolean);
+  if (segments[0] !== 'my-plugin') return;
+  const slug = segments[1] ?? '';
+  if (!slug) {
+    myPluginDeepLinkPathSyncedRef.current = location.pathname;
+    return;
+  }
+  const pathKey = location.pathname;
+  if (myPluginDeepLinkPathSyncedRef.current === pathKey) return; // kör max en gång per unik URL
+  const item = resolveSlug(slug, items, 'title');
+  myPluginDeepLinkPathSyncedRef.current = pathKey;
+  if (item) openForViewRef.current(item);
+}, [location.pathname, items]);
+```
+
+💡 **Why (lesson learned):**
+`location.pathname` ändras bara när användaren navigerar. Listan uppdateras utan URL-ändring efter duplicering, så effekten ignorerar listuppdateringen. Varje unik URL öppnar panelen exakt en gång, och grön highlight störs inte.
+
+---
+
+## Duplicate: `setRecentlyDuplicatedId` destruktureras inte i View
+
+❌ **What we did (that didn't work):**
+
+```tsx
+// ❌ FEL – setRecentlyDuplicatedNoteId saknades i destrukturering
+const { getDuplicateConfig, executeDuplicate, closePanel } = useNotes();
+
+// Senare i onConfirm:
+setRecentlyDuplicatedNoteId(highlightId); // ← ReferenceError: not defined
+closePanel(); // ← körs aldrig, panelen fastnar
+```
+
+Konsekvens: `ReferenceError` → `closePanel()` anropas aldrig → panelen fastnar i view-läge.
+
+✅ **What we do instead (that works):**
+
+```tsx
+// ✅ RÄTT – inkludera ALLTID setRecentlyDuplicated* i destrukturering
+const {
+  getDuplicateConfig,
+  executeDuplicate,
+  setRecentlyDuplicatedNoteId, // ← obligatorisk
+} = useNotes();
+```
+
+💡 **Why (lesson learned):**
+`set*`-funktioner från context är inte automatiskt i scope – de måste explicit destruktureras. Om de används i en callback (t.ex. `.then()`) och saknas i destrukturering kastar JavaScript `ReferenceError` vid körning, inte vid kompilering. Kontrollera alltid att **alla** funktioner som används i `onConfirm` faktiskt är destrukturerade.
+
+---
+
+## Duplicate: `closePanel` måste anropas FÖRE `setRecentlyDuplicatedId`
+
+❌ **What we did (that didn't work):**
+
+```tsx
+// ❌ FEL – fel ordning
+executeDuplicate(item, newName).then(({ closePanel, highlightId }) => {
+  if (highlightId) setRecentlyDuplicatedMyPluginId(highlightId); // ← 1. sätts
+  closePanel(); // ← 2. closePanel nollsätter id i context
+});
+```
+
+Konsekvens: `closePanel()` nollsätter `recentlyDuplicatedId` i context (via `openForView(null)` eller liknande), och highlight syns aldrig.
+
+✅ **What we do instead (that works):**
+
+```tsx
+// ✅ RÄTT – closePanel FÖRE setRecentlyDuplicatedId
+executeDuplicate(item, newName).then(({ closePanel, highlightId }) => {
+  closePanel(); // 1. stäng, navigera bort
+  if (highlightId) setRecentlyDuplicatedMyPluginId(highlightId); // 2. sätt highlight (efter close)
+  setShowDuplicateDialog(false); // 3. stäng dialog
+});
+```
+
+💡 **Why (lesson learned):**
+`closePanel` stänger panelen och nollsätter internt `recentlyDuplicatedId` (via `openForView` reset). Genom att anropa `setRecentlyDuplicatedId` EFTER `closePanel` skriver vi in värdet EFTER nollsättningen. Ordningen är viktig och måste matcha referensimplementationen exakt.
+
+---
+
+## Duplicate: `onDuplicate` ska öppna dialog, inte köra direkt
+
+❌ **What we did (that didn't work):**
+
+```tsx
+// ❌ FEL – kör executeDuplicate utan namnprompt
+<QuickActionsCard onDuplicate={(item) => executeDuplicate(item, '')} />
+```
+
+✅ **What we do instead (that works):**
+
+```tsx
+// ✅ RÄTT – öppna dialog som promptar för namn
+<QuickActionsCard onDuplicate={() => setShowDuplicateDialog(true)} />
+```
+
+💡 **Why (lesson learned):**
+Duplicering ska alltid be om ett namn via `DuplicateDialog`. Att anropa `executeDuplicate` direkt med tomt namn ger en post med standardnamn utan att användaren fått chansen att välja – vilket avviker från slots-beteendet.
+
+---
+
 **Senast uppdaterad:** 2026-03-20  
 **Syfte:** Undvika att upprepa samma misstag  
-**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles, använd PluginLoader för dynamiska plugin-listor, ta bort oanvända filer, PostgreSQLAdapter returnerar rows direkt (array) - använd inte .rows i core services, hybrid-lösning för bulk delete: plugin-specifik pre-deletion + generisk core-helper, PostgreSQLAdapter.\_addTenantFilter() måste hantera RETURNING-klausuler korrekt. Valfria fält: använd optional({ values: 'falsy' }) i express-validator så att tom sträng inte triggar formatvalidering. Flex-scroll: min-h-0 på flex-barn så att bara scroll-området rullar. Discard changes i edit: anropa onCancel() explicit för att växla tillbaka till view. Plugin-specifik close: exponera getCloseHandler(defaultClose) från context och använd i createPanelFooter. Quick-edit "Discard": kasta bara draft, anropa inte panel-close om användaren ska stanna i detail view. **Auth/tenant:** När nya sökvägar (tabeller/kolumner) införs för tenant-context: kör legacy-sökvägen (som fungerar i nuvarande schema) först så att inloggning inte bryts.
+**Lärdom:** Läs implementationen, testa funktionalitet, följ SDK:ns design, håll det enkelt, registrera middleware i rätt fil, debug logging är kritisk, använd useCallback för cross-plugin data i panel subtitles, använd PluginLoader för dynamiska plugin-listor, ta bort oanvända filer, PostgreSQLAdapter returnerar rows direkt (array) - använd inte .rows i core services, hybrid-lösning för bulk delete: plugin-specifik pre-deletion + generisk core-helper, PostgreSQLAdapter.\_addTenantFilter() måste hantera RETURNING-klausuler korrekt. Valfria fält: använd optional({ values: 'falsy' }) i express-validator så att tom sträng inte triggar formatvalidering. Flex-scroll: min-h-0 på flex-barn så att bara scroll-området rullar. Discard changes i edit: anropa onCancel() explicit för att växla tillbaka till view. Plugin-specifik close: exponera getCloseHandler(defaultClose) från context och använd i createPanelFooter. Quick-edit "Discard": kasta bara draft, anropa inte panel-close om användaren ska stanna i detail view. **Auth/tenant:** När nya sökvägar (tabeller/kolumner) införs för tenant-context: kör legacy-sökvägen (som fungerar i nuvarande schema) först så att inloggning inte bryts. **Duplicate/deep-link:** Deep-link-effekten ska bero på `location.pathname`, inte `[items]`-arrayen, annars nollsätts `recentlyDuplicatedId` vid varje listuppdatering. `setRecentlyDuplicated*Id` måste destruktureras i View-komponenten. `closePanel()` måste anropas FÖRE `setRecentlyDuplicatedId`. `onDuplicate` öppnar dialog, anropar inte `executeDuplicate` direkt.

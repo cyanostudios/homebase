@@ -394,6 +394,9 @@ class PostgreSQLAdapter extends DatabaseService {
       this.logger?.error('Update failed', error, { table, id });
       throw new AppError(`Failed to update ${table}`, 500, AppError.CODES.DATABASE_ERROR, {
         originalError: error.message,
+        errorCode: error.code,
+        errorDetail: error.detail,
+        errorHint: error.hint,
       });
     }
   }

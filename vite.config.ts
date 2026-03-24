@@ -32,7 +32,6 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         ws: true,
-        cookieDomainRewrite: 'localhost',
         cookiePathRewrite: '/',
         // Preserve cookies and session
         onProxyReq: (proxyReq, req, res) => {
@@ -48,12 +47,13 @@ export default defineConfig({
           proxyRes.headers['Pragma'] = 'no-cache';
           proxyRes.headers['Expires'] = '0';
 
-          // Forward Set-Cookie headers
+          // Forward Set-Cookie headers — strip Domain/Secure so the session sticks to the current host
           if (proxyRes.headers['set-cookie']) {
             proxyRes.headers['set-cookie'] = proxyRes.headers['set-cookie'].map(
               (cookie: string) => {
                 return cookie
-                  .replace(/Domain=[^;]+;?/gi, 'Domain=localhost;')
+                  .replace(/;\s*Domain=[^;]*/gi, '')
+                  .replace(/^Domain=[^;]+;\s*/gi, '')
                   .replace(/Secure;?/gi, '')
                   .replace(/SameSite=None/gi, 'SameSite=Lax');
               },

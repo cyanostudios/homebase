@@ -110,6 +110,7 @@
     "endDateLabel": "Slutdatum",
     "startTimeLabel": "Starttid",
     "endTimeLabel": "Sluttid",
+    "selectDateFirst": "Välj ett datum först",
     "locationLabel": "Plats",
     "locationPlaceholder": "t.ex. Huvudentré",
     "addressLabel": "Adress",
@@ -230,6 +231,7 @@
     "noMatch": "Inga uppgifter matchar sökningen.",
     "noYet": "Inga uppgifter än. Klicka \"Lägg till uppgift\" för att komma igång.",
     "addTask": "Lägg till uppgift",
+    "title": "Titel",
     "deleteTitle": "Ta bort uppgift",
     "deleteConfirmThis": "Är du säker på att du vill ta bort denna uppgift?",
     "deleteConfirmNamed": "Är du säker på att du vill ta bort \"{{name}}\"?",
@@ -238,8 +240,13 @@
     "taskProperties": "Uppgiftsegenskaper",
     "mentionedContacts": "Nämnda kontakter",
     "information": "Information",
+    "quickActions": "Snabbåtgärder",
+    "exportOptions": "Exportalternativ",
     "taskContent": "Uppgiftsinnehåll",
-    "quickEditDiscardMessage": "Du har osparade ändringar i status, prioritet, förfallodatum eller ansvarig. Vill du kasta dem?"
+    "quickEditDiscardMessage": "Du har osparade ändringar i status, prioritet, förfallodatum eller ansvariga. Vill du kasta dem?",
+    "assignee": "Ansvarig",
+    "addAssigneePlaceholder": "Lägg till ansvarig…",
+    "removeAssignee": "Ta bort ansvarig"
   },
   "notes": {
     "searchPlaceholder": "Sök anteckningar...",
@@ -265,7 +272,8 @@
     "contentPlaceholder": "Skriv din anteckning här... Skriv @ för att nämna kontakter",
     "mentionedContacts": "Nämnda kontakter",
     "information": "Information",
-    "quickActions": "Snabbt åtgärder",
+    "quickActions": "Snabbåtgärder",
+    "exportOptions": "Exportalternativ",
     "activity": "Aktivitet",
     "noteContent": "Anteckningsinnehåll"
   },

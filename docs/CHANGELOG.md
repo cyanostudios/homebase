@@ -4,6 +4,24 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-03 – Tasks/Slots alignment: properties, mentions, multi-assignee, date/time pickers
+
+- **Tasks detail/edit alignment mot slots/notes:**
+  - Properties flyttade till huvudkolumn under content (view), med samma typografi- och kontrollskala som slots (`text-sm` labels, `h-9` controls, `text-xs` control text).
+  - `mentioned contacts` i tasks justerade till samma designmönster som notes (radstruktur, ikon-only open action, spacing).
+- **Tasks assignees: single -> multi (end-to-end):**
+  - Ny migration `039-tasks-add-assigned-to-ids.sql`.
+  - Backend (`plugins/tasks/model.js`, `plugins/tasks/routes.js`) stöd för `assigned_to_ids` med bakåtkompatibel fallback till `assigned_to`.
+  - Frontend (`types`, `api`, `context`, `TaskForm`, `TaskView`, `TaskList`, export-config) uppdaterat för flera ansvariga.
+  - Search/header/export visar nu flera assignees korrekt.
+- **Slots date/time picker harmonisering:**
+  - Datumfält i `SlotForm` bytta till popover-baserad datepicker (DayPicker).
+  - Tidsfält uppdaterade till visuellt matchande popover-trigger/UI mot datepicker.
+- **Dokumentationsuppdatering:**
+  - `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`, `PLUGIN_DEVELOPMENT_STANDARDS_V2.md`, `UI_AND_UX_STANDARDS_V3.md`, `LESSONS_LEARNED.md` utökade med bindande refactor-kontrakt (funktion + stil).
+
+---
+
 ## 2026-03 – Plugin design-checklista: view/edit + hooks
 
 - **`PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`:** Utökad sektion **E (Form)** med instruktioner för kortordning, egenskaper- och kontakter-kort i linje med slots view. Ny sektion **I** (hooks, vit sida, side-by-side-jämförelse, i18n). **H** kompletterad med tips om edit-läge efter form-ändringar.

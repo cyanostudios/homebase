@@ -4,6 +4,16 @@ import { Task } from '../types/tasks';
 class TasksApi {
   private csrfToken: string | null = null;
 
+  private normalizeAssignedToIds(task: any): string[] {
+    if (Array.isArray(task?.assigned_to_ids)) {
+      return task.assigned_to_ids.map((id: any) => String(id));
+    }
+    if (task?.assigned_to !== null && task?.assigned_to !== undefined && task?.assigned_to !== '') {
+      return [String(task.assigned_to)];
+    }
+    return [];
+  }
+
   async getCsrfToken(): Promise<string> {
     if (this.csrfToken) {
       return this.csrfToken;
@@ -93,6 +103,7 @@ class TasksApi {
     return tasks.map((task: any) => ({
       ...task,
       assignedTo: task.assigned_to,
+      assignedToIds: this.normalizeAssignedToIds(task),
       createdFromNote: task.created_from_note,
       dueDate: task.due_date ? new Date(task.due_date) : null,
       createdAt: new Date(task.created_at),
@@ -105,6 +116,7 @@ class TasksApi {
     return {
       ...task,
       assignedTo: task.assigned_to,
+      assignedToIds: this.normalizeAssignedToIds(task),
       createdFromNote: task.created_from_note,
       dueDate: task.due_date ? new Date(task.due_date) : null,
       createdAt: new Date(task.created_at),
@@ -118,9 +130,11 @@ class TasksApi {
     const {
       dueDate,
       assignedTo,
+      assignedToIds,
       createdFromNote,
       due_date,
       assigned_to,
+      assigned_to_ids,
       created_from_note,
       ...rest
     } = taskData;
@@ -140,6 +154,7 @@ class TasksApi {
       priority,
       due_date: dueDate instanceof Date ? dueDate.toISOString().split('T')[0] : dueDate || null,
       assigned_to: assignedTo || null,
+      assigned_to_ids: Array.isArray(assignedToIds) ? assignedToIds : [],
       created_from_note: createdFromNote || null,
     });
 
@@ -156,8 +171,14 @@ class TasksApi {
     if (dueDate instanceof Date) {
       requestBody.due_date = dueDate.toISOString().split('T')[0];
     }
-    if (assignedTo) {
-      requestBody.assigned_to = assignedTo;
+    const normalizedAssignedToIds = Array.isArray(assignedToIds)
+      ? assignedToIds.map((id: any) => String(id))
+      : assignedTo
+        ? [String(assignedTo)]
+        : [];
+    requestBody.assigned_to_ids = normalizedAssignedToIds;
+    if (normalizedAssignedToIds.length > 0) {
+      requestBody.assigned_to = normalizedAssignedToIds[0];
     }
     if (createdFromNote) {
       requestBody.created_from_note = createdFromNote;
@@ -170,6 +191,7 @@ class TasksApi {
     return {
       ...task,
       assignedTo: task.assigned_to,
+      assignedToIds: this.normalizeAssignedToIds(task),
       createdFromNote: task.created_from_note,
       dueDate: task.due_date ? new Date(task.due_date) : null,
       createdAt: new Date(task.created_at),
@@ -179,19 +201,26 @@ class TasksApi {
 
   async updateTask(id: string, taskData: any): Promise<Task> {
     // Transform camelCase to snake_case for backend
-    const { dueDate, assignedTo, createdFromNote, ...rest } = taskData;
+    const { dueDate, assignedTo, assignedToIds, createdFromNote, ...rest } = taskData;
+    const normalizedAssignedToIds = Array.isArray(assignedToIds)
+      ? assignedToIds.map((id: any) => String(id))
+      : assignedTo
+        ? [String(assignedTo)]
+        : [];
     const task = await this.request(`/tasks/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
         ...rest,
         due_date: dueDate instanceof Date ? dueDate.toISOString().split('T')[0] : dueDate || null,
-        assigned_to: assignedTo || null,
+        assigned_to: normalizedAssignedToIds[0] || null,
+        assigned_to_ids: normalizedAssignedToIds,
         created_from_note: createdFromNote || null,
       }),
     });
     return {
       ...task,
       assignedTo: task.assigned_to,
+      assignedToIds: this.normalizeAssignedToIds(task),
       createdFromNote: task.created_from_note,
       dueDate: task.due_date ? new Date(task.due_date) : null,
       createdAt: new Date(task.created_at),

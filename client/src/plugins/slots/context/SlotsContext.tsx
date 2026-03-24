@@ -10,6 +10,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
 import { useActionRegistry } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
@@ -137,6 +138,7 @@ export function SlotsProvider({
   onCloseOtherPanels,
 }: SlotsProviderProps) {
   const { t } = useTranslation();
+  const location = useLocation();
   const {
     registerPanelCloseFunction,
     unregisterPanelCloseFunction,
@@ -310,24 +312,6 @@ export function SlotsProvider({
     }
   }, [isAuthenticated, loadSlots]);
 
-  const didOpenFromUrlRef = useRef(false);
-  useEffect(() => {
-    if (didOpenFromUrlRef.current || slots.length === 0) {
-      return;
-    }
-    const parts = window.location.pathname.split('/');
-    if (parts[1] !== 'slots' || !parts[2]) {
-      return;
-    }
-    const item = resolveSlug(parts[2], slots, (i: any) =>
-      i.slot_time ? String(i.slot_time).slice(0, 10) : '',
-    );
-    if (item) {
-      didOpenFromUrlRef.current = true;
-      openSlotForViewRef.current(item as Slot);
-    }
-  }, [slots]);
-
   // Auto-refresh slots every 30 seconds to catch public bookings
   useEffect(() => {
     if (!isAuthenticated) {
@@ -410,6 +394,37 @@ export function SlotsProvider({
   useEffect(() => {
     openSlotForViewRef.current = openSlotForView;
   }, [openSlotForView]);
+
+  const slotsSlugField = useCallback(
+    (i: Slot) => (i.slot_time ? String(i.slot_time).slice(0, 10) : ''),
+    [],
+  );
+
+  const slotsDeepLinkPathSyncedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (slots.length === 0) {
+      return;
+    }
+    const segments = location.pathname.split('/').filter(Boolean);
+    if (segments[0] !== 'slots') {
+      return;
+    }
+    const slug = segments[1] ?? '';
+    if (!slug) {
+      slotsDeepLinkPathSyncedRef.current = location.pathname;
+      return;
+    }
+    const pathKey = location.pathname;
+    if (slotsDeepLinkPathSyncedRef.current === pathKey) {
+      return;
+    }
+    const item = resolveSlug(slug, slots, slotsSlugField);
+    slotsDeepLinkPathSyncedRef.current = pathKey;
+    if (item) {
+      openSlotForViewRef.current(item as Slot);
+    }
+  }, [location.pathname, slots, slotsSlugField]);
+
   const openSlotForViewBridge = useCallback((slot: Slot) => {
     openSlotForViewRef.current(slot);
   }, []);

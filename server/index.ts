@@ -73,11 +73,17 @@ if (process.env.NODE_ENV === 'production') {
     allowedOrigins.push(process.env.PUBLIC_BOOKING_URL);
   }
 } else {
-  allowedOrigins.push(process.env.FRONTEND_URL || 'http://localhost:3001');
+  const devUi = process.env.FRONTEND_URL || 'http://localhost:3001';
+  allowedOrigins.push(devUi);
+  // Same UI on 127.0.0.1 (CORS if client ever calls API cross-origin; also documents intent)
+  if (devUi.includes('localhost')) {
+    allowedOrigins.push(devUi.replace('localhost', '127.0.0.1'));
+  }
   if (process.env.PUBLIC_BOOKING_URL) {
     allowedOrigins.push(process.env.PUBLIC_BOOKING_URL);
   }
   allowedOrigins.push('http://localhost:3002');
+  allowedOrigins.push('http://127.0.0.1:3002');
 }
 
 app.use(

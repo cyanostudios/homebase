@@ -110,6 +110,7 @@
     "endDateLabel": "End Date",
     "startTimeLabel": "Start Time",
     "endTimeLabel": "End Time",
+    "selectDateFirst": "Select a date first",
     "locationLabel": "Location",
     "locationPlaceholder": "e.g. Main entrance",
     "addressLabel": "Address",
@@ -230,6 +231,7 @@
     "noMatch": "No tasks found matching your search.",
     "noYet": "No tasks yet. Click \"Add Task\" to get started.",
     "addTask": "Add Task",
+    "title": "Title",
     "deleteTitle": "Delete Task",
     "deleteConfirmThis": "Are you sure you want to delete this task?",
     "deleteConfirmNamed": "Are you sure you want to delete \"{{name}}\"?",
@@ -238,8 +240,13 @@
     "taskProperties": "Task Properties",
     "mentionedContacts": "Mentioned Contacts",
     "information": "Information",
+    "quickActions": "Quick actions",
+    "exportOptions": "Export options",
     "taskContent": "Task Content",
-    "quickEditDiscardMessage": "You have unsaved changes to status, priority, due date or assignee. Do you want to discard them?"
+    "quickEditDiscardMessage": "You have unsaved changes to status, priority, due date or assignees. Do you want to discard them?",
+    "assignee": "Assignee",
+    "addAssigneePlaceholder": "Add assignee…",
+    "removeAssignee": "Remove assignee"
   },
   "notes": {
     "searchPlaceholder": "Search notes...",
@@ -266,6 +273,7 @@
     "mentionedContacts": "Mentioned Contacts",
     "information": "Information",
     "quickActions": "Quick actions",
+    "exportOptions": "Export options",
     "activity": "Activity",
     "noteContent": "Note Content"
   },

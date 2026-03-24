@@ -17,16 +17,18 @@ function formatDate(date: Date | string | null | undefined): string {
   }
 }
 
-/** Resolve assigned contact name (used when contacts are available from useApp). */
-function getAssignedName(
+/** Resolve assigned contact names (used when contacts are available from useApp). */
+function getAssignedNames(
   contacts: { id: string; companyName?: string }[],
-  assignedTo: string | null,
+  assignedToIds: string[],
 ): string {
-  if (!assignedTo || !contacts.length) {
+  if (!assignedToIds.length || !contacts.length) {
     return '';
   }
-  const c = contacts.find((x) => String(x.id) === String(assignedTo));
-  return c?.companyName ?? '';
+  return assignedToIds
+    .map((id) => contacts.find((x) => String(x.id) === String(id))?.companyName)
+    .filter(Boolean)
+    .join(', ');
 }
 
 export function taskToTxtContent(task: Task): string {
@@ -56,7 +58,10 @@ export function taskToCsvRow(
         ? task.dueDate.toISOString()
         : String(task.dueDate)
       : '',
-    assignedTo: getAssignedName(contacts, task.assignedTo),
+    assignedTo: getAssignedNames(
+      contacts,
+      task.assignedToIds ?? (task.assignedTo ? [String(task.assignedTo)] : []),
+    ),
     createdAt:
       task.createdAt instanceof Date ? task.createdAt.toISOString() : String(task.createdAt ?? ''),
     updatedAt:
@@ -73,7 +78,10 @@ export function taskToPdfRow(
     status: task.status || '',
     priority: task.priority || '',
     dueDate: task.dueDate ? formatDate(task.dueDate) : '',
-    assignedTo: getAssignedName(contacts, task.assignedTo),
+    assignedTo: getAssignedNames(
+      contacts,
+      task.assignedToIds ?? (task.assignedTo ? [String(task.assignedTo)] : []),
+    ),
     createdAt: formatDate(task.createdAt),
     updatedAt: formatDate(task.updatedAt),
   };

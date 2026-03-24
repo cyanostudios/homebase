@@ -167,6 +167,37 @@ If the plugin exposes a settings screen (e.g. cloud storage, SMTP, preferences),
   - **Option B:** Add a special case in core panel handlers: when `currentPlugin.name === 'my-plugin'` and `currentMode === 'settings'`, call `currentPluginContext.closeMyPluginPanel()` directly from both Cancel and Save (Save in settings often just closes the panel after persisting, or simply closes). This is required when the Form returns early for settings and never registers the event listeners (e.g. Files and Mail). See `client/src/core/handlers/panelHandlers.ts` for the pattern (e.g. `closeFilePanel` for files in settings mode).
 - **Settings content:** Use `DetailSection` from `@/core/ui/DetailSection` for the settings form layout and group related fields under clear section titles.
 
+## 8. Refactoring Existing Plugins (mandatory contract)
+
+When modernizing an existing plugin to align with `slots` / `notes`, treat it as a full contract change, not a cosmetic tweak.
+
+### Functional contract
+
+- **End-to-end scope required:** If a field/feature changes semantics (example: single assignee -> multiple assignees), you MUST update:
+  - DB migration
+  - backend model + route validation
+  - API request/response mapping
+  - frontend types
+  - context/state (including quick-edit or draft logic)
+  - list/search/header badges/export
+  - view + form components
+- **Backward compatibility:** Keep legacy fields during migration windows (example: preserve `assigned_to` while introducing `assigned_to_ids`) and normalize consistently in backend + API.
+- **No partial rollout:** Do not ship only form/view updates without list/search/export/context parity.
+
+### Layout & style contract
+
+- **Properties placement:** If reference plugin places properties below content in the first detail column, match the same structure in both view and edit.
+- **Sidebar role:** Sidebar is for quick actions/export/info/metadata; avoid duplicating primary content/properties there unless reference does so.
+- **Relations UI parity:** Contact/assignee selectors should reuse the same interaction model as reference (popover search, suggestion rows, selected rows, remove action).
+- **Typography parity for properties:** Use consistent token levels (`text-sm` labels, `h-9` controls, `text-xs` control text) where reference uses them.
+
+### Verification gate before merge
+
+- Run lint on changed files.
+- Verify panel open/close + edit/create + quick-edit flows.
+- Verify list search and export reflect updated data semantics.
+- Update docs (`UI_AND_UX_STANDARDS_V3.md`, `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md`, `LESSONS_LEARNED.md`, `CHANGELOG.md`) in the same PR when behavior/layout standards changed.
+
 Context Implementation Pattern
 Frontend Context (Complete Template)
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -699,6 +730,44 @@ import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
   isLoading={deleting}
 />
 ```
+
+## 9. Detail View Patterns (bindande kontrakt)
+
+När ett plugin har en detail-vy (`*View.tsx`) **måste** det följa dessa mönster. Avvikelser är inte tillåtna.
+
+### 9.1 QuickActionsCard
+
+- Är en separat namngiven `function`-komponent (t.ex. `function MyPluginQuickActionsCard(...)`), inte inline JSX.
+- Ska innehålla Edit (blå ikon), Delete (röd ikon + röd hover) och, om `getDuplicateConfig(item)` returnerar värde, Duplicate (grön ikon).
+- Delete-knappen: `className="... hover:bg-red-50 dark:hover:bg-red-950/30"`.
+- Duplicate-knappen anropar `onDuplicate()` vilket öppnar `DuplicateDialog` – **aldrig** `executeDuplicate` direkt.
+- Extra actions renderas från `detailFooterActions`-array med `getActionIconColorClass`.
+
+### 9.2 ExportOptionsCard
+
+- Är en separat namngiven `function`-komponent (t.ex. `function MyPluginExportOptionsCard(...)`).
+- Returnerar `null` om `exportFormats` är tom.
+- Ikonen är alltid `Download`.
+- Formatnamn hämtas från i18n (`common.exportTxt`, `common.exportCsv`, `common.exportPdf`).
+
+### 9.3 DuplicateDialog
+
+Full implementationsguide finns i `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` avsnitt 4.
+
+Kortfattat:
+
+- Context exponerar: `getDuplicateConfig(item)`, `executeDuplicate(item, newName)`, `recentlyDuplicated*Id`, `setRecentlyDuplicated*Id`.
+- View destrukturerar `setRecentlyDuplicated*Id` (lätt att missa → `ReferenceError`).
+- `onConfirm`-ordning: `closePanel()` → `setRecentlyDuplicated*Id(highlightId)` → `setShowDuplicateDialog(false)`.
+- Deep-link-effekt i context: beror på `[location.pathname, items]`, inte `[items]` ensam.
+
+### 9.4 Ta bort gammal kod
+
+- **`didOpenFromUrlRef`-mönster:** Ta bort när pathname-baserad effekt implementeras.
+- **`alreadyViewingSame`-check i `openXForView`:** Ta bort – nollsätt alltid `recentlyDuplicated*Id`.
+- **`executeDuplicate(item, '')` direkt från knapp:** Ta bort – ersätt med `setShowDuplicateDialog(true)`.
+
+Inga workarounds, inga "backward compat"-block som inte längre behövs.
 
 ## Success Criteria
 

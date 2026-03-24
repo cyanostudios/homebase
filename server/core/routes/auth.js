@@ -131,6 +131,13 @@ router.post(
         errorMessage: error.message,
         errorStack: error.stack,
       });
+      if (error?.message === 'Tenant database not configured') {
+        return res.status(503).json({
+          error:
+            'No workspace database is linked to this account. Check DATABASE_URL / tenant setup or contact support.',
+          code: 'TENANT_NOT_CONFIGURED',
+        });
+      }
       res.status(500).json({ error: 'Internal server error' });
     }
   },

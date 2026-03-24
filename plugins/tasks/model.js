@@ -3,6 +3,24 @@
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
+/**
+ * PostgreSQLAdapter wraps pg errors in AppError (top-level code is DATABASE_ERROR).
+ * Raw SQLSTATE 42703 is on details.errorCode for insert; update often only sets details.originalError.
+ */
+function isMissingAssignedToIdsColumnError(err) {
+  if (!err) return false;
+  const details = err.details || {};
+  const pgCode = details.errorCode;
+  const combined = `${err.message || ''} ${details.originalError || ''}`;
+  if (pgCode === '42703' && combined.includes('assigned_to_ids')) return true;
+  return combined.includes('assigned_to_ids') && combined.includes('does not exist');
+}
+
+// Module-level cache: null=unknown, true=column exists, false=column missing.
+// Avoids querying information_schema (which is incompatible with tenant-isolated
+// db.query) on every operation. Resolved on first actual write attempt.
+let _supportsAssignedToIds = null;
+
 class TaskModel {
   constructor() {
     // No pool needed - ServiceManager provides database service
@@ -35,19 +53,44 @@ class TaskModel {
         due_date,
         assigned_to,
         created_from_note,
+        assigned_to_ids,
       } = taskData;
+      const normalizedAssignedToIds = Array.isArray(assigned_to_ids)
+        ? assigned_to_ids.map((id) => String(id))
+        : assigned_to
+          ? [String(assigned_to)]
+          : [];
 
-      // Use database.insert for automatic tenant isolation
-      const result = await db.insert('tasks', {
+      const basePayload = {
         title: title || '',
         content: content || '',
         mentions: JSON.stringify(mentions || []),
         status: status || 'not started',
-        priority: priority ?? 'Medium', // Use nullish coalescing to preserve 'Low' if set
+        priority: priority ?? 'Medium',
         due_date: due_date || null,
-        assigned_to: assigned_to || null,
+        assigned_to: normalizedAssignedToIds[0] || assigned_to || null,
         created_from_note: created_from_note || null,
-      });
+      };
+
+      let result;
+      if (_supportsAssignedToIds !== false) {
+        try {
+          result = await db.insert('tasks', {
+            ...basePayload,
+            assigned_to_ids: JSON.stringify(normalizedAssignedToIds),
+          });
+          _supportsAssignedToIds = true;
+        } catch (colError) {
+          if (isMissingAssignedToIdsColumnError(colError)) {
+            _supportsAssignedToIds = false;
+            result = await db.insert('tasks', basePayload);
+          } else {
+            throw colError;
+          }
+        }
+      } else {
+        result = await db.insert('tasks', basePayload);
+      }
 
       Logger.info('Task created', { taskId: result.id });
 
@@ -80,18 +123,43 @@ class TaskModel {
         throw new AppError('Task not found', 404, AppError.CODES.NOT_FOUND);
       }
 
-      const { title, content, mentions, status, priority, due_date, assigned_to } = taskData;
+      const { title, content, mentions, status, priority, due_date, assigned_to, assigned_to_ids } =
+        taskData;
+      const normalizedAssignedToIds = Array.isArray(assigned_to_ids)
+        ? assigned_to_ids.map((id) => String(id))
+        : assigned_to
+          ? [String(assigned_to)]
+          : [];
 
-      // Use database.update for automatic tenant isolation
-      const result = await db.update('tasks', taskId, {
+      const basePayload = {
         title: title || '',
         content: content || '',
         mentions: JSON.stringify(mentions || []),
         status: status || 'not started',
-        priority: priority ?? 'Medium', // Use nullish coalescing to preserve 'Low' if set
+        priority: priority ?? 'Medium',
         due_date: due_date || null,
-        assigned_to: assigned_to || null,
-      });
+        assigned_to: normalizedAssignedToIds[0] || assigned_to || null,
+      };
+
+      let result;
+      if (_supportsAssignedToIds !== false) {
+        try {
+          result = await db.update('tasks', taskId, {
+            ...basePayload,
+            assigned_to_ids: JSON.stringify(normalizedAssignedToIds),
+          });
+          _supportsAssignedToIds = true;
+        } catch (colError) {
+          if (isMissingAssignedToIdsColumnError(colError)) {
+            _supportsAssignedToIds = false;
+            result = await db.update('tasks', taskId, basePayload);
+          } else {
+            throw colError;
+          }
+        }
+      } else {
+        result = await db.update('tasks', taskId, basePayload);
+      }
 
       Logger.info('Task updated', { taskId });
 
@@ -164,6 +232,21 @@ class TaskModel {
       }
     }
 
+    let assignedToIds = [];
+    if (Array.isArray(row.assigned_to_ids)) {
+      assignedToIds = row.assigned_to_ids.map((id) => String(id));
+    } else if (typeof row.assigned_to_ids === 'string' && row.assigned_to_ids.trim()) {
+      try {
+        const parsed = JSON.parse(row.assigned_to_ids);
+        assignedToIds = Array.isArray(parsed) ? parsed.map((id) => String(id)) : [];
+      } catch (e) {
+        assignedToIds = [];
+      }
+    }
+    if (assignedToIds.length === 0 && row.assigned_to) {
+      assignedToIds = [String(row.assigned_to)];
+    }
+
     return {
       id: row.id.toString(),
       title: row.title,
@@ -173,6 +256,7 @@ class TaskModel {
       priority: row.priority || 'Medium',
       due_date: row.due_date,
       assigned_to: row.assigned_to,
+      assigned_to_ids: assignedToIds,
       created_from_note: row.created_from_note,
       created_at: row.created_at,
       updated_at: row.updated_at,
