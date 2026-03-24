@@ -25,7 +25,6 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { exportItems } from '@/core/utils/exportUtils';
@@ -43,6 +42,7 @@ type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
 
 const TASKS_SETTINGS_KEY = 'tasks';
+const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
 
 export const TaskList: React.FC = () => {
   const { t } = useTranslation();
@@ -51,7 +51,6 @@ export const TaskList: React.FC = () => {
     tasksContentView,
     openTaskForView,
     openTaskSettings,
-    deleteTask,
     deleteTasks,
     selectedTaskIds,
     toggleTaskSelected,
@@ -65,15 +64,6 @@ export const TaskList: React.FC = () => {
   const { attemptNavigation } = useGlobalNavigationGuard();
   const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    isOpen: boolean;
-    taskId: string;
-    taskTitle: string;
-  }>({
-    isOpen: false,
-    taskId: '',
-    taskTitle: '',
-  });
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -82,7 +72,6 @@ export const TaskList: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [viewMode, setViewModeState] = useState<ViewMode>('list');
 
-  // Load tasks settings from API
   useEffect(() => {
     let cancelled = false;
     getSettings(TASKS_SETTINGS_KEY)
@@ -106,7 +95,6 @@ export const TaskList: React.FC = () => {
     [updateSettings],
   );
 
-  // Detect mobile screen size
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -223,10 +211,8 @@ export const TaskList: React.FC = () => {
     });
   }, [tasks, searchTerm, sortField, sortOrder, contacts, getAssignedContacts]);
 
-  // Visible task IDs for selection
   const visibleTaskIds = useMemo(() => sortedTasks.map((task) => String(task.id)), [sortedTasks]);
 
-  // Selection helpers
   const allVisibleSelected = useMemo(
     () => visibleTaskIds.length > 0 && visibleTaskIds.every((id) => isSelected(id)),
     [visibleTaskIds, isSelected],
@@ -268,31 +254,6 @@ export const TaskList: React.FC = () => {
     } finally {
       setDeleting(false);
     }
-  };
-
-  const _handleDelete = (id: string, title: string) => {
-    setDeleteConfirm({
-      isOpen: true,
-      taskId: id,
-      taskTitle: title,
-    });
-  };
-
-  const confirmDelete = () => {
-    deleteTask(deleteConfirm.taskId);
-    setDeleteConfirm({
-      isOpen: false,
-      taskId: '',
-      taskTitle: '',
-    });
-  };
-
-  const cancelDelete = () => {
-    setDeleteConfirm({
-      isOpen: false,
-      taskId: '',
-      taskTitle: '',
-    });
   };
 
   const handleExportCSV = () => {
@@ -462,8 +423,7 @@ export const TaskList: React.FC = () => {
                     taskIsSelected
                       ? 'plugin-tasks bg-plugin-subtle ring-1 border-plugin-subtle ring-plugin-subtle/50'
                       : 'hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md',
-                    recentlyDuplicatedTaskId === String(task.id) &&
-                      'bg-green-50 dark:bg-green-950/30',
+                    recentlyDuplicatedTaskId === String(task.id) && HIGHLIGHT_CLASS,
                   )}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -516,7 +476,6 @@ export const TaskList: React.FC = () => {
             })}
           </div>
         ) : isMobile ? (
-          // Mobile: Card layout
           <Card className="shadow-none">
             <div className="space-y-2 p-4">
               {sortedTasks.map((task) => {
@@ -527,8 +486,7 @@ export const TaskList: React.FC = () => {
                     key={task.id}
                     className={cn(
                       'p-4 cursor-pointer hover:bg-accent transition-colors',
-                      recentlyDuplicatedTaskId === String(task.id) &&
-                        'bg-green-50 dark:bg-green-950/30',
+                      recentlyDuplicatedTaskId === String(task.id) && HIGHLIGHT_CLASS,
                     )}
                     onClick={(e) => {
                       if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -586,7 +544,6 @@ export const TaskList: React.FC = () => {
             </div>
           </Card>
         ) : (
-          // Desktop: Table layout
           <Card className="shadow-none">
             <Table>
               <TableHeader>
@@ -682,8 +639,7 @@ export const TaskList: React.FC = () => {
                       key={task.id}
                       className={cn(
                         'cursor-pointer hover:bg-accent',
-                        recentlyDuplicatedTaskId === String(task.id) &&
-                          'bg-green-50 dark:bg-green-950/30',
+                        recentlyDuplicatedTaskId === String(task.id) && HIGHLIGHT_CLASS,
                       )}
                       tabIndex={0}
                       data-list-item={JSON.stringify(task)}
@@ -691,7 +647,6 @@ export const TaskList: React.FC = () => {
                       role="button"
                       aria-label={`Open task ${task.title}`}
                       onClick={(e) => {
-                        // Don't open if clicking checkbox
                         if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                           return;
                         }
@@ -753,7 +708,6 @@ export const TaskList: React.FC = () => {
         )}
       </Card>
 
-      {/* Bulk Delete Modal */}
       <BulkDeleteModal
         isOpen={showBulkDeleteModal}
         onClose={() => setShowBulkDeleteModal(false)}
@@ -761,17 +715,6 @@ export const TaskList: React.FC = () => {
         itemCount={selectedCount}
         itemLabel="tasks"
         isLoading={deleting}
-      />
-
-      <ConfirmDialog
-        isOpen={deleteConfirm.isOpen}
-        title={t('tasks.deleteTitle')}
-        message={`Are you sure you want to delete "${deleteConfirm.taskTitle}"? ${t('bulk.cannotUndo')}`}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={confirmDelete}
-        onCancel={cancelDelete}
-        variant="danger"
       />
     </div>
   );

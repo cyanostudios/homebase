@@ -58,6 +58,7 @@ import { SlotsSettingsView } from './SlotsSettingsView';
 
 type SortField = 'name' | 'slot_time' | 'location' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
+const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
 
 export function SlotsList() {
   const { t } = useTranslation();
@@ -450,8 +451,7 @@ export function SlotsList() {
                     selected
                       ? 'plugin-slots bg-plugin-subtle ring-1 border-plugin-subtle'
                       : 'hover:border-plugin-subtle hover:plugin-slots hover:shadow-md',
-                    recentlyDuplicatedSlotId === String(slot.id) &&
-                      'bg-green-50 dark:bg-green-950/30',
+                    recentlyDuplicatedSlotId === String(slot.id) && HIGHLIGHT_CLASS,
                   )}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -540,10 +540,10 @@ export function SlotsList() {
                   <TableHead
                     className="cursor-pointer select-none hover:bg-muted/50"
                     onClick={() => {
-                      if (sortField === 'slot_time') {
+                      if (sortField === 'location') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
                       } else {
-                        setSortField('slot_time');
+                        setSortField('location');
                         setSortOrder('asc');
                       }
                     }}
@@ -592,8 +592,7 @@ export function SlotsList() {
                     className={cn(
                       'cursor-pointer hover:bg-muted/50',
                       isSelected(slot.id) && 'bg-plugin-subtle',
-                      recentlyDuplicatedSlotId === String(slot.id) &&
-                        'bg-green-50 dark:bg-green-950/30',
+                      recentlyDuplicatedSlotId === String(slot.id) && HIGHLIGHT_CLASS,
                     )}
                     onClick={(e) => {
                       if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {

@@ -44,6 +44,7 @@ import { isSlotTimePast } from '../utils/slotTimeUtils';
 import { SlotsSettingsForm } from './SlotsSettingsForm';
 
 const SLOT_FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
+const PANEL_MAX_WIDTH = 'max-w-[920px]';
 
 interface SlotFormState {
   name: string;
@@ -169,13 +170,7 @@ function fromDateAndTime(datePart: string, timePart: string): string {
   return `${datePart}T${timePart || '00:00'}`;
 }
 
-export function SlotForm({
-  currentSlot,
-  onSave,
-  onSaveSlots,
-  onCancel,
-  isSubmitting: _isSubmitting = false,
-}: SlotFormProps) {
+export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFormProps) {
   const { t } = useTranslation();
   const { contacts, getSettings, settingsVersion } = useApp();
   const { validationErrors, clearValidationErrors, panelMode } = useSlots();
@@ -465,7 +460,6 @@ export function SlotForm({
   const cancelRef = useRef(handleCancel);
   submitRef.current = handleSubmit;
   cancelRef.current = handleCancel;
-  const formRef = useRef<HTMLFormElement | null>(null);
 
   useEffect(() => {
     if (panelMode === 'settings') {
@@ -543,9 +537,8 @@ export function SlotForm({
           'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
         )}
       >
-        <DetailLayout mainClassName="max-w-[920px]" sidebar={formSidebar}>
+        <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
           <form
-            ref={formRef}
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();

@@ -30,7 +30,6 @@ import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -49,6 +48,7 @@ type SortOrder = 'asc' | 'desc';
 type ViewMode = 'grid' | 'list';
 
 const CONTACTS_SETTINGS_KEY = 'contacts';
+const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
 
 export const ContactList: React.FC = () => {
   const { t } = useTranslation();
@@ -57,7 +57,6 @@ export const ContactList: React.FC = () => {
     contactsContentView,
     openContactForView,
     openContactSettings,
-    deleteContact,
     deleteContacts,
     selectedContactIds,
     toggleContactSelected,
@@ -65,6 +64,7 @@ export const ContactList: React.FC = () => {
     clearContactSelection,
     selectedCount,
     isSelected,
+    recentlyDuplicatedContactId,
   } = useContacts();
   const { getSettings, updateSettings, settingsVersion, user } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
@@ -74,15 +74,6 @@ export const ContactList: React.FC = () => {
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('mail'));
   const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    isOpen: boolean;
-    contactId: string;
-    contactName: string;
-  }>({
-    isOpen: false,
-    contactId: '',
-    contactName: '',
-  });
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
   const [showBulkEmailDialog, setShowBulkEmailDialog] = useState(false);
@@ -93,7 +84,6 @@ export const ContactList: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [viewMode, setViewModeState] = useState<ViewMode>('list');
 
-  // Load contacts settings from API
   useEffect(() => {
     let cancelled = false;
     getSettings(CONTACTS_SETTINGS_KEY)
@@ -117,7 +107,6 @@ export const ContactList: React.FC = () => {
     [updateSettings],
   );
 
-  // Detect mobile screen size
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -127,10 +116,8 @@ export const ContactList: React.FC = () => {
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      // Toggle order if same field
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
-      // New field, default to asc
       setSortField(field);
       setSortOrder('asc');
     }
@@ -185,13 +172,11 @@ export const ContactList: React.FC = () => {
     });
   }, [contacts, searchTerm, sortField, sortOrder]);
 
-  // Visible contact IDs for selection
   const visibleContactIds = useMemo(
     () => sortedContacts.map((contact) => String(contact.id)),
     [sortedContacts],
   );
 
-  // Selection helpers
   const allVisibleSelected = useMemo(
     () => visibleContactIds.length > 0 && visibleContactIds.every((id) => isSelected(id)),
     [visibleContactIds, isSelected],
@@ -235,20 +220,6 @@ export const ContactList: React.FC = () => {
     }
   };
 
-  const _handleDelete = (id: string, name: string) => {
-    setDeleteConfirm({ isOpen: true, contactId: id, contactName: name });
-  };
-
-  const confirmDelete = () => {
-    deleteContact(deleteConfirm.contactId);
-    setDeleteConfirm({ isOpen: false, contactId: '', contactName: '' });
-  };
-
-  const cancelDelete = () => {
-    setDeleteConfirm({ isOpen: false, contactId: '', contactName: '' });
-  };
-
-  // Export handlers
   const handleExportCSV = () => {
     if (selectedContactIds.length === 0) {
       alert('Please select contacts to export');
@@ -319,7 +290,7 @@ export const ContactList: React.FC = () => {
               onClick={() => setViewMode('grid')}
               className={cn('h-9 text-xs px-3', viewMode === 'grid' && 'text-primary')}
             >
-              {t('slots.grid')}
+              {t('common.grid')}
             </Button>
             <Button
               variant="ghost"
@@ -328,7 +299,7 @@ export const ContactList: React.FC = () => {
               onClick={() => setViewMode('list')}
               className={cn('h-9 text-xs px-3', viewMode === 'list' && 'text-primary')}
             >
-              {t('slots.list')}
+              {t('common.list')}
             </Button>
           </div>
         }
@@ -346,7 +317,6 @@ export const ContactList: React.FC = () => {
     contactsContentView,
   ]);
 
-  // Protected navigation handlers
   const handleOpenForView = (contact: any) => attemptNavigation(() => openContactForView(contact));
 
   const bulkMessageRecipients = useMemo(
@@ -380,7 +350,6 @@ export const ContactList: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Bulk Action Bar */}
       <BulkActionBar
         selectedCount={selectedCount}
         onClearSelection={clearContactSelection}
@@ -457,6 +426,7 @@ export const ContactList: React.FC = () => {
                     contactIsSelected
                       ? 'plugin-contacts bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
                       : 'hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md',
+                    recentlyDuplicatedContactId === String(contact.id) && HIGHLIGHT_CLASS,
                   )}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -519,7 +489,6 @@ export const ContactList: React.FC = () => {
             })}
           </div>
         ) : isMobile ? (
-          // Mobile: Card layout
           <Card className="shadow-none">
             <div className="space-y-2 p-4">
               {sortedContacts.map((contact) => {
@@ -591,7 +560,6 @@ export const ContactList: React.FC = () => {
             </div>
           </Card>
         ) : (
-          // Desktop: Table layout
           <Card className="shadow-none">
             <Table>
               <TableHeader>
@@ -660,14 +628,16 @@ export const ContactList: React.FC = () => {
                   return (
                     <TableRow
                       key={contact.id}
-                      className="cursor-pointer hover:bg-accent"
+                      className={cn(
+                        'cursor-pointer hover:bg-accent',
+                        recentlyDuplicatedContactId === String(contact.id) && HIGHLIGHT_CLASS,
+                      )}
                       tabIndex={0}
                       data-list-item={JSON.stringify(contact)}
                       data-plugin-name="contacts"
                       role="button"
                       aria-label={`Open contact ${contact.companyName}`}
                       onClick={(e) => {
-                        // Don't open if clicking checkbox
                         if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                           return;
                         }
@@ -742,7 +712,6 @@ export const ContactList: React.FC = () => {
         )}
       </Card>
 
-      {/* Bulk Delete Modal */}
       <BulkDeleteModal
         isOpen={showBulkDeleteModal}
         onClose={() => setShowBulkDeleteModal(false)}
@@ -750,17 +719,6 @@ export const ContactList: React.FC = () => {
         itemCount={selectedCount}
         itemLabel="contacts"
         isLoading={deleting}
-      />
-
-      <ConfirmDialog
-        isOpen={deleteConfirm.isOpen}
-        title={t('contacts.deleteTitle')}
-        message={`Are you sure you want to delete "${deleteConfirm.contactName}"? This action cannot be undone.`}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={confirmDelete}
-        onCancel={cancelDelete}
-        variant="danger"
       />
     </div>
   );

@@ -1,9 +1,6 @@
 import { Task } from '../types/tasks';
 
-// Tasks API - V2 with CSRF protection
 class TasksApi {
-  private csrfToken: string | null = null;
-
   private normalizeAssignedToIds(task: any): string[] {
     if (Array.isArray(task?.assigned_to_ids)) {
       return task.assigned_to_ids.map((id: any) => String(id));
@@ -14,59 +11,11 @@ class TasksApi {
     return [];
   }
 
-  async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) {
-      return this.csrfToken;
-    }
-
-    try {
-      const response = await fetch('/api/csrf-token', {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('CSRF token fetch failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData,
-        });
-
-        if (response.status === 401) {
-          throw new Error('Session required. Please log in again.');
-        } else if (response.status === 503) {
-          throw new Error('CSRF protection not configured on server');
-        } else {
-          throw new Error(`Failed to get CSRF token: ${errorData.error || response.statusText}`);
-        }
-      }
-
-      const data = await response.json();
-      if (!data.csrfToken) {
-        throw new Error('CSRF token not found in response');
-      }
-
-      this.csrfToken = data.csrfToken;
-      return this.csrfToken;
-    } catch (error: any) {
-      console.error('CSRF token fetch failed:', error);
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Failed to get CSRF token');
-    }
-  }
-
   private async request(endpoint: string, options: RequestInit = {}) {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...((options.headers as Record<string, string>) || {}),
     };
-
-    // Add CSRF token for mutations
-    if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
-      // CSRF temporarily disabled: headers["X-CSRF-Token"] = await this.getCsrfToken();
-    }
 
     const response = await fetch(`/api${endpoint}`, {
       headers,
@@ -77,12 +26,10 @@ class TasksApi {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Network error' }));
 
-      // Handle standardized error format from backend
       const errorMessage = error.error || error.message || 'Request failed';
       const errorCode = error.code;
       const errorDetails = error.details;
 
-      // Log validation errors for debugging
       if (errorCode === 'VALIDATION_ERROR' && errorDetails) {
         console.error('Validation errors:', errorDetails);
       }
@@ -125,8 +72,6 @@ class TasksApi {
   }
 
   async createTask(taskData: any): Promise<Task> {
-    // Transform camelCase to snake_case for backend
-    // Remove both camelCase and snake_case versions to avoid duplicates
     const {
       dueDate,
       assignedTo,
@@ -139,26 +84,12 @@ class TasksApi {
       ...rest
     } = taskData;
 
-    // Ensure required fields are strings/arrays
     const title = rest.title || '';
     const content = rest.content || '';
     const mentions = Array.isArray(rest.mentions) ? rest.mentions : [];
     const status = rest.status || 'not started';
-    const priority = rest.priority ?? 'Medium'; // Use nullish coalescing to preserve 'Low' if set
+    const priority = rest.priority ?? 'Medium';
 
-    console.log('Creating task with data:', {
-      title,
-      content,
-      mentions,
-      status,
-      priority,
-      due_date: dueDate instanceof Date ? dueDate.toISOString().split('T')[0] : dueDate || null,
-      assigned_to: assignedTo || null,
-      assigned_to_ids: Array.isArray(assignedToIds) ? assignedToIds : [],
-      created_from_note: createdFromNote || null,
-    });
-
-    // Build request body, only include fields that have values
     const requestBody: any = {
       title: title,
       content: content,
@@ -167,7 +98,6 @@ class TasksApi {
       priority: priority,
     };
 
-    // Only include optional fields if they have values
     if (dueDate instanceof Date) {
       requestBody.due_date = dueDate.toISOString().split('T')[0];
     }
@@ -200,7 +130,6 @@ class TasksApi {
   }
 
   async updateTask(id: string, taskData: any): Promise<Task> {
-    // Transform camelCase to snake_case for backend
     const { dueDate, assignedTo, assignedToIds, createdFromNote, ...rest } = taskData;
     const normalizedAssignedToIds = Array.isArray(assignedToIds)
       ? assignedToIds.map((id: any) => String(id))

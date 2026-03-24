@@ -184,7 +184,6 @@ export function SlotsProvider({
   const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
   const [sendEmailRecipients, setSendEmailRecipients] = useState<BulkEmailRecipient[]>([]);
   const [sendEmailSlot, setSendEmailSlot] = useState<Slot | null>(null);
-  const pendingCloseRef = useRef<(() => void) | null>(null);
 
   const closeSendMessageDialog = useCallback(() => {
     setShowSendMessageDialog(false);
@@ -655,7 +654,6 @@ export function SlotsProvider({
     (defaultClose: () => void) => {
       return () => {
         if (hasQuickEditChanges) {
-          pendingCloseRef.current = defaultClose;
           setShowDiscardQuickEditDialog(true);
         } else {
           defaultClose();
@@ -688,7 +686,14 @@ export function SlotsProvider({
         }
       } catch (error: unknown) {
         const detail = extractErrorMsg(error, '');
-        alert(detail ? `${t('slots.deleteSlotFailed')}: ${detail}` : t('slots.deleteSlotFailed'));
+        setValidationErrors([
+          {
+            field: 'general',
+            message: detail
+              ? `${t('slots.deleteSlotFailed')}: ${detail}`
+              : t('slots.deleteSlotFailed'),
+          },
+        ]);
       }
     },
     [currentSlot, closeSlotPanel, t],
@@ -708,7 +713,9 @@ export function SlotsProvider({
         }
         clearSlotSelectionCore();
       } catch (error: unknown) {
-        alert(extractErrorMsg(error, 'Failed to delete slots'));
+        setValidationErrors([
+          { field: 'general', message: extractErrorMsg(error, 'Failed to delete slots') },
+        ]);
       }
     },
     [currentSlot, closeSlotPanel, clearSlotSelectionCore],

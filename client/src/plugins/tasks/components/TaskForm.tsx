@@ -22,6 +22,7 @@ import { TaskAssigneeSelect } from './TaskAssigneeSelect';
 import { TaskSettingsForm } from './TaskSettingsForm';
 
 const TASK_FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
+const PANEL_MAX_WIDTH = 'max-w-[920px]';
 
 type TaskStatus = (typeof TASK_STATUS_OPTIONS)[number];
 type TaskPriority = (typeof TASK_PRIORITY_OPTIONS)[number];
@@ -29,7 +30,7 @@ type TaskPriority = (typeof TASK_PRIORITY_OPTIONS)[number];
 interface TaskFormState {
   title: string;
   content: string;
-  mentions: any[]; // ersätt gärna med er Mention-typ om ni har en
+  mentions: any[];
   status: TaskStatus;
   priority: TaskPriority;
   dueDate: Date | null;
@@ -74,10 +75,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     assignedToIds: [],
   });
 
-  // Use internal state or external prop (external takes precedence)
   const isCurrentlySubmitting = externalIsSubmitting || isSubmitting;
 
-  // Register this form's unsaved changes state globally
   useEffect(() => {
     const formKey = `task-form-${currentTask?.id || 'new'}`;
     registerUnsavedChangesChecker(formKey, () => isDirty);
@@ -100,7 +99,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     markClean();
   }, [markClean]);
 
-  // Load currentTask data when editing
   useEffect(() => {
     if (currentTask) {
       setFormData({
@@ -125,36 +123,23 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   const handleSubmit = useCallback(async () => {
     if (isCurrentlySubmitting) {
       return;
-    } // Prevent double submission
+    }
 
     setIsSubmitting(true);
     try {
-      console.log('Form submitting with data:', formData);
-      console.log('Current validation errors:', validationErrors);
       const success = await onSave(formData);
-      console.log('Save result:', success);
       if (success) {
         markClean();
         if (!currentTask) {
           resetForm();
         }
-      } else {
-        console.log('Save failed due to validation errors');
       }
     } catch (error) {
       console.error('Save failed:', error);
     } finally {
       setIsSubmitting(false);
     }
-  }, [
-    formData,
-    onSave,
-    markClean,
-    currentTask,
-    resetForm,
-    validationErrors,
-    isCurrentlySubmitting,
-  ]);
+  }, [formData, onSave, markClean, currentTask, resetForm, isCurrentlySubmitting]);
 
   const handleCancel = useCallback(() => {
     attemptAction(() => {
@@ -162,13 +147,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     });
   }, [attemptAction, onCancel]);
 
-  // Global functions with correct plural naming
   useEffect(() => {
     if (panelMode === 'settings') {
       return;
     }
-    (window as any).submitTasksForm = handleSubmit; // PLURAL!
-    (window as any).cancelTasksForm = handleCancel; // PLURAL!
+    (window as any).submitTasksForm = handleSubmit;
+    (window as any).cancelTasksForm = handleCancel;
 
     return () => {
       delete (window as any).submitTasksForm;
@@ -183,7 +167,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         confirmDiscard();
       }, 0);
     } else {
-      // Edit mode: close dialog and go back to detail view
       confirmDiscard();
       onCancel();
     }
@@ -210,19 +193,16 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     updateField('dueDate', date);
   };
 
-  // Helper function to get error for a specific field
   const getFieldError = (fieldName: string) => {
     return validationErrors.find((error) => error.field === fieldName);
   };
 
-  // Check if there are any blocking errors (non-warning)
   const hasBlockingErrors = validationErrors.some((error) => !error.message.includes('Warning'));
 
   if (panelMode === 'settings') {
     return <TaskSettingsForm onCancel={onCancel} />;
   }
 
-  // Format date for input field
   const formatDateForInput = (date: Date | null) => {
     if (!date) {
       return '';
@@ -272,7 +252,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
         )}
       >
-        <DetailLayout mainClassName="max-w-[920px]" sidebar={formSidebar}>
+        <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
           <form
             className="space-y-6"
             onSubmit={(e) => {

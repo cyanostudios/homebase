@@ -132,7 +132,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     selectedCount,
   } = useBulkSelection();
 
-  // Define closeNotePanel BEFORE useEffect that uses it (TDZ fix)
   const closeNotePanel = useCallback(() => {
     setIsNotePanelOpen(false);
     setCurrentNote(null);
@@ -141,7 +140,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     navigateToBase();
   }, [navigateToBase]);
 
-  // Panel registration
   useEffect(() => {
     registerPanelCloseFunction('notes', closeNotePanel);
     return () => {
@@ -149,7 +147,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     };
   }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeNotePanel]);
 
-  // Global functions for form submission
   useEffect(() => {
     window.submitNotesForm = () => {
       const event = new CustomEvent('submitNoteForm');
@@ -186,7 +183,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     }
   }, []);
 
-  // Load data when authenticated (after loadNotes is defined)
   useEffect(() => {
     if (isAuthenticated) {
       loadNotes();
@@ -273,7 +269,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     openNoteForViewRef.current = openNoteForView;
   }, [openNoteForView]);
 
-  /** Open the note for the current URL once per pathname; list refetches must not re-call openNoteForView. */
   const notesDeepLinkPathSyncedRef = useRef<string | null>(null);
   useEffect(() => {
     if (notes.length === 0) {
@@ -339,14 +334,11 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const saveNote = useCallback(
     async (noteData: any): Promise<boolean> => {
-      console.log('Validating note data:', noteData);
-
       const errors = validateNote(noteData);
       setValidationErrors(errors);
 
       const blockingErrors = errors.filter((error) => !error.message.includes('Warning'));
       if (blockingErrors.length > 0) {
-        console.log('Validation failed:', blockingErrors);
         return false;
       }
 
@@ -354,7 +346,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         let savedNote: Note;
 
         if (currentNote) {
-          // Update existing note
           savedNote = await notesApi.updateNote(currentNote.id, noteData);
           setNotes((prev) =>
             prev.map((note) =>
@@ -375,7 +366,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           setPanelMode('view');
           setValidationErrors([]);
         } else {
-          // Create new note
           savedNote = await notesApi.createNote(noteData);
           setNotes((prev) => [
             ...prev,
@@ -392,10 +382,8 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       } catch (error: any) {
         console.error('Failed to save note:', error);
 
-        // V2: Handle standardized error format from backend
         const validationErrors: ValidationError[] = [];
 
-        // Check if backend returned validation errors in details array
         if (error?.details && Array.isArray(error.details)) {
           error.details.forEach((detail: any) => {
             if (typeof detail === 'string') {
@@ -408,7 +396,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           });
         }
 
-        // If no validation errors from backend, use error message
         if (validationErrors.length === 0) {
           const errorMessage =
             error?.message || error?.error || 'Failed to save note. Please try again.';
@@ -433,13 +420,12 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       } catch (error: unknown) {
         const err = error as { message?: string; error?: string };
         const errorMessage = err?.message || err?.error || t('notes.deleteFailed');
-        alert(errorMessage);
+        setValidationErrors([{ field: 'general', message: errorMessage }]);
       }
     },
     [isSelected, toggleNoteSelectedCore, t],
   );
 
-  // Bulk delete using core bulkApi
   const deleteNotes = useCallback(
     async (ids: string[]) => {
       const uniqueIds = Array.from(new Set((ids || []).map(String))).filter(Boolean);
@@ -460,7 +446,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     [clearNoteSelectionCore],
   );
 
-  // Selection helpers - wrap core hook functions for backward compatibility
   const toggleNoteSelected = useCallback(
     (id: string) => {
       toggleNoteSelectedCore(id);
@@ -529,33 +514,23 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
 
-  const onExportItem = useCallback((format: ExportFormat, item: Note) => {
-    const result = exportItems({
-      items: [item],
-      format,
-      config: notesExportConfig,
-      filename: getNoteExportBaseFilename(item),
-      title: 'Notes Export',
-    });
-    if (result && typeof (result as Promise<void>).then === 'function') {
-      (result as Promise<void>).catch((err) => {
-        console.error('Export failed:', err);
-        alert('Export failed. Please try again.');
+  const onExportItem = useCallback(
+    (format: ExportFormat, item: Note) => {
+      const result = exportItems({
+        items: [item],
+        format,
+        config: notesExportConfig,
+        filename: getNoteExportBaseFilename(item),
+        title: 'Notes Export',
       });
-    }
-  }, []);
-
-  const _convertToTask = useCallback(
-    async (note: Note) => {
-      // Find the specific action for task conversion if it exists in pluginActions
-      const taskAction = pluginActions.find((a) => a.id === 'create-task-from-note');
-      if (taskAction) {
-        await taskAction.onClick(note);
-      } else {
-        alert('Task plugin is not available.');
+      if (result && typeof (result as Promise<void>).then === 'function') {
+        (result as Promise<void>).catch((err) => {
+          console.error('Export failed:', err);
+          setValidationErrors([{ field: 'general', message: t('common.exportFailed') }]);
+        });
       }
     },
-    [pluginActions],
+    [t],
   );
 
   const getDeleteMessage = (item: Note | null) => {
@@ -567,16 +542,13 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   };
 
   const value: NoteContextType = {
-    // Panel State
     isNotePanelOpen,
     currentNote,
     panelMode,
     validationErrors,
 
-    // Data State
     notes,
 
-    // Actions
     openNotePanel,
     openNoteForEdit,
     openNoteForView,
@@ -591,7 +563,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     getDuplicateConfig,
     executeDuplicate,
     clearValidationErrors,
-    // Bulk selection
     selectedNoteIds,
     toggleNoteSelected,
     selectAllNotes,
@@ -631,7 +602,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           action.id === 'create-task-from-note' && openToTaskDialog
             ? (note) => openToTaskDialog(note)
             : action.onClick,
-        // Quick action row styling lives in NoteView (icon color + hover like slots); no full-width green button text
         className: undefined,
       })),
 

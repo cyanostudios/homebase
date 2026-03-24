@@ -10,6 +10,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
@@ -74,6 +75,15 @@ interface ContactContextType {
   getCloseHandler: (defaultClose: () => void) => () => void;
   onDiscardTagsAndClose: () => void;
   tagError: string | null;
+  recentlyDuplicatedContactId: string | null;
+  setRecentlyDuplicatedContactId: React.Dispatch<React.SetStateAction<string | null>>;
+  getDuplicateConfig: (
+    item: Contact | null,
+  ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
+  executeDuplicate: (
+    item: Contact,
+    newName: string,
+  ) => Promise<{ closePanel: () => void; highlightId?: string }>;
 
   navigateToPrevItem: () => void;
   navigateToNextItem: () => void;
@@ -113,6 +123,7 @@ export function ContactProvider({
   onCloseOtherPanels,
 }: ContactProviderProps) {
   const { t } = useTranslation();
+  const location = useLocation();
   const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData, user } = useApp();
   const { navigateToItem, navigateToBase } = useItemUrl('/contacts');
   const canSendMessages =
@@ -136,7 +147,9 @@ export function ContactProvider({
   const [sendMessageRecipients, setSendMessageRecipients] = useState<BulkMessageRecipient[]>([]);
   const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
   const [sendEmailRecipients, setSendEmailRecipients] = useState<BulkEmailRecipient[]>([]);
-  const pendingCloseRef = useRef<(() => void) | null>(null);
+  const [recentlyDuplicatedContactId, setRecentlyDuplicatedContactId] = useState<string | null>(
+    null,
+  );
 
   const closeSendMessageDialog = useCallback(() => {
     setShowSendMessageDialog(false);
@@ -213,7 +226,6 @@ export function ContactProvider({
     selectedCount,
   } = useBulkSelection();
 
-  // Load data when authenticated
   useEffect(() => {
     if (isAuthenticated) {
       loadContacts();
@@ -222,14 +234,12 @@ export function ContactProvider({
     }
   }, [isAuthenticated]);
 
-  // Register a global close function for this panel once
   useEffect(() => {
     registerPanelCloseFunction('contacts', closeContactPanel);
     return () => {
       unregisterPanelCloseFunction('contacts');
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [closeContactPanel, registerPanelCloseFunction, unregisterPanelCloseFunction]);
 
   const loadContacts = async () => {
     try {
@@ -246,92 +256,96 @@ export function ContactProvider({
     }
   };
 
-  const validateContact = (contactData: any): ValidationError[] => {
-    const errors: ValidationError[] = [];
+  const validateContact = useCallback(
+    (contactData: any): ValidationError[] => {
+      const errors: ValidationError[] = [];
 
-    // Contact number: required only when editing; on create backend assigns it
-    if (currentContact) {
-      if (!contactData.contactNumber?.trim()) {
-        errors.push({
-          field: 'contactNumber',
-          message: 'Contact number is required',
-        });
-      } else {
-        const existingContact = contacts.find(
-          (c) =>
-            c.id !== currentContact?.id && c.contactNumber === contactData.contactNumber.trim(),
-        );
-        if (existingContact) {
+      // Contact number: required only when editing; on create backend assigns it
+      if (currentContact) {
+        if (!contactData.contactNumber?.trim()) {
           errors.push({
             field: 'contactNumber',
-            message: `Contact number "${contactData.contactNumber}" already exists for "${existingContact.companyName}"`,
+            message: 'Contact number is required',
+          });
+        } else {
+          const existingContact = contacts.find(
+            (c) =>
+              c.id !== currentContact?.id && c.contactNumber === contactData.contactNumber.trim(),
+          );
+          if (existingContact) {
+            errors.push({
+              field: 'contactNumber',
+              message: `Contact number "${contactData.contactNumber}" already exists for "${existingContact.companyName}"`,
+            });
+          }
+        }
+      }
+
+      // Required name (company or full name stored in companyName)
+      if (!contactData.companyName?.trim()) {
+        errors.push({
+          field: 'companyName',
+          message:
+            contactData.contactType === 'company'
+              ? 'Company name is required'
+              : 'Full name is required',
+        });
+      }
+
+      // Company validations
+      if (contactData.contactType === 'company' && contactData.organizationNumber?.trim()) {
+        const dup = contacts.find(
+          (c) =>
+            c.id !== currentContact?.id &&
+            c.contactType === 'company' &&
+            c.organizationNumber === contactData.organizationNumber.trim(),
+        );
+        if (dup) {
+          errors.push({
+            field: 'organizationNumber',
+            message: `Organization number already exists for "${dup.companyName}"`,
           });
         }
       }
-    }
 
-    // Required name (company or full name stored in companyName)
-    if (!contactData.companyName?.trim()) {
-      errors.push({
-        field: 'companyName',
-        message:
-          contactData.contactType === 'company'
-            ? 'Company name is required'
-            : 'Full name is required',
-      });
-    }
-
-    // Company validations
-    if (contactData.contactType === 'company' && contactData.organizationNumber?.trim()) {
-      const dup = contacts.find(
-        (c) =>
-          c.id !== currentContact?.id &&
-          c.contactType === 'company' &&
-          c.organizationNumber === contactData.organizationNumber.trim(),
-      );
-      if (dup) {
-        errors.push({
-          field: 'organizationNumber',
-          message: `Organization number already exists for "${dup.companyName}"`,
-        });
+      // Private person validations
+      if (contactData.contactType === 'private' && contactData.personalNumber?.trim()) {
+        const dup = contacts.find(
+          (c) =>
+            c.id !== currentContact?.id &&
+            c.contactType === 'private' &&
+            c.personalNumber === contactData.personalNumber.trim(),
+        );
+        if (dup) {
+          errors.push({
+            field: 'personalNumber',
+            message: `Personal number already exists for "${dup.companyName}"`,
+          });
+        }
       }
-    }
 
-    // Private person validations
-    if (contactData.contactType === 'private' && contactData.personalNumber?.trim()) {
-      const dup = contacts.find(
-        (c) =>
-          c.id !== currentContact?.id &&
-          c.contactType === 'private' &&
-          c.personalNumber === contactData.personalNumber.trim(),
-      );
-      if (dup) {
-        errors.push({
-          field: 'personalNumber',
-          message: `Personal number already exists for "${dup.companyName}"`,
-        });
+      // Email (warning)
+      if (contactData.email?.trim()) {
+        const dup = contacts.find(
+          (c) => c.id !== currentContact?.id && c.email === contactData.email.trim(),
+        );
+        if (dup) {
+          errors.push({
+            field: 'email',
+            message: `Email already exists for "${dup.companyName}" (Warning)`,
+          });
+        }
       }
-    }
 
-    // Email (warning)
-    if (contactData.email?.trim()) {
-      const dup = contacts.find(
-        (c) => c.id !== currentContact?.id && c.email === contactData.email.trim(),
-      );
-      if (dup) {
-        errors.push({
-          field: 'email',
-          message: `Email already exists for "${dup.companyName}" (Warning)`,
-        });
-      }
-    }
-
-    return errors;
-  };
+      return errors;
+    },
+    [contacts, currentContact],
+  );
 
   // Panel actions (clear bulk selection when opening panel or settings)
   const openContactPanel = (contact: Contact | null) => {
     clearContactSelectionCore();
+    setRecentlyDuplicatedContactId(null);
     setCurrentContact(contact);
     setPanelMode(contact ? 'edit' : 'create');
     setIsContactPanelOpen(true);
@@ -344,6 +358,7 @@ export function ContactProvider({
 
   const openContactForEdit = (contact: Contact) => {
     clearContactSelectionCore();
+    setRecentlyDuplicatedContactId(null);
     setCurrentContact(contact);
     setPanelMode('edit');
     setIsContactPanelOpen(true);
@@ -354,6 +369,7 @@ export function ContactProvider({
 
   const openContactForView = useCallback(
     (contact: Contact) => {
+      setRecentlyDuplicatedContactId(null);
       setCurrentContact(contact);
       setPanelMode('view');
       setIsContactPanelOpen(true);
@@ -366,6 +382,7 @@ export function ContactProvider({
 
   const openContactSettings = useCallback(() => {
     clearContactSelectionCore();
+    setRecentlyDuplicatedContactId(null);
     setContactsContentView('settings');
     onCloseOtherPanels();
   }, [onCloseOtherPanels, clearContactSelectionCore]);
@@ -411,26 +428,34 @@ export function ContactProvider({
     }
   }, [hasNextItem, currentItemIndex, contacts, openContactForView]);
 
-  // Initial deep-link: open the contact matching the URL on first data load
   const openContactForViewRef = useRef(openContactForView);
   useEffect(() => {
     openContactForViewRef.current = openContactForView;
   }, [openContactForView]);
-  const didOpenFromUrlRef = useRef(false);
+  const contactsDeepLinkPathSyncedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (didOpenFromUrlRef.current || contacts.length === 0) {
+    if (contacts.length === 0) {
       return;
     }
-    const parts = window.location.pathname.split('/');
-    if (parts[1] !== 'contacts' || !parts[2]) {
+    const segments = location.pathname.split('/').filter(Boolean);
+    if (segments[0] !== 'contacts') {
       return;
     }
-    const item = resolveSlug(parts[2], contacts, 'companyName');
+    const slug = segments[1] ?? '';
+    if (!slug) {
+      contactsDeepLinkPathSyncedRef.current = location.pathname;
+      return;
+    }
+    const pathKey = location.pathname;
+    if (contactsDeepLinkPathSyncedRef.current === pathKey) {
+      return;
+    }
+    const item = resolveSlug(slug, contacts, 'companyName');
+    contactsDeepLinkPathSyncedRef.current = pathKey;
     if (item) {
-      didOpenFromUrlRef.current = true;
       openContactForViewRef.current(item as Contact);
     }
-  }, [contacts]);
+  }, [location.pathname, contacts]);
 
   const clearValidationErrors = () => {
     setValidationErrors([]);
@@ -495,98 +520,94 @@ export function ContactProvider({
       })(),
   );
 
-  // Not wrapped in useCallback to avoid large dependency chain; onApplyTagsEdit depends on this
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const saveContact = async (contactData: any): Promise<boolean> => {
-    // Contact number: backend assigns on create; only send for update
-    if (!currentContact) {
-      delete contactData.contactNumber;
-    }
+  const saveContact = useCallback(
+    async (contactData: any): Promise<boolean> => {
+      // Contact number: backend assigns on create; only send for update
+      if (!currentContact) {
+        delete contactData.contactNumber;
+      }
 
-    // Validate
-    const errors = validateContact(contactData);
-    setValidationErrors(errors);
+      // Validate
+      const errors = validateContact(contactData);
+      setValidationErrors(errors);
 
-    // Blocking errors?
-    const blocking = errors.filter((e) => !e.message.includes('Warning'));
-    if (blocking.length > 0) {
-      return false;
-    }
+      // Blocking errors?
+      const blocking = errors.filter((e) => !e.message.includes('Warning'));
+      if (blocking.length > 0) {
+        return false;
+      }
 
-    try {
-      let saved: Contact;
+      try {
+        let saved: Contact;
 
-      if (currentContact) {
-        // Update: send existing tags when form doesn't include them; never send tags: [] when we don't know current tags (would wipe DB)
-        const updatePayload =
-          typeof contactData.tags !== 'undefined'
-            ? contactData
-            : Array.isArray(currentContact.tags)
-              ? { ...contactData, tags: currentContact.tags }
-              : contactData; // omit tags so backend leaves column unchanged
-        saved = await contactsApi.updateContact(currentContact.id, updatePayload);
-        const normalized: Contact = {
-          ...saved,
-          tags:
+        if (currentContact) {
+          const updatePayload =
             typeof contactData.tags !== 'undefined'
-              ? Array.isArray(contactData.tags)
-                ? contactData.tags
-                : []
-              : (saved.tags ?? []),
-          createdAt: new Date(saved.createdAt),
-          updatedAt: new Date(saved.updatedAt),
-        };
-        setContacts((prev) => prev.map((c) => (c.id === currentContact.id ? normalized : c)));
-        setCurrentContact(normalized);
-        setPanelMode('view');
-        setValidationErrors([]);
-      } else {
-        // Create
-        saved = await contactsApi.createContact(contactData);
-        const normalized: Contact = {
-          ...saved,
-          createdAt: new Date(saved.createdAt),
-          updatedAt: new Date(saved.updatedAt),
-        };
-        setContacts((prev) => [...prev, normalized]);
-        closeContactPanel();
+              ? contactData
+              : Array.isArray(currentContact.tags)
+                ? { ...contactData, tags: currentContact.tags }
+                : contactData; // omit tags so backend leaves column unchanged
+          saved = await contactsApi.updateContact(currentContact.id, updatePayload);
+          const normalized: Contact = {
+            ...saved,
+            tags:
+              typeof contactData.tags !== 'undefined'
+                ? Array.isArray(contactData.tags)
+                  ? contactData.tags
+                  : []
+                : (saved.tags ?? []),
+            createdAt: new Date(saved.createdAt),
+            updatedAt: new Date(saved.updatedAt),
+          };
+          setContacts((prev) => prev.map((c) => (c.id === currentContact.id ? normalized : c)));
+          setCurrentContact(normalized);
+          setPanelMode('view');
+          setValidationErrors([]);
+        } else {
+          // Create
+          saved = await contactsApi.createContact(contactData);
+          const normalized: Contact = {
+            ...saved,
+            createdAt: new Date(saved.createdAt),
+            updatedAt: new Date(saved.updatedAt),
+          };
+          setContacts((prev) => [...prev, normalized]);
+          closeContactPanel();
+        }
+
+        await refreshData();
+
+        return true;
+      } catch (error: any) {
+        console.error('Failed to save contact:', error);
+
+        const validationErrors: ValidationError[] = [];
+
+        if (error?.details && Array.isArray(error.details)) {
+          error.details.forEach((detail: any) => {
+            if (typeof detail === 'string') {
+              validationErrors.push({ field: 'general', message: detail });
+            } else if (detail?.field && detail?.message) {
+              validationErrors.push({ field: detail.field, message: detail.message });
+            } else if (detail?.msg) {
+              validationErrors.push({ field: detail.param || 'general', message: detail.msg });
+            }
+          });
+        }
+
+        if (validationErrors.length === 0) {
+          const errorMessage =
+            error?.message || error?.error || 'Failed to save contact. Please try again.';
+          validationErrors.push({ field: 'general', message: errorMessage });
+        }
+
+        setValidationErrors(validationErrors);
+        setTagError(validationErrors.find((e) => e.field === 'general')?.message ?? null);
+        return false;
       }
-
-      // Refresh global data to update other plugins (e.g. TaskForm assignee list)
-      await refreshData();
-
-      return true;
-    } catch (error: any) {
-      console.error('Failed to save contact:', error);
-
-      // V2: Handle standardized error format from backend
-      const validationErrors: ValidationError[] = [];
-
-      // Check if backend returned validation errors in details array
-      if (error?.details && Array.isArray(error.details)) {
-        error.details.forEach((detail: any) => {
-          if (typeof detail === 'string') {
-            validationErrors.push({ field: 'general', message: detail });
-          } else if (detail?.field && detail?.message) {
-            validationErrors.push({ field: detail.field, message: detail.message });
-          } else if (detail?.msg) {
-            validationErrors.push({ field: detail.param || 'general', message: detail.msg });
-          }
-        });
-      }
-
-      // If no validation errors from backend, use error message
-      if (validationErrors.length === 0) {
-        const errorMessage =
-          error?.message || error?.error || 'Failed to save contact. Please try again.';
-        validationErrors.push({ field: 'general', message: errorMessage });
-      }
-
-      setValidationErrors(validationErrors);
-      setTagError(validationErrors.find((e) => e.field === 'general')?.message ?? null);
-      return false;
-    }
-  };
+    },
+    [closeContactPanel, currentContact, refreshData, validateContact],
+  );
 
   const onApplyTagsEdit = useCallback(async () => {
     if (!currentContact) {
@@ -604,7 +625,6 @@ export function ContactProvider({
     (defaultClose: () => void) => {
       return () => {
         if (hasTagsChanges) {
-          pendingCloseRef.current = defaultClose;
           setShowDiscardTagsDialog(true);
         } else {
           defaultClose();
@@ -617,7 +637,6 @@ export function ContactProvider({
   const onDiscardTagsAndClose = useCallback(() => {
     setTagsDraft(null);
     setShowDiscardTagsDialog(false);
-    // Keep same behavior as tasks quick-edit: discard draft and stay in detail view
   }, []);
 
   const deleteContact = async (id: string) => {
@@ -627,13 +646,11 @@ export function ContactProvider({
       await refreshData();
     } catch (error: any) {
       console.error('Failed to delete contact:', error);
-      // V2: Handle standardized error format
       const errorMessage = error?.message || error?.error || 'Failed to delete contact';
       alert(errorMessage);
     }
   };
 
-  // Bulk delete using core bulkApi
   const deleteContacts = async (ids: string[]) => {
     if (ids.length === 0) {
       return;
@@ -646,9 +663,7 @@ export function ContactProvider({
 
     try {
       await bulkApi.bulkDelete('contacts', uniqueIds);
-      // Update local state - remove deleted contacts
       setContacts((prev) => prev.filter((c) => !uniqueIds.includes(String(c.id))));
-      // Clear selection after successful delete
       clearContactSelectionCore();
       await refreshData();
     } catch (error: any) {
@@ -703,6 +718,51 @@ export function ContactProvider({
   };
 
   const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
+
+  const getDuplicateConfig = useCallback(
+    (item: Contact | null) => {
+      if (!item) {
+        return null;
+      }
+      const baseTitle = item.companyName?.trim() || t('nav.contact');
+      return {
+        defaultName: `Copy of ${baseTitle}`,
+        nameLabel: t('contacts.title'),
+        confirmOnly: false,
+      };
+    },
+    [t],
+  );
+
+  const executeDuplicate = useCallback(
+    async (
+      item: Contact,
+      newName: string,
+    ): Promise<{ closePanel: () => void; highlightId?: string }> => {
+      const nextName = (newName ?? '').trim();
+      const payload = {
+        ...item,
+        companyName: nextName || item.companyName?.trim() || 'Untitled',
+      } as Record<string, unknown>;
+      delete payload.id;
+      delete payload.createdAt;
+      delete payload.updatedAt;
+      delete payload.contactNumber;
+
+      const created = await contactsApi.createContact(payload);
+      const normalized: Contact = {
+        ...created,
+        tags: Array.isArray(created.tags) ? created.tags : [],
+        createdAt: new Date(created.createdAt),
+        updatedAt: new Date(created.updatedAt),
+      };
+      setContacts((prev) => [normalized, ...prev]);
+      const highlightId =
+        normalized?.id !== null && normalized?.id !== undefined ? String(normalized.id) : undefined;
+      return { closePanel: closeContactPanel, highlightId };
+    },
+    [closeContactPanel],
+  );
 
   const onExportItem = useCallback((format: ExportFormat, item: Contact) => {
     const result = exportItems({
@@ -789,6 +849,10 @@ export function ContactProvider({
     getCloseHandler,
     onDiscardTagsAndClose,
     tagError,
+    recentlyDuplicatedContactId,
+    setRecentlyDuplicatedContactId,
+    getDuplicateConfig,
+    executeDuplicate,
 
     navigateToPrevItem,
     navigateToNextItem,

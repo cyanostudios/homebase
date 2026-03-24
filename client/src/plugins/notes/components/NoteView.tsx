@@ -18,6 +18,7 @@ import { useNotes } from '@/plugins/notes/hooks/useNotes';
 import type { Note } from '@/plugins/notes/types/notes';
 
 const NOTE_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
+const PANEL_MAX_WIDTH = 'max-w-[920px]';
 
 interface NoteQuickActionsCardProps {
   note: Note;
@@ -148,7 +149,7 @@ interface NoteExportOptionsCardProps {
 
 function NoteExportOptionsCard({ note, exportFormats, onExportItem }: NoteExportOptionsCardProps) {
   const { t } = useTranslation();
-  if (!Array.isArray(exportFormats) || exportFormats.length === 0) {
+  if (exportFormats.length === 0) {
     return null;
   }
 
@@ -288,7 +289,7 @@ export const NoteView: React.FC<NoteViewProps> = ({ note }) => {
         )}
       >
         <DetailLayout
-          mainClassName="max-w-[920px]"
+          mainClassName={PANEL_MAX_WIDTH}
           sidebar={
             <div className="space-y-4">
               <NoteQuickActionsCard

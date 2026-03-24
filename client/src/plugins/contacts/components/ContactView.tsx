@@ -1,42 +1,265 @@
 import {
   CheckSquare,
   Clock,
+  Copy,
+  Download,
+  Edit,
+  ExternalLink,
   FileText,
   Info,
-  Mail,
   SlidersHorizontal,
   StickyNote,
   Store,
   Tag,
-  Trophy,
   Trash2,
-  X,
+  Trophy,
+  Zap,
 } from 'lucide-react';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useApp } from '@/core/api/AppContext';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
+import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import type { ExportFormat } from '@/core/utils/exportUtils';
 import { cn } from '@/lib/utils';
-import { useContacts } from '@/plugins/contacts/hooks/useContacts';
+
+import { useContacts } from '../hooks/useContacts';
 
 interface ContactViewProps {
   contact: any;
+}
+
+const CONTACT_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
+const PANEL_MAX_WIDTH = 'max-w-[920px]';
+const FIELD_LABEL_CLASS =
+  'text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5';
+
+type RelatedItem = { id: string | number; label: string; onOpen: () => void; pluginClass: string };
+
+function ContactQuickActionsCard({
+  contact,
+  onEdit,
+  onDeleteClick,
+  onDuplicate,
+  getDuplicateConfig,
+  detailFooterActions,
+}: {
+  contact: any;
+  onEdit: (contact: any) => void;
+  onDeleteClick: () => void;
+  onDuplicate: (contact: any) => void;
+  getDuplicateConfig: (
+    item: any | null,
+  ) => { defaultName: string; nameLabel: string; confirmOnly?: boolean } | null;
+  detailFooterActions?: Array<{
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    onClick: (item: any) => void;
+    className?: string;
+    disabled?: boolean;
+  }>;
+}) {
+  const { t } = useTranslation();
+  const canDuplicate = Boolean(getDuplicateConfig(contact));
+  const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
+
+  const getActionIconColorClass = (actionId: string): string => {
+    if (actionId === 'send-message') {
+      return 'text-violet-600 dark:text-violet-400';
+    }
+    if (actionId === 'send-email') {
+      return 'text-red-600 dark:text-red-400';
+    }
+    return '';
+  };
+
+  return (
+    <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
+      <DetailSection
+        title={t('contacts.quickActions')}
+        icon={Zap}
+        iconPlugin="contacts"
+        className="p-4"
+      >
+        <div className="flex flex-col items-start gap-1.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            icon={(props) => (
+              <Edit
+                {...props}
+                className={cn(props.className, 'text-blue-600 dark:text-blue-400')}
+              />
+            )}
+            className={quickActionButtonClass}
+            onClick={() => onEdit(contact)}
+          >
+            {t('common.edit')}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            icon={(props) => (
+              <Trash2
+                {...props}
+                className={cn(props.className, 'text-red-600 dark:text-red-400')}
+              />
+            )}
+            className="h-9 justify-start rounded-md px-3 text-xs hover:bg-red-50 dark:hover:bg-red-950/30"
+            onClick={onDeleteClick}
+          >
+            {t('common.delete')}
+          </Button>
+          {canDuplicate && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={(props) => (
+                <Copy
+                  {...props}
+                  className={cn(props.className, 'text-green-600 dark:text-green-400')}
+                />
+              )}
+              className={quickActionButtonClass}
+              onClick={() => onDuplicate(contact)}
+            >
+              {t('common.duplicate')}
+            </Button>
+          )}
+          {Array.isArray(detailFooterActions) &&
+            detailFooterActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <Button
+                  key={action.id}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  icon={(props) => (
+                    <Icon
+                      {...props}
+                      className={cn(props.className, getActionIconColorClass(action.id))}
+                    />
+                  )}
+                  disabled={action.disabled}
+                  className={cn(quickActionButtonClass, 'disabled:opacity-50', action.className)}
+                  onClick={() => action.onClick(contact)}
+                >
+                  {action.label}
+                </Button>
+              );
+            })}
+        </div>
+      </DetailSection>
+    </Card>
+  );
+}
+
+function ContactExportOptionsCard({
+  contact,
+  exportFormats,
+  onExportItem,
+}: {
+  contact: any;
+  exportFormats: ExportFormat[];
+  onExportItem: (format: ExportFormat, item: any) => void;
+}) {
+  const { t } = useTranslation();
+  if (!Array.isArray(exportFormats) || exportFormats.length === 0) {
+    return null;
+  }
+  const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
+  const exportLabelByFormat: Record<ExportFormat, string> = {
+    txt: t('common.exportTxt'),
+    csv: t('common.exportCsv'),
+    pdf: t('common.exportPdf'),
+  };
+
+  return (
+    <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
+      <DetailSection
+        title={t('contacts.exportOptions')}
+        icon={Download}
+        iconPlugin="contacts"
+        className="p-4"
+      >
+        <div className="flex flex-col items-start gap-1.5">
+          {exportFormats.map((format) => (
+            <Button
+              key={format}
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={Download}
+              className={quickActionButtonClass}
+              onClick={() => onExportItem(format, contact)}
+            >
+              {exportLabelByFormat[format]}
+            </Button>
+          ))}
+        </div>
+      </DetailSection>
+    </Card>
+  );
+}
+
+function RelatedItemsCard({
+  title,
+  icon: Icon,
+  iconPlugin,
+  items,
+}: {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  iconPlugin: string;
+  items: RelatedItem[];
+}) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
+      <DetailSection title={title} icon={Icon} iconPlugin={iconPlugin} className="p-4">
+        <div className="space-y-2">
+          {items.map((item) => (
+            <div
+              key={`${title}-${item.id}`}
+              className={cn(
+                'flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2',
+                item.pluginClass,
+              )}
+            >
+              <span className="truncate text-xs text-muted-foreground">{item.label}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                icon={ExternalLink}
+                className="h-9 w-9 shrink-0 p-0 hover:bg-accent"
+                onClick={item.onOpen}
+              >
+                <span className="sr-only">Open</span>
+              </Button>
+            </div>
+          ))}
+        </div>
+      </DetailSection>
+    </Card>
+  );
 }
 
 export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
@@ -49,8 +272,6 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     getTasksWithMentionsForContact,
     getSlotsForContact,
     getMatchesForContact,
-    getSettings,
-    settingsVersion,
     openNoteForView,
     openTaskForView,
     openEstimateForView,
@@ -60,84 +281,101 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
 
   const {
     closeContactPanel,
-    displayTags,
-    addTagToDraft,
-    removeTagFromDraft,
-    tagError,
-    showDiscardTagsDialog,
-    setShowDiscardTagsDialog,
-    onDiscardTagsAndClose,
+    openContactForEdit,
+    deleteContact,
+    getDeleteMessage,
     showSendMessageDialog,
     sendMessageRecipients,
     closeSendMessageDialog,
     showSendEmailDialog,
     sendEmailRecipients,
     closeSendEmailDialog,
+    detailFooterActions,
+    exportFormats,
+    onExportItem,
+    getDuplicateConfig,
+    executeDuplicate,
+    setRecentlyDuplicatedContactId,
   } = useContacts();
 
-  // State for cross-plugin data
   const [mentionedInNotes, setMentionedInNotes] = useState<any[]>([]);
   const [relatedEstimates, setRelatedEstimates] = useState<any[]>([]);
   const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
   const [mentionedInTasks, setMentionedInTasks] = useState<any[]>([]);
   const [slots, setSlots] = useState<any[]>([]);
   const [matchMatches, setMatchMatches] = useState<any[]>([]);
-  const [_loadingNotes, setLoadingNotes] = useState(false);
-  const [_loadingEstimates, setLoadingEstimates] = useState(false);
-  const [_loadingTasks, setLoadingTasks] = useState(false);
-  const [_loadingTaskMentions, setLoadingTaskMentions] = useState(false);
   const [timeEntries, setTimeEntries] = useState<
     { id: string; seconds: number; loggedAt: string }[]
   >([]);
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
-  const [tagToAdd, setTagToAdd] = useState('');
+  const [confirmDeleteEntryId, setConfirmDeleteEntryId] = useState<string | null>(null);
+  const [showDeleteContactConfirm, setShowDeleteContactConfirm] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
 
   useEffect(() => {
-    const loadTags = async () => {
+    if (!contact?.id) {
+      setTimeEntries([]);
+      return;
+    }
+    const loadTimeEntries = async () => {
       try {
-        const settings = await getSettings('contacts');
-        const list = Array.isArray(settings?.tags) ? settings.tags : [];
-        setAvailableTags(
-          list
-            .filter((t: any) => typeof t === 'string')
-            .map((t: string) => t.trim())
-            .filter(Boolean),
-        );
+        const response = await fetch(`/api/contacts/${contact.id}/time-entries`, {
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          setTimeEntries([]);
+          return;
+        }
+        const data = await response.json();
+        setTimeEntries(Array.isArray(data) ? data : []);
       } catch {
-        setAvailableTags([]);
-      }
-    };
-    loadTags();
-  }, [getSettings, settingsVersion]);
-
-  const addableTags = availableTags.filter(
-    (t) => !displayTags.some((ct) => String(ct).toLowerCase() === String(t).toLowerCase()),
-  );
-
-  const loadTimeEntries = useCallback(async (contactId: string) => {
-    try {
-      const res = await fetch(`/api/contacts/${contactId}/time-entries`, {
-        credentials: 'include',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setTimeEntries(data);
-      } else {
         setTimeEntries([]);
       }
-    } catch {
-      setTimeEntries([]);
-    }
-  }, []);
+    };
+    loadTimeEntries();
+  }, [contact?.id]);
 
   useEffect(() => {
-    if (contact?.id) {
-      loadTimeEntries(contact.id);
-    } else {
-      setTimeEntries([]);
+    if (!contact?.id) {
+      return;
     }
-  }, [contact?.id, loadTimeEntries]);
+
+    void getNotesForContact(contact.id)
+      .then(setMentionedInNotes)
+      .catch(() => setMentionedInNotes([]));
+    void getEstimatesForContact(contact.id)
+      .then(setRelatedEstimates)
+      .catch(() => setRelatedEstimates([]));
+    void getTasksForContact(contact.id)
+      .then(setAssignedTasks)
+      .catch(() => setAssignedTasks([]));
+    void getTasksWithMentionsForContact(contact.id)
+      .then(setMentionedInTasks)
+      .catch(() => setMentionedInTasks([]));
+    void getSlotsForContact(contact.id)
+      .then(setSlots)
+      .catch(() => setSlots([]));
+    void getMatchesForContact(contact.id)
+      .then(setMatchMatches)
+      .catch(() => setMatchMatches([]));
+  }, [
+    contact?.id,
+    getEstimatesForContact,
+    getMatchesForContact,
+    getNotesForContact,
+    getSlotsForContact,
+    getTasksForContact,
+    getTasksWithMentionsForContact,
+  ]);
+
+  const formatDuration = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes} min`;
+  };
 
   const handleDeleteTimeEntry = async (entryId: string) => {
     if (!contact?.id) {
@@ -145,499 +383,153 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
     }
     setDeletingEntryId(entryId);
     try {
-      const res = await fetch(`/api/contacts/${contact.id}/time-entries/${entryId}`, {
+      const response = await fetch(`/api/contacts/${contact.id}/time-entries/${entryId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
-      if (res.ok) {
-        setTimeEntries((prev) => prev.filter((e) => e.id !== entryId));
+      if (response.ok) {
+        setTimeEntries((prev) => prev.filter((entry) => entry.id !== entryId));
       }
     } finally {
       setDeletingEntryId(null);
     }
   };
 
-  const formatDuration = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0) {
-      return `${h}h ${m}m`;
-    }
-    return `${m} min`;
-  };
-
-  // Load cross-plugin data when contact changes
-  useEffect(() => {
-    if (!contact?.id) {
+  const handleConfirmDelete = async () => {
+    if (!contact) {
       return;
     }
+    await deleteContact(contact.id);
+    setShowDeleteContactConfirm(false);
+    closeContactPanel();
+  };
 
-    // Load notes (async)
-    const loadNotes = async () => {
-      setLoadingNotes(true);
-      try {
-        const notes = await getNotesForContact(contact.id);
-        setMentionedInNotes(notes);
-      } catch (error) {
-        console.error('Failed to load notes for contact:', error);
-        setMentionedInNotes([]);
-      } finally {
-        setLoadingNotes(false);
-      }
-    };
+  const toEstimateItems: RelatedItem[] = relatedEstimates.map((item: any) => ({
+    id: item.id,
+    label: formatDisplayNumber('estimates', item.estimateNumber),
+    onOpen: () => {
+      closeContactPanel();
+      openEstimateForView(item);
+    },
+    pluginClass: 'plugin-estimates bg-plugin-subtle/40',
+  }));
 
-    // Load estimates (async)
-    const loadEstimates = async () => {
-      setLoadingEstimates(true);
-      try {
-        const estimates = await getEstimatesForContact(contact.id);
-        setRelatedEstimates(estimates);
-      } catch (error) {
-        console.error('Failed to load estimates for contact:', error);
-        setRelatedEstimates([]);
-      } finally {
-        setLoadingEstimates(false);
-      }
-    };
+  const toTaskItems: RelatedItem[] = [...assignedTasks, ...mentionedInTasks].map((item: any) => ({
+    id: item.id,
+    label: item.title || 'Task',
+    onOpen: () => {
+      closeContactPanel();
+      openTaskForView(item);
+    },
+    pluginClass: 'plugin-tasks bg-plugin-subtle/40',
+  }));
 
-    // Load tasks (async) - assigned to contact
-    const loadTasks = async () => {
-      setLoadingTasks(true);
-      try {
-        const tasks = await getTasksForContact(contact.id);
-        setAssignedTasks(tasks);
-      } catch (error) {
-        console.error('Failed to load tasks for contact:', error);
-        setAssignedTasks([]);
-      } finally {
-        setLoadingTasks(false);
-      }
-    };
+  const toNoteItems: RelatedItem[] = mentionedInNotes.map((item: any) => ({
+    id: item.id,
+    label: item.title || 'Note',
+    onOpen: () => {
+      closeContactPanel();
+      openNoteForView(item);
+    },
+    pluginClass: 'plugin-notes bg-plugin-subtle/40',
+  }));
 
-    // Load task mentions (async) - contact mentioned in tasks
-    const loadTaskMentions = async () => {
-      setLoadingTaskMentions(true);
-      try {
-        const tasks = await getTasksWithMentionsForContact(contact.id);
-        setMentionedInTasks(tasks);
-      } catch (error) {
-        console.error('Failed to load task mentions for contact:', error);
-        setMentionedInTasks([]);
-      } finally {
-        setLoadingTaskMentions(false);
-      }
-    };
+  const toSlotItems: RelatedItem[] = slots.map((item: any) => ({
+    id: item.id,
+    label: item.location || 'Slot',
+    onOpen: () => {
+      closeContactPanel();
+      openSlotForView(item);
+    },
+    pluginClass: 'plugin-slots bg-plugin-subtle/40',
+  }));
 
-    // Load slots linked to this contact
-    const loadSlots = async () => {
-      try {
-        const linkedSlots = await getSlotsForContact(contact.id);
-        setSlots(linkedSlots);
-      } catch (error) {
-        console.error('Failed to load slots for contact:', error);
-        setSlots([]);
-      }
-    };
-
-    const loadMatches = async () => {
-      try {
-        const list = await getMatchesForContact(contact.id);
-        setMatchMatches(list);
-      } catch (error) {
-        console.error('Failed to load matches for contact:', error);
-        setMatchMatches([]);
-      }
-    };
-
-    loadNotes();
-    loadEstimates();
-    loadTasks();
-    loadTaskMentions();
-    loadSlots();
-    loadMatches();
-  }, [
-    contact?.id,
-    getNotesForContact,
-    getEstimatesForContact,
-    getTasksForContact,
-    getTasksWithMentionsForContact,
-    getSlotsForContact,
-    getMatchesForContact,
-  ]);
+  const toMatchItems: RelatedItem[] = matchMatches.map((item: any) => ({
+    id: item.id,
+    label: `${item.home_team ?? '—'} - ${item.away_team ?? '—'}`,
+    onOpen: () => {
+      closeContactPanel();
+      openMatchForView(item);
+    },
+    pluginClass: 'plugin-matches bg-plugin-subtle/40',
+  }));
 
   if (!contact) {
     return null;
   }
-
-  const _getStatusBadge = (status: string, plugin: 'task' | 'estimate') => {
-    const statusColors: any = {
-      task: {
-        'not started': 'bg-muted text-muted-foreground',
-        'in progress': 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
-        Done: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300',
-        Canceled: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
-      },
-      estimate: {
-        draft: 'bg-muted text-muted-foreground',
-        sent: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
-        accepted: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-blue-300',
-        rejected: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-blue-300',
-      },
-    };
-    const colorClass =
-      statusColors[plugin][status] || statusColors[plugin][Object.keys(statusColors[plugin])[0]];
-    return (
-      <span
-        className={cn('px-2 py-0.5 rounded-full text-[10px] font-medium capitalize', colorClass)}
-      >
-        {status}
-      </span>
-    );
-  };
+  const duplicateConfig = getDuplicateConfig(contact);
 
   return (
-    <div className="plugin-contacts">
+    <div
+      className={cn(
+        'plugin-contacts min-h-full bg-background px-4 py-5 sm:px-5 sm:py-6 rounded-xl',
+        'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
+      )}
+    >
       <DetailLayout
+        mainClassName={PANEL_MAX_WIDTH}
         sidebar={
           <div className="space-y-6">
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection
-                title="Contact Properties"
-                icon={SlidersHorizontal}
-                iconPlugin="contacts"
-                className="p-4"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
-                      Tags
-                    </div>
-                    <Select
-                      value={tagToAdd || '__add_tag__'}
-                      onValueChange={(val) => {
-                        if (val && val !== '__add_tag__') {
-                          addTagToDraft(val);
-                          setTagToAdd('');
-                        }
-                      }}
-                      disabled={addableTags.length === 0}
-                    >
-                      <SelectTrigger className="h-7 w-[140px] bg-background border-border/50 hover:bg-accent/50 transition-colors shadow-none rounded-md px-2 text-[10px] font-medium">
-                        <SelectValue placeholder="Add a tag..." />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border/50 shadow-xl min-w-[180px]">
-                        <SelectItem
-                          value="__add_tag__"
-                          className="py-2 focus:bg-accent rounded-md text-muted-foreground"
-                        >
-                          {addableTags.length === 0 ? 'No more tags to add' : 'Add a tag...'}
-                        </SelectItem>
-                        {addableTags.map((t) => (
-                          <SelectItem key={t} value={t} className="py-2 focus:bg-accent rounded-md">
-                            {t}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+            <ContactQuickActionsCard
+              contact={contact}
+              onEdit={openContactForEdit}
+              onDeleteClick={() => setShowDeleteContactConfirm(true)}
+              onDuplicate={() => setShowDuplicateDialog(true)}
+              getDuplicateConfig={getDuplicateConfig}
+              detailFooterActions={detailFooterActions}
+            />
+            <ContactExportOptionsCard
+              contact={contact}
+              exportFormats={exportFormats}
+              onExportItem={onExportItem}
+            />
 
-                  {tagError && <div className="text-[11px] text-destructive">{tagError}</div>}
-
-                  {displayTags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {displayTags.map((t) => (
-                        <Badge
-                          key={t}
-                          variant="secondary"
-                          className="flex items-center gap-1 text-[10px] font-medium px-2 h-5 border-transparent"
-                        >
-                          <Tag className="h-3 w-3 shrink-0" />
-                          {t}
-                          <button
-                            type="button"
-                            className="ml-0.5 rounded hover:bg-muted p-0.5 disabled:opacity-50"
-                            onClick={() => removeTagFromDraft(t)}
-                            aria-label={`Remove tag ${t}`}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </DetailSection>
-            </Card>
-
-            {openTaskForView && (assignedTasks.length > 0 || mentionedInTasks.length > 0) && (
-              <Card
-                padding="none"
-                className="overflow-hidden border-none shadow-sm bg-background/50"
-              >
-                <DetailSection title="Tasks" icon={CheckSquare} iconPlugin="tasks" className="p-4">
-                  <div className="space-y-3">
-                    {assignedTasks.length > 0 && (
-                      <div className="space-y-2">
-                        {assignedTasks.map((task: any) => (
-                          <div
-                            key={task.id}
-                            className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
-                          >
-                            <span className="text-muted-foreground truncate mr-4">
-                              {task.title}
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="link"
-                              onClick={() => {
-                                closeContactPanel();
-                                openTaskForView(task);
-                              }}
-                              className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
-                            >
-                              View
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {mentionedInTasks.length > 0 && (
-                      <div className="space-y-2">
-                        {mentionedInTasks.map((task: any) => (
-                          <div
-                            key={task.id}
-                            className="flex justify-between items-center text-[11px] plugin-tasks bg-plugin-subtle/50 px-2 py-1.5 rounded-md border border-border/50"
-                          >
-                            <span className="text-muted-foreground truncate mr-4">
-                              {task.title}
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="link"
-                              onClick={() => {
-                                closeContactPanel();
-                                openTaskForView(task);
-                              }}
-                              className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
-                            >
-                              View
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </DetailSection>
-              </Card>
+            <RelatedItemsCard
+              title="Tasks"
+              icon={CheckSquare}
+              iconPlugin="tasks"
+              items={toTaskItems}
+            />
+            <RelatedItemsCard
+              title="Estimates"
+              icon={FileText}
+              iconPlugin="estimates"
+              items={toEstimateItems}
+            />
+            <RelatedItemsCard
+              title="Note Mentions"
+              icon={StickyNote}
+              iconPlugin="notes"
+              items={toNoteItems}
+            />
+            {user?.plugins?.includes('slots') && (
+              <RelatedItemsCard title="Slots" icon={Store} iconPlugin="slots" items={toSlotItems} />
+            )}
+            {user?.plugins?.includes('matches') && (
+              <RelatedItemsCard
+                title="Matches"
+                icon={Trophy}
+                iconPlugin="matches"
+                items={toMatchItems}
+              />
             )}
 
-            {openEstimateForView && relatedEstimates.length > 0 && (
-              <Card
-                padding="none"
-                className="overflow-hidden border-none shadow-sm bg-background/50"
-              >
-                <DetailSection
-                  title="Estimates"
-                  icon={FileText}
-                  iconPlugin="estimates"
-                  className="p-4"
-                >
-                  <div className="space-y-2">
-                    {relatedEstimates.map((estimate: any) => (
-                      <div
-                        key={estimate.id}
-                        className="flex justify-between items-center text-[11px] plugin-estimates bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
-                      >
-                        <span className="text-muted-foreground truncate mr-4">
-                          {formatDisplayNumber('estimates', estimate.estimateNumber)}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="link"
-                          onClick={() => {
-                            closeContactPanel();
-                            openEstimateForView(estimate);
-                          }}
-                          className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
-                        >
-                          View
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </DetailSection>
-              </Card>
-            )}
-
-            {openNoteForView && mentionedInNotes.length > 0 && (
-              <Card
-                padding="none"
-                className="overflow-hidden border-none shadow-sm bg-background/50"
-              >
-                <DetailSection
-                  title="Note Mentions"
-                  icon={StickyNote}
-                  iconPlugin="notes"
-                  className="p-4"
-                >
-                  <div className="space-y-2">
-                    {mentionedInNotes.map((note: any) => (
-                      <div
-                        key={note.id}
-                        className="flex justify-between items-center text-[11px] plugin-notes bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
-                      >
-                        <span className="text-muted-foreground truncate mr-4">{note.title}</span>
-                        <Button
-                          size="sm"
-                          variant="link"
-                          onClick={() => {
-                            closeContactPanel();
-                            openNoteForView(note);
-                          }}
-                          className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
-                        >
-                          View
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </DetailSection>
-              </Card>
-            )}
-
-            {user?.plugins?.includes('slots') && openSlotForView && slots.length > 0 && (
-              <Card
-                padding="none"
-                className="overflow-hidden border-none shadow-sm bg-background/50"
-              >
-                <DetailSection title="Slots" icon={Store} iconPlugin="slots" className="p-4">
-                  <div className="space-y-2">
-                    {slots.map((slot: any) => (
-                      <div
-                        key={slot.id}
-                        className="flex justify-between items-center text-[11px] plugin-slots bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
-                      >
-                        <span className="text-muted-foreground truncate mr-4">
-                          {slot.location || '—'} ·{' '}
-                          {slot.slot_time
-                            ? new Date(slot.slot_time).toLocaleString('sv-SE', {
-                                dateStyle: 'short',
-                                timeStyle: 'short',
-                              })
-                            : '—'}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="link"
-                          onClick={() => {
-                            closeContactPanel();
-                            openSlotForView(slot);
-                          }}
-                          className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
-                        >
-                          View
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </DetailSection>
-              </Card>
-            )}
-
-            {user?.plugins?.includes('matches') && openMatchForView && matchMatches.length > 0 && (
-              <Card
-                padding="none"
-                className="overflow-hidden border-none shadow-sm bg-background/50"
-              >
-                <DetailSection title="Matches" icon={Trophy} iconPlugin="matches" className="p-4">
-                  <div className="space-y-2">
-                    {matchMatches.map(
-                      (m: {
-                        id: string;
-                        home_team?: string;
-                        away_team?: string;
-                        start_time?: string;
-                      }) => (
-                        <div
-                          key={m.id}
-                          className="flex justify-between items-center text-[11px] plugin-matches bg-plugin-subtle px-2 py-1.5 rounded-md border border-border/50"
-                        >
-                          <span className="text-muted-foreground truncate mr-4">
-                            {m.home_team ?? '—'} – {m.away_team ?? '—'}
-                            {m.start_time
-                              ? ` · ${new Date(m.start_time).toLocaleString('sv-SE', {
-                                  dateStyle: 'short',
-                                  timeStyle: 'short',
-                                })}`
-                              : ''}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="link"
-                            onClick={() => {
-                              closeContactPanel();
-                              openMatchForView(m);
-                            }}
-                            className="h-auto p-0 text-[10px] shrink-0 font-medium text-plugin"
-                          >
-                            View
-                          </Button>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                </DetailSection>
-              </Card>
-            )}
-
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Time log" icon={Clock} className="p-4">
-                <div className="space-y-2">
-                  {timeEntries.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No time entries</p>
-                  ) : (
-                    timeEntries.map((entry) => (
-                      <div
-                        key={entry.id}
-                        className="flex justify-between items-center text-[11px] bg-muted/50 px-2 py-1.5 rounded-md border border-border/50"
-                      >
-                        <span className="text-foreground">
-                          {formatDuration(entry.seconds)} ·{' '}
-                          {new Date(entry.loggedAt).toLocaleDateString()}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDeleteTimeEntry(entry.id)}
-                          disabled={deletingEntryId === entry.id}
-                          aria-label="Delete time entry"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </DetailSection>
-            </Card>
-
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Information" icon={Info} className="p-4 text-xs font-semibold">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">System ID</span>
+            <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
+              <DetailSection title={t('contacts.information')} icon={Info} className="p-4">
+                <div className="space-y-4 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">ID</span>
                     <span className="font-mono font-medium">
                       {formatDisplayNumber('contacts', contact.id)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Created</span>
                     <span className="font-medium">
                       {new Date(contact.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Updated</span>
                     <span className="font-medium">
                       {new Date(contact.updatedAt).toLocaleDateString()}
@@ -650,108 +542,229 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
         }
       >
         <div className="space-y-6">
-          {/* Basic Information at the top */}
-          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title="Basic Information" className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-                {contact.email && (
-                  <div>
-                    <div className="text-xs text-muted-foreground mb-1">Email</div>
-                    <div className="font-medium truncate">{contact.email}</div>
+          <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
+            <DetailSection
+              title={t('contacts.contactContent')}
+              iconPlugin="contacts"
+              className="p-6"
+            >
+              <div className="space-y-5">
+                <div>
+                  <div className={FIELD_LABEL_CLASS}>Name</div>
+                  <div className="text-2xl font-semibold text-foreground">
+                    {contact.companyName || '—'}
                   </div>
-                )}
-                {contact.phone && (
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <div className="text-xs text-muted-foreground mb-1">Phone</div>
-                    <div className="font-medium">{contact.phone}</div>
+                    <div className={FIELD_LABEL_CLASS}>Contact #</div>
+                    <div className="text-sm font-medium">{contact.contactNumber || '—'}</div>
                   </div>
-                )}
-                {contact.website && (
                   <div>
-                    <div className="text-xs text-muted-foreground mb-1">Website</div>
-                    <a
-                      href={
-                        contact.website.startsWith('http')
-                          ? contact.website
-                          : `https://${contact.website}`
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline font-medium truncate block"
-                    >
-                      {contact.website}
-                    </a>
+                    <div className={FIELD_LABEL_CLASS}>Type</div>
+                    <div className="text-sm font-medium">
+                      {contact.contactType === 'company' ? 'Company' : 'Private'}
+                    </div>
                   </div>
-                )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                      Organization Number
+                    </div>
+                    <div className="text-sm font-medium">{contact.organizationNumber || '—'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                      VAT Number
+                    </div>
+                    <div className="text-sm font-medium">{contact.vatNumber || '—'}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                      Email
+                    </div>
+                    <div className="text-sm font-medium">{contact.email || '—'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                      Website
+                    </div>
+                    <div className="text-sm font-medium">{contact.website || '—'}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                      Phone 1
+                    </div>
+                    <div className="text-sm font-medium">{contact.phone || '—'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                      Phone 2
+                    </div>
+                    <div className="text-sm font-medium">{contact.phone2 || '—'}</div>
+                  </div>
+                </div>
+                {contact.notes ? (
+                  <div className="border-t border-border pt-5">
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                      Notes
+                    </div>
+                    <div className="text-sm text-muted-foreground">{contact.notes}</div>
+                  </div>
+                ) : null}
               </div>
             </DetailSection>
           </Card>
 
-          {contact.notes && (
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-              <DetailSection title="Internal Notes" className="p-6">
-                <div className="text-sm text-muted-foreground italic leading-relaxed">
-                  "{contact.notes}"
-                </div>
-              </DetailSection>
-            </Card>
-          )}
+          <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
+            <div className="space-y-2 p-6">
+              <div className="mb-1 flex min-w-0 items-center gap-2">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                </span>
+                <span className="truncate text-sm font-semibold text-foreground">
+                  {t('contacts.contactProperties')}
+                </span>
+              </div>
 
-          {/* Business Settings */}
-          <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
-            <DetailSection title="Business Settings" className="p-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">Tax Rate</div>
-                  <div className="font-medium">{contact.taxRate}%</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">Payment Terms</div>
-                  <div className="font-medium">{contact.paymentTerms} Days</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">Currency</div>
-                  <div className="font-medium">{contact.currency}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">F-Tax</div>
-                  <div className="font-medium">{contact.fTax === 'yes' ? 'Registered' : 'No'}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">Assignable</div>
-                  <div className="font-medium">
-                    {contact.isAssignable ? (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                        Yes
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                        No
-                      </span>
-                    )}
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                <div className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-sm font-medium">Tax rate</div>
+                    <div className="h-9 max-w-[180px] rounded-md border border-border bg-background px-3 text-xs leading-9">
+                      {contact.taxRate || '—'}%
+                    </div>
                   </div>
                 </div>
+
+                <div className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-sm font-medium">Payment terms</div>
+                    <div className="h-9 max-w-[180px] rounded-md border border-border bg-background px-3 text-xs leading-9">
+                      {contact.paymentTerms || '—'} days
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-sm font-medium">Currency</div>
+                    <div className="h-9 max-w-[180px] rounded-md border border-border bg-background px-3 text-xs leading-9">
+                      {contact.currency || '—'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-sm font-medium">F-tax</div>
+                    <div className="h-9 max-w-[180px] rounded-md border border-border bg-background px-3 text-xs leading-9">
+                      {contact.fTax === 'yes' ? 'Registered' : 'No'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-sm font-medium">Assignable</div>
+                    <div className="h-9 max-w-[180px] rounded-md border border-border bg-background px-3 text-xs leading-9">
+                      {contact.isAssignable ? 'Yes' : 'No'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border p-4 md:col-span-2">
+                  <div className="text-sm font-medium mb-2">Tags</div>
+                  {Array.isArray(contact.tags) && contact.tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {contact.tags.map((item: string) => (
+                        <Badge
+                          key={item}
+                          variant="secondary"
+                          className="flex items-center gap-1 text-xs"
+                        >
+                          <Tag className="h-3 w-3" />
+                          {item}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs italic text-muted-foreground">No tags</span>
+                  )}
+                </div>
               </div>
-            </DetailSection>
+            </div>
           </Card>
 
-          {/* Addresses */}
-          {contact.addresses && contact.addresses.length > 0 && (
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+          {Array.isArray(contact.addresses) && contact.addresses.length > 0 && (
+            <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
               <DetailSection title="Addresses" className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {contact.addresses.map((address: any) => (
-                    <div key={address.id} className="text-sm">
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary">
-                          {address.type}
-                        </span>
+                <div className="space-y-5">
+                  {contact.addresses.map((address: any, idx: number) => (
+                    <div
+                      key={address.id}
+                      className={cn('space-y-5', idx > 0 && 'border-t border-border pt-5')}
+                    >
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                          Type
+                        </div>
+                        <div className="text-2xl font-semibold text-foreground">
+                          {address.type || 'Address'}
+                        </div>
                       </div>
-                      <div className="space-y-1 text-muted-foreground">
-                        <div className="text-foreground font-medium">{address.addressLine1}</div>
-                        {address.addressLine2 && <div>{address.addressLine2}</div>}
-                        <div>{[address.postalCode, address.city].filter(Boolean).join(' ')}</div>
-                        <div>{address.country}</div>
+                      {address.addressLine1 && (
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                            Address
+                          </div>
+                          <div className="text-sm font-medium">
+                            {[address.addressLine1, address.addressLine2]
+                              .filter(Boolean)
+                              .join(', ')}
+                          </div>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-4">
+                        {(address.postalCode || address.city) && (
+                          <div>
+                            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                              Postal Code / City
+                            </div>
+                            <div className="text-sm font-medium">
+                              {[address.postalCode, address.city].filter(Boolean).join(' ')}
+                            </div>
+                          </div>
+                        )}
+                        {address.region && (
+                          <div>
+                            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                              Region
+                            </div>
+                            <div className="text-sm font-medium">{address.region}</div>
+                          </div>
+                        )}
+                        {address.country && (
+                          <div>
+                            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                              Country
+                            </div>
+                            <div className="text-sm font-medium">{address.country}</div>
+                          </div>
+                        )}
+                        {address.email && (
+                          <div>
+                            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                              Email
+                            </div>
+                            <div className="text-sm font-medium">{address.email}</div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -760,21 +773,48 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
             </Card>
           )}
 
-          {/* Contact Persons */}
-          {contact.contactType === 'company' && contact.contactPersons?.length > 0 && (
-            <Card padding="none" className="overflow-hidden border-none shadow-sm bg-background/50">
+          {Array.isArray(contact.contactPersons) && contact.contactPersons.length > 0 && (
+            <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
               <DetailSection title="Contact Persons" className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {contact.contactPersons.map((person: any) => (
-                    <div key={person.id} className="text-sm flex justify-between items-start">
-                      <div className="space-y-1">
-                        <div className="font-semibold text-foreground">{person.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {person.title || 'No title'}
+                <div className="space-y-5">
+                  {contact.contactPersons.map((person: any, idx: number) => (
+                    <div
+                      key={person.id}
+                      className={cn('space-y-5', idx > 0 && 'border-t border-border pt-5')}
+                    >
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                          Name
                         </div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Mail className="w-3 h-3" /> {person.email || '—'}
+                        <div className="text-2xl font-semibold text-foreground">
+                          {person.name || '—'}
                         </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        {person.title && (
+                          <div>
+                            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                              Title
+                            </div>
+                            <div className="text-sm font-medium">{person.title}</div>
+                          </div>
+                        )}
+                        {person.email && (
+                          <div>
+                            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                              Email
+                            </div>
+                            <div className="text-sm font-medium">{person.email}</div>
+                          </div>
+                        )}
+                        {person.phone && (
+                          <div>
+                            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+                              Phone
+                            </div>
+                            <div className="text-sm font-medium">{person.phone}</div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -782,18 +822,88 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
               </DetailSection>
             </Card>
           )}
+
+          <Card padding="none" className={CONTACT_DETAIL_CARD_CLASS}>
+            <DetailSection title="Time log" icon={Clock} className="p-4">
+              <div className="space-y-2">
+                {timeEntries.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No time entries</p>
+                ) : (
+                  timeEntries.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
+                    >
+                      <span className="text-xs text-foreground">
+                        {formatDuration(entry.seconds)} -{' '}
+                        {new Date(entry.loggedAt).toLocaleDateString()}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        icon={Trash2}
+                        className="h-9 w-9 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                        onClick={() => setConfirmDeleteEntryId(entry.id)}
+                        disabled={deletingEntryId === entry.id}
+                      >
+                        <span className="sr-only">Delete</span>
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </DetailSection>
+          </Card>
         </div>
       </DetailLayout>
 
       <ConfirmDialog
-        isOpen={showDiscardTagsDialog}
-        title={t('dialog.unsavedChanges')}
-        message={t('contacts.discardTagsMessage')}
-        confirmText={t('dialog.discardChanges')}
-        cancelText={t('dialog.continueEditing')}
-        onConfirm={onDiscardTagsAndClose}
-        onCancel={() => setShowDiscardTagsDialog(false)}
-        variant="warning"
+        isOpen={confirmDeleteEntryId !== null}
+        title="Delete time entry"
+        message="Are you sure you want to delete this time entry? This cannot be undone."
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        onConfirm={async () => {
+          if (confirmDeleteEntryId) {
+            await handleDeleteTimeEntry(confirmDeleteEntryId);
+          }
+          setConfirmDeleteEntryId(null);
+        }}
+        onCancel={() => setConfirmDeleteEntryId(null)}
+        variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteContactConfirm}
+        title={t('dialog.deleteItem', { label: t('nav.contact') })}
+        message={contact ? getDeleteMessage(contact) : ''}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteContactConfirm(false)}
+        variant="danger"
+      />
+
+      <DuplicateDialog
+        isOpen={showDuplicateDialog}
+        onConfirm={(newName) => {
+          executeDuplicate(contact, newName)
+            .then(({ closePanel, highlightId }) => {
+              closePanel();
+              if (highlightId) {
+                setRecentlyDuplicatedContactId(highlightId);
+              }
+              setShowDuplicateDialog(false);
+            })
+            .catch(() => {
+              setShowDuplicateDialog(false);
+            });
+        }}
+        onCancel={() => setShowDuplicateDialog(false)}
+        defaultName={duplicateConfig?.defaultName ?? ''}
+        nameLabel={duplicateConfig?.nameLabel ?? t('contacts.title')}
+        confirmOnly={Boolean(duplicateConfig?.confirmOnly)}
       />
 
       <BulkMessageDialog

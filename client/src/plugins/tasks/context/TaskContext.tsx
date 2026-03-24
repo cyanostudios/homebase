@@ -22,7 +22,13 @@ import { resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
 
 import { tasksApi } from '../api/tasksApi';
-import { Task, ValidationError, formatStatusForDisplay } from '../types/tasks';
+import {
+  Task,
+  TASK_PRIORITY_COLORS,
+  TASK_STATUS_COLORS,
+  ValidationError,
+  formatStatusForDisplay,
+} from '../types/tasks';
 import { getTaskExportBaseFilename, getTasksExportConfig } from '../utils/taskExportConfig';
 
 interface TaskContextType {
@@ -140,7 +146,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     assignedToIds: string[];
   }> | null>(null);
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
-  const pendingCloseRef = useRef<(() => void) | null>(null);
 
   // Use core bulk selection hook
   const {
@@ -168,23 +173,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     };
   }, [closeTaskPanel, registerPanelCloseFunction, unregisterPanelCloseFunction]);
 
-  useEffect(() => {
-    window.submitTasksForm = () => {
-      const event = new CustomEvent('submitTaskForm');
-      window.dispatchEvent(event);
-    };
-
-    window.cancelTasksForm = () => {
-      const event = new CustomEvent('cancelTaskForm');
-      window.dispatchEvent(event);
-    };
-
-    return () => {
-      delete window.submitTasksForm;
-      delete window.cancelTasksForm;
-    };
-  }, []);
-
   const loadTasks = useCallback(async () => {
     try {
       const tasksData = await tasksApi.getTasks();
@@ -197,13 +185,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       setTasks(transformedTasks);
     } catch (error: any) {
       console.error('Failed to load tasks:', error);
-      // V2: Handle standardized error format
       const errorMessage = error?.message || error?.error || 'Failed to load tasks';
       setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
   }, []);
 
-  // Load data when authenticated (after loadTasks is defined)
   useEffect(() => {
     if (isAuthenticated) {
       loadTasks();
@@ -378,19 +364,13 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
 
   const saveTask = useCallback(
     async (taskData: any, taskId?: string): Promise<boolean> => {
-      console.log('TaskContext saveTask called with:', taskData, 'taskId:', taskId);
-
       const errors = validateTask(taskData);
-      console.log('Validation errors:', errors);
       setValidationErrors(errors);
 
       const blockingErrors = errors.filter((error) => !error.message.includes('Warning'));
       if (blockingErrors.length > 0) {
-        console.log('Validation failed:', blockingErrors);
         return false;
       }
-
-      console.log('Validation passed, attempting to save...');
 
       try {
         let savedTask: Task;
@@ -399,7 +379,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         const idToUpdate = taskId || currentTask?.id || taskData.id;
 
         if (idToUpdate) {
-          console.log('Updating existing task:', idToUpdate);
           savedTask = await tasksApi.updateTask(idToUpdate, taskData);
           setTasks((prev) =>
             prev.map((task) =>
@@ -425,9 +404,7 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           setPanelMode('view');
           setValidationErrors([]);
         } else {
-          console.log('Creating new task...');
           savedTask = await tasksApi.createTask(taskData);
-          console.log('Task created successfully:', savedTask);
           setTasks((prev) => [
             ...prev,
             {
@@ -440,15 +417,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           closeTaskPanel();
         }
 
-        console.log('Task saved successfully');
         return true;
       } catch (error: any) {
         console.error('API Error when saving task:', error);
-
-        // V2: Handle standardized error format from backend
         const validationErrors: ValidationError[] = [];
 
-        // Check if backend returned validation errors in details array
         if (error?.details && Array.isArray(error.details)) {
           error.details.forEach((detail: any) => {
             if (typeof detail === 'string') {
@@ -461,7 +434,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
           });
         }
 
-        // If no validation errors from backend, use error message
         if (validationErrors.length === 0) {
           const errorMessage =
             error?.message || error?.error || 'Failed to save task. Please try again.';
@@ -549,7 +521,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     (defaultClose: () => void) => {
       return () => {
         if (hasQuickEditChanges) {
-          pendingCloseRef.current = defaultClose;
           setShowDiscardQuickEditDialog(true);
         } else {
           defaultClose();
@@ -562,10 +533,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const onDiscardQuickEditAndClose = useCallback(() => {
     setQuickEditDraft(null);
     setShowDiscardQuickEditDialog(false);
-    // Stay in detail view; do not close the panel (do not call pendingCloseRef)
   }, []);
 
-  // Register cross-plugin actions - Moved here to avoid saveTask TDZ
   useEffect(() => {
     const unregister = registerAction('note', {
       id: 'create-task-from-note',
@@ -603,17 +572,11 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   }, [registerAction, saveTask, refreshData]);
 
   const deleteTask = useCallback(async (id: string) => {
-    console.log('Deleting task with id:', id);
     try {
       await tasksApi.deleteTask(id);
-      setTasks((prev) => {
-        const newTasks = prev.filter((task) => task.id !== id);
-        console.log('Tasks after delete:', newTasks);
-        return newTasks;
-      });
+      setTasks((prev) => prev.filter((task) => task.id !== id));
     } catch (error: any) {
       console.error('Failed to delete task:', error);
-      // V2: Handle standardized error format
       const errorMessage = error?.message || error?.error || 'Failed to delete task';
       alert(errorMessage);
     }
@@ -632,7 +595,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         const idSet = new Set(uniqueIds);
         setTasks((prev) => prev.filter((task) => !idSet.has(String(task.id))));
 
-        // If the currently open task was deleted, close the panel.
         if (currentTask && idSet.has(String(currentTask.id))) {
           closeTaskPanel();
         }
@@ -717,34 +679,17 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       }
       // View mode with item
       if (mode === 'view' && item) {
-        const statusColors: Record<string, string> = {
-          'not started': 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
-          'in progress':
-            'bg-blue-50/50 text-blue-700 dark:text-blue-300 border-blue-100/50 font-medium',
-          completed:
-            'bg-green-50/50 text-green-700 dark:text-green-300 border-green-100/50 font-medium',
-          cancelled:
-            'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
-        };
-        const priorityColors: Record<string, string> = {
-          Low: 'bg-secondary/50 text-secondary-foreground border-transparent font-medium',
-          Medium:
-            'bg-amber-50/50 text-amber-700 dark:text-amber-300 border-amber-100/50 font-medium',
-          High: 'bg-rose-50/50 text-rose-700 dark:text-rose-300 border-rose-100/50 font-medium',
-        };
-
         const badges = [
           {
             text: item.status,
-            color: statusColors[item.status] || statusColors['not started'],
+            color: TASK_STATUS_COLORS[item.status as keyof typeof TASK_STATUS_COLORS],
           },
           {
             text: item.priority,
-            color: priorityColors[item.priority] || priorityColors['Medium'],
+            color: TASK_PRIORITY_COLORS[item.priority as keyof typeof TASK_PRIORITY_COLORS],
           },
         ];
 
-        // Due date: same logic as TaskList (X days overdue / Due today / Due tomorrow / date)
         const formatDueDateForHeader = (due: Date | string | null) => {
           if (!due) {
             return null;
@@ -816,7 +761,6 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
         );
       }
 
-      // Non-view modes
       switch (mode) {
         case 'edit':
           return 'Update task information';

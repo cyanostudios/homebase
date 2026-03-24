@@ -20,11 +20,12 @@ import { useNotes } from '../hooks/useNotes';
 import { NoteSettingsForm } from './NoteSettingsForm';
 
 const NOTE_FORM_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm rounded-lg';
+const PANEL_MAX_WIDTH = 'max-w-[920px]';
 
 interface NoteFormState {
   title: string;
   content: string;
-  mentions: any[]; // If you have a Mention type, replace any[] with it
+  mentions: any[];
 }
 
 interface NoteFormProps {
@@ -61,10 +62,8 @@ export const NoteForm: React.FC<NoteFormProps> = ({
     mentions: [],
   });
 
-  // Use internal state or external prop (external takes precedence)
   const isCurrentlySubmitting = externalIsSubmitting || isSubmitting;
 
-  // Register this form's unsaved changes state globally
   useEffect(() => {
     const formKey = `note-form-${currentNote?.id || 'new'}`;
     registerUnsavedChangesChecker(formKey, () => isDirty);
@@ -83,10 +82,8 @@ export const NoteForm: React.FC<NoteFormProps> = ({
     markClean();
   }, [markClean]);
 
-  // Load currentNote data when editing
   useEffect(() => {
     if (currentNote) {
-      // Edit mode - load existing data
       setFormData({
         title: currentNote.title || '',
         content: currentNote.content || '',
@@ -94,7 +91,6 @@ export const NoteForm: React.FC<NoteFormProps> = ({
       });
       markClean();
     } else {
-      // Create mode - reset to empty form
       resetForm();
     }
   }, [currentNote, markClean, resetForm]);
@@ -102,19 +98,16 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   const handleSubmit = useCallback(async () => {
     if (isCurrentlySubmitting) {
       return;
-    } // Prevent double submission
+    }
 
     setIsSubmitting(true);
     try {
-      console.log('Form submitting with data:', formData);
       const success = await onSave(formData);
       if (success) {
         markClean();
         if (!currentNote) {
           resetForm();
         }
-      } else {
-        console.log('Save failed due to validation errors');
       }
     } catch (error) {
       console.error('Save failed:', error);
@@ -129,13 +122,12 @@ export const NoteForm: React.FC<NoteFormProps> = ({
     });
   }, [attemptAction, onCancel]);
 
-  // Global functions with correct plural naming (only when not in settings mode – settings form registers its own)
   useEffect(() => {
     if (panelMode === 'settings') {
       return;
     }
-    (window as any).submitNotesForm = handleSubmit; // PLURAL!
-    (window as any).cancelNotesForm = handleCancel; // PLURAL!
+    (window as any).submitNotesForm = handleSubmit;
+    (window as any).cancelNotesForm = handleCancel;
 
     return () => {
       delete (window as any).submitNotesForm;
@@ -150,7 +142,6 @@ export const NoteForm: React.FC<NoteFormProps> = ({
         confirmDiscard();
       }, 0);
     } else {
-      // Edit mode: close dialog and go back to detail view
       confirmDiscard();
       onCancel();
     }
@@ -158,7 +149,6 @@ export const NoteForm: React.FC<NoteFormProps> = ({
 
   const updateField = (field: keyof NoteFormState, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    // Clear validation errors when user starts typing
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
@@ -167,19 +157,16 @@ export const NoteForm: React.FC<NoteFormProps> = ({
 
   const handleContentChange = (content: string, mentions: any[]) => {
     setFormData((prev) => ({ ...prev, content, mentions }));
-    // Clear validation errors when user starts typing
     if (validationErrors.length > 0) {
       clearValidationErrors();
     }
     markDirty();
   };
 
-  // Helper function to get error for a specific field
   const getFieldError = (fieldName: string) => {
     return validationErrors.find((error) => error.field === fieldName);
   };
 
-  // Check if there are any blocking errors (non-warning)
   const hasBlockingErrors = validationErrors.some((error) => !error.message.includes('Warning'));
 
   if (panelMode === 'settings') {
@@ -229,7 +216,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({
           'md:-mx-6 md:-my-4 md:rounded-b-lg md:rounded-t-none',
         )}
       >
-        <DetailLayout mainClassName="max-w-[920px]" sidebar={formSidebar}>
+        <DetailLayout mainClassName={PANEL_MAX_WIDTH} sidebar={formSidebar}>
           <form
             className="space-y-4"
             onSubmit={(e) => {

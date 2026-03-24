@@ -68,6 +68,7 @@ function formatTimeOnly(s: string | null): string {
 
 /** White card shell for properties, info, metadata, bookings, activity (detail area has gray bg) */
 const SLOT_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
+const PANEL_MAX_WIDTH = 'max-w-[920px]';
 
 // ─── Sub-components (extracted from SlotView) ─────────────────────────────────
 
@@ -372,7 +373,6 @@ interface SlotSettingsCardProps {
   setPropertyDraftField: (field: 'visible' | 'notifications_enabled', value: boolean) => void;
   assignableContacts: Array<{ id: number | string; companyName?: string }>;
   contacts: Array<{ id: number | string; companyName?: string }>;
-  openContactForView: (contact: { id: number | string; companyName?: string }) => void;
   bookings: SlotBooking[];
   bookingsLoading: boolean;
   onRequestDeleteBooking: (booking: SlotBooking) => void;
@@ -797,7 +797,7 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
         )}
       >
         <DetailLayout
-          mainClassName="max-w-[920px]"
+          mainClassName={PANEL_MAX_WIDTH}
           sidebar={
             <div className="space-y-4">
               <SlotQuickActionsCard

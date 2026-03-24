@@ -39,6 +39,7 @@ import { notesExportConfig } from '../utils/noteExportConfig';
 import { NotesSettingsView, type NotesSettingsCategory } from './NotesSettingsView';
 
 const NOTES_SETTINGS_KEY = 'notes';
+const HIGHLIGHT_CLASS = 'bg-green-50 dark:bg-green-950/30';
 
 type SortField = 'title' | 'createdAt' | 'updatedAt';
 type SortOrder = 'asc' | 'desc';
@@ -404,8 +405,7 @@ export const NoteList: React.FC = () => {
                     noteIsSelected
                       ? 'plugin-notes border-plugin-subtle bg-plugin-subtle ring-1 ring-plugin-subtle/50'
                       : 'hover:border-plugin-subtle hover:plugin-notes hover:shadow-md',
-                    recentlyDuplicatedNoteId === String(note.id) &&
-                      'bg-green-50 dark:bg-green-950/30',
+                    recentlyDuplicatedNoteId === String(note.id) && HIGHLIGHT_CLASS,
                   )}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
@@ -535,8 +535,7 @@ export const NoteList: React.FC = () => {
                       className={cn(
                         'cursor-pointer hover:bg-muted/50',
                         noteIsSelected && 'bg-plugin-subtle',
-                        recentlyDuplicatedNoteId === String(note.id) &&
-                          'bg-green-50 dark:bg-green-950/30',
+                        recentlyDuplicatedNoteId === String(note.id) && HIGHLIGHT_CLASS,
                       )}
                       tabIndex={0}
                       data-list-item={JSON.stringify(note)}
