@@ -5,6 +5,24 @@ export type ValidationError = {
   message: string;
 };
 
+export type ProductSyncChannel = 'woocommerce' | 'cdon' | 'fyndiq';
+
+export type ProductSaveChangeSet = {
+  local: {
+    noChanges: boolean;
+    hasChanges: boolean;
+    productChanged: boolean;
+    listChanged: boolean;
+    targetsChanged: boolean;
+    overridesChanged: boolean;
+  };
+  sync: {
+    strictChannels: ProductSyncChannel[];
+    fullChannels: ProductSyncChannel[];
+    articleOnlyChannels: ProductSyncChannel[];
+  };
+};
+
 export interface Product {
   id: string;
 

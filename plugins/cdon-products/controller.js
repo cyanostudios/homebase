@@ -18,6 +18,7 @@ const { fetchCategoriesFromApi: fetchCategoriesFromApiModule } = require('./fetc
 const CDON_MERCHANTS_API = 'https://merchants-api.cdon.com/api';
 const CDON_CATEGORIZATION_API =
   'https://cdonexternalapi-prod-apim.azure-api.net/categorization/api/v1';
+const CDON_CURRENCY_BY_MARKET = { SE: 'SEK', DK: 'DKK', FI: 'EUR', NO: 'NOK' };
 
 class CdonProductsController {
   constructor(model) {
@@ -162,17 +163,17 @@ class CdonProductsController {
     return `<?xml version="1.0" encoding="utf-8"?>\n<marketplace xmlns="${ns}">\n${items}\n</marketplace>\n`;
   }
 
-  // CDON price data (Merchants API; markets se, dk, fi)
-  // marketsFilter: optional ['se','dk','fi'] – only include these market blocks; default all.
+  // CDON price data (Merchants API; markets se, dk, fi, no)
+  // marketsFilter: optional ['se','dk','fi','no'] – only include these market blocks; default all.
   buildPriceXml(
     products,
     marketOverridesByProductId = new Map(),
-    marketsFilter = ['se', 'dk', 'fi'],
+    marketsFilter = ['se', 'dk', 'fi', 'no'],
   ) {
     const filter =
       Array.isArray(marketsFilter) && marketsFilter.length
         ? marketsFilter.map((m) => String(m).toLowerCase())
-        : ['se', 'dk', 'fi'];
+        : ['se', 'dk', 'fi', 'no'];
     const ns = 'https://schemas.cdon.com/product/4.0/4.12.2/price';
     const items = products
       .map((p) => {
@@ -230,7 +231,7 @@ class CdonProductsController {
         };
 
         const blocks = [];
-        for (const m of ['se', 'dk', 'fi']) {
+        for (const m of ['se', 'dk', 'fi', 'no']) {
           if (!filter.includes(m)) continue;
           const fallback = m === 'se' ? basePrice : (markets[m]?.priceAmount ?? basePrice);
           const block = buildMarket(m, fallback);
@@ -246,17 +247,17 @@ class CdonProductsController {
     return `<?xml version="1.0" encoding="utf-8"?>\n<marketplace xmlns="${ns}">\n${items}\n</marketplace>\n`;
   }
 
-  // CDON availability data (Merchants API; markets se, dk, fi)
-  // marketsFilter: optional ['se','dk','fi'] – only include these market blocks; default all.
+  // CDON availability data (Merchants API; markets se, dk, fi, no)
+  // marketsFilter: optional ['se','dk','fi','no'] – only include these market blocks; default all.
   buildAvailabilityXml(
     products,
     marketOverridesByProductId = new Map(),
-    marketsFilter = ['se', 'dk', 'fi'],
+    marketsFilter = ['se', 'dk', 'fi', 'no'],
   ) {
     const filter =
       Array.isArray(marketsFilter) && marketsFilter.length
         ? marketsFilter.map((m) => String(m).toLowerCase())
-        : ['se', 'dk', 'fi'];
+        : ['se', 'dk', 'fi', 'no'];
     const ns = 'https://schemas.cdon.com/product/4.0/4.12.2/availability';
     const items = products
       .map((p) => {
@@ -295,7 +296,7 @@ class CdonProductsController {
             `  </${marketKey}>`,
           ].join('\n');
 
-        const blocks = ['se', 'dk', 'fi'].filter((m) => filter.includes(m)).map(buildMarket);
+        const blocks = ['se', 'dk', 'fi', 'no'].filter((m) => filter.includes(m)).map(buildMarket);
         return [
           '<product>',
           `  <id>${id}</id>`,
@@ -1020,10 +1021,49 @@ class CdonProductsController {
         }
       }
 
-      // Merchants API: POST /v2/articles/bulk (JSON body) — build payloads via mapper (exact API shape; no guessing).
+      const mappedArticlesByProductId = new Map();
+      if (userId && productIds.length) {
+        const articleMapRows = await db.query(
+          `
+          SELECT
+            product_id::text AS product_id,
+            external_id,
+            cdon_article_id
+          FROM channel_product_map
+          WHERE user_id = $1
+            AND channel = 'cdon'
+            AND product_id::text = ANY($2::text[])
+            AND (
+              (external_id IS NOT NULL AND TRIM(external_id) <> '')
+              OR (cdon_article_id IS NOT NULL AND TRIM(cdon_article_id) <> '')
+            )
+          `,
+          [userId, productIds],
+        );
+        for (const row of articleMapRows) {
+          const productId = String(row.product_id || '').trim();
+          if (!productId || mappedArticlesByProductId.has(productId)) continue;
+          mappedArticlesByProductId.set(productId, {
+            externalId:
+              row.external_id != null && String(row.external_id).trim()
+                ? String(row.external_id).trim()
+                : null,
+            cdonArticleId:
+              row.cdon_article_id != null && String(row.cdon_article_id).trim()
+                ? String(row.cdon_article_id).trim()
+                : null,
+          });
+        }
+      }
+
+      // CDON full export:
+      // - unmapped products => POST /v2/articles/bulk (create)
+      // - mapped products   => PUT /v2/articles/bulk with update_article
       const defaultLanguage = 'sv-SE';
-      const articles = [];
-      const articlesMeta = [];
+      const createArticles = [];
+      const createMeta = [];
+      const updateActions = [];
+      const updateMeta = [];
       for (const p of normalized) {
         const raw = rawProducts.find((r) => String(r?.id) === p.productId) || p;
         const overrides = overridesByProductId.get(String(p.productId)) || {};
@@ -1073,13 +1113,47 @@ class CdonProductsController {
           if (diagnoseTrace) {
             diagnoseTrace.perProduct[p.productId] = {
               ok: true,
+              exportMode: mappedArticlesByProductId.has(String(p.productId)) ? 'update_article' : 'create',
               payloadMarkets: [...(article.markets || [])],
-              payloadCategories: [...(article.categories || [])],
+              payloadCategory: article.category || null,
               sku: article.sku,
             };
           }
-          articles.push(article);
-          articlesMeta.push({ productId: p.productId, sku: article.sku });
+          const mappedArticle = mappedArticlesByProductId.get(String(p.productId));
+          if (mappedArticle) {
+            const action = {
+              sku: article.sku,
+              action: 'update_article',
+              body: {
+                ...article,
+                sku: undefined,
+                price: undefined,
+                quantity: undefined,
+              },
+            };
+            delete action.body.sku;
+            delete action.body.price;
+            delete action.body.quantity;
+            const actionValidation = this.validateCdonUpdateArticleAction(action);
+            if (!actionValidation.ok) {
+              items.push({
+                productId: p.productId,
+                status: 'error',
+                error: `contract_validation_failed:${actionValidation.reason}`,
+              });
+              continue;
+            }
+            updateActions.push(action);
+            updateMeta.push({
+              productId: p.productId,
+              sku: article.sku,
+              externalId: mappedArticle.externalId || article.sku,
+              cdonArticleId: mappedArticle.cdonArticleId || null,
+            });
+          } else {
+            createArticles.push(article);
+            createMeta.push({ productId: p.productId, sku: article.sku });
+          }
         } else {
           const issues = getCdonArticleInputIssues(raw, overrides, defaultLanguage, marketsFilter);
           const reason = issues.length ? issues.join(',') : 'mapper_rejected_unknown';
@@ -1103,7 +1177,7 @@ class CdonProductsController {
 
       const preflight = {
         requested: rawProducts.length,
-        ready: articles.length,
+        ready: createArticles.length + updateActions.length,
         validation_error: items.filter((x) => x.status === 'error').length,
         expected_skip: expectedSkip,
       };
@@ -1118,7 +1192,7 @@ class CdonProductsController {
         });
       }
 
-      if (articles.length === 0) {
+      if (createArticles.length === 0 && updateActions.length === 0) {
         const errPayload = {
           ok: false,
           error: 'No valid articles to export (mapper rejected all; check required fields)',
@@ -1137,61 +1211,165 @@ class CdonProductsController {
       const url = `${CDON_MERCHANTS_API}/v2/articles/bulk`;
       const merchantId = String(settings.apiKey).trim();
       const apiToken = String(settings.apiSecret).trim();
-      const bulkBody = { articles };
-      const {
-        resp,
-        text,
-        json: resJson,
-      } = await this.cdonRequest(url, {
-        merchantId,
-        apiToken,
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bulkBody),
-      });
+      const formatFailed = (failedEntry) => {
+        const errors = Array.isArray(failedEntry?.errors) ? failedEntry.errors : [];
+        const message = errors
+          .map((entry) => String(entry?.message || '').trim())
+          .filter(Boolean)
+          .join('; ');
+        return message || 'CDON action failed';
+      };
+
+      let createResp = null;
+      let createText = null;
+      let createJson = null;
+      if (createArticles.length > 0) {
+        const createResult = await this.cdonRequest(url, {
+          merchantId,
+          apiToken,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ articles: createArticles }),
+        });
+        createResp = createResult.resp;
+        createText = createResult.text;
+        createJson = createResult.json;
+        if (!createResp.ok) {
+          const message =
+            (createJson && createJson.message) != null ? createJson.message : createText || createResp.statusText;
+          Logger.error('CDON articles/bulk create failed', {
+            status: createResp.status,
+            message,
+            userId: Context.getUserId(req),
+          });
+          return res.status(createResp.status).json({
+            ok: false,
+            error: `CDON articles bulk create failed (HTTP ${createResp.status})`,
+            detail: message,
+          });
+        }
+      }
+
+      let updateResp = null;
+      let updateText = null;
+      let updateJson = null;
+      if (updateActions.length > 0) {
+        const updateResult = await this.cdonRequest(url, {
+          merchantId,
+          apiToken,
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ actions: updateActions }),
+        });
+        updateResp = updateResult.resp;
+        updateText = updateResult.text;
+        updateJson = updateResult.json;
+        if (!updateResp.ok) {
+          const message =
+            (updateJson && updateJson.message) != null ? updateJson.message : updateText || updateResp.statusText;
+          Logger.error('CDON articles/bulk update failed', {
+            status: updateResp.status,
+            message,
+            userId: Context.getUserId(req),
+          });
+          return res.status(updateResp.status).json({
+            ok: false,
+            error: `CDON articles bulk update failed (HTTP ${updateResp.status})`,
+            detail: message,
+          });
+        }
+      }
 
       if (diagnoseTrace) {
         diagnoseTrace.bulkResponse = {
-          status: resp.status,
-          ok: resp.ok,
-          json: resJson,
+          create:
+            createResp != null
+              ? { status: createResp.status, ok: createResp.ok, json: createJson }
+              : null,
+          update:
+            updateResp != null
+              ? { status: updateResp.status, ok: updateResp.ok, json: updateJson }
+              : null,
         };
       }
 
-      if (!resp.ok) {
-        const message =
-          (resJson && resJson.message) != null ? resJson.message : text || resp.statusText;
-        Logger.error('CDON articles/bulk failed', {
-          status: resp.status,
-          message,
-          userId: Context.getUserId(req),
-        });
-        return res.status(resp.status).json({
-          ok: false,
-          error: `CDON articles bulk failed (HTTP ${resp.status})`,
-          detail: message,
-        });
+      const createSuccessBySku = new Map();
+      const createFailedBySku = new Map();
+      for (const successRow of createJson?.success || []) {
+        const skuKey = successRow?.sku != null ? String(successRow.sku).trim() : null;
+        const id = successRow?.id != null ? String(successRow.id).trim() : null;
+        if (skuKey) createSuccessBySku.set(skuKey, id || null);
+      }
+      for (const failedRow of createJson?.failed || []) {
+        const skuKey = failedRow?.sku != null ? String(failedRow.sku).trim() : null;
+        if (skuKey) createFailedBySku.set(skuKey, failedRow);
+      }
+      for (const { productId, sku } of createMeta) {
+        const skuKey = sku || productId;
+        if (createSuccessBySku.has(skuKey)) {
+          const cdonArticleId = createSuccessBySku.get(skuKey) || null;
+          await this.model.upsertChannelMap(req, {
+            productId,
+            channel: 'cdon',
+            enabled: true,
+            externalId: skuKey,
+            cdonArticleId,
+            status: 'synced',
+            error: null,
+          });
+          items.push({ productId, status: 'synced', externalId: skuKey, cdonArticleId });
+        } else {
+          const failedRow = createFailedBySku.get(skuKey);
+          items.push({
+            productId,
+            status: 'error',
+            error: failedRow ? formatFailed(failedRow) : 'CDON create returned no success row',
+          });
+        }
       }
 
-      const successById = new Map();
-      for (const s of resJson?.success || []) {
-        const skuKey = s?.sku != null ? String(s.sku).trim() : null;
-        const id = s?.id != null ? String(s.id).trim() : null;
-        if (skuKey && id) successById.set(skuKey, id);
+      const updateSuccessBySku = new Set();
+      const updateFailedBySku = new Map();
+      for (const successRow of updateJson?.success || []) {
+        const skuKey = successRow?.sku != null ? String(successRow.sku).trim() : null;
+        const actionName = String(successRow?.action || '').trim();
+        if (skuKey && actionName === 'update_article') {
+          updateSuccessBySku.add(skuKey);
+        }
       }
-      for (const { productId, sku } of articlesMeta) {
+      for (const failedRow of updateJson?.failed || []) {
+        const skuKey = failedRow?.sku != null ? String(failedRow.sku).trim() : null;
+        const actionName = String(failedRow?.action || '').trim();
+        if (skuKey && actionName === 'update_article') {
+          updateFailedBySku.set(skuKey, failedRow);
+        }
+      }
+      for (const { productId, sku, externalId, cdonArticleId } of updateMeta) {
         const skuKey = sku || productId;
-        const cdonArticleId = successById.get(skuKey) || null;
-        await this.model.upsertChannelMap(req, {
-          productId,
-          channel: 'cdon',
-          enabled: true,
-          externalId: skuKey,
-          cdonArticleId,
-          status: 'synced',
-          error: null,
-        });
-        items.push({ productId, status: 'synced', externalId: skuKey, cdonArticleId });
+        if (updateSuccessBySku.has(skuKey)) {
+          await this.model.upsertChannelMap(req, {
+            productId,
+            channel: 'cdon',
+            enabled: true,
+            externalId: externalId || skuKey,
+            cdonArticleId,
+            status: 'synced',
+            error: null,
+          });
+          items.push({
+            productId,
+            status: 'synced',
+            externalId: externalId || skuKey,
+            cdonArticleId,
+          });
+        } else {
+          const failedRow = updateFailedBySku.get(skuKey);
+          items.push({
+            productId,
+            status: 'error',
+            error: failedRow ? formatFailed(failedRow) : 'CDON update returned no success row',
+          });
+        }
       }
 
       const jsonResponse = {
@@ -1199,7 +1377,7 @@ class CdonProductsController {
         endpoint: url,
         counts: {
           requested: rawProducts.length,
-          success: articlesMeta.length,
+          success: items.filter((x) => x.status === 'synced').length,
           error: items.filter((x) => x.status === 'error').length,
           expected_skip: expectedSkip,
         },
@@ -1215,18 +1393,63 @@ class CdonProductsController {
     }
   }
 
-  validateCdonUpdateActionEnvelope(action) {
+  validateCdonUpdateActionEnvelope(action, allowedActions = ['update_article_price', 'update_article_quantity']) {
     if (!action || typeof action !== 'object' || Array.isArray(action)) {
       return { ok: false, reason: 'invalid_action_envelope' };
     }
     const sku = String(action.sku || '').trim();
     if (!sku) return { ok: false, reason: 'missing_sku' };
     const actionName = String(action.action || '').trim();
-    if (!['update_article_price', 'update_article_quantity'].includes(actionName)) {
+    if (!allowedActions.includes(actionName)) {
       return { ok: false, reason: 'unsupported_action' };
     }
     if (!action.body || typeof action.body !== 'object' || Array.isArray(action.body)) {
       return { ok: false, reason: 'missing_action_body' };
+    }
+    return { ok: true };
+  }
+
+  validateCdonUpdateArticleAction(action) {
+    const envelope = this.validateCdonUpdateActionEnvelope(action, ['update_article']);
+    if (!envelope.ok) return envelope;
+
+    const body = action.body || {};
+    const status = String(body.status || '')
+      .trim()
+      .toLowerCase();
+    if (!['for sale', 'paused'].includes(status)) {
+      return { ok: false, reason: 'invalid_status' };
+    }
+    const mainImage = String(body.main_image || '').trim();
+    if (!mainImage) {
+      return { ok: false, reason: 'missing_main_image' };
+    }
+    const markets = Array.isArray(body.markets) ? body.markets : [];
+    if (!markets.length) {
+      return { ok: false, reason: 'missing_markets' };
+    }
+    for (const row of markets) {
+      const market = String(row || '')
+        .trim()
+        .toUpperCase();
+      if (!['SE', 'DK', 'FI', 'NO'].includes(market)) {
+        return { ok: false, reason: 'invalid_market' };
+      }
+    }
+    const title = Array.isArray(body.title) ? body.title : [];
+    if (!title.length) {
+      return { ok: false, reason: 'missing_title_rows' };
+    }
+    const description = Array.isArray(body.description) ? body.description : [];
+    if (!description.length) {
+      return { ok: false, reason: 'missing_description_rows' };
+    }
+    const shipping = Array.isArray(body.shipping_time) ? body.shipping_time : [];
+    if (!shipping.length) {
+      return { ok: false, reason: 'missing_shipping_time_rows' };
+    }
+    if (body.price !== undefined || body.quantity !== undefined) {
+      return { ok: false, reason: 'price_or_quantity_not_allowed' };
     }
     return { ok: true };
   }
@@ -1241,7 +1464,7 @@ class CdonProductsController {
       const market = String(row?.market || '')
         .trim()
         .toUpperCase();
-      if (!['SE', 'DK', 'FI'].includes(market)) {
+      if (!['SE', 'DK', 'FI', 'NO'].includes(market)) {
         return { ok: false, reason: 'invalid_market' };
       }
       if (!row?.value || typeof row.value !== 'object' || Array.isArray(row.value)) {
@@ -1414,20 +1637,30 @@ class CdonProductsController {
 
     for (const p of products) {
       const productId = String(p?.id || '').trim();
-      const sku = String(p?.sku || '').trim();
       const basePrice = Number(p?.priceAmount);
       const hasBasePrice = Number.isFinite(basePrice) && basePrice > 0;
       const baseCurrency = String(p?.currency || '')
         .trim()
         .toUpperCase();
       const mappings = mapsByProduct.get(productId) || [];
-      const enabledMappings = mappings.filter((m) => m.enabled === true && m.external_id != null);
-      if (!enabledMappings.length) {
+      const targetMarkets = mappings.filter((m) => {
+        if (m.enabled !== true) return false;
+        const market = String(m.market || '')
+          .trim()
+          .toLowerCase();
+        return ['se', 'dk', 'fi', 'no'].includes(market);
+      });
+      const mappedSkus = mappings
+        .filter((m) => m.enabled === true && (m.external_id ?? null) != null)
+        .map((m) => String(m.external_id || '').trim())
+        .filter(Boolean);
+      const mappedSkuSet = new Set(mappedSkus);
+      if (mappedSkuSet.size === 0 || targetMarkets.length === 0) {
         report.skipped_no_map += 1;
         report.expected_skip += 1;
         report.rows.push({
           productId,
-          sku: sku || null,
+          sku: null,
           channel: 'cdon',
           instanceKey: null,
           status: 'skipped_no_map',
@@ -1436,6 +1669,19 @@ class CdonProductsController {
         });
         continue;
       }
+      if (mappedSkuSet.size !== 1) {
+        report.validation_error += 1;
+        report.rows.push({
+          productId,
+          sku: null,
+          channel: 'cdon',
+          instanceKey: null,
+          status: 'validation_error',
+          reason: 'conflicting_mapped_skus',
+        });
+        continue;
+      }
+      const sku = Array.from(mappedSkuSet)[0];
       if (!sku) {
         report.validation_error += 1;
         report.rows.push({
@@ -1466,13 +1712,13 @@ class CdonProductsController {
       const priceRows = [];
       const overridesByMarket = overridesByProductAndMarket.get(productId) || new Map();
       let marketValidationFailed = false;
-      for (const m of enabledMappings) {
+      for (const m of targetMarkets) {
         const marketLower = String(m.market || '')
           .trim()
           .toLowerCase();
         const market = marketLower.toUpperCase();
         const instanceKey = String(m.instance_key || '').trim();
-        if (!['SE', 'DK', 'FI'].includes(market)) {
+        if (!['SE', 'DK', 'FI', 'NO'].includes(market)) {
           report.validation_error += 1;
           report.rows.push({
             productId,
@@ -1490,10 +1736,24 @@ class CdonProductsController {
         const overrideAmount =
           Number.isFinite(overrideAmountRaw) && overrideAmountRaw > 0 ? overrideAmountRaw : null;
         const amount = overrideAmount != null ? overrideAmount : hasBasePrice ? basePrice : null;
+        const expectedCurrency = CDON_CURRENCY_BY_MARKET[market] || null;
         const overrideCurrency = String(marketOverride?.currency || '')
           .trim()
           .toUpperCase();
-        const currency = /^[A-Z]{3}$/.test(overrideCurrency) ? overrideCurrency : baseCurrency;
+        if (overrideCurrency && expectedCurrency && overrideCurrency !== expectedCurrency) {
+          report.validation_error += 1;
+          report.rows.push({
+            productId,
+            sku,
+            channel: 'cdon',
+            instanceKey: instanceKey || null,
+            status: 'validation_error',
+            reason: `invalid_currency_for_market:${market}:${overrideCurrency}`,
+          });
+          marketValidationFailed = true;
+          continue;
+        }
+        const currency = expectedCurrency;
         if (!Number.isFinite(amount) || amount <= 0 || !/^[A-Z]{3}$/.test(currency)) {
           report.validation_error += 1;
           report.rows.push({
@@ -1585,17 +1845,62 @@ class CdonProductsController {
       return res.status(resp.status).json({ ok: false, ...report, detail: json || text || null });
     }
 
-    report.updated = validProductIds.size;
+    const failedBySku = new Map();
+    for (const failedRow of json?.failed || []) {
+      const skuKey = failedRow?.sku != null ? String(failedRow.sku).trim() : null;
+      if (!skuKey) continue;
+      const message = Array.isArray(failedRow?.errors)
+        ? failedRow.errors
+            .map((entry) => String(entry?.message || '').trim())
+            .filter(Boolean)
+            .join('; ')
+        : '';
+      const action = String(failedRow?.action || '').trim();
+      const existing = failedBySku.get(skuKey) || [];
+      existing.push({
+        action: action || null,
+        message: message || 'CDON strict action failed',
+      });
+      failedBySku.set(skuKey, existing);
+    }
+
     for (const p of products) {
       const productId = String(p?.id || '').trim();
       if (!validProductIds.has(productId)) continue;
+      const mappings = mapsByProduct.get(productId) || [];
+      const mappedSkus = mappings
+        .filter((m) => m.enabled === true && (m.external_id ?? null) != null)
+        .map((m) => String(m.external_id || '').trim())
+        .filter(Boolean);
+      const skuKey = mappedSkus[0] || String(p?.sku || '').trim() || null;
+      const failures = skuKey ? failedBySku.get(skuKey) || [] : [];
+      if (failures.length > 0) {
+        report.channel_error += 1;
+        report.rows.push({
+          productId,
+          sku: skuKey,
+          channel: 'cdon',
+          instanceKey: null,
+          status: 'channel_error',
+          reason: failures.map((entry) => entry.message).join('; '),
+        });
+        continue;
+      }
+      report.updated += 1;
       report.rows.push({
         productId,
-        sku: String(p?.sku || '').trim() || null,
+        sku: skuKey,
         channel: 'cdon',
         instanceKey: null,
         status: 'updated',
         reason: null,
+      });
+    }
+
+    if (Array.isArray(json?.failed) && json.failed.length > 0) {
+      Logger.warn('CDON strict update reported failed actions', {
+        failed: json.failed,
+        userId,
       });
     }
     return res.json({ ok: true, ...report });

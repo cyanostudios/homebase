@@ -4,6 +4,24 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-14 – TypeScript-fixar (npm run check)
+
+### RichTextEditor (TipTap)
+
+- **setContent:** Andra argumentet `false` → `{ emitUpdate: false }` (TipTap v3 API).
+- **useEffect cleanup:** Returnerar inte längre Editor från cleanup-funktionen.
+- **BubbleMenu:** `tippyOptions` borttagen (finns inte i TipTap v3).
+
+### Övriga typproblem
+
+- **statusDisplay.ts:** Returnerar `String(status)` för garanterad string-typ.
+- **shippingApi.ts:** Lokal variabel `token` för korrekt narrowing efter null-check.
+- **FilesContext.tsx:** humanSize – explicit variabel `val` för numerisk beräkning.
+- **AnalyticsList.tsx:** Tooltip-typer – `payload` optional i nested struktur för Recharts-kompatibilitet.
+- **formatters.ts:** Ny typ `BucketRow`, borttagna osäkra casts.
+
+---
+
 ## 2026-03-14 – CDON article ID, HTML-dekod, kanaler-modell, produkter
 
 ### CDON – article ID för länkar

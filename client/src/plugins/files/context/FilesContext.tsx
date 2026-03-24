@@ -408,17 +408,18 @@ export function FilesProvider({
 
   // ---- PanelTitles helpers ----
   const humanSize = (bytes?: number | null) => {
-    if ((bytes ?? null) === null || !Number.isFinite(bytes)) {
+    const n = bytes;
+    if (n == null || !Number.isFinite(n)) {
       return '—';
     }
     const units = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
-    let n = bytes,
-      i = 0;
-    while (n >= 1024 && i < units.length - 1) {
-      n /= 1024;
+    let val = n;
+    let i = 0;
+    while (val >= 1024 && i < units.length - 1) {
+      val /= 1024;
       i++;
     }
-    return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
+    return `${val.toFixed(val < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
   };
 
   const getPanelTitle = (mode: 'create' | 'edit' | 'view', item: FileItem | null): string => {

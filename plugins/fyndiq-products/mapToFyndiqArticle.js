@@ -97,14 +97,14 @@ function parseFyndiqCategories(fyndiq) {
  * @param {Object} product - Base product: id, sku, mpn, title, description, status, quantity, priceAmount, currency, vatRate, mainImage, images, categories, brand, gtin, channelSpecific?.fyndiq
  * @param {Object} overridesByMarket - Per-market overrides: { se?: { priceAmount, currency, vatRate, category, active, originalPrice }, ... } (keys lower case)
  * @param {string} defaultLanguage - Default language code e.g. 'sv-SE' (used for title/description when no per-language data)
- * @param {string[]} marketsFilter - Markets to include e.g. ['se','dk','fi'] (lower case)
+ * @param {string[]} marketsFilter - Markets to include e.g. ['se','dk','fi','no'] (lower case)
  * @returns {Object|null} Fyndiq API article body or null if required fields missing
  */
 function mapProductToFyndiqArticle(
   product,
   overridesByMarket,
   defaultLanguage,
-  marketsFilter = ['se', 'dk', 'fi'],
+  marketsFilter = ['se', 'dk', 'fi', 'no'],
 ) {
   const sku = product?.id != null ? String(product.id).trim() : '';
   const title = htmlToPlainText(
@@ -127,14 +127,14 @@ function mapProductToFyndiqArticle(
       ? product.channelSpecific.fyndiq
       : {};
   // Only include markets where we have active overrides (user has enabled the product for that market).
-  const activeMarkets = (marketsFilter || ['se', 'dk', 'fi']).filter((m) => {
+  const activeMarkets = (marketsFilter || ['se', 'dk', 'fi', 'no']).filter((m) => {
     const mk = String(m).toLowerCase();
     const ov = overridesByMarket && overridesByMarket[mk];
     return ov && ov.active === true;
   });
   const markets = activeMarkets.length > 0
     ? activeMarkets.map((m) => String(m).toUpperCase())
-    : (marketsFilter || ['se', 'dk', 'fi']).map((m) => String(m).toUpperCase());
+    : (marketsFilter || ['se', 'dk', 'fi', 'no']).map((m) => String(m).toUpperCase());
 
   // Title: per language from textsExtended (per marknad) + textsStandard, else products.title. UI sätter bara textsExtended per land.
   const textsExtended = product?.channelSpecific?.textsExtended;
@@ -204,19 +204,17 @@ function mapProductToFyndiqArticle(
     product?.priceAmount != null && Number.isFinite(Number(product.priceAmount))
       ? Number(product.priceAmount)
       : null;
-  const baseCurrency = (product?.currency || 'SEK').toString().toUpperCase();
   const price = [];
   for (const m of markets) {
     const mk = m.toLowerCase();
+    const marketCode = m.toUpperCase();
     const ov = overridesByMarket && overridesByMarket[mk];
     const amount =
       ov?.priceAmount != null && Number.isFinite(Number(ov.priceAmount))
         ? Number(ov.priceAmount)
         : basePrice;
-    // Fyndiq requires market-specific currency (DKK for DK, EUR for FI, SEK for SE). Use override currency if set, else market default.
-    const currencyRaw = ov?.currency != null && String(ov.currency).trim() ? String(ov.currency).trim() : (DEFAULT_CURRENCY_BY_MARKET[m] || baseCurrency);
-    const currency = currencyRaw.toString().toUpperCase();
-    if (amount != null && amount > 0) price.push({ market: m, value: { amount, currency } });
+    const currency = String(DEFAULT_CURRENCY_BY_MARKET[m] || '').toUpperCase();
+    if (amount != null && amount > 0) price.push({ market: marketCode, value: { amount, currency } });
   }
   if (price.length === 0) return null;
 
@@ -224,6 +222,7 @@ function mapProductToFyndiqArticle(
   const original_price = [];
   for (const m of markets) {
     const mk = m.toLowerCase();
+    const marketCode = m.toUpperCase();
     const ov = overridesByMarket && overridesByMarket[mk];
     if (!ov || ov.active !== true) continue;
     const amount =
@@ -233,9 +232,8 @@ function mapProductToFyndiqArticle(
         ? Number(ov.originalPrice)
         : null;
     if (amount == null) continue;
-    const currencyRaw = ov.currency != null && String(ov.currency).trim() ? String(ov.currency).trim() : (DEFAULT_CURRENCY_BY_MARKET[m] || baseCurrency);
-    const currency = currencyRaw.toString().toUpperCase();
-    original_price.push({ market: m, value: { amount, currency } });
+    const currency = String(DEFAULT_CURRENCY_BY_MARKET[m] || '').toUpperCase();
+    original_price.push({ market: marketCode, value: { amount, currency } });
   }
 
   // Shipping time per market (required by Fyndiq)
@@ -339,7 +337,7 @@ function getFyndiqArticleInputIssues(
   product,
   overridesByMarket,
   defaultLanguage,
-  marketsFilter = ['se', 'dk', 'fi'],
+  marketsFilter = ['se', 'dk', 'fi', 'no'],
 ) {
   const issues = [];
   const sku = product?.id != null ? String(product.id).trim() : '';
@@ -358,7 +356,7 @@ function getFyndiqArticleInputIssues(
   else if (!isValidUrl(mainImage)) issues.push('invalid_main_image_url');
   if (quantity == null || quantity < 0) issues.push('invalid_quantity');
 
-  const markets = (marketsFilter || ['se', 'dk', 'fi']).map((m) => String(m).toUpperCase());
+  const markets = (marketsFilter || ['se', 'dk', 'fi', 'no']).map((m) => String(m).toUpperCase());
   const textsExtended = product?.channelSpecific?.textsExtended;
   const standardMarket = ['se', 'dk', 'fi', 'no'].includes(
     String(product?.channelSpecific?.textsStandard || '').toLowerCase(),

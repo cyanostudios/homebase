@@ -566,6 +566,16 @@ class ProductModel {
       }
 
       const d = this.normalizeInput(productData);
+      const existing = await this.getById(req, productId);
+      if (!existing) {
+        throw new AppError('Product not found', 404, AppError.CODES.NOT_FOUND);
+      }
+      const incomingComparable = this.buildComparableProduct(d);
+      const existingComparable = this.buildComparableProduct(existing);
+      if (this.stableStringify(incomingComparable) === this.stableStringify(existingComparable)) {
+        Logger.info('Product update skipped (no changes)', { productId });
+        return existing;
+      }
 
       const sql = `
         UPDATE ${ProductModel.TABLE} AS p
@@ -1296,6 +1306,75 @@ class ProductModel {
 
   // ---------- Input / Output helpers ----------
 
+  stableStringify(value) {
+    const normalize = (input) => {
+      if (Array.isArray(input)) {
+        return input.map((item) => normalize(item));
+      }
+      if (input && typeof input === 'object') {
+        return Object.keys(input)
+          .sort()
+          .reduce((acc, key) => {
+            acc[key] = normalize(input[key]);
+            return acc;
+          }, {});
+      }
+      return input ?? null;
+    };
+
+    return JSON.stringify(normalize(value));
+  }
+
+  buildComparableProduct(data = {}) {
+    const normalized = this.normalizeInput(data);
+    return {
+      sku: normalized.sku,
+      mpn: normalized.mpn,
+      title: normalized.title,
+      description: normalized.description,
+      status: normalized.status,
+      quantity: normalized.quantity,
+      priceAmount: normalized.priceAmount,
+      purchasePrice: normalized.purchasePrice,
+      currency: normalized.currency,
+      vatRate: normalized.vatRate,
+      mainImage: normalized.mainImage,
+      images: normalized.images,
+      categories: normalized.categories,
+      brand: normalized.brand,
+      brandId: normalized.brandId,
+      ean: normalized.ean,
+      gtin: normalized.gtin,
+      knNumber: normalized.knNumber,
+      supplierId: normalized.supplierId,
+      manufacturerId: normalized.manufacturerId,
+      channelSpecific: normalized.channelSpecific,
+      lagerplats: normalized.lagerplats,
+      condition: normalized.condition,
+      groupId: normalized.groupId,
+      volume: normalized.volume,
+      volumeUnit: normalized.volumeUnit,
+      notes: normalized.notes,
+      privateName: normalized.privateName,
+      color: normalized.color,
+      colorText: normalized.colorText,
+      size: normalized.size,
+      sizeText: normalized.sizeText,
+      pattern: normalized.pattern,
+      material: normalized.material,
+      patternText: normalized.patternText,
+      model: normalized.model,
+      weight: normalized.weight,
+      lengthCm: normalized.lengthCm,
+      widthCm: normalized.widthCm,
+      heightCm: normalized.heightCm,
+      depthCm: normalized.depthCm,
+      sourceCreatedAt: normalized.sourceCreatedAt,
+      quantitySold: normalized.quantitySold,
+      lastSoldAt: normalized.lastSoldAt,
+    };
+  }
+
   normalizeInput(data = {}) {
     const clean = (v) => {
       if (v === undefined || v === null) return null;
@@ -1500,13 +1579,20 @@ class ProductModel {
     const product = await this.getById(req, productId);
     if (!product) throw new AppError('Product not found', 404, AppError.CODES.NOT_FOUND);
 
+    const normalizedNextListId =
+      listId != null && String(listId).trim() !== '' ? String(parseInt(String(listId), 10)) : null;
+    const currentListId = product.listId != null ? String(product.listId) : null;
+    if (currentListId === normalizedNextListId) {
+      return product;
+    }
+
     await db.query(`DELETE FROM product_list_items WHERE user_id = $1 AND product_id = $2`, [
       userId,
       productId,
     ]);
-    if (listId != null && String(listId).trim() !== '') {
+    if (normalizedNextListId !== null) {
       await db.insert('product_list_items', {
-        list_id: parseInt(String(listId), 10),
+        list_id: parseInt(normalizedNextListId, 10),
         product_id: parseInt(productId, 10),
       });
     }

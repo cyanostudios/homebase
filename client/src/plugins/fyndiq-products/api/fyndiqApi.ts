@@ -93,15 +93,30 @@ class FyndiqApi {
 
   async exportProducts(
     products: any[],
-    opts?: { markets?: ('se' | 'dk' | 'fi')[]; diagnose?: boolean },
+    opts?: {
+      markets?: ('se' | 'dk' | 'fi')[];
+      diagnose?: boolean;
+      mode?: 'update_only_strict';
+      includePriceAndQuantity?: boolean;
+    },
   ): Promise<FyndiqExportResult> {
-    const body: { products: any[]; markets?: ('se' | 'dk' | 'fi')[]; diagnose?: boolean } = {
+    const body: {
+      products: any[];
+      markets?: ('se' | 'dk' | 'fi')[];
+      diagnose?: boolean;
+      mode?: 'update_only_strict';
+      includePriceAndQuantity?: boolean;
+    } = {
       products,
     };
     if (opts?.markets?.length) {
       body.markets = opts.markets;
     }
     if (opts?.diagnose) body.diagnose = true;
+    if (opts?.mode) body.mode = opts.mode;
+    if (opts?.includePriceAndQuantity === false) {
+      body.includePriceAndQuantity = false;
+    }
     return this.request('/products/export', { method: 'POST', body: JSON.stringify(body) });
   }
 
@@ -144,10 +159,10 @@ class FyndiqApi {
     for_sale?: boolean;
   }): Promise<unknown[]> {
     const q = new URLSearchParams();
-    if ((params?.limit ?? null) !== null) {
+    if (params?.limit != null) {
       q.set('limit', String(params.limit));
     }
-    if ((params?.page ?? null) !== null) {
+    if (params?.page != null) {
       q.set('page', String(params.page));
     }
     if (params?.for_sale !== undefined) {

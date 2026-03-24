@@ -17,11 +17,12 @@ class WooCommerceApi {
       credentials: 'include',
     });
     const data = await response.json();
-    this.csrfToken = data.csrfToken ?? null;
-    if ((this.csrfToken ?? null) === null) {
+    const token = data.csrfToken;
+    if (typeof token !== 'string' || !token) {
       throw new Error('CSRF token not returned by server');
     }
-    return this.csrfToken;
+    this.csrfToken = token;
+    return token;
   }
 
   private async request(path: string, options: RequestInit = {}) {
@@ -106,11 +107,16 @@ class WooCommerceApi {
   // ---- Batch export ----
   async exportProducts(
     products: any[],
-    opts?: { instanceIds?: string[] },
+    opts?: { instanceIds?: string[]; mode?: 'update_only_strict' },
   ): Promise<WooExportResult> {
-    const body: { products: any[]; instanceIds?: string[] } = { products };
+    const body: { products: any[]; instanceIds?: string[]; mode?: 'update_only_strict' } = {
+      products,
+    };
     if (opts?.instanceIds?.length) {
       body.instanceIds = opts.instanceIds;
+    }
+    if (opts?.mode) {
+      body.mode = opts.mode;
     }
     return this.request('/products/export', { method: 'POST', body: JSON.stringify(body) });
   }
@@ -200,7 +206,7 @@ class WooCommerceApi {
     if (params?.instanceId) {
       q.set('instanceId', params.instanceId);
     }
-    if ((params?.perPage ?? null) !== null) {
+    if (params?.perPage != null) {
       q.set('perPage', String(params.perPage));
     }
     if (params?.search) {

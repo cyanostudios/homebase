@@ -96,15 +96,21 @@ class CdonApi {
 
   async exportProducts(
     products: any[],
-    opts?: { markets?: ('se' | 'dk' | 'fi')[]; diagnose?: boolean },
+    opts?: { markets?: ('se' | 'dk' | 'fi')[]; diagnose?: boolean; mode?: 'update_only_strict' },
   ): Promise<CdonExportResult> {
-    const body: { products: any[]; markets?: ('se' | 'dk' | 'fi')[]; diagnose?: boolean } = {
+    const body: {
+      products: any[];
+      markets?: ('se' | 'dk' | 'fi')[];
+      diagnose?: boolean;
+      mode?: 'update_only_strict';
+    } = {
       products,
     };
     if (opts?.markets?.length) {
       body.markets = opts.markets;
     }
     if (opts?.diagnose) body.diagnose = true;
+    if (opts?.mode) body.mode = opts.mode;
     return this.request('/products/export', { method: 'POST', body: JSON.stringify(body) });
   }
 

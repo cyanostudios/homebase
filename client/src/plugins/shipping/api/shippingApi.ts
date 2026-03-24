@@ -16,11 +16,12 @@ class ShippingApi {
     }
     const response = await fetch('/api/csrf-token', { credentials: 'include' });
     const data = await response.json();
-    this.csrfToken = data.csrfToken ?? null;
-    if ((this.csrfToken ?? null) === null) {
+    const token: string | null = data.csrfToken ?? null;
+    if (token === null) {
       throw new Error('CSRF token not returned by server');
     }
-    return this.csrfToken;
+    this.csrfToken = token;
+    return token;
   }
 
   private async request(path: string, options: RequestInit = {}) {

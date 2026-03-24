@@ -66,33 +66,30 @@ export function buildRevenueChartData(rows: TimeSeriesRow[]) {
     channelLabel: r.channelLabel,
     currency: r.currency || 'SEK',
     revenue: Number(r.revenue || 0),
-  })) as {
-    rows: Array<Record<string, unknown> & { _revenueBreakdown: RevenueBreakdown[] }>;
-    channels: string[];
-  };
+  }));
 }
 
 export function buildOrderChartData(rows: TimeSeriesRow[]) {
   return buildChannelChartData(rows, 'orderCount', (r) => ({
     channelLabel: r.channelLabel,
     orderCount: Number(r.orderCount || 0),
-  })) as {
-    rows: Array<Record<string, unknown> & { _orderBreakdown: OrderBreakdown[] }>;
-    channels: string[];
-  };
+  }));
 }
 
-function buildChannelChartData<T>(
+type BucketRow = {
+  bucket: string;
+  bucketLabel: string;
+  [key: string]: string | number | Array<{ channelLabel: string }>;
+};
+
+function buildChannelChartData<T extends { channelLabel: string }>(
   timeSeries: TimeSeriesRow[],
   valueKey: 'revenue' | 'orderCount',
   breakdownItem: (r: TimeSeriesRow) => T,
-) {
-  const byBucket = new Map<
-    string,
-    Record<string, unknown> & { bucket: string; bucketLabel: string }
-  >();
-  const channelSet = new Set<string>();
+): { rows: BucketRow[]; channels: string[] } {
   const breakdownKey = valueKey === 'revenue' ? '_revenueBreakdown' : '_orderBreakdown';
+  const byBucket = new Map<string, BucketRow>();
+  const channelSet = new Set<string>();
 
   for (const row of timeSeries) {
     const key = row.bucket;
@@ -106,18 +103,19 @@ function buildChannelChartData<T>(
     const rec = byBucket.get(key)!;
     const label = row.channelLabel;
     channelSet.add(label);
-    (rec as Record<string, number>)[label] = Number((row as Record<string, number>)[valueKey] || 0);
+    rec[label] = Number(row[valueKey] ?? 0);
     (rec[breakdownKey] as T[]).push(breakdownItem(row));
   }
 
   const channels = Array.from(channelSet).sort((a, b) => a.localeCompare(b, 'sv'));
 
   for (const rec of byBucket.values()) {
-    const arr = rec[breakdownKey] as Array<{ channelLabel: string }>;
-    arr.sort((a, b) => a.channelLabel.localeCompare(b.channelLabel, 'sv'));
+    (rec[breakdownKey] as Array<{ channelLabel: string }>).sort((a, b) =>
+      a.channelLabel.localeCompare(b.channelLabel, 'sv'),
+    );
     for (const ch of channels) {
       if (!(ch in rec)) {
-        (rec as Record<string, number>)[ch] = 0;
+        rec[ch] = 0;
       }
     }
   }

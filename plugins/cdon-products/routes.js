@@ -117,7 +117,7 @@ function createCdonProductsRoutes(controller, context) {
         .withMessage('markets must be an array')
         .custom((val) => {
           if (!val || val.length === 0) return true;
-          const allowed = ['se', 'dk', 'fi'];
+          const allowed = ['se', 'dk', 'fi', 'no'];
           const bad = val.some((m) => !allowed.includes(String(m).toLowerCase()));
           if (bad) throw new Error('markets may only contain se, dk, fi');
           return true;
@@ -140,7 +140,7 @@ function createCdonProductsRoutes(controller, context) {
         .withMessage('markets must be an array')
         .custom((val) => {
           if (!val || val.length === 0) return true;
-          const allowed = ['se', 'dk', 'fi'];
+          const allowed = ['se', 'dk', 'fi', 'no'];
           const bad = val.some((m) => !allowed.includes(String(m).toLowerCase()));
           if (bad) throw new Error('markets may only contain se, dk, fi');
           return true;

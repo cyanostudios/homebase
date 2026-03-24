@@ -911,10 +911,49 @@ class ChannelsModel {
       }
       if (rows.length === 0) return { ok: true, count: 0 };
 
+      const existingRows = await db.query(
+        `SELECT channel_instance_id, active, price_amount, currency, vat_rate, category, sale_price, original_price
+         FROM ${ChannelsModel.CHANNEL_OVERRIDES_TABLE}
+         WHERE user_id = $1 AND product_id = $2 AND channel_instance_id = ANY($3::int[])`,
+        [userId, pid, rows.map((row) => row.instId)],
+      );
+      const existingByInstanceId = new Map(
+        existingRows.map((row) => [
+          Number(row.channel_instance_id),
+          {
+            active: row.active === true,
+            price: row.price_amount != null ? Number(row.price_amount) : null,
+            cur: row.currency != null ? String(row.currency).trim().toUpperCase() : null,
+            vat: row.vat_rate != null ? Number(row.vat_rate) : null,
+            cat: row.category != null ? String(row.category).trim() : null,
+            sale: row.sale_price != null ? Number(row.sale_price) : null,
+            orig: row.original_price != null ? Number(row.original_price) : null,
+          },
+        ]),
+      );
+      const rowsToWrite = rows.filter((row) => {
+        const existingRow = existingByInstanceId.get(row.instId);
+        if (!existingRow) {
+          return true;
+        }
+        return !(
+          existingRow.active === row.active &&
+          existingRow.price === row.price &&
+          existingRow.cur === row.cur &&
+          existingRow.vat === row.vat &&
+          existingRow.cat === row.cat &&
+          existingRow.sale === row.sale &&
+          existingRow.orig === row.orig
+        );
+      });
+      if (rowsToWrite.length === 0) {
+        return { ok: true, count: 0 };
+      }
+
       const values = [];
       const params = [userId, pid];
       let idx = 3;
-      for (const r of rows) {
+      for (const r of rowsToWrite) {
         values.push(
           `($1, $2, $${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6}, $${idx + 7}, $${idx + 8}, $${idx + 9}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         );
@@ -948,7 +987,7 @@ class ChannelsModel {
           updated_at = CURRENT_TIMESTAMP`,
         params,
       );
-      return { ok: true, count: rows.length };
+      return { ok: true, count: rowsToWrite.length };
     } catch (error) {
       Logger.error('Failed to upsert product overrides bulk', error);
       if (error instanceof AppError) throw error;

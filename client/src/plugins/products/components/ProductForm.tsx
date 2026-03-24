@@ -29,6 +29,7 @@ import { filesApi } from '@/plugins/files/api/filesApi';
 import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
 import { productsApi } from '../api/productsApi';
 import { useProducts } from '../hooks/useProducts';
+import type { ProductSaveChangeSet, ProductSyncChannel } from '../types/products';
 
 const MARKETS = [
   { key: 'se' as const, label: 'Sverige', currency: 'SEK', lang: 'sv-SE' },
@@ -616,7 +617,8 @@ interface ProductFormProps {
   onSave: (
     data: any,
     options?: {
-      hadChanges?: boolean;
+      changeSet?: ProductSaveChangeSet;
+      ignorePriceWarning?: boolean;
       channelTargets?: Array<{ channel: string; channelInstanceId: number | null }>;
       channelTargetsWithMarket?: Array<{
         channel: string;
@@ -777,6 +779,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     supplierId: '',
     manufacturerId: '',
     lagerplats: '',
+    wooBackorders: 'no',
     condition: 'new',
     shippedFrom: 'EU',
     availabilityDates: { se: '', dk: '', fi: '', no: '' },
@@ -816,6 +819,105 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     channelCategories: {},
   };
 
+  const PRODUCT_INTERNAL_ONLY_KEYS: Array<keyof FormData> = [
+    'purchasePrice',
+    'privateName',
+    'supplierId',
+    'manufacturerId',
+    'lagerplats',
+    'notes',
+    'brandId',
+  ];
+  const PRODUCT_STRICT_KEYS: Array<keyof FormData> = ['quantity', 'priceAmount', 'currency', 'vatRate'];
+  const PRODUCT_FULL_ALL_KEYS: Array<keyof FormData> = [
+    'sku',
+    'mpn',
+    'title',
+    'description',
+    'mainImage',
+    'images',
+    'categories',
+    'brand',
+    'ean',
+    'gtin',
+    'knNumber',
+    'color',
+    'colorText',
+    'size',
+    'sizeText',
+    'pattern',
+    'material',
+    'patternText',
+    'model',
+    'weight',
+    'weightUnit',
+    'shoeSizeEu',
+    'condition',
+    'groupId',
+    'volume',
+    'volumeUnit',
+    'lengthCm',
+    'widthCm',
+    'heightCm',
+    'depthCm',
+  ];
+
+  const stableStringify = (value: unknown): string => {
+    const normalize = (input: unknown): unknown => {
+      if (Array.isArray(input)) {
+        return input.map((item) => normalize(item));
+      }
+      if (input && typeof input === 'object') {
+        return Object.keys(input as Record<string, unknown>)
+          .sort()
+          .reduce<Record<string, unknown>>((acc, key) => {
+            acc[key] = normalize((input as Record<string, unknown>)[key]);
+            return acc;
+          }, {});
+      }
+      return input ?? null;
+    };
+
+    return JSON.stringify(normalize(value));
+  };
+
+  const pickSnapshot = (source: FormData, keys: Array<keyof FormData>) =>
+    keys.reduce<Record<string, unknown>>((acc, key) => {
+      acc[String(key)] = source[key] ?? null;
+      return acc;
+    }, {});
+
+  const buildMarketArticleSnapshot = (source: FormData) =>
+    MARKETS.reduce<Record<string, { shippingMin: number; shippingMax: number; deliveryType: string }>>(
+      (acc, market) => {
+        acc[market.key] = {
+          shippingMin: Number(source.markets[market.key].shippingMin ?? 0),
+          shippingMax: Number(source.markets[market.key].shippingMax ?? 0),
+          deliveryType: String(source.markets[market.key].deliveryType ?? ''),
+        };
+        return acc;
+      },
+      {},
+    );
+
+  const toComparableOverrideValue = (value: string | number | null | undefined): string | null => {
+    if (value == null) {
+      return null;
+    }
+    const normalized = String(value).trim().replace(',', '.');
+    if (!normalized) {
+      return null;
+    }
+    const numeric = Number(normalized);
+    return Number.isFinite(numeric) && numeric >= 0 ? String(numeric) : null;
+  };
+
+  const initialFormStateRef = useRef<FormData>(JSON.parse(JSON.stringify(initialState)) as FormData);
+  const initialSelectedTargetKeysRef = useRef<Set<string>>(new Set());
+  const initialChannelPriceOverridesRef = useRef<Record<string, { priceAmount: string; salePrice: string }>>(
+    {},
+  );
+
   const [formData, setFormData] = useState<FormData>(initialState);
   const [activeTab, setActiveTab] = useState<
     'kanaler' | 'produkt' | 'texter' | 'media' | 'priser' | 'kategori' | 'detaljer' | 'statistik'
@@ -843,6 +945,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   /** All instances including disabled – used only for validation lookups (targets can reference disabled instances). */
   const [channelInstancesAll, setChannelInstancesAll] = useState<ChannelInstance[]>([]);
   const [channelOverrides, setChannelOverrides] = useState<any[]>([]);
+  const [channelOverridesLoaded, setChannelOverridesLoaded] = useState(false);
   /** Per-butik (per instance) price overrides for Priser tab. Key = instance id. */
   const [channelPriceOverrides, setChannelPriceOverrides] = useState<
     Record<string, { priceAmount: string; salePrice: string }>
@@ -902,6 +1005,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     const cached = getChannelDataCache(productKey);
     if (cached) {
       setChannelOverrides(cached.overrides);
+      setChannelOverridesLoaded(true);
       const priceInit: Record<string, { priceAmount: string; salePrice: string }> = {};
       for (const inst of cached.instances) {
         const ov = (cached.overrides as any[]).find(
@@ -915,6 +1019,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           salePrice: reaprisOrOriginal != null ? String(reaprisOrOriginal) : '',
         };
       }
+      initialChannelPriceOverridesRef.current = JSON.parse(JSON.stringify(priceInit)) as Record<
+        string,
+        { priceAmount: string; salePrice: string }
+      >;
       setChannelPriceOverrides(priceInit);
       const cachedEnabledKeySet = new Set(
         cached.instances.map((i: any) =>
@@ -927,7 +1035,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         const id = colonIdx >= 0 ? k.slice(colonIdx + 1) : '';
         return cachedEnabledKeySet.has(targetKey(ch, id || null));
       });
-      setCurrentTargetKeys(new Set(filteredTargetKeys));
+      const cachedKeys = new Set(filteredTargetKeys);
+      initialSelectedTargetKeysRef.current = new Set(filteredTargetKeys);
+      setCurrentTargetKeys(cachedKeys);
       setSelectedTargetKeys(new Set(filteredTargetKeys));
       setChannelInstances(cached.instances);
       setChannelInstancesAll(cached.instances);
@@ -957,6 +1067,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
     let cancelled = false;
     setChannelTargetsLoading(true);
+    setChannelOverridesLoaded(false);
     (async () => {
       try {
         const [instResp, instAllResp] = await Promise.all([
@@ -973,6 +1084,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
         if (!currentProduct?.id) {
           setChannelOverrides([]);
+          setChannelOverridesLoaded(true);
+          initialSelectedTargetKeysRef.current = new Set();
+          initialChannelPriceOverridesRef.current = {};
           setCurrentTargetKeys(new Set());
           setChannelDataCache('new', { instances: insts, overrides: [], targetKeys: [] });
           setChannelTargetsLoading(false);
@@ -989,6 +1103,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         const targets = targetsResp?.targets ?? [];
         const ovs = ovResp?.items ?? [];
         setChannelOverrides(ovs);
+        setChannelOverridesLoaded(true);
         const enabledKeySet = new Set(
           insts.map((i) => targetKey(String(i.channel).toLowerCase(), String(i.id))),
         );
@@ -1003,6 +1118,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           }
         }
         const keyList = Array.from(keys);
+        initialSelectedTargetKeysRef.current = new Set(keyList);
         setCurrentTargetKeys(keys);
         setSelectedTargetKeys(keys);
         setChannelDataCache(String(currentProduct.id), {
@@ -1015,6 +1131,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           setChannelInstances([]);
           setChannelInstancesAll([]);
           setChannelOverrides([]);
+          setChannelOverridesLoaded(false);
+          initialSelectedTargetKeysRef.current = new Set();
+          initialChannelPriceOverridesRef.current = {};
           setCurrentTargetKeys(new Set());
           if (currentProduct?.id) {
             setSelectedTargetKeys(new Set());
@@ -1135,8 +1254,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   useEffect(() => {
     if (
       !currentProduct?.id ||
-      channelOverrides.length === 0 ||
       channelInstances.length === 0 ||
+      !channelOverridesLoaded ||
       hasSyncedOverridesRef.current
     ) {
       return;
@@ -1160,7 +1279,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           if (!nextFyndiq) nextFyndiq = String(ov.category).trim();
         }
       }
-      return {
+      const nextFormData: FormData = {
         ...prev,
         channelCategories: {
           ...prev.channelCategories,
@@ -1169,6 +1288,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           fyndiq: nextFyndiq,
         },
       };
+      initialFormStateRef.current = JSON.parse(JSON.stringify(nextFormData)) as FormData;
+      return nextFormData;
     });
     const priceInit: Record<string, { priceAmount: string; salePrice: string }> = {};
     for (const inst of channelInstances) {
@@ -1181,13 +1302,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         salePrice: reaprisOrOriginal != null ? String(reaprisOrOriginal) : '',
       };
     }
+    initialChannelPriceOverridesRef.current = JSON.parse(JSON.stringify(priceInit)) as Record<
+      string,
+      { priceAmount: string; salePrice: string }
+    >;
     setChannelPriceOverrides(priceInit);
-  }, [channelOverrides, channelInstances, currentProduct?.id]);
+  }, [channelOverrides, channelInstances, channelOverridesLoaded, currentProduct?.id]);
   useEffect(() => {
-    if (!currentProduct?.id) {
-      hasSyncedOverridesRef.current = false;
-    }
-  }, [currentProduct?.id]);
+    hasSyncedOverridesRef.current = false;
+  }, [currentProduct?.id, channelOverridesLoaded]);
 
   // Register this form's unsaved changes state globally
   useEffect(() => {
@@ -1210,6 +1333,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   // Load current product (or leave empty for batch mode)
   useEffect(() => {
     if (isBatchMode) {
+      initialFormStateRef.current = JSON.parse(JSON.stringify(initialState)) as FormData;
+      initialSelectedTargetKeysRef.current = new Set();
+      initialChannelPriceOverridesRef.current = {};
       setFormData(initialState);
       setIsMpnAuto(true);
       markClean();
@@ -1227,8 +1353,24 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       const markets: FormData['markets'] = { ...initialState.markets };
       const texts: FormData['texts'] = { ...initialState.texts };
       for (const m of MARKETS) {
-        const mData = (cs.cdon as any)?.markets?.[m.key] ?? (cs.fyndiq as any)?.markets?.[m.key];
+        const cdonMarketData = (cs.cdon as any)?.markets?.[m.key];
+        const fyndiqMarketData = (cs.fyndiq as any)?.markets?.[m.key];
+        const mData = cdonMarketData ?? fyndiqMarketData;
         const defShip = getDefaultDelivery(m.key);
+        const shippingTimeFromApi = (
+          arr: Array<{ market?: string; min?: number; max?: number }> | undefined,
+          marketKey: string,
+        ) => {
+          const upper = marketKey.toUpperCase();
+          const entry = arr?.find((e) => String(e?.market || '').toUpperCase() === upper);
+          if (!entry || typeof entry !== 'object') {
+            return null;
+          }
+          return {
+            min: Number.isFinite(Number(entry.min)) ? Number(entry.min) : null,
+            max: Number.isFinite(Number(entry.max)) ? Number(entry.max) : null,
+          };
+        };
         const deliveryTypeFromApi = (
           arr: Array<{ market?: string; value?: string }> | undefined,
           marketKey: string,
@@ -1238,6 +1380,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           const v = entry?.value as DeliveryTypeValue | undefined;
           return v === 'mailbox' || v === 'service_point' || v === 'home_delivery' ? v : '';
         };
+        const cdonShipping = (cs.cdon as any)?.shipping_time;
+        const fyndiqShipping = (cs.fyndiq as any)?.shipping_time;
+        const shippingTime =
+          shippingTimeFromApi(Array.isArray(cdonShipping) ? cdonShipping : undefined, m.key) ??
+          shippingTimeFromApi(Array.isArray(fyndiqShipping) ? fyndiqShipping : undefined, m.key);
         const cdonDelivery = (cs.cdon as any)?.delivery_type;
         const fyndiqDelivery = (cs.fyndiq as any)?.delivery_type;
         const deliveryType =
@@ -1252,12 +1399,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 : 0,
             currency: mData.currency ?? m.currency,
             vatRate: Number.isFinite(mData.vatRate) ? Number(mData.vatRate) : 25,
-            shippingMin: Number.isFinite(mData.shippingMin)
-              ? Number(mData.shippingMin)
-              : (defShip?.shippingMin ?? 1),
-            shippingMax: Number.isFinite(mData.shippingMax)
-              ? Number(mData.shippingMax)
-              : (defShip?.shippingMax ?? 3),
+            shippingMin: Number.isFinite(shippingTime?.min)
+              ? Number(shippingTime!.min)
+              : Number.isFinite(mData.shippingMin)
+                ? Number(mData.shippingMin)
+                : (defShip?.shippingMin ?? 1),
+            shippingMax: Number.isFinite(shippingTime?.max)
+              ? Number(shippingTime!.max)
+              : Number.isFinite(mData.shippingMax)
+                ? Number(mData.shippingMax)
+                : (defShip?.shippingMax ?? 3),
             deliveryType: (mData as any).deliveryType ?? deliveryType,
             active: mData.active !== false,
           };
@@ -1266,8 +1417,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             ? Number(currentProduct.priceAmount)
             : markets[m.key].price;
           markets[m.key].currency = currentProduct.currency ?? markets[m.key].currency;
-          markets[m.key].shippingMin = defShip?.shippingMin ?? 1;
-          markets[m.key].shippingMax = defShip?.shippingMax ?? 3;
+          markets[m.key].shippingMin = Number.isFinite(shippingTime?.min)
+            ? Number(shippingTime!.min)
+              : (defShip?.shippingMin ?? 1),
+          markets[m.key].shippingMax = Number.isFinite(shippingTime?.max)
+            ? Number(shippingTime!.max)
+            : (defShip?.shippingMax ?? 3);
           markets[m.key].deliveryType = deliveryType;
         }
         const tData = (cs.cdon as any)?.texts?.[m.key] ?? (cs.fyndiq as any)?.texts?.[m.key];
@@ -1280,36 +1435,30 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             : '';
         const titleFromExtended = decodeHtmlEntities((extended as any)?.name ?? '');
         const descFromExtended = decodeHtmlEntities((extended as any)?.description ?? '');
+        const isStandardMarket = m.key === (((cs as any)?.textsStandard as MarketKey | undefined) ?? 'se');
         texts[m.key] =
-          tData && typeof tData === 'object'
+          titleFromExtended || descFromExtended || isStandardMarket
             ? {
-                title: decodeHtmlEntities(tData.title ?? '') || titleFromExtended || baseTitle,
-                description: decodeHtmlEntities(tData.description ?? '') || descFromExtended || baseDesc,
+                // Source of truth for explicit per-market text is textsExtended.
+                // Export payloads in cdon/fyndiq.texts may already be fallback-expanded
+                // and must not rehydrate DK/FI/NO as explicit texts in the form.
+                title: titleFromExtended || (isStandardMarket ? baseTitle : ''),
+                description: descFromExtended || (isStandardMarket ? baseDesc : ''),
                 titleSeo: extended?.titleSeo ?? '',
                 metaDesc: extended?.metaDesc ?? '',
                 metaKeywords: extended?.metaKeywords ?? '',
                 bulletpoints: bulletpointsStr,
                 validFor,
               }
-            : titleFromExtended || descFromExtended || m.key === 'se'
-              ? {
-                  title: titleFromExtended ?? baseTitle,
-                  description: descFromExtended ?? baseDesc,
-                  titleSeo: extended?.titleSeo ?? '',
-                  metaDesc: extended?.metaDesc ?? '',
-                  metaKeywords: extended?.metaKeywords ?? '',
-                  bulletpoints: bulletpointsStr,
-                  validFor,
-                }
-              : {
-                  title: '',
-                  description: '',
-                  titleSeo: '',
-                  metaDesc: '',
-                  metaKeywords: '',
-                  bulletpoints: '',
-                  validFor: { cdon: true, fyndiq: true },
-                };
+            : {
+                title: '',
+                description: '',
+                titleSeo: '',
+                metaDesc: '',
+                metaKeywords: '',
+                bulletpoints: '',
+                validFor: { cdon: true, fyndiq: true },
+              };
       }
       if (!texts.se.title) {
         texts.se = { title: baseTitle, description: baseDesc };
@@ -1336,7 +1485,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       const baseCur = currentProduct.currency ?? 'SEK';
       const fxAt = (cs as any)?.lastFxObservedAt;
       setLastFxObservedAt(typeof fxAt === 'string' ? fxAt : null);
-      setFormData({
+      const nextFormData: FormData = {
         title: baseTitle,
         status: (currentProduct.status as FormData['status']) ?? 'for sale',
         quantity: Number.isFinite(currentProduct.quantity) ? Number(currentProduct.quantity) : 0,
@@ -1442,13 +1591,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             ? (cs.woocommerce as any).backorders
             : 'no',
         channelSpecific: cs,
-      });
+      };
+      initialFormStateRef.current = JSON.parse(JSON.stringify(nextFormData)) as FormData;
+      setFormData(nextFormData);
       setIsMpnAuto(!(mpn && mpn !== sku));
       const ean = (currentProduct as any).ean ?? '';
       const gtin = currentProduct.gtin ?? '';
       setIsGtinAuto(!(gtin && gtin !== ean));
       markClean();
     } else {
+      initialFormStateRef.current = JSON.parse(JSON.stringify(initialState)) as FormData;
+      initialSelectedTargetKeysRef.current = new Set();
+      initialChannelPriceOverridesRef.current = {};
       setFormData(initialState);
       setLastFxObservedAt(null);
       setIsMpnAuto(true);
@@ -1577,7 +1731,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     }
   }, [activeTab, isBatchMode, categoryTabInstances, getChannelCategories]);
 
-  const updateField = (field: keyof FormData, value: string | number | string[]) => {
+  const updateField = (
+    field: keyof FormData,
+    value: string | number | string[] | Record<MarketKey, string>,
+  ) => {
     setFormData((prev) => {
       // SKU change should update MPN if MPN is in auto mode
       if (field === 'sku') {
@@ -1687,6 +1844,226 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     }
   };
 
+  const buildOverrideRows = useCallback(
+    (
+      instances: ChannelInstance[],
+      activeKeys: string[],
+      categoriesSource: ChannelCategory | undefined,
+      priceSource: Record<string, { priceAmount: string; salePrice: string }>,
+    ) =>
+      instances
+        .filter((inst) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(inst.channel).toLowerCase()))
+        .map((inst) => {
+          const channel = String(inst.channel).toLowerCase() as ProductSyncChannel;
+          const key = targetKey(channel, String(inst.id));
+          const rawCategory =
+            channel === 'woocommerce'
+              ? categoriesSource?.woocommerce?.[inst.instanceKey]
+              : channel === 'cdon'
+                ? categoriesSource?.cdon
+                : categoriesSource?.fyndiq;
+          const category =
+            channel === 'woocommerce'
+              ? Array.isArray(rawCategory)
+                ? rawCategory.length
+                  ? JSON.stringify(rawCategory)
+                  : null
+                : typeof rawCategory === 'string' && rawCategory.trim()
+                  ? rawCategory.trim()
+                  : null
+              : typeof rawCategory === 'string' && rawCategory.trim()
+                ? rawCategory.trim()
+                : null;
+          const priceOverride = priceSource[String(inst.id)] ?? { priceAmount: '', salePrice: '' };
+          return {
+            channelInstanceId: String(inst.id),
+            channel,
+            active: activeKeys.includes(key),
+            category,
+            priceAmount: toComparableOverrideValue(priceOverride.priceAmount),
+            salePrice:
+              channel === 'woocommerce' ? toComparableOverrideValue(priceOverride.salePrice) : null,
+            originalPrice:
+              channel === 'fyndiq' ? toComparableOverrideValue(priceOverride.salePrice) : null,
+          };
+        }),
+    [],
+  );
+
+  const classifySaveChangeSet = useCallback(
+    (effectiveSelectedKeys: string[], saveInstances: ChannelInstance[]): ProductSaveChangeSet => {
+      const selectedChannels = new Set<ProductSyncChannel>();
+      for (const key of effectiveSelectedKeys) {
+        const colonIdx = key.indexOf(':');
+        const channel = (colonIdx >= 0 ? key.slice(0, colonIdx) : key).toLowerCase();
+        if (channel === 'woocommerce' || channel === 'cdon' || channel === 'fyndiq') {
+          selectedChannels.add(channel);
+        }
+      }
+
+      if (!currentProduct) {
+        return {
+          local: {
+            noChanges: false,
+            hasChanges: true,
+            productChanged: true,
+            listChanged: !!String(formData.listId ?? '').trim(),
+            targetsChanged: effectiveSelectedKeys.length > 0,
+            overridesChanged: buildOverrideRows(
+              saveInstances,
+              effectiveSelectedKeys,
+              formData.channelCategories,
+              channelPriceOverrides,
+            ).some(
+              (row) =>
+                row.active ||
+                row.category != null ||
+                row.priceAmount != null ||
+                row.salePrice != null ||
+                row.originalPrice != null,
+            ),
+          },
+          sync: {
+            strictChannels: [],
+            fullChannels: Array.from(selectedChannels),
+            articleOnlyChannels: Array.from(selectedChannels),
+          },
+        };
+      }
+
+      const initialFormState = initialFormStateRef.current;
+      const currentOverrideRows = buildOverrideRows(
+        saveInstances,
+        effectiveSelectedKeys,
+        formData.channelCategories,
+        channelPriceOverrides,
+      );
+      const initialOverrideRows = buildOverrideRows(
+        saveInstances,
+        Array.from(initialSelectedTargetKeysRef.current),
+        initialFormState.channelCategories,
+        initialChannelPriceOverridesRef.current,
+      );
+      const initialOverrideMap = new Map(
+        initialOverrideRows.map((row) => [String(row.channelInstanceId), row]),
+      );
+
+      const listChanged =
+        String(formData.listId ?? '').trim() !== String(initialFormState.listId ?? '').trim();
+      const targetsChanged =
+        stableStringify(Array.from(new Set(effectiveSelectedKeys)).sort()) !==
+        stableStringify(Array.from(initialSelectedTargetKeysRef.current).sort());
+
+      const internalOnlyChanged =
+        stableStringify(pickSnapshot(formData, PRODUCT_INTERNAL_ONLY_KEYS)) !==
+        stableStringify(pickSnapshot(initialFormState, PRODUCT_INTERNAL_ONLY_KEYS));
+      const strictBaseChanged =
+        stableStringify(pickSnapshot(formData, PRODUCT_STRICT_KEYS)) !==
+        stableStringify(pickSnapshot(initialFormState, PRODUCT_STRICT_KEYS));
+      const fullAllChanged =
+        stableStringify(pickSnapshot(formData, PRODUCT_FULL_ALL_KEYS)) !==
+        stableStringify(pickSnapshot(initialFormState, PRODUCT_FULL_ALL_KEYS));
+      const cdonFyndiqArticleChanged =
+        stableStringify({
+          texts: formData.texts,
+          standardTextMarket: formData.standardTextMarket,
+          shippedFrom: formData.shippedFrom,
+          availabilityDates: formData.availabilityDates,
+          markets: buildMarketArticleSnapshot(formData),
+        }) !==
+        stableStringify({
+          texts: initialFormState.texts,
+          standardTextMarket: initialFormState.standardTextMarket,
+          shippedFrom: initialFormState.shippedFrom,
+          availabilityDates: initialFormState.availabilityDates,
+          markets: buildMarketArticleSnapshot(initialFormState),
+        });
+      const wooArticleChanged =
+        stableStringify({ wooBackorders: formData.wooBackorders }) !==
+        stableStringify({ wooBackorders: initialFormState.wooBackorders });
+
+      const strictChannels = new Set<ProductSyncChannel>();
+      const fullChannels = new Set<ProductSyncChannel>();
+      const strictCompanionChannels = new Set<ProductSyncChannel>();
+
+      if (strictBaseChanged || fullAllChanged) {
+        for (const channel of selectedChannels) {
+          if (strictBaseChanged) {
+            strictChannels.add(channel);
+            strictCompanionChannels.add(channel);
+          }
+          if (fullAllChanged) fullChannels.add(channel);
+        }
+      }
+      if (cdonFyndiqArticleChanged) {
+        if (selectedChannels.has('cdon')) fullChannels.add('cdon');
+        if (selectedChannels.has('fyndiq')) fullChannels.add('fyndiq');
+      }
+      if (wooArticleChanged && selectedChannels.has('woocommerce')) {
+        fullChannels.add('woocommerce');
+      }
+      if (targetsChanged) {
+        for (const key of effectiveSelectedKeys) {
+          const channel = key.split(':')[0]?.toLowerCase();
+          if (channel === 'woocommerce' || channel === 'cdon' || channel === 'fyndiq') {
+            strictChannels.add(channel);
+            strictCompanionChannels.add(channel);
+          }
+        }
+      }
+
+      let overridesChanged = false;
+      for (const row of currentOverrideRows) {
+        const before = initialOverrideMap.get(String(row.channelInstanceId));
+        const categoryChanged = (before?.category ?? null) !== row.category;
+        const strictChanged =
+          (before?.active ?? false) !== row.active ||
+          (before?.priceAmount ?? null) !== row.priceAmount ||
+          (before?.salePrice ?? null) !== row.salePrice ||
+          (before?.originalPrice ?? null) !== row.originalPrice;
+        if (categoryChanged || strictChanged) {
+          overridesChanged = true;
+        }
+        if (categoryChanged) {
+          fullChannels.add(row.channel);
+        }
+        if (strictChanged) {
+          strictChannels.add(row.channel);
+          strictCompanionChannels.add(row.channel);
+        }
+      }
+
+      for (const channel of Array.from(fullChannels)) {
+        strictChannels.delete(channel);
+      }
+
+      const articleOnlyChannels = Array.from(fullChannels).filter(
+        (channel) => !strictCompanionChannels.has(channel),
+      );
+
+      const productChanged =
+        internalOnlyChanged || strictBaseChanged || fullAllChanged || cdonFyndiqArticleChanged || wooArticleChanged;
+      const hasChanges = productChanged || listChanged || targetsChanged || overridesChanged;
+
+      return {
+        local: {
+          noChanges: !hasChanges,
+          hasChanges,
+          productChanged,
+          listChanged,
+          targetsChanged,
+          overridesChanged,
+        },
+        sync: {
+          strictChannels: Array.from(strictChannels),
+          fullChannels: Array.from(fullChannels),
+          articleOnlyChannels,
+        },
+      };
+    },
+    [buildOverrideRows, channelPriceOverrides, currentProduct, formData],
+  );
+
   const submittingGuardRef = useRef(false);
   const handleSubmit = useCallback(async () => {
     if (submittingGuardRef.current) return;
@@ -1750,7 +2127,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     setIsSubmitting(true);
     setProductFormSaving?.(true);
     try {
-      const hadChanges = !!currentProduct && isDirty;
       // Build API-shaped channelSpecific: shipping_time, delivery_type, title[], description[]
       const shippingTime = MARKETS.map((m) => ({
         market: m.key.toUpperCase(),
@@ -1833,7 +2209,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           ...(cdonTitle.length > 0 && { title: cdonTitle }),
           ...(cdonDesc.length > 0 && { description: cdonDesc }),
           ...(formData.availabilityDates &&
-            Object.keys(formData.availabilityDates).some((m) =>
+            (Object.keys(formData.availabilityDates) as MarketKey[]).some((m) =>
               (formData.availabilityDates[m] ?? '').trim(),
             ) && {
               availability_dates: (['se', 'dk', 'fi', 'no'] as const)
@@ -1956,76 +2332,33 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           };
         })
         .filter((x): x is NonNullable<typeof x> => x != null);
-      const channelOverridesToSave = saveInstances
-        .filter((i) => ['cdon', 'fyndiq', 'woocommerce'].includes(String(i.channel).toLowerCase()))
-        .map((inst) => {
-          const ch = String(inst.channel).toLowerCase();
-          const key = targetKey(ch, String(inst.id));
-          const active = effectiveSelectedKeys.includes(key);
-          const existingOv = channelOverrides.find(
-            (o: any) => String(o.instanceId) === String(inst.id),
-          );
-          const rawCat =
-            ch === 'woocommerce'
-              ? formData.channelCategories?.woocommerce?.[inst.instanceKey]
-              : ch === 'cdon'
-                ? formData.channelCategories?.cdon
-                : ch === 'fyndiq'
-                  ? formData.channelCategories?.fyndiq
-                  : null;
-          const cat =
-            ch === 'woocommerce'
-              ? Array.isArray(rawCat)
-                ? rawCat.length
-                  ? JSON.stringify(rawCat)
-                  : null
-                : typeof rawCat === 'string' && rawCat?.trim()
-                  ? rawCat.trim()
-                  : null
-              : typeof rawCat === 'string' && rawCat?.trim()
-                ? rawCat.trim()
-                : existingOv?.category != null && String(existingOv.category).trim()
-                  ? String(existingOv.category).trim()
-                  : null;
-          const po = channelPriceOverrides[String(inst.id)];
-          const priceStr = (po?.priceAmount ?? '').trim().replace(',', '.');
-          const priceAmount =
-            priceStr !== '' && Number.isFinite(Number(priceStr)) && Number(priceStr) >= 0
-              ? Number(priceStr)
-              : null;
-          const saleOrOriginalStr = (po?.salePrice ?? '').trim().replace(',', '.');
-          const saleOrOriginal =
-            saleOrOriginalStr !== '' &&
-            Number.isFinite(Number(saleOrOriginalStr)) &&
-            Number(saleOrOriginalStr) >= 0
-              ? Number(saleOrOriginalStr)
-              : null;
-          return {
-            channelInstanceId: inst.id,
-            active,
-            category: cat,
-            priceAmount,
-            salePrice: ch === 'woocommerce' ? saleOrOriginal : undefined,
-            originalPrice: ch === 'fyndiq' ? saleOrOriginal : undefined,
-          };
-        })
-        .filter((o) => o.channelInstanceId);
+      const channelOverridesToSave = buildOverrideRows(
+        saveInstances,
+        effectiveSelectedKeys,
+        formData.channelCategories,
+        channelPriceOverrides,
+      ).map((row) => ({
+        channelInstanceId: row.channelInstanceId,
+        active: row.active,
+        category: row.category,
+        priceAmount: row.priceAmount != null ? Number(row.priceAmount) : null,
+        salePrice: row.salePrice != null ? Number(row.salePrice) : undefined,
+        originalPrice: row.originalPrice != null ? Number(row.originalPrice) : undefined,
+      }));
+      const changeSet = classifySaveChangeSet(effectiveSelectedKeys, saveInstances);
+      if (currentProduct && changeSet.local.noChanges) {
+        markClean();
+        closeProductPanel();
+        return;
+      }
       const success = await onSave(payload, {
-        hadChanges,
+        changeSet,
         ignorePriceWarning,
         channelTargets,
         channelTargetsWithMarket,
         channelOverridesToSave,
       });
       if (success) {
-        if (currentProduct?.id) {
-          const listId = formData.listId?.trim() || null;
-          try {
-            await productsApi.setProductList(currentProduct.id, listId);
-          } catch (e) {
-            console.error('Failed to set product list', e);
-          }
-        }
         markClean();
         if (!currentProduct) {
           setFormData(initialState);
@@ -2049,8 +2382,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     closeProductPanel,
     setProductFormSaving,
     selectedTargetKeys,
-    channelInstances,
-    channelOverrides,
+    buildOverrideRows,
+    classifySaveChangeSet,
     channelPriceOverrides,
     lastFxObservedAt,
   ]);

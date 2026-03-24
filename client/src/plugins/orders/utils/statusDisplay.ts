@@ -16,5 +16,5 @@ export function statusDisplayLabel(status: string | null | undefined): string {
   if (s === 'cancelled') {
     return 'Cancelled';
   }
-  return status;
+  return String(status);
 }

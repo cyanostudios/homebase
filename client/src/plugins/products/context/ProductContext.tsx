@@ -18,7 +18,12 @@ import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
 import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceApi';
 
 import { productsApi, type ProductImportMode, type ProductImportResult } from '../api/productsApi';
-import type { Product, ProductSettings, ValidationError } from '../types/products';
+import type {
+  Product,
+  ProductSaveChangeSet,
+  ProductSettings,
+  ValidationError,
+} from '../types/products';
 
 interface ProductContextType {
   // Panel state
@@ -72,7 +77,7 @@ interface ProductContextType {
   saveProduct: (
     data: any,
     options?: {
-      hadChanges?: boolean;
+      changeSet?: ProductSaveChangeSet;
       ignorePriceWarning?: boolean;
       channelTargets?: Array<{ channel: string; channelInstanceId: number | null }>;
       channelTargetsWithMarket?: Array<{
@@ -89,6 +94,11 @@ interface ProductContextType {
       }>;
     },
   ) => Promise<boolean>;
+  resyncProducts: (ids: string[]) => Promise<{
+    woo?: { ok: boolean; instances?: any[]; endpoint?: string; counts?: any };
+    cdon?: { ok: boolean; counts?: any; endpoint?: string };
+    fyndiq?: { ok: boolean; counts?: any; endpoint?: string };
+  }>;
   deleteProduct: (id: string) => Promise<void>;
   deleteProducts: (ids: string[]) => Promise<void>; // bulk
   batchUpdateProducts: (
@@ -685,10 +695,231 @@ export function ProductProvider({
     [buildDataAndValidate],
   );
 
+  const normalizeProductRecord = useCallback((saved: any) => {
+    if (!saved) {
+      return saved;
+    }
+    return {
+      ...saved,
+      createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
+      updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
+    };
+  }, []);
+
+  const buildChannelExportPayload = useCallback((productForSync: any) => {
+    if (!productForSync) {
+      return null;
+    }
+    return {
+      id: productForSync.id,
+      sku: productForSync.sku,
+      mpn: productForSync.mpn,
+      title: productForSync.title,
+      status: productForSync.status,
+      quantity: productForSync.quantity,
+      priceAmount: productForSync.priceAmount,
+      currency: productForSync.currency,
+      vatRate: productForSync.vatRate,
+      description: productForSync.description,
+      mainImage: productForSync.mainImage,
+      images: productForSync.images,
+      categories: productForSync.categories,
+      brand: productForSync.brand,
+      gtin: productForSync.gtin,
+      condition: productForSync.condition,
+      knNumber: productForSync.knNumber,
+      weight: productForSync.weight ?? null,
+      volume: productForSync.volume ?? null,
+      volumeUnit: productForSync.volumeUnit ?? null,
+      channelSpecific: productForSync.channelSpecific,
+      parentProductId: productForSync.parentProductId,
+      groupVariationType: productForSync.groupVariationType,
+      color: productForSync.color,
+      colorText: productForSync.colorText,
+      size: productForSync.size,
+      sizeText: productForSync.sizeText,
+      model: productForSync.model,
+      createdAt: productForSync.createdAt,
+      updatedAt: productForSync.updatedAt,
+    };
+  }, []);
+
+  const applyDesiredTargets = useCallback(
+    async (
+      productId: string,
+      desiredTargets: Array<{ channel: string; channelInstanceId: number | null }> | undefined,
+    ) => {
+      if (!desiredTargets) {
+        return;
+      }
+
+      const { targets: currentTargets } = await channelsApi.getProductTargets(String(productId));
+      const currentSet = new Set(
+        (currentTargets ?? []).map((t) =>
+          (t.channelInstanceId ?? null) !== null ? `${t.channel}:${t.channelInstanceId}` : t.channel,
+        ),
+      );
+      const desiredSet = new Set(
+        desiredTargets.map((t) =>
+          (t.channelInstanceId ?? null) !== null ? `${t.channel}:${t.channelInstanceId}` : t.channel,
+        ),
+      );
+      const toEnable = desiredTargets.filter((t) => {
+        const key =
+          (t.channelInstanceId ?? null) !== null ? `${t.channel}:${t.channelInstanceId}` : t.channel;
+        return !currentSet.has(key);
+      });
+      const toDisable = (currentTargets ?? []).filter((t) => {
+        const key =
+          (t.channelInstanceId ?? null) !== null ? `${t.channel}:${t.channelInstanceId}` : t.channel;
+        return !desiredSet.has(key);
+      });
+      const mapUpdates = [
+        ...toEnable.map((t) => ({
+          channel: t.channel,
+          channelInstanceId: t.channelInstanceId ?? undefined,
+          enabled: true as const,
+        })),
+        ...toDisable.map((t) => ({
+          channel: t.channel,
+          channelInstanceId:
+            (t.channelInstanceId ?? null) !== null ? Number(t.channelInstanceId) : undefined,
+          enabled: false as const,
+        })),
+      ];
+      if (mapUpdates.length > 0) {
+        await channelsApi.setProductMapBulk({
+          productId: String(productId),
+          updates: mapUpdates,
+        });
+      }
+    },
+    [],
+  );
+
+  const saveOverridesBulk = useCallback(
+    async (
+      productId: string,
+      overridesToSave:
+        | Array<{
+            channelInstanceId: number | string;
+            active?: boolean;
+            category?: string | null;
+            priceAmount?: number | null;
+            salePrice?: number | null;
+            originalPrice?: number | null;
+          }>
+        | undefined,
+    ) => {
+      if (!overridesToSave?.length) {
+        return;
+      }
+
+      await channelsApi.upsertOverridesBulk({
+        productId: String(productId),
+        items: overridesToSave.map((o) => ({
+          channelInstanceId: o.channelInstanceId,
+          active: o.active !== false,
+          category: o.category ?? undefined,
+          priceAmount: o.priceAmount ?? undefined,
+          salePrice: o.salePrice ?? undefined,
+          originalPrice: o.originalPrice ?? undefined,
+        })),
+      });
+    },
+    [],
+  );
+
+  const runSaveSync = useCallback(
+    async (
+      productForSync: any,
+      changeSet: ProductSaveChangeSet | undefined,
+      channelTargets: Array<{ channel: string; channelInstanceId: number | null }> | undefined,
+      targetDetails:
+        | Array<{ channel: string; channelInstanceId: number | null; market: string }>
+        | undefined,
+    ) => {
+      const payload = buildChannelExportPayload(productForSync);
+      if (!payload) {
+        return;
+      }
+
+      const strictChannels = new Set(changeSet?.sync.strictChannels ?? []);
+      const fullChannels = new Set(changeSet?.sync.fullChannels ?? []);
+      const articleOnlyChannels = new Set(changeSet?.sync.articleOnlyChannels ?? []);
+      if (strictChannels.size === 0 && fullChannels.size === 0) {
+        return;
+      }
+
+      const detailsMap = new Map<string, { channel: string; channelInstanceId: number | null; market: string }>();
+      for (const target of channelTargets ?? []) {
+        const key =
+          (target.channelInstanceId ?? null) !== null
+            ? `${target.channel}:${target.channelInstanceId}`
+            : target.channel;
+        detailsMap.set(key, { ...target, market: '' });
+      }
+      for (const detail of targetDetails ?? []) {
+        const key =
+          (detail.channelInstanceId ?? null) !== null
+            ? `${detail.channel}:${detail.channelInstanceId}`
+            : detail.channel;
+        detailsMap.set(key, detail);
+      }
+      const details = Array.from(detailsMap.values());
+      const wooTargets = details.filter((t) => t.channel === 'woocommerce');
+      const wooInstanceIds = wooTargets
+        .map((t) => t.channelInstanceId)
+        .filter((id): id is number => (id ?? null) !== null)
+        .map(String);
+      if (fullChannels.has('woocommerce')) {
+        await woocommerceApi.exportProducts(
+          [payload],
+          wooInstanceIds.length > 0 ? { instanceIds: wooInstanceIds } : undefined,
+        );
+      } else if (strictChannels.has('woocommerce')) {
+        await woocommerceApi.exportProducts(
+          [payload],
+          wooInstanceIds.length > 0
+            ? { instanceIds: wooInstanceIds, mode: 'update_only_strict' }
+            : { mode: 'update_only_strict' },
+        );
+      }
+
+      const cdonMarkets = Array.from(
+        new Set(details.filter((t) => t.channel === 'cdon').map((t) => t.market)),
+      ).filter((market): market is 'se' | 'dk' | 'fi' => ['se', 'dk', 'fi'].includes(market));
+      if (fullChannels.has('cdon') && cdonMarkets.length > 0) {
+        await cdonApi.exportProducts([payload], { markets: cdonMarkets });
+      } else if (strictChannels.has('cdon') && cdonMarkets.length > 0) {
+        await cdonApi.exportProducts([payload], {
+          markets: cdonMarkets,
+          mode: 'update_only_strict',
+        });
+      }
+
+      const fyndiqMarkets = Array.from(
+        new Set(details.filter((t) => t.channel === 'fyndiq').map((t) => t.market)),
+      ).filter((market): market is 'se' | 'dk' | 'fi' => ['se', 'dk', 'fi'].includes(market));
+      if (fullChannels.has('fyndiq') && fyndiqMarkets.length > 0) {
+        await fyndiqApi.exportProducts([payload], {
+          markets: fyndiqMarkets,
+          includePriceAndQuantity: !articleOnlyChannels.has('fyndiq'),
+        });
+      } else if (strictChannels.has('fyndiq') && fyndiqMarkets.length > 0) {
+        await fyndiqApi.exportProducts([payload], {
+          markets: fyndiqMarkets,
+          mode: 'update_only_strict',
+        });
+      }
+    },
+    [buildChannelExportPayload],
+  );
+
   const saveProduct = async (
     raw: any,
     options?: {
-      hadChanges?: boolean;
+      changeSet?: ProductSaveChangeSet;
       ignorePriceWarning?: boolean;
       channelTargets?: Array<{ channel: string; channelInstanceId: number | null }>;
       channelTargetsWithMarket?: Array<{
@@ -727,167 +958,70 @@ export function ProductProvider({
 
     try {
       if (currentProduct) {
-        const saved = await productsApi.updateProduct(currentProduct.id, data);
-        const normalized = {
-          ...saved,
-          createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
-          updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
-        };
-        setProducts((prev) => prev.map((p) => (p.id === currentProduct.id ? normalized : p)));
-        setCurrentProduct(normalized);
+        const changeSet = options?.changeSet;
+        if (changeSet?.local.noChanges) {
+          return true;
+        }
+
+        let productForSync: any = currentProduct;
+        if (changeSet?.local.productChanged ?? true) {
+          const saved = await productsApi.updateProduct(currentProduct.id, data);
+          const normalized = normalizeProductRecord(saved);
+          setProducts((prev) => prev.map((p) => (p.id === currentProduct.id ? normalized : p)));
+          setCurrentProduct(normalized);
+          productForSync = normalized;
+        }
         setValidationErrors([]);
 
-        // Channel diff: apply Kanaler tab selections, then export to final enabled targets
         const desiredTargets = options?.channelTargets ?? null;
-        if (desiredTargets && desiredTargets.length >= 0) {
+        if (changeSet?.local.targetsChanged && desiredTargets) {
           try {
-            const { targets: currentTargets } = await channelsApi.getProductTargets(
-              String(saved.id),
-            );
-            const currentSet = new Set(
-              (currentTargets ?? []).map((t) =>
-                (t.channelInstanceId ?? null) !== null
-                  ? `${t.channel}:${t.channelInstanceId}`
-                  : t.channel,
-              ),
-            );
-            const desiredSet = new Set(
-              desiredTargets.map((t) =>
-                (t.channelInstanceId ?? null) !== null
-                  ? `${t.channel}:${t.channelInstanceId}`
-                  : t.channel,
-              ),
-            );
-            const toEnable = desiredTargets.filter((t) => {
-              const k =
-                (t.channelInstanceId ?? null) !== null
-                  ? `${t.channel}:${t.channelInstanceId}`
-                  : t.channel;
-              return !currentSet.has(k);
-            });
-            const toDisable = (currentTargets ?? []).filter((t) => {
-              const k =
-                (t.channelInstanceId ?? null) !== null
-                  ? `${t.channel}:${t.channelInstanceId}`
-                  : t.channel;
-              return !desiredSet.has(k);
-            });
-            const mapUpdates = [
-              ...toEnable.map((t) => ({
-                channel: t.channel,
-                channelInstanceId: t.channelInstanceId ?? undefined,
-                enabled: true as const,
-              })),
-              ...toDisable.map((t) => ({
-                channel: t.channel,
-                channelInstanceId:
-                  (t.channelInstanceId ?? null) !== null ? Number(t.channelInstanceId) : undefined,
-                enabled: false as const,
-              })),
-            ];
-            if (mapUpdates.length > 0) {
-              await channelsApi.setProductMapBulk({
-                productId: String(saved.id),
-                updates: mapUpdates,
-              });
-            }
+            await applyDesiredTargets(String(productForSync.id), desiredTargets);
           } catch (diffErr) {
             console.warn('Channel diff failed', diffErr);
           }
         }
-        // Save per-instance overrides (category + price) in one bulk request
+
         const overridesToSave = options?.channelOverridesToSave;
-        if (overridesToSave?.length && saved.id) {
+        if (changeSet?.local.overridesChanged && overridesToSave?.length && productForSync?.id) {
           try {
-            await channelsApi.upsertOverridesBulk({
-              productId: String(saved.id),
-              items: overridesToSave.map((o) => ({
-                channelInstanceId: o.channelInstanceId,
-                active: o.active !== false,
-                category: o.category ?? undefined,
-                priceAmount: o.priceAmount ?? undefined,
-                salePrice: o.salePrice ?? undefined,
-                originalPrice: o.originalPrice ?? undefined,
-              })),
-            });
+            await saveOverridesBulk(String(productForSync.id), overridesToSave);
           } catch (overrideErr) {
             console.warn('Channel overrides save failed', overrideErr);
           }
-        } else {
-          const catOverrides = options?.categoryOverrides;
-          if (catOverrides?.length && saved.id) {
-            try {
-              await Promise.all(
-                catOverrides.map((o) =>
-                  channelsApi.upsertOverride({
-                    productId: String(saved.id),
-                    channelInstanceId: o.channelInstanceId,
-                    category: o.category,
-                  }),
-                ),
-              );
-            } catch (catErr) {
-              console.warn('Category overrides save failed', catErr);
-            }
+        }
+
+        if (changeSet?.local.listChanged && productForSync?.id) {
+          try {
+            const listId =
+              (data.listId ?? null) !== null && String(data.listId).trim() !== ''
+                ? String(data.listId).trim()
+                : null;
+            const savedWithList = await productsApi.setProductList(String(productForSync.id), listId);
+            const normalizedWithList = normalizeProductRecord(savedWithList);
+            setProducts((prev) =>
+              prev.map((p) => (p.id === currentProduct.id ? normalizedWithList : p)),
+            );
+            setCurrentProduct(normalizedWithList);
+            productForSync = normalizedWithList;
+          } catch (listErr) {
+            console.warn('Set product list failed', listErr);
           }
         }
 
-        if (options?.hadChanges || (desiredTargets && desiredTargets.length > 0)) {
-          const productForSync = saved;
+        if (
+          productForSync?.id &&
+          ((changeSet?.sync.strictChannels?.length ?? 0) > 0 ||
+            (changeSet?.sync.fullChannels?.length ?? 0) > 0)
+        ) {
           (async () => {
             try {
-              const { targets } = await channelsApi.getProductTargets(String(productForSync.id));
-              if (!targets?.length) {
-                return;
-              }
-              const payload = {
-                id: productForSync.id,
-                sku: productForSync.sku,
-                mpn: productForSync.mpn,
-                title: productForSync.title,
-                status: productForSync.status,
-                quantity: productForSync.quantity,
-                priceAmount: productForSync.priceAmount,
-                currency: productForSync.currency,
-                vatRate: productForSync.vatRate,
-                description: productForSync.description,
-                mainImage: productForSync.mainImage,
-                images: productForSync.images,
-                categories: productForSync.categories,
-                brand: productForSync.brand,
-                gtin: productForSync.gtin,
-                condition: productForSync.condition,
-                knNumber: productForSync.knNumber,
-                weight: productForSync.weight ?? null,
-                volume: productForSync.volume ?? null,
-                volumeUnit: productForSync.volumeUnit ?? null,
-                channelSpecific: productForSync.channelSpecific,
-                parentProductId: productForSync.parentProductId,
-                groupVariationType: productForSync.groupVariationType,
-                color: productForSync.color,
-                colorText: productForSync.colorText,
-                size: productForSync.size,
-                model: productForSync.model,
-                createdAt: productForSync.createdAt,
-                updatedAt: productForSync.updatedAt,
-              };
-              const wooTargets = targets.filter((t) => t.channel === 'woocommerce');
-              const wooInstanceIds = wooTargets
-                .map((t) => t.channelInstanceId)
-                .filter((id): id is string => (id ?? null) !== null);
-              const wooLegacy = wooTargets.some((t) => (t.channelInstanceId ?? null) === null);
-              if (wooInstanceIds.length > 0 || wooLegacy) {
-                await woocommerceApi.exportProducts(
-                  [payload],
-                  wooInstanceIds.length > 0 ? { instanceIds: wooInstanceIds } : undefined,
-                );
-              }
-              if (targets.some((t) => t.channel === 'cdon')) {
-                await cdonApi.exportProducts([payload], { markets: ['se', 'dk', 'fi'] });
-              }
-              if (targets.some((t) => t.channel === 'fyndiq')) {
-                await fyndiqApi.exportProducts([payload], { markets: ['se', 'dk', 'fi'] });
-              }
+              await runSaveSync(
+                productForSync,
+                changeSet,
+                options?.channelTargets,
+                options?.channelTargetsWithMarket,
+              );
             } catch (syncErr) {
               console.warn('Sync to channels after save failed', syncErr);
             }
@@ -909,11 +1043,9 @@ export function ProductProvider({
           }
         }
         const normalized = {
-          ...saved,
+          ...normalizeProductRecord(saved),
           listId: listId ?? saved.listId ?? null,
           listName: saved.listName ?? null,
-          createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
-          updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
         };
         setProducts((prev) => [...prev, normalized]);
 
@@ -933,96 +1065,24 @@ export function ProductProvider({
             console.warn('Channel enable after create failed', channelErr);
           }
         }
-        // Per-instance overrides (category + price) – save even when no channels enabled,
-        // so CDON/Fyndiq category is persisted when user selects it before enabling the channel.
         const overridesToSaveNew = options?.channelOverridesToSave;
         if (overridesToSaveNew?.length) {
           try {
-            await channelsApi.upsertOverridesBulk({
-              productId: String(saved.id),
-              items: overridesToSaveNew.map((o) => ({
-                channelInstanceId: o.channelInstanceId,
-                active: o.active !== false,
-                category: o.category ?? undefined,
-                priceAmount: o.priceAmount ?? undefined,
-                salePrice: o.salePrice ?? undefined,
-                originalPrice: o.originalPrice ?? undefined,
-              })),
-            });
+            await saveOverridesBulk(String(saved.id), overridesToSaveNew);
           } catch (overrideErr) {
             console.warn('Channel overrides after create failed', overrideErr);
           }
-        } else {
-          const catOverrides = options?.categoryOverrides;
-          if (catOverrides?.length) {
-            try {
-              await Promise.all(
-                catOverrides.map((o) =>
-                  channelsApi.upsertOverride({
-                    productId: String(saved.id),
-                    channelInstanceId: o.channelInstanceId,
-                    category: o.category,
-                  }),
-                ),
-              );
-            } catch (catErr) {
-              console.warn('Category overrides after create failed', catErr);
-            }
-          }
         }
-        // Export to enabled channels in background (do not block UI)
         if (desiredTargets.length > 0) {
-          const productForSync = saved;
+          const productForSync = normalized;
           (async () => {
             try {
-              const { targets } = await channelsApi.getProductTargets(String(productForSync.id));
-              if (!targets?.length) {
-                return;
-              }
-              const payload = {
-                id: productForSync.id,
-                sku: productForSync.sku,
-                mpn: productForSync.mpn,
-                title: productForSync.title,
-                status: productForSync.status,
-                quantity: productForSync.quantity,
-                priceAmount: productForSync.priceAmount,
-                currency: productForSync.currency,
-                vatRate: productForSync.vatRate,
-                description: productForSync.description,
-                mainImage: productForSync.mainImage,
-                images: productForSync.images,
-                categories: productForSync.categories,
-                brand: productForSync.brand,
-                gtin: productForSync.gtin,
-                condition: productForSync.condition,
-                knNumber: productForSync.knNumber,
-                weight: productForSync.weight ?? null,
-                volume: productForSync.volume ?? null,
-                volumeUnit: productForSync.volumeUnit ?? null,
-                channelSpecific: productForSync.channelSpecific,
-                parentProductId: productForSync.parentProductId,
-                groupVariationType: productForSync.groupVariationType,
-                color: productForSync.color,
-                colorText: productForSync.colorText,
-                size: productForSync.size,
-                model: productForSync.model,
-                createdAt: productForSync.createdAt,
-                updatedAt: productForSync.updatedAt,
-              };
-              const wooTargets = targets.filter((t) => t.channel === 'woocommerce');
-              const wooInstanceIds = wooTargets
-                .map((t) => t.channelInstanceId)
-                .filter((id): id is string => (id ?? null) !== null);
-              if (wooInstanceIds.length > 0) {
-                await woocommerceApi.exportProducts([payload], { instanceIds: wooInstanceIds });
-              }
-              if (targets.some((t) => t.channel === 'cdon')) {
-                await cdonApi.exportProducts([payload], { markets: ['se', 'dk', 'fi'] });
-              }
-              if (targets.some((t) => t.channel === 'fyndiq')) {
-                await fyndiqApi.exportProducts([payload], { markets: ['se', 'dk', 'fi'] });
-              }
+              await runSaveSync(
+                productForSync,
+                options?.changeSet,
+                options?.channelTargets,
+                options?.channelTargetsWithMarket,
+              );
             } catch (syncErr) {
               console.warn('Sync to channels after create failed', syncErr);
             }
@@ -1070,6 +1130,235 @@ export function ProductProvider({
       setValidationErrors(validationErrors);
       return false;
     }
+  };
+
+  const resyncProducts = async (ids: string[]) => {
+    const uniqueIds = Array.from(new Set((ids || []).map(String))).filter(Boolean);
+    if (!uniqueIds.length) {
+      return {};
+    }
+
+    const selected = products.filter((product) => uniqueIds.includes(String(product.id)));
+    if (!selected.length) {
+      return {};
+    }
+
+    const sumCounts = (
+      current: { requested?: number; success?: number; error?: number } | undefined,
+      next: { requested?: number; success?: number; error?: number } | undefined,
+    ) => ({
+      requested: (current?.requested ?? 0) + (next?.requested ?? 0),
+      success: (current?.success ?? 0) + (next?.success ?? 0),
+      error: (current?.error ?? 0) + (next?.error ?? 0),
+    });
+
+    const [instanceResp, targetsByProduct] = await Promise.all([
+      channelsApi.getInstances({ includeDisabled: true }),
+      Promise.all(
+        selected.map(async (product) => ({
+          product,
+          targets: (await channelsApi.getProductTargets(String(product.id))).targets ?? [],
+        })),
+      ),
+    ]);
+
+    const instanceById = new Map(
+      (instanceResp?.items ?? []).map((instance) => [String(instance.id), instance]),
+    );
+
+    const wooGroups = new Map<string, { instanceIds: string[]; products: any[] }>();
+    const cdonGroups = new Map<string, { markets: Array<'se' | 'dk' | 'fi'>; products: any[] }>();
+    const fyndiqGroups = new Map<string, { markets: Array<'se' | 'dk' | 'fi'>; products: any[] }>();
+
+    for (const entry of targetsByProduct) {
+      const payload = buildChannelExportPayload(entry.product);
+      if (!payload) {
+        continue;
+      }
+
+      const wooInstanceIds = Array.from(
+        new Set(
+          entry.targets
+            .filter((target) => target.channel === 'woocommerce' && (target.channelInstanceId ?? null) !== null)
+            .map((target) => String(target.channelInstanceId)),
+        ),
+      ).sort();
+      const hasWooLegacy = entry.targets.some(
+        (target) => target.channel === 'woocommerce' && (target.channelInstanceId ?? null) === null,
+      );
+      if (wooInstanceIds.length > 0 || hasWooLegacy) {
+        const signature = wooInstanceIds.length > 0 ? wooInstanceIds.join(',') : 'legacy';
+        const existing = wooGroups.get(signature) ?? {
+          instanceIds: wooInstanceIds,
+          products: [],
+        };
+        existing.products.push(payload);
+        wooGroups.set(signature, existing);
+      }
+
+      const cdonMarkets = Array.from(
+        new Set(
+          entry.targets
+            .filter((target) => target.channel === 'cdon' && (target.channelInstanceId ?? null) !== null)
+            .map((target) => {
+              const instance = instanceById.get(String(target.channelInstanceId));
+              return String(instance?.market ?? '')
+                .trim()
+                .toLowerCase()
+                .slice(0, 2);
+            })
+            .filter((market): market is 'se' | 'dk' | 'fi' => ['se', 'dk', 'fi'].includes(market)),
+        ),
+      ).sort();
+      if (cdonMarkets.length > 0) {
+        const signature = cdonMarkets.join(',');
+        const existing = cdonGroups.get(signature) ?? { markets: cdonMarkets, products: [] };
+        existing.products.push(payload);
+        cdonGroups.set(signature, existing);
+      }
+
+      const fyndiqMarkets = Array.from(
+        new Set(
+          entry.targets
+            .filter((target) => target.channel === 'fyndiq' && (target.channelInstanceId ?? null) !== null)
+            .map((target) => {
+              const instance = instanceById.get(String(target.channelInstanceId));
+              return String(instance?.market ?? '')
+                .trim()
+                .toLowerCase()
+                .slice(0, 2);
+            })
+            .filter((market): market is 'se' | 'dk' | 'fi' => ['se', 'dk', 'fi'].includes(market)),
+        ),
+      ).sort();
+      if (fyndiqMarkets.length > 0) {
+        const signature = fyndiqMarkets.join(',');
+        const existing = fyndiqGroups.get(signature) ?? { markets: fyndiqMarkets, products: [] };
+        existing.products.push(payload);
+        fyndiqGroups.set(signature, existing);
+      }
+    }
+
+    const result: {
+      woo?: { ok: boolean; instances?: any[]; endpoint?: string; counts?: any };
+      cdon?: { ok: boolean; counts?: any; endpoint?: string };
+      fyndiq?: { ok: boolean; counts?: any; endpoint?: string };
+    } = {};
+
+    if (wooGroups.size > 0) {
+      const instances: Array<{
+        instanceId: string | null;
+        label: string | null;
+        ok: boolean;
+        counts?: { requested?: number; success?: number; error?: number };
+      }> = [];
+      for (const group of wooGroups.values()) {
+        try {
+          const response = await woocommerceApi.exportProducts(group.products, {
+            ...(group.instanceIds.length > 0 ? { instanceIds: group.instanceIds } : {}),
+            mode: 'update_only_strict',
+          });
+          result.woo = {
+            ok: true,
+            endpoint: response?.endpoint,
+            counts: sumCounts(result.woo?.counts, response?.counts),
+            instances: instances,
+          };
+          if (group.instanceIds.length > 0) {
+            for (const instanceId of group.instanceIds) {
+              const instance = instanceById.get(String(instanceId));
+              instances.push({
+                instanceId,
+                label: instance?.label ?? null,
+                ok: true,
+                counts: response?.counts,
+              });
+            }
+          } else {
+            instances.push({
+              instanceId: null,
+              label: 'Legacy WooCommerce',
+              ok: true,
+              counts: response?.counts,
+            });
+          }
+        } catch (error) {
+          if (group.instanceIds.length > 0) {
+            for (const instanceId of group.instanceIds) {
+              const instance = instanceById.get(String(instanceId));
+              instances.push({
+                instanceId,
+                label: instance?.label ?? null,
+                ok: false,
+              });
+            }
+          } else {
+            instances.push({
+              instanceId: null,
+              label: 'Legacy WooCommerce',
+              ok: false,
+            });
+          }
+          result.woo = {
+            ok: false,
+            endpoint: result.woo?.endpoint,
+            counts: result.woo?.counts,
+            instances,
+          };
+        }
+      }
+      if (!result.woo) {
+        result.woo = { ok: false, instances };
+      } else {
+        result.woo.ok = instances.every((instance) => instance.ok);
+      }
+    }
+
+    if (cdonGroups.size > 0) {
+      for (const group of cdonGroups.values()) {
+        try {
+          const response = await cdonApi.exportProducts(group.products, {
+            markets: group.markets,
+            mode: 'update_only_strict',
+          });
+          result.cdon = {
+            ok: (result.cdon?.ok ?? true) && !!response?.ok,
+            endpoint: response?.endpoint ?? result.cdon?.endpoint,
+            counts: sumCounts(result.cdon?.counts, response?.counts),
+          };
+        } catch (error) {
+          result.cdon = {
+            ok: false,
+            endpoint: result.cdon?.endpoint,
+            counts: result.cdon?.counts,
+          };
+        }
+      }
+    }
+
+    if (fyndiqGroups.size > 0) {
+      for (const group of fyndiqGroups.values()) {
+        try {
+          const response = await fyndiqApi.exportProducts(group.products, {
+            markets: group.markets,
+            mode: 'update_only_strict',
+          });
+          result.fyndiq = {
+            ok: (result.fyndiq?.ok ?? true) && !!response?.ok,
+            endpoint: response?.endpoint ?? result.fyndiq?.endpoint,
+            counts: sumCounts(result.fyndiq?.counts, response?.counts),
+          };
+        } catch (error) {
+          result.fyndiq = {
+            ok: false,
+            endpoint: result.fyndiq?.endpoint,
+            counts: result.fyndiq?.counts,
+          };
+        }
+      }
+    }
+
+    return result;
   };
 
   const deleteProduct = async (id: string) => {
@@ -1131,7 +1420,15 @@ export function ProductProvider({
     try {
       const result = await productsApi.batchUpdate(uniqueIds, filtered);
       setProducts((prev) =>
-        prev.map((p) => (uniqueIds.includes(String(p.id)) ? { ...p, ...filtered } : p)),
+        prev.map((p) =>
+          uniqueIds.includes(String(p.id))
+            ? {
+                ...p,
+                ...filtered,
+                status: (filtered.status as Product['status'] | undefined) ?? p.status,
+              }
+            : p,
+        ),
       );
       return { updatedCount: result?.updatedCount ?? 0 };
     } catch (error: any) {
@@ -1257,6 +1554,7 @@ export function ProductProvider({
       batchProductIds,
       validateProductForm,
       saveProduct,
+      resyncProducts,
       deleteProduct,
       deleteProducts,
       batchUpdateProducts,
@@ -1291,6 +1589,17 @@ export function ProductProvider({
       selectAllProducts,
       clearProductSelection,
       importProducts,
+      saveProduct,
+      resyncProducts,
+      deleteProduct,
+      deleteProducts,
+      batchUpdateProducts,
+      groupProducts,
+      validateProductForm,
+      closeProductPanel,
+      openProductPanel,
+      openProductForEdit,
+      openProductPanelForBatch,
       getChannelDataCache,
       setChannelDataCache,
       clearChannelDataCache,

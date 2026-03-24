@@ -83,14 +83,14 @@ function normalizeCategory(value) {
  * @param {Object} product - Base product: id, sku, mpn, title, description, status, quantity, priceAmount, currency, vatRate, mainImage, images, categories, brand, gtin, channelSpecific?.cdon
  * @param {Object} overridesByMarket - Per-market overrides: { se?: { priceAmount, currency, vatRate, category }, ... } (keys lower case)
  * @param {string} defaultLanguage - Default language e.g. 'sv-SE'
- * @param {string[]} marketsFilter - e.g. ['se','dk','fi']
+ * @param {string[]} marketsFilter - e.g. ['se','dk','fi','no']
  * @returns {Object|null} CDON article object or null if required fields missing
  */
 function mapProductToCdonArticle(
   product,
   overridesByMarket,
   defaultLanguage,
-  marketsFilter = ['se', 'dk', 'fi'],
+  marketsFilter = ['se', 'dk', 'fi', 'no'],
 ) {
   const sku = product?.id != null ? String(product.id).trim() : '';
   const title = htmlToPlainText(
@@ -112,7 +112,7 @@ function mapProductToCdonArticle(
     product?.channelSpecific?.cdon && typeof product.channelSpecific.cdon === 'object'
       ? product.channelSpecific.cdon
       : {};
-  const markets = (marketsFilter || ['se', 'dk', 'fi']).map((m) => String(m).toUpperCase());
+  const markets = (marketsFilter || ['se', 'dk', 'fi', 'no']).map((m) => String(m).toUpperCase());
 
   // Title: per language from textsExtended (per marknad) + textsStandard, else products.title. UI sätter bara textsExtended per land, ingen kanalspecifik titel.
   const textsExtended = product?.channelSpecific?.textsExtended;
@@ -182,7 +182,6 @@ function mapProductToCdonArticle(
     product?.priceAmount != null && Number.isFinite(Number(product.priceAmount))
       ? Number(product.priceAmount)
       : null;
-  const baseCurrency = (product?.currency || 'SEK').toString().toUpperCase();
   const baseVat =
     product?.vatRate != null && Number.isFinite(Number(product.vatRate))
       ? Number(product.vatRate)
@@ -195,12 +194,7 @@ function mapProductToCdonArticle(
       ov?.priceAmount != null && Number.isFinite(Number(ov.priceAmount))
         ? Number(ov.priceAmount)
         : basePrice;
-    // CDON requires market-specific currency (DKK for DK, EUR for FI, SEK for SE). Use override if set, else market default.
-    const currencyRaw =
-      ov?.currency != null && String(ov.currency).trim()
-        ? String(ov.currency).trim()
-        : (DEFAULT_CURRENCY_BY_MARKET[m] || baseCurrency);
-    const currency = currencyRaw.toString().toUpperCase();
+    const currency = String(DEFAULT_CURRENCY_BY_MARKET[m] || '').toUpperCase();
     let vatRate = ov?.vatRate != null ? Number(ov.vatRate) : baseVat;
     if (vatRate != null && Number.isFinite(vatRate) && vatRate >= 1 && vatRate <= 100) {
       vatRate = vatRate / 100;
@@ -435,7 +429,7 @@ function getCdonArticleInputIssues(
   product,
   overridesByMarket,
   defaultLanguage,
-  marketsFilter = ['se', 'dk', 'fi'],
+  marketsFilter = ['se', 'dk', 'fi', 'no'],
 ) {
   const issues = [];
   const sku = product?.id != null ? String(product.id).trim() : '';
@@ -454,7 +448,7 @@ function getCdonArticleInputIssues(
   else if (!isValidUrl(mainImage)) issues.push('invalid_main_image_url');
   if (quantity == null || quantity < 0) issues.push('invalid_quantity');
 
-  const markets = (marketsFilter || ['se', 'dk', 'fi']).map((m) => String(m).toUpperCase());
+  const markets = (marketsFilter || ['se', 'dk', 'fi', 'no']).map((m) => String(m).toUpperCase());
   const textsExtended = product?.channelSpecific?.textsExtended;
   const standardMarket = ['se', 'dk', 'fi', 'no'].includes(
     String(product?.channelSpecific?.textsStandard || '').toLowerCase(),

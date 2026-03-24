@@ -97,6 +97,7 @@ export const ProductList: React.FC = () => {
     deleteProducts,
     // Batch update
     batchUpdateProducts,
+    resyncProducts,
     // Group products (variant group)
     groupProducts,
     // Import
@@ -154,6 +155,30 @@ export const ProductList: React.FC = () => {
         label: string | null;
         ok: boolean;
         counts?: { success?: number; error?: number };
+      }>;
+    };
+    cdon?: {
+      ok: boolean;
+      counts?: { requested?: number; success?: number; error?: number };
+      endpoint?: string;
+    };
+    fyndiq?: {
+      ok: boolean;
+      counts?: { requested?: number; success?: number; error?: number };
+      endpoint?: string;
+    };
+  } | null>(null);
+  const [resyncing, setResyncing] = useState(false);
+  const [lastResyncResult, setLastResyncResult] = useState<{
+    woo?: {
+      ok: boolean;
+      counts?: { requested?: number; success?: number; error?: number };
+      endpoint?: string;
+      instances?: Array<{
+        instanceId: string | null;
+        label: string | null;
+        ok: boolean;
+        counts?: { requested?: number; success?: number; error?: number };
       }>;
     };
     cdon?: {
@@ -651,6 +676,27 @@ export const ProductList: React.FC = () => {
                 Publish…
               </button>
 
+              <button
+                className="inline-flex items-center px-3 py-1.5 rounded-md border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-sm disabled:opacity-50"
+                disabled={resyncing}
+                onClick={async () => {
+                  setLastResyncResult(null);
+                  setResyncing(true);
+                  try {
+                    const result = await resyncProducts(selectedProductIds);
+                    setLastResyncResult(result);
+                  } catch (error: any) {
+                    console.error('Batch resync failed', error);
+                    setLastResyncResult(null);
+                    alert(error?.message || error?.error || 'Synka om misslyckades');
+                  } finally {
+                    setResyncing(false);
+                  }
+                }}
+              >
+                Synka om
+              </button>
+
               {/* Batch Edit… — opens same product form in batch mode (only filled fields applied) */}
               <button
                 className="inline-flex items-center px-3 py-1.5 rounded-md border border-amber-600 text-amber-700 hover:bg-amber-50 text-sm"
@@ -830,6 +876,73 @@ export const ProductList: React.FC = () => {
                     <>
                       {lastPublishResult.fyndiq.counts?.requested ?? 0} requested,{' '}
                       {lastPublishResult.fyndiq.counts?.success ?? 0} success
+                    </>
+                  ) : (
+                    'failed'
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {lastResyncResult && (
+        <div className="mb-4">
+          <div
+            className={`rounded-md border p-3 text-sm ${
+              Object.values(lastResyncResult).every((r) => r?.ok !== false)
+                ? 'border-green-200 bg-green-50 text-green-800'
+                : 'border-red-200 bg-red-50 text-red-800'
+            }`}
+          >
+            <div className="font-medium">
+              {Object.values(lastResyncResult).every((r) => r?.ok !== false)
+                ? 'Synka om completed'
+                : 'Synka om failed'}
+            </div>
+            <div className="mt-2 flex flex-col gap-1 text-sm">
+              {lastResyncResult.woo && (
+                <div>
+                  WooCommerce:{' '}
+                  {lastResyncResult.woo.ok ? (
+                    Array.isArray(lastResyncResult.woo.instances) &&
+                    lastResyncResult.woo.instances.length > 0 ? (
+                      <>
+                        {lastResyncResult.woo.instances.filter((instance) => instance.ok).length} store(s)
+                        updated
+                      </>
+                    ) : (
+                      <>
+                        {lastResyncResult.woo.counts?.requested ?? 0} requested,{' '}
+                        {lastResyncResult.woo.counts?.success ?? 0} success
+                      </>
+                    )
+                  ) : (
+                    'failed'
+                  )}
+                </div>
+              )}
+              {lastResyncResult.cdon && (
+                <div>
+                  CDON:{' '}
+                  {lastResyncResult.cdon.ok ? (
+                    <>
+                      {lastResyncResult.cdon.counts?.requested ?? 0} requested,{' '}
+                      {lastResyncResult.cdon.counts?.success ?? 0} success
+                    </>
+                  ) : (
+                    'failed'
+                  )}
+                </div>
+              )}
+              {lastResyncResult.fyndiq && (
+                <div>
+                  Fyndiq:{' '}
+                  {lastResyncResult.fyndiq.ok ? (
+                    <>
+                      {lastResyncResult.fyndiq.counts?.requested ?? 0} requested,{' '}
+                      {lastResyncResult.fyndiq.counts?.success ?? 0} success
                     </>
                   ) : (
                     'failed'

@@ -81,7 +81,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     const current = editor.getHTML();
     const incoming = sanitizeHtml(value || '');
     if (current !== incoming && !sourceMode) {
-      editor.commands.setContent(incoming, false);
+      editor.commands.setContent(incoming, { emitUpdate: false });
     }
   }, [value, editor, sourceMode]);
 
@@ -100,7 +100,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       return;
     }
     editor.on('update', handleEditorUpdate);
-    return () => editor.off('update', handleEditorUpdate);
+    return () => {
+      editor.off('update', handleEditorUpdate);
+    };
   }, [editor, handleEditorUpdate]);
 
   const applyLink = useCallback(() => {
@@ -120,7 +122,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const handleSourceToVisual = useCallback(() => {
     const clean = sanitizeHtml(sourceValue);
     onChange(clean);
-    editor?.commands.setContent(clean, false);
+    editor?.commands.setContent(clean, { emitUpdate: false });
     setSourceMode(false);
   }, [sourceValue, editor, onChange]);
 
@@ -247,7 +249,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       </div>
       <BubbleMenu
         editor={editor}
-        tippyOptions={{ duration: 100 }}
         className="flex gap-0.5 bg-background border rounded-md shadow-md p-1"
       >
         <Toggle

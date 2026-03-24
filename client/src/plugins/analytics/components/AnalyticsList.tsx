@@ -61,7 +61,7 @@ function RevenueChartTooltip({
 }: {
   active?: boolean;
   payload?: Array<{
-    payload: {
+    payload?: {
       bucketLabel: string;
       _revenueBreakdown?: Array<{
         channelLabel: string;
@@ -117,7 +117,7 @@ function OrderChartTooltip({
 }: {
   active?: boolean;
   payload?: Array<{
-    payload: {
+    payload?: {
       bucketLabel: string;
       _orderBreakdown?: Array<{ channelLabel: string; orderCount: number }>;
     };
