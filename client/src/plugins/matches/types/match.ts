@@ -17,12 +17,17 @@ export interface MatchMention {
 
 export interface Match {
   id: string;
+  name: string | null;
+  match_number: number | null;
+  match_type: 'series' | 'cup' | 'friendly' | null;
+  referee_count: number;
+  map_link: string | null;
   home_team: string;
   away_team: string;
   location: string | null;
   start_time: string;
   sport_type: SportType;
-  format: string;
+  format: string | null;
   total_minutes: number | null;
   contact_id: string | null;
   mentions: MatchMention[];

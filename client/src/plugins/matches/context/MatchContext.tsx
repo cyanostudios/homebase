@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react';
 import React, {
   createContext,
   useContext,
@@ -7,16 +8,19 @@ import React, {
   useRef,
   ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
 import { usePluginActions } from '@/core/api/ActionContext';
 import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { matchesApi } from '../api/matchesApi';
-import { Match, MatchMention, ValidationError, getFormatsForSport } from '../types/match';
+import { Match, MatchMention, ValidationError } from '../types/match';
 
 interface MatchContextType {
   isMatchPanelOpen: boolean;
@@ -61,10 +65,14 @@ interface MatchContextType {
   detailFooterActions?: Array<{
     id: string;
     label: string;
-    icon: React.ComponentType<{ className?: string }>;
+    icon: LucideIcon;
     onClick: (item: Match) => void;
     className?: string;
+    disabled?: boolean;
   }>;
+  showQuickActionDialog: boolean;
+  quickActionDialogMessage: string;
+  closeQuickActionDialog: () => void;
 
   // Quick-edit in view mode (contacts/mentions): draft until "Update" is clicked (same UX as slots/task)
   displayMentions: MatchMention[];
@@ -98,6 +106,8 @@ export function MatchProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: MatchProviderProps) {
+  const { t } = useTranslation();
+  const location = useLocation();
   const {
     registerPanelCloseFunction,
     unregisterPanelCloseFunction,
@@ -118,7 +128,8 @@ export function MatchProvider({
   const [recentlyDuplicatedMatchId, setRecentlyDuplicatedMatchId] = useState<string | null>(null);
   const [mentionsDraft, setMentionsDraft] = useState<MatchMention[] | null>(null);
   const [showDiscardQuickEditDialog, setShowDiscardQuickEditDialog] = useState(false);
-  const pendingCloseRef = useRef<(() => void) | null>(null);
+  const [showQuickActionDialog, setShowQuickActionDialog] = useState(false);
+  const [quickActionDialogMessage, setQuickActionDialogMessage] = useState('');
 
   const {
     selectedIds: selectedMatchIds,
@@ -149,11 +160,10 @@ export function MatchProvider({
       const data = await matchesApi.getMatches();
       setMatches(data);
     } catch (error: any) {
-      console.error('Failed to load matches:', error);
-      const msg = error?.message || error?.error || 'Failed to load matches';
+      const msg = error?.message || error?.error || t('matches.loadFailed');
       setValidationErrors([{ field: 'general', message: msg }]);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -163,44 +173,52 @@ export function MatchProvider({
     }
   }, [isAuthenticated, loadMatches]);
 
-  const didOpenFromUrlRef = useRef(false);
+  // Deep-link URL sync (pathname-based) – prevents re-opening on list updates
+  const matchesDeepLinkPathSyncedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (didOpenFromUrlRef.current || matches.length === 0) {
+    if (matches.length === 0) {
       return;
     }
-    const parts = window.location.pathname.split('/');
-    if (parts[1] !== 'matches' || !parts[2]) {
+    const segments = location.pathname.split('/').filter(Boolean);
+    if (segments[0] !== 'matches') {
+      return;
+    }
+    const slug = segments[1] ?? '';
+    if (!slug) {
+      matchesDeepLinkPathSyncedRef.current = location.pathname;
+      return;
+    }
+    const pathKey = location.pathname;
+    if (matchesDeepLinkPathSyncedRef.current === pathKey) {
       return;
     }
     const item = resolveSlug(
-      parts[2],
+      slug,
       matches,
       (i: any) => `${i.home_team ?? ''}-vs-${i.away_team ?? ''}`,
     );
+    matchesDeepLinkPathSyncedRef.current = pathKey;
     if (item) {
-      didOpenFromUrlRef.current = true;
       openMatchForViewRef.current(item as Match);
     }
-  }, [matches]);
+  }, [location.pathname, matches]);
 
-  const validateMatch = useCallback((data: any): ValidationError[] => {
-    const errors: ValidationError[] = [];
-    if (!(data.home_team ?? '').trim()) {
-      errors.push({ field: 'home_team', message: 'Home team is required' });
-    }
-    if (!(data.away_team ?? '').trim()) {
-      errors.push({ field: 'away_team', message: 'Away team is required' });
-    }
-    if (!data.start_time) {
-      errors.push({ field: 'start_time', message: 'Time is required' });
-    }
-    const sport = (data.sport_type ?? 'football') as 'football' | 'handball';
-    const allowedFormats = getFormatsForSport(sport);
-    if (!(data.format ?? '').trim() || !allowedFormats.includes(data.format)) {
-      errors.push({ field: 'format', message: `Select format for ${sport}` });
-    }
-    return errors;
-  }, []);
+  const validateMatch = useCallback(
+    (data: any): ValidationError[] => {
+      const errors: ValidationError[] = [];
+      if (!(data.home_team ?? '').trim()) {
+        errors.push({ field: 'home_team', message: t('matches.homeTeamRequired') });
+      }
+      if (!(data.away_team ?? '').trim()) {
+        errors.push({ field: 'away_team', message: t('matches.awayTeamRequired') });
+      }
+      if (!data.start_time) {
+        errors.push({ field: 'start_time', message: t('matches.timeRequired') });
+      }
+      return errors;
+    },
+    [t],
+  );
 
   const openMatchPanel = useCallback(
     (match: Match | null) => {
@@ -390,6 +408,10 @@ export function MatchProvider({
     const nextMentions =
       mentionsDraft ?? (Array.isArray(currentMatch.mentions) ? currentMatch.mentions : []);
     const payload = {
+      match_number: currentMatch.match_number,
+      match_type: currentMatch.match_type,
+      referee_count: currentMatch.referee_count,
+      map_link: currentMatch.map_link,
       home_team: currentMatch.home_team,
       away_team: currentMatch.away_team,
       location: currentMatch.location,
@@ -410,7 +432,6 @@ export function MatchProvider({
     (defaultClose: () => void) => {
       return () => {
         if (hasQuickEditChanges) {
-          pendingCloseRef.current = defaultClose;
           setShowDiscardQuickEditDialog(true);
         } else {
           defaultClose();
@@ -435,7 +456,8 @@ export function MatchProvider({
         }
       } catch (error: any) {
         const msg = error?.message || error?.error || 'Failed to delete match';
-        alert(msg);
+        setQuickActionDialogMessage(msg);
+        setShowQuickActionDialog(true);
       }
     },
     [currentMatch, closeMatchPanel],
@@ -456,74 +478,100 @@ export function MatchProvider({
         clearMatchSelectionCore();
       } catch (error: any) {
         const msg = error?.message || error?.error || 'Failed to delete matches';
-        alert(msg);
+        setQuickActionDialogMessage(msg);
+        setShowQuickActionDialog(true);
       }
     },
     [currentMatch, closeMatchPanel, clearMatchSelectionCore],
   );
 
-  const getPanelTitle = useCallback((mode: string, item: Match | null) => {
-    if (mode === 'view' && item) {
-      return `${item.home_team} – ${item.away_team}`;
-    }
-    if (mode === 'edit') {
-      return 'Edit match';
-    }
-    if (mode === 'create') {
-      return 'New match';
-    }
-    if (mode === 'settings') {
-      return 'Settings – Matches';
-    }
-    return 'Match';
-  }, []);
+  const getPanelTitle = useCallback(
+    (mode: string, item: Match | null) => {
+      if (mode === 'view' && item) {
+        return item.name?.trim() || `${item.home_team} – ${item.away_team}`;
+      }
+      if (mode === 'edit') {
+        return t('matches.editMatch');
+      }
+      if (mode === 'create') {
+        return t('matches.newMatch');
+      }
+      if (mode === 'settings') {
+        return t('matches.settingsMatches');
+      }
+      return t('matches.match');
+    },
+    [t],
+  );
 
-  const getPanelSubtitle = useCallback((mode: string, item: Match | null) => {
-    if (mode === 'view' && item) {
-      const d = item.start_time ? new Date(item.start_time) : null;
-      return (
-        <span className="text-xs text-muted-foreground">
-          {item.home_team} – {item.away_team}
-          {d ? ` · ${d.toLocaleString('sv-SE')}` : ''}
-        </span>
-      );
-    }
-    if (mode === 'edit') {
-      return 'Edit match details';
-    }
-    if (mode === 'create') {
-      return 'Add a new match';
-    }
-    return '';
-  }, []);
+  const getPanelSubtitle = useCallback(
+    (mode: string, item: Match | null) => {
+      if (mode === 'view' && item) {
+        const d = item.start_time ? new Date(item.start_time) : null;
+        return (
+          <span className="text-xs text-muted-foreground">
+            {item.home_team} – {item.away_team}
+            {d ? ` · ${d.toLocaleString('sv-SE')}` : ''}
+          </span>
+        );
+      }
+      if (mode === 'edit') {
+        return t('matches.subtitleEdit');
+      }
+      if (mode === 'create') {
+        return t('matches.subtitleCreate');
+      }
+      return '';
+    },
+    [t],
+  );
 
-  const getDeleteMessage = useCallback((item: Match | null) => {
-    if (!item) {
-      return 'Are you sure you want to delete this match?';
-    }
-    return `Are you sure you want to delete the match ${item.home_team} – ${item.away_team}?`;
-  }, []);
+  const getDeleteMessage = useCallback(
+    (item: Match | null) =>
+      buildDeleteMessage(
+        t,
+        'matches',
+        item ? item.name?.trim() || `${item.home_team} – ${item.away_team}` : undefined,
+      ),
+    [t],
+  );
 
-  const getDuplicateConfig = useCallback((item: Match | null) => {
-    if (!item) {
-      return null;
-    }
-    return { defaultName: '', nameLabel: '', confirmOnly: true };
-  }, []);
+  const getDuplicateConfig = useCallback(
+    (item: Match | null) => {
+      if (!item) {
+        return null;
+      }
+      const displayName =
+        item.name?.trim() ||
+        [item.home_team, item.away_team].filter(Boolean).join(' – ').trim() ||
+        t('matches.match');
+      return {
+        defaultName: `${t('matches.copyOf')} ${displayName}`,
+        nameLabel: t('matches.duplicateNameLabel'),
+        confirmOnly: false,
+      };
+    },
+    [t],
+  );
 
   const executeDuplicate = useCallback(
     async (
       item: Match,
-      _newName: string,
+      newName: string,
     ): Promise<{ closePanel: () => void; highlightId?: string }> => {
       const copy = {
+        name: (newName ?? '').trim() || null,
         home_team: item.home_team,
         away_team: item.away_team,
-        location: item.location ?? '',
+        location: item.location || '',
         start_time: item.start_time,
         sport_type: item.sport_type,
         format: item.format,
         total_minutes: item.total_minutes,
+        match_number: item.match_number,
+        match_type: item.match_type,
+        referee_count: item.referee_count,
+        map_link: item.map_link,
       };
       const newMatch = await matchesApi.createMatch(copy);
       setMatches((prev) => [newMatch, ...prev]);
@@ -538,12 +586,46 @@ export function MatchProvider({
     .filter((action) => action.id !== 'create-slot-from-match' || hasSlotsPlugin)
     .map((action) => ({
       id: action.id,
-      label: action.label,
+      label: action.id === 'create-slot-from-match' ? t('app.createSlotFromMatch') : action.label,
       icon: action.icon,
-      onClick:
-        action.id === 'create-slot-from-match' && openToSlotDialog
-          ? (match: Match) => openToSlotDialog(match)
-          : (action.onClick as (match: Match) => void),
+      disabled: action.id === 'create-slot-from-match' ? !openToSlotDialog : false,
+      onClick: (match: Match) => {
+        try {
+          if (action.id === 'create-slot-from-match') {
+            const matchDate = match?.start_time ? new Date(match.start_time) : null;
+            const isPast = Boolean(
+              matchDate && !Number.isNaN(matchDate.getTime()) && matchDate < new Date(),
+            );
+            if (isPast) {
+              setQuickActionDialogMessage(t('matches.cannotCreateSlotFromPastMatch'));
+              setShowQuickActionDialog(true);
+              return;
+            }
+          }
+          const handler =
+            action.id === 'create-slot-from-match' && openToSlotDialog
+              ? (m: Match) => openToSlotDialog(m)
+              : (action.onClick as (m: Match) => void | Promise<void>);
+          const maybePromise = handler(match);
+          if (maybePromise && typeof (maybePromise as Promise<void>).catch === 'function') {
+            (maybePromise as Promise<void>).catch((err: unknown) => {
+              const msg =
+                (err as { message?: string; error?: string })?.message ??
+                (err as { message?: string; error?: string })?.error ??
+                'Quick action failed';
+              setQuickActionDialogMessage(msg);
+              setShowQuickActionDialog(true);
+            });
+          }
+        } catch (err: unknown) {
+          const msg =
+            (err as { message?: string; error?: string })?.message ??
+            (err as { message?: string; error?: string })?.error ??
+            'Quick action failed';
+          setQuickActionDialogMessage(msg);
+          setShowQuickActionDialog(true);
+        }
+      },
       className:
         action.id === 'create-slot-from-match'
           ? 'h-9 text-xs px-3 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/30'
@@ -581,6 +663,9 @@ export function MatchProvider({
     recentlyDuplicatedMatchId,
     setRecentlyDuplicatedMatchId,
     detailFooterActions,
+    showQuickActionDialog,
+    quickActionDialogMessage,
+    closeQuickActionDialog: () => setShowQuickActionDialog(false),
     displayMentions,
     addContactToDraft,
     removeContactFromDraft,

@@ -4,6 +4,53 @@ Kronologisk översikt över beteendeförändringar och nya funktioner sedan sena
 
 ---
 
+## 2026-03 – Matches streamline: optional format, dialogs och duplikering
+
+- **Format frivilligt (end-to-end):**
+  - Frontend-validering i matches kräver inte längre `format`.
+  - Backend-validering och modell accepterar tomt `format`.
+  - Ny migration `044-matches-format-nullable.sql` + script `run-matches-format-nullable-migration.js` för tenant-synk.
+- **UX och copy i matches:**
+  - `dateTimePlaceholder` i matches uppdaterad från "Set date & time" / "Välj datum och tid" till "Date & time" / "Datum och tid".
+  - Browser `alert()` i matches ersatta med appens dialogmönster (`ConfirmDialog`) för enhetlig prompt-stil.
+  - Ta bort kontakt i match-vy kräver nu bekräftelse-dialog.
+- **Duplikering av match:**
+  - Duplicate-dialogen skriver nu namn till `name` (inte `location`).
+  - Default för dubblett använder matchnamn/fallback och kopierar övriga fält korrekt.
+- **Cleanup:**
+  - Död kod borttagen i matches (`formatDateOnly`/`formatTimeOnly`, oanvänd CSRF-metod i matchesApi, oanvänd `pendingCloseRef`, oanvänd prop i MatchForm).
+  - Minutes-fältets placeholder `90` borttagen.
+
+---
+
+## 2026-03 – Footer-refaktorering: window-bridges borttagna, inline Save/Cancel
+
+- **Slots export:** `SlotsContext` exponerar nu `exportFormats`/`onExportItem`; `SlotView` har en `SlotExportOptionsCard` i sidopanelen (samma mönster som notes/tasks/contacts).
+- **PanelFooter förenklad:**
+  - `if (currentMode === 'view')` blocket borttaget — QuickActionsCard/ExportOptionsCard i sidebar hanterar view-actions.
+  - Edit/create Save/Cancel-blocket borttaget — formulären hanterar det inline.
+  - `PanelFooter` renderar nu bara knappar för `settings`-läge.
+- **Inline Save/Cancel i alla 8 formulär:** `SlotForm`, `NoteForm`, `TaskForm`, `ContactForm`, `EstimateForm`, `InvoicesForm`, `MatchForm`, `FileForm` har nu egna Save/Cancel-knappar. Inga window-globals registreras längre i create/edit-formulär.
+- **window-bridge cleanup:** `window.submitXxxForm` / `window.cancelXxxForm` borttagna ur alla create/edit-formulär och deras contexts. `global.d.ts` uppdaterad — window-globals deklareras bara för `*SettingsForm`-komponenter (settings-läge).
+- **Dokumentation:** `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` §12 (nytt), `PLUGIN_DEVELOPMENT_STANDARDS_V2.md`, `LESSONS_LEARNED.md` uppdaterade med nya kontrakt.
+
+---
+
+## 2026-03 – Plugin cleanup + auth rate-limit stabilisering
+
+- **Systematisk cleanup i plugins (`contacts`, `notes`, `tasks`, `slots`):**
+  - Legacy/workaround-kod borttagen, inklusive död CSRF-klientkod i plugin-API-lager.
+  - Redundant kommentering och `console.log`-debugrester rensade.
+  - Gemensamma UI-mönster harmoniserade med återanvändbara konstanter för bättre läsbarhet och konsekvens.
+- **Kontext- och felhantering:**
+  - Flera `alert()`-flöden ersatta med validerings-/state-baserad felhantering för en enhetlig UX.
+  - Oanvänd/dead code-paths i context/list/view/form-filer borttagna för mindre komplexitet.
+- **Stabilisering av inloggning i dev:**
+  - `server/core/middleware/rateLimit.js` uppdaterad så auth/health-endpoints korrekt exkluderas från global limiter även när `/api`-prefix är strip:at av middleware-mount.
+  - Resultat: `/api/auth/login` throttle:as inte felaktigt i lokal utveckling.
+
+---
+
 ## 2026-03 – Tasks/Slots alignment: properties, mentions, multi-assignee, date/time pickers
 
 - **Tasks detail/edit alignment mot slots/notes:**

@@ -96,6 +96,7 @@ export function MatchList() {
       }
       const timeStr = formatDateTimeForFilter(m.start_time ?? null).toLowerCase();
       return (
+        (m.name ?? '').toLowerCase().includes(needle) ||
         (m.home_team ?? '').toLowerCase().includes(needle) ||
         (m.away_team ?? '').toLowerCase().includes(needle) ||
         (m.location ?? '').toLowerCase().includes(needle) ||
@@ -182,9 +183,9 @@ export function MatchList() {
               icon={Settings}
               onClick={() => openMatchSettings()}
               className="h-9 text-xs px-3"
-              title={t('common.settings')}
+              title={t('matches.settings')}
             >
-              {t('common.settings')}
+              {t('matches.settings')}
             </Button>
             <Button
               variant="ghost"
@@ -242,11 +243,9 @@ export function MatchList() {
       {selectedCount > 0 && (
         <BulkActionBar
           selectedCount={selectedCount}
-          onSelectAll={() => selectAllMatches(matches.map((m) => m.id))}
           onClearSelection={clearMatchSelection}
           actions={[
             {
-              id: 'bulk-delete',
               label: 'Delete',
               icon: Trash2,
               onClick: () => setShowBulkDeleteModal(true),
@@ -308,10 +307,11 @@ export function MatchList() {
                   />
                 </div>
                 <h3 className="font-semibold text-sm">
-                  {match.home_team} – {match.away_team}
+                  {match.name?.trim() || `${match.home_team} – ${match.away_team}`}
                 </h3>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {match.sport_type} · {match.format}
+                  {match.home_team} – {match.away_team} · {match.sport_type}
+                  {match.format ? ` · ${match.format}` : ''}
                   {match.total_minutes !== null && match.total_minutes !== undefined
                     ? ` · ${match.total_minutes} min`
                     : ''}
@@ -460,11 +460,12 @@ export function MatchList() {
                   </TableCell>
                   <TableCell>
                     <span className="font-medium">
-                      {match.home_team} – {match.away_team}
+                      {match.name?.trim() || `${match.home_team} – ${match.away_team}`}
                     </span>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {match.sport_type} · {match.format}
+                    {match.sport_type}
+                    {match.format ? ` · ${match.format}` : ''}
                     {match.total_minutes !== null && match.total_minutes !== undefined
                       ? ` · ${match.total_minutes} min`
                       : ''}

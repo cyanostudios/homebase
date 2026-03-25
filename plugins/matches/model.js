@@ -17,17 +17,30 @@ function validateSportAndFormat(sportType, format) {
       AppError.CODES.VALIDATION_ERROR,
     );
   }
-  const allowed = FORMATS_BY_SPORT[sportType];
-  if (!allowed.includes(format)) {
-    throw new AppError(
-      `Invalid format for ${sportType}. Allowed: ${allowed.join(', ')}`,
-      400,
-      AppError.CODES.VALIDATION_ERROR,
-    );
+  if (format) {
+    const allowed = FORMATS_BY_SPORT[sportType];
+    if (!allowed.includes(format)) {
+      throw new AppError(
+        `Invalid format for ${sportType}. Allowed: ${allowed.join(', ')}`,
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
+    }
   }
 }
 
 class MatchModel {
+  _deriveName({ name, home_team, away_team }) {
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (trimmed) {
+      return trimmed.slice(0, 255);
+    }
+    const home = (home_team || '').toString().trim();
+    const away = (away_team || '').toString().trim();
+    const derived = [home, away].filter(Boolean).join(' – ').trim();
+    return derived ? derived.slice(0, 255) : null;
+  }
+
   async getAll(req) {
     try {
       const db = Database.get(req);
@@ -46,6 +59,11 @@ class MatchModel {
     try {
       const db = Database.get(req);
       const {
+        name,
+        match_number,
+        match_type,
+        referee_count,
+        map_link,
         home_team,
         away_team,
         location,
@@ -57,14 +75,32 @@ class MatchModel {
         mentions,
       } = matchData;
       validateSportAndFormat(sport_type, format);
+      const nextName = this._deriveName({ name, home_team, away_team });
 
       const result = await db.insert('matches', {
+        name: nextName,
+        match_number:
+          match_number !== null && match_number !== undefined && String(match_number).trim() !== ''
+            ? parseInt(match_number, 10)
+            : null,
+        match_type:
+          match_type !== null && match_type !== undefined && String(match_type).trim() !== ''
+            ? String(match_type).trim()
+            : null,
+        referee_count:
+          referee_count !== null &&
+          referee_count !== undefined &&
+          String(referee_count).trim() !== ''
+            ? parseInt(referee_count, 10)
+            : 1,
+        map_link: (map_link || '').trim() || null,
         home_team: (home_team || '').trim() || null,
         away_team: (away_team || '').trim() || null,
         location: (location || '').trim() || null,
         start_time: start_time || null,
         sport_type: sport_type || 'football',
-        format: format || null,
+        // DB column `format` is NOT NULL; keep optional UX by storing empty string when unset.
+        format: (format ?? '').toString().trim(),
         total_minutes: total_minutes != null ? parseInt(total_minutes, 10) : null,
         contact_id: contact_id || null,
         mentions: JSON.stringify(Array.isArray(mentions) ? mentions : []),
@@ -95,6 +131,11 @@ class MatchModel {
       }
 
       const {
+        name,
+        match_number,
+        match_type,
+        referee_count,
+        map_link,
         home_team,
         away_team,
         location,
@@ -106,14 +147,37 @@ class MatchModel {
         mentions,
       } = matchData;
       validateSportAndFormat(sport_type, format);
+      const nextName = this._deriveName({ name, home_team, away_team });
 
       const result = await db.update('matches', matchId, {
+        name: nextName,
+        match_number:
+          match_number !== undefined
+            ? match_number !== null && String(match_number).trim() !== ''
+              ? parseInt(match_number, 10)
+              : null
+            : (existing[0].match_number ?? null),
+        match_type:
+          match_type !== undefined
+            ? match_type !== null && String(match_type).trim() !== ''
+              ? String(match_type).trim()
+              : null
+            : (existing[0].match_type ?? null),
+        referee_count:
+          referee_count !== undefined
+            ? referee_count !== null && String(referee_count).trim() !== ''
+              ? parseInt(referee_count, 10)
+              : 1
+            : (existing[0].referee_count ?? 1),
+        map_link:
+          map_link !== undefined ? (map_link || '').trim() || null : (existing[0].map_link ?? null),
         home_team: (home_team || '').trim() || null,
         away_team: (away_team || '').trim() || null,
         location: (location || '').trim() || null,
         start_time: start_time || null,
         sport_type: sport_type || 'football',
-        format: format || null,
+        // DB column `format` is NOT NULL; keep optional UX by storing empty string when unset.
+        format: (format ?? '').toString().trim(),
         total_minutes: total_minutes != null ? parseInt(total_minutes, 10) : null,
         contact_id: contact_id ?? existing[0].contact_id ?? null,
         mentions:
@@ -173,6 +237,18 @@ class MatchModel {
     }
     return {
       id: row.id.toString(),
+      name: row.name !== null && row.name !== undefined ? String(row.name) : null,
+      match_number:
+        row.match_number !== null && row.match_number !== undefined
+          ? Number(row.match_number)
+          : null,
+      match_type:
+        row.match_type !== null && row.match_type !== undefined ? String(row.match_type) : null,
+      referee_count:
+        row.referee_count !== null && row.referee_count !== undefined
+          ? Number(row.referee_count)
+          : 1,
+      map_link: row.map_link !== null && row.map_link !== undefined ? String(row.map_link) : null,
       home_team: row.home_team,
       away_team: row.away_team,
       location: row.location,
