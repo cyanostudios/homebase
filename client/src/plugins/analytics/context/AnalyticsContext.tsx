@@ -5,10 +5,16 @@ import React, {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import {
+  getAppCurrentPage,
+  isAnalyticsBootstrapPage,
+  subscribeAppCurrentPage,
+} from '@/core/navigation/appCurrentPageStore';
 
 import { analyticsApi } from '../api/analyticsApi';
 import type {
@@ -81,6 +87,12 @@ const EMPTY_CUSTOMER_SEGMENTS: AnalyticsCustomerSegments = {
 
 export function AnalyticsProvider({ children, isAuthenticated }: ProviderProps) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const activePage = useSyncExternalStore(
+    subscribeAppCurrentPage,
+    getAppCurrentPage,
+    getAppCurrentPage,
+  );
+  const shouldFetchAnalytics = isAuthenticated && isAnalyticsBootstrapPage(activePage);
 
   const [filters, setFiltersState] = useState<AnalyticsFilters>({
     granularity: 'day',
@@ -159,9 +171,7 @@ export function AnalyticsProvider({ children, isAuthenticated }: ProviderProps) 
   }, [filters]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      void fetchSummaryData(debouncedFilters, true);
-    } else {
+    if (!isAuthenticated) {
       setOverview(EMPTY_OVERVIEW);
       setTimeSeries([]);
       setStatusDistribution([]);
@@ -175,8 +185,26 @@ export function AnalyticsProvider({ children, isAuthenticated }: ProviderProps) 
       setChannelDrilldownOrders([]);
       setError(null);
       setLoading(false);
+      return;
     }
-  }, [debouncedFilters, fetchSummaryData, isAuthenticated]);
+    if (!shouldFetchAnalytics) {
+      setOverview(EMPTY_OVERVIEW);
+      setTimeSeries([]);
+      setStatusDistribution([]);
+      setCustomerSegments(EMPTY_CUSTOMER_SEGMENTS);
+      setChannels([]);
+      setAllChannelsForDropdown([]);
+      setTopProducts([]);
+      setSelectedSku(null);
+      setSelectedChannelDrilldown(null);
+      setDrilldownOrders([]);
+      setChannelDrilldownOrders([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+    void fetchSummaryData(debouncedFilters, true);
+  }, [debouncedFilters, fetchSummaryData, isAuthenticated, shouldFetchAnalytics]);
 
   useEffect(() => {
     let cancelled = false;
@@ -209,7 +237,11 @@ export function AnalyticsProvider({ children, isAuthenticated }: ProviderProps) 
   useEffect(() => {
     let cancelled = false;
     async function loadChannelDrilldown() {
-      if (!isAuthenticated || !selectedChannelDrilldown) {
+      if (
+        !isAuthenticated ||
+        !selectedChannelDrilldown ||
+        !isAnalyticsBootstrapPage(getAppCurrentPage())
+      ) {
         setChannelDrilldownOrders([]);
         return;
       }

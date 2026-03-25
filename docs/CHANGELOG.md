@@ -4,6 +4,22 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-14 – Navigering-store, analytics-gating, cache/fetch-optimering
+
+### Navigering och analytics bootstrap
+
+- **client/src/core/navigation/appCurrentPageStore.ts:** Ny sync-store för aktuell sida i appen.
+- **client/src/App.tsx:** Publicerar aktuell sida till store via `useLayoutEffect` för korrekt ordning mot providers.
+- **client/src/plugins/analytics/context/AnalyticsContext.tsx:** Hämtar analytics bara när aktiv sida är bootstrap-sida för analytics; reset när sida/auth inte matchar.
+
+### API/cache-förbättringar i klient
+
+- **client/src/plugins/channels/api/channelsApi.ts:** Ny cache för channels summary + cache-invalidering vid mutationer.
+- **client/src/plugins/files/context/FilesContext.tsx:** Separerar bootstrap-laddning (folders/cloud settings) från item-fetch vid mappbyten.
+- **TopBar och API-klienter (CDON/Fyndiq/Products/Woo/AppContext):** Stabiliserade fetch-flöden och mindre onödiga anrop.
+
+---
+
 ## 2026-03-14 – Delad CSRF-klient, API-klientförbättringar, category-cache-job
 
 ### Delad CSRF-hantering i klienten

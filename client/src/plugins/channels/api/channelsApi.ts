@@ -16,6 +16,7 @@ export type { ChannelMapRow };
 
 const INSTANCES_CACHE_TTL_MS = 5_000;
 const PRODUCT_LINKS_CACHE_TTL_MS = 5_000;
+const CHANNELS_SUMMARY_CACHE_TTL_MS = 5_000;
 
 class ChannelsApi {
   private instancesCache = new Map<
@@ -57,6 +58,11 @@ class ChannelsApi {
       }>;
     }>
   >();
+  private channelsSummaryCache: {
+    fetchedAt: number;
+    value: ChannelSummary[];
+  } | null = null;
+  private channelsSummaryPromise: Promise<ChannelSummary[]> | null = null;
 
   private async getCsrfToken(): Promise<string> {
     return getSharedCsrfToken();
@@ -65,6 +71,11 @@ class ChannelsApi {
   private clearInstancesCache() {
     this.instancesCache.clear();
     this.instancesPromises.clear();
+  }
+
+  private clearChannelsSummaryCache() {
+    this.channelsSummaryCache = null;
+    this.channelsSummaryPromise = null;
   }
 
   private clearProductLinksCache(productId?: string) {
@@ -127,7 +138,28 @@ class ChannelsApi {
 
   // GET /api/channels — list channel summaries
   async getChannels(): Promise<ChannelSummary[]> {
-    return this.request('/');
+    const cached = this.channelsSummaryCache;
+    if (cached && Date.now() - cached.fetchedAt < CHANNELS_SUMMARY_CACHE_TTL_MS) {
+      return cached.value;
+    }
+    const pending = this.channelsSummaryPromise;
+    if (pending) {
+      return pending;
+    }
+    const promise = this.request('/')
+      .then((rows: unknown) => {
+        const value = Array.isArray(rows) ? (rows as ChannelSummary[]) : [];
+        this.channelsSummaryCache = {
+          fetchedAt: Date.now(),
+          value,
+        };
+        return value;
+      })
+      .finally(() => {
+        this.channelsSummaryPromise = null;
+      });
+    this.channelsSummaryPromise = promise;
+    return promise;
   }
 
   // GET /api/channels/product-targets?productId=...
@@ -196,6 +228,7 @@ class ChannelsApi {
     row: ChannelMapRow;
     summary: ChannelSummary | null;
   }> {
+    this.clearChannelsSummaryCache();
     this.clearProductLinksCache(body.productId);
     return this.request('/map', {
       method: 'PUT',
@@ -211,6 +244,7 @@ class ChannelsApi {
     if (!body.updates?.length) {
       return Promise.resolve({ ok: true, count: 0 });
     }
+    this.clearChannelsSummaryCache();
     this.clearProductLinksCache(body.productId);
     return this.request('/map/bulk', {
       method: 'PUT',
@@ -274,6 +308,7 @@ class ChannelsApi {
     label?: string | null;
     credentials?: any | null;
   }): Promise<{ ok: true; row: ChannelInstance }> {
+    this.clearChannelsSummaryCache();
     this.clearInstancesCache();
     return this.request('/instances', {
       method: 'POST',
@@ -290,6 +325,7 @@ class ChannelsApi {
       enabled?: boolean;
     },
   ): Promise<{ ok: true; row: ChannelInstance }> {
+    this.clearChannelsSummaryCache();
     this.clearInstancesCache();
     return this.request(`/instances/${encodeURIComponent(id)}`, {
       method: 'PUT',
@@ -318,6 +354,7 @@ class ChannelsApi {
     vatRate?: number | string | null;
     category?: string | null;
   }): Promise<{ ok: true; id?: string | null }> {
+    this.clearChannelsSummaryCache();
     this.clearProductLinksCache(body.productId);
     return this.request('/overrides', {
       method: 'PUT',
@@ -372,6 +409,7 @@ class ChannelsApi {
     if (items.length === 0) {
       return Promise.resolve({ ok: true, count: 0 });
     }
+    this.clearChannelsSummaryCache();
     this.clearProductLinksCache(body.productId);
     return this.request('/overrides/bulk', {
       method: 'PUT',

@@ -1,5 +1,5 @@
 import { Bell, Filter, Menu, Moon, Search, Settings, Sun, X } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   Breadcrumb,
@@ -139,12 +139,41 @@ export function TopBar({
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
   const isAdmin = user?.role === 'superuser';
+  const tenantsLoadInFlightRef = useRef<Promise<void> | null>(null);
+  const tenantsLoadedOnceRef = useRef(false);
+
+  const loadTenants = useCallback(async () => {
+    if (tenantsLoadedOnceRef.current) {
+      return;
+    }
+    if (tenantsLoadInFlightRef.current) {
+      return tenantsLoadInFlightRef.current;
+    }
+    const run = (async () => {
+      try {
+        setIsLoadingTenants(true);
+        const response = await fetch('/api/admin/tenants', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          setTenants(data.tenants);
+          tenantsLoadedOnceRef.current = true;
+        }
+      } catch (error) {
+        console.error('Failed to load tenants:', error);
+      } finally {
+        setIsLoadingTenants(false);
+        tenantsLoadInFlightRef.current = null;
+      }
+    })();
+    tenantsLoadInFlightRef.current = run;
+    return run;
+  }, []);
 
   useEffect(() => {
     if (isAdmin) {
-      loadTenants();
+      void loadTenants();
     }
-  }, [isAdmin]);
+  }, [isAdmin, loadTenants]);
 
   // Load preferences (Pomodoro & clock, Time tracking on/off)
   useEffect(() => {
@@ -180,21 +209,6 @@ export function TopBar({
       loadProfileSettings();
     }
   }, [user, getSettings]);
-
-  const loadTenants = async () => {
-    try {
-      setIsLoadingTenants(true);
-      const response = await fetch('/api/admin/tenants', { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setTenants(data.tenants);
-      }
-    } catch (error) {
-      console.error('Failed to load tenants:', error);
-    } finally {
-      setIsLoadingTenants(false);
-    }
-  };
 
   const switchTenant = async (userId: number) => {
     try {

@@ -7,14 +7,15 @@
  * Last Modified: August 2025 - Global Navigation Guard Integration
  */
 
-import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 
 import { AppProvider, useApp } from '@/core/api/AppContext';
+import { ErrorLogProvider } from '@/core/errorLog/ErrorLogContext';
 import { createPanelHandlers } from '@/core/handlers/panelHandlers';
 import { createKeyboardHandler } from '@/core/keyboard/keyboardHandlers';
+import { setAppCurrentPage } from '@/core/navigation/appCurrentPageStore';
 import { PLUGIN_REGISTRY } from '@/core/pluginRegistry';
 import { createPanelRenderers } from '@/core/rendering/panelRendering';
-import { ErrorLogProvider } from '@/core/errorLog/ErrorLogContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { Dashboard } from '@/core/ui/Dashboard';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
@@ -154,6 +155,12 @@ function AppContent() {
   // Save currentPage to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('homebase:currentPage', currentPage);
+  }, [currentPage]);
+
+  // Keep a sync store for providers that wrap this component (e.g. Analytics deferral).
+  // useLayoutEffect so the store updates before passive effects in ancestors (Analytics).
+  useLayoutEffect(() => {
+    setAppCurrentPage(currentPage);
   }, [currentPage]);
 
   // Auto-detect current plugin/item/mode

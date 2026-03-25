@@ -1,5 +1,12 @@
 // client/src/plugins/files/context/FilesContext.tsx
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from 'react';
 
 import { useApp } from '@/core/api/AppContext';
 
@@ -96,24 +103,24 @@ export function FilesProvider({
     googledrive: null,
   });
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      void loadItems();
-      void loadFolders();
-      void loadCloudStorageSettings();
-    } else {
-      setFiles([]);
-      setFolders([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load on auth change only
-  }, [isAuthenticated]);
+  /** Folders + cloud settings once per auth session; items on auth + folder changes. */
+  const didBootstrapAfterAuthRef = useRef(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      void loadItems();
+    if (!isAuthenticated) {
+      didBootstrapAfterAuthRef.current = false;
+      setFiles([]);
+      setFolders([]);
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFolderPath, isAuthenticated]);
+    void loadItems();
+    if (!didBootstrapAfterAuthRef.current) {
+      didBootstrapAfterAuthRef.current = true;
+      void loadFolders();
+      void loadCloudStorageSettings();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadItems uses current folder; intentional
+  }, [isAuthenticated, currentFolderPath]);
 
   useEffect(() => {
     registerPanelCloseFunction('files', closeFilePanel);
@@ -409,7 +416,7 @@ export function FilesProvider({
   // ---- PanelTitles helpers ----
   const humanSize = (bytes?: number | null) => {
     const n = bytes;
-    if (n == null || !Number.isFinite(n)) {
+    if (n === null || n === undefined || !Number.isFinite(n)) {
       return '—';
     }
     const units = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
