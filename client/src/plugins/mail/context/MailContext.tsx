@@ -1,6 +1,18 @@
-import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useCallback,
+  useSyncExternalStore,
+  ReactNode,
+} from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import {
+  getAppCurrentPage,
+  isMailBootstrapPage,
+  subscribeAppCurrentPage,
+} from '@/core/navigation/appCurrentPageStore';
 
 import { mailApi } from '../api/mailApi';
 import type { MailLogEntry, MailSettings } from '../types/mail';
@@ -59,6 +71,12 @@ interface MailProviderProps {
 
 export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: MailProviderProps) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const activePage = useSyncExternalStore(
+    subscribeAppCurrentPage,
+    getAppCurrentPage,
+    getAppCurrentPage,
+  );
+  const shouldBootstrapMail = isAuthenticated && isMailBootstrapPage(activePage);
 
   const [isMailPanelOpen, setIsMailPanelOpen] = useState(false);
   const [mailHistory, setMailHistory] = useState<MailLogEntry[]>([]);
@@ -124,15 +142,18 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadHistory({ limit: 50 });
-      loadSettings();
-    } else {
+    if (!isAuthenticated) {
       setMailHistory([]);
       setTotalCount(0);
       setSettings(null);
+      return;
     }
-  }, [isAuthenticated, loadHistory, loadSettings]);
+    if (!shouldBootstrapMail) {
+      return;
+    }
+    void loadHistory({ limit: 50 });
+    void loadSettings();
+  }, [isAuthenticated, shouldBootstrapMail, loadHistory, loadSettings]);
 
   // Listen for mail sent from other plugins (e.g. Inspection) – push to cache without refetch
   useEffect(() => {
@@ -150,6 +171,10 @@ export function MailProvider({ children, isAuthenticated, onCloseOtherPanels }: 
   const openMailPanel = () => {
     onCloseOtherPanels();
     setIsMailPanelOpen(true);
+    if (isAuthenticated) {
+      void loadHistory({ limit: 50 });
+      void loadSettings();
+    }
   };
 
   const closeMailPanel = () => {

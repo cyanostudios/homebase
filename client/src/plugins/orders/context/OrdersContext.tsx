@@ -4,14 +4,22 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import {
+  getAppCurrentPage,
+  isOrdersBootstrapPage,
+  subscribeAppCurrentPage,
+} from '@/core/navigation/appCurrentPageStore';
+import { DEFAULT_LIST_PAGE_SIZE, normalizeListPageSize } from '@/core/settings/listPageSizes';
 
 import { ordersApi, type OrdersListFilters } from '../api/ordersApi';
-import type { OrderDetails, OrderListItem } from '../types/orders';
+import type { OrderDetails, OrderListItem, OrderSettings } from '../types/orders';
 
 interface OrdersContextType {
   // Panel state (orders panel is view-only)
@@ -23,10 +31,14 @@ interface OrdersContextType {
   // Data
   orders: OrderListItem[];
   totalOrders: number;
+  /** True while list fetch (filters change, reload, initial bootstrap) is in flight. */
+  ordersListLoading: boolean;
   filters: OrdersListFilters;
 
   // Actions
-  setFilters: (filters: OrdersListFilters) => void;
+  setFilters: (
+    filters: OrdersListFilters | ((prev: OrdersListFilters) => OrdersListFilters),
+  ) => void;
   reloadOrders: () => Promise<void>;
   /** Optimistic update: replace order(s) in list without refetch. For fire-and-forget. */
   updateOrderInList: (updated: OrderListItem | OrderDetails) => void;
@@ -68,18 +80,52 @@ function normalizeOrderDetails(item: any): OrderDetails {
 }
 
 export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }: ProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, getSettings, settingsVersion } =
+    useApp();
+  const activePage = useSyncExternalStore(
+    subscribeAppCurrentPage,
+    getAppCurrentPage,
+    getAppCurrentPage,
+  );
+  const shouldBootstrapOrders = isAuthenticated && isOrdersBootstrapPage(activePage);
 
   const [isOrdersPanelOpen, setIsOrdersPanelOpen] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<OrderDetails | null>(null);
 
   const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [totalOrders, setTotalOrders] = useState(0);
+  const [ordersListLoading, setOrdersListLoading] = useState(false);
+  const ordersLoadGenerationRef = useRef(0);
   const [filters, setFiltersState] = useState<OrdersListFilters>({
     status: 'processing',
-    limit: 50,
+    limit: DEFAULT_LIST_PAGE_SIZE,
     offset: 0,
+    sort: 'placed',
+    order: 'desc',
   });
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+    let cancelled = false;
+    void getSettings('orders').then((raw) => {
+      if (cancelled) {
+        return;
+      }
+      const s = (raw && typeof raw === 'object' ? raw : {}) as OrderSettings;
+      const lim = normalizeListPageSize(s.listPageSize);
+      setFiltersState((prev) => {
+        if (prev.limit === lim) {
+          return prev;
+        }
+        return { ...prev, limit: lim, offset: 0 };
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, getSettings, settingsVersion]);
 
   const reloadOrders = useCallback(async () => {
     try {
@@ -94,15 +140,27 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
   }, [filters]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      reloadOrders();
-    } else {
+    if (!isAuthenticated) {
+      ordersLoadGenerationRef.current += 1;
+      setOrdersListLoading(false);
       setOrders([]);
       setTotalOrders(0);
       setCurrentOrder(null);
       setIsOrdersPanelOpen(false);
+      setFiltersState({
+        status: 'processing',
+        limit: DEFAULT_LIST_PAGE_SIZE,
+        offset: 0,
+        sort: 'placed',
+        order: 'desc',
+      });
+      return;
     }
-  }, [isAuthenticated, reloadOrders]);
+    if (!shouldBootstrapOrders) {
+      return;
+    }
+    void reloadOrders();
+  }, [isAuthenticated, shouldBootstrapOrders, reloadOrders]);
 
   const closeOrderPanel = useCallback(() => {
     setIsOrdersPanelOpen(false);
@@ -116,9 +174,12 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const setFilters = useCallback((next: OrdersListFilters) => {
-    setFiltersState(next);
-  }, []);
+  const setFilters = useCallback(
+    (next: OrdersListFilters | ((prev: OrdersListFilters) => OrdersListFilters)) => {
+      setFiltersState((prev) => (typeof next === 'function' ? next(prev) : next));
+    },
+    [],
+  );
 
   const updateOrderInList = useCallback(
     (updated: OrderListItem | OrderDetails) => {
@@ -127,7 +188,9 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
       setOrders((prev) => {
         if (statusFilter && normalized.status !== statusFilter) {
           const removed = prev.some((o) => String(o.id) === String(updated.id));
-          if (removed) setTotalOrders((t) => Math.max(0, t - 1));
+          if (removed) {
+            setTotalOrders((t) => Math.max(0, t - 1));
+          }
           return prev.filter((o) => String(o.id) !== String(updated.id));
         }
         return prev.map((o) => (String(o.id) === String(updated.id) ? normalized : o));
@@ -142,14 +205,20 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
       const statusFilter = filters.status;
       setOrders((prev) => {
         const next = prev.flatMap((o) => {
-          if (!idSet.has(String(o.id))) return [o];
+          if (!idSet.has(String(o.id))) {
+            return [o];
+          }
           const merged = { ...o, ...updates };
           const newStatus = (merged.status ?? o.status) as string | undefined;
-          if (statusFilter && newStatus !== statusFilter) return [];
+          if (statusFilter && newStatus !== statusFilter) {
+            return [];
+          }
           return [normalizeOrderListItem(merged)];
         });
         const removedCount = prev.length - next.length;
-        if (removedCount > 0) setTotalOrders((t) => Math.max(0, t - removedCount));
+        if (removedCount > 0) {
+          setTotalOrders((t) => Math.max(0, t - removedCount));
+        }
         return next;
       });
     },
@@ -193,6 +262,7 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
       validationErrors: [],
       orders,
       totalOrders,
+      ordersListLoading,
       filters,
       setFilters,
       reloadOrders,
@@ -208,6 +278,7 @@ export function OrdersProvider({ children, isAuthenticated, onCloseOtherPanels }
       currentOrder,
       orders,
       totalOrders,
+      ordersListLoading,
       filters,
       setFilters,
       reloadOrders,

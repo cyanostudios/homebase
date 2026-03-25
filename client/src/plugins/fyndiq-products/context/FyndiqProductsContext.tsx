@@ -5,10 +5,16 @@ import React, {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import {
+  getAppCurrentPage,
+  isEcommerceCatalogBootstrapPage,
+  subscribeAppCurrentPage,
+} from '@/core/navigation/appCurrentPageStore';
 
 import { fyndiqApi } from '../api/fyndiqApi';
 import type {
@@ -70,7 +76,16 @@ export function FyndiqProductsProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: ProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, user } = useApp();
+  const activePage = useSyncExternalStore(
+    subscribeAppCurrentPage,
+    getAppCurrentPage,
+    getAppCurrentPage,
+  );
+  const shouldBootstrap =
+    isAuthenticated &&
+    !!user?.plugins?.includes('fyndiq-products') &&
+    isEcommerceCatalogBootstrapPage(activePage);
 
   const [isFyndiqProductsPanelOpen, setIsFyndiqProductsPanelOpen] = useState(false);
   const [currentFyndiqSettings, setCurrentFyndiqSettings] = useState<FyndiqSettings | null>(null);
@@ -153,13 +168,13 @@ export function FyndiqProductsProvider({
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (shouldBootstrap) {
       loadFyndiqSettings();
-    } else {
+    } else if (!isAuthenticated) {
       setSettings(null);
       setCurrentFyndiqSettings(null);
     }
-  }, [isAuthenticated, loadFyndiqSettings]);
+  }, [isAuthenticated, shouldBootstrap, loadFyndiqSettings]);
 
   useEffect(() => {
     registerPanelCloseFunction('fyndiq-products', closeFyndiqSettingsPanel);

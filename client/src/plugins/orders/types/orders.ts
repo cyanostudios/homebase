@@ -1,4 +1,23 @@
+import type { ListPageSize } from '@/core/settings/listPageSizes';
+
 export type OrderStatus = 'processing' | 'shipped' | 'delivered' | 'cancelled';
+
+/** Server `GET /api/orders` sort column (whitelist). */
+export type OrdersListSortField =
+  | 'placed'
+  | 'channel'
+  | 'order_number'
+  | 'customer'
+  | 'total'
+  | 'status';
+
+export type OrdersListSortOrder = 'asc' | 'desc';
+
+/** Orders plugin settings (user_settings category: orders). */
+export interface OrderSettings {
+  /** Rows per page in the order list (default 100). */
+  listPageSize?: ListPageSize;
+}
 
 export interface ValidationError {
   field: string;

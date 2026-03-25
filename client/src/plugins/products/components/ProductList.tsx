@@ -32,6 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
+import { buildListPaginationItems } from '@/core/utils/listPagination';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
 import { useCdonProducts } from '@/plugins/cdon-products/context/CdonProductsContext';
@@ -40,7 +41,9 @@ import { useFyndiqProducts } from '@/plugins/fyndiq-products/context/FyndiqProdu
 import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceApi';
 
 import { productsApi } from '../api/productsApi';
+import type { ProductListParams } from '../api/productsApi';
 import { useProducts } from '../hooks/useProducts';
+import { normalizeCatalogPageSize } from '../types/products';
 
 import { ProductSettingsForm } from './ProductSettingsForm';
 import { ProductTitleWithLinksHover } from './ProductTitleWithLinksHover';
@@ -85,6 +88,10 @@ const VARIATION_TYPE_LABEL: Record<string, string> = {
 export const ProductList: React.FC = () => {
   const {
     products,
+    totalProducts,
+    loadProducts,
+    productSettings,
+    isProductCatalogBootstrap,
     openProductForEdit,
     openProductPanel,
     openProductPanelForBatch,
@@ -114,6 +121,65 @@ export const ProductList: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('id');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [isMobileView, setIsMobileView] = useState(false);
+
+  const [offset, setOffset] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [listLoading, setListLoading] = useState(false);
+
+  const limit = normalizeCatalogPageSize(productSettings?.catalogPageSize);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setOffset(0);
+  }, [debouncedSearch, listFilter, sortField, sortOrder, limit]);
+
+  const listApiParam = useMemo(
+    () => (listFilter === 'all' ? 'all' : listFilter === 'main' ? 'main' : String(listFilter)),
+    [listFilter],
+  );
+
+  const loadParams: ProductListParams = useMemo(
+    () => ({
+      limit,
+      offset,
+      sort: sortField,
+      order: sortOrder,
+      q: debouncedSearch ? debouncedSearch : undefined,
+      list: listApiParam,
+    }),
+    [limit, offset, sortField, sortOrder, debouncedSearch, listApiParam],
+  );
+
+  useEffect(() => {
+    if (!isProductCatalogBootstrap) {
+      return;
+    }
+    let cancelled = false;
+    setListLoading(true);
+    void loadProducts(loadParams).finally(() => {
+      if (!cancelled) {
+        setListLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isProductCatalogBootstrap, loadParams, loadProducts]);
+
+  useEffect(() => {
+    if (totalProducts <= 0) {
+      return;
+    }
+    const totalPages = Math.ceil(totalProducts / limit) || 1;
+    const maxOffset = Math.max(0, (totalPages - 1) * limit);
+    if (offset > maxOffset) {
+      setOffset(maxOffset);
+    }
+  }, [totalProducts, limit, offset]);
 
   useEffect(() => {
     productsApi
@@ -342,74 +408,22 @@ export const ProductList: React.FC = () => {
     };
   };
 
-  const filteredAndSorted = useMemo(() => {
-    const needle = searchTerm.trim().toLowerCase();
+  /** Current page rows (search/sort/filter are applied server-side). */
+  const displayRows = useMemo(() => products.map(normalize), [products]);
 
-    let filtered = products.map(normalize).filter((p: any) => {
-      if (!needle) {
-        return true;
-      }
-      return (
-        p.title.toLowerCase().includes(needle) ||
-        String(p.id).toLowerCase().includes(needle) ||
-        String(p.sku).toLowerCase().includes(needle) ||
-        String(p.mpn || '')
-          .toLowerCase()
-          .includes(needle)
-      );
-    });
+  const totalPages = limit > 0 ? Math.ceil(totalProducts / limit) || 1 : 1;
+  const currentPage = limit > 0 ? Math.floor(offset / limit) + 1 : 1;
+  const from = totalProducts === 0 ? 0 : offset + 1;
+  const to = Math.min(offset + limit, totalProducts);
+  const paginationItems = useMemo(
+    () => buildListPaginationItems(currentPage, totalPages),
+    [currentPage, totalPages],
+  );
 
-    if (listFilter !== 'all') {
-      filtered = filtered.filter((p: any) => {
-        const lid = p.raw?.listId ?? p.listId ?? null;
-        const empty = (lid ?? null) === null || String(lid).trim() === '';
-        if (listFilter === 'main') {
-          return empty;
-        }
-        return String(lid) === String(listFilter);
-      });
-    }
-
-    const cmp = (a: any, b: any) => {
-      let av: string | number = '';
-      let bv: string | number = '';
-
-      switch (sortField) {
-        case 'title':
-          av = a.title.toLowerCase();
-          bv = b.title.toLowerCase();
-          break;
-        case 'quantity':
-          av = a.quantity;
-          bv = b.quantity;
-          break;
-        case 'priceAmount':
-          av = a.priceAmount;
-          bv = b.priceAmount;
-          break;
-        case 'sku':
-          av = (a.sku || '').toLowerCase();
-          bv = (b.sku || '').toLowerCase();
-          break;
-        case 'id':
-        default:
-          av = String(a.id).toLowerCase();
-          bv = String(b.id).toLowerCase();
-          break;
-      }
-
-      if (typeof av === 'number' && typeof bv === 'number') {
-        return sortOrder === 'asc' ? av - bv : bv - av;
-      }
-      const res = String(av).localeCompare(String(bv), undefined, {
-        numeric: true,
-        sensitivity: 'base',
-      });
-      return sortOrder === 'asc' ? res : -res;
-    };
-
-    return filtered.sort(cmp);
-  }, [products, searchTerm, listFilter, sortField, sortOrder]);
+  const goToPage = (page: number) => {
+    const p = Math.max(1, Math.min(page, totalPages));
+    setOffset((p - 1) * limit);
+  };
 
   // Selected products (actual objects)
   const selectedProducts = useMemo(() => {
@@ -418,10 +432,7 @@ export const ProductList: React.FC = () => {
   }, [products, selectedProductIds]);
 
   // Selection helpers
-  const visibleIds = useMemo(
-    () => filteredAndSorted.map((p: any) => String(p.id)),
-    [filteredAndSorted],
-  );
+  const visibleIds = useMemo(() => displayRows.map((p: any) => String(p.id)), [displayRows]);
   const allVisibleSelected = useMemo(
     () => visibleIds.length > 0 && visibleIds.every((id) => selectedProductIds.includes(id)),
     [visibleIds, selectedProductIds],
@@ -440,8 +451,8 @@ export const ProductList: React.FC = () => {
 
   /** Product groups by groupId (only groups with ≥2 products) for visual grouping like in order list. */
   const productGroups = useMemo(() => {
-    const map = new Map<string, typeof filteredAndSorted>();
-    for (const p of filteredAndSorted) {
+    const map = new Map<string, typeof displayRows>();
+    for (const p of displayRows) {
       const key = p.groupId ?? null;
       if (key) {
         const arr = map.get(key) ?? [];
@@ -455,7 +466,7 @@ export const ProductList: React.FC = () => {
       }
     }
     return map;
-  }, [filteredAndSorted]);
+  }, [displayRows]);
 
   const getGroupInfo = useCallback(
     (p: { id: string; groupId?: string | null }) => {
@@ -510,8 +521,7 @@ export const ProductList: React.FC = () => {
   const handleOpenProduct = (product: any) => attemptNavigation(() => openProductForEdit(product));
   const _handleOpenPanel = () => attemptNavigation(() => openProductPanel(null));
 
-  const total = products.length;
-  const filtered = filteredAndSorted.length;
+  const totalResultCount = totalProducts;
   const isWooConfigured = wooInstances.length > 0;
   const isCdonConfigured = !!(
     cdonSettings?.connected &&
@@ -651,9 +661,7 @@ export const ProductList: React.FC = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-muted-foreground">
-            {filtered !== total ? `${filtered} of ${total}` : `${total}`} products
-          </p>
+          <p className="text-sm text-muted-foreground">{totalResultCount} produkter totalt</p>
           {selectedProductIds.length > 0 && (
             <div className="mt-2 text-sm flex items-center flex-wrap gap-2">
               <Badge variant="secondary">{selectedProductIds.length} selected</Badge>
@@ -909,8 +917,8 @@ export const ProductList: React.FC = () => {
                     Array.isArray(lastResyncResult.woo.instances) &&
                     lastResyncResult.woo.instances.length > 0 ? (
                       <>
-                        {lastResyncResult.woo.instances.filter((instance) => instance.ok).length} store(s)
-                        updated
+                        {lastResyncResult.woo.instances.filter((instance) => instance.ok).length}{' '}
+                        store(s) updated
                       </>
                     ) : (
                       <>
@@ -1078,16 +1086,22 @@ export const ProductList: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAndSorted.length === 0 ? (
+              {listLoading && displayRows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="p-6 text-center text-muted-foreground">
-                    {searchTerm
+                    Laddar…
+                  </TableCell>
+                </TableRow>
+              ) : displayRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="p-6 text-center text-muted-foreground">
+                    {debouncedSearch
                       ? 'No products found matching your search.'
                       : 'No products yet. Click "Add Product" to get started.'}
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredAndSorted.map((p: any) => {
+                displayRows.map((p: any) => {
                   const raw = p.raw;
                   const isSelected = selectedProductIds.includes(p.id);
                   const groupInfo = getGroupInfo(p);
@@ -1190,14 +1204,16 @@ export const ProductList: React.FC = () => {
           </Table>
         ) : (
           <div className="divide-y">
-            {filteredAndSorted.length === 0 ? (
+            {listLoading && displayRows.length === 0 ? (
+              <div className="p-6 text-center text-muted-foreground">Laddar…</div>
+            ) : displayRows.length === 0 ? (
               <div className="p-6 text-center text-muted-foreground">
-                {searchTerm
+                {debouncedSearch
                   ? 'No products found matching your search.'
                   : 'No products yet. Click "Add Product" to get started.'}
               </div>
             ) : (
-              filteredAndSorted.map((p: any) => {
+              displayRows.map((p: any) => {
                 const isSelected = selectedProductIds.includes(p.id);
                 const groupInfo = getGroupInfo(p);
                 return (
@@ -1289,6 +1305,63 @@ export const ProductList: React.FC = () => {
             )}
           </div>
         )}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+          <span className="text-sm text-muted-foreground">
+            {totalResultCount === 0
+              ? 'Inga resultat'
+              : `Visar ${from} till ${to} av ${totalResultCount} resultat`}
+            {listLoading ? ' · Laddar…' : ''}
+          </span>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1 flex-wrap justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage <= 1 || listLoading}
+                onClick={() => goToPage(currentPage - 1)}
+                aria-label="Föregående sida"
+              >
+                Föregående
+              </Button>
+              {(() => {
+                let ellipsisKey = 0;
+                return paginationItems.map((item) =>
+                  item === 'ellipsis' ? (
+                    <span
+                      key={`ellipsis-${ellipsisKey++}`}
+                      className="px-2 text-sm text-muted-foreground select-none"
+                      aria-hidden
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <Button
+                      key={item}
+                      variant={item === currentPage ? 'default' : 'outline'}
+                      size="sm"
+                      className="min-w-[2rem]"
+                      disabled={listLoading}
+                      onClick={() => goToPage(item)}
+                      aria-label={`Sida ${item}`}
+                      aria-current={item === currentPage ? 'page' : undefined}
+                    >
+                      {item}
+                    </Button>
+                  ),
+                );
+              })()}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= totalPages || listLoading}
+                onClick={() => goToPage(currentPage + 1)}
+                aria-label="Nästa sida"
+              >
+                Nästa
+              </Button>
+            </div>
+          )}
+        </div>
       </Card>
 
       {/* Quantity change dialog */}

@@ -1,7 +1,7 @@
 // plugins/products/routes.js
 const express = require('express');
 const router = express.Router();
-const { body } = require('express-validator');
+const { body, query } = require('express-validator');
 const { csrfProtection } = require('../../server/core/middleware/csrf');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
 const { uploadLimiter } = require('../../server/core/middleware/rateLimit');
@@ -106,8 +106,24 @@ function createProductRoutes(controller, context) {
     (req, res) => controller.deleteList(req, res),
   );
 
-  // GET /api/products - List all products
-  router.get('/', gate, (req, res) => controller.getAll(req, res));
+  // GET /api/products/count — lightweight count for Dashboard (before '/')
+  router.get('/count', gate, (req, res) => controller.getCount(req, res));
+
+  // GET /api/products - Paginated list { items, total }
+  router.get(
+    '/',
+    gate,
+    [
+      query('limit').optional().isIn(['25', '50', '100', '150', '200', '250']),
+      query('offset').optional().isInt({ min: 0, max: 100000 }),
+      query('sort').optional().isIn(['id', 'title', 'quantity', 'priceAmount', 'sku']),
+      query('order').optional().isIn(['asc', 'desc']),
+      query('q').optional().trim().isLength({ max: 500 }),
+      query('list').optional().trim().isLength({ max: 64 }),
+    ],
+    validateRequest,
+    (req, res) => controller.getAll(req, res),
+  );
 
   // POST /api/products/import - CSV/XLSX import (MUST be before '/:id' route)
   router.post('/import', gate, uploadLimiter, csrfProtection, runImportUpload, (req, res) =>

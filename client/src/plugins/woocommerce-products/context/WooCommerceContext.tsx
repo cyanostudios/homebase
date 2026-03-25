@@ -7,9 +7,15 @@ import React, {
   ReactNode,
   useCallback,
   useRef,
+  useSyncExternalStore,
 } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import {
+  getAppCurrentPage,
+  isEcommerceCatalogBootstrapPage,
+  subscribeAppCurrentPage,
+} from '@/core/navigation/appCurrentPageStore';
 
 import { woocommerceApi } from '../api/woocommerceApi';
 import type {
@@ -88,7 +94,16 @@ export function WooCommerceProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: ProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, user } = useApp();
+  const activePage = useSyncExternalStore(
+    subscribeAppCurrentPage,
+    getAppCurrentPage,
+    getAppCurrentPage,
+  );
+  const shouldBootstrap =
+    isAuthenticated &&
+    !!user?.plugins?.includes('woocommerce-products') &&
+    isEcommerceCatalogBootstrapPage(activePage);
 
   // Panel + form
   const [isWoocommerceProductsPanelOpen, setIsWoocommerceProductsPanelOpen] = useState(false);
@@ -144,14 +159,14 @@ export function WooCommerceProvider({
     }
   }, []);
 
-  // Load settings when authenticated
+  // Load settings when catalog bootstrap applies
   useEffect(() => {
-    if (isAuthenticated) {
+    if (shouldBootstrap) {
       loadWooSettings();
-    } else {
+    } else if (!isAuthenticated) {
       setInstances([]);
     }
-  }, [isAuthenticated, loadWooSettings]);
+  }, [isAuthenticated, shouldBootstrap, loadWooSettings]);
 
   // Register panel close hook in global app
   useEffect(() => {

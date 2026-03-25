@@ -373,8 +373,15 @@ class OrdersController {
       const channel = req.query?.channel ? String(req.query.channel).trim().toLowerCase() : null;
       const from = req.query?.from ? new Date(String(req.query.from)) : null;
       const to = req.query?.to ? new Date(String(req.query.to)) : null;
-      const limit = req.query?.limit != null ? Number(req.query.limit) : undefined;
+      const ALLOWED_LIMITS = new Set([25, 50, 100, 150, 200, 250]);
+      const limitRaw = req.query?.limit != null ? Number(req.query.limit) : 100;
+      const limit = ALLOWED_LIMITS.has(limitRaw) ? limitRaw : 100;
       const offset = req.query?.offset != null ? Number(req.query.offset) : undefined;
+      const qRaw = req.query?.q != null ? String(req.query.q).trim() : '';
+      const q = qRaw.length > 0 ? qRaw.slice(0, 200) : null;
+      const sort = req.query?.sort != null ? String(req.query.sort).trim().toLowerCase() : 'placed';
+      const order =
+        req.query?.order != null ? String(req.query.order).trim().toLowerCase() : 'desc';
 
       const { items, total } = await this.model.list(req, {
         status,
@@ -383,6 +390,9 @@ class OrdersController {
         to,
         limit,
         offset,
+        q,
+        sort,
+        order,
       });
       return res.json({ items, total });
     } catch (error) {
@@ -529,9 +539,12 @@ class OrdersController {
       if (busy) {
         return res.json({ started: false, reason: 'locked' });
       }
-      const shouldRun = await orderSyncState.shouldRunQuickSync(req);
-      if (!shouldRun) {
-        return res.json({ started: false, reason: 'fresh' });
+      const force = req.query?.force === 'true' || req.body?.force === true;
+      if (!force) {
+        const shouldRun = await orderSyncState.shouldRunQuickSync(req);
+        if (!shouldRun) {
+          return res.json({ started: false, reason: 'fresh' });
+        }
       }
       setImmediate(() => {
         orderSyncService.runSync(req).catch((err) => {

@@ -5,6 +5,18 @@ import { getSharedCsrfToken } from '@/core/api/csrf';
 
 import type { Product } from '../types/products';
 
+export type ProductListSortField = 'id' | 'title' | 'quantity' | 'priceAmount' | 'sku';
+
+export type ProductListParams = {
+  limit: number;
+  offset: number;
+  sort: ProductListSortField;
+  order: 'asc' | 'desc';
+  q?: string;
+  /** all | main | list id */
+  list: string;
+};
+
 export type ApiFieldError = { field: string; message: string };
 export type ProductImportMode = 'update-only' | 'create-only' | 'upsert';
 export type ProductImportResult = {
@@ -187,8 +199,28 @@ class ProductsApi {
 
   // ---- CRUD ----
 
-  async getProducts(): Promise<Product[]> {
-    return this.request('/products');
+  /** Paginated catalog list; GET /api/products returns { items, total }. */
+  async listProducts(params: ProductListParams): Promise<{ items: Product[]; total: number }> {
+    const qs = new URLSearchParams();
+    qs.set('limit', String(params.limit));
+    qs.set('offset', String(params.offset));
+    qs.set('sort', params.sort);
+    qs.set('order', params.order);
+    if (params.q != null && String(params.q).trim() !== '') {
+      qs.set('q', String(params.q).trim());
+    }
+    qs.set('list', params.list);
+    return this.request(`/products?${qs.toString()}`) as Promise<{
+      items: Product[];
+      total: number;
+    }>;
+  }
+
+  /** Tenant-scoped product row count; does not load full catalog. */
+  async getProductCount(): Promise<number> {
+    const res = await this.request('/products/count');
+    const n = Number((res as { count?: number })?.count);
+    return Number.isFinite(n) ? n : 0;
   }
 
   async createProduct(data: any): Promise<Product> {

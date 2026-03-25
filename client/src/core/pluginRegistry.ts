@@ -115,6 +115,7 @@ import { channelsNavigation } from '@/plugins/channels/navigation';
 // Products
 import { ProductForm } from '@/plugins/products/components/ProductForm';
 import { ProductList } from '@/plugins/products/components/ProductList';
+import { ProductsDashboardWidget } from '@/plugins/products/components/ProductsDashboardWidget';
 import { ProductProvider } from '@/plugins/products/context/ProductContext';
 import { useProducts } from '@/plugins/products/hooks/useProducts';
 // WooCommerce
@@ -329,6 +330,7 @@ export const PLUGIN_REGISTRY: PluginRegistryEntry[] = [
       icon: Package,
       order: 1,
     },
+    dashboardWidget: ProductsDashboardWidget,
   },
   {
     name: 'woocommerce-products',

@@ -1184,8 +1184,28 @@ class ProductController {
 
   async getAll(req, res) {
     try {
-      const products = await this.model.getAll(req);
-      return res.json(products);
+      const ALLOWED_LIMITS = new Set([25, 50, 100, 150, 200, 250]);
+      const limitRaw = req.query?.limit != null ? Number(req.query.limit) : 100;
+      const limit = ALLOWED_LIMITS.has(limitRaw) ? limitRaw : 100;
+      const offset = req.query?.offset != null ? Math.max(0, Number(req.query.offset)) : 0;
+      const sort = req.query?.sort ? String(req.query.sort) : 'id';
+      const order = req.query?.order ? String(req.query.order) : 'asc';
+      const q =
+        req.query?.q != null && String(req.query.q).trim() !== '' ? String(req.query.q) : null;
+      const list =
+        req.query?.list != null && String(req.query.list).trim() !== ''
+          ? String(req.query.list).trim()
+          : 'all';
+
+      const { items, total } = await this.model.list(req, {
+        limit,
+        offset: Number.isFinite(offset) ? offset : 0,
+        sort,
+        order,
+        q,
+        list,
+      });
+      return res.json({ items, total });
     } catch (error) {
       Logger.error('Get products error', error, { userId: Context.getUserId(req) });
 
@@ -1194,6 +1214,19 @@ class ProductController {
       }
 
       return res.status(500).json({ error: 'Failed to fetch products' });
+    }
+  }
+
+  async getCount(req, res) {
+    try {
+      const count = await this.model.countForUser(req);
+      return res.json({ count });
+    } catch (error) {
+      Logger.error('Get product count error', error, { userId: Context.getUserId(req) });
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json(error.toJSON());
+      }
+      return res.status(500).json({ error: 'Failed to count products' });
     }
   }
 
@@ -1760,9 +1793,7 @@ class ProductController {
       if (typeof item === 'string') {
         u = item.trim();
       } else if (item && typeof item === 'object') {
-        u = String(
-          item.url_large ?? item.url_small ?? item.url ?? item.image ?? '',
-        ).trim();
+        u = String(item.url_large ?? item.url_small ?? item.url ?? item.image ?? '').trim();
       }
       if (u && (u.startsWith('http://') || u.startsWith('https://'))) urls.push(u);
     }
@@ -2537,9 +2568,7 @@ class ProductController {
     if (!userId) return;
 
     const instId =
-      channelInstanceId != null && channelInstanceId !== ''
-        ? Number(channelInstanceId)
-        : null;
+      channelInstanceId != null && channelInstanceId !== '' ? Number(channelInstanceId) : null;
 
     await db.query(
       `

@@ -32,7 +32,7 @@ class PostgreSQLAdapter extends DatabaseService {
     }
 
     const upperSql = sql.toUpperCase().trim();
-    
+
     // Skip if already has user_id filter
     if (upperSql.includes('USER_ID')) {
       return sql;
@@ -45,15 +45,15 @@ class PostgreSQLAdapter extends DatabaseService {
       const groupByIndex = upperSql.indexOf(' GROUP BY ');
       const limitIndex = upperSql.indexOf(' LIMIT ');
       const offsetIndex = upperSql.indexOf(' OFFSET ');
-      
+
       // Find the last clause that must come after WHERE
       const lastClauseIndex = Math.max(
         orderByIndex === -1 ? -1 : orderByIndex,
         groupByIndex === -1 ? -1 : groupByIndex,
         limitIndex === -1 ? -1 : limitIndex,
-        offsetIndex === -1 ? -1 : offsetIndex
+        offsetIndex === -1 ? -1 : offsetIndex,
       );
-      
+
       const whereIndex = upperSql.indexOf(' WHERE ');
       if (whereIndex === -1) {
         // No WHERE clause
@@ -62,7 +62,9 @@ class PostgreSQLAdapter extends DatabaseService {
           return `${sql} WHERE user_id = $${this._getParamCount(sql) + 1}`;
         } else {
           // Has ORDER BY/GROUP BY/LIMIT/OFFSET - insert WHERE before them
-          const insertPos = sql.toUpperCase().indexOf(upperSql.substring(lastClauseIndex, lastClauseIndex + 10));
+          const insertPos = sql
+            .toUpperCase()
+            .indexOf(upperSql.substring(lastClauseIndex, lastClauseIndex + 10));
           const beforeClause = sql.substring(0, insertPos);
           const afterClause = sql.substring(insertPos);
           return `${beforeClause} WHERE user_id = $${this._getParamCount(sql) + 1} ${afterClause}`;
@@ -84,19 +86,19 @@ class PostgreSQLAdapter extends DatabaseService {
           const groupByPos = sql.toUpperCase().indexOf(' GROUP BY ');
           const limitPos = sql.toUpperCase().indexOf(' LIMIT ');
           const offsetPos = sql.toUpperCase().indexOf(' OFFSET ');
-          
+
           // Find the earliest clause position
-          const positions = [orderByPos, groupByPos, limitPos, offsetPos].filter(p => p !== -1);
+          const positions = [orderByPos, groupByPos, limitPos, offsetPos].filter((p) => p !== -1);
           if (positions.length > 0) {
             insertPos = Math.min(...positions);
           }
-          
+
           if (insertPos === -1) {
             // Fallback: add at the end
             const paramNum = this._getParamCount(sql) + 1;
             return `${sql} AND user_id = $${paramNum}`;
           }
-          
+
           const beforeClause = sql.substring(0, insertPos).trim();
           const afterClause = sql.substring(insertPos);
           const paramNum = this._getParamCount(sql) + 1;
@@ -130,9 +132,9 @@ class PostgreSQLAdapter extends DatabaseService {
   _getParamCount(sql) {
     const matches = sql.match(/\$\d+/g);
     if (!matches) return 0;
-    
+
     // Find the maximum parameter number
-    const maxParam = Math.max(...matches.map(m => parseInt(m.substring(1))));
+    const maxParam = Math.max(...matches.map((m) => parseInt(m.substring(1))));
     return maxParam;
   }
 
@@ -171,7 +173,7 @@ class PostgreSQLAdapter extends DatabaseService {
       throw new AppError(
         `Parameter count mismatch: expected ${paramCount}, got ${params.length}`,
         400,
-        AppError.CODES.BAD_REQUEST
+        AppError.CODES.BAD_REQUEST,
       );
     }
   }
@@ -196,14 +198,14 @@ class PostgreSQLAdapter extends DatabaseService {
 
     try {
       const startTime = Date.now();
-      
+
       // Log SQL query details without exposing parameter values.
       this.logger?.info('Executing SQL query', {
         sql: finalSql,
         userId: userId,
         paramCount: finalParams.length,
       });
-      
+
       // LocalTenantProvider uses schema-per-tenant. Tenant data lives only in tenant schema.
       //
       // IMPORTANT (Neon pooler / transaction pooling):
@@ -242,14 +244,16 @@ class PostgreSQLAdapter extends DatabaseService {
 
             return result.rows;
           } catch (inner) {
-            try { await client.query('ROLLBACK'); } catch {}
+            try {
+              await client.query('ROLLBACK');
+            } catch {}
             throw inner;
           }
         } finally {
           client.release();
         }
       }
-      
+
       // If we didn't use a client above (no tenant pool), execute normally
       const result = await pool.query(finalSql, finalParams);
       const duration = Date.now() - startTime;
@@ -275,25 +279,26 @@ class PostgreSQLAdapter extends DatabaseService {
         sql: finalSql.substring(0, 100),
         paramCount: finalParams.length,
       });
-      throw new AppError(
-        'Database query failed',
-        500,
-        AppError.CODES.DATABASE_ERROR,
-        {
-          originalError: error.message,
-          code: error.code,
-          constraint: error.constraint,
-        }
-      );
+      throw new AppError('Database query failed', 500, AppError.CODES.DATABASE_ERROR, {
+        originalError: error.message,
+        code: error.code,
+        constraint: error.constraint,
+      });
     }
   }
 
   async transaction(callback, context = {}) {
     const pool = context.pool || this.pool;
+    const userId = context.userId;
     const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
+      const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
+      if (userId && isLocalProvider) {
+        const schemaName = `tenant_${userId}`;
+        await client.query(`SET LOCAL search_path TO ${schemaName}`);
+      }
       const result = await callback({
         query: async (sql, params = []) => {
           this._validateQuery(sql, params);
@@ -345,7 +350,7 @@ class PostgreSQLAdapter extends DatabaseService {
 
     try {
       const startTime = Date.now();
-      
+
       // For LocalTenantProvider, set search_path to tenant schema only. See query() for rationale.
       const isLocalProvider = process.env.TENANT_PROVIDER === 'local';
       let result;
@@ -360,7 +365,9 @@ class PostgreSQLAdapter extends DatabaseService {
             result = await client.query(sql, params);
             await client.query('COMMIT');
           } catch (inner) {
-            try { await client.query('ROLLBACK'); } catch {}
+            try {
+              await client.query('ROLLBACK');
+            } catch {}
             throw inner;
           }
         } finally {
@@ -369,14 +376,14 @@ class PostgreSQLAdapter extends DatabaseService {
       } else {
         result = await pool.query(sql, params);
       }
-      
+
       const duration = Date.now() - startTime;
 
       this.logger?.info('INSERT query completed', {
         duration,
         table,
         rowCount: result.rows?.length || 0,
-        insertedId: result.rows?.[0]?.id
+        insertedId: result.rows?.[0]?.id,
       });
 
       return result.rows[0];
@@ -397,14 +404,14 @@ class PostgreSQLAdapter extends DatabaseService {
         errorTable: error.table,
         errorColumn: error.column,
         errorConstraint: error.constraint,
-        stackTrace: error.stack?.substring(0, 1000)
+        stackTrace: error.stack?.substring(0, 1000),
       });
 
       // Preserve original PostgreSQL error details
       if (error instanceof AppError) {
         throw error;
       }
-      
+
       throw new AppError(
         `Failed to insert into ${table}: ${error.message || 'Unknown error'}`,
         500,
@@ -415,8 +422,8 @@ class PostgreSQLAdapter extends DatabaseService {
           errorDetail: error.detail,
           errorHint: error.hint,
           table: table,
-          constraint: error.constraint
-        }
+          constraint: error.constraint,
+        },
       );
     }
   }
@@ -459,7 +466,9 @@ class PostgreSQLAdapter extends DatabaseService {
             result = await client.query(sql, params);
             await client.query('COMMIT');
           } catch (inner) {
-            try { await client.query('ROLLBACK'); } catch {}
+            try {
+              await client.query('ROLLBACK');
+            } catch {}
             throw inner;
           }
         } finally {
@@ -468,7 +477,7 @@ class PostgreSQLAdapter extends DatabaseService {
       } else {
         result = await pool.query(sql, params);
       }
-      
+
       if (result.rows.length === 0) {
         throw new AppError(`${table} not found`, 404, AppError.CODES.NOT_FOUND);
       }
@@ -478,12 +487,9 @@ class PostgreSQLAdapter extends DatabaseService {
         throw error;
       }
       this.logger?.error('Update failed', error, { table, id });
-      throw new AppError(
-        `Failed to update ${table}`,
-        500,
-        AppError.CODES.DATABASE_ERROR,
-        { originalError: error.message }
-      );
+      throw new AppError(`Failed to update ${table}`, 500, AppError.CODES.DATABASE_ERROR, {
+        originalError: error.message,
+      });
     }
   }
 
@@ -516,7 +522,9 @@ class PostgreSQLAdapter extends DatabaseService {
             result = await client.query(sql, [id, userId]);
             await client.query('COMMIT');
           } catch (inner) {
-            try { await client.query('ROLLBACK'); } catch {}
+            try {
+              await client.query('ROLLBACK');
+            } catch {}
             throw inner;
           }
         } finally {
@@ -534,12 +542,9 @@ class PostgreSQLAdapter extends DatabaseService {
         throw error;
       }
       this.logger?.error('Delete failed', error, { table, id });
-      throw new AppError(
-        `Failed to delete from ${table}`,
-        500,
-        AppError.CODES.DATABASE_ERROR,
-        { originalError: error.message }
-      );
+      throw new AppError(`Failed to delete from ${table}`, 500, AppError.CODES.DATABASE_ERROR, {
+        originalError: error.message,
+      });
     }
   }
 }

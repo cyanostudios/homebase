@@ -9,6 +9,7 @@ const settingsRoutes = require('./settings');
 const activityLogRoutes = require('./activityLog');
 const fxRoutes = require('./fx');
 const { startCategoryCacheScheduler } = require('../categoryCacheScheduler');
+const { startOrderSyncScheduler } = require('../../../plugins/orders/orderSyncScheduler');
 
 /**
  * Setup all core routes
@@ -52,6 +53,9 @@ function setupCoreRoutes(app, dependencies) {
 
   // Start category cache scheduler (CDON/Fyndiq/Woo categories, every 4h)
   startCategoryCacheScheduler(pool);
+
+  // Order sync for all users with orders plugin (every 15 min, same as SYNC_INTERVAL_MINUTES)
+  startOrderSyncScheduler(pool);
 }
 
 module.exports = { setupCoreRoutes };

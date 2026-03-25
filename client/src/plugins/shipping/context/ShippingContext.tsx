@@ -6,10 +6,16 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import {
+  getAppCurrentPage,
+  isShippingBootstrapPage,
+  subscribeAppCurrentPage,
+} from '@/core/navigation/appCurrentPageStore';
 
 import { shippingApi } from '../api/shippingApi';
 import { ShippingBookModal } from '../components/ShippingBookModal';
@@ -58,7 +64,7 @@ interface ShippingContextType {
   updateService: (id: string, data: Partial<ShippingServicePreset>) => Promise<void>;
   deleteService: (id: string) => Promise<void>;
 
-  openBookModal: (orderIds: string[]) => void;
+  openBookModal: (orderIds: string[]) => Promise<void>;
   closeBookModal: () => void;
   setWeightForOrder: (orderId: string, weightKg: number) => void;
   bookPostnord: (payload: {
@@ -78,6 +84,12 @@ interface ProviderProps {
 
 export function ShippingProvider({ children, isAuthenticated, onCloseOtherPanels }: ProviderProps) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const activePage = useSyncExternalStore(
+    subscribeAppCurrentPage,
+    getAppCurrentPage,
+    getAppCurrentPage,
+  );
+  const shouldBootstrapShipping = isAuthenticated && isShippingBootstrapPage(activePage);
 
   const [isShippingPanelOpen, setIsShippingPanelOpen] = useState(false);
   const [currentShippingSettings, setCurrentShippingSettings] = useState<ShippingSettings | null>(
@@ -97,32 +109,33 @@ export function ShippingProvider({ children, isAuthenticated, onCloseOtherPanels
   const [weightsKgByOrder, setWeightsKgByOrder] = useState<Record<string, number>>({});
   const [recentServiceIds, setRecentServiceIds] = useState<string[]>([]);
 
+  const loadShippingInflightRef = useRef<Promise<void> | null>(null);
+
   const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
 
   const loadShippingData = useCallback(async () => {
-    const [settingsData, senderData, serviceData] = await Promise.all([
-      shippingApi.getSettings(),
-      shippingApi.listSenders(),
-      shippingApi.listServices(),
-    ]);
-    setSettings(settingsData);
-    setCurrentShippingSettings(settingsData);
-    setSenders(Array.isArray(senderData) ? senderData : []);
-    setServices(Array.isArray(serviceData) ? serviceData : []);
+    if (loadShippingInflightRef.current) {
+      return loadShippingInflightRef.current;
+    }
+    const run = (async () => {
+      const [settingsData, senderData, serviceData] = await Promise.all([
+        shippingApi.getSettings(),
+        shippingApi.listSenders(),
+        shippingApi.listServices(),
+      ]);
+      setSettings(settingsData);
+      setCurrentShippingSettings(settingsData);
+      setSenders(Array.isArray(senderData) ? senderData : []);
+      setServices(Array.isArray(serviceData) ? serviceData : []);
+    })();
+    loadShippingInflightRef.current = run.finally(() => {
+      loadShippingInflightRef.current = null;
+    });
+    return loadShippingInflightRef.current;
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadShippingData().catch((error) => {
-        console.error('Failed to load shipping data:', error);
-      });
-      try {
-        const parsed = JSON.parse(localStorage.getItem(RECENT_SERVICES_KEY) || '[]');
-        setRecentServiceIds(Array.isArray(parsed) ? parsed.map((v) => String(v)) : []);
-      } catch {
-        setRecentServiceIds([]);
-      }
-    } else {
+    if (!isAuthenticated) {
       setSettings(null);
       setCurrentShippingSettings(null);
       setSenders([]);
@@ -130,8 +143,21 @@ export function ShippingProvider({ children, isAuthenticated, onCloseOtherPanels
       setSelectedOrderIds([]);
       setWeightsKgByOrder({});
       setRecentServiceIds([]);
+      return;
     }
-  }, [isAuthenticated, loadShippingData]);
+    if (!shouldBootstrapShipping) {
+      return;
+    }
+    loadShippingData().catch((error) => {
+      console.error('Failed to load shipping data:', error);
+    });
+    try {
+      const parsed = JSON.parse(localStorage.getItem(RECENT_SERVICES_KEY) || '[]');
+      setRecentServiceIds(Array.isArray(parsed) ? parsed.map((v) => String(v)) : []);
+    } catch {
+      setRecentServiceIds([]);
+    }
+  }, [isAuthenticated, shouldBootstrapShipping, loadShippingData]);
 
   const closeBookModal = useCallback(() => {
     setIsShippingBookModalOpen(false);
@@ -257,7 +283,18 @@ export function ShippingProvider({ children, isAuthenticated, onCloseOtherPanels
   }, []);
 
   const openBookModal = useCallback(
-    (orderIds: string[]) => {
+    async (orderIds: string[]) => {
+      try {
+        await loadShippingData();
+      } catch (error) {
+        console.error('Failed to load shipping data before booking:', error);
+      }
+      try {
+        const parsed = JSON.parse(localStorage.getItem(RECENT_SERVICES_KEY) || '[]');
+        setRecentServiceIds(Array.isArray(parsed) ? parsed.map((v) => String(v)) : []);
+      } catch {
+        setRecentServiceIds([]);
+      }
       const ids = Array.isArray(orderIds) ? orderIds.map(String) : [];
       setSelectedOrderIds(ids);
       const nextWeights: Record<string, number> = {};
@@ -269,7 +306,7 @@ export function ShippingProvider({ children, isAuthenticated, onCloseOtherPanels
       setValidationErrors([]);
       onCloseOtherPanels();
     },
-    [onCloseOtherPanels],
+    [loadShippingData, onCloseOtherPanels],
   );
 
   const setWeightForOrder = useCallback((orderId: string, weightKg: number) => {

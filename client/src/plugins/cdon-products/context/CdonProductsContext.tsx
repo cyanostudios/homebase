@@ -5,10 +5,16 @@ import React, {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import {
+  getAppCurrentPage,
+  isEcommerceCatalogBootstrapPage,
+  subscribeAppCurrentPage,
+} from '@/core/navigation/appCurrentPageStore';
 
 import { cdonApi } from '../api/cdonApi';
 import type {
@@ -71,7 +77,16 @@ export function CdonProductsProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: ProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, user } = useApp();
+  const activePage = useSyncExternalStore(
+    subscribeAppCurrentPage,
+    getAppCurrentPage,
+    getAppCurrentPage,
+  );
+  const shouldBootstrap =
+    isAuthenticated &&
+    !!user?.plugins?.includes('cdon-products') &&
+    isEcommerceCatalogBootstrapPage(activePage);
 
   const [isCdonProductsPanelOpen, setIsCdonProductsPanelOpen] = useState(false);
   const [currentCdonSettings, setCurrentCdonSettings] = useState<CdonSettings | null>(null);
@@ -155,13 +170,13 @@ export function CdonProductsProvider({
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (shouldBootstrap) {
       loadCdonSettings();
-    } else {
+    } else if (!isAuthenticated) {
       setSettings(null);
       setCurrentCdonSettings(null);
     }
-  }, [isAuthenticated, loadCdonSettings]);
+  }, [isAuthenticated, shouldBootstrap, loadCdonSettings]);
 
   // Register panel close for generic panel system
   useEffect(() => {

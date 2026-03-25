@@ -4,6 +4,26 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-25 – Order sync scheduler, manuell Sync orders, force quick-sync
+
+### Server – periodisk order-synk
+
+- **plugins/orders/orderSyncScheduler.js:** Scheduler som för alla användare med `user_plugin_access` (orders, enabled) kör `orderSyncService.runSync` med syntetisk `req` (samma tenant-resolution som middleware via **server/core/helpers/resolveTenantForUser.js**). Intervall = `SYNC_INTERVAL_MINUTES` (15), första körning efter 10 s, sedan var 15:e minut. Fel per användare loggas utan att stoppa övriga.
+- **server/core/routes/index.js:** `startOrderSyncScheduler(pool)` startas vid serverstart (samma mönster som FX och category-cache).
+- **plugins/orders/orderSyncService.js:** Exporterar `SYNC_INTERVAL_MINUTES` för scheduler.
+- **server/migrations/079-orders-sync-fingerprint-and-channel-map-index.sql:** Index/stöd för orders sync-data och snabbare uppslag.
+
+### API – force quick-sync
+
+- **plugins/orders/controller.js:** `POST /api/orders/sync` accepterar `force=true` (query eller body) och hoppar då över `shouldRunQuickSync`; `locked` gäller fortfarande.
+
+### Klient
+
+- **client/…/ordersApi.ts:** `sync({ force?: true })` skickar body `{ force: true }` vid behov.
+- **client/…/OrdersList.tsx:** Auto-synk vid öppning borttagen. Ny knapp **Sync orders** som anropar `sync({ force: true })` med samma polling/renumber/reload som tidigare.
+
+---
+
 ## 2026-03-14 – Navigering-store, analytics-gating, cache/fetch-optimering
 
 ### Navigering och analytics bootstrap

@@ -46,9 +46,15 @@ import {
   useEffect,
   useCallback,
   useRef,
+  useSyncExternalStore,
   ReactNode,
 } from 'react';
 
+import {
+  getAppCurrentPage,
+  isNotesTasksBootstrapPage,
+  subscribeAppCurrentPage,
+} from '@/core/navigation/appCurrentPageStore';
 import { Contact } from '@/plugins/contacts/types/contacts';
 import { Estimate } from '@/plugins/estimates/types/estimate';
 import { Note } from '@/plugins/notes/types/notes';
@@ -300,6 +306,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
     queueMicrotask(() => setOpenToTaskDialog(() => fn));
   }, []);
 
+  const activePage = useSyncExternalStore(
+    subscribeAppCurrentPage,
+    getAppCurrentPage,
+    getAppCurrentPage,
+  );
+  const shouldBootstrapNotesTasks = isAuthenticated && isNotesTasksBootstrapPage(activePage);
+
+  const loadContactsOnly = useCallback(async () => {
+    try {
+      const contactsData = await api.getContacts();
+      const transformedContacts = contactsData.map((contact: any) => ({
+        ...contact,
+        createdAt: new Date(contact.createdAt),
+        updatedAt: new Date(contact.updatedAt),
+      }));
+      setContacts(transformedContacts);
+    } catch (error) {
+      console.error('Failed to load contacts:', error);
+    }
+  }, []);
+
+  const loadNotesAndTasks = useCallback(async () => {
+    try {
+      const [notesData, tasksData] = await Promise.all([api.getNotes(), api.getTasks()]);
+      const transformedNotes = notesData.map((note: any) => ({
+        ...note,
+        createdAt: new Date(note.createdAt),
+        updatedAt: new Date(note.updatedAt),
+      }));
+      const transformedTasks = tasksData.map((task: any) => ({
+        ...task,
+        assignedTo: task.assigned_to,
+        createdFromNote: task.created_from_note,
+        dueDate: task.due_date ? new Date(task.due_date) : null,
+        createdAt: new Date(task.created_at),
+        updatedAt: new Date(task.updated_at),
+      }));
+      setNotes(transformedNotes);
+      setTasks(transformedTasks);
+    } catch (error) {
+      console.error('Failed to load notes/tasks:', error);
+    }
+  }, []);
+
   useEffect(() => {
     if (authCheckDoneThisLoad) {
       return;
@@ -309,14 +359,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadData();
-    } else {
+    if (!isAuthenticated) {
       setContacts([]);
       setNotes([]);
       setTasks([]);
+      return;
     }
-  }, [isAuthenticated]);
+    void loadContactsOnly();
+  }, [isAuthenticated, loadContactsOnly]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !shouldBootstrapNotesTasks) {
+      return;
+    }
+    void loadNotesAndTasks();
+  }, [isAuthenticated, shouldBootstrapNotesTasks, loadNotesAndTasks]);
 
   const checkAuth = async () => {
     // Guard: if a check is already in flight, ignore this call
@@ -379,44 +436,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loadData = async () => {
-    try {
-      // Priority 1: contacts (critical for first screen / lists)
-      const contactsData = await api.getContacts();
-      const transformedContacts = contactsData.map((contact: any) => ({
-        ...contact,
-        createdAt: new Date(contact.createdAt),
-        updatedAt: new Date(contact.updatedAt),
-      }));
-      setContacts(transformedContacts);
-
-      // Priority 2: notes and tasks in background
-      const [notesData, tasksData] = await Promise.all([api.getNotes(), api.getTasks()]);
-      const transformedNotes = notesData.map((note: any) => ({
-        ...note,
-        createdAt: new Date(note.createdAt),
-        updatedAt: new Date(note.updatedAt),
-      }));
-      const transformedTasks = tasksData.map((task: any) => ({
-        ...task,
-        assignedTo: task.assigned_to,
-        createdFromNote: task.created_from_note,
-        dueDate: task.due_date ? new Date(task.due_date) : null,
-        createdAt: new Date(task.created_at),
-        updatedAt: new Date(task.updated_at),
-      }));
-      setNotes(transformedNotes);
-      setTasks(transformedTasks);
-    } catch (error) {
-      console.error('Failed to load data:', error);
+  const refreshData = useCallback(async () => {
+    if (!isAuthenticated) {
+      return;
     }
-  };
-
-  const refreshData = async () => {
-    if (isAuthenticated) {
-      await loadData();
-    }
-  };
+    await loadContactsOnly();
+    await loadNotesAndTasks();
+  }, [isAuthenticated, loadContactsOnly, loadNotesAndTasks]);
 
   const login = async (
     email: string,

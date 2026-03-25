@@ -96,6 +96,192 @@ class ProductModel {
     }
   }
 
+  /**
+   * Paginated list with search (q), list filter, sort. Same row shape as getAll.
+   * @param {object} options
+   * @param {number} options.limit
+   * @param {number} options.offset
+   * @param {string} [options.sort]
+   * @param {string} [options.order] asc|desc
+   * @param {string|null} [options.q]
+   * @param {string} [options.list] all|main|<listId>
+   */
+  async list(req, options = {}) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      }
+
+      const limit = options.limit;
+      const offset = options.offset;
+      const sortKey = options.sort || 'id';
+      const orderAsc = String(options.order || 'asc').toLowerCase() !== 'desc';
+      const orderSql = orderAsc ? 'ASC' : 'DESC';
+      const qRaw =
+        options.q != null && String(options.q).trim() !== '' ? String(options.q).trim() : null;
+      const listMode = options.list != null ? String(options.list).trim().toLowerCase() : 'all';
+
+      const sortMap = {
+        id: 'p.id',
+        title: 'p.title',
+        quantity: 'p.quantity',
+        priceAmount: 'p.price_amount',
+        sku: 'p.sku',
+      };
+      const orderCol = sortMap[sortKey] || 'p.id';
+
+      const clauses = ['p.user_id = $1'];
+      const params = [userId];
+
+      if (listMode === 'main') {
+        clauses.push(`NOT EXISTS (
+          SELECT 1 FROM product_list_items pli
+          WHERE pli.product_id = p.id AND pli.user_id = $1
+        )`);
+      } else if (listMode && listMode !== 'all') {
+        const listId = parseInt(listMode, 10);
+        if (!Number.isFinite(listId)) {
+          throw new AppError('Invalid list filter', 400, AppError.CODES.VALIDATION_ERROR);
+        }
+        params.push(listId);
+        const listParamIdx = params.length;
+        clauses.push(`EXISTS (
+          SELECT 1 FROM product_list_items pli
+          WHERE pli.product_id = p.id AND pli.user_id = $1 AND pli.list_id = $${listParamIdx}
+        )`);
+      }
+
+      if (qRaw) {
+        const ql = String(qRaw).toLowerCase();
+        params.push(ql);
+        const qIdx = params.length;
+        clauses.push(`(
+          position($${qIdx} in lower(coalesce(p.title, ''))) > 0 OR
+          position($${qIdx} in lower(coalesce(p.sku, ''))) > 0 OR
+          position($${qIdx} in lower(coalesce(p.mpn, ''))) > 0 OR
+          position($${qIdx} in lower(cast(p.id as text))) > 0
+        )`);
+      }
+
+      params.push(limit);
+      const limitIdx = params.length;
+      params.push(offset);
+      const offsetIdx = params.length;
+
+      const countSql = `
+        SELECT COUNT(*)::int AS total
+        FROM ${ProductModel.TABLE} p
+        WHERE ${clauses.join(' AND ')}
+      `;
+
+      const dataSql = `
+        SELECT
+          p.id,
+          p.user_id,
+          p.sku,
+          p.mpn,
+          p.title,
+          p.description,
+          p.status,
+          p.quantity,
+          p.price_amount,
+          p.currency,
+          p.vat_rate,
+          p.main_image,
+          p.images,
+          p.categories,
+          p.brand,
+          p.brand_id,
+          p.ean,
+          p.gtin,
+          p.kn_number,
+          p.supplier_id,
+          p.manufacturer_id,
+          p.channel_specific,
+          p.purchase_price,
+          p.lagerplats,
+          p.condition,
+          p.group_id,
+          p.volume,
+          p.volume_unit,
+          p.notes,
+          p.private_name,
+          p.color,
+          p.color_text,
+          p.size,
+          p.size_text,
+          p.pattern,
+          p.material,
+          p.pattern_text,
+          p.model,
+          p.parent_product_id,
+          p.group_variation_type,
+          p.weight,
+          p.length_cm,
+          p.width_cm,
+          p.height_cm,
+          p.depth_cm,
+          p.source_created_at,
+          p.quantity_sold,
+          p.last_sold_at,
+          p.created_at,
+          p.updated_at,
+          b.name AS brand_name,
+          s.name AS supplier_name,
+          m.name AS manufacturer_name,
+          pli.list_id AS list_id,
+          l.name AS list_name
+        FROM ${ProductModel.TABLE} p
+        LEFT JOIN brands b ON b.id = p.brand_id
+        LEFT JOIN suppliers s ON s.id = p.supplier_id
+        LEFT JOIN manufacturers m ON m.id = p.manufacturer_id
+        LEFT JOIN product_list_items pli ON pli.product_id = p.id AND pli.user_id = p.user_id
+        LEFT JOIN lists l ON l.id = pli.list_id
+        WHERE ${clauses.join(' AND ')}
+        ORDER BY ${orderCol} ${orderSql}, p.id ASC
+        LIMIT $${limitIdx}
+        OFFSET $${offsetIdx}
+      `;
+
+      const countParams = params.slice(0, params.length - 2);
+      const [countRes, dataRes] = await Promise.all([
+        db.query(countSql, countParams),
+        db.query(dataSql, params),
+      ]);
+      const total = (countRes[0]?.total ?? 0) || 0;
+      const items = dataRes.map((row) => this.transformRow(row));
+      return { items, total };
+    } catch (error) {
+      Logger.error('Failed to list products', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to fetch products', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
+  async countForUser(req) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+      }
+      const sql = `SELECT COUNT(*)::int AS c FROM ${ProductModel.TABLE} WHERE user_id = $1`;
+      const rows = await db.query(sql, [userId]);
+      const n = rows?.[0]?.c;
+      return Number.isFinite(Number(n)) ? Number(n) : 0;
+    } catch (error) {
+      Logger.error('Failed to count products', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to count products', 500, AppError.CODES.DATABASE_ERROR);
+    }
+  }
+
   async getById(req, productId) {
     try {
       const db = Database.get(req);

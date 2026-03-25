@@ -4,10 +4,16 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useSyncExternalStore,
   ReactNode,
 } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import {
+  getAppCurrentPage,
+  isInspectionBootstrapPage,
+  subscribeAppCurrentPage,
+} from '@/core/navigation/appCurrentPageStore';
 
 import { inspectionApi } from '../api/inspectionApi';
 import type { InspectionProject } from '../types/inspection';
@@ -50,6 +56,12 @@ export function InspectionProvider({
   onCloseOtherPanels,
 }: InspectionProviderProps) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const activePage = useSyncExternalStore(
+    subscribeAppCurrentPage,
+    getAppCurrentPage,
+    getAppCurrentPage,
+  );
+  const shouldBootstrapInspection = isAuthenticated && isInspectionBootstrapPage(activePage);
 
   const [isInspectionPanelOpen, setIsInspectionPanelOpen] = useState(false);
   const [currentInspectionProject, setCurrentInspectionProject] =
@@ -80,16 +92,6 @@ export function InspectionProvider({
     };
   }, []);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadProjects();
-    } else {
-      setInspectionProjects([]);
-      setProjectsLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadProjects stable, intentional deps
-  }, [isAuthenticated]);
-
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true);
     try {
@@ -104,27 +106,48 @@ export function InspectionProvider({
     }
   }, []);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setInspectionProjects([]);
+      setProjectsLoading(false);
+      return;
+    }
+    if (!shouldBootstrapInspection) {
+      return;
+    }
+    void loadProjects();
+  }, [isAuthenticated, shouldBootstrapInspection, loadProjects]);
+
   const openInspectionPanel = useCallback(
     (project: InspectionProject | null) => {
+      void loadProjects();
       onCloseOtherPanels();
       setCurrentInspectionProject(project);
       setPanelMode(project ? 'edit' : 'create');
       setIsInspectionPanelOpen(true);
     },
-    [onCloseOtherPanels],
+    [onCloseOtherPanels, loadProjects],
   );
 
-  const openInspectionForEdit = useCallback((project: InspectionProject) => {
-    setCurrentInspectionProject(project);
-    setPanelMode('edit');
-    setIsInspectionPanelOpen(true);
-  }, []);
+  const openInspectionForEdit = useCallback(
+    (project: InspectionProject) => {
+      void loadProjects();
+      setCurrentInspectionProject(project);
+      setPanelMode('edit');
+      setIsInspectionPanelOpen(true);
+    },
+    [loadProjects],
+  );
 
-  const openInspectionForView = useCallback((project: InspectionProject) => {
-    setCurrentInspectionProject(project);
-    setPanelMode('view');
-    setIsInspectionPanelOpen(true);
-  }, []);
+  const openInspectionForView = useCallback(
+    (project: InspectionProject) => {
+      void loadProjects();
+      setCurrentInspectionProject(project);
+      setPanelMode('view');
+      setIsInspectionPanelOpen(true);
+    },
+    [loadProjects],
+  );
 
   const closeInspectionPanel = useCallback(() => {
     setIsInspectionPanelOpen(false);

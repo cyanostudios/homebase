@@ -1113,7 +1113,9 @@ class CdonProductsController {
           if (diagnoseTrace) {
             diagnoseTrace.perProduct[p.productId] = {
               ok: true,
-              exportMode: mappedArticlesByProductId.has(String(p.productId)) ? 'update_article' : 'create',
+              exportMode: mappedArticlesByProductId.has(String(p.productId))
+                ? 'update_article'
+                : 'create',
               payloadMarkets: [...(article.markets || [])],
               payloadCategory: article.category || null,
               sku: article.sku,
@@ -1236,7 +1238,9 @@ class CdonProductsController {
         createJson = createResult.json;
         if (!createResp.ok) {
           const message =
-            (createJson && createJson.message) != null ? createJson.message : createText || createResp.statusText;
+            (createJson && createJson.message) != null
+              ? createJson.message
+              : createText || createResp.statusText;
           Logger.error('CDON articles/bulk create failed', {
             status: createResp.status,
             message,
@@ -1266,7 +1270,9 @@ class CdonProductsController {
         updateJson = updateResult.json;
         if (!updateResp.ok) {
           const message =
-            (updateJson && updateJson.message) != null ? updateJson.message : updateText || updateResp.statusText;
+            (updateJson && updateJson.message) != null
+              ? updateJson.message
+              : updateText || updateResp.statusText;
           Logger.error('CDON articles/bulk update failed', {
             status: updateResp.status,
             message,
@@ -1393,7 +1399,10 @@ class CdonProductsController {
     }
   }
 
-  validateCdonUpdateActionEnvelope(action, allowedActions = ['update_article_price', 'update_article_quantity']) {
+  validateCdonUpdateActionEnvelope(
+    action,
+    allowedActions = ['update_article_price', 'update_article_quantity'],
+  ) {
     if (!action || typeof action !== 'object' || Array.isArray(action)) {
       return { ok: false, reason: 'invalid_action_envelope' };
     }
@@ -2107,16 +2116,24 @@ class CdonProductsController {
   /**
    * Internal: sync open CDON orders (CREATED, ACCEPTED). Doc: state, limit, page. One API object = one order.
    */
-  async syncOpenOrders(req) {
-    const settings = await this.model.getSettings(req);
+  async syncOpenOrders(req, settingsOverride = null) {
+    const settings = settingsOverride || (await this.model.getSettings(req));
     const merchantId = String(settings?.apiKey ?? '').trim();
     const apiToken = String(settings?.apiSecret ?? '').trim();
     if (!settings || !merchantId || !apiToken) {
-      return { fetched: 0, created: 0 };
+      return {
+        fetched: 0,
+        created: 0,
+        changed: 0,
+        skipped: 0,
+        inventoryUpdatedProducts: 0,
+        pagesFetched: 0,
+      };
     }
 
     const limit = 100;
     const allOrders = [];
+    let pagesFetched = 0;
     for (const state of CdonProductsController.CDON_ORDER_OPEN_STATES) {
       let page = 1;
       let hasMore = true;
@@ -2130,23 +2147,56 @@ class CdonProductsController {
         }
         const items = Array.isArray(json) ? json : [];
         allOrders.push(...items);
+        pagesFetched += 1;
         hasMore = items.length >= limit;
         page += 1;
       }
     }
 
-    let created = 0;
+    const productIdBySku = await this.ordersModel.loadProductIdsByNumericSku(
+      req,
+      allOrders.map((o) => o?.article_sku),
+    );
+    const normalizedOrders = [];
     for (const o of allOrders) {
       if (o == null || o.id == null) continue;
-      const normalized = await this.normalizeCdonOrderToHomebase(o, req);
-      if (!normalized) continue;
-      const ingestRes = await this.ordersModel.ingest(req, normalized);
-      if (ingestRes.created) created += 1;
-      if (ingestRes.created && ingestRes.orderId) {
-        await this.applyInventoryFromOrderId(req, ingestRes.orderId).catch(() => {});
+      const normalized = await this.normalizeCdonOrderToHomebase(o, req, { productIdBySku });
+      if (normalized) normalizedOrders.push(normalized);
+    }
+
+    let created = 0;
+    let changed = 0;
+    let skipped = 0;
+    const inventoryAdjustments = new Map();
+    for (const chunk of this.ordersModel.chunkArray(normalizedOrders)) {
+      const ingestRes = await this.ordersModel.ingestBatch(req, chunk);
+      created += ingestRes.createdCount;
+      changed += ingestRes.changedCount;
+      skipped += ingestRes.skippedCount;
+      for (const adj of ingestRes.inventoryAdjustments || []) {
+        const pid = Number(adj?.productId);
+        const qty = Number(adj?.quantity);
+        if (!Number.isFinite(pid) || !Number.isFinite(qty) || qty <= 0) continue;
+        inventoryAdjustments.set(pid, (inventoryAdjustments.get(pid) || 0) + qty);
       }
     }
-    return { fetched: allOrders.length, created };
+
+    await this.applyInventoryAdjustments(
+      req,
+      Array.from(inventoryAdjustments.entries()).map(([productId, quantity]) => ({
+        productId,
+        quantity,
+      })),
+    ).catch(() => {});
+
+    return {
+      fetched: allOrders.length,
+      created,
+      changed,
+      skipped,
+      inventoryUpdatedProducts: inventoryAdjustments.size,
+      pagesFetched,
+    };
   }
 
   /**
@@ -2197,26 +2247,56 @@ class CdonProductsController {
         }
       }
 
-      const results = [];
+      const productIdBySku = await this.ordersModel.loadProductIdsByNumericSku(
+        req,
+        allOrders.map((o) => o?.article_sku),
+      );
+      const normalizedOrders = [];
+      const channelOrderIds = [];
       for (const o of allOrders) {
         if (o == null || o.id == null) continue;
-        const normalized = await this.normalizeCdonOrderToHomebase(o, req);
+        const normalized = await this.normalizeCdonOrderToHomebase(o, req, { productIdBySku });
         if (!normalized) continue;
-        const ingestRes = await this.ordersModel.ingest(req, normalized);
-        if (ingestRes.created && ingestRes.orderId) {
-          await this.applyInventoryFromOrderId(req, ingestRes.orderId).catch((err) => {
-            Logger.warn('Inventory sync failed (non-fatal)', err, { orderId: ingestRes.orderId });
-          });
-        }
-        results.push({ channelOrderId: String(o.id), ...ingestRes });
+        normalizedOrders.push(normalized);
+        channelOrderIds.push(String(o.id));
       }
+
+      const results = [];
+      const inventoryAdjustments = new Map();
+      let cursor = 0;
+      for (const chunk of this.ordersModel.chunkArray(normalizedOrders)) {
+        const ingestRes = await this.ordersModel.ingestBatch(req, chunk);
+        chunk.forEach((_, chunkIdx) => {
+          const result = ingestRes.results[chunkIdx];
+          results.push({ channelOrderId: channelOrderIds[cursor + chunkIdx], ...result });
+        });
+        cursor += chunk.length;
+        for (const adj of ingestRes.inventoryAdjustments || []) {
+          const pid = Number(adj?.productId);
+          const qty = Number(adj?.quantity);
+          if (!Number.isFinite(pid) || !Number.isFinite(qty) || qty <= 0) continue;
+          inventoryAdjustments.set(pid, (inventoryAdjustments.get(pid) || 0) + qty);
+        }
+      }
+
+      await this.applyInventoryAdjustments(
+        req,
+        Array.from(inventoryAdjustments.entries()).map(([productId, quantity]) => ({
+          productId,
+          quantity,
+        })),
+      ).catch((err) => {
+        Logger.warn('Inventory sync failed (non-fatal)', err, { userId: Context.getUserId(req) });
+      });
 
       return res.json({
         ok: true,
         fetched: allOrders.length,
         ingested: results.length,
         created: results.filter((r) => r.created).length,
-        skippedExisting: results.filter((r) => !r.created).length,
+        changed: results.filter((r) => r.changed).length,
+        skippedExisting: results.filter((r) => r.unchanged).length,
+        inventoryUpdatedProducts: inventoryAdjustments.size,
         results,
       });
     } catch (error) {
@@ -2232,11 +2312,9 @@ class CdonProductsController {
    * Doc: id, article_sku, title/article_title, price { amount, vat_amount, vat_rate, currency }, total_price, quantity,
    * shipping_address { first_name, last_name, full_name, street_address, city, postal_code, country, phone_number }, market, state, created_at.
    */
-  async normalizeCdonOrderToHomebase(o, req) {
+  async normalizeCdonOrderToHomebase(o, req, { productIdBySku = null } = {}) {
     if (o == null || o.id == null) return null;
     const channelOrderId = String(o.id);
-    const db = Database.get(req);
-    const userId = req.session?.user?.id;
 
     let placedAt = o.created_at != null ? String(o.created_at).trim() : null;
     if (
@@ -2292,14 +2370,10 @@ class CdonProductsController {
           : null;
 
     const sku = o.article_sku != null ? String(o.article_sku).trim() : null;
-    let platformProductId = null;
-    if (userId && sku) {
-      const mapRes = await db.query(
-        `SELECT id::text AS product_id FROM products WHERE user_id = $1 AND id::text = $2 LIMIT 1`,
-        [userId, sku],
-      );
-      if (mapRes.length) platformProductId = String(mapRes[0].product_id);
-    }
+    const platformProductId =
+      sku && productIdBySku instanceof Map && productIdBySku.has(sku)
+        ? productIdBySku.get(sku) || null
+        : null;
 
     const title =
       o.title != null || o.article_title != null ? String(o.title || o.article_title).trim() : null;
@@ -2340,6 +2414,27 @@ class CdonProductsController {
     return 'processing';
   }
 
+  async applyInventoryAdjustments(req, adjustments) {
+    const db = Database.get(req);
+    const userId = req.session?.user?.id;
+    if (!userId || !Array.isArray(adjustments) || adjustments.length === 0) return;
+
+    for (const adj of adjustments) {
+      const pid = adj?.productId != null ? Number(adj.productId) : null;
+      const qty = Number(adj?.quantity);
+      if (pid == null || !Number.isFinite(pid) || !Number.isFinite(qty) || qty <= 0) continue;
+      await db.query(
+        `
+        UPDATE products
+        SET quantity = GREATEST(quantity - $3, 0),
+            updated_at = NOW()
+        WHERE user_id = $1 AND id = $2
+        `,
+        [userId, pid, Math.trunc(qty)],
+      );
+    }
+  }
+
   async applyInventoryFromOrderId(req, orderId) {
     const db = Database.get(req);
     const userId = req.session?.user?.id;
@@ -2365,17 +2460,10 @@ class CdonProductsController {
       }
     }
 
-    for (const [pid, qty] of byProductId.entries()) {
-      await db.query(
-        `
-        UPDATE products
-        SET quantity = GREATEST(quantity - $3, 0),
-            updated_at = NOW()
-        WHERE user_id = $1 AND id = $2
-        `,
-        [userId, pid, qty],
-      );
-    }
+    await this.applyInventoryAdjustments(
+      req,
+      Array.from(byProductId.entries()).map(([productId, quantity]) => ({ productId, quantity })),
+    );
   }
 }
 

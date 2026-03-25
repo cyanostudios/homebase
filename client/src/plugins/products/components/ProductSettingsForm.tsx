@@ -9,12 +9,16 @@ import { useApp } from '@/core/api/AppContext';
 import { Heading } from '@/core/ui/Typography';
 
 import { productsApi } from '../api/productsApi';
-import type {
-  ProductSettings,
-  ProductSettingsCdonMarketKey,
-  ProductSettingsFyndiqMarketKey,
-  MarketDelivery,
-  CategoryLanguage,
+import {
+  CATALOG_PAGE_SIZE_OPTIONS,
+  DEFAULT_CATALOG_PAGE_SIZE,
+  normalizeCatalogPageSize,
+  type ProductSettings,
+  type ProductSettingsCdonMarketKey,
+  type ProductSettingsFyndiqMarketKey,
+  type MarketDelivery,
+  type CategoryLanguage,
+  type CatalogPageSize,
 } from '../types/products';
 
 const CDON_MARKETS: { key: ProductSettingsCdonMarketKey; label: string }[] = [
@@ -68,6 +72,8 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
       >,
   );
   const [categoryLanguage, setCategoryLanguage] = useState<CategoryLanguage>('sv-SE');
+  const [catalogPageSize, setCatalogPageSize] =
+    useState<CatalogPageSize>(DEFAULT_CATALOG_PAGE_SIZE);
   const [selloApiKey, setSelloApiKey] = useState('');
   const [selloConnected, setSelloConnected] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -118,6 +124,7 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
             ? lang
             : 'sv-SE',
         );
+        setCatalogPageSize(normalizeCatalogPageSize(s?.catalogPageSize));
         setSelloApiKey(String(sello?.apiKey || ''));
         setSelloConnected(!!sello?.connected);
         setErrorMessage(null);
@@ -135,6 +142,7 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
           >,
         );
         setCategoryLanguage('sv-SE');
+        setCatalogPageSize(DEFAULT_CATALOG_PAGE_SIZE);
         setSelloApiKey('');
         setSelloConnected(false);
         setErrorMessage('Kunde inte ladda alla produktinställningar.');
@@ -170,6 +178,7 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
           defaultDeliveryCdon: cdonData,
           defaultDeliveryFyndiq: fyndiqData,
           categoryLanguage,
+          catalogPageSize,
         }),
       ]);
       setSelloConnected(!!savedSello?.connected);
@@ -218,6 +227,37 @@ export const ProductSettingsForm: React.FC<ProductSettingsFormProps> = ({ onClos
           <div className="text-xs text-gray-600">
             Status: {selloConnected ? 'Connected' : 'Not connected'}
           </div>
+        </div>
+      </Card>
+
+      <Card padding="sm" className="shadow-none px-0">
+        <Heading level={3} className="mb-3">
+          Produktlista
+        </Heading>
+        <p className="text-sm text-gray-600 mb-4">
+          Antal produkter som laddas per sida i katalogen. Fler rader ger större svar från servern
+          och kan göra listan långsammare.
+        </p>
+        <div className="max-w-xs space-y-2">
+          <Label htmlFor="catalog-page-size">Produkter per sida</Label>
+          <select
+            id="catalog-page-size"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            value={catalogPageSize}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setCatalogPageSize(normalizeCatalogPageSize(v));
+            }}
+          >
+            {CATALOG_PAGE_SIZE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+            Högre värde kan ge längre laddningstider och mer data i webbläsaren per begäran.
+          </p>
         </div>
       </Card>
 

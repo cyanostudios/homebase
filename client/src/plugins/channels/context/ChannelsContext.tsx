@@ -5,10 +5,16 @@ import React, {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import {
+  getAppCurrentPage,
+  isEcommerceCatalogBootstrapPage,
+  subscribeAppCurrentPage,
+} from '@/core/navigation/appCurrentPageStore';
 
 import { channelsApi } from '../api/channelsApi';
 import type { ChannelSummary, ValidationError } from '../types/channels';
@@ -57,7 +63,16 @@ interface ProviderProps {
 }
 
 export function ChannelsProvider({ children, isAuthenticated, onCloseOtherPanels }: ProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
+  const { registerPanelCloseFunction, unregisterPanelCloseFunction, user } = useApp();
+  const activePage = useSyncExternalStore(
+    subscribeAppCurrentPage,
+    getAppCurrentPage,
+    getAppCurrentPage,
+  );
+  const shouldBootstrap =
+    isAuthenticated &&
+    !!user?.plugins?.includes('channels') &&
+    isEcommerceCatalogBootstrapPage(activePage);
 
   // Panel + data
   const [isChannelsPanelOpen, setIsChannelsPanelOpen] = useState(false);
@@ -81,14 +96,14 @@ export function ChannelsProvider({ children, isAuthenticated, onCloseOtherPanels
     }
   }, []);
 
-  // Load on auth
+  // Load when catalog bootstrap applies
   useEffect(() => {
-    if (isAuthenticated) {
+    if (shouldBootstrap) {
       loadChannels();
-    } else {
+    } else if (!isAuthenticated) {
       setChannels([]);
     }
-  }, [isAuthenticated, loadChannels]);
+  }, [isAuthenticated, shouldBootstrap, loadChannels]);
 
   // Register panel close with App
   useEffect(() => {

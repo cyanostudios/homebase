@@ -389,7 +389,9 @@ class FyndiqProductsController {
       const userId = req.session?.user?.id;
       if (!userId) return res.status(401).json({ error: 'User not authenticated' });
 
-      const diagnoseTrace = diagnose ? { productIds: [], overrideRows: [], mapRows: [], perProduct: {} } : null;
+      const diagnoseTrace = diagnose
+        ? { productIds: [], overrideRows: [], mapRows: [], perProduct: {} }
+        : null;
 
       // Load per-instance overrides (Selloklon): active/price/currency/category per market instance.
       const db = Database.get(req);
@@ -769,7 +771,8 @@ class FyndiqProductsController {
 
           // 409 = SKU already used: article exists on Fyndiq. Get article_id (from response or by SKU), then PUT to update article, price and quantity.
           if (!success && statusCode === 409 && payload) {
-            let articleId = r?.errors?.article_id != null ? String(r.errors.article_id).trim() : null;
+            let articleId =
+              r?.errors?.article_id != null ? String(r.errors.article_id).trim() : null;
             if (!articleId && payload.sku) {
               const getResp = await this.fyndiqRequest(
                 `/api/v1/articles/sku/${encodeURIComponent(String(payload.sku))}`,
@@ -782,14 +785,14 @@ class FyndiqProductsController {
               if (diagnoseTrace?.perProduct?.[productId]) {
                 diagnoseTrace.perProduct[productId].getBySku = {
                   status: getResp.resp?.status,
-                  hasArticleId: !!(getResp.json?.content?.article?.id),
+                  hasArticleId: !!getResp.json?.content?.article?.id,
                 };
               }
               Logger.info('Fyndiq GET by SKU (after 409)', {
                 productId,
                 sku: payload.sku,
                 getStatus: getResp.resp?.status,
-                hasArticleId: !!(getResp.json?.content?.article?.id),
+                hasArticleId: !!getResp.json?.content?.article?.id,
               });
               if (getResp.resp.ok && getResp.json?.content?.article?.id) {
                 articleId = String(getResp.json.content.article.id).trim();
@@ -817,7 +820,7 @@ class FyndiqProductsController {
                   articleId,
                   status: putResp.resp?.status,
                   ok: putOk,
-                  error: putOk ? null : (putResp.json?.description || putResp.json?.errors),
+                  error: putOk ? null : putResp.json?.description || putResp.json?.errors,
                 };
               }
               Logger.info('Fyndiq PUT (after 409)', {
@@ -825,13 +828,17 @@ class FyndiqProductsController {
                 articleId,
                 putStatus: putResp.resp?.status,
                 putOk,
-                putError: putOk ? null : (putResp.json?.description || putResp.json?.errors),
+                putError: putOk ? null : putResp.json?.description || putResp.json?.errors,
               });
               if (putOk) {
                 const { price, original_price } = payload;
                 if (includePriceAndQuantity && price && Array.isArray(price) && price.length > 0) {
                   const priceBody = { price };
-                  if (original_price && Array.isArray(original_price) && original_price.length > 0) {
+                  if (
+                    original_price &&
+                    Array.isArray(original_price) &&
+                    original_price.length > 0
+                  ) {
                     priceBody.original_price = original_price;
                   }
                   const priceResp = await this.fyndiqRequest(
@@ -851,7 +858,7 @@ class FyndiqProductsController {
                     diagnoseTrace.perProduct[productId].putPrice = {
                       status: priceResp.resp?.status,
                       ok: priceOk,
-                      error: priceOk ? null : (priceResp.json?.description || priceResp.json?.errors),
+                      error: priceOk ? null : priceResp.json?.description || priceResp.json?.errors,
                     };
                   }
                   if (!priceOk) {
@@ -885,14 +892,17 @@ class FyndiqProductsController {
                     diagnoseTrace.perProduct[productId].putQuantity = {
                       status: quantityResp.resp?.status,
                       ok: quantityOk,
-                      error:
-                        quantityOk ? null : (quantityResp.json?.description || quantityResp.json?.errors),
+                      error: quantityOk
+                        ? null
+                        : quantityResp.json?.description || quantityResp.json?.errors,
                     };
                   }
                   if (!quantityOk) {
                     errMsg =
                       quantityResp.json?.description ||
-                      (quantityResp.json?.errors ? JSON.stringify(quantityResp.json.errors) : null) ||
+                      (quantityResp.json?.errors
+                        ? JSON.stringify(quantityResp.json.errors)
+                        : null) ||
                       `Quantity update failed (${quantityResp.resp.status})`;
                     success = false;
                   }
@@ -965,7 +975,7 @@ class FyndiqProductsController {
               status: putResp.resp?.status,
               ok: putOk,
               shippingTime: articlePayload.shipping_time ?? null,
-              error: putOk ? null : (putResp.json?.description || putResp.json?.errors),
+              error: putOk ? null : putResp.json?.description || putResp.json?.errors,
             };
           }
           if (!putOk) {
@@ -985,7 +995,11 @@ class FyndiqProductsController {
           payload.price.length > 0
         ) {
           const priceBody = { price: payload.price };
-          if (payload.original_price && Array.isArray(payload.original_price) && payload.original_price.length > 0) {
+          if (
+            payload.original_price &&
+            Array.isArray(payload.original_price) &&
+            payload.original_price.length > 0
+          ) {
             priceBody.original_price = payload.original_price;
           }
           const priceResp = await this.fyndiqRequest(
@@ -998,14 +1012,12 @@ class FyndiqProductsController {
             },
           );
           const priceOk =
-            priceResp.resp.ok ||
-            priceResp.resp.status === 200 ||
-            priceResp.resp.status === 204;
+            priceResp.resp.ok || priceResp.resp.status === 200 || priceResp.resp.status === 204;
           if (diagnoseTrace?.perProduct?.[productId]) {
             diagnoseTrace.perProduct[productId].directPrice = {
               status: priceResp.resp?.status,
               ok: priceOk,
-              error: priceOk ? null : (priceResp.json?.description || priceResp.json?.errors),
+              error: priceOk ? null : priceResp.json?.description || priceResp.json?.errors,
             };
           }
           if (!priceOk) {
@@ -1041,7 +1053,9 @@ class FyndiqProductsController {
             diagnoseTrace.perProduct[productId].directQuantity = {
               status: quantityResp.resp?.status,
               ok: quantityOk,
-              error: quantityOk ? null : (quantityResp.json?.description || quantityResp.json?.errors),
+              error: quantityOk
+                ? null
+                : quantityResp.json?.description || quantityResp.json?.errors,
             };
           }
           if (!quantityOk) {
@@ -1361,9 +1375,9 @@ class FyndiqProductsController {
           .toLowerCase();
         return marketsFilter.includes(market);
       });
-      const targetMarkets = Array.from((targetMarketsByProduct.get(productId) || new Map()).values()).filter(
-        (entry) => marketsFilter.includes(entry.market),
-      );
+      const targetMarkets = Array.from(
+        (targetMarketsByProduct.get(productId) || new Map()).values(),
+      ).filter((entry) => marketsFilter.includes(entry.market));
       const directArticleIds = enabledMappings
         .map((m) => (m.external_id != null ? String(m.external_id).trim() : ''))
         .filter(Boolean);
@@ -1601,7 +1615,9 @@ class FyndiqProductsController {
       const meta = actionMeta[i];
       const row = responseRows[i] || null;
       const statusCode = row?.status_code != null ? Number(row.status_code) : null;
-      const ok = statusCode == null || (Number.isFinite(statusCode) && statusCode >= 200 && statusCode < 300);
+      const ok =
+        statusCode == null ||
+        (Number.isFinite(statusCode) && statusCode >= 200 && statusCode < 300);
       if (ok) continue;
       const description = row?.description != null ? String(row.description).trim() : '';
       const errors =
@@ -1611,7 +1627,9 @@ class FyndiqProductsController {
             : JSON.stringify(row.errors)
           : '';
       const message =
-        description || errors || `${meta.action || 'bulk_action'} failed (${statusCode || 'unknown'})`;
+        description ||
+        errors ||
+        `${meta.action || 'bulk_action'} failed (${statusCode || 'unknown'})`;
       const existing = failuresByProduct.get(meta.productId) || [];
       existing.push(message);
       failuresByProduct.set(meta.productId, existing);
@@ -1840,16 +1858,24 @@ class FyndiqProductsController {
    * Internal: sync open Fyndiq orders. API: GET /api/v1/orders?state=CREATED&limit=100&page=1 (doc: state, page, limit).
    * Used by OrderSyncService. Returns { fetched, created, error? }.
    */
-  async syncOpenOrders(req) {
-    const settings = await this.model.getSettings(req);
+  async syncOpenOrders(req, settingsOverride = null) {
+    const settings = settingsOverride || (await this.model.getSettings(req));
     if (!settings || !settings.apiKey || !settings.apiSecret) {
-      return { fetched: 0, created: 0 };
+      return {
+        fetched: 0,
+        created: 0,
+        changed: 0,
+        skipped: 0,
+        inventoryUpdatedProducts: 0,
+        pagesFetched: 0,
+      };
     }
 
     const limit = 100;
     const allOrders = [];
     let page = 1;
     let hasMore = true;
+    let pagesFetched = 0;
 
     while (hasMore) {
       const path = `/api/v1/orders?state=CREATED&limit=${limit}&page=${page}`;
@@ -1864,23 +1890,55 @@ class FyndiqProductsController {
       }
       const items = Array.isArray(json) ? json : [];
       allOrders.push(...items);
+      pagesFetched += 1;
       hasMore = items.length >= limit;
       page += 1;
     }
 
-    let created = 0;
+    const productIdBySku = await this.ordersModel.loadProductIdsByNumericSku(
+      req,
+      allOrders.map((o) => o?.article_sku),
+    );
+    const normalizedOrders = [];
     for (const o of allOrders) {
       if (o == null || o.id == null) continue;
-      const normalized = await this.normalizeFyndiqOrderToHomebase(o, req);
-      if (!normalized) continue;
+      const normalized = await this.normalizeFyndiqOrderToHomebase(o, req, { productIdBySku });
+      if (normalized) normalizedOrders.push(normalized);
+    }
 
-      const ingestRes = await this.ordersModel.ingest(req, normalized);
-      if (ingestRes.created) created += 1;
-      if (ingestRes.created && ingestRes.orderId) {
-        await this.applyInventoryFromOrderId(req, ingestRes.orderId).catch(() => {});
+    let created = 0;
+    let changed = 0;
+    let skipped = 0;
+    const inventoryAdjustments = new Map();
+    for (const chunk of this.ordersModel.chunkArray(normalizedOrders)) {
+      const ingestRes = await this.ordersModel.ingestBatch(req, chunk);
+      created += ingestRes.createdCount;
+      changed += ingestRes.changedCount;
+      skipped += ingestRes.skippedCount;
+      for (const adj of ingestRes.inventoryAdjustments || []) {
+        const pid = Number(adj?.productId);
+        const qty = Number(adj?.quantity);
+        if (!Number.isFinite(pid) || !Number.isFinite(qty) || qty <= 0) continue;
+        inventoryAdjustments.set(pid, (inventoryAdjustments.get(pid) || 0) + qty);
       }
     }
-    return { fetched: allOrders.length, created };
+
+    await this.applyInventoryAdjustments(
+      req,
+      Array.from(inventoryAdjustments.entries()).map(([productId, quantity]) => ({
+        productId,
+        quantity,
+      })),
+    ).catch(() => {});
+
+    return {
+      fetched: allOrders.length,
+      created,
+      changed,
+      skipped,
+      inventoryUpdatedProducts: inventoryAdjustments.size,
+      pagesFetched,
+    };
   }
 
   /**
@@ -1888,7 +1946,7 @@ class FyndiqProductsController {
    * API doc: id, article_id, title, article_sku, price { amount, vat_amount, vat_rate, currency }, total_price, quantity,
    * shipping_address { first_name, last_name, street_address, city, postal_code, country, phone_number }, market, state, created_at.
    */
-  async normalizeFyndiqOrderToHomebase(o, req) {
+  async normalizeFyndiqOrderToHomebase(o, req, { productIdBySku = null } = {}) {
     if (o == null || o.id == null) return null;
     const channelOrderId = String(o.id);
 
@@ -1941,17 +1999,11 @@ class FyndiqProductsController {
           ? unitPriceInclVat * qty
           : null;
 
-    const userId = req.session?.user?.id;
-    const db = Database.get(req);
     const sku = o.article_sku != null ? String(o.article_sku).trim() : null;
-    let platformProductId = null;
-    if (userId && sku) {
-      const mapRes = await db.query(
-        `SELECT id::text AS product_id FROM products WHERE user_id = $1 AND id::text = $2 LIMIT 1`,
-        [userId, sku],
-      );
-      if (mapRes.length) platformProductId = String(mapRes[0].product_id);
-    }
+    const platformProductId =
+      sku && productIdBySku instanceof Map && productIdBySku.has(sku)
+        ? productIdBySku.get(sku) || null
+        : null;
 
     const title =
       o.title != null || o.article_title != null ? String(o.title || o.article_title).trim() : null;
@@ -2028,27 +2080,56 @@ class FyndiqProductsController {
         }
       }
 
-      const results = [];
+      const productIdBySku = await this.ordersModel.loadProductIdsByNumericSku(
+        req,
+        allOrders.map((o) => o?.article_sku),
+      );
+      const normalizedOrders = [];
+      const channelOrderIds = [];
       for (const o of allOrders) {
         if (o == null || o.id == null) continue;
-        const normalized = await this.normalizeFyndiqOrderToHomebase(o, req);
+        const normalized = await this.normalizeFyndiqOrderToHomebase(o, req, { productIdBySku });
         if (!normalized) continue;
-
-        const ingestRes = await this.ordersModel.ingest(req, normalized);
-        if (ingestRes.created && ingestRes.orderId) {
-          await this.applyInventoryFromOrderId(req, ingestRes.orderId).catch((err) => {
-            Logger.warn('Inventory sync failed (non-fatal)', err, { orderId: ingestRes.orderId });
-          });
-        }
-        results.push({ channelOrderId: String(o.id), ...ingestRes });
+        normalizedOrders.push(normalized);
+        channelOrderIds.push(String(o.id));
       }
+
+      const results = [];
+      const inventoryAdjustments = new Map();
+      let cursor = 0;
+      for (const chunk of this.ordersModel.chunkArray(normalizedOrders)) {
+        const ingestRes = await this.ordersModel.ingestBatch(req, chunk);
+        chunk.forEach((_, chunkIdx) => {
+          const result = ingestRes.results[chunkIdx];
+          results.push({ channelOrderId: channelOrderIds[cursor + chunkIdx], ...result });
+        });
+        cursor += chunk.length;
+        for (const adj of ingestRes.inventoryAdjustments || []) {
+          const pid = Number(adj?.productId);
+          const qty = Number(adj?.quantity);
+          if (!Number.isFinite(pid) || !Number.isFinite(qty) || qty <= 0) continue;
+          inventoryAdjustments.set(pid, (inventoryAdjustments.get(pid) || 0) + qty);
+        }
+      }
+
+      await this.applyInventoryAdjustments(
+        req,
+        Array.from(inventoryAdjustments.entries()).map(([productId, quantity]) => ({
+          productId,
+          quantity,
+        })),
+      ).catch((err) => {
+        Logger.warn('Inventory sync failed (non-fatal)', err, { userId: Context.getUserId(req) });
+      });
 
       return res.json({
         ok: true,
         fetched: allOrders.length,
         ingested: results.length,
         created: results.filter((r) => r.created).length,
-        skippedExisting: results.filter((r) => !r.created).length,
+        changed: results.filter((r) => r.changed).length,
+        skippedExisting: results.filter((r) => r.unchanged).length,
+        inventoryUpdatedProducts: inventoryAdjustments.size,
         results,
       });
     } catch (error) {
@@ -2066,6 +2147,27 @@ class FyndiqProductsController {
     if (s === 'FULFILLED') return 'shipped';
     if (s === 'NOT_FULFILLED') return 'cancelled';
     return 'processing';
+  }
+
+  async applyInventoryAdjustments(req, adjustments) {
+    const db = Database.get(req);
+    const userId = req.session?.user?.id;
+    if (!userId || !Array.isArray(adjustments) || adjustments.length === 0) return;
+
+    for (const adj of adjustments) {
+      const pid = adj?.productId != null ? Number(adj.productId) : null;
+      const qty = Number(adj?.quantity);
+      if (pid == null || !Number.isFinite(pid) || !Number.isFinite(qty) || qty <= 0) continue;
+      await db.query(
+        `
+        UPDATE products
+        SET quantity = GREATEST(quantity - $3, 0),
+            updated_at = NOW()
+        WHERE user_id = $1 AND id = $2
+        `,
+        [userId, pid, Math.trunc(qty)],
+      );
+    }
   }
 
   async applyInventoryFromOrderId(req, orderId) {
@@ -2093,17 +2195,10 @@ class FyndiqProductsController {
       }
     }
 
-    for (const [pid, qty] of byProductId.entries()) {
-      await db.query(
-        `
-        UPDATE products
-        SET quantity = GREATEST(quantity - $3, 0),
-            updated_at = NOW()
-        WHERE user_id = $1 AND id = $2
-        `,
-        [userId, pid, qty],
-      );
-    }
+    await this.applyInventoryAdjustments(
+      req,
+      Array.from(byProductId.entries()).map(([productId, quantity]) => ({ productId, quantity })),
+    );
   }
 }
 

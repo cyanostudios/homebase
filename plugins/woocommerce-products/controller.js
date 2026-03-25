@@ -1019,7 +1019,8 @@ class WooCommerceController {
       return res.json({ ok: true, count: items.length });
     } catch (error) {
       Logger.error('Woo syncCategoryCache error', error, { userId: Context.getUserId(req) });
-      if (error instanceof AppError) return res.status(error.statusCode).json({ error: error.message });
+      if (error instanceof AppError)
+        return res.status(error.statusCode).json({ error: error.message });
       return res.status(502).json({ ok: false, error: 'Failed to sync categories' });
     }
   }
@@ -1048,21 +1049,108 @@ class WooCommerceController {
    * Used by OrderSyncService. Returns { fetched, created, lastCursor?, error? }.
    * lastCursor: ISO date of newest order's date_created for next run (with 1–2 min overlap).
    */
+  normalizeWooOrderToHomebase(instance, settings, order, productIdByExternalId = new Map()) {
+    const channelOrderId = order?.id != null ? String(order.id) : '';
+    if (!channelOrderId) return null;
+
+    const rawClean = { ...order };
+    delete rawClean._links;
+    delete rawClean.meta_data;
+    delete rawClean.cart_hash;
+    delete rawClean.user_agent;
+    delete rawClean.customer_ip_address;
+    delete rawClean.version;
+    rawClean._homebase_store_url = settings.storeUrl;
+
+    const channelLabel =
+      instance && typeof instance.label === 'string' && instance.label.trim() !== ''
+        ? instance.label.trim()
+        : null;
+    const normalized = {
+      channel: 'woocommerce',
+      channelOrderId,
+      channelInstanceId: instance.id != null ? String(instance.id) : null,
+      channelLabel,
+      platformOrderNumber: order?.number != null ? String(order.number) : null,
+      placedAt: order?.date_created_gmt || order?.date_created || null,
+      totalAmount: order?.total != null ? Number(order.total) : null,
+      currency: order?.currency || null,
+      status: this.mapWooOrderStatusToHomebase(order?.status),
+      shippingAddress: order?.shipping || null,
+      billingAddress: order?.billing || null,
+      customer: {
+        email: order?.billing?.email || null,
+        firstName: order?.billing?.first_name || null,
+        lastName: order?.billing?.last_name || null,
+        phone: order?.billing?.phone || null,
+        shippingAddress: order?.shipping || null,
+        billingAddress: order?.billing || null,
+      },
+      items: [],
+      raw: rawClean,
+    };
+
+    const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    for (const li of lineItems) {
+      const qty = Number(li?.quantity);
+      if (!Number.isFinite(qty) || qty <= 0) continue;
+      const wooProductId = li?.product_id != null ? String(li.product_id) : null;
+      const platformProductId =
+        wooProductId && productIdByExternalId.has(wooProductId)
+          ? productIdByExternalId.get(wooProductId)
+          : null;
+      const subtotal = li?.subtotal != null ? Number(li.subtotal) : null;
+      const subtotalTax = li?.subtotal_tax != null ? Number(li.subtotal_tax) : null;
+      let unitPriceInclVat = null;
+      let vatRate = null;
+      if (Number.isFinite(subtotal) && Number.isFinite(subtotalTax) && qty > 0) {
+        unitPriceInclVat = (subtotal + subtotalTax) / qty;
+        if (subtotal > 0) vatRate = (subtotalTax / subtotal) * 100;
+      } else if (Number.isFinite(Number(li?.price))) {
+        unitPriceInclVat = Number(li.price) * 1.25;
+        vatRate = 25;
+      }
+      normalized.items.push({
+        sku: li?.sku || null,
+        productId: platformProductId || null,
+        title: li?.name != null ? String(li.name) : null,
+        quantity: Math.trunc(qty),
+        unitPrice: Number.isFinite(unitPriceInclVat) ? unitPriceInclVat : null,
+        vatRate: Number.isFinite(vatRate) ? vatRate : null,
+        raw: li,
+      });
+    }
+
+    const shippingLines = Array.isArray(order?.shipping_lines) ? order.shipping_lines : [];
+    for (const sl of shippingLines) {
+      const shippingTotalExVat = sl?.total != null ? Number(sl.total) : null;
+      const shippingTax = sl?.total_tax != null ? Number(sl.total_tax) : null;
+      let shippingTotalInclVat = null;
+      if (Number.isFinite(shippingTotalExVat) && Number.isFinite(shippingTax))
+        shippingTotalInclVat = shippingTotalExVat + shippingTax;
+      else if (Number.isFinite(shippingTotalExVat)) shippingTotalInclVat = shippingTotalExVat;
+      if (Number.isFinite(shippingTotalInclVat) && shippingTotalInclVat > 0) {
+        normalized.items.push({
+          sku: null,
+          productId: null,
+          title: sl?.method_title || 'Shipping',
+          quantity: 1,
+          unitPrice: shippingTotalInclVat,
+          vatRate: 25,
+          raw: sl,
+        });
+      }
+    }
+
+    return normalized;
+  }
+
   async syncOpenOrdersForInstance(req, instance, after = null) {
-    const userId = req.session?.user?.id;
-    const db = Database.get(req);
     const credentials = instance.credentials || {};
     const storeUrl = credentials.storeUrl || credentials.store_url;
     if (!storeUrl) return { fetched: 0, created: 0 };
 
     const base = this.normalizeBaseUrl(storeUrl);
-    const url = new URL(`${base}/wp-json/wc/v3/orders`);
-    url.searchParams.set('per_page', '100');
-    url.searchParams.set('orderby', 'date');
-    url.searchParams.set('order', 'desc');
-    url.searchParams.set('status', 'processing,pending,on-hold');
-    if (after) url.searchParams.set('after', after);
-
     const settings = {
       storeUrl,
       consumerKey: credentials.consumerKey || credentials.consumer_key || '',
@@ -1070,126 +1158,87 @@ class WooCommerceController {
       useQueryAuth: credentials.useQueryAuth || false,
     };
 
-    const resp = await this.fetchWithWooAuth(url.toString(), { method: 'GET' }, settings);
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      return { fetched: 0, created: -1, error: (text || resp.statusText).slice(0, 500) };
-    }
-
-    const orders = await resp.json().catch(() => null);
-    if (!Array.isArray(orders)) return { fetched: 0, created: 0 };
-
     let created = 0;
+    let changed = 0;
+    let skipped = 0;
+    let fetched = 0;
+    let pagesFetched = 0;
     let lastCursor = null;
+    const inventoryAdjustments = new Map();
+    const perPage = 100;
+    let page = 1;
 
-    for (const o of orders) {
-      const channelOrderId = o?.id != null ? String(o.id) : '';
-      if (!channelOrderId) continue;
+    while (true) {
+      const url = new URL(`${base}/wp-json/wc/v3/orders`);
+      url.searchParams.set('per_page', String(perPage));
+      url.searchParams.set('page', String(page));
+      url.searchParams.set('orderby', 'date');
+      url.searchParams.set('order', 'desc');
+      url.searchParams.set('status', 'processing,pending,on-hold');
+      if (after) url.searchParams.set('after', after);
 
-      const rawClean = { ...o };
-      delete rawClean._links;
-      delete rawClean.meta_data;
-      delete rawClean.cart_hash;
-      delete rawClean.user_agent;
-      delete rawClean.customer_ip_address;
-      delete rawClean.version;
-      rawClean._homebase_store_url = settings.storeUrl;
-
-      const channelLabel =
-        instance && typeof instance.label === 'string' && instance.label.trim() !== ''
-          ? instance.label.trim()
-          : null;
-      const normalized = {
-        channel: 'woocommerce',
-        channelOrderId,
-        channelInstanceId: instance.id != null ? String(instance.id) : null,
-        channelLabel,
-        platformOrderNumber: o?.number != null ? String(o.number) : null,
-        placedAt: o?.date_created_gmt || o?.date_created || null,
-        totalAmount: o?.total != null ? Number(o.total) : null,
-        currency: o?.currency || null,
-        status: this.mapWooOrderStatusToHomebase(o?.status),
-        shippingAddress: o?.shipping || null,
-        billingAddress: o?.billing || null,
-        customer: {
-          email: o?.billing?.email || null,
-          firstName: o?.billing?.first_name || null,
-          lastName: o?.billing?.last_name || null,
-          phone: o?.billing?.phone || null,
-          shippingAddress: o?.shipping || null,
-          billingAddress: o?.billing || null,
-        },
-        items: [],
-        raw: rawClean,
-      };
-
-      const lineItems = Array.isArray(o?.line_items) ? o.line_items : [];
-      for (const li of lineItems) {
-        const qty = Number(li?.quantity);
-        if (!Number.isFinite(qty) || qty <= 0) continue;
-        const wooProductId = li?.product_id != null ? String(li.product_id) : null;
-        let platformProductId = null;
-        if (wooProductId && userId) {
-          const mapRes = await db.query(
-            `SELECT product_id FROM channel_product_map WHERE user_id = $1 AND channel = 'woocommerce' AND external_id = $2 LIMIT 1`,
-            [userId, wooProductId],
-          );
-          if (mapRes.length) platformProductId = String(mapRes[0].product_id);
-        }
-        const subtotal = li?.subtotal != null ? Number(li.subtotal) : null;
-        const subtotalTax = li?.subtotal_tax != null ? Number(li.subtotal_tax) : null;
-        let unitPriceInclVat = null;
-        let vatRate = null;
-        if (Number.isFinite(subtotal) && Number.isFinite(subtotalTax) && qty > 0) {
-          unitPriceInclVat = (subtotal + subtotalTax) / qty;
-          if (subtotal > 0) vatRate = (subtotalTax / subtotal) * 100;
-        } else if (Number.isFinite(Number(li?.price))) {
-          unitPriceInclVat = Number(li.price) * 1.25;
-          vatRate = 25;
-        }
-        normalized.items.push({
-          sku: li?.sku || null,
-          productId: platformProductId,
-          title: li?.name != null ? String(li.name) : null,
-          quantity: Math.trunc(qty),
-          unitPrice: Number.isFinite(unitPriceInclVat) ? unitPriceInclVat : null,
-          vatRate: Number.isFinite(vatRate) ? vatRate : null,
-          raw: li,
-        });
+      const resp = await this.fetchWithWooAuth(url.toString(), { method: 'GET' }, settings);
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        return { fetched, created: -1, error: (text || resp.statusText).slice(0, 500) };
       }
 
-      const shippingLines = Array.isArray(o?.shipping_lines) ? o.shipping_lines : [];
-      for (const sl of shippingLines) {
-        const shippingTotalExVat = sl?.total != null ? Number(sl.total) : null;
-        const shippingTax = sl?.total_tax != null ? Number(sl.total_tax) : null;
-        let shippingTotalInclVat = null;
-        if (Number.isFinite(shippingTotalExVat) && Number.isFinite(shippingTax))
-          shippingTotalInclVat = shippingTotalExVat + shippingTax;
-        else if (Number.isFinite(shippingTotalExVat)) shippingTotalInclVat = shippingTotalExVat;
-        if (Number.isFinite(shippingTotalInclVat) && shippingTotalInclVat > 0) {
-          normalized.items.push({
-            sku: null,
-            productId: null,
-            title: sl?.method_title || 'Shipping',
-            quantity: 1,
-            unitPrice: shippingTotalInclVat,
-            vatRate: 25,
-            raw: sl,
-          });
+      const orders = await resp.json().catch(() => null);
+      if (!Array.isArray(orders) || orders.length === 0) break;
+      fetched += orders.length;
+      pagesFetched += 1;
+
+      const wooProductIds = [];
+      for (const order of orders) {
+        for (const li of Array.isArray(order?.line_items) ? order.line_items : []) {
+          if (li?.product_id != null) wooProductIds.push(String(li.product_id));
         }
+        const placed = order?.date_created_gmt || order?.date_created;
+        if (placed && (!lastCursor || placed > lastCursor)) lastCursor = placed;
       }
 
-      const ingestRes = await this.ordersModel.ingest(req, normalized);
-      if (ingestRes.created) created += 1;
-      if (ingestRes.created && ingestRes.orderId) {
-        await this.applyInventoryFromOrderId(req, ingestRes.orderId).catch(() => {});
+      const productIdByExternalId = await this.ordersModel.loadWooProductIdsByExternalId(
+        req,
+        instance.id,
+        wooProductIds,
+      );
+      const normalizedOrders = orders
+        .map((order) =>
+          this.normalizeWooOrderToHomebase(instance, settings, order, productIdByExternalId),
+        )
+        .filter(Boolean);
+      const ingestRes = await this.ordersModel.ingestBatch(req, normalizedOrders);
+      created += ingestRes.createdCount;
+      changed += ingestRes.changedCount;
+      skipped += ingestRes.skippedCount;
+      for (const adj of ingestRes.inventoryAdjustments || []) {
+        const pid = Number(adj?.productId);
+        const qty = Number(adj?.quantity);
+        if (!Number.isFinite(pid) || !Number.isFinite(qty) || qty <= 0) continue;
+        inventoryAdjustments.set(pid, (inventoryAdjustments.get(pid) || 0) + qty);
       }
 
-      const placed = o?.date_created_gmt || o?.date_created;
-      if (placed && (!lastCursor || placed > lastCursor)) lastCursor = placed;
+      if (orders.length < perPage) break;
+      page += 1;
     }
 
-    return { fetched: orders.length, created, lastCursor };
+    await this.applyInventoryAdjustments(
+      req,
+      Array.from(inventoryAdjustments.entries()).map(([productId, quantity]) => ({
+        productId,
+        quantity,
+      })),
+    ).catch(() => {});
+
+    return {
+      fetched,
+      created,
+      changed,
+      skipped,
+      lastCursor,
+      pagesFetched,
+      inventoryUpdatedProducts: inventoryAdjustments.size,
+    };
   }
 
   // ---- Orders pull (session-auth) -> normalized ingest + inventory sync (MVP) ----
@@ -1209,11 +1258,11 @@ class WooCommerceController {
       const after = req.body?.after ? String(req.body.after) : null;
 
       const userId = req.session?.user?.id;
-      const db = Database.get(req);
 
       const allResults = [];
       let totalFetched = 0;
       let totalCreated = 0;
+      let totalChanged = 0;
       let totalSkipped = 0;
 
       // Fetch orders from all instances
@@ -1271,212 +1320,50 @@ class WooCommerceController {
           }
 
           totalFetched += orders.length;
-
-          // Process orders from this instance
-          for (const o of orders) {
-            const channelOrderId = o?.id != null ? String(o.id) : '';
-            if (!channelOrderId) continue;
-
-            // Clean up raw data to reduce SQL log size and storage
-            const rawClean = { ...o };
-            delete rawClean._links;
-            delete rawClean.meta_data;
-            delete rawClean.cart_hash;
-            delete rawClean.user_agent;
-            delete rawClean.customer_ip_address;
-            delete rawClean.version;
-            rawClean._homebase_store_url = settings.storeUrl;
-
-            const channelLabel =
-              instance && typeof instance.label === 'string' && instance.label.trim() !== ''
-                ? instance.label.trim()
-                : null;
-            const normalized = {
-              channel: 'woocommerce',
-              channelOrderId,
-              channelInstanceId: instance.id != null ? String(instance.id) : null,
-              channelLabel,
-              platformOrderNumber: o?.number != null ? String(o.number) : null,
-              placedAt: o?.date_created_gmt || o?.date_created || null,
-              totalAmount: o?.total != null ? Number(o.total) : null,
-              currency: o?.currency || null,
-              status: this.mapWooOrderStatusToHomebase(o?.status),
-              shippingAddress: o?.shipping || null,
-              billingAddress: o?.billing || null,
-              customer: {
-                email: o?.billing?.email || null,
-                firstName: o?.billing?.first_name || null,
-                lastName: o?.billing?.last_name || null,
-                phone: o?.billing?.phone || null,
-                shippingAddress: o?.shipping || null,
-                billingAddress: o?.billing || null,
-              },
-              items: [],
-              raw: rawClean,
-            };
-
-            // Map Woo line_items.product_id -> platform product_id via channel_product_map.external_id
-            const lineItems = Array.isArray(o?.line_items) ? o.line_items : [];
-            for (const li of lineItems) {
-              const qty = Number(li?.quantity);
-              if (!Number.isFinite(qty) || qty <= 0) continue;
-
-              const wooProductId = li?.product_id != null ? String(li.product_id) : null;
-              let platformProductId = null;
-
-              if (wooProductId && userId) {
-                const mapRes = await db.query(
-                  `
-              SELECT product_id
-              FROM channel_product_map
-              WHERE user_id = $1
-                AND channel = 'woocommerce'
-                AND external_id = $2
-              LIMIT 1
-              `,
-                  [userId, wooProductId],
-                );
-                if (mapRes.length) platformProductId = String(mapRes[0].product_id);
-              }
-
-              // WooCommerce line item pricing structure (from API docs and actual data):
-              // - price: unit price ex VAT (read-only)
-              // - subtotal: line subtotal ex VAT (quantity * price)
-              // - subtotal_tax: tax on subtotal
-              // - total: line total ex VAT (same as subtotal if no discounts)
-              // - total_tax: same as subtotal_tax for line items
-              //
-              // To get unit price incl VAT: (subtotal + subtotal_tax) / quantity
-              const subtotal = li?.subtotal != null ? Number(li.subtotal) : null;
-              const subtotalTax = li?.subtotal_tax != null ? Number(li.subtotal_tax) : null;
-
-              // Calculate unit price including VAT: (subtotal + tax) / quantity
-              let unitPriceInclVat = null;
-              if (Number.isFinite(subtotal) && Number.isFinite(subtotalTax) && qty > 0) {
-                unitPriceInclVat = (subtotal + subtotalTax) / qty;
-              }
-
-              // Calculate VAT rate from subtotal and tax
-              let vatRate = null;
-              if (Number.isFinite(subtotal) && Number.isFinite(subtotalTax) && subtotal > 0) {
-                vatRate = (subtotalTax / subtotal) * 100;
-              } else if (Array.isArray(li?.taxes) && li.taxes.length > 0) {
-                // Fallback: try to get from taxes array
-                const tax = li.taxes[0];
-                const taxTotal =
-                  tax?.total != null
-                    ? Number(tax.total)
-                    : tax?.subtotal != null
-                      ? Number(tax.subtotal)
-                      : null;
-                const priceExVat = li?.price != null ? Number(li.price) : null;
-                if (Number.isFinite(taxTotal) && Number.isFinite(priceExVat) && priceExVat > 0) {
-                  vatRate = (taxTotal / priceExVat) * 100;
-                }
-              }
-
-              // If still no price incl VAT, calculate from price + default VAT
-              if (!Number.isFinite(unitPriceInclVat)) {
-                const priceExVat = li?.price != null ? Number(li.price) : null;
-                if (Number.isFinite(priceExVat)) {
-                  vatRate = vatRate || 25;
-                  unitPriceInclVat = priceExVat * (1 + vatRate / 100);
-                }
-              }
-
-              normalized.items.push({
-                sku: li?.sku || null,
-                productId: platformProductId,
-                title: li?.name != null ? String(li.name) : null,
-                quantity: Math.trunc(qty),
-                unitPrice: Number.isFinite(unitPriceInclVat) ? unitPriceInclVat : null,
-                vatRate: Number.isFinite(vatRate) ? vatRate : null,
-                raw: li,
-              });
+          const wooProductIds = [];
+          for (const order of orders) {
+            for (const li of Array.isArray(order?.line_items) ? order.line_items : []) {
+              if (li?.product_id != null) wooProductIds.push(String(li.product_id));
             }
-
-            // Add shipping as a line item
-            // WooCommerce shipping_lines structure (same as line_items):
-            // - total: shipping cost ex VAT
-            // - total_tax: tax on shipping
-            // To get shipping cost incl VAT: total + total_tax
-            const shippingLines = Array.isArray(o?.shipping_lines) ? o.shipping_lines : [];
-            for (const sl of shippingLines) {
-              const shippingTotalExVat = sl?.total != null ? Number(sl.total) : null;
-              const shippingTax = sl?.total_tax != null ? Number(sl.total_tax) : null;
-
-              // Calculate shipping cost including VAT
-              let shippingTotalInclVat = null;
-              if (Number.isFinite(shippingTotalExVat) && Number.isFinite(shippingTax)) {
-                shippingTotalInclVat = shippingTotalExVat + shippingTax;
-              } else if (Number.isFinite(shippingTotalExVat)) {
-                // If no tax info, assume shippingTotalExVat is actually incl VAT (fallback)
-                shippingTotalInclVat = shippingTotalExVat;
-              }
-
-              if (Number.isFinite(shippingTotalInclVat) && shippingTotalInclVat > 0) {
-                // Calculate VAT rate from shipping total and tax
-                let shippingVatRate = null;
-                if (
-                  Number.isFinite(shippingTotalExVat) &&
-                  Number.isFinite(shippingTax) &&
-                  shippingTotalExVat > 0
-                ) {
-                  shippingVatRate = (shippingTax / shippingTotalExVat) * 100;
-                } else if (Array.isArray(sl?.taxes) && sl.taxes.length > 0) {
-                  // Fallback: try to get from taxes array
-                  const tax = sl.taxes[0];
-                  const taxTotal =
-                    tax?.total != null
-                      ? Number(tax.total)
-                      : tax?.subtotal != null
-                        ? Number(tax.subtotal)
-                        : null;
-                  if (
-                    Number.isFinite(taxTotal) &&
-                    Number.isFinite(shippingTotalExVat) &&
-                    shippingTotalExVat > 0
-                  ) {
-                    shippingVatRate = (taxTotal / shippingTotalExVat) * 100;
-                  }
-                }
-
-                // If no VAT rate found, default to 25% for shipping in Sweden
-                if (!Number.isFinite(shippingVatRate)) {
-                  shippingVatRate = 25;
-                }
-
-                normalized.items.push({
-                  sku: null,
-                  productId: null,
-                  title: sl?.method_title || 'Shipping',
-                  quantity: 1,
-                  unitPrice: shippingTotalInclVat, // Shipping cost including VAT
-                  vatRate: shippingVatRate,
-                  raw: sl,
-                });
-              }
-            }
-
-            const ingestRes = await this.ordersModel.ingest(req, normalized);
-
-            // Apply inventory sync only when we created a new order record
-            if (ingestRes.created && ingestRes.orderId) {
-              await this.applyInventoryFromOrderId(req, ingestRes.orderId).catch((err) => {
-                Logger.warn('Inventory sync failed (non-fatal)', err, {
-                  orderId: ingestRes.orderId,
-                });
-              });
-            }
-
-            if (ingestRes.created) {
-              totalCreated++;
-            } else {
-              totalSkipped++;
-            }
-
-            allResults.push({ channelOrderId, ...ingestRes });
           }
+          const productIdByExternalId = await this.ordersModel.loadWooProductIdsByExternalId(
+            req,
+            instance.id,
+            wooProductIds,
+          );
+          const normalizedOrders = [];
+          const channelOrderIds = [];
+          for (const order of orders) {
+            const normalized = this.normalizeWooOrderToHomebase(
+              instance,
+              settings,
+              order,
+              productIdByExternalId,
+            );
+            if (!normalized) continue;
+            normalizedOrders.push(normalized);
+            channelOrderIds.push(String(normalized.channelOrderId));
+          }
+
+          const ingestRes = await this.ordersModel.ingestBatch(req, normalizedOrders);
+          totalCreated += ingestRes.createdCount;
+          totalChanged += ingestRes.changedCount;
+          totalSkipped += ingestRes.skippedCount;
+          await this.applyInventoryAdjustments(req, ingestRes.inventoryAdjustments || []).catch(
+            (err) => {
+              Logger.warn('Inventory sync failed (non-fatal)', err, {
+                instanceId: instance.id,
+                instanceKey: instance.instanceKey,
+              });
+            },
+          );
+
+          ingestRes.results.forEach((result, idx) => {
+            allResults.push({
+              channelOrderId: channelOrderIds[idx],
+              ...result,
+            });
+          });
         } catch (instanceError) {
           Logger.error('Error processing WooCommerce instance', instanceError, {
             userId,
@@ -1493,6 +1380,7 @@ class WooCommerceController {
         fetched: totalFetched,
         ingested: allResults.length,
         created: totalCreated,
+        changed: totalChanged,
         skippedExisting: totalSkipped,
         results: allResults,
       });
@@ -1522,32 +1410,15 @@ class WooCommerceController {
   }
 
   // Source channel is Woo, so we only update platform inventory and (optionally) other channels.
-  async applyInventoryFromOrderId(req, orderId) {
+  async applyInventoryAdjustments(req, adjustments) {
     const db = Database.get(req);
     const userId = req.session?.user?.id;
-    if (!userId) return;
+    if (!userId || !Array.isArray(adjustments) || adjustments.length === 0) return;
 
-    const items = await db.query(
-      `SELECT oi.sku, oi.product_id, oi.quantity
-       FROM order_items oi
-       INNER JOIN orders o ON o.id = oi.order_id AND o.user_id = $1
-       WHERE oi.order_id = $2
-       ORDER BY oi.id`,
-      [userId, Number(orderId)],
-    );
-    if (!items.length) return;
-
-    const byProductId = new Map();
-    for (const it of items) {
-      const qty = Number(it?.quantity);
-      if (!Number.isFinite(qty) || qty <= 0) continue;
-      const pid = it?.product_id != null ? Number(it.product_id) : null;
-      if (pid != null && Number.isFinite(pid)) {
-        byProductId.set(pid, (byProductId.get(pid) || 0) + Math.trunc(qty));
-      }
-    }
-
-    for (const [pid, qty] of byProductId.entries()) {
+    for (const adj of adjustments) {
+      const pid = adj?.productId != null ? Number(adj.productId) : null;
+      const qty = Number(adj?.quantity);
+      if (pid == null || !Number.isFinite(pid) || !Number.isFinite(qty) || qty <= 0) continue;
       const updated = await db.query(
         `
         UPDATE products
@@ -1580,6 +1451,37 @@ class WooCommerceController {
         message: 'Stock sync triggered by Woo order (not implemented yet)',
       });
     }
+  }
+
+  async applyInventoryFromOrderId(req, orderId) {
+    const db = Database.get(req);
+    const userId = req.session?.user?.id;
+    if (!userId) return;
+
+    const items = await db.query(
+      `SELECT oi.sku, oi.product_id, oi.quantity
+       FROM order_items oi
+       INNER JOIN orders o ON o.id = oi.order_id AND o.user_id = $1
+       WHERE oi.order_id = $2
+       ORDER BY oi.id`,
+      [userId, Number(orderId)],
+    );
+    if (!items.length) return;
+
+    const byProductId = new Map();
+    for (const it of items) {
+      const qty = Number(it?.quantity);
+      if (!Number.isFinite(qty) || qty <= 0) continue;
+      const pid = it?.product_id != null ? Number(it.product_id) : null;
+      if (pid != null && Number.isFinite(pid)) {
+        byProductId.set(pid, (byProductId.get(pid) || 0) + Math.trunc(qty));
+      }
+    }
+
+    await this.applyInventoryAdjustments(
+      req,
+      Array.from(byProductId.entries()).map(([productId, quantity]) => ({ productId, quantity })),
+    );
   }
 
   // ---- Template parity CRUD (kept) ----

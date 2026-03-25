@@ -7,17 +7,28 @@ import React, {
   useMemo,
   useCallback,
   useRef,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 
 import { useApp } from '@/core/api/AppContext';
+import {
+  getAppCurrentPage,
+  isEcommerceCatalogBootstrapPage,
+  subscribeAppCurrentPage,
+} from '@/core/navigation/appCurrentPageStore';
 import { decodeHtmlEntities } from '@/core/utils/decodeHtmlEntities';
 import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
 import { channelsApi } from '@/plugins/channels/api/channelsApi';
 import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
 import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceApi';
 
-import { productsApi, type ProductImportMode, type ProductImportResult } from '../api/productsApi';
+import {
+  productsApi,
+  type ProductImportMode,
+  type ProductImportResult,
+  type ProductListParams,
+} from '../api/productsApi';
 import type {
   Product,
   ProductSaveChangeSet,
@@ -36,6 +47,13 @@ interface ProductContextType {
 
   // Data
   products: Product[];
+  /** Total rows matching current list query (server-side). */
+  totalProducts: number;
+  /** True when the user is on a page that should load the product catalog. */
+  isProductCatalogBootstrap: boolean;
+  loadProducts: (params: ProductListParams) => Promise<void>;
+  /** Re-fetch using the last successful `loadProducts` params. */
+  reloadProducts: () => Promise<void>;
 
   // Product plugin settings (default delivery etc.)
   productSettings: ProductSettings | null;
@@ -156,8 +174,22 @@ export function ProductProvider({
   isAuthenticated,
   onCloseOtherPanels,
 }: ProductProviderProps) {
-  const { registerPanelCloseFunction, unregisterPanelCloseFunction, getSettings, settingsVersion } =
-    useApp();
+  const {
+    registerPanelCloseFunction,
+    unregisterPanelCloseFunction,
+    getSettings,
+    settingsVersion,
+    user,
+  } = useApp();
+  const activePage = useSyncExternalStore(
+    subscribeAppCurrentPage,
+    getAppCurrentPage,
+    getAppCurrentPage,
+  );
+  const shouldBootstrap =
+    isAuthenticated &&
+    !!user?.plugins?.includes('products') &&
+    isEcommerceCatalogBootstrapPage(activePage);
 
   // Panel state (no 'view' mode: always editable form with Avbryt + Spara only)
   const [isProductPanelOpen, setIsProductPanelOpen] = useState(false);
@@ -170,7 +202,9 @@ export function ProductProvider({
 
   // Data state
   const [products, setProducts] = useState<Product[]>([]);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [productSettings, setProductSettings] = useState<ProductSettings | null>(null);
+  const lastListParamsRef = useRef<ProductListParams | null>(null);
 
   // selection
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
@@ -282,43 +316,53 @@ export function ProductProvider({
     }
   }, [getSettings]);
 
-  const loadProducts = useCallback(async () => {
+  const loadProducts = useCallback(async (params: ProductListParams) => {
     try {
-      const data = await productsApi.getProducts();
-      const arr = Array.isArray(data) ? data : [];
+      lastListParamsRef.current = params;
+      const data = await productsApi.listProducts(params);
+      const arr = Array.isArray(data?.items) ? data.items : [];
       const transformed = arr.map((item: any) => ({
         ...item,
         createdAt: item.createdAt ? new Date(item.createdAt) : null,
         updatedAt: item.updatedAt ? new Date(item.updatedAt) : null,
       }));
       setProducts(transformed);
+      setTotalProducts(typeof data?.total === 'number' ? data.total : 0);
     } catch (error) {
       console.error('Failed to load products:', error);
     }
   }, []);
 
+  const reloadProducts = useCallback(async () => {
+    const p = lastListParamsRef.current;
+    if (p) {
+      await loadProducts(p);
+    }
+  }, [loadProducts]);
+
   const wasAuthenticatedRef = useRef(false);
 
-  // Load product settings when authenticated or when settings change (e.g. saved from ProductSettingsForm)
+  // Load product settings when on catalog page + auth, or when settings change (e.g. saved from ProductSettingsForm)
   useEffect(() => {
-    if (isAuthenticated) {
+    if (shouldBootstrap) {
       loadProductSettings();
     }
-  }, [isAuthenticated, settingsVersion, loadProductSettings]);
+  }, [shouldBootstrap, settingsVersion, loadProductSettings]);
 
-  // Load products when authenticated; only clear on explicit logout (was true -> false)
+  // Clear product list on logout only (catalog list is loaded by ProductList via loadProducts)
   useEffect(() => {
-    if (isAuthenticated) {
-      loadProducts();
+    if (shouldBootstrap) {
       wasAuthenticatedRef.current = true;
-    } else {
+    } else if (!isAuthenticated) {
       if (wasAuthenticatedRef.current) {
         setProducts([]);
+        setTotalProducts(0);
+        lastListParamsRef.current = null;
         setSelectedProductIds([]);
         wasAuthenticatedRef.current = false;
       }
     }
-  }, [isAuthenticated, loadProducts]);
+  }, [isAuthenticated, shouldBootstrap]);
 
   // Keep selection valid when products change
   useEffect(() => {
@@ -360,7 +404,9 @@ export function ProductProvider({
       window.dispatchEvent(new CustomEvent('submitProductForm'));
     };
     (window as any).submitProductsFormIgnorePriceWarning = () => {
-      window.dispatchEvent(new CustomEvent('submitProductForm', { detail: { ignorePriceWarning: true } }));
+      window.dispatchEvent(
+        new CustomEvent('submitProductForm', { detail: { ignorePriceWarning: true } }),
+      );
     };
     (window as any).cancelProductsForm = () => {
       window.dispatchEvent(new CustomEvent('cancelProductForm'));
@@ -372,61 +418,67 @@ export function ProductProvider({
     };
   }, []);
 
-  const validateProduct = (data: any): ValidationError[] => {
-    const errors: ValidationError[] = [];
+  const validateProduct = useCallback(
+    (data: any): ValidationError[] => {
+      const errors: ValidationError[] = [];
 
-    const add = (field: string, message: string) => errors.push({ field, message });
-    const isFiniteNumber = (n: any) => typeof n === 'number' && Number.isFinite(n);
+      const add = (field: string, message: string) => errors.push({ field, message });
+      const isFiniteNumber = (n: any) => typeof n === 'number' && Number.isFinite(n);
 
-    if (!data.title?.trim()) {
-      add('title', 'Title is required');
-    }
-    if (!data.status || !['for sale', 'draft', 'archived'].includes(String(data.status))) {
-      add('status', 'Status must be one of: for sale, draft, archived');
-    }
-
-    if (!isFiniteNumber(data.quantity) || data.quantity < 0 || !Number.isInteger(data.quantity)) {
-      add('quantity', 'Quantity must be a non-negative integer');
-    }
-    if (!isFiniteNumber(data.priceAmount) || data.priceAmount < 0) {
-      add('priceAmount', 'Price must be a non-negative number');
-    }
-    if (!isFiniteNumber(data.vatRate) || data.vatRate < 0 || data.vatRate > 50) {
-      add('vatRate', 'VAT rate must be between 0 and 50');
-    }
-
-    if (!data.currency?.trim()) {
-      add('currency', 'Currency is required');
-    } else {
-      const c = String(data.currency).toUpperCase();
-      if (!/^[A-Z]{3}$/.test(c)) {
-        add('currency', 'Currency must be a 3-letter code (e.g., SEK)');
+      if (!data.title?.trim()) {
+        add('title', 'Title is required');
       }
-    }
-
-    if (data.sku?.trim()) {
-      const sku = data.sku.trim();
-      const clash = products.find(
-        (p) => p.id !== currentProduct?.id && String(p.sku || '') === sku,
-      );
-      if (clash) {
-        add('sku', `SKU "${sku}" already exists (used by "${clash.title ?? 'another product'}")`);
+      if (!data.status || !['for sale', 'draft', 'archived'].includes(String(data.status))) {
+        add('status', 'Status must be one of: for sale, draft, archived');
       }
-    }
 
-    if (data.ean?.trim() && !/^\d{8,14}$/.test(String(data.ean).trim())) {
-      errors.push({ field: 'ean', message: 'Warning: EAN should be 8–14 digits' });
-    }
-    if (data.gtin?.trim() && !/^\d{8,14}$/.test(String(data.gtin).trim())) {
-      errors.push({ field: 'gtin', message: 'Warning: GTIN should be 8–14 digits (12 för UPC-A)' });
-    }
+      if (!isFiniteNumber(data.quantity) || data.quantity < 0 || !Number.isInteger(data.quantity)) {
+        add('quantity', 'Quantity must be a non-negative integer');
+      }
+      if (!isFiniteNumber(data.priceAmount) || data.priceAmount < 0) {
+        add('priceAmount', 'Price must be a non-negative number');
+      }
+      if (!isFiniteNumber(data.vatRate) || data.vatRate < 0 || data.vatRate > 50) {
+        add('vatRate', 'VAT rate must be between 0 and 50');
+      }
 
-    if (!data.brand?.trim()) {
-      add('brand', 'Märke är obligatoriskt');
-    }
+      if (!data.currency?.trim()) {
+        add('currency', 'Currency is required');
+      } else {
+        const c = String(data.currency).toUpperCase();
+        if (!/^[A-Z]{3}$/.test(c)) {
+          add('currency', 'Currency must be a 3-letter code (e.g., SEK)');
+        }
+      }
 
-    return errors;
-  };
+      if (data.sku?.trim()) {
+        const sku = data.sku.trim();
+        const clash = products.find(
+          (p) => p.id !== currentProduct?.id && String(p.sku || '') === sku,
+        );
+        if (clash) {
+          add('sku', `SKU "${sku}" already exists (used by "${clash.title ?? 'another product'}")`);
+        }
+      }
+
+      if (data.ean?.trim() && !/^\d{8,14}$/.test(String(data.ean).trim())) {
+        errors.push({ field: 'ean', message: 'Warning: EAN should be 8–14 digits' });
+      }
+      if (data.gtin?.trim() && !/^\d{8,14}$/.test(String(data.gtin).trim())) {
+        errors.push({
+          field: 'gtin',
+          message: 'Warning: GTIN should be 8–14 digits (12 för UPC-A)',
+        });
+      }
+
+      if (!data.brand?.trim()) {
+        add('brand', 'Märke är obligatoriskt');
+      }
+
+      return errors;
+    },
+    [products, currentProduct],
+  );
 
   // Panel actions
   const openProductPanel = (product: Product | null) => {
@@ -512,8 +564,7 @@ export function ProductProvider({
         supplierId: raw.supplierId ? String(raw.supplierId).trim() : undefined,
         manufacturerId: raw.manufacturerId ? String(raw.manufacturerId).trim() : undefined,
         lagerplats: (raw.lagerplats ?? '').trim() || undefined,
-        condition:
-          raw.condition === 'used' || raw.condition === 'refurb' ? raw.condition : 'new',
+        condition: raw.condition === 'used' || raw.condition === 'refurb' ? raw.condition : 'new',
         groupId: (raw.groupId ?? '').trim() || undefined,
         color: (raw.color ?? '').trim() || undefined,
         colorText: (raw.colorText ?? '').trim() || undefined,
@@ -524,9 +575,7 @@ export function ProductProvider({
         patternText: (raw.patternText ?? '').trim() || undefined,
         model: (raw.model ?? '').trim() || undefined,
         weight:
-          (raw.weight ?? null) !== null &&
-          raw.weight !== '' &&
-          Number.isFinite(Number(raw.weight))
+          (raw.weight ?? null) !== null && raw.weight !== '' && Number.isFinite(Number(raw.weight))
             ? Number(raw.weight)
             : undefined,
         lengthCm:
@@ -554,15 +603,13 @@ export function ProductProvider({
             ? Number(raw.depthCm)
             : undefined,
         volume:
-          (raw.volume ?? null) !== null &&
-          raw.volume !== '' &&
-          Number.isFinite(Number(raw.volume))
+          (raw.volume ?? null) !== null && raw.volume !== '' && Number.isFinite(Number(raw.volume))
             ? Number(raw.volume)
             : undefined,
         volumeUnit: (raw.volumeUnit ?? '').trim() || undefined,
         notes: (raw.notes ?? '').trim() || undefined,
         listId:
-          (raw.listId ?? null) != null && String(raw.listId).trim() !== ''
+          raw.listId !== null && raw.listId !== undefined && String(raw.listId).trim() !== ''
             ? String(raw.listId).trim()
             : undefined,
       };
@@ -602,7 +649,9 @@ export function ProductProvider({
         const globalPrice = Number(data.priceAmount ?? 0);
         const hasGlobalPrice = Number.isFinite(globalPrice) && globalPrice > 0;
         for (const t of channelTargets) {
-          if ((t.channelInstanceId ?? null) === null) continue;
+          if ((t.channelInstanceId ?? null) === null) {
+            continue;
+          }
           const ov = channelOverridesToSave.find(
             (o) => String(o.channelInstanceId) === String(t.channelInstanceId),
           );
@@ -641,7 +690,9 @@ export function ProductProvider({
       };
       for (const t of cdonFyndiqWithMarket) {
         const market = String(t.market).toLowerCase().slice(0, 2);
-        if (!['se', 'dk', 'fi', 'no'].includes(market)) continue;
+        if (!['se', 'dk', 'fi', 'no'].includes(market)) {
+          continue;
+        }
         const lang = MARKET_TO_LANG[market] || 'sv-SE';
         const cs = data.channelSpecific as any;
         const channelTitle = t.channel === 'cdon' ? cs?.cdon?.title : cs?.fyndiq?.title;
@@ -756,22 +807,30 @@ export function ProductProvider({
       const { targets: currentTargets } = await channelsApi.getProductTargets(String(productId));
       const currentSet = new Set(
         (currentTargets ?? []).map((t) =>
-          (t.channelInstanceId ?? null) !== null ? `${t.channel}:${t.channelInstanceId}` : t.channel,
+          (t.channelInstanceId ?? null) !== null
+            ? `${t.channel}:${t.channelInstanceId}`
+            : t.channel,
         ),
       );
       const desiredSet = new Set(
         desiredTargets.map((t) =>
-          (t.channelInstanceId ?? null) !== null ? `${t.channel}:${t.channelInstanceId}` : t.channel,
+          (t.channelInstanceId ?? null) !== null
+            ? `${t.channel}:${t.channelInstanceId}`
+            : t.channel,
         ),
       );
       const toEnable = desiredTargets.filter((t) => {
         const key =
-          (t.channelInstanceId ?? null) !== null ? `${t.channel}:${t.channelInstanceId}` : t.channel;
+          (t.channelInstanceId ?? null) !== null
+            ? `${t.channel}:${t.channelInstanceId}`
+            : t.channel;
         return !currentSet.has(key);
       });
       const toDisable = (currentTargets ?? []).filter((t) => {
         const key =
-          (t.channelInstanceId ?? null) !== null ? `${t.channel}:${t.channelInstanceId}` : t.channel;
+          (t.channelInstanceId ?? null) !== null
+            ? `${t.channel}:${t.channelInstanceId}`
+            : t.channel;
         return !desiredSet.has(key);
       });
       const mapUpdates = [
@@ -851,7 +910,10 @@ export function ProductProvider({
         return;
       }
 
-      const detailsMap = new Map<string, { channel: string; channelInstanceId: number | null; market: string }>();
+      const detailsMap = new Map<
+        string,
+        { channel: string; channelInstanceId: number | null; market: string }
+      >();
       for (const target of channelTargets ?? []) {
         const key =
           (target.channelInstanceId ?? null) !== null
@@ -948,9 +1010,7 @@ export function ProductProvider({
       /^warning\b/i.test(String(message || '').trim());
     const blocking = errors.filter((e) => !isWarningMessage(e.message));
     const hasPriceWarning = errors.some(
-      (e) =>
-        e.field === 'priceAmount' &&
-        /effektivt pris/i.test(String(e.message || '')),
+      (e) => e.field === 'priceAmount' && /effektivt pris/i.test(String(e.message || '')),
     );
     if (blocking.length > 0 || (hasPriceWarning && !options?.ignorePriceWarning)) {
       return false;
@@ -997,7 +1057,10 @@ export function ProductProvider({
               (data.listId ?? null) !== null && String(data.listId).trim() !== ''
                 ? String(data.listId).trim()
                 : null;
-            const savedWithList = await productsApi.setProductList(String(productForSync.id), listId);
+            const savedWithList = await productsApi.setProductList(
+              String(productForSync.id),
+              listId,
+            );
             const normalizedWithList = normalizeProductRecord(savedWithList);
             setProducts((prev) =>
               prev.map((p) => (p.id === currentProduct.id ? normalizedWithList : p)),
@@ -1047,7 +1110,7 @@ export function ProductProvider({
           listId: listId ?? saved.listId ?? null,
           listName: saved.listName ?? null,
         };
-        setProducts((prev) => [...prev, normalized]);
+        await reloadProducts();
 
         // Apply Kanaler tab selections for new product: enable selected channels
         const desiredTargets = options?.channelTargets ?? [];
@@ -1179,7 +1242,10 @@ export function ProductProvider({
       const wooInstanceIds = Array.from(
         new Set(
           entry.targets
-            .filter((target) => target.channel === 'woocommerce' && (target.channelInstanceId ?? null) !== null)
+            .filter(
+              (target) =>
+                target.channel === 'woocommerce' && (target.channelInstanceId ?? null) !== null,
+            )
             .map((target) => String(target.channelInstanceId)),
         ),
       ).sort();
@@ -1199,7 +1265,9 @@ export function ProductProvider({
       const cdonMarkets = Array.from(
         new Set(
           entry.targets
-            .filter((target) => target.channel === 'cdon' && (target.channelInstanceId ?? null) !== null)
+            .filter(
+              (target) => target.channel === 'cdon' && (target.channelInstanceId ?? null) !== null,
+            )
             .map((target) => {
               const instance = instanceById.get(String(target.channelInstanceId));
               return String(instance?.market ?? '')
@@ -1220,7 +1288,10 @@ export function ProductProvider({
       const fyndiqMarkets = Array.from(
         new Set(
           entry.targets
-            .filter((target) => target.channel === 'fyndiq' && (target.channelInstanceId ?? null) !== null)
+            .filter(
+              (target) =>
+                target.channel === 'fyndiq' && (target.channelInstanceId ?? null) !== null,
+            )
             .map((target) => {
               const instance = instanceById.get(String(target.channelInstanceId));
               return String(instance?.market ?? '')
@@ -1282,7 +1353,7 @@ export function ProductProvider({
               counts: response?.counts,
             });
           }
-        } catch (error) {
+        } catch {
           if (group.instanceIds.length > 0) {
             for (const instanceId of group.instanceIds) {
               const instance = instanceById.get(String(instanceId));
@@ -1326,7 +1397,7 @@ export function ProductProvider({
             endpoint: response?.endpoint ?? result.cdon?.endpoint,
             counts: sumCounts(result.cdon?.counts, response?.counts),
           };
-        } catch (error) {
+        } catch {
           result.cdon = {
             ok: false,
             endpoint: result.cdon?.endpoint,
@@ -1348,7 +1419,7 @@ export function ProductProvider({
             endpoint: response?.endpoint ?? result.fyndiq?.endpoint,
             counts: sumCounts(result.fyndiq?.counts, response?.counts),
           };
-        } catch (error) {
+        } catch {
           result.fyndiq = {
             ok: false,
             endpoint: result.fyndiq?.endpoint,
@@ -1358,14 +1429,15 @@ export function ProductProvider({
       }
     }
 
+    await reloadProducts();
     return result;
   };
 
   const deleteProduct = async (id: string) => {
     try {
       await productsApi.deleteProduct(id);
-      setProducts((prev) => prev.filter((p) => p.id !== id));
       setSelectedProductIds((prev) => prev.filter((pid) => pid !== String(id)));
+      await reloadProducts();
     } catch (error: any) {
       console.error('Failed to delete product:', error);
       const errorMessage = error?.message || error?.error || 'Failed to delete product';
@@ -1382,8 +1454,8 @@ export function ProductProvider({
 
     try {
       await productsApi.deleteProductsBulk(uniqueIds);
-      setProducts((prev) => prev.filter((p) => !uniqueIds.includes(String(p.id))));
       setSelectedProductIds((prev) => prev.filter((id) => !uniqueIds.includes(id)));
+      await reloadProducts();
     } catch (error: any) {
       console.error('Bulk delete failed:', error);
       const errorMessage = error?.message || error?.error || 'Failed to delete products';
@@ -1448,7 +1520,7 @@ export function ProductProvider({
     }
     try {
       const result = await productsApi.groupProducts(ids, groupVariationType, mainProductId);
-      await loadProducts();
+      await reloadProducts();
       return { updatedCount: result?.updatedCount ?? 0 };
     } catch (error: any) {
       console.error('Group products failed:', error);
@@ -1459,10 +1531,10 @@ export function ProductProvider({
   const importProducts = useCallback(
     async (file: File, mode: ProductImportMode): Promise<ProductImportResult> => {
       const result = await productsApi.importProducts(file, mode);
-      await loadProducts();
+      await reloadProducts();
       return result;
     },
-    [loadProducts],
+    [reloadProducts],
   );
 
   // ---------- Selection helpers ----------
@@ -1537,6 +1609,10 @@ export function ProductProvider({
       isSaving,
       setProductFormSaving,
       products,
+      totalProducts,
+      isProductCatalogBootstrap: shouldBootstrap,
+      loadProducts,
+      reloadProducts,
       productSettings,
       loadProductSettings,
 
@@ -1582,6 +1658,10 @@ export function ProductProvider({
       isSaving,
       setProductFormSaving,
       products,
+      totalProducts,
+      shouldBootstrap,
+      loadProducts,
+      reloadProducts,
       productSettings,
       loadProductSettings,
       selectedProductIds,

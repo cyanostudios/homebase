@@ -1,4 +1,12 @@
-import type { OrderDetails, OrderListItem, OrderStatus } from '../types/orders';
+import { DEFAULT_LIST_PAGE_SIZE } from '@/core/settings/listPageSizes';
+
+import type {
+  OrderDetails,
+  OrderListItem,
+  OrderStatus,
+  OrdersListSortField,
+  OrdersListSortOrder,
+} from '../types/orders';
 
 export type ApiFieldError = { field: string; message: string };
 
@@ -7,6 +15,10 @@ export interface OrdersListFilters {
   channel?: string;
   from?: string;
   to?: string;
+  /** Server-side search: customer, order numbers, amounts, tracking, channel, raw JSON, etc. */
+  q?: string;
+  sort?: OrdersListSortField;
+  order?: OrdersListSortOrder;
   limit?: number;
   offset?: number;
 }
@@ -87,7 +99,16 @@ class OrdersApi {
     if (filters.to) {
       qs.set('to', filters.to);
     }
-    const limit = filters.limit ?? 50;
+    if (filters.q !== undefined && filters.q !== null && String(filters.q).trim() !== '') {
+      qs.set('q', String(filters.q).trim());
+    }
+    if (filters.sort) {
+      qs.set('sort', filters.sort);
+    }
+    if (filters.order) {
+      qs.set('order', filters.order);
+    }
+    const limit = filters.limit ?? DEFAULT_LIST_PAGE_SIZE;
     const offset = filters.offset ?? 0;
     qs.set('limit', String(limit));
     qs.set('offset', String(offset));
@@ -133,8 +154,9 @@ class OrdersApi {
   }
 
   /** Trigger quick-sync (background). Returns { started: boolean, reason?: 'fresh'|'locked' }. */
-  async sync(): Promise<{ started: boolean; reason?: string }> {
-    return (await this.request('/sync', { method: 'POST' })) as any;
+  async sync(options?: { force?: boolean }): Promise<{ started: boolean; reason?: string }> {
+    const body = options?.force === true ? JSON.stringify({ force: true }) : JSON.stringify({});
+    return (await this.request('/sync', { method: 'POST', body })) as any;
   }
 
   /** Poll to know if sync is still running (for UI spinner). */

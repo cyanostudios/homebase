@@ -46,7 +46,10 @@ export type NavPage =
   | 'channels'
   | 'products'
   | 'woocommerce-products'
+  | 'cdon-products'
+  | 'fyndiq-products'
   | 'orders'
+  | 'shipping'
   | 'analytics'
   | 'settings';
 

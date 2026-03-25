@@ -24,12 +24,13 @@ const SYNC_INTERVAL_MINUTES = 15;
  * Run sync for one slot. Caller must have claimed the slot with trySetRunning.
  * Updates order_sync_state on success/error and clears running_since.
  */
-async function runSyncForSlot(req, channel, channelInstanceId) {
+async function runSyncForSlot(req, slot) {
+  const { channel, channelInstanceId, settings = null, instance = null } = slot;
   const instId = channelInstanceId != null ? Number(channelInstanceId) : null;
 
   try {
     if (channel === 'cdon') {
-      const result = await cdonController.syncOpenOrders(req);
+      const result = await cdonController.syncOpenOrders(req, settings);
       if (result.error) {
         await orderSyncState.setError(req, 'cdon', null, result.error);
         return;
@@ -37,11 +38,21 @@ async function runSyncForSlot(req, channel, channelInstanceId) {
       await orderSyncState.setSuccess(req, 'cdon', null, {
         nextRunAt: new Date(Date.now() + SYNC_INTERVAL_MINUTES * 60 * 1000),
       });
+      Logger.info('Order sync slot completed', {
+        userId: req.session?.user?.id,
+        channel: 'cdon',
+        fetched: result.fetched ?? 0,
+        created: result.created ?? 0,
+        changed: result.changed ?? 0,
+        skipped: result.skipped ?? 0,
+        pagesFetched: result.pagesFetched ?? 0,
+        inventoryUpdatedProducts: result.inventoryUpdatedProducts ?? 0,
+      });
       return;
     }
 
     if (channel === 'fyndiq') {
-      const result = await fyndiqController.syncOpenOrders(req);
+      const result = await fyndiqController.syncOpenOrders(req, settings);
       if (result.error) {
         await orderSyncState.setError(req, 'fyndiq', null, result.error);
         return;
@@ -49,12 +60,20 @@ async function runSyncForSlot(req, channel, channelInstanceId) {
       await orderSyncState.setSuccess(req, 'fyndiq', null, {
         nextRunAt: new Date(Date.now() + SYNC_INTERVAL_MINUTES * 60 * 1000),
       });
+      Logger.info('Order sync slot completed', {
+        userId: req.session?.user?.id,
+        channel: 'fyndiq',
+        fetched: result.fetched ?? 0,
+        created: result.created ?? 0,
+        changed: result.changed ?? 0,
+        skipped: result.skipped ?? 0,
+        pagesFetched: result.pagesFetched ?? 0,
+        inventoryUpdatedProducts: result.inventoryUpdatedProducts ?? 0,
+      });
       return;
     }
 
     if (channel === 'woocommerce' && instId != null) {
-      const instances = await wooModel.listInstances(req);
-      const instance = instances.find((i) => Number(i.id) === instId);
       if (!instance) {
         await orderSyncState.setError(req, 'woocommerce', instId, 'Instance not found');
         return;
@@ -85,6 +104,17 @@ async function runSyncForSlot(req, channel, channelInstanceId) {
         lastCursorPlacedAt: result.lastCursor || state?.last_cursor_placed_at,
         nextRunAt: new Date(Date.now() + SYNC_INTERVAL_MINUTES * 60 * 1000),
       });
+      Logger.info('Order sync slot completed', {
+        userId: req.session?.user?.id,
+        channel: 'woocommerce',
+        channelInstanceId: instId,
+        fetched: result.fetched ?? 0,
+        created: result.created ?? 0,
+        changed: result.changed ?? 0,
+        skipped: result.skipped ?? 0,
+        pagesFetched: result.pagesFetched ?? 0,
+        inventoryUpdatedProducts: result.inventoryUpdatedProducts ?? 0,
+      });
       return;
     }
   } catch (err) {
@@ -102,14 +132,14 @@ async function getSlotsToSync(req) {
   try {
     const cdonSettings = await cdonModel.getSettings(req);
     if (cdonSettings?.apiKey && cdonSettings?.apiSecret) {
-      slots.push({ channel: 'cdon', channelInstanceId: null });
+      slots.push({ channel: 'cdon', channelInstanceId: null, settings: cdonSettings });
     }
   } catch (_) {}
 
   try {
     const fyndiqSettings = await fyndiqModel.getSettings(req);
     if (fyndiqSettings?.apiKey && fyndiqSettings?.apiSecret) {
-      slots.push({ channel: 'fyndiq', channelInstanceId: null });
+      slots.push({ channel: 'fyndiq', channelInstanceId: null, settings: fyndiqSettings });
     }
   } catch (_) {}
 
@@ -127,7 +157,8 @@ async function getSlotsToSync(req) {
       creds = creds || {};
       if (creds.storeUrl || creds.store_url) {
         const instId = inst.id != null ? Number(inst.id) : null;
-        if (instId != null) slots.push({ channel: 'woocommerce', channelInstanceId: instId });
+        if (instId != null)
+          slots.push({ channel: 'woocommerce', channelInstanceId: instId, instance: inst });
       }
     }
   } catch (_) {}
@@ -141,10 +172,10 @@ async function getSlotsToSync(req) {
  */
 async function runSync(req) {
   const slots = await getSlotsToSync(req);
-  for (const { channel, channelInstanceId } of slots) {
-    const claimed = await orderSyncState.trySetRunning(req, channel, channelInstanceId);
+  for (const slot of slots) {
+    const claimed = await orderSyncState.trySetRunning(req, slot.channel, slot.channelInstanceId);
     if (!claimed) continue;
-    await runSyncForSlot(req, channel, channelInstanceId);
+    await runSyncForSlot(req, slot);
   }
 }
 
@@ -152,4 +183,5 @@ module.exports = {
   runSync,
   runSyncForSlot,
   getSlotsToSync,
+  SYNC_INTERVAL_MINUTES,
 };

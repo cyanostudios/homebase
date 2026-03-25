@@ -1,8 +1,20 @@
-import { ChevronDown, ChevronRight, Loader2, RefreshCw, Trash2, Download } from 'lucide-react';
-import React, { useCallback, useMemo, useState } from 'react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  RefreshCw,
+  Trash2,
+  Download,
+  Settings,
+} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/select';
 import {
@@ -13,7 +25,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useApp } from '@/core/api/AppContext';
+import { DEFAULT_LIST_PAGE_SIZE } from '@/core/settings/listPageSizes';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
+import { buildListPaginationItems } from '@/core/utils/listPagination';
 import { cdonApi } from '@/plugins/cdon-products/api/cdonApi';
 import { fyndiqApi } from '@/plugins/fyndiq-products/api/fyndiqApi';
 import { useShipping } from '@/plugins/shipping/hooks/useShipping';
@@ -22,11 +37,17 @@ import { woocommerceApi } from '@/plugins/woocommerce-products/api/woocommerceAp
 import { ordersApi } from '../api/ordersApi';
 import { BATCH_CARRIERS } from '../constants/carriers';
 import { useOrders } from '../hooks/useOrders';
-import { validateTrackingRequirement } from '../utils/validateTrackingRequirement';
-import type { OrderDetails, OrderListItem, OrderStatus } from '../types/orders';
+import type {
+  OrderDetails,
+  OrderListItem,
+  OrderStatus,
+  OrdersListSortField,
+} from '../types/orders';
 import { statusDisplayLabel } from '../utils/statusDisplay';
+import { validateTrackingRequirement } from '../utils/validateTrackingRequirement';
 
 import { OrderDetailInline } from './OrderDetailInline';
+import { OrderListSettingsForm } from './OrderListSettingsForm';
 
 function fmtDate(d: any) {
   if (!d) {
@@ -66,6 +87,48 @@ function getOrderGroupKey(o: OrderListItem): string | null {
   return `${namePart}:${placedAt}`;
 }
 
+function defaultOrderFor(field: OrdersListSortField): 'asc' | 'desc' {
+  return field === 'placed' || field === 'total' ? 'desc' : 'asc';
+}
+
+function SortableOrderHead({
+  label,
+  field,
+  currentSort,
+  currentOrder,
+  onSort,
+}: {
+  label: string;
+  field: OrdersListSortField;
+  currentSort: OrdersListSortField;
+  currentOrder: 'asc' | 'desc';
+  onSort: (field: OrdersListSortField) => void;
+}) {
+  const active = currentSort === field;
+  const ariaSort = active ? (currentOrder === 'asc' ? 'ascending' : 'descending') : 'none';
+  return (
+    <TableHead>
+      <button
+        type="button"
+        className="inline-flex w-full min-w-0 items-center gap-1 text-left font-medium hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+        onClick={() => onSort(field)}
+        aria-sort={ariaSort}
+      >
+        <span>{label}</span>
+        {active ? (
+          currentOrder === 'asc' ? (
+            <ArrowUp className="h-4 w-4 shrink-0" aria-hidden />
+          ) : (
+            <ArrowDown className="h-4 w-4 shrink-0" aria-hidden />
+          )
+        ) : (
+          <ArrowUpDown className="h-4 w-4 shrink-0 opacity-35" aria-hidden />
+        )}
+      </button>
+    </TableHead>
+  );
+}
+
 function normalizeDetails(raw: any): OrderDetails {
   return {
     ...raw,
@@ -82,9 +145,20 @@ function normalizeDetails(raw: any): OrderDetails {
 }
 
 export const OrdersList: React.FC = () => {
-  const { orders, totalOrders, filters, setFilters, reloadOrders, updateOrderInList, updateOrdersInList } = useOrders();
+  const { isAuthenticated } = useApp();
+  const {
+    orders,
+    totalOrders,
+    ordersListLoading,
+    filters,
+    setFilters,
+    reloadOrders,
+    updateOrderInList,
+    updateOrdersInList,
+  } = useOrders();
   const { openBookModal } = useShipping();
-  const [search, setSearch] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => filters.q ?? '');
+  const [debouncedSearch, setDebouncedSearch] = useState(() => filters.q ?? '');
   const [importing, setImporting] = useState<{ channel: string | null }>({ channel: null });
   const [importResult, setImportResult] = useState<Array<{
     channel: string;
@@ -95,6 +169,7 @@ export const OrdersList: React.FC = () => {
   }> | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
   const [deletingSelected, setDeletingSelected] = useState(false);
+  const [showOrderListSettings, setShowOrderListSettings] = useState(false);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detailCache, setDetailCache] = useState<Record<string, OrderDetails>>({});
@@ -105,64 +180,84 @@ export const OrdersList: React.FC = () => {
   const [batchCarrier, setBatchCarrier] = useState('');
   const [batchTracking, setBatchTracking] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const syncPollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [exportingPlocklista, setExportingPlocklista] = useState(false);
   const [batchUpdateResult, setBatchUpdateResult] = useState<
-    | { updated: number; requested: number }
-    | { error: string; trackingValidation?: boolean }
-    | null
+    { updated: number; requested: number } | { error: string; trackingValidation?: boolean } | null
   >(null);
 
-  // Quick-sync on open: trigger sync in background; if started, show spinner and poll until done, then refetch list
-  React.useEffect(() => {
-    let cancelled = false;
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-
-    const run = async () => {
-      try {
-        const res = await ordersApi.sync();
-        if (cancelled || !res?.started) {
-          return;
-        }
-        setSyncing(true);
-        intervalId = setInterval(async () => {
-          if (cancelled) {
-            return;
-          }
-          try {
-            const status = await ordersApi.syncStatus();
-            if (!status?.busy) {
-              if (intervalId) {
-                clearInterval(intervalId);
-              }
-              intervalId = null;
-              if (!cancelled) {
-                try {
-                  await ordersApi.renumber();
-                } catch {
-                  // Non-fatal: list may show wrong order numbers until next renumber
-                }
-                await reloadOrders();
-                setSyncing(false);
-              }
+  const handleSyncOrders = useCallback(async () => {
+    if (syncPollIntervalRef.current) {
+      clearInterval(syncPollIntervalRef.current);
+      syncPollIntervalRef.current = null;
+    }
+    try {
+      const res = await ordersApi.sync({ force: true });
+      if (!res?.started) {
+        return;
+      }
+      setSyncing(true);
+      syncPollIntervalRef.current = setInterval(async () => {
+        try {
+          const status = await ordersApi.syncStatus();
+          if (!status?.busy) {
+            if (syncPollIntervalRef.current) {
+              clearInterval(syncPollIntervalRef.current);
+              syncPollIntervalRef.current = null;
             }
-          } catch {
-            // ignore poll errors
+            try {
+              await ordersApi.renumber();
+            } catch {
+              // Non-fatal: list may show wrong order numbers until next renumber
+            }
+            await reloadOrders();
+            setSyncing(false);
           }
-        }, 2000);
-      } catch {
-        if (!cancelled) {
-          setSyncing(false);
+        } catch {
+          // ignore poll errors
         }
-      }
-    };
-    run();
-    return () => {
-      cancelled = true;
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
+      }, 2000);
+    } catch {
+      setSyncing(false);
+    }
   }, [reloadOrders]);
+
+  useEffect(() => {
+    return () => {
+      if (syncPollIntervalRef.current) {
+        clearInterval(syncPollIntervalRef.current);
+        syncPollIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setFilters((prev) => {
+      if (!debouncedSearch) {
+        if (prev.q === undefined) {
+          return prev.offset === 0 ? prev : { ...prev, offset: 0 };
+        }
+        const { q: _drop, ...rest } = prev;
+        return { ...rest, offset: 0 };
+      }
+      if (prev.q === debouncedSearch && prev.offset === 0) {
+        return prev;
+      }
+      return { ...prev, q: debouncedSearch, offset: 0 };
+    });
+  }, [debouncedSearch, setFilters]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setSearchTerm('');
+      setDebouncedSearch('');
+    }
+  }, [isAuthenticated]);
 
   // Format channel display name. WooCommerce: use persisted channelLabel only; if null/empty show "—". CDON/Fyndiq: from raw.market.
   const formatChannelName = useCallback((order: OrderListItem): string => {
@@ -253,22 +348,10 @@ export const OrdersList: React.FC = () => {
     [expandedId, fetchDetail],
   );
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) {
-      return orders;
-    }
-    return orders.filter((o) => {
-      const hay =
-        `${o.channel} ${o.channelOrderId} ${o.platformOrderNumber || ''} ${o.status}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }, [orders, search]);
-
   /** Orders grouped by (customer + minute) for CDON/Fyndiq. Only groups with >1 order. */
   const orderGroups = useMemo(() => {
     const map = new Map<string, OrderListItem[]>();
-    for (const o of filtered) {
+    for (const o of orders) {
       const key = getOrderGroupKey(o);
       if (key) {
         const arr = map.get(key) ?? [];
@@ -282,7 +365,7 @@ export const OrdersList: React.FC = () => {
       }
     }
     return map;
-  }, [filtered]);
+  }, [orders]);
 
   const getGroupInfo = useCallback(
     (o: OrderListItem) => {
@@ -307,22 +390,61 @@ export const OrdersList: React.FC = () => {
   );
 
   const onChangeFilter = (key: string, value: string) => {
-    const next: any = { ...filters };
-    if (!value) {
-      delete next[key];
-    } else {
-      next[key] = value;
-    }
-    next.offset = 0; // Reset to first page when filters change
-    setFilters(next);
+    setFilters((prev) => {
+      const next: any = { ...prev };
+      if (!value) {
+        delete next[key];
+      } else {
+        next[key] = value;
+      }
+      next.offset = 0;
+      return next;
+    });
   };
 
-  const limit = filters.limit ?? 50;
+  const handleSortClick = useCallback(
+    (field: OrdersListSortField) => {
+      setFilters((prev) => {
+        const cur = prev.sort ?? 'placed';
+        const ord = prev.order ?? 'desc';
+        if (cur === field) {
+          return { ...prev, order: ord === 'asc' ? 'desc' : 'asc', offset: 0 };
+        }
+        return { ...prev, sort: field, order: defaultOrderFor(field), offset: 0 };
+      });
+    },
+    [setFilters],
+  );
+
+  const sortField = filters.sort ?? 'placed';
+  const sortOrder = filters.order ?? 'desc';
+
+  const limit = filters.limit ?? DEFAULT_LIST_PAGE_SIZE;
   const offset = filters.offset ?? 0;
   const currentPage = limit > 0 ? Math.floor(offset / limit) + 1 : 1;
   const totalPages = limit > 0 ? Math.ceil(totalOrders / limit) || 1 : 1;
   const from = totalOrders === 0 ? 0 : offset + 1;
   const to = Math.min(offset + limit, totalOrders);
+
+  const paginationItems = useMemo(
+    () => buildListPaginationItems(currentPage, totalPages),
+    [currentPage, totalPages],
+  );
+
+  useEffect(() => {
+    if (totalOrders <= 0) {
+      return;
+    }
+    const tp = Math.ceil(totalOrders / limit) || 1;
+    const maxOffset = Math.max(0, (tp - 1) * limit);
+    setFilters((prev) => {
+      const o = prev.offset ?? 0;
+      if (o <= maxOffset) {
+        return prev;
+      }
+      return { ...prev, offset: maxOffset };
+    });
+  }, [totalOrders, limit, setFilters]);
 
   const goToPage = (page: number) => {
     const p = Math.max(1, Math.min(page, totalPages));
@@ -424,10 +546,10 @@ export const OrdersList: React.FC = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedIds.size === filtered.length) {
+    if (selectedIds.size === orders.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filtered.map((o) => String(o.id))));
+      setSelectedIds(new Set(orders.map((o) => String(o.id))));
     }
   };
 
@@ -468,7 +590,9 @@ export const OrdersList: React.FC = () => {
     if (!forceUpdate) {
       for (const id of ids) {
         const order = orders.find((o) => String(o.id) === id);
-        if (!order) continue;
+        if (!order) {
+          continue;
+        }
         const err = validateTrackingRequirement(order, data.status, data.trackingNumber);
         if (err) {
           setBatchUpdateResult({ error: err.message, trackingValidation: true });
@@ -566,9 +690,46 @@ export const OrdersList: React.FC = () => {
           </Button>
         </>
       )}
-      <Button onClick={() => reloadOrders()} variant="outline" size="sm">
-        <RefreshCw className="h-4 w-4" />
-        Reload
+      <Button variant="outline" size="sm" onClick={() => setShowOrderListSettings(true)}>
+        <Settings className="h-4 w-4 mr-2" />
+        Inställningar
+      </Button>
+      <Button
+        onClick={() => reloadOrders()}
+        variant="outline"
+        size="sm"
+        disabled={ordersListLoading}
+        aria-busy={ordersListLoading}
+      >
+        {ordersListLoading ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin mr-1" aria-hidden />
+            Laddar…
+          </>
+        ) : (
+          <>
+            <RefreshCw className="h-4 w-4" />
+            Reload
+          </>
+        )}
+      </Button>
+      <Button
+        onClick={() => void handleSyncOrders()}
+        disabled={syncing}
+        variant="outline"
+        size="sm"
+      >
+        {syncing ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+            Syncing…
+          </>
+        ) : (
+          <>
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Sync orders
+          </>
+        )}
       </Button>
       <Button
         onClick={handleDeleteAll}
@@ -648,9 +809,9 @@ export const OrdersList: React.FC = () => {
 
       <div className="flex flex-col sm:flex-row gap-3">
         <ContentToolbar
-          searchValue={search}
-          onSearchChange={setSearch}
-          searchPlaceholder="Search order number, channel, status…"
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Sök kund, ordernr, belopp, spårning, kanal…"
           rightActions={toolbarActions}
         />
       </div>
@@ -760,13 +921,29 @@ export const OrdersList: React.FC = () => {
         </div>
       )}
 
-      <Card className="shadow-none">
-        {filtered.length === 0 ? (
+      <Card
+        className="relative shadow-none overflow-hidden min-h-[200px]"
+        aria-busy={ordersListLoading}
+      >
+        {ordersListLoading && (
+          <div
+            role="status"
+            aria-live="polite"
+            aria-label="Laddar order"
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-md bg-background/75 backdrop-blur-[1px]"
+          >
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
+            <span className="text-sm text-muted-foreground">Laddar order…</span>
+          </div>
+        )}
+        {orders.length === 0 && !ordersListLoading ? (
           <div className="p-6 text-center text-muted-foreground">
-            {search
-              ? 'No orders found matching your search.'
+            {filters.q
+              ? 'Inga order matchar sökningen.'
               : 'No orders yet. Import orders from channels to get started.'}
           </div>
+        ) : orders.length === 0 ? (
+          <div className="min-h-[240px]" aria-hidden />
         ) : (
           <>
             <Table>
@@ -776,27 +953,63 @@ export const OrdersList: React.FC = () => {
                   <TableHead className="w-12">
                     <input
                       type="checkbox"
-                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                      checked={orders.length > 0 && selectedIds.size === orders.length}
                       onChange={handleSelectAll}
                       onClick={(e) => e.stopPropagation()}
                       className="h-4 w-4 cursor-pointer rounded border-input"
                       aria-label={
-                        filtered.length > 0 && selectedIds.size === filtered.length
+                        orders.length > 0 && selectedIds.size === orders.length
                           ? 'Unselect all'
                           : 'Select all'
                       }
                     />
                   </TableHead>
-                  <TableHead>Channel</TableHead>
-                  <TableHead>Order #</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Placed</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Status</TableHead>
+                  <SortableOrderHead
+                    label="Channel"
+                    field="channel"
+                    currentSort={sortField}
+                    currentOrder={sortOrder}
+                    onSort={handleSortClick}
+                  />
+                  <SortableOrderHead
+                    label="Order #"
+                    field="order_number"
+                    currentSort={sortField}
+                    currentOrder={sortOrder}
+                    onSort={handleSortClick}
+                  />
+                  <SortableOrderHead
+                    label="Customer"
+                    field="customer"
+                    currentSort={sortField}
+                    currentOrder={sortOrder}
+                    onSort={handleSortClick}
+                  />
+                  <SortableOrderHead
+                    label="Placed"
+                    field="placed"
+                    currentSort={sortField}
+                    currentOrder={sortOrder}
+                    onSort={handleSortClick}
+                  />
+                  <SortableOrderHead
+                    label="Total"
+                    field="total"
+                    currentSort={sortField}
+                    currentOrder={sortOrder}
+                    onSort={handleSortClick}
+                  />
+                  <SortableOrderHead
+                    label="Status"
+                    field="status"
+                    currentSort={sortField}
+                    currentOrder={sortOrder}
+                    onSort={handleSortClick}
+                  />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((o: OrderListItem) => {
+                {orders.map((o: OrderListItem) => {
                   const id = String(o.id);
                   const isExpanded = expandedId === id;
                   const detail = detailCache[id];
@@ -928,61 +1141,75 @@ export const OrdersList: React.FC = () => {
                 })}
               </TableBody>
             </Table>
-            {totalPages > 1 && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
-                <span className="text-sm text-muted-foreground">
-                  Visar {from}–{to} av {totalOrders} order
-                </span>
-                <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+              <span className="text-sm text-muted-foreground">
+                {totalOrders === 0
+                  ? 'Inga order'
+                  : `Visar ${from} till ${to} av ${totalOrders} order`}
+                {ordersListLoading ? ' · Laddar…' : ''}
+              </span>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1 flex-wrap justify-end">
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={currentPage <= 1}
+                    disabled={currentPage <= 1 || ordersListLoading}
                     onClick={() => goToPage(currentPage - 1)}
                     aria-label="Föregående sida"
                   >
                     Föregående
                   </Button>
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let p: number;
-                    if (totalPages <= 5) {
-                      p = i + 1;
-                    } else if (currentPage <= 3) {
-                      p = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      p = totalPages - 4 + i;
-                    } else {
-                      p = currentPage - 2 + i;
-                    }
-                    return (
-                      <Button
-                        key={p}
-                        variant={p === currentPage ? 'default' : 'outline'}
-                        size="sm"
-                        className="min-w-[2rem]"
-                        onClick={() => goToPage(p)}
-                        aria-label={`Sida ${p}`}
-                        aria-current={p === currentPage ? 'page' : undefined}
-                      >
-                        {p}
-                      </Button>
+                  {(() => {
+                    let ellipsisKey = 0;
+                    return paginationItems.map((item) =>
+                      item === 'ellipsis' ? (
+                        <span
+                          key={`ellipsis-${ellipsisKey++}`}
+                          className="px-2 text-sm text-muted-foreground select-none"
+                          aria-hidden
+                        >
+                          …
+                        </span>
+                      ) : (
+                        <Button
+                          key={item}
+                          variant={item === currentPage ? 'default' : 'outline'}
+                          size="sm"
+                          className="min-w-[2rem]"
+                          disabled={ordersListLoading}
+                          onClick={() => goToPage(item)}
+                          aria-label={`Sida ${item}`}
+                          aria-current={item === currentPage ? 'page' : undefined}
+                        >
+                          {item}
+                        </Button>
+                      ),
                     );
-                  })}
+                  })()}
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={currentPage >= totalPages}
+                    disabled={currentPage >= totalPages || ordersListLoading}
                     onClick={() => goToPage(currentPage + 1)}
                     aria-label="Nästa sida"
                   >
                     Nästa
                   </Button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </>
         )}
       </Card>
+
+      <Dialog open={showOrderListSettings} onOpenChange={setShowOrderListSettings}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Orderinställningar</DialogTitle>
+          </DialogHeader>
+          <OrderListSettingsForm onClose={() => setShowOrderListSettings(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

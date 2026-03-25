@@ -13,7 +13,7 @@ function createOrdersRoutes(controller, context) {
     context?.middleware?.requirePlugin || ((name) => (req, res, next) => next());
   const gate = requirePlugin('orders');
 
-  // GET /api/orders?status=&channel=&from=&to=&limit=&offset=
+  // GET /api/orders?status=&channel=&from=&to=&q=&sort=&order=&limit=&offset=
   router.get(
     '/',
     gate,
@@ -22,7 +22,13 @@ function createOrdersRoutes(controller, context) {
       query('channel').optional().trim().isLength({ max: 50 }),
       query('from').optional().isISO8601(),
       query('to').optional().isISO8601(),
-      query('limit').optional().isInt({ min: 1, max: 200 }),
+      query('q').optional().trim().isLength({ max: 200 }),
+      query('sort')
+        .optional()
+        .trim()
+        .isIn(['placed', 'channel', 'order_number', 'customer', 'total', 'status']),
+      query('order').optional().trim().isIn(['asc', 'desc']),
+      query('limit').optional().isIn(['25', '50', '100', '150', '200', '250']),
       query('offset').optional().isInt({ min: 0, max: 100000 }),
     ],
     validateRequest,

@@ -5,11 +5,17 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useSyncExternalStore,
   ReactNode,
 } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
+import {
+  getAppCurrentPage,
+  isEstimatesBootstrapPage,
+  subscribeAppCurrentPage,
+} from '@/core/navigation/appCurrentPageStore';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 
 import { estimatesApi } from '../api/estimatesApi';
@@ -67,6 +73,12 @@ export function EstimateProvider({
   onCloseOtherPanels,
 }: EstimateProviderProps) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData } = useApp();
+  const activePage = useSyncExternalStore(
+    subscribeAppCurrentPage,
+    getAppCurrentPage,
+    getAppCurrentPage,
+  );
+  const shouldBootstrapEstimates = isAuthenticated && isEstimatesBootstrapPage(activePage);
 
   // Panel state
   const [isEstimatePanelOpen, setIsEstimatePanelOpen] = useState(false);
@@ -76,15 +88,6 @@ export function EstimateProvider({
 
   // Data state
   const [estimates, setEstimates] = useState<Estimate[]>([]);
-
-  // Load on auth
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadEstimates();
-    } else {
-      setEstimates([]);
-    }
-  }, [isAuthenticated]);
 
   // Register panel close function once
   useEffect(() => {
@@ -109,7 +112,7 @@ export function EstimateProvider({
     };
   }, []);
 
-  const loadEstimates = async () => {
+  const loadEstimates = useCallback(async () => {
     try {
       const estimatesData = await estimatesApi.getEstimates();
       const transformed = estimatesData.map((e: any) => ({
@@ -125,7 +128,18 @@ export function EstimateProvider({
       const errorMessage = error?.message || error?.error || 'Failed to load estimates';
       setValidationErrors([{ field: 'general', message: errorMessage }]);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setEstimates([]);
+      return;
+    }
+    if (!shouldBootstrapEstimates) {
+      return;
+    }
+    void loadEstimates();
+  }, [isAuthenticated, shouldBootstrapEstimates, loadEstimates]);
 
   // ---- FIXED: robust parsing for both string and { estimateNumber } ----
   const generateNextEstimateNumber = async (): Promise<string> => {
@@ -174,6 +188,7 @@ export function EstimateProvider({
 
   // CRUD
   const openEstimatePanel = (estimate: Estimate | null) => {
+    void loadEstimates();
     setCurrentEstimate(estimate);
     setPanelMode(estimate ? 'edit' : 'create');
     setIsEstimatePanelOpen(true);
@@ -182,6 +197,7 @@ export function EstimateProvider({
   };
 
   const openEstimateForEdit = (estimate: Estimate) => {
+    void loadEstimates();
     setCurrentEstimate(estimate);
     setPanelMode('edit');
     setIsEstimatePanelOpen(true);
@@ -190,6 +206,7 @@ export function EstimateProvider({
   };
 
   const openEstimateForView = (estimate: Estimate) => {
+    void loadEstimates();
     setCurrentEstimate(estimate);
     setPanelMode('view');
     setIsEstimatePanelOpen(true);

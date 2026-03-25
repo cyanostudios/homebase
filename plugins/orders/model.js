@@ -2,6 +2,8 @@
 // Orders storage + normalized ingest (idempotent) + inventory adjustments (MVP)
 // Uses @homebase/core SDK for database access with tenant isolation.
 
+const crypto = require('crypto');
+
 const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
@@ -10,6 +12,7 @@ class OrdersModel {
   static ITEMS_TABLE = 'order_items';
   static ORDER_NUMBER_COUNTER_TABLE = 'order_number_counter';
   static CUSTOMER_FIRST_ORDERS_TABLE = 'customer_first_orders';
+  static SYNC_BATCH_SIZE = 100;
 
   getChannelMarket(raw) {
     if (!raw || typeof raw !== 'object') return null;
@@ -38,6 +41,526 @@ class OrdersModel {
     }
     const email = c.email != null ? String(c.email).trim().toLowerCase() : '';
     return email || null;
+  }
+
+  stableStringify(value) {
+    if (value === null || value === undefined) return 'null';
+    if (Array.isArray(value)) {
+      return `[${value.map((item) => this.stableStringify(item)).join(',')}]`;
+    }
+    if (value instanceof Date) {
+      return JSON.stringify(value.toISOString());
+    }
+    if (typeof value === 'object') {
+      const keys = Object.keys(value).sort();
+      return `{${keys
+        .map((key) => `${JSON.stringify(key)}:${this.stableStringify(value[key])}`)
+        .join(',')}}`;
+    }
+    return JSON.stringify(value);
+  }
+
+  buildSyncFingerprint(record) {
+    return crypto.createHash('sha256').update(this.stableStringify(record)).digest('hex');
+  }
+
+  normalizeOrderForStorage(order) {
+    const channel = String(order?.channel || '')
+      .trim()
+      .toLowerCase();
+    const channelOrderId = String(order?.channelOrderId || '').trim();
+    if (!channel || !channelOrderId) {
+      throw new AppError(
+        'channel and channelOrderId are required',
+        400,
+        AppError.CODES.VALIDATION_ERROR,
+      );
+    }
+
+    const channelInstanceId =
+      order?.channelInstanceId != null && Number.isFinite(Number(order.channelInstanceId))
+        ? Number(order.channelInstanceId)
+        : null;
+    const placedAtStr = this.toISOUTC(order?.placedAt);
+    const placedAt = placedAtStr ? new Date(placedAtStr) : null;
+    const totalAmount = order?.totalAmount != null ? Number(order.totalAmount) : null;
+    const currency = order?.currency ? String(order.currency).trim().toUpperCase() : null;
+    const status = order?.status ? String(order.status).trim().toLowerCase() : null;
+
+    let orderRaw = null;
+    if (order?.raw && typeof order.raw === 'object') {
+      orderRaw = order.raw;
+    } else if (typeof order?.raw === 'string') {
+      try {
+        orderRaw = JSON.parse(order.raw);
+      } catch {
+        orderRaw = null;
+      }
+    }
+
+    const channelLabel =
+      typeof order?.channelLabel === 'string' && order.channelLabel.trim() !== ''
+        ? order.channelLabel.trim()
+        : null;
+    const channelMarketNorm = this.getChannelMarket(orderRaw);
+    const currencyNorm = this.normalizeCurrencyForAnalytics(channel, currency, channelMarketNorm);
+    const customerIdentifierNorm = this.normalizeCustomerIdentifierForAnalytics(
+      channel,
+      order?.customer,
+    );
+
+    const items = Array.isArray(order?.items)
+      ? order.items
+          .map((item) => {
+            const qty = Number(item?.quantity);
+            if (!Number.isFinite(qty) || qty <= 0) return null;
+            const sku = item?.sku != null ? String(item.sku).trim() : null;
+            const title = item?.title != null ? String(item.title).trim() : null;
+            const unitPrice = item?.unitPrice != null ? Number(item.unitPrice) : null;
+            const vatRate = item?.vatRate != null ? Number(item.vatRate) : null;
+            return {
+              sku: sku || null,
+              productId: item?.productId != null ? Number(item.productId) : null,
+              title: title || null,
+              quantity: Math.trunc(qty),
+              unitPrice: Number.isFinite(unitPrice) ? unitPrice : null,
+              vatRate: Number.isFinite(vatRate) ? vatRate : null,
+              raw: item?.raw ?? null,
+            };
+          })
+          .filter(Boolean)
+      : [];
+
+    return {
+      channel,
+      channelOrderId,
+      channelInstanceId,
+      platformOrderNumber:
+        order?.platformOrderNumber != null ? String(order.platformOrderNumber) : null,
+      placedAt,
+      totalAmount: Number.isFinite(totalAmount) ? totalAmount : null,
+      currency: currency || null,
+      status: status || null,
+      shippingAddress: order?.shippingAddress || null,
+      billingAddress: order?.billingAddress || null,
+      customer: order?.customer || null,
+      raw: orderRaw,
+      channelLabel,
+      channelMarketNorm,
+      currencyNorm,
+      customerIdentifierNorm,
+      items,
+    };
+  }
+
+  buildEffectiveSyncRecord(record) {
+    return {
+      channel: record.channel,
+      channelOrderId: record.channelOrderId,
+      channelInstanceId: record.channelInstanceId ?? null,
+      platformOrderNumber: record.platformOrderNumber ?? null,
+      placedAt: record.placedAt ? this.toISOUTC(record.placedAt) : null,
+      totalAmount: record.totalAmount ?? null,
+      currency: record.currency ?? null,
+      status: record.status ?? null,
+      shippingAddress: record.shippingAddress ?? null,
+      billingAddress: record.billingAddress ?? null,
+      customer: record.customer ?? null,
+      channelLabel: record.channelLabel ?? null,
+      channelMarketNorm: record.channelMarketNorm ?? null,
+      currencyNorm: record.currencyNorm ?? null,
+      customerIdentifierNorm: record.customerIdentifierNorm ?? null,
+    };
+  }
+
+  buildPreparedFingerprint(prepared) {
+    return this.buildSyncFingerprint(this.buildEffectiveSyncRecord(prepared));
+  }
+
+  mergePreparedWithExisting(existing, prepared) {
+    return {
+      channel: prepared.channel,
+      channelOrderId: prepared.channelOrderId,
+      channelInstanceId: prepared.channelInstanceId,
+      platformOrderNumber:
+        prepared.platformOrderNumber != null
+          ? prepared.platformOrderNumber
+          : (existing.platform_order_number ?? null),
+      placedAt: existing.placed_at || prepared.placedAt || null,
+      totalAmount:
+        prepared.totalAmount != null ? prepared.totalAmount : (existing.total_amount ?? null),
+      currency: prepared.currency != null ? prepared.currency : (existing.currency ?? null),
+      status: prepared.status != null ? prepared.status : (existing.status ?? null),
+      shippingAddress:
+        prepared.shippingAddress != null
+          ? prepared.shippingAddress
+          : (existing.shipping_address ?? null),
+      billingAddress:
+        prepared.billingAddress != null
+          ? prepared.billingAddress
+          : (existing.billing_address ?? null),
+      customer: prepared.customer != null ? prepared.customer : (existing.customer ?? null),
+      raw: prepared.raw != null ? prepared.raw : (existing.raw ?? null),
+      channelLabel:
+        prepared.channelLabel != null ? prepared.channelLabel : (existing.channel_label ?? null),
+      channelMarketNorm:
+        prepared.channelMarketNorm != null
+          ? prepared.channelMarketNorm
+          : (existing.channel_market_norm ?? null),
+      currencyNorm:
+        prepared.currencyNorm != null ? prepared.currencyNorm : (existing.currency_norm ?? null),
+      customerIdentifierNorm:
+        prepared.customerIdentifierNorm != null
+          ? prepared.customerIdentifierNorm
+          : (existing.customer_identifier_norm ?? null),
+    };
+  }
+
+  chunkArray(items, size = OrdersModel.SYNC_BATCH_SIZE) {
+    const chunks = [];
+    for (let i = 0; i < items.length; i += size) {
+      chunks.push(items.slice(i, i + size));
+    }
+    return chunks;
+  }
+
+  async allocateOrderNumbers(tx, userId, count) {
+    if (!count) return [];
+    const res = await tx.query(
+      `
+      INSERT INTO ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} (user_id, next_number)
+      VALUES ($1, $2)
+      ON CONFLICT (user_id) DO UPDATE
+      SET next_number = ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}.next_number + $2
+      RETURNING next_number
+      `,
+      [userId, count],
+    );
+    const latest = Number(res[0]?.next_number ?? count);
+    const first = latest - count + 1;
+    return Array.from({ length: count }, (_, idx) => first + idx);
+  }
+
+  async insertOrderItems(tx, orderId, items) {
+    if (!items.length) return;
+    const values = [];
+    const params = [];
+    for (const item of items) {
+      params.push(
+        Number(orderId),
+        item.sku || null,
+        item.productId != null ? Number(item.productId) : null,
+        item.title || null,
+        Math.trunc(item.quantity),
+        item.unitPrice != null ? item.unitPrice : null,
+        item.vatRate != null ? item.vatRate : null,
+        item.raw ? JSON.stringify(item.raw) : null,
+      );
+      const offset = params.length - 7;
+      values.push(
+        `($${offset}, $${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, NOW())`,
+      );
+    }
+    await tx.query(
+      `
+      INSERT INTO ${OrdersModel.ITEMS_TABLE} (
+        order_id, sku, product_id, title, quantity, unit_price, vat_rate, raw, created_at
+      )
+      VALUES ${values.join(', ')}
+      `,
+      params,
+    );
+  }
+
+  async loadProductIdsByNumericSku(req, skus) {
+    const db = Database.get(req);
+    const userId = req.session?.user?.id;
+    if (!userId || !Array.isArray(skus) || skus.length === 0) return new Map();
+    const numericIds = Array.from(
+      new Set(
+        skus
+          .map((sku) => String(sku || '').trim())
+          .filter(Boolean)
+          .map((sku) => (/^\d+$/.test(sku) ? Number(sku) : null))
+          .filter((id) => Number.isFinite(id) && id > 0),
+      ),
+    );
+    if (!numericIds.length) return new Map();
+    const rows = await db.query(
+      `SELECT id::text AS sku_key, id::text AS product_id
+       FROM products
+       WHERE user_id = $1 AND id = ANY($2::int[])`,
+      [userId, numericIds],
+    );
+    return new Map(rows.map((row) => [String(row.sku_key), String(row.product_id)]));
+  }
+
+  async loadWooProductIdsByExternalId(req, instanceId, externalIds) {
+    const db = Database.get(req);
+    const userId = req.session?.user?.id;
+    if (!userId || !Array.isArray(externalIds) || externalIds.length === 0) return new Map();
+    const ids = Array.from(
+      new Set(externalIds.map((id) => String(id || '').trim()).filter(Boolean)),
+    );
+    if (!ids.length) return new Map();
+    const rows = await db.query(
+      `SELECT external_id, product_id
+       FROM channel_product_map
+       WHERE user_id = $1
+         AND channel = 'woocommerce'
+         AND channel_instance_id = $2
+         AND external_id = ANY($3::text[])`,
+      [userId, Number(instanceId), ids],
+    );
+    return new Map(
+      rows
+        .filter((row) => row.external_id != null)
+        .map((row) => [String(row.external_id), String(row.product_id)]),
+    );
+  }
+
+  async ingestBatch(req, orders) {
+    try {
+      const db = Database.get(req);
+      const userId = req.session?.user?.id;
+      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
+
+      const prepared = Array.isArray(orders)
+        ? orders.map((order) => this.normalizeOrderForStorage(order))
+        : [];
+      if (!prepared.length) {
+        return {
+          results: [],
+          createdCount: 0,
+          changedCount: 0,
+          skippedCount: 0,
+          inventoryAdjustments: [],
+        };
+      }
+
+      const groups = new Map();
+      prepared.forEach((item, index) => {
+        const key = `${item.channel}::${item.channelInstanceId ?? 'null'}`;
+        const list = groups.get(key) || [];
+        list.push({ index, item });
+        groups.set(key, list);
+      });
+
+      return await db.transaction(async (tx) => {
+        const existingByKey = new Map();
+        for (const [groupKey, entries] of groups.entries()) {
+          const [channel, instanceKey] = groupKey.split('::');
+          const channelInstanceId = instanceKey === 'null' ? null : Number(instanceKey);
+          const channelOrderIds = Array.from(
+            new Set(entries.map((entry) => entry.item.channelOrderId).filter(Boolean)),
+          );
+          const rows = await tx.query(
+            `SELECT id, channel_order_id, platform_order_number, placed_at, total_amount, currency, status,
+                    shipping_address, billing_address, customer, raw, channel_label,
+                    channel_market_norm, currency_norm, customer_identifier_norm, sync_fingerprint
+             FROM ${OrdersModel.ORDERS_TABLE}
+             WHERE user_id = $1
+               AND channel = $2
+               AND (channel_instance_id IS NOT DISTINCT FROM $3)
+               AND channel_order_id = ANY($4::text[])`,
+            [userId, channel, channelInstanceId, channelOrderIds],
+          );
+          for (const row of rows) {
+            existingByKey.set(`${groupKey}::${String(row.channel_order_id)}`, row);
+          }
+        }
+
+        const results = new Array(prepared.length);
+        const creates = [];
+        const updates = [];
+
+        prepared.forEach((item, index) => {
+          const key = `${item.channel}::${item.channelInstanceId ?? 'null'}::${item.channelOrderId}`;
+          const existing = existingByKey.get(key);
+          if (!existing) {
+            creates.push({ index, item });
+            return;
+          }
+          const merged = this.mergePreparedWithExisting(existing, item);
+          const nextFingerprint = this.buildSyncFingerprint(this.buildEffectiveSyncRecord(merged));
+          if (existing.sync_fingerprint && existing.sync_fingerprint === nextFingerprint) {
+            results[index] = {
+              created: false,
+              changed: false,
+              unchanged: true,
+              orderId: Number(existing.id),
+            };
+            return;
+          }
+          updates.push({ index, existing, merged, nextFingerprint });
+        });
+
+        const allocatedNumbers = await this.allocateOrderNumbers(tx, userId, creates.length);
+        creates.forEach((entry, idx) => {
+          entry.orderNumber = allocatedNumbers[idx];
+          entry.fingerprint = this.buildPreparedFingerprint(entry.item);
+        });
+
+        const inventoryAdjustments = new Map();
+        let createdCount = 0;
+        let changedCount = 0;
+        let skippedCount = 0;
+
+        for (const entry of updates) {
+          const { index, existing, merged, nextFingerprint } = entry;
+          await tx.query(
+            `UPDATE ${OrdersModel.ORDERS_TABLE}
+             SET
+               platform_order_number = $3,
+               total_amount = $4,
+               currency = $5,
+               status = $6,
+               shipping_address = $7,
+               billing_address = $8,
+               customer = $9,
+               raw = $10,
+               channel_label = $11,
+               channel_market_norm = $12,
+               currency_norm = $13,
+               customer_identifier_norm = $14,
+               sync_fingerprint = $15,
+               updated_at = NOW()
+             WHERE user_id = $1 AND id = $2`,
+            [
+              userId,
+              Number(existing.id),
+              merged.platformOrderNumber,
+              merged.totalAmount,
+              merged.currency,
+              merged.status,
+              merged.shippingAddress ? JSON.stringify(merged.shippingAddress) : null,
+              merged.billingAddress ? JSON.stringify(merged.billingAddress) : null,
+              merged.customer ? JSON.stringify(merged.customer) : null,
+              merged.raw ? JSON.stringify(merged.raw) : null,
+              merged.channelLabel,
+              merged.channelMarketNorm,
+              merged.currencyNorm,
+              merged.customerIdentifierNorm,
+              nextFingerprint,
+            ],
+          );
+          results[index] = {
+            created: false,
+            changed: true,
+            unchanged: false,
+            orderId: Number(existing.id),
+          };
+          changedCount += 1;
+        }
+
+        for (const entry of creates) {
+          const { index, item, orderNumber, fingerprint } = entry;
+          try {
+            const createRes = await tx.query(
+              `
+              INSERT INTO ${OrdersModel.ORDERS_TABLE} (
+                user_id, channel, channel_order_id, channel_instance_id, channel_label, platform_order_number,
+                order_number, placed_at, total_amount, currency, status, shipping_address, billing_address,
+                customer, raw, channel_market_norm, currency_norm, customer_identifier_norm, sync_fingerprint,
+                created_at, updated_at
+              )
+              VALUES (
+                $1, $2, $3, $4, $5, $6,
+                $7, $8, $9, COALESCE($10, 'SEK'), COALESCE($11, 'processing'), $12, $13,
+                $14, $15, $16, $17, $18, $19,
+                NOW(), NOW()
+              )
+              RETURNING id
+              `,
+              [
+                userId,
+                item.channel,
+                item.channelOrderId,
+                item.channelInstanceId,
+                item.channelLabel,
+                item.platformOrderNumber,
+                orderNumber,
+                item.placedAt,
+                item.totalAmount,
+                item.currency,
+                item.status,
+                item.shippingAddress ? JSON.stringify(item.shippingAddress) : null,
+                item.billingAddress ? JSON.stringify(item.billingAddress) : null,
+                item.customer ? JSON.stringify(item.customer) : null,
+                item.raw ? JSON.stringify(item.raw) : null,
+                item.channelMarketNorm,
+                item.currencyNorm,
+                item.customerIdentifierNorm,
+                fingerprint,
+              ],
+            );
+            const orderId = Number(createRes[0].id);
+            await this.insertOrderItems(tx, orderId, item.items);
+            for (const orderItem of item.items) {
+              const pid =
+                orderItem.productId != null && Number.isFinite(Number(orderItem.productId))
+                  ? Number(orderItem.productId)
+                  : null;
+              if (pid == null) continue;
+              inventoryAdjustments.set(
+                pid,
+                (inventoryAdjustments.get(pid) || 0) + orderItem.quantity,
+              );
+            }
+            results[index] = {
+              created: true,
+              changed: false,
+              unchanged: false,
+              orderId,
+            };
+            createdCount += 1;
+          } catch (err) {
+            const pgCode = err?.details?.code ?? err?.code;
+            const rawMsg = String(err?.details?.originalError ?? err?.message ?? '');
+            const isDuplicate =
+              pgCode === '23505' &&
+              (rawMsg.includes('ux_orders_user_order_number') ||
+                rawMsg.includes('channel_order_id') ||
+                rawMsg.includes('ux_orders_user_channel_instance_order'));
+            if (!isDuplicate) throw err;
+            const recheck = await tx.query(
+              `SELECT id FROM ${OrdersModel.ORDERS_TABLE}
+               WHERE user_id = $1 AND channel = $2 AND (channel_instance_id IS NOT DISTINCT FROM $4) AND channel_order_id = $3
+               LIMIT 1`,
+              [userId, item.channel, item.channelOrderId, item.channelInstanceId],
+            );
+            if (!recheck.length) throw err;
+            results[index] = {
+              created: false,
+              changed: false,
+              unchanged: true,
+              orderId: Number(recheck[0].id),
+            };
+            skippedCount += 1;
+          }
+        }
+
+        skippedCount +=
+          results.filter((result) => result && result.unchanged).length - skippedCount;
+
+        return {
+          results,
+          createdCount,
+          changedCount,
+          skippedCount,
+          inventoryAdjustments: Array.from(inventoryAdjustments.entries()).map(
+            ([productId, quantity]) => ({
+              productId,
+              quantity,
+            }),
+          ),
+        };
+      });
+    } catch (error) {
+      Logger.error('Order batch ingest failed', error);
+      if (error instanceof AppError) throw error;
+      throw new AppError('Order batch ingest failed', 500, AppError.CODES.DATABASE_ERROR);
+    }
   }
 
   async upsertCustomerFirstOrder(db, { userId, orderId, placedAt, customerIdentifierNorm }) {
@@ -75,7 +598,54 @@ class OrdersModel {
     );
   }
 
-  async list(req, { status, channel, from, to, limit = 50, offset = 0 } = {}) {
+  /**
+   * Whitelist ORDER BY for list (no user SQL fragments).
+   * @param {'placed'|'channel'|'order_number'|'customer'|'total'|'status'} sortKey
+   * @param {'asc'|'desc'} orderDir
+   */
+  static buildListOrderBy(sortKey, orderDir) {
+    const dir = orderDir === 'asc' ? 'ASC' : 'DESC';
+    const idDir = orderDir === 'asc' ? 'ASC' : 'DESC';
+    switch (sortKey) {
+      case 'channel':
+        return `lower(coalesce(nullif(trim(channel_label::text), ''), channel::text)) ${dir}, id ${idDir}`;
+      case 'order_number':
+        return `order_number ${dir}, id ${idDir}`;
+      case 'customer':
+        return `lower(coalesce(
+          nullif(trim(shipping_address->>'full_name'), ''),
+          nullif(trim(concat_ws(' ', shipping_address->>'first_name', shipping_address->>'last_name')), ''),
+          nullif(trim(customer->>'email'), ''),
+          ''
+        )) ${dir} NULLS LAST, id ${idDir}`;
+      case 'total':
+        return `total_amount ${dir} NULLS LAST, id ${idDir}`;
+      case 'status':
+        return `status ${dir}, id ${idDir}`;
+      case 'placed':
+      default:
+        return `placed_at ${dir} NULLS LAST, id ${idDir}`;
+    }
+  }
+
+  /**
+   * Full-text-ish search across persisted order fields (DB), not only the current page.
+   * Uses case-insensitive substring match via position(lower(needle) in lower(haystack)).
+   */
+  async list(
+    req,
+    {
+      status,
+      channel,
+      from,
+      to,
+      limit = 100,
+      offset = 0,
+      q: qRaw = null,
+      sort: sortRaw = 'placed',
+      order: orderRaw = 'desc',
+    } = {},
+  ) {
     try {
       const db = Database.get(req);
       const userId = req.session?.user?.id;
@@ -105,7 +675,48 @@ class OrdersModel {
         clauses.push(`placed_at <= $${params.length}`);
       }
 
-      params.push(Math.min(Math.max(Number(limit) || 50, 1), 200));
+      const ALLOWED_SORT = new Set([
+        'placed',
+        'channel',
+        'order_number',
+        'customer',
+        'total',
+        'status',
+      ]);
+      const sortKey = ALLOWED_SORT.has(String(sortRaw).trim().toLowerCase())
+        ? String(sortRaw).trim().toLowerCase()
+        : 'placed';
+      const orderDir = String(orderRaw).trim().toLowerCase() === 'asc' ? 'asc' : 'desc';
+      const orderBySql = OrdersModel.buildListOrderBy(sortKey, orderDir);
+
+      const qStr = qRaw != null ? String(qRaw).trim() : '';
+      if (qStr.length > 0) {
+        const needle = qStr.slice(0, 200).toLowerCase();
+        params.push(needle);
+        const qIdx = params.length;
+        clauses.push(`(
+          position($${qIdx}::text in lower(coalesce(channel_order_id::text, ''))) > 0
+          OR position($${qIdx}::text in lower(coalesce(platform_order_number::text, ''))) > 0
+          OR position($${qIdx}::text in lower(coalesce(order_number::text, ''))) > 0
+          OR position($${qIdx}::text in lower(coalesce(shipping_tracking_number::text, ''))) > 0
+          OR position($${qIdx}::text in lower(coalesce(channel_label::text, ''))) > 0
+          OR position($${qIdx}::text in lower(coalesce(status::text, ''))) > 0
+          OR position($${qIdx}::text in lower(coalesce(channel::text, ''))) > 0
+          OR position($${qIdx}::text in lower(coalesce(currency::text, ''))) > 0
+          OR position($${qIdx}::text in lower(coalesce(shipping_carrier::text, ''))) > 0
+          OR position($${qIdx}::text in lower(coalesce(total_amount::text, ''))) > 0
+          OR position($${qIdx}::text in lower(coalesce(customer::text, ''))) > 0
+          OR position($${qIdx}::text in lower(coalesce(shipping_address::text, ''))) > 0
+          OR position($${qIdx}::text in lower(coalesce(billing_address::text, ''))) > 0
+          OR position($${qIdx}::text in lower(coalesce(raw::text, ''))) > 0
+          OR position($${qIdx}::text in lower(coalesce(channel_instance_id::text, ''))) > 0
+        )`);
+      }
+
+      const allowedLimits = new Set([25, 50, 100, 150, 200, 250]);
+      const limitNum = Number(limit);
+      const limitVal = allowedLimits.has(limitNum) ? limitNum : 100;
+      params.push(limitVal);
       const limitIdx = params.length;
       params.push(Math.max(Number(offset) || 0, 0));
       const offsetIdx = params.length;
@@ -138,7 +749,7 @@ class OrdersModel {
           updated_at
         FROM ${OrdersModel.ORDERS_TABLE}
         WHERE ${clauses.join(' AND ')}
-        ORDER BY placed_at DESC NULLS LAST, id DESC
+        ORDER BY ${orderBySql}
         LIMIT $${limitIdx}
         OFFSET $${offsetIdx}
       `;
@@ -330,227 +941,8 @@ class OrdersModel {
    * NOTE: Inventory sync is orchestrated at controller level (so it can call other plugins).
    */
   async ingest(req, order) {
-    try {
-      const db = Database.get(req);
-      const userId = req.session?.user?.id;
-      if (!userId) throw new AppError('User not authenticated', 401, AppError.CODES.UNAUTHORIZED);
-
-      const channel = String(order?.channel || '')
-        .trim()
-        .toLowerCase();
-      const channelOrderId = String(order?.channelOrderId || '').trim();
-      if (!channel || !channelOrderId) {
-        throw new AppError(
-          'channel and channelOrderId are required',
-          400,
-          AppError.CODES.VALIDATION_ERROR,
-        );
-      }
-
-      const channelInstanceId =
-        order?.channelInstanceId != null && Number.isFinite(Number(order.channelInstanceId))
-          ? Number(order.channelInstanceId)
-          : null;
-
-      const placedAtStr = this.toISOUTC(order?.placedAt);
-      const placedAt = placedAtStr ? new Date(placedAtStr) : null;
-      const totalAmount = order?.totalAmount != null ? Number(order.totalAmount) : null;
-      const currency = order?.currency ? String(order.currency).trim().toUpperCase() : null;
-      const status = order?.status ? String(order.status).trim().toLowerCase() : null;
-      let orderRaw = null;
-      if (order?.raw && typeof order.raw === 'object') {
-        orderRaw = order.raw;
-      } else if (typeof order?.raw === 'string') {
-        try {
-          orderRaw = JSON.parse(order.raw);
-        } catch {
-          orderRaw = null;
-        }
-      }
-      const channelMarketNorm = this.getChannelMarket(orderRaw);
-      const currencyNorm = this.normalizeCurrencyForAnalytics(channel, currency, channelMarketNorm);
-      const customerIdentifierNorm = this.normalizeCustomerIdentifierForAnalytics(
-        channel,
-        order?.customer,
-      );
-
-      // If order already exists (same channel + instance + channel_order_id), update it and return.
-      const existing = await db.query(
-        `SELECT id FROM ${OrdersModel.ORDERS_TABLE}
-         WHERE user_id = $1 AND channel = $2 AND (channel_instance_id IS NOT DISTINCT FROM $4) AND channel_order_id = $3
-         LIMIT 1`,
-        [userId, channel, channelOrderId, channelInstanceId],
-      );
-      if (existing.length) {
-        const orderId = Number(existing[0].id);
-        const channelLabelVal =
-          typeof order?.channelLabel === 'string' && order.channelLabel.trim() !== ''
-            ? order.channelLabel.trim()
-            : null;
-        await db.query(
-          `UPDATE ${OrdersModel.ORDERS_TABLE}
-           SET
-             platform_order_number = COALESCE($3, platform_order_number),
-             total_amount = COALESCE($4, total_amount),
-             currency = COALESCE($5, currency),
-             status = COALESCE($6, status),
-             shipping_address = COALESCE($7, shipping_address),
-             billing_address = COALESCE($8, billing_address),
-             customer = COALESCE($9, customer),
-             raw = $10,
-             channel_label = COALESCE($11, channel_label),
-             channel_market_norm = COALESCE($12, channel_market_norm),
-             currency_norm = COALESCE($13, currency_norm),
-             customer_identifier_norm = COALESCE($14, customer_identifier_norm),
-             updated_at = NOW()
-           WHERE user_id = $1 AND id = $2
-           RETURNING id, placed_at, customer_identifier_norm`,
-          [
-            userId,
-            orderId,
-            order?.platformOrderNumber != null ? String(order.platformOrderNumber) : null,
-            Number.isFinite(totalAmount) ? totalAmount : null,
-            currency || null,
-            status || null,
-            order?.shippingAddress ? JSON.stringify(order.shippingAddress) : null,
-            order?.billingAddress ? JSON.stringify(order.billingAddress) : null,
-            order?.customer ? JSON.stringify(order.customer) : null,
-            order?.raw ? JSON.stringify(order.raw) : null,
-            channelLabelVal,
-            channelMarketNorm,
-            currencyNorm,
-            customerIdentifierNorm,
-          ],
-        );
-        await this.upsertCustomerFirstOrder(db, {
-          userId,
-          orderId,
-          placedAt,
-          customerIdentifierNorm,
-        });
-        return { created: false, orderId };
-      }
-
-      // New order: allocate order_number and insert
-      const counterRes = await db.query(
-        `
-        INSERT INTO ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} (user_id, next_number)
-        VALUES ($1, 1)
-        ON CONFLICT (user_id) DO UPDATE SET next_number = ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}.next_number + 1
-        RETURNING next_number
-        `,
-        [userId],
-      );
-      const orderNumber = Number(counterRes[0]?.next_number ?? 1);
-
-      const channelLabelVal =
-        typeof order?.channelLabel === 'string' && order.channelLabel.trim() !== ''
-          ? order.channelLabel.trim()
-          : null;
-      let orderId;
-      try {
-        const createRes = await db.query(
-          `
-          INSERT INTO ${OrdersModel.ORDERS_TABLE} (
-            user_id, channel, channel_order_id, channel_instance_id, channel_label, platform_order_number, order_number,
-            placed_at, total_amount, currency, status,
-            shipping_address, billing_address, customer, raw, channel_market_norm, currency_norm, customer_identifier_norm,
-            created_at, updated_at
-          )
-          VALUES (
-            $1, $2, $3, $4, $5, $6, $7,
-            $8, $9, COALESCE($10, 'SEK'), COALESCE($11, 'processing'),
-            $12, $13, $14, $15, $16, $17, $18,
-            NOW(), NOW()
-          )
-          RETURNING id
-          `,
-          [
-            userId,
-            channel,
-            channelOrderId,
-            channelInstanceId,
-            channelLabelVal,
-            order?.platformOrderNumber != null ? String(order.platformOrderNumber) : null,
-            orderNumber,
-            placedAt,
-            Number.isFinite(totalAmount) ? totalAmount : null,
-            currency || null,
-            status || null,
-            order?.shippingAddress ? JSON.stringify(order.shippingAddress) : null,
-            order?.billingAddress ? JSON.stringify(order.billingAddress) : null,
-            order?.customer ? JSON.stringify(order.customer) : null,
-            order?.raw ? JSON.stringify(order.raw) : null,
-            channelMarketNorm,
-            currencyNorm,
-            customerIdentifierNorm,
-          ],
-        );
-        orderId = Number(createRes[0].id);
-      } catch (err) {
-        const pgCode = err?.details?.code ?? err?.code;
-        const rawMsg = String(err?.details?.originalError ?? err?.message ?? '');
-        const isDuplicate =
-          pgCode === '23505' &&
-          (rawMsg.includes('ux_orders_user_order_number') ||
-            rawMsg.includes('channel_order_id') ||
-            rawMsg.includes('ux_orders_user_channel_instance_order'));
-        if (isDuplicate) {
-          const recheck = await db.query(
-            `SELECT id FROM ${OrdersModel.ORDERS_TABLE}
-             WHERE user_id = $1 AND channel = $2 AND (channel_instance_id IS NOT DISTINCT FROM $4) AND channel_order_id = $3
-             LIMIT 1`,
-            [userId, channel, channelOrderId, channelInstanceId],
-          );
-          if (recheck.length) return { created: false, orderId: Number(recheck[0].id) };
-        }
-        throw err;
-      }
-
-      await this.upsertCustomerFirstOrder(db, {
-        userId,
-        orderId,
-        placedAt,
-        customerIdentifierNorm,
-      });
-
-      // Insert items (new order only)
-      const items = Array.isArray(order?.items) ? order.items : [];
-      for (const it of items) {
-        const sku = it?.sku != null ? String(it.sku).trim() : null;
-        const title = it?.title != null ? String(it.title).trim() : null;
-        const qty = Number(it?.quantity);
-        const unitPrice = it?.unitPrice != null ? Number(it.unitPrice) : null;
-        const vatRate = it?.vatRate != null ? Number(it.vatRate) : null;
-
-        if (!Number.isFinite(qty) || qty <= 0) continue;
-
-        await db.query(
-          `
-          INSERT INTO ${OrdersModel.ITEMS_TABLE} (
-            order_id, sku, product_id, title, quantity, unit_price, vat_rate, raw, created_at
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-          `,
-          [
-            orderId,
-            sku || null,
-            it?.productId != null ? Number(it.productId) : null,
-            title || null,
-            Math.trunc(qty),
-            Number.isFinite(unitPrice) ? unitPrice : null,
-            Number.isFinite(vatRate) ? vatRate : null,
-            it?.raw ? JSON.stringify(it.raw) : null,
-          ],
-        );
-      }
-
-      return { created: true, orderId };
-    } catch (error) {
-      Logger.error('Order ingest failed', error);
-      if (error instanceof AppError) throw error;
-      throw new AppError('Order ingest failed', 500, AppError.CODES.DATABASE_ERROR);
-    }
+    const batch = await this.ingestBatch(req, [order]);
+    return batch.results[0] || { created: false, changed: false, unchanged: true, orderId: null };
   }
 
   /**

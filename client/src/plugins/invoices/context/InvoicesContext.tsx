@@ -5,11 +5,17 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useSyncExternalStore,
   ReactNode,
 } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/core/api/AppContext';
+import {
+  getAppCurrentPage,
+  isInvoicesBootstrapPage,
+  subscribeAppCurrentPage,
+} from '@/core/navigation/appCurrentPageStore';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 
 import { InvoicesApi, invoicesApi } from '../api/invoicesApi';
@@ -86,6 +92,12 @@ export function InvoicesProvider({
   api = invoicesApi,
 }: ProviderProps) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction, refreshData } = useApp();
+  const activePage = useSyncExternalStore(
+    subscribeAppCurrentPage,
+    getAppCurrentPage,
+    getAppCurrentPage,
+  );
+  const shouldBootstrapInvoices = isAuthenticated && isInvoicesBootstrapPage(activePage);
 
   // Panel
   const [isInvoicesPanelOpen, setIsInvoicesPanelOpen] = useState(false);
@@ -95,16 +107,6 @@ export function InvoicesProvider({
 
   // Data
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-
-  // Load when authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadInvoices();
-    } else {
-      setInvoices([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
 
   // Register panel close once
   useEffect(() => {
@@ -129,7 +131,7 @@ export function InvoicesProvider({
     };
   }, []);
 
-  const loadInvoices = async () => {
+  const loadInvoices = useCallback(async () => {
     try {
       const items = await api.getItems();
       const normalized = items.map((it: any) => ({
@@ -143,7 +145,18 @@ export function InvoicesProvider({
     } catch (err) {
       console.error('Failed to load invoices:', err);
     }
-  };
+  }, [api]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setInvoices([]);
+      return;
+    }
+    if (!shouldBootstrapInvoices) {
+      return;
+    }
+    void loadInvoices();
+  }, [isAuthenticated, shouldBootstrapInvoices, loadInvoices]);
 
   // Domain validation (extend later)
   const validate = (_data: any): ValidationError[] => {
@@ -154,6 +167,7 @@ export function InvoicesProvider({
 
   // Actions
   const openInvoicesPanel = (item: Invoice | null) => {
+    void loadInvoices();
     setCurrentInvoice(item);
     setPanelMode(item ? 'edit' : 'create');
     setIsInvoicesPanelOpen(true);
@@ -162,6 +176,7 @@ export function InvoicesProvider({
   };
 
   const openInvoiceForEdit = (item: Invoice) => {
+    void loadInvoices();
     setCurrentInvoice(item);
     setPanelMode('edit');
     setIsInvoicesPanelOpen(true);
@@ -170,6 +185,7 @@ export function InvoicesProvider({
   };
 
   const openInvoiceForView = (item: Invoice) => {
+    void loadInvoices();
     setCurrentInvoice(item);
     setPanelMode('view');
     setIsInvoicesPanelOpen(true);

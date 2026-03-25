@@ -96,8 +96,28 @@ export type MarketDelivery = { shippingMin?: number; shippingMax?: number };
 /** Language for CDON/Fyndiq category lists. Default sv-SE when missing. */
 export type CategoryLanguage = 'sv-SE' | 'da-DK' | 'fi-FI' | 'nb-NO';
 
+import {
+  DEFAULT_LIST_PAGE_SIZE,
+  LIST_PAGE_SIZE_OPTIONS,
+  type ListPageSize,
+  normalizeListPageSize,
+} from '@/core/settings/listPageSizes';
+
+/** Allowed page sizes for the product catalog list (server limit). */
+export type CatalogPageSize = ListPageSize;
+
+export const CATALOG_PAGE_SIZE_OPTIONS = LIST_PAGE_SIZE_OPTIONS;
+
+export const DEFAULT_CATALOG_PAGE_SIZE = DEFAULT_LIST_PAGE_SIZE;
+
+export function normalizeCatalogPageSize(value: unknown): CatalogPageSize {
+  return normalizeListPageSize(value);
+}
+
 /** Product plugin settings (stored in user_settings, category: products) */
 export interface ProductSettings {
+  /** Rows per page in the product catalog (default 100). */
+  catalogPageSize?: CatalogPageSize;
   /** @deprecated Use defaultDeliveryCdon / defaultDeliveryFyndiq. Kept for migration. */
   defaultDelivery?: Record<ProductSettingsMarketKey, MarketDelivery>;
   /** Default shipping times per CDON market (SE, DK, NO, FI). Used when product has no manual CDON shipping_time. */
