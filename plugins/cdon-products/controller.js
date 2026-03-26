@@ -2153,8 +2153,9 @@ class CdonProductsController {
       }
     }
 
-    const productIdBySku = await this.ordersModel.loadProductIdsByNumericSku(
+    const productIdBySku = await this.ordersModel.loadProductIdsByChannelExternalId(
       req,
+      'cdon',
       allOrders.map((o) => o?.article_sku),
     );
     const normalizedOrders = [];
@@ -2247,8 +2248,9 @@ class CdonProductsController {
         }
       }
 
-      const productIdBySku = await this.ordersModel.loadProductIdsByNumericSku(
+      const productIdBySku = await this.ordersModel.loadProductIdsByChannelExternalId(
         req,
+        'cdon',
         allOrders.map((o) => o?.article_sku),
       );
       const normalizedOrders = [];
@@ -2288,6 +2290,8 @@ class CdonProductsController {
       ).catch((err) => {
         Logger.warn('Inventory sync failed (non-fatal)', err, { userId: Context.getUserId(req) });
       });
+
+      await this.ordersModel.renumberOrderNumbersByPlacedAt(req);
 
       return res.json({
         ok: true,

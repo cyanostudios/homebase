@@ -205,11 +205,6 @@ export const OrdersList: React.FC = () => {
               clearInterval(syncPollIntervalRef.current);
               syncPollIntervalRef.current = null;
             }
-            try {
-              await ordersApi.renumber();
-            } catch {
-              // Non-fatal: list may show wrong order numbers until next renumber
-            }
             await reloadOrders();
             setSyncing(false);
           }
@@ -491,11 +486,6 @@ export const OrdersList: React.FC = () => {
     }
 
     setImportResult(results);
-    try {
-      await ordersApi.renumber();
-    } catch {
-      // Non-fatal: list may still show old numbers until next renumber
-    }
     setTimeout(() => reloadOrders(), 300);
     setImporting({ channel: null });
   };

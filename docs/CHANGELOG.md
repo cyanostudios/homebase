@@ -4,6 +4,26 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-26 – Orders: Product-ID i UI, channel-map backfill, renumber efter sync
+
+### Orders/kanaler – produktkoppling och nummerordning
+
+- **server/migrations/080-backfill-order-items-product-id-from-channel-map.sql:** Backfill som fyller `order_items.product_id` från `channel_product_map.external_id` för CDON/Fyndiq/Woo där match finns.
+- **plugins/orders/model.js:** Ny `loadProductIdsByChannelExternalId(req, channel, externalIds, instanceId)` som läser produktkoppling via `channel_product_map` istället för numerisk SKU-heuristik.
+- **plugins/cdon-products/controller.js**, **plugins/fyndiq-products/controller.js:** Orders-normalisering använder nu `loadProductIdsByChannelExternalId(..., 'cdon'/'fyndiq', ...)`.
+
+### Sync-flöde
+
+- **plugins/orders/orderSyncService.js:** Kör `renumberOrderNumbersByPlacedAt` en gång efter lyckad slot-claim/sync-runda.
+- **plugins/cdon-products/controller.js**, **plugins/fyndiq-products/controller.js**, **plugins/woocommerce-products/controller.js:** Tvingar renumber efter import/sync i respektive endpoint.
+- **client/src/plugins/orders/components/OrdersList.tsx:** Lokal `ordersApi.renumber()` efter sync/import borttagen; renumber sker nu server-side.
+
+### Klient – visning
+
+- **client/src/plugins/orders/components/OrderDetailInline.tsx**, **client/src/plugins/orders/components/OrdersView.tsx:** Ny kolumn **Product-ID** i orderradstabeller.
+
+---
+
 ## 2026-03-25 – Order sync scheduler, manuell Sync orders, force quick-sync
 
 ### Server – periodisk order-synk

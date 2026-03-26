@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 
 import { ordersApi } from '../api/ordersApi';
-import { validateTrackingRequirement } from '../utils/validateTrackingRequirement';
 import { getCarriersForChannel } from '../constants/carriers';
 import type { OrderDetails, OrderItem, OrderStatus } from '../types/orders';
 import { statusDisplayLabel } from '../utils/statusDisplay';
+import { validateTrackingRequirement } from '../utils/validateTrackingRequirement';
 
 function fmtDate(d: any) {
   if (!d) {
@@ -407,6 +407,9 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
                   SKU
                 </th>
                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  Product-ID
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                   Title
                 </th>
                 <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
@@ -433,6 +436,7 @@ export const OrderDetailInline: React.FC<OrderDetailInlineProps> = ({ order, onU
                 return (
                   <tr key={it.id}>
                     <td className="px-4 py-2 text-sm text-gray-900">{it.sku || '—'}</td>
+                    <td className="px-4 py-2 text-sm text-gray-900">{it.productId || '—'}</td>
                     <td className="px-4 py-2 text-sm text-gray-900">{it.title || '—'}</td>
                     <td className="px-4 py-2 text-sm text-gray-900 text-right">{it.quantity}</td>
                     <td className="px-4 py-2 text-sm text-gray-900 text-right">

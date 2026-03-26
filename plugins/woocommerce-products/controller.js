@@ -1375,6 +1375,8 @@ class WooCommerceController {
         }
       }
 
+      await this.ordersModel.renumberOrderNumbersByPlacedAt(req);
+
       return res.json({
         ok: true,
         fetched: totalFetched,

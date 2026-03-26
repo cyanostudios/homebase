@@ -272,27 +272,32 @@ class OrdersModel {
     );
   }
 
-  async loadProductIdsByNumericSku(req, skus) {
+  async loadProductIdsByChannelExternalId(req, channel, externalIds, instanceId = null) {
     const db = Database.get(req);
     const userId = req.session?.user?.id;
-    if (!userId || !Array.isArray(skus) || skus.length === 0) return new Map();
-    const numericIds = Array.from(
-      new Set(
-        skus
-          .map((sku) => String(sku || '').trim())
-          .filter(Boolean)
-          .map((sku) => (/^\d+$/.test(sku) ? Number(sku) : null))
-          .filter((id) => Number.isFinite(id) && id > 0),
-      ),
+    if (!userId || !Array.isArray(externalIds) || externalIds.length === 0) return new Map();
+    const ch = String(channel || '')
+      .trim()
+      .toLowerCase();
+    if (!ch) return new Map();
+    const ids = Array.from(
+      new Set(externalIds.map((id) => String(id || '').trim()).filter(Boolean)),
     );
-    if (!numericIds.length) return new Map();
+    if (!ids.length) return new Map();
     const rows = await db.query(
-      `SELECT id::text AS sku_key, id::text AS product_id
-       FROM products
-       WHERE user_id = $1 AND id = ANY($2::int[])`,
-      [userId, numericIds],
+      `SELECT external_id, product_id
+       FROM channel_product_map
+       WHERE user_id = $1
+         AND channel = $2
+         AND (channel_instance_id IS NOT DISTINCT FROM $3)
+         AND external_id = ANY($4::text[])`,
+      [userId, ch, instanceId != null ? Number(instanceId) : null, ids],
     );
-    return new Map(rows.map((row) => [String(row.sku_key), String(row.product_id)]));
+    return new Map(
+      rows
+        .filter((row) => row.external_id != null && row.product_id != null)
+        .map((row) => [String(row.external_id), String(row.product_id)]),
+    );
   }
 
   async loadWooProductIdsByExternalId(req, instanceId, externalIds) {
@@ -1079,9 +1084,10 @@ class OrdersModel {
         WHERE user_id = $1
         GROUP BY user_id
         ON CONFLICT (user_id) DO UPDATE
-        SET next_number = GREATEST(
-          ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}.next_number,
-          (SELECT COALESCE(MAX(order_number), 0) + 1 FROM ${OrdersModel.ORDERS_TABLE} WHERE user_id = $1)
+        SET next_number = (
+          SELECT COALESCE(MAX(order_number), 0) + 1
+          FROM ${OrdersModel.ORDERS_TABLE}
+          WHERE user_id = $1
         )
         `,
         [userId],

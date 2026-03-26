@@ -10,6 +10,7 @@ const FyndiqProductsController = require('../fyndiq-products/controller');
 const FyndiqProductsModel = require('../fyndiq-products/model');
 const WooCommerceController = require('../woocommerce-products/controller');
 const WooCommerceModel = require('../woocommerce-products/model');
+const OrdersModel = require('./model');
 
 const cdonModel = new CdonProductsModel();
 const cdonController = new CdonProductsController(cdonModel);
@@ -17,6 +18,7 @@ const fyndiqModel = new FyndiqProductsModel();
 const fyndiqController = new FyndiqProductsController(fyndiqModel);
 const wooModel = new WooCommerceModel();
 const wooController = new WooCommerceController(wooModel);
+const ordersModel = new OrdersModel();
 
 const SYNC_INTERVAL_MINUTES = 15;
 
@@ -172,10 +174,18 @@ async function getSlotsToSync(req) {
  */
 async function runSync(req) {
   const slots = await getSlotsToSync(req);
+  let claimedAny = false;
   for (const slot of slots) {
     const claimed = await orderSyncState.trySetRunning(req, slot.channel, slot.channelInstanceId);
     if (!claimed) continue;
+    claimedAny = true;
     await runSyncForSlot(req, slot);
+  }
+  if (!claimedAny) return;
+  try {
+    await ordersModel.renumberOrderNumbersByPlacedAt(req);
+  } catch (err) {
+    Logger.error('Order sync post-renumber failed', err, { userId: req.session?.user?.id });
   }
 }
 

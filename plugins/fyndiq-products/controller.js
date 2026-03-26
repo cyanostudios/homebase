@@ -1895,8 +1895,9 @@ class FyndiqProductsController {
       page += 1;
     }
 
-    const productIdBySku = await this.ordersModel.loadProductIdsByNumericSku(
+    const productIdBySku = await this.ordersModel.loadProductIdsByChannelExternalId(
       req,
+      'fyndiq',
       allOrders.map((o) => o?.article_sku),
     );
     const normalizedOrders = [];
@@ -2080,8 +2081,9 @@ class FyndiqProductsController {
         }
       }
 
-      const productIdBySku = await this.ordersModel.loadProductIdsByNumericSku(
+      const productIdBySku = await this.ordersModel.loadProductIdsByChannelExternalId(
         req,
+        'fyndiq',
         allOrders.map((o) => o?.article_sku),
       );
       const normalizedOrders = [];
@@ -2121,6 +2123,8 @@ class FyndiqProductsController {
       ).catch((err) => {
         Logger.warn('Inventory sync failed (non-fatal)', err, { userId: Context.getUserId(req) });
       });
+
+      await this.ordersModel.renumberOrderNumbersByPlacedAt(req);
 
       return res.json({
         ok: true,

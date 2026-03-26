@@ -153,6 +153,9 @@ export const OrdersView: React.FC<{ order?: OrderDetails; item?: any }> = ({ ord
                   SKU
                 </th>
                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  Product-ID
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                   Title
                 </th>
                 <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
@@ -167,6 +170,7 @@ export const OrdersView: React.FC<{ order?: OrderDetails; item?: any }> = ({ ord
               {(o as OrderDetails).items.map((it) => (
                 <tr key={it.id}>
                   <td className="px-4 py-2 text-sm text-gray-900">{it.sku || '—'}</td>
+                  <td className="px-4 py-2 text-sm text-gray-900">{it.productId || '—'}</td>
                   <td className="px-4 py-2 text-sm text-gray-900">{it.title || '—'}</td>
                   <td className="px-4 py-2 text-sm text-gray-900 text-right">{it.quantity}</td>
                   <td className="px-4 py-2 text-sm text-gray-900 text-right">
