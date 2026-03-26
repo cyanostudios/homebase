@@ -32,7 +32,7 @@ router.get(
       const userId = req.session.user.id;
 
       const result = await pool.query(
-        'SELECT category, settings FROM user_settings WHERE user_id = $1',
+        'SELECT category, settings FROM public.user_settings WHERE user_id = $1',
         [userId],
       );
 
@@ -64,7 +64,7 @@ router.get(
       const { category } = req.params;
 
       const result = await pool.query(
-        'SELECT settings FROM user_settings WHERE user_id = $1 AND category = $2',
+        'SELECT settings FROM public.user_settings WHERE user_id = $1 AND category = $2',
         [userId, category],
       );
 
@@ -103,7 +103,7 @@ router.put(
 
       // Upsert settings
       const result = await pool.query(
-        `INSERT INTO user_settings (user_id, category, settings, updated_at)
+        `INSERT INTO public.user_settings (user_id, category, settings, updated_at)
          VALUES ($1, $2, $3::jsonb, CURRENT_TIMESTAMP)
          ON CONFLICT (user_id, category)
          DO UPDATE SET settings = $3::jsonb, updated_at = CURRENT_TIMESTAMP

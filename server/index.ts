@@ -71,7 +71,7 @@ const sessionPool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 15000,
 });
 sessionPool.on('error', (err: Error) => {
   console.error(
@@ -218,7 +218,7 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
       const connectionPool = ServiceManager.get('connectionPool');
       try {
         const r = await pool.query(
-          'SELECT neon_connection_string FROM tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL LIMIT 1',
+          'SELECT neon_connection_string FROM public.tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL LIMIT 1',
           [tenantUserId],
         );
         if (r.rows?.length && r.rows[0].neon_connection_string) {
@@ -274,7 +274,7 @@ function requirePlugin(pluginName: string) {
       return next();
     }
     const result = await pool.query(
-      'SELECT enabled FROM user_plugin_access WHERE user_id = $1 AND plugin_name = $2',
+      'SELECT enabled FROM public.user_plugin_access WHERE user_id = $1 AND plugin_name = $2',
       [req.session.user.id, pluginName],
     );
     if (!result.rows.length || !result.rows[0].enabled) {

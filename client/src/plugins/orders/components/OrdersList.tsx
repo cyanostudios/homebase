@@ -451,9 +451,12 @@ export const OrdersList: React.FC = () => {
     setImportResult(null);
 
     const channels: Array<{ key: 'woocommerce' | 'cdon' | 'fyndiq'; pull: () => Promise<any> }> = [
-      { key: 'cdon', pull: () => cdonApi.pullOrders({ daysBack: 30 }) },
-      { key: 'fyndiq', pull: () => fyndiqApi.pullOrders({ perPage: 30 }) },
-      { key: 'woocommerce', pull: () => woocommerceApi.pullOrders({ perPage: 20 }) },
+      { key: 'cdon', pull: () => cdonApi.pullOrders({ daysBack: 30, renumber: false }) },
+      { key: 'fyndiq', pull: () => fyndiqApi.pullOrders({ perPage: 30, renumber: false }) },
+      {
+        key: 'woocommerce',
+        pull: () => woocommerceApi.pullOrders({ perPage: 20, renumber: false }),
+      },
     ];
 
     const results: Array<{
@@ -483,6 +486,19 @@ export const OrdersList: React.FC = () => {
           error: detail ? `${msg}${msg !== detail ? ` — ${detail}` : ''}` : msg || 'Failed',
         });
       }
+    }
+
+    try {
+      await ordersApi.renumber();
+    } catch (err: any) {
+      const msg = err?.message ?? String(err);
+      results.push({
+        channel: 'renumber',
+        fetched: 0,
+        created: 0,
+        skippedExisting: 0,
+        error: msg || 'Failed',
+      });
     }
 
     setImportResult(results);

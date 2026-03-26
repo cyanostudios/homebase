@@ -182,7 +182,7 @@ class WooCommerceApi {
   }
 
   // ---- Orders pull ----
-  async pullOrders(data?: { perPage?: number; after?: string }): Promise<{
+  async pullOrders(data?: { perPage?: number; after?: string; renumber?: boolean }): Promise<{
     ok: boolean;
     fetched: number;
     ingested: number;

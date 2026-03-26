@@ -55,26 +55,33 @@ async function main() {
 
     for (const schemaName of schemas) {
       console.log(`\n--- ${schemaName} ---`);
-      await client.query(`SET search_path TO ${schemaName}`);
+      await client.query('BEGIN');
+      try {
+        await client.query(`SET LOCAL search_path TO ${schemaName}`);
+        for (const table of TABLES_WITH_ID) {
+          try {
+            // Only reset if the table exists and has a sequence for "id"
+            const seqRes = await client.query(`SELECT pg_get_serial_sequence($1, 'id') AS seq`, [
+              `${schemaName}.${table}`,
+            ]);
+            const seq = seqRes.rows?.[0]?.seq;
+            if (!seq) continue;
 
-      for (const table of TABLES_WITH_ID) {
-        try {
-          // Only reset if the table exists and has a sequence for "id"
-          const seqRes = await client.query(
-            `SELECT pg_get_serial_sequence($1, 'id') AS seq`,
-            [`${schemaName}.${table}`],
-          );
-          const seq = seqRes.rows?.[0]?.seq;
-          if (!seq) continue;
-
-          await client.query(
-            `SELECT setval($1, GREATEST(COALESCE((SELECT MAX(id) FROM ${table}), 1), 1))`,
-            [seq],
-          );
-          console.log(`   ✅ ${table}`);
-        } catch (_e) {
-          // best-effort: ignore per-table failures
+            await client.query(
+              `SELECT setval($1, GREATEST(COALESCE((SELECT MAX(id) FROM ${table}), 1), 1))`,
+              [seq],
+            );
+            console.log(`   ✅ ${table}`);
+          } catch (_e) {
+            // best-effort: ignore per-table failures
+          }
         }
+        await client.query('COMMIT');
+      } catch (inner) {
+        try {
+          await client.query('ROLLBACK');
+        } catch {}
+        throw inner;
       }
     }
 
@@ -91,4 +98,3 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
-

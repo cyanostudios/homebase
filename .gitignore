@@ -34,6 +34,9 @@ server/uploads/
 debug_*.js
 emergency_search.js
 
+# Parallel tree / snapshot (not part of this repo)
+Homebase-V3.5/
+
 # Cursor local notes (keep .cursor/rules/ and plans if needed)
 .cursor/omskrivning*.md
 .cursor/*_output*.md

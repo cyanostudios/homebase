@@ -1375,7 +1375,10 @@ class WooCommerceController {
         }
       }
 
-      await this.ordersModel.renumberOrderNumbersByPlacedAt(req);
+      const shouldRenumber = req.body?.renumber !== false;
+      if (shouldRenumber) {
+        await this.ordersModel.renumberOrderNumbersByPlacedAt(req);
+      }
 
       return res.json({
         ok: true,

@@ -19,7 +19,7 @@ async function runMigrationOnTenant(connectionString, tenantInfo) {
     // Remove duplicate options parameter
     cleanConnectionString = cleanConnectionString.split('&options=')[0];
   }
-  
+
   const pool = new Pool({ connectionString: cleanConnectionString });
   const client = await pool.connect();
 
@@ -30,15 +30,25 @@ async function runMigrationOnTenant(connectionString, tenantInfo) {
     console.log(`\n📦 Running files migration on tenant: ${tenantLabel}...`);
 
     // For LocalTenantProvider, set search_path to tenant schema
-    if (tenantInfo.schemaName) {
-      await client.query(`SET search_path TO ${tenantInfo.schemaName}`);
-    }
-
     // Read migration file
     const sql = fs.readFileSync(MIGRATION_FILE, 'utf8');
 
     // Execute migration
-    await client.query(sql);
+    await client.query('BEGIN');
+    try {
+      if (tenantInfo.schemaName) {
+        await client.query(`SET LOCAL search_path TO ${tenantInfo.schemaName}`);
+      } else {
+        await client.query('SET LOCAL search_path TO public');
+      }
+      await client.query(sql);
+      await client.query('COMMIT');
+    } catch (inner) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {}
+      throw inner;
+    }
 
     console.log(`   ✅ Files migration completed successfully`);
     return { success: true, tenantInfo };
@@ -88,8 +98,8 @@ async function main() {
         t.user_id,
         t.neon_connection_string as connection_string,
         u.email
-      FROM tenants t
-      INNER JOIN users u ON t.user_id = u.id
+      FROM public.tenants t
+      INNER JOIN public.users u ON t.user_id = u.id
       WHERE t.neon_connection_string IS NOT NULL
       ORDER BY t.user_id
     `);
@@ -102,7 +112,7 @@ async function main() {
       console.log(`   No Neon tenants found, using local schema-per-tenant`);
       const usersResult = await mainPool.query(`
         SELECT id as user_id, email
-        FROM users
+        FROM public.users
         ORDER BY id
       `);
 

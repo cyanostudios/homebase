@@ -24,15 +24,25 @@ async function runMigrationOnTenant(connectionString, tenantInfo) {
     console.log(`\n📦 Running migration on tenant: ${tenantLabel}...`);
 
     // For LocalTenantProvider, set search_path to tenant schema
-    if (tenantInfo.schemaName) {
-      await client.query(`SET search_path TO ${tenantInfo.schemaName}`);
-    }
-
     // Read migration file
     const sql = fs.readFileSync(MIGRATION_FILE, 'utf8');
 
     // Execute migration
-    await client.query(sql);
+    await client.query('BEGIN');
+    try {
+      if (tenantInfo.schemaName) {
+        await client.query(`SET LOCAL search_path TO ${tenantInfo.schemaName}`);
+      } else {
+        await client.query('SET LOCAL search_path TO public');
+      }
+      await client.query(sql);
+      await client.query('COMMIT');
+    } catch (inner) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {}
+      throw inner;
+    }
 
     console.log(`   ✅ Migration completed successfully`);
     return { success: true, tenantInfo };
@@ -81,7 +91,7 @@ async function main() {
       // For LocalTenantProvider: Get all users and create schema-based connection strings
       const usersResult = await mainPool.query(`
         SELECT id as user_id, email
-        FROM users
+        FROM public.users
         ORDER BY id
       `);
 
@@ -99,8 +109,8 @@ async function main() {
           t.user_id,
           t.neon_connection_string as connection_string,
           u.email
-        FROM tenants t
-        INNER JOIN users u ON t.user_id = u.id
+        FROM public.tenants t
+        INNER JOIN public.users u ON t.user_id = u.id
         WHERE t.neon_connection_string IS NOT NULL
         ORDER BY t.user_id
       `);

@@ -4,6 +4,35 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-27 – Tenant/migration: public-schema, SET LOCAL, import-renumber, tenant-guards
+
+### Migrationer och `search_path`
+
+- **server/migrations/policy.js:** Gemensam lista över public-only migrationer; `scripts/run-all-migrations.js` kör varje migration i egen transaktion med **`SET LOCAL search_path`** (public eller tenant-schema) i stället för sessionslång `SET search_path`.
+- **scripts/run-all-migrations.js:** Använder `policy.js` för att filtrera public vs tenant-migrationer.
+
+### Huvuddatabas (public) – explicit kvalificering
+
+- **server/core/routes/auth.js**, **server/core/routes/admin.js**, **server/core/routes/settings.js** m.fl.: SQL mot auth-tabeller kvalificerad som **`public`** (t.ex. `public.users`, `public.user_plugin_access`) för att undvika felaktig upplösning vid varierande `search_path`.
+- **Diverse `scripts/*.js` och SQL under `scripts/db/manual/`:** Samma mönster där mot huvuddatabasen.
+
+### Tenant-plugins (CDON/Fyndiq/Woo)
+
+- **plugins/cdon-products/model.js**, **plugins/fyndiq-products/model.js**, **plugins/woocommerce-products/model.js:** Tenant-queries (`tenant_*`) körs i transaktion med **`SET LOCAL search_path`** och validering av schema-namn där det behövs.
+
+### Orders
+
+- **plugins/orders/orderSyncScheduler.js:** Läser `public.user_plugin_access`; **en retry** vid tillfälligt fel på användarlistan så inte hela ticken kastas.
+- **client/…/OrdersList.tsx:** Vid import från alla kanaler: `pullOrders(..., renumber: false)` per kanal, därefter **ett** `ordersApi.renumber()` med fel synligt i import-resultatet om det misslyckas.
+- **client/…/cdonApi.ts**, **fyndiqApi.ts**, **woocommerceApi.ts:** `pullOrders` tar valfri `renumber?: boolean`.
+
+### Verktyg och repo
+
+- **scripts/check-tenant-guards.js** + **`npm run check:tenant-guards`:** Statisk kontroll (förbjuder `SET search_path TO` utanför allowlist, varnar för oanmäld auth-SQL från tenant-kod).
+- **.gitignore:** `Homebase-V3.5/` ignoreras (lokal parallell träd, inte repo-innehåll).
+
+---
+
 ## 2026-03-26 – Orders: Product-ID i UI, channel-map backfill, renumber efter sync
 
 ### Orders/kanaler – produktkoppling och nummerordning

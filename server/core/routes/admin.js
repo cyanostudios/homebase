@@ -49,9 +49,9 @@ router.post(
         return res.status(400).json({ error: 'Invalid role. Must be "user" or "superuser"' });
       }
 
-      await pool.query('UPDATE users SET role = $1 WHERE email = $2', [role, email]);
+      await pool.query('UPDATE public.users SET role = $1 WHERE email = $2', [role, email]);
 
-      const result = await pool.query('SELECT id, email, role FROM users WHERE email = $1', [
+      const result = await pool.query('SELECT id, email, role FROM public.users WHERE email = $1', [
         email,
       ]);
 
@@ -79,8 +79,8 @@ router.get(
     try {
       const result = await pool.query(`
       SELECT u.id, u.email, u.role, t.neon_project_id, t.neon_database_name
-      FROM users u
-      INNER JOIN tenants t ON u.id = t.user_id
+      FROM public.users u
+      INNER JOIN public.tenants t ON u.id = t.user_id
       WHERE t.neon_connection_string IS NOT NULL
       ORDER BY u.id
     `);
@@ -111,7 +111,7 @@ router.post(
       }
 
       const tenantResult = await pool.query(
-        'SELECT user_id FROM tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL',
+        'SELECT user_id FROM public.tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL',
         [userId],
       );
 
@@ -156,15 +156,16 @@ router.delete(
       const { userId } = req.params;
 
       // Get user info before deletion
-      const userResult = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
+      const userResult = await pool.query('SELECT email FROM public.users WHERE id = $1', [userId]);
       if (!userResult.rows.length) {
         return res.status(404).json({ error: 'User not found' });
       }
 
       // Delete from tenants only (user remains)
-      const tenantResult = await pool.query('DELETE FROM tenants WHERE user_id = $1 RETURNING id', [
-        userId,
-      ]);
+      const tenantResult = await pool.query(
+        'DELETE FROM public.tenants WHERE user_id = $1 RETURNING id',
+        [userId],
+      );
 
       if (!tenantResult.rows.length) {
         return res.status(404).json({ error: 'Tenant entry not found' });
@@ -206,13 +207,15 @@ router.delete(
       const { userId } = req.params;
 
       // Delete from user_plugin_access
-      await pool.query('DELETE FROM user_plugin_access WHERE user_id = $1', [userId]);
+      await pool.query('DELETE FROM public.user_plugin_access WHERE user_id = $1', [userId]);
 
       // Delete from tenants
-      await pool.query('DELETE FROM tenants WHERE user_id = $1', [userId]);
+      await pool.query('DELETE FROM public.tenants WHERE user_id = $1', [userId]);
 
       // Delete from users
-      const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING email', [userId]);
+      const result = await pool.query('DELETE FROM public.users WHERE id = $1 RETURNING email', [
+        userId,
+      ]);
 
       if (!result.rows.length) {
         return res.status(404).json({ error: 'User not found' });

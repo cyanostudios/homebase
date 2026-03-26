@@ -10,6 +10,7 @@ const { SYNC_INTERVAL_MINUTES } = require('./orderSyncService');
 
 const SYNC_INTERVAL_MS = SYNC_INTERVAL_MINUTES * 60 * 1000;
 const STARTUP_DELAY_MS = 10_000;
+const USER_LIST_RETRY_DELAY_MS = 1500;
 
 let mainPool = null;
 let schedulerTimer = null;
@@ -46,9 +47,21 @@ async function runSchedulerForAllUsers() {
   if (!p) return;
 
   try {
-    const r = await p.query(
-      `SELECT user_id FROM user_plugin_access WHERE plugin_name = 'orders' AND enabled = true`,
-    );
+    let r;
+    try {
+      r = await p.query(
+        `SELECT user_id FROM public.user_plugin_access WHERE plugin_name = 'orders' AND enabled = true`,
+      );
+    } catch (firstErr) {
+      // Neon/control-plane or transient pool hiccups can fail a single tick.
+      // Retry once to avoid dropping the whole scheduler run.
+      const firstMsg = String(firstErr?.message || firstErr);
+      console.warn('[OrderSyncScheduler] user-list query failed (retrying once):', firstMsg);
+      await new Promise((resolve) => setTimeout(resolve, USER_LIST_RETRY_DELAY_MS));
+      r = await p.query(
+        `SELECT user_id FROM public.user_plugin_access WHERE plugin_name = 'orders' AND enabled = true`,
+      );
+    }
     const rows = r.rows || r;
     for (const row of rows) {
       const userId = row.user_id;

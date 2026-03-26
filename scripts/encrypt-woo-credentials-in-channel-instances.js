@@ -23,29 +23,40 @@ async function runOnTenant(connectionString, tenantInfo) {
     : tenantInfo.email || tenantInfo.userId;
 
   try {
-    if (tenantInfo.schemaName) {
-      await client.query(`SET search_path TO ${tenantInfo.schemaName}`);
-    }
+    await client.query('BEGIN');
+    try {
+      if (tenantInfo.schemaName) {
+        await client.query(`SET LOCAL search_path TO ${tenantInfo.schemaName}`);
+      } else {
+        await client.query('SET LOCAL search_path TO public');
+      }
 
-    const { rows } = await client.query(
-      `SELECT id, credentials FROM ${TABLE} WHERE channel = 'woocommerce' AND credentials IS NOT NULL`,
-    );
-    let updated = 0;
-    for (const row of rows) {
-      const creds = row.credentials;
-      if (typeof creds !== 'object' || creds === null || 'v' in creds) continue;
-      const encrypted = CredentialsCrypto.encrypt(JSON.stringify(creds));
-      const payload = { v: encrypted };
-      await client.query(
-        `UPDATE ${TABLE} SET credentials = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-        [payload, row.id],
+      const { rows } = await client.query(
+        `SELECT id, credentials FROM ${TABLE} WHERE channel = 'woocommerce' AND credentials IS NOT NULL`,
       );
-      updated += 1;
+      let updated = 0;
+      for (const row of rows) {
+        const creds = row.credentials;
+        if (typeof creds !== 'object' || creds === null || 'v' in creds) continue;
+        const encrypted = CredentialsCrypto.encrypt(JSON.stringify(creds));
+        const payload = { v: encrypted };
+        await client.query(
+          `UPDATE ${TABLE} SET credentials = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+          [payload, row.id],
+        );
+        updated += 1;
+      }
+      await client.query('COMMIT');
+      if (updated > 0) {
+        console.log(`   ${label} channel_instances (woo): ${updated} row(s) encrypted`);
+      }
+      return { total: updated, tenantInfo };
+    } catch (inner) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {}
+      throw inner;
     }
-    if (updated > 0) {
-      console.log(`   ${label} channel_instances (woo): ${updated} row(s) encrypted`);
-    }
-    return { total: updated, tenantInfo };
   } finally {
     client.release();
     await pool.end();
@@ -65,7 +76,7 @@ async function main() {
   try {
     if (tenantProvider === 'local') {
       const usersResult = await mainPool.query(
-        `SELECT id as user_id, email FROM users ORDER BY id`,
+        `SELECT id as user_id, email FROM public.users ORDER BY id`,
       );
       tenants = usersResult.rows.map((user) => ({
         user_id: user.user_id,
@@ -76,8 +87,8 @@ async function main() {
     } else {
       const neonResult = await mainPool.query(`
         SELECT t.user_id, t.neon_connection_string as connection_string, u.email
-        FROM tenants t
-        INNER JOIN users u ON t.user_id = u.id
+        FROM public.tenants t
+        INNER JOIN public.users u ON t.user_id = u.id
         WHERE t.neon_connection_string IS NOT NULL
         ORDER BY t.user_id
       `);

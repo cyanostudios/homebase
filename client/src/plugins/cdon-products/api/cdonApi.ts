@@ -119,7 +119,7 @@ class CdonApi {
     return this.request('/batch', { method: 'DELETE', body: JSON.stringify(body) });
   }
 
-  async pullOrders(data?: { daysBack?: number }): Promise<{
+  async pullOrders(data?: { daysBack?: number; renumber?: boolean }): Promise<{
     ok: boolean;
     fetched: number;
     ingested: number;

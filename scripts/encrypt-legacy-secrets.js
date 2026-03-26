@@ -90,19 +90,35 @@ async function runOnTenant(connectionString, tenantInfo) {
     : tenantInfo.email || tenantInfo.userId;
 
   try {
-    if (tenantInfo.schemaName) {
-      await client.query(`SET search_path TO ${tenantInfo.schemaName}`);
-    }
-
-    let total = 0;
-    for (const cfg of TABLE_CONFIGS) {
-      const count = await encryptTable(client, cfg.table, cfg.keyColumn, cfg.secretColumns, label);
-      if (count > 0) {
-        console.log(`   ${label} ${cfg.table}: ${count} row(s) encrypted`);
-        total += count;
+    await client.query('BEGIN');
+    try {
+      if (tenantInfo.schemaName) {
+        await client.query(`SET LOCAL search_path TO ${tenantInfo.schemaName}`);
+      } else {
+        await client.query('SET LOCAL search_path TO public');
       }
+      let total = 0;
+      for (const cfg of TABLE_CONFIGS) {
+        const count = await encryptTable(
+          client,
+          cfg.table,
+          cfg.keyColumn,
+          cfg.secretColumns,
+          label,
+        );
+        if (count > 0) {
+          console.log(`   ${label} ${cfg.table}: ${count} row(s) encrypted`);
+          total += count;
+        }
+      }
+      await client.query('COMMIT');
+      return { total, tenantInfo };
+    } catch (inner) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {}
+      throw inner;
     }
-    return { total, tenantInfo };
   } finally {
     client.release();
     await pool.end();
@@ -122,7 +138,7 @@ async function main() {
   try {
     if (tenantProvider === 'local') {
       const usersResult = await mainPool.query(`
-        SELECT id as user_id, email FROM users ORDER BY id
+        SELECT id as user_id, email FROM public.users ORDER BY id
       `);
       const mainConnectionString = process.env.DATABASE_URL;
       tenants = usersResult.rows.map((user) => ({
@@ -134,8 +150,8 @@ async function main() {
     } else {
       const neonResult = await mainPool.query(`
         SELECT t.user_id, t.neon_connection_string as connection_string, u.email
-        FROM tenants t
-        INNER JOIN users u ON t.user_id = u.id
+        FROM public.tenants t
+        INNER JOIN public.users u ON t.user_id = u.id
         WHERE t.neon_connection_string IS NOT NULL
         ORDER BY t.user_id
       `);

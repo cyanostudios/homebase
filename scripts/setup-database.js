@@ -17,6 +17,8 @@ async function setupDatabase() {
   try {
     console.log('🗄️  Setting up Homebase database tables...');
     console.log('📍 Database:', process.env.DATABASE_URL);
+    await client.query('BEGIN');
+    await client.query('SET LOCAL search_path TO public');
 
     // Users table for auth
     await client.query(`
@@ -209,7 +211,7 @@ async function setupDatabase() {
     const hashedPassword = await bcrypt.hash('admin123', 10);
     const result = await client.query(
       `
-      INSERT INTO users (email, password_hash, role) 
+      INSERT INTO public.users (email, password_hash, role) 
       VALUES ('admin@homebase.se', $1, 'superuser')
       ON CONFLICT (email) DO UPDATE SET 
         password_hash = EXCLUDED.password_hash,
@@ -226,7 +228,7 @@ async function setupDatabase() {
     for (const plugin of plugins) {
       await client.query(
         `
-        INSERT INTO user_plugin_access (user_id, plugin_name, granted_by)
+        INSERT INTO public.user_plugin_access (user_id, plugin_name, granted_by)
         VALUES ($1, $2, $1)
         ON CONFLICT (user_id, plugin_name) DO NOTHING
       `,
@@ -241,8 +243,12 @@ async function setupDatabase() {
     console.log('✅ Estimate sharing table created');
     console.log('✅ Status reason tracking enabled for estimates');
 
+    await client.query('COMMIT');
     return superuserId;
   } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {}
     console.error('❌ Database setup failed:', error);
     throw error;
   } finally {

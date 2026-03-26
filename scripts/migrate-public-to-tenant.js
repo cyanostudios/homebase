@@ -79,7 +79,7 @@ async function syncPublicSchema(client) {
     try {
       const r = await client.query(
         `SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name=$1 AND column_name=$2`,
-        [table, col]
+        [table, col],
       );
       if (r.rows.length === 0) {
         await client.query(`ALTER TABLE public.${table} ADD COLUMN ${col} ${def}`);
@@ -94,7 +94,7 @@ async function syncPublicSchema(client) {
 async function tableExists(client, schema, table) {
   const r = await client.query(
     `SELECT 1 FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2`,
-    [schema, table]
+    [schema, table],
   );
   return r.rows.length > 0;
 }
@@ -102,7 +102,7 @@ async function tableExists(client, schema, table) {
 async function hasUserColumn(client, schema, table) {
   const r = await client.query(
     `SELECT 1 FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 AND column_name = 'user_id'`,
-    [schema, table]
+    [schema, table],
   );
   return r.rows.length > 0;
 }
@@ -139,7 +139,7 @@ async function copyTable(client, schema, table, userId) {
         currency, kvitto, notes, f_tax, created_at, updated_at
       FROM public.contacts WHERE user_id = $1
       ON CONFLICT (id) DO NOTHING`,
-      [userId]
+      [userId],
     );
     const count = await getRowCount(client, schema, table, userId);
     return { copied: count, skipped: false };
@@ -164,7 +164,7 @@ async function copyTable(client, schema, table, userId) {
         status_changed_at, share_token, created_at, updated_at
       FROM public.estimates WHERE user_id = $1
       ON CONFLICT (id) DO NOTHING`,
-      [userId]
+      [userId],
     );
     const count = await getRowCount(client, schema, table, userId);
     return { copied: count, skipped: false };
@@ -178,7 +178,7 @@ async function copyTable(client, schema, table, userId) {
       `INSERT INTO ${schema}.order_items (order_id, sku, product_id, title, quantity, unit_price, vat_rate, raw, created_at)
        SELECT oi.order_id, oi.sku, oi.product_id, oi.title, oi.quantity, oi.unit_price, oi.vat_rate, oi.raw, oi.created_at
        FROM public.order_items oi
-       WHERE oi.order_id IN (SELECT id FROM ${schema}.orders)`
+       WHERE oi.order_id IN (SELECT id FROM ${schema}.orders)`,
     );
     const r = await client.query(`SELECT COUNT(*) as c FROM ${schema}.order_items`);
     return { copied: parseInt(r.rows[0].c, 10), skipped: false };
@@ -186,14 +186,15 @@ async function copyTable(client, schema, table, userId) {
 
   const cols = await client.query(
     `SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position`,
-    ['public', table]
+    ['public', table],
   );
   const colList = cols.rows.map((r) => r.column_name).join(', ');
   const hasId = cols.rows.some((r) => r.column_name === 'id');
 
   let sql = `INSERT INTO ${schema}.${table} (${colList}) SELECT ${colList} FROM public.${table}`;
   if (hasUser) sql += ` WHERE user_id = $1`;
-  if (table === 'order_number_counter') sql += ` ON CONFLICT (user_id) DO UPDATE SET next_number = EXCLUDED.next_number`;
+  if (table === 'order_number_counter')
+    sql += ` ON CONFLICT (user_id) DO UPDATE SET next_number = EXCLUDED.next_number`;
   else if (hasId) sql += ` ON CONFLICT (id) DO NOTHING`;
 
   await client.query(hasUser ? sql : sql, hasUser ? [userId] : []);
@@ -206,7 +207,7 @@ async function resetSequence(client, schema, table) {
   try {
     await client.query(
       `SELECT setval(pg_get_serial_sequence($1, 'id'), COALESCE((SELECT MAX(id) FROM ${schema}.${table}), 1))`,
-      [`${schema}.${table}`]
+      [`${schema}.${table}`],
     );
   } catch (e) {
     // Ingen id-kolumn eller annat – ignorerar
@@ -218,9 +219,7 @@ async function emptyPublicMigratedTables(client) {
   console.log('\n🧹 Tömmer migrerade tabeller i public ...\n');
   for (const table of PUBLIC_CLEANUP_ORDER) {
     try {
-      const r = await client.query(
-        `DELETE FROM public.${table}`
-      );
+      const r = await client.query(`DELETE FROM public.${table}`);
       if (r.rowCount > 0) {
         console.log(`   public.${table}: ${r.rowCount} rader borttagna`);
       }
@@ -244,9 +243,7 @@ async function main() {
   const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
 
-  const userIds = await client.query(
-    `SELECT DISTINCT id FROM users ORDER BY id`
-  );
+  const userIds = await client.query(`SELECT DISTINCT id FROM public.users ORDER BY id`);
 
   if (userIds.rows.length === 0) {
     console.log('Inga användare hittades.');
@@ -263,7 +260,7 @@ async function main() {
     const schema = `tenant_${userId}`;
     const schemaExists = await client.query(
       `SELECT 1 FROM information_schema.schemata WHERE schema_name = $1`,
-      [schema]
+      [schema],
     );
     if (schemaExists.rows.length === 0) {
       console.log(`⏭️  ${schema} finns inte, hoppar över`);

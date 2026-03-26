@@ -22,7 +22,7 @@ async function checkFilesTable() {
     // Get all users
     const usersResult = await mainPool.query(`
       SELECT id, email
-      FROM users
+      FROM public.users
       ORDER BY id
     `);
 
@@ -35,7 +35,7 @@ async function checkFilesTable() {
       // Check if schema exists
       const schemaCheck = await mainPool.query(
         `SELECT schema_name FROM information_schema.schemata WHERE schema_name = $1`,
-        [schemaName]
+        [schemaName],
       );
 
       if (schemaCheck.rows.length === 0) {
@@ -46,23 +46,35 @@ async function checkFilesTable() {
       // Set search_path and check for table
       const client = await mainPool.connect();
       try {
-        await client.query(`SET search_path TO ${schemaName}`);
-        
-        const tableCheck = await client.query(`
+        await client.query('BEGIN');
+        try {
+          await client.query(`SET LOCAL search_path TO ${schemaName}`);
+
+          const tableCheck = await client.query(
+            `
           SELECT table_name 
           FROM information_schema.tables 
           WHERE table_schema = $1 AND table_name = 'user_files'
-        `, [schemaName]);
+        `,
+            [schemaName],
+          );
 
-        if (tableCheck.rows.length > 0) {
-          console.log(`   ✅ Table user_files exists in ${schemaName}`);
-          
-          // Check row count
-          const countResult = await client.query(`SELECT COUNT(*) as count FROM user_files`);
-          console.log(`   📊 Row count: ${countResult.rows[0].count}`);
-        } else {
-          console.log(`   ❌ Table user_files does NOT exist in ${schemaName}`);
-          console.log(`   💡 Run: npm run migrate:files`);
+          if (tableCheck.rows.length > 0) {
+            console.log(`   ✅ Table user_files exists in ${schemaName}`);
+
+            // Check row count
+            const countResult = await client.query(`SELECT COUNT(*) as count FROM user_files`);
+            console.log(`   📊 Row count: ${countResult.rows[0].count}`);
+          } else {
+            console.log(`   ❌ Table user_files does NOT exist in ${schemaName}`);
+            console.log(`   💡 Run: npm run migrate:files`);
+          }
+          await client.query('COMMIT');
+        } catch (inner) {
+          try {
+            await client.query('ROLLBACK');
+          } catch {}
+          throw inner;
         }
       } finally {
         client.release();

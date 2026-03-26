@@ -33,13 +33,24 @@ async function runBackfillOnTenant(connectionString, tenantInfo) {
     const label = tenantInfo.schemaName
       ? `${tenantInfo.email || tenantInfo.userId} (${tenantInfo.schemaName})`
       : tenantInfo.email || tenantInfo.userId;
-    if (tenantInfo.schemaName) {
-      await client.query(`SET search_path TO ${tenantInfo.schemaName}`);
+    await client.query('BEGIN');
+    try {
+      if (tenantInfo.schemaName) {
+        await client.query(`SET LOCAL search_path TO ${tenantInfo.schemaName}`);
+      } else {
+        await client.query('SET LOCAL search_path TO public');
+      }
+      const res = await client.query(BACKFILL_SQL);
+      const updated = res.rowCount || 0;
+      await client.query('COMMIT');
+      console.log(`   ${label}: ${updated} order(s) updated`);
+      return { updated, tenantInfo };
+    } catch (inner) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {}
+      throw inner;
     }
-    const res = await client.query(BACKFILL_SQL);
-    const updated = res.rowCount || 0;
-    console.log(`   ${label}: ${updated} order(s) updated`);
-    return { updated, tenantInfo };
   } finally {
     client.release();
     await pool.end();
@@ -58,7 +69,7 @@ async function main() {
   try {
     if (tenantProvider === 'local') {
       const usersResult = await mainPool.query(`
-        SELECT id as user_id, email FROM users ORDER BY id
+        SELECT id as user_id, email FROM public.users ORDER BY id
       `);
       const mainConnectionString = process.env.DATABASE_URL;
       tenants = usersResult.rows.map((user) => ({
@@ -70,8 +81,8 @@ async function main() {
     } else {
       const neonResult = await mainPool.query(`
         SELECT t.user_id, t.neon_connection_string as connection_string, u.email
-        FROM tenants t
-        INNER JOIN users u ON t.user_id = u.id
+        FROM public.tenants t
+        INNER JOIN public.users u ON t.user_id = u.id
         WHERE t.neon_connection_string IS NOT NULL
         ORDER BY t.user_id
       `);

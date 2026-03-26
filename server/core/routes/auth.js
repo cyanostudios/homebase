@@ -52,9 +52,9 @@ async function ensurePluginAccess(userId, existingPluginNames) {
     const missing = availablePlugins.filter((p) => !existingPluginNames.includes(p));
     for (const pluginName of missing) {
       await pool.query(
-        `INSERT INTO user_plugin_access (user_id, plugin_name, enabled)
+        `INSERT INTO public.user_plugin_access (user_id, plugin_name, enabled)
          SELECT $1::int, $2::text, true
-         WHERE NOT EXISTS (SELECT 1 FROM user_plugin_access WHERE user_id = $1 AND plugin_name = $2::text)`,
+         WHERE NOT EXISTS (SELECT 1 FROM public.user_plugin_access WHERE user_id = $1 AND plugin_name = $2::text)`,
         [userId, String(pluginName)],
       );
     }
@@ -80,7 +80,7 @@ router.post(
     const { email, password } = req.body;
 
     try {
-      const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+      const result = await pool.query('SELECT * FROM public.users WHERE email = $1', [email]);
 
       if (!result.rows.length) {
         return res.status(401).json({ error: 'Invalid credentials' });
@@ -95,7 +95,7 @@ router.post(
 
       // Get user's plugin access (auto-grants any new plugins)
       const pluginAccess = await pool.query(
-        'SELECT plugin_name FROM user_plugin_access WHERE user_id = $1 AND enabled = true',
+        'SELECT plugin_name FROM public.user_plugin_access WHERE user_id = $1 AND enabled = true',
         [user.id],
       );
       const pluginNames = pluginAccess.rows.map((row) => row.plugin_name);
@@ -104,7 +104,7 @@ router.post(
       // Validate tenant mapping for provider that uses per-tenant databases.
       if (process.env.TENANT_PROVIDER !== 'local') {
         const tenantResult = await pool.query(
-          'SELECT user_id FROM tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL',
+          'SELECT user_id FROM public.tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL',
           [user.id],
         );
         if (!tenantResult.rows.length) {
@@ -117,7 +117,7 @@ router.post(
       // MFA: if enabled globally and user has MFA on, require TOTP before session
       if (isMfaEnabledInEnvironment()) {
         const mfaResult = await pool.query(
-          'SELECT enabled, secret_encrypted FROM user_mfa WHERE user_id = $1',
+          'SELECT enabled, secret_encrypted FROM public.user_mfa WHERE user_id = $1',
           [user.id],
         );
         const mfaRow = mfaResult.rows[0];
@@ -255,7 +255,7 @@ router.post('/signup', async (req, res) => {
     }
 
     // Check if user exists
-    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const existingUser = await pool.query('SELECT id FROM public.users WHERE email = $1', [email]);
     if (existingUser.rows.length > 0) {
       return res.status(400).json({ error: 'Email already registered' });
     }
@@ -268,7 +268,7 @@ router.post('/signup', async (req, res) => {
 
     // Create user in main database
     const userResult = await pool.query(
-      'INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role',
+      'INSERT INTO public.users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role',
       [email, passwordHash, userRole],
     );
 
@@ -283,7 +283,7 @@ router.post('/signup', async (req, res) => {
 
     // Save tenant info in main database
     await pool.query(
-      'INSERT INTO tenants (user_id, neon_project_id, neon_database_name, neon_connection_string) VALUES ($1, $2, $3, $4)',
+      'INSERT INTO public.tenants (user_id, neon_project_id, neon_database_name, neon_connection_string) VALUES ($1, $2, $3, $4)',
       [user.id, tenantDb.projectId, tenantDb.databaseName, tenantDb.connectionString],
     );
 
@@ -295,7 +295,7 @@ router.post('/signup', async (req, res) => {
     // Give selected plugin access
     for (const pluginName of selectedPlugins) {
       await pool.query(
-        'INSERT INTO user_plugin_access (user_id, plugin_name, enabled) VALUES ($1, $2, true)',
+        'INSERT INTO public.user_plugin_access (user_id, plugin_name, enabled) VALUES ($1, $2, true)',
         [user.id, pluginName],
       );
     }
@@ -367,7 +367,7 @@ router.post(
       const userId = entry.userId;
 
       const mfaResult = await pool.query(
-        'SELECT secret_encrypted FROM user_mfa WHERE user_id = $1 AND enabled = true',
+        'SELECT secret_encrypted FROM public.user_mfa WHERE user_id = $1 AND enabled = true',
         [userId],
       );
       if (!mfaResult.rows.length || !mfaResult.rows[0].secret_encrypted) {
@@ -382,16 +382,17 @@ router.post(
 
       mfaTokenStore.delete(mfaToken);
 
-      const userResult = await pool.query('SELECT id, email, role FROM users WHERE id = $1', [
-        userId,
-      ]);
+      const userResult = await pool.query(
+        'SELECT id, email, role FROM public.users WHERE id = $1',
+        [userId],
+      );
       if (!userResult.rows.length) {
         return res.status(401).json({ error: 'Invalid verification' });
       }
       const user = userResult.rows[0];
 
       const pluginAccess = await pool.query(
-        'SELECT plugin_name FROM user_plugin_access WHERE user_id = $1 AND enabled = true',
+        'SELECT plugin_name FROM public.user_plugin_access WHERE user_id = $1 AND enabled = true',
         [userId],
       );
       const plugins = pluginAccess.rows.map((row) => row.plugin_name);
@@ -444,7 +445,9 @@ router.get(
 
     try {
       const userId = req.session.user.id;
-      const result = await pool.query('SELECT enabled FROM user_mfa WHERE user_id = $1', [userId]);
+      const result = await pool.query('SELECT enabled FROM public.user_mfa WHERE user_id = $1', [
+        userId,
+      ]);
       const mfaEnabled = result.rows[0]?.enabled ?? false;
       return res.json({ mfaEnabled });
     } catch (error) {
@@ -476,7 +479,7 @@ router.post(
       const secretEncrypted = CredentialsCrypto.encrypt(secret);
 
       await pool.query(
-        `INSERT INTO user_mfa (user_id, secret_encrypted, enabled, updated_at)
+        `INSERT INTO public.user_mfa (user_id, secret_encrypted, enabled, updated_at)
          VALUES ($1, $2, false, NOW())
          ON CONFLICT (user_id) DO UPDATE SET secret_encrypted = $2, enabled = false, updated_at = NOW()`,
         [userId, secretEncrypted],
@@ -510,9 +513,10 @@ router.post(
     try {
       const userId = req.session.user.id;
 
-      const result = await pool.query('SELECT secret_encrypted FROM user_mfa WHERE user_id = $1', [
-        userId,
-      ]);
+      const result = await pool.query(
+        'SELECT secret_encrypted FROM public.user_mfa WHERE user_id = $1',
+        [userId],
+      );
       if (!result.rows.length || !result.rows[0].secret_encrypted) {
         return res.status(400).json({ error: 'MFA setup not started. Please run setup first.' });
       }
@@ -523,7 +527,7 @@ router.post(
       }
 
       await pool.query(
-        'UPDATE user_mfa SET enabled = true, updated_at = NOW() WHERE user_id = $1',
+        'UPDATE public.user_mfa SET enabled = true, updated_at = NOW() WHERE user_id = $1',
         [userId],
       );
 
@@ -558,7 +562,7 @@ router.post(
 
       const userId = req.session.user.id;
 
-      const userResult = await pool.query('SELECT password_hash FROM users WHERE id = $1', [
+      const userResult = await pool.query('SELECT password_hash FROM public.users WHERE id = $1', [
         userId,
       ]);
       if (!userResult.rows.length) {
@@ -571,7 +575,7 @@ router.post(
       }
 
       await pool.query(
-        'UPDATE user_mfa SET enabled = false, secret_encrypted = NULL, updated_at = NOW() WHERE user_id = $1',
+        'UPDATE public.user_mfa SET enabled = false, secret_encrypted = NULL, updated_at = NOW() WHERE user_id = $1',
         [userId],
       );
 
@@ -605,7 +609,7 @@ router.get(
 
       // Always fetch plugins from database (auto-grants any new plugins)
       const pluginAccess = await pool.query(
-        'SELECT plugin_name FROM user_plugin_access WHERE user_id = $1 AND enabled = true',
+        'SELECT plugin_name FROM public.user_plugin_access WHERE user_id = $1 AND enabled = true',
         [currentTenantUserId],
       );
       const pluginNames = pluginAccess.rows.map((row) => row.plugin_name);

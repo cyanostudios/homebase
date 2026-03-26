@@ -39,8 +39,8 @@ async function buildIntakeReq() {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     try {
       const r = await pool.query(
-        'SELECT neon_connection_string FROM tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL LIMIT 1',
-        [userId]
+        'SELECT neon_connection_string FROM public.tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL LIMIT 1',
+        [userId],
       );
       await pool.end();
       if (r.rows?.length && r.rows[0].neon_connection_string) {

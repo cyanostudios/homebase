@@ -6,12 +6,11 @@ const TenantService = require('../TenantService');
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
-
-const MAIN_DB_MIGRATIONS = new Set(['028-user-settings.sql', '037-fx-rates.sql']);
+const { isPublicOnlyMigration } = require('../../../../migrations/policy');
 
 /**
  * LocalTenantProvider - Creates separate schemas for each tenant in local Postgres
- * 
+ *
  * Strategy: Schema-per-tenant
  * - Each tenant gets their own schema in the same database
  * - Good data isolation with lower overhead
@@ -23,7 +22,7 @@ class LocalTenantProvider extends TenantService {
     super();
     this.connectionString = config.connectionString || process.env.DATABASE_URL;
     this.mainPool = config.mainPool || new Pool({ connectionString: this.connectionString });
-    
+
     if (!this.connectionString) {
       throw new Error('LocalTenantProvider requires DATABASE_URL');
     }
@@ -35,28 +34,25 @@ class LocalTenantProvider extends TenantService {
   async createTenant(userId, userEmail) {
     try {
       console.log(`🔨 Creating local tenant schema for user ${userId} (${userEmail})`);
-      
+
       const schemaName = `tenant_${userId}`;
       const client = await this.mainPool.connect();
-      
+
       try {
         // 1. Create schema
         await client.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
         console.log(`   Created schema: ${schemaName}`);
-        
-        // 2. Set strict tenant-only search_path.
-        await client.query(`SET search_path TO ${schemaName}`);
-        
-        // 3. Run migrations in the schema
+
+        // 2. Run migrations in the schema
         await this._runMigrations(client, schemaName);
-        
-        // 4. Create connection string with schema
+
+        // 3. Create connection string with schema
         // IMPORTANT: When using Neon Postgres via the pooler, startup "options" like search_path are not supported.
         // We return the base connection string and rely on the DB adapter to SET search_path per query.
         const tenantConnectionString = `${this.connectionString}`;
-        
+
         console.log(`✅ Local tenant created: ${schemaName}`);
-        
+
         return {
           projectId: schemaName, // Use schema name as project ID
           databaseName: schemaName,
@@ -80,9 +76,9 @@ class LocalTenantProvider extends TenantService {
   async deleteTenant(userId) {
     try {
       const schemaName = `tenant_${userId}`;
-      
+
       await this.mainPool.query(`DROP SCHEMA IF EXISTS ${schemaName} CASCADE`);
-      
+
       console.log(`✅ Deleted local tenant schema: ${schemaName}`);
     } catch (error) {
       console.error('Failed to delete local tenant:', error.message);
@@ -95,17 +91,17 @@ class LocalTenantProvider extends TenantService {
    */
   async getTenantConnection(userId) {
     const schemaName = `tenant_${userId}`;
-    
+
     // Check if schema exists
     const result = await this.mainPool.query(
       `SELECT schema_name FROM information_schema.schemata WHERE schema_name = $1`,
-      [schemaName]
+      [schemaName],
     );
-    
+
     if (result.rows.length === 0) {
       throw new Error(`No tenant schema found for user ${userId}`);
     }
-    
+
     // See note above: return base connection string; adapter handles search_path.
     return `${this.connectionString}`;
   }
@@ -120,8 +116,8 @@ class LocalTenantProvider extends TenantService {
       WHERE schema_name LIKE 'tenant_%'
       ORDER BY schema_name
     `);
-    
-    return result.rows.map(row => {
+
+    return result.rows.map((row) => {
       const userId = parseInt(row.schema_name.replace('tenant_', ''));
       return {
         id: row.schema_name,
@@ -137,12 +133,12 @@ class LocalTenantProvider extends TenantService {
    */
   async tenantExists(userId) {
     const schemaName = `tenant_${userId}`;
-    
+
     const result = await this.mainPool.query(
       `SELECT 1 FROM information_schema.schemata WHERE schema_name = $1`,
-      [schemaName]
+      [schemaName],
     );
-    
+
     return result.rows.length > 0;
   }
 
@@ -151,16 +147,16 @@ class LocalTenantProvider extends TenantService {
    */
   async getTenantMetadata(userId) {
     const schemaName = `tenant_${userId}`;
-    
+
     const result = await this.mainPool.query(
       `SELECT schema_name FROM information_schema.schemata WHERE schema_name = $1`,
-      [schemaName]
+      [schemaName],
     );
-    
+
     if (result.rows.length === 0) {
       throw new Error(`No tenant schema found for user ${userId}`);
     }
-    
+
     return {
       projectId: schemaName,
       databaseName: schemaName,
@@ -178,31 +174,40 @@ class LocalTenantProvider extends TenantService {
     try {
       // Get all migration files
       const migrationsDir = path.join(__dirname, '../../../../migrations');
-      
+
       // Skip if migrations folder doesn't exist
       if (!fs.existsSync(migrationsDir)) {
         console.log('⚠️  No migrations folder found, skipping migrations');
         return;
       }
-      
-      const migrationFiles = fs.readdirSync(migrationsDir)
-        .filter(f => f.endsWith('.sql'))
+
+      const migrationFiles = fs
+        .readdirSync(migrationsDir)
+        .filter((f) => f.endsWith('.sql'))
         .sort();
 
       console.log(`   Running ${migrationFiles.length} migrations in ${schemaName}...`);
 
       for (const file of migrationFiles) {
-        if (MAIN_DB_MIGRATIONS.has(file)) {
+        if (isPublicOnlyMigration(file)) {
           console.log(`   Skipping main-db migration for tenant schema: ${file}`);
           continue;
         }
 
         const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
         console.log(`   Executing migration: ${file}`);
-        
-        // Execute in strict tenant schema.
-        await client.query(`SET search_path TO ${schemaName}`);
-        await client.query(sql);
+
+        await client.query('BEGIN');
+        try {
+          await client.query(`SET LOCAL search_path TO ${schemaName}`);
+          await client.query(sql);
+          await client.query('COMMIT');
+        } catch (inner) {
+          try {
+            await client.query('ROLLBACK');
+          } catch {}
+          throw inner;
+        }
       }
 
       console.log('   ✅ All migrations completed');

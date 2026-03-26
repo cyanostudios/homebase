@@ -30,6 +30,7 @@
     "migrate:files": "node scripts/run-files-migration.js",
     "migrate:all": "node scripts/run-all-migrations.js",
     "migrate:encrypt-legacy-secrets": "node scripts/encrypt-legacy-secrets.js",
+    "check:tenant-guards": "node scripts/check-tenant-guards.js",
     "sget": "node scripts/sget.js",
     "migrate:encrypt-woo-credentials": "node scripts/encrypt-woo-credentials-in-channel-instances.js"
   },

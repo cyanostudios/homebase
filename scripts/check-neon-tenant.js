@@ -23,8 +23,8 @@ async function checkNeonTenant() {
         t.neon_connection_string,
         t.neon_database_name,
         t.neon_project_id
-      FROM tenants t
-      INNER JOIN users u ON t.user_id = u.id
+      FROM public.tenants t
+      INNER JOIN public.users u ON t.user_id = u.id
       ORDER BY t.user_id
     `);
 
@@ -35,7 +35,9 @@ async function checkNeonTenant() {
       console.log(`Found ${result.rows.length} Neon tenant(s):\n`);
       result.rows.forEach((row) => {
         console.log(`User ${row.user_id} (${row.email}):`);
-        console.log(`  Connection: ${row.neon_connection_string ? '✅ Has connection string' : '❌ No connection string'}`);
+        console.log(
+          `  Connection: ${row.neon_connection_string ? '✅ Has connection string' : '❌ No connection string'}`,
+        );
         console.log(`  Database: ${row.neon_database_name || 'N/A'}`);
         console.log(`  Project: ${row.neon_project_id || 'N/A'}`);
         if (row.neon_connection_string) {

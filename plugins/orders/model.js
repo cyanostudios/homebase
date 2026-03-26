@@ -785,7 +785,7 @@ class OrdersModel {
       if (!orderRes.length) throw new AppError('Order not found', 404, AppError.CODES.NOT_FOUND);
 
       // order_items has no user_id; filter via JOIN so adapter doesn't inject user_id
-      // Join products to get sku for display (SKU column)
+      // Join products to get sku for display (SKU column). Product-ID comes from order_items.product_id only.
       const itemsRes = await db.query(
         `SELECT oi.*, p.sku AS product_sku
          FROM ${OrdersModel.ITEMS_TABLE} oi

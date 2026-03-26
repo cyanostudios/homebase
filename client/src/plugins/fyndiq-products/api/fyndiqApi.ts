@@ -125,7 +125,11 @@ class FyndiqApi {
     return this.request('/batch', { method: 'DELETE', body: JSON.stringify(body) });
   }
 
-  async pullOrders(data?: { perPage?: number; status?: string | string[] }): Promise<{
+  async pullOrders(data?: {
+    perPage?: number;
+    status?: string | string[];
+    renumber?: boolean;
+  }): Promise<{
     ok: boolean;
     fetched: number;
     ingested: number;

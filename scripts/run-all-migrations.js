@@ -5,6 +5,11 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
+const {
+  PUBLIC_ONLY_MIGRATIONS,
+  getPublicOnlyMigrations,
+  getTenantMigrations,
+} = require('../server/migrations/policy');
 
 // Load environment variables
 dotenv.config({ path: '.env.local' });
@@ -12,28 +17,34 @@ dotenv.config({ path: '.env' });
 
 const MIGRATIONS_DIR = path.join(__dirname, '../server/migrations');
 
-// Migrations that create tables in public schema (reference users(id)); run once, not per-tenant.
-const PUBLIC_ONLY_MIGRATIONS = new Set(['028-user-settings.sql', '054-user-mfa.sql']);
-
 async function runPublicMigrations(pool) {
   const client = await pool.connect();
   try {
-    await client.query('SET search_path TO public');
     const migrationFiles = fs
       .readdirSync(MIGRATIONS_DIR)
       .filter((f) => f.endsWith('.sql'))
-      .sort()
-      .filter((f) => PUBLIC_ONLY_MIGRATIONS.has(f));
-    if (migrationFiles.length === 0) return { successCount: 0, skippedCount: 0, errorCount: 0 };
+      .sort();
+    const publicMigrations = getPublicOnlyMigrations(migrationFiles);
+    if (publicMigrations.length === 0) return { successCount: 0, skippedCount: 0, errorCount: 0 };
     console.log('\n📦 Running public-schema migrations (once)...');
     let successCount = 0;
     let skippedCount = 0;
     let errorCount = 0;
-    for (const file of migrationFiles) {
+    for (const file of publicMigrations) {
       const filePath = path.join(MIGRATIONS_DIR, file);
       const sql = fs.readFileSync(filePath, 'utf8');
       try {
-        await client.query(sql);
+        await client.query('BEGIN');
+        try {
+          await client.query('SET LOCAL search_path TO public');
+          await client.query(sql);
+          await client.query('COMMIT');
+        } catch (inner) {
+          try {
+            await client.query('ROLLBACK');
+          } catch {}
+          throw inner;
+        }
         console.log(`   ✅ ${file}`);
         successCount++;
       } catch (error) {
@@ -72,16 +83,12 @@ async function runMigrationOnTenant(connectionString, tenantInfo) {
     console.log(`\n📦 Running migrations on tenant: ${tenantLabel}...`);
 
     // For LocalTenantProvider, set search_path to tenant schema
-    if (tenantInfo.schemaName) {
-      await client.query(`SET search_path TO ${tenantInfo.schemaName}`);
-    }
-
     // Get all migration files sorted (exclude public-only; those run once in runPublicMigrations)
     const allFiles = fs
       .readdirSync(MIGRATIONS_DIR)
       .filter((f) => f.endsWith('.sql'))
       .sort();
-    const migrationFiles = allFiles.filter((f) => !PUBLIC_ONLY_MIGRATIONS.has(f));
+    const migrationFiles = getTenantMigrations(allFiles);
 
     console.log(
       `   Found ${migrationFiles.length} migration file(s) (${PUBLIC_ONLY_MIGRATIONS.size} public-only skipped)`,
@@ -96,7 +103,21 @@ async function runMigrationOnTenant(connectionString, tenantInfo) {
       const sql = fs.readFileSync(filePath, 'utf8');
 
       try {
-        await client.query(sql);
+        await client.query('BEGIN');
+        try {
+          if (tenantInfo.schemaName) {
+            await client.query(`SET LOCAL search_path TO ${tenantInfo.schemaName}`);
+          } else {
+            await client.query('SET LOCAL search_path TO public');
+          }
+          await client.query(sql);
+          await client.query('COMMIT');
+        } catch (inner) {
+          try {
+            await client.query('ROLLBACK');
+          } catch {}
+          throw inner;
+        }
         console.log(`   ✅ ${file}`);
         successCount++;
       } catch (error) {
@@ -159,7 +180,7 @@ async function main() {
       console.log(`   TENANT_PROVIDER=local → using schema-per-tenant`);
       const usersResult = await mainPool.query(`
         SELECT id as user_id, email
-        FROM users
+        FROM public.users
         ORDER BY id
       `);
 
@@ -179,8 +200,8 @@ async function main() {
           t.user_id,
           t.neon_connection_string as connection_string,
           u.email
-        FROM tenants t
-        INNER JOIN users u ON t.user_id = u.id
+        FROM public.tenants t
+        INNER JOIN public.users u ON t.user_id = u.id
         WHERE t.neon_connection_string IS NOT NULL
         ORDER BY t.user_id
       `);

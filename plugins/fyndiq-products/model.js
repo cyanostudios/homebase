@@ -129,9 +129,21 @@ class FyndiqProductsModel {
           const client = await pool.connect();
           try {
             const schemaName = `tenant_${req.session?.currentTenantUserId || userId}`;
-            await client.query(`SET search_path TO ${schemaName}`);
-            const res = await client.query(sql, params);
-            return res.rows || [];
+            if (!/^tenant_\d+$/.test(schemaName)) {
+              throw new AppError('Invalid tenant schema', 500, AppError.CODES.DATABASE_ERROR);
+            }
+            await client.query('BEGIN');
+            try {
+              await client.query(`SET LOCAL search_path TO ${schemaName}`);
+              const res = await client.query(sql, params);
+              await client.query('COMMIT');
+              return res.rows || [];
+            } catch (inner) {
+              try {
+                await client.query('ROLLBACK');
+              } catch {}
+              throw inner;
+            }
           } finally {
             client.release();
           }

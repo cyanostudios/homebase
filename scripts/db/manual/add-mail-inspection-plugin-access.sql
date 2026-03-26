@@ -2,18 +2,18 @@
 -- Run this on the MAIN database (not tenant DBs)
 -- Usage: psql $DATABASE_URL -f scripts/db/manual/add-mail-inspection-plugin-access.sql
 
-INSERT INTO user_plugin_access (user_id, plugin_name, enabled)
+INSERT INTO public.user_plugin_access (user_id, plugin_name, enabled)
 SELECT u.id, 'mail', true
-FROM users u
+FROM public.users u
 WHERE NOT EXISTS (
-  SELECT 1 FROM user_plugin_access upa
+  SELECT 1 FROM public.user_plugin_access upa
   WHERE upa.user_id = u.id AND upa.plugin_name = 'mail'
 );
 
-INSERT INTO user_plugin_access (user_id, plugin_name, enabled)
+INSERT INTO public.user_plugin_access (user_id, plugin_name, enabled)
 SELECT u.id, 'inspection', true
-FROM users u
+FROM public.users u
 WHERE NOT EXISTS (
-  SELECT 1 FROM user_plugin_access upa
+  SELECT 1 FROM public.user_plugin_access upa
   WHERE upa.user_id = u.id AND upa.plugin_name = 'inspection'
 );

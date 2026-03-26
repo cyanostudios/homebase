@@ -16,7 +16,7 @@ async function applyTenantContextToRequest(mainPool, req) {
       const connectionPool = ServiceManager.get('connectionPool');
       try {
         const r = await mainPool.query(
-          'SELECT neon_connection_string FROM tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL LIMIT 1',
+          'SELECT neon_connection_string FROM public.tenants WHERE user_id = $1 AND neon_connection_string IS NOT NULL LIMIT 1',
           [tenantUserId],
         );
         if (r.rows?.length && r.rows[0].neon_connection_string) {
