@@ -171,11 +171,9 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
     });
   }, [attemptAction, onCancel]);
 
-  // Global functions with correct plural naming
   useEffect(() => {
-    window.submitEstimatesForm = handleSubmit; // PLURAL!
-    window.cancelEstimatesForm = handleCancel; // PLURAL!
-
+    window.submitEstimatesForm = () => handleSubmit();
+    window.cancelEstimatesForm = () => handleCancel();
     return () => {
       delete window.submitEstimatesForm;
       delete window.cancelEstimatesForm;

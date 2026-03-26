@@ -19,11 +19,14 @@ import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
 import type { BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
+import { buildDeleteMessage } from '@/core/utils/deleteUtils';
+import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { resolveSlug } from '@/core/utils/slugUtils';
 
 import { slotsApi } from '../api/slotsApi';
 import { Slot, ValidationError, type SlotMention } from '../types/slots';
 import { resolveSlotsToContacts, resolveSlotsToEmailContacts } from '../utils/slotContactUtils';
+import { getSlotExportBaseFilename, slotExportConfig } from '../utils/slotExportConfig';
 import { isSlotTimePast } from '../utils/slotTimeUtils';
 
 function extractErrorMsg(error: unknown, fallback: string): string {
@@ -104,6 +107,9 @@ interface SlotsContextType {
   currentItemIndex: number;
   totalItems: number;
 
+  exportFormats: ExportFormat[];
+  onExportItem: (format: ExportFormat, item: Slot) => void;
+
   // Single-item "Send message" from detail footer (same dialog as bulk)
   detailFooterActions?: Array<{
     id: string;
@@ -157,7 +163,7 @@ export function SlotsProvider({
   useEffect(() => {
     const unregister = registerAction('match', {
       id: 'create-slot-from-match',
-      label: 'To Slot',
+      label: t('app.createSlotFromMatch'),
       icon: Store,
       variant: 'primary',
       className:
@@ -165,7 +171,7 @@ export function SlotsProvider({
       onClick: () => {},
     });
     return () => unregister?.();
-  }, [registerAction]);
+  }, [registerAction, t]);
 
   const [isSlotsPanelOpen, setIsSlotsPanelOpen] = useState(false);
   const [currentSlot, setCurrentSlot] = useState<Slot | null>(null);
@@ -332,6 +338,13 @@ export function SlotsProvider({
     const cap = data.capacity !== undefined && data.capacity !== null ? Number(data.capacity) : 1;
     if (Number.isNaN(cap) || cap < 1 || cap > 5) {
       errors.push({ field: 'capacity', message: 'Capacity must be between 1 and 5' });
+    }
+    if (data.slot_end && data.slot_time) {
+      const start = new Date(data.slot_time as string).getTime();
+      const end = new Date(data.slot_end as string).getTime();
+      if (end <= start) {
+        errors.push({ field: 'slot_end', message: 'End time must be after start time' });
+      }
     }
     return errors;
   }, []);
@@ -773,13 +786,7 @@ export function SlotsProvider({
   );
 
   const getDeleteMessage = useCallback(
-    (item: Slot | null) => {
-      if (!item) {
-        return t('slots.deleteSlotConfirm');
-      }
-      const loc = item.location || t('slots.slot');
-      return t('slots.deleteSlotConfirmNamed', { location: loc });
-    },
+    (item: Slot | null) => buildDeleteMessage(t, 'slots', item?.location || undefined),
     [t],
   );
 
@@ -826,6 +833,24 @@ export function SlotsProvider({
     },
     [closeSlotPanel],
   );
+
+  const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
+
+  const onExportItem = useCallback((format: ExportFormat, item: Slot) => {
+    const result = exportItems({
+      items: [item],
+      format,
+      config: slotExportConfig,
+      filename: getSlotExportBaseFilename(item),
+      title: 'Slots Export',
+    });
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      (result as Promise<void>).catch((err) => {
+        console.error('Export failed:', err);
+        setValidationErrors([{ field: 'general', message: 'Export failed. Please try again.' }]);
+      });
+    }
+  }, []);
 
   const value: SlotsContextType = {
     isSlotsPanelOpen,
@@ -879,6 +904,9 @@ export function SlotsProvider({
     hasNextItem,
     currentItemIndex: currentItemIndex === -1 ? 0 : currentItemIndex + 1,
     totalItems,
+
+    exportFormats,
+    onExportItem,
 
     detailFooterActions,
     showSendMessageDialog,

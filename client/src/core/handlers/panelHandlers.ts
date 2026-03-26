@@ -42,24 +42,6 @@ export const createPanelHandlers = (
   currentMode: string,
   currentItem: any,
 ) => {
-  const handleDeleteItem = (setShowDeleteConfirm: (show: boolean) => void) => {
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDelete = async (setShowDeleteConfirm: (show: boolean) => void) => {
-    if (currentPlugin && currentPluginContext) {
-      // DYNAMIC: Find delete and close functions automatically
-      const deleteFunction = findPluginFunction(currentPluginContext, 'delete', currentPlugin.name);
-      const closeFunction = findPanelFunction(currentPluginContext, 'close', currentPlugin.name);
-
-      if (deleteFunction && closeFunction && currentItem) {
-        await deleteFunction(currentItem.id);
-        closeFunction();
-      }
-    }
-    setShowDeleteConfirm(false);
-  };
-
   const handleSave = async (data: any) => {
     if (currentPluginContext && currentPlugin) {
       // DYNAMIC: Find save function automatically
@@ -92,31 +74,13 @@ export const createPanelHandlers = (
     if (!currentPlugin) {
       return;
     }
-    // Files settings: no form to submit; just close the panel
-    if (
-      currentPlugin.name === 'files' &&
-      currentMode === 'settings' &&
-      typeof currentPluginContext?.closeFilePanel === 'function'
-    ) {
-      currentPluginContext.closeFilePanel();
-      return;
-    }
     // Settings plugin: submitSettingsForm is registered by SettingsForm and calls context.submitSave
-    // Generic pattern: submit + PluginName + Form (e.g. submitPulsesForm for plugin "pulses")
     const pluginNameCapitalized = toCamel(currentPlugin.name);
     const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
     const functionName = `submit${cap}Form`;
-    let submitFunction = (window as any)[functionName];
-    // Pulse plugin registers submitPulsesForm; fallback to singular submitPulseForm if missing
-    if (!submitFunction && currentPlugin.name === 'pulses') {
-      submitFunction = (window as any).submitPulseForm;
-    }
+    const submitFunction = (window as any)[functionName];
     if (submitFunction) {
       submitFunction();
-    } else {
-      console.warn(
-        `Global function ${functionName} not found. Make sure the plugin registers it correctly.`,
-      );
     }
   };
 
@@ -129,7 +93,7 @@ export const createPanelHandlers = (
       currentPluginContext.closeSettingsPanel();
       return;
     }
-    // Files settings: FileForm returns early so event listeners are never registered; close directly
+    // Files settings: close directly
     if (
       currentPlugin.name === 'files' &&
       currentMode === 'settings' &&
@@ -138,17 +102,12 @@ export const createPanelHandlers = (
       currentPluginContext.closeFilePanel();
       return;
     }
-    // Generic pattern: cancel + PluginName + Form
     const pluginNameCapitalized = toCamel(currentPlugin.name);
     const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
     const functionName = `cancel${cap}Form`;
     const cancelFunction = (window as any)[functionName];
     if (cancelFunction) {
       cancelFunction();
-    } else {
-      console.warn(
-        `Global function ${functionName} not found. Make sure the plugin registers it correctly.`,
-      );
     }
   };
 
@@ -223,9 +182,7 @@ export const createPanelHandlers = (
   };
 
   return {
-    handleDeleteItem,
     handleDuplicateItem,
-    confirmDelete,
     handleSave,
     handleCancel,
     handleSaveClick,

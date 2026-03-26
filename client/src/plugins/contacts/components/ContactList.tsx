@@ -9,6 +9,8 @@ import {
   FileText,
   Grid3x3,
   List as ListIcon,
+  Plus,
+  Search,
   Settings,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
@@ -17,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -30,8 +33,6 @@ import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
 import { BulkEmailDialog } from '@/core/ui/BulkEmailDialog';
 import { BulkMessageDialog } from '@/core/ui/BulkMessageDialog';
-import { useContentLayout } from '@/core/ui/ContentLayoutContext';
-import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { exportItems } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
@@ -56,6 +57,7 @@ export const ContactList: React.FC = () => {
     contacts,
     contactsContentView,
     openContactForView,
+    openContactPanel,
     openContactSettings,
     deleteContacts,
     selectedContactIds,
@@ -72,7 +74,6 @@ export const ContactList: React.FC = () => {
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('pulses'));
   const canSendEmail =
     user?.role === 'superuser' || (Array.isArray(user?.plugins) && user.plugins.includes('mail'));
-  const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
@@ -262,61 +263,6 @@ export const ContactList: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    if (contactsContentView !== 'list') {
-      setHeaderTrailing(null);
-      return () => setHeaderTrailing(null);
-    }
-    setHeaderTrailing(
-      <ContentToolbar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder={t('contacts.searchPlaceholder')}
-        rightActions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Settings}
-              onClick={() => openContactSettings()}
-              className="h-9 text-xs px-3"
-            >
-              {t('common.settings')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Grid3x3}
-              onClick={() => setViewMode('grid')}
-              className={cn('h-9 text-xs px-3', viewMode === 'grid' && 'text-primary')}
-            >
-              {t('common.grid')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={ListIcon}
-              onClick={() => setViewMode('list')}
-              className={cn('h-9 text-xs px-3', viewMode === 'list' && 'text-primary')}
-            >
-              {t('common.list')}
-            </Button>
-          </div>
-        }
-      />,
-    );
-    return () => setHeaderTrailing(null);
-  }, [
-    t,
-    searchTerm,
-    setSearchTerm,
-    viewMode,
-    setViewMode,
-    setHeaderTrailing,
-    openContactSettings,
-    contactsContentView,
-  ]);
-
   const handleOpenForView = (contact: any) => attemptNavigation(() => openContactForView(contact));
 
   const bulkMessageRecipients = useMemo(
@@ -349,154 +295,144 @@ export const ContactList: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
-      <BulkActionBar
-        selectedCount={selectedCount}
-        onClearSelection={clearContactSelection}
-        actions={[
-          ...(canSendMessages
-            ? [
-                {
-                  label: t('bulk.sendMessageTitle'),
-                  icon: MessageSquare,
-                  onClick: () => setShowBulkMessageDialog(true),
-                },
-              ]
-            : []),
-          ...(canSendEmail
-            ? [
-                {
-                  label: t('bulk.sendEmailTitle'),
-                  icon: Mail,
-                  onClick: () => setShowBulkEmailDialog(true),
-                },
-              ]
-            : []),
-          {
-            label: 'Export CSV',
-            icon: FileSpreadsheet,
-            onClick: handleExportCSV,
-            variant: 'default',
-          },
-          {
-            label: 'Export PDF',
-            icon: FileText,
-            onClick: handleExportPDF,
-            variant: 'default',
-          },
-          {
-            label: t('common.delete'),
-            icon: Trash2,
-            onClick: () => setShowBulkDeleteModal(true),
-            variant: 'destructive',
-          },
-        ]}
-      />
-
-      <BulkMessageDialog
-        isOpen={showBulkMessageDialog}
-        onClose={() => setShowBulkMessageDialog(false)}
-        recipients={bulkMessageRecipients}
-        pluginSource="contacts"
-      />
-
-      <BulkEmailDialog
-        isOpen={showBulkEmailDialog}
-        onClose={() => setShowBulkEmailDialog(false)}
-        recipients={bulkEmailRecipients}
-        pluginSource="contacts"
-      />
-
-      <Card className="shadow-none border-none bg-transparent">
-        {sortedContacts.length === 0 ? (
-          <Card className="shadow-none">
-            <div className="p-6 text-center text-muted-foreground">
-              {searchTerm ? t('contacts.noMatch') : t('contacts.noYet')}
-            </div>
-          </Card>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {sortedContacts.map((contact) => {
-              const contactIsSelected = isSelected(contact.id);
-              return (
-                <Card
-                  key={contact.id}
-                  className={cn(
-                    'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent bg-gray-50 dark:bg-gray-900/40',
-                    contactIsSelected
-                      ? 'plugin-contacts bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
-                      : 'hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md',
-                    recentlyDuplicatedContactId === String(contact.id) && HIGHLIGHT_CLASS,
-                  )}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                      return;
-                    }
-                    e.preventDefault();
-                    handleOpenForView(contact);
-                  }}
-                  data-list-item={JSON.stringify(contact)}
-                  data-plugin-name="contacts"
-                  role="button"
-                  aria-label={`Open contact ${contact.companyName}`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={contactIsSelected}
-                        onChange={() => toggleContactSelected(contact.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="cursor-pointer h-4 w-4"
-                        aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
-                      />
-                      <span className="font-mono text-[10px] text-muted-foreground">
-                        {formatDisplayNumber('contacts', contact.id)}
-                      </span>
-                    </div>
-                    <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
-                      {contact.contactType === 'company' ? 'Company' : 'Private'}
-                    </Badge>
-                  </div>
-                  <h3 className="font-semibold text-base mb-1 line-clamp-1">
-                    {contact.companyName}
-                  </h3>
-                  <div className="text-xs text-muted-foreground mb-4">
-                    {contact.contactType === 'company' && contact.organizationNumber && (
-                      <span>Org: {contact.organizationNumber}</span>
-                    )}
-                    {contact.contactType === 'private' && contact.personalNumber && (
-                      <span>PN: {contact.personalNumber.substring(0, 9)}XXXX</span>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
-                    <div className="flex items-center gap-2 text-xs">
-                      <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                      <span className="truncate">{contact.email}</span>
-                    </div>
-                    {contact.phone && (
-                      <div className="flex items-center gap-2 text-xs">
-                        <Phone className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                        <span>{contact.phone}</span>
-                      </div>
-                    )}
-                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground mt-1 pt-2 border-t border-dashed">
-                      <div>Created: {new Date(contact.createdAt).toLocaleDateString()}</div>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
+    <div className="plugin-contacts min-h-full bg-background">
+      <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
+        <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
+          <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
+            {t('nav.contacts')}
+          </h2>
+          <div className="relative w-full max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder={t('contacts.searchPlaceholder')}
+              className="h-9 bg-background pl-9 text-xs"
+            />
           </div>
-        ) : isMobile ? (
-          <Card className="shadow-none">
-            <div className="space-y-2 p-4">
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Settings}
+            className="h-9 px-3 text-xs"
+            onClick={() => openContactSettings()}
+            title={t('contacts.settings')}
+          >
+            {t('contacts.settings')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Grid3x3}
+            className={cn('h-9 px-3 text-xs', viewMode === 'grid' && 'text-primary')}
+            onClick={() => setViewMode('grid')}
+          >
+            {t('contacts.grid')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={ListIcon}
+            className={cn('h-9 px-3 text-xs', viewMode === 'list' && 'text-primary')}
+            onClick={() => setViewMode('list')}
+          >
+            {t('contacts.list')}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={Plus}
+            className="h-9 px-3 text-xs"
+            onClick={() => attemptNavigation(() => openContactPanel(null))}
+          >
+            {t('contacts.addContact')}
+          </Button>
+        </div>
+      </div>
+
+      <div className="px-6 pb-6 space-y-4">
+        {selectedCount > 0 && (
+          <BulkActionBar
+            selectedCount={selectedCount}
+            onClearSelection={clearContactSelection}
+            actions={[
+              ...(canSendMessages
+                ? [
+                    {
+                      label: t('bulk.sendMessageTitle'),
+                      icon: MessageSquare,
+                      onClick: () => setShowBulkMessageDialog(true),
+                    },
+                  ]
+                : []),
+              ...(canSendEmail
+                ? [
+                    {
+                      label: t('bulk.sendEmailTitle'),
+                      icon: Mail,
+                      onClick: () => setShowBulkEmailDialog(true),
+                    },
+                  ]
+                : []),
+              {
+                label: t('contacts.exportCsv'),
+                icon: FileSpreadsheet,
+                onClick: handleExportCSV,
+                variant: 'default',
+              },
+              {
+                label: t('contacts.exportPdf'),
+                icon: FileText,
+                onClick: handleExportPDF,
+                variant: 'default',
+              },
+              {
+                label: t('contacts.delete'),
+                icon: Trash2,
+                onClick: () => setShowBulkDeleteModal(true),
+                variant: 'destructive',
+              },
+            ]}
+          />
+        )}
+
+        <BulkMessageDialog
+          isOpen={showBulkMessageDialog}
+          onClose={() => setShowBulkMessageDialog(false)}
+          recipients={bulkMessageRecipients}
+          pluginSource="contacts"
+        />
+
+        <BulkEmailDialog
+          isOpen={showBulkEmailDialog}
+          onClose={() => setShowBulkEmailDialog(false)}
+          recipients={bulkEmailRecipients}
+          pluginSource="contacts"
+        />
+
+        <Card className="shadow-none border-none bg-transparent">
+          {sortedContacts.length === 0 ? (
+            <Card className="shadow-none">
+              <div className="p-6 text-center text-muted-foreground">
+                {searchTerm ? t('contacts.noMatch') : t('contacts.noYet')}
+              </div>
+            </Card>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {sortedContacts.map((contact) => {
                 const contactIsSelected = isSelected(contact.id);
                 return (
                   <Card
                     key={contact.id}
-                    className="p-4 cursor-pointer hover:bg-accent transition-colors"
+                    className={cn(
+                      'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent bg-gray-50 dark:bg-gray-900/40',
+                      contactIsSelected
+                        ? 'plugin-contacts bg-plugin-subtle border-plugin-subtle ring-1 ring-plugin-subtle/50'
+                        : 'hover:border-plugin-subtle hover:plugin-contacts hover:shadow-md',
+                      recentlyDuplicatedContactId === String(contact.id) && HIGHLIGHT_CLASS,
+                    )}
                     onClick={(e) => {
                       if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                         return;
@@ -509,134 +445,63 @@ export const ContactList: React.FC = () => {
                     role="button"
                     aria-label={`Open contact ${contact.companyName}`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <input
-                            type="checkbox"
-                            checked={contactIsSelected}
-                            onChange={() => toggleContactSelected(contact.id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
-                            aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
-                          />
-                          <span className="font-mono text-xs text-muted-foreground">
-                            {formatDisplayNumber('contacts', contact.id)}
-                          </span>
-                          <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
-                            {contact.contactType === 'company' ? 'Company' : 'Private'}
-                          </Badge>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={contactIsSelected}
+                          onChange={() => toggleContactSelected(contact.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="cursor-pointer h-4 w-4"
+                          aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
+                        />
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {formatDisplayNumber('contacts', contact.id)}
+                        </span>
+                      </div>
+                      <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
+                        {contact.contactType === 'company' ? 'Company' : 'Private'}
+                      </Badge>
+                    </div>
+                    <h3 className="font-semibold text-base mb-1 line-clamp-1">
+                      {contact.companyName}
+                    </h3>
+                    <div className="text-xs text-muted-foreground mb-4">
+                      {contact.contactType === 'company' && contact.organizationNumber && (
+                        <span>Org: {contact.organizationNumber}</span>
+                      )}
+                      {contact.contactType === 'private' && contact.personalNumber && (
+                        <span>PN: {contact.personalNumber.substring(0, 9)}XXXX</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
+                      <div className="flex items-center gap-2 text-xs">
+                        <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate">{contact.email}</span>
+                      </div>
+                      {contact.phone && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <Phone className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                          <span>{contact.phone}</span>
                         </div>
-                        <h3 className="font-semibold text-base mb-1 truncate">
-                          {contact.companyName}
-                        </h3>
-                        {contact.contactType === 'company' && contact.organizationNumber && (
-                          <p className="text-xs text-muted-foreground mb-1">
-                            Org: {contact.organizationNumber}
-                          </p>
-                        )}
-                        {contact.contactType === 'private' && contact.personalNumber && (
-                          <p className="text-xs text-muted-foreground mb-1">
-                            PN: {contact.personalNumber.substring(0, 9)}XXXX
-                          </p>
-                        )}
-                        <div className="flex flex-col gap-1 mt-2">
-                          <div className="flex items-center gap-1.5 text-sm">
-                            <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                            <span className="truncate">{contact.email}</span>
-                          </div>
-                          {contact.phone && (
-                            <div className="flex items-center gap-1.5 text-sm">
-                              <Phone className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                              <span>{contact.phone}</span>
-                            </div>
-                          )}
-                        </div>
+                      )}
+                      <div className="flex flex-col gap-1 text-[10px] text-muted-foreground mt-1 pt-2 border-t border-dashed">
+                        <div>Created: {new Date(contact.createdAt).toLocaleDateString()}</div>
                       </div>
                     </div>
                   </Card>
                 );
               })}
             </div>
-          </Card>
-        ) : (
-          <Card className="shadow-none">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <input
-                      ref={headerCheckboxRef}
-                      type="checkbox"
-                      checked={allVisibleSelected}
-                      onChange={handleHeaderCheckboxChange}
-                      className="h-4 w-4 cursor-pointer"
-                      aria-label={
-                        allVisibleSelected ? 'Deselect all contacts' : 'Select all contacts'
-                      }
-                    />
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => handleSort('name')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>Name</span>
-                      {sortField === 'name' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="h-3 w-3 inline" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3 inline" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => handleSort('type')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>Type</span>
-                      {sortField === 'type' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="h-3 w-3 inline" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3 inline" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead>Tags</TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => handleSort('email')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>Email</span>
-                      {sortField === 'email' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="h-3 w-3 inline" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3 inline" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead>Phone</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          ) : isMobile ? (
+            <Card className="shadow-none">
+              <div className="space-y-2 p-4">
                 {sortedContacts.map((contact) => {
                   const contactIsSelected = isSelected(contact.id);
                   return (
-                    <TableRow
+                    <Card
                       key={contact.id}
-                      className={cn(
-                        'cursor-pointer hover:bg-accent',
-                        recentlyDuplicatedContactId === String(contact.id) && HIGHLIGHT_CLASS,
-                      )}
-                      tabIndex={0}
-                      data-list-item={JSON.stringify(contact)}
-                      data-plugin-name="contacts"
-                      role="button"
-                      aria-label={`Open contact ${contact.companyName}`}
+                      className="p-4 cursor-pointer hover:bg-accent transition-colors"
                       onClick={(e) => {
                         if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                           return;
@@ -644,82 +509,223 @@ export const ContactList: React.FC = () => {
                         e.preventDefault();
                         handleOpenForView(contact);
                       }}
+                      data-list-item={JSON.stringify(contact)}
+                      data-plugin-name="contacts"
+                      role="button"
+                      aria-label={`Open contact ${contact.companyName}`}
                     >
-                      <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={contactIsSelected}
-                          onChange={() => toggleContactSelected(contact.id)}
-                          className="h-4 w-4 cursor-pointer"
-                          aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-semibold">{contact.companyName}</span>
-                          {contact.contactType === 'company' && contact.organizationNumber && (
-                            <span className="text-xs text-muted-foreground">
-                              Org: {contact.organizationNumber}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <input
+                              type="checkbox"
+                              checked={contactIsSelected}
+                              onChange={() => toggleContactSelected(contact.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
+                              aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
+                            />
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {formatDisplayNumber('contacts', contact.id)}
                             </span>
+                            <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
+                              {contact.contactType === 'company' ? 'Company' : 'Private'}
+                            </Badge>
+                          </div>
+                          <h3 className="font-semibold text-base mb-1 truncate">
+                            {contact.companyName}
+                          </h3>
+                          {contact.contactType === 'company' && contact.organizationNumber && (
+                            <p className="text-xs text-muted-foreground mb-1">
+                              Org: {contact.organizationNumber}
+                            </p>
                           )}
                           {contact.contactType === 'private' && contact.personalNumber && (
-                            <span className="text-xs text-muted-foreground">
+                            <p className="text-xs text-muted-foreground mb-1">
                               PN: {contact.personalNumber.substring(0, 9)}XXXX
-                            </span>
+                            </p>
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
-                          {contact.contactType === 'company' ? 'Company' : 'Private'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {Array.isArray(contact.tags) && contact.tags.length > 0
-                            ? contact.tags.map((t: string) => (
-                                <Badge
-                                  key={t}
-                                  variant="secondary"
-                                  className="text-[10px] font-normal"
-                                >
-                                  {t}
-                                </Badge>
-                              ))
-                            : '—'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-sm">
-                          <Mail className="w-3 h-3 text-muted-foreground" />
-                          <span className="truncate max-w-[200px]">{contact.email}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {contact.phone && (
-                          <div className="flex items-center gap-1.5 text-sm">
-                            <Phone className="w-3 h-3 text-muted-foreground" />
-                            <span>{contact.phone}</span>
+                          <div className="flex flex-col gap-1 mt-2">
+                            <div className="flex items-center gap-1.5 text-sm">
+                              <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                              <span className="truncate">{contact.email}</span>
+                            </div>
+                            {contact.phone && (
+                              <div className="flex items-center gap-1.5 text-sm">
+                                <Phone className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                                <span>{contact.phone}</span>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
+                        </div>
+                      </div>
+                    </Card>
                   );
                 })}
-              </TableBody>
-            </Table>
-          </Card>
-        )}
-      </Card>
+              </div>
+            </Card>
+          ) : (
+            <Card className="shadow-none">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <input
+                        ref={headerCheckboxRef}
+                        type="checkbox"
+                        checked={allVisibleSelected}
+                        onChange={handleHeaderCheckboxChange}
+                        className="h-4 w-4 cursor-pointer"
+                        aria-label={
+                          allVisibleSelected ? 'Deselect all contacts' : 'Select all contacts'
+                        }
+                      />
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>Name</span>
+                        {sortField === 'name' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="h-3 w-3 inline" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 inline" />
+                          ))}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('type')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>Type</span>
+                        {sortField === 'type' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="h-3 w-3 inline" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 inline" />
+                          ))}
+                      </div>
+                    </TableHead>
+                    <TableHead>Tags</TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('email')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>Email</span>
+                        {sortField === 'email' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="h-3 w-3 inline" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 inline" />
+                          ))}
+                      </div>
+                    </TableHead>
+                    <TableHead>Phone</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedContacts.map((contact) => {
+                    const contactIsSelected = isSelected(contact.id);
+                    return (
+                      <TableRow
+                        key={contact.id}
+                        className={cn(
+                          'cursor-pointer hover:bg-accent',
+                          recentlyDuplicatedContactId === String(contact.id) && HIGHLIGHT_CLASS,
+                        )}
+                        tabIndex={0}
+                        data-list-item={JSON.stringify(contact)}
+                        data-plugin-name="contacts"
+                        role="button"
+                        aria-label={`Open contact ${contact.companyName}`}
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                            return;
+                          }
+                          e.preventDefault();
+                          handleOpenForView(contact);
+                        }}
+                      >
+                        <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={contactIsSelected}
+                            onChange={() => toggleContactSelected(contact.id)}
+                            className="h-4 w-4 cursor-pointer"
+                            aria-label={contactIsSelected ? 'Unselect contact' : 'Select contact'}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-semibold">{contact.companyName}</span>
+                            {contact.contactType === 'company' && contact.organizationNumber && (
+                              <span className="text-xs text-muted-foreground">
+                                Org: {contact.organizationNumber}
+                              </span>
+                            )}
+                            {contact.contactType === 'private' && contact.personalNumber && (
+                              <span className="text-xs text-muted-foreground">
+                                PN: {contact.personalNumber.substring(0, 9)}XXXX
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={CONTACT_TYPE_COLORS[contact.contactType]}>
+                            {contact.contactType === 'company' ? 'Company' : 'Private'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {Array.isArray(contact.tags) && contact.tags.length > 0
+                              ? contact.tags.map((t: string) => (
+                                  <Badge
+                                    key={t}
+                                    variant="secondary"
+                                    className="text-[10px] font-normal"
+                                  >
+                                    {t}
+                                  </Badge>
+                                ))
+                              : '—'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <Mail className="w-3 h-3 text-muted-foreground" />
+                            <span className="truncate max-w-[200px]">{contact.email}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {contact.phone && (
+                            <div className="flex items-center gap-1.5 text-sm">
+                              <Phone className="w-3 h-3 text-muted-foreground" />
+                              <span>{contact.phone}</span>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Card>
+          )}
+        </Card>
 
-      <BulkDeleteModal
-        isOpen={showBulkDeleteModal}
-        onClose={() => setShowBulkDeleteModal(false)}
-        onConfirm={handleBulkDelete}
-        itemCount={selectedCount}
-        itemLabel="contacts"
-        isLoading={deleting}
-      />
+        <BulkDeleteModal
+          isOpen={showBulkDeleteModal}
+          onClose={() => setShowBulkDeleteModal(false)}
+          onConfirm={handleBulkDelete}
+          itemCount={selectedCount}
+          itemLabel="contacts"
+          isLoading={deleting}
+        />
+      </div>
     </div>
   );
 };

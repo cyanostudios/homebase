@@ -674,6 +674,66 @@ Följande mönster är **felaktiga** och ska **tas bort** när de hittas:
 | `text-[10px]`/`h-7` i properties-knappar                                                           | `text-xs`/`h-9`                                              |
 | Properties i sidebar                                                                               | Flytta till main column                                      |
 | Gammal `hasAssignedToIdsColumn`-liknande `information_schema`-query med tenant-isolerad `db.query` | Try/catch direkt på write-operation (se `model.js`-mönstret) |
+| `window.submitXxxForm` / `window.cancelXxxForm` i `*Form.tsx`                                      | Inline Save/Cancel-knappar i formuläret (se avsnitt 12)      |
+| `window.addEventListener('submitXxxForm', ...)` i `*Form.tsx`                                      | Inline Save/Cancel-knappar i formuläret (se avsnitt 12)      |
+
+---
+
+## 12. Formulärhantering – inline Save/Cancel (ingen window-bridge)
+
+**Regel:** Varje `*Form.tsx` ansvarar för sina egna Save/Cancel-knappar. Inga `window.submitXxxForm`-globaler, inga CustomEvent-lyssnare. `PanelFooter` hanterar **inte** formulärsparande.
+
+**Referens:** `SlotForm.tsx`, `NoteForm.tsx`, `TaskForm.tsx`, `ContactForm.tsx`
+
+### Exakt mönster
+
+```tsx
+// Längst ned i formulärets return-block, efter alla fält:
+<div className="flex justify-end gap-2 pt-4 border-t border-border">
+  <Button
+    type="button"
+    variant="secondary"
+    size="sm"
+    icon={X}
+    onClick={onCancel}
+    disabled={isSubmitting}
+    className="h-9 text-xs px-3"
+  >
+    {t('common.cancel')}
+  </Button>
+  <Button
+    type="button"
+    variant="primary"
+    size="sm"
+    icon={Check}
+    onClick={handleSubmit}
+    disabled={hasBlockingErrors || isSubmitting}
+    className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
+  >
+    {isSubmitting
+      ? t('common.saving')
+      : panelMode === 'edit'
+        ? t('common.update')
+        : t('common.save')}
+  </Button>
+</div>
+```
+
+### Regler
+
+- `handleSubmit` och `handleCancel` definieras som `useCallback` i formuläret (inga ändringar i spara-logiken).
+- `onCancel`-prop anropas direkt från `handleCancel`; i edit-läge växlar context till view via `openXForView`.
+- Ta bort hela `useEffect` som registrerar `window.submitXxxForm` / `window.cancelXxxForm`.
+- Ta bort deklarationerna i `global.d.ts` efter att alla formulär är migrerade.
+- `hasBlockingErrors` = `validationErrors.some(e => !e.message.includes('Warning'))`.
+
+### Checklist per formulär
+
+- [ ] Inline Save/Cancel-rad finns längst ned i formuläret
+- [ ] `useEffect` som registrerar window-global **är borttagen**
+- [ ] `window.submitXxxForm` / `window.cancelXxxForm` **nämns inte** i filen
+- [ ] `hasBlockingErrors` beräknas lokalt eller destruktureras från context
+- [ ] Knappstorleken är `h-9 text-xs px-3`
 
 ---
 

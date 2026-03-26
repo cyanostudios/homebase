@@ -105,7 +105,7 @@ function ContactQuickActionsCard({
             className={quickActionButtonClass}
             onClick={() => onEdit(contact)}
           >
-            {t('common.edit')}
+            {t('contacts.edit')}
           </Button>
           <Button
             type="button"
@@ -120,7 +120,7 @@ function ContactQuickActionsCard({
             className="h-9 justify-start rounded-md px-3 text-xs hover:bg-red-50 dark:hover:bg-red-950/30"
             onClick={onDeleteClick}
           >
-            {t('common.delete')}
+            {t('contacts.delete')}
           </Button>
           {canDuplicate && (
             <Button
@@ -136,7 +136,7 @@ function ContactQuickActionsCard({
               className={quickActionButtonClass}
               onClick={() => onDuplicate(contact)}
             >
-              {t('common.duplicate')}
+              {t('contacts.duplicate')}
             </Button>
           )}
           {Array.isArray(detailFooterActions) &&
@@ -183,9 +183,9 @@ function ContactExportOptionsCard({
   }
   const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
   const exportLabelByFormat: Record<ExportFormat, string> = {
-    txt: t('common.exportTxt'),
-    csv: t('common.exportCsv'),
-    pdf: t('common.exportPdf'),
+    txt: t('contacts.exportTxt'),
+    csv: t('contacts.exportCsv'),
+    pdf: t('contacts.exportPdf'),
   };
 
   return (
@@ -860,10 +860,10 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
 
       <ConfirmDialog
         isOpen={confirmDeleteEntryId !== null}
-        title="Delete time entry"
-        message="Are you sure you want to delete this time entry? This cannot be undone."
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
+        title={t('contacts.deleteTimeEntryTitle')}
+        message={t('contacts.deleteTimeEntryMessage')}
+        confirmText={t('contacts.delete')}
+        cancelText={t('contacts.cancel')}
         onConfirm={async () => {
           if (confirmDeleteEntryId) {
             await handleDeleteTimeEntry(confirmDeleteEntryId);
@@ -878,8 +878,8 @@ export const ContactView: React.FC<ContactViewProps> = ({ contact }) => {
         isOpen={showDeleteContactConfirm}
         title={t('dialog.deleteItem', { label: t('nav.contact') })}
         message={contact ? getDeleteMessage(contact) : ''}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
+        confirmText={t('contacts.delete')}
+        cancelText={t('contacts.cancel')}
         onConfirm={handleConfirmDelete}
         onCancel={() => setShowDeleteContactConfirm(false)}
         variant="danger"

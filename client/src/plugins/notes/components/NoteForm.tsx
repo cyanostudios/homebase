@@ -123,17 +123,13 @@ export const NoteForm: React.FC<NoteFormProps> = ({
   }, [attemptAction, onCancel]);
 
   useEffect(() => {
-    if (panelMode === 'settings') {
-      return;
-    }
-    (window as any).submitNotesForm = handleSubmit;
-    (window as any).cancelNotesForm = handleCancel;
-
+    window.submitNotesForm = () => handleSubmit();
+    window.cancelNotesForm = () => handleCancel();
     return () => {
-      delete (window as any).submitNotesForm;
-      delete (window as any).cancelNotesForm;
+      delete window.submitNotesForm;
+      delete window.cancelNotesForm;
     };
-  }, [handleSubmit, handleCancel, panelMode]);
+  }, [handleSubmit, handleCancel]);
 
   const handleDiscardChanges = () => {
     if (!currentNote) {

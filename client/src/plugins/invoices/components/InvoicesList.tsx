@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { GroupedList } from '@/core/ui/GroupedList';
@@ -27,7 +26,6 @@ export function InvoicesList() {
   const {
     invoices,
     openInvoiceForView,
-    deleteInvoice,
     deleteInvoices,
     selectedInvoiceIds,
     toggleInvoiceSelected,
@@ -79,15 +77,6 @@ export function InvoicesList() {
   }, []);
   const [sortField] = useState<SortField>('createdAt');
   const [sortOrder] = useState<SortOrder>('desc');
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    isOpen: boolean;
-    invoiceId: string;
-    invoiceNumber: string;
-  }>({
-    isOpen: false,
-    invoiceId: '',
-    invoiceNumber: '',
-  });
 
   const sortedInvoices = useMemo(() => {
     const filtered = invoices.filter((invoice) => {
@@ -117,31 +106,6 @@ export function InvoicesList() {
       return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
     });
   }, [invoices, searchTerm, sortField, sortOrder]);
-
-  const _handleDelete = (id: string, invoiceNumber: string) => {
-    setDeleteConfirm({
-      isOpen: true,
-      invoiceId: id,
-      invoiceNumber: invoiceNumber || id,
-    });
-  };
-
-  const confirmDelete = () => {
-    deleteInvoice(deleteConfirm.invoiceId);
-    setDeleteConfirm({
-      isOpen: false,
-      invoiceId: '',
-      invoiceNumber: '',
-    });
-  };
-
-  const cancelDelete = () => {
-    setDeleteConfirm({
-      isOpen: false,
-      invoiceId: '',
-      invoiceNumber: '',
-    });
-  };
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
@@ -452,17 +416,6 @@ export function InvoicesList() {
         itemCount={selectedCount}
         itemLabel="invoices"
         isLoading={deleting}
-      />
-
-      <ConfirmDialog
-        isOpen={deleteConfirm.isOpen}
-        title={t('invoices.deleteTitle')}
-        message={`Are you sure you want to delete invoice "${formatDisplayNumber('invoices', deleteConfirm.invoiceNumber)}"? ${t('bulk.cannotUndo')}`}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={confirmDelete}
-        onCancel={cancelDelete}
-        variant="danger"
       />
     </div>
   );

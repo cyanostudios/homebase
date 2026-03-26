@@ -17,6 +17,7 @@ import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
@@ -212,22 +213,6 @@ export function EstimateProvider({
     registerPanelCloseFunction('estimates', closeEstimatePanel);
     return () => unregisterPanelCloseFunction('estimates');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Global submit/cancel hooks (optional integration points)
-  useEffect(() => {
-    (window as any).submitEstimatesForm = () => {
-      const event = new CustomEvent('submitEstimateForm');
-      window.dispatchEvent(event);
-    };
-    (window as any).cancelEstimatesForm = () => {
-      const event = new CustomEvent('cancelEstimateForm');
-      window.dispatchEvent(event);
-    };
-    return () => {
-      delete (window as any).submitEstimatesForm;
-      delete (window as any).cancelEstimatesForm;
-    };
   }, []);
 
   const loadEstimates = async () => {
@@ -953,13 +938,12 @@ export function EstimateProvider({
     }
   };
 
-  const getDeleteMessage = (item: Estimate | null) => {
-    if (!item) {
-      return t('estimates.deleteConfirmThis');
-    }
-    const itemName = formatDisplayNumber('estimates', item.estimateNumber || item.id);
-    return `${t('estimates.deleteConfirmNamed', { name: itemName })} ${t('bulk.cannotUndo')}`;
-  };
+  const getDeleteMessage = (item: Estimate | null) =>
+    buildDeleteMessage(
+      t,
+      'estimates',
+      item ? formatDisplayNumber('estimates', item.estimateNumber || item.id) : undefined,
+    );
 
   const value: EstimateContextType = {
     isEstimatePanelOpen,

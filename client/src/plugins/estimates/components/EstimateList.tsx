@@ -25,7 +25,6 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useContentLayout } from '@/core/ui/ContentLayoutContext';
 import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
@@ -49,7 +48,6 @@ export function EstimateList() {
     estimatesContentView,
     openEstimateSettings,
     openEstimateForView,
-    deleteEstimate,
     deleteEstimates,
     selectedEstimateIds,
     toggleEstimateSelected,
@@ -111,15 +109,6 @@ export function EstimateList() {
       setSortOrder('asc');
     }
   };
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    isOpen: boolean;
-    estimateId: string;
-    estimateNumber: string;
-  }>({
-    isOpen: false,
-    estimateId: '',
-    estimateNumber: '',
-  });
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -150,31 +139,6 @@ export function EstimateList() {
       return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
     });
   }, [estimates, searchTerm, sortField, sortOrder]);
-
-  const _handleDelete = (id: string, estimateNumber: string) => {
-    setDeleteConfirm({
-      isOpen: true,
-      estimateId: id,
-      estimateNumber: estimateNumber,
-    });
-  };
-
-  const confirmDelete = () => {
-    deleteEstimate(deleteConfirm.estimateId);
-    setDeleteConfirm({
-      isOpen: false,
-      estimateId: '',
-      estimateNumber: '',
-    });
-  };
-
-  const cancelDelete = () => {
-    setDeleteConfirm({
-      isOpen: false,
-      estimateId: '',
-      estimateNumber: '',
-    });
-  };
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
@@ -727,17 +691,6 @@ export function EstimateList() {
         itemCount={selectedCount}
         itemLabel="estimates"
         isLoading={deleting}
-      />
-
-      <ConfirmDialog
-        isOpen={deleteConfirm.isOpen}
-        title={t('estimates.deleteTitle')}
-        message={`Are you sure you want to delete estimate "${formatDisplayNumber('estimates', deleteConfirm.estimateNumber)}"? ${t('bulk.cannotUndo')}`}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={confirmDelete}
-        onCancel={cancelDelete}
-        variant="danger"
       />
     </div>
   );

@@ -245,16 +245,13 @@ export const ContactForm: React.FC<ContactFormProps> = ({
   }, [attemptAction, onCancel]);
 
   useEffect(() => {
-    if (panelMode === 'settings') {
-      return;
-    }
-    (window as any).submitContactsForm = handleSubmit;
-    (window as any).cancelContactsForm = handleCancel;
+    window.submitContactsForm = () => handleSubmit();
+    window.cancelContactsForm = () => handleCancel();
     return () => {
-      delete (window as any).submitContactsForm;
-      delete (window as any).cancelContactsForm;
+      delete window.submitContactsForm;
+      delete window.cancelContactsForm;
     };
-  }, [handleSubmit, handleCancel, panelMode]);
+  }, [handleSubmit, handleCancel]);
 
   const handleDiscardChanges = () => {
     if (!currentContact) {

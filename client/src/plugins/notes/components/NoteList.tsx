@@ -9,7 +9,6 @@ import {
   Search,
   Settings,
   Trash2,
-  X,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -28,7 +27,6 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { exportItems } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -62,7 +60,6 @@ export const NoteList: React.FC = () => {
     openNoteForView,
     openNoteSettings,
     closeNoteSettingsView,
-    deleteNote,
     deleteNotes,
     selectedNoteIds,
     toggleNoteSelected,
@@ -75,15 +72,6 @@ export const NoteList: React.FC = () => {
   } = useNotes();
   const { attemptNavigation } = useGlobalNavigationGuard();
   const [searchTerm, setSearchTerm] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    isOpen: boolean;
-    noteId: string;
-    noteTitle: string;
-  }>({
-    isOpen: false,
-    noteId: '',
-    noteTitle: '',
-  });
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -210,23 +198,6 @@ export const NoteList: React.FC = () => {
     }
   };
 
-  const confirmDelete = () => {
-    deleteNote(deleteConfirm.noteId);
-    setDeleteConfirm({
-      isOpen: false,
-      noteId: '',
-      noteTitle: '',
-    });
-  };
-
-  const cancelDelete = () => {
-    setDeleteConfirm({
-      isOpen: false,
-      noteId: '',
-      noteTitle: '',
-    });
-  };
-
   const handleExportCSV = () => {
     if (selectedNoteIds.length === 0) {
       return;
@@ -305,8 +276,8 @@ export const NoteList: React.FC = () => {
   return (
     <div className="plugin-notes min-h-full bg-background">
       <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
-        <div className="mr-4 flex min-w-0 flex-1 items-center gap-4">
-          <h2 className="shrink-0 truncate text-lg font-semibold tracking-tight">
+        <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
+          <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
             {t('nav.notes')}
           </h2>
           <div className="relative w-full max-w-md">
@@ -360,7 +331,7 @@ export const NoteList: React.FC = () => {
         </div>
       </div>
 
-      <div className="space-y-4 px-6 pb-6">
+      <div className="px-6 pb-6 space-y-4">
         {selectedCount > 0 && (
           <BulkActionBar
             selectedCount={selectedCount}
@@ -593,17 +564,6 @@ export const NoteList: React.FC = () => {
           </Card>
         )}
       </div>
-
-      <ConfirmDialog
-        isOpen={deleteConfirm.isOpen}
-        title={t('notes.deleteTitle')}
-        message={`Are you sure you want to delete "${deleteConfirm.noteTitle}"? ${t('bulk.cannotUndo')}`}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={confirmDelete}
-        onCancel={cancelDelete}
-        variant="danger"
-      />
 
       <BulkDeleteModal
         isOpen={showBulkDeleteModal}

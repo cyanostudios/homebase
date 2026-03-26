@@ -73,6 +73,18 @@ const commonRules = {
 
   url: (field) => body(field).optional().isURL().withMessage(`${field} must be a valid URL`),
 
+  /** Optional URL: allow null/undefined/empty and keep raw URL (no escaping). */
+  optionalUrl: (field, max = 500) =>
+    body(field)
+      .optional({ values: 'falsy' })
+      .customSanitizer((value) => {
+        return value === null || value === undefined ? '' : String(value).trim();
+      })
+      .isLength({ max })
+      .withMessage(`${field} must not exceed ${max} characters`)
+      .isURL()
+      .withMessage(`${field} must be a valid URL`),
+
   phone: (field) =>
     body(field)
       .optional({ values: 'falsy' })
@@ -149,6 +161,16 @@ const commonRules = {
   enum: (field, values) =>
     body(field)
       .optional()
+      .isIn(values)
+      .withMessage(`${field} must be one of: ${values.join(', ')}`),
+
+  /**
+   * Optional enum: allow null/undefined/empty string; when present must be in allowed values.
+   * Use for select fields where UI may send null to clear.
+   */
+  optionalEnum: (field, values) =>
+    body(field)
+      .optional({ values: 'falsy' })
       .isIn(values)
       .withMessage(`${field} must be one of: ${values.join(', ')}`),
 

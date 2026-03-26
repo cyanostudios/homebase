@@ -1,8 +1,19 @@
 // plugins/slots/routes.js
 const express = require('express');
 const router = express.Router();
+const { body } = require('express-validator');
 const config = require('./plugin.config');
 const { commonRules, validateRequest } = require('../../server/core/middleware/validation');
+
+const slotEndAfterStart = body('slot_end')
+  .optional({ values: 'falsy' })
+  .custom((slotEnd, { req }) => {
+    const slotTime = req.body?.slot_time;
+    if (slotEnd && slotTime && new Date(slotEnd).getTime() <= new Date(slotTime).getTime()) {
+      throw new Error('End time must be after start time');
+    }
+    return true;
+  });
 
 function createSlotsRoutes(controller, context) {
   const requirePlugin = context?.middleware?.requirePlugin || (() => (req, res, next) => next());
@@ -17,6 +28,7 @@ function createSlotsRoutes(controller, context) {
     commonRules.optionalString('location', 255),
     commonRules.requiredDate('slot_time'),
     commonRules.optionalDate('slot_end'),
+    slotEndAfterStart,
     commonRules.optionalString('address', 500),
     commonRules.optionalString('category', 100),
     commonRules.optionalInteger('capacity', 1, 5),
@@ -55,6 +67,7 @@ function createSlotsRoutes(controller, context) {
     commonRules.optionalString('location', 255),
     commonRules.requiredDate('slot_time'),
     commonRules.optionalDate('slot_end'),
+    slotEndAfterStart,
     commonRules.optionalString('address', 500),
     commonRules.optionalString('category', 100),
     commonRules.optionalInteger('capacity', 1, 5),

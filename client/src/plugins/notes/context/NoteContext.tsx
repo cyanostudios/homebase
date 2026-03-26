@@ -15,6 +15,7 @@ import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { resolveSlug } from '@/core/utils/slugUtils';
 
@@ -146,23 +147,6 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
       unregisterPanelCloseFunction('notes');
     };
   }, [registerPanelCloseFunction, unregisterPanelCloseFunction, closeNotePanel]);
-
-  useEffect(() => {
-    window.submitNotesForm = () => {
-      const event = new CustomEvent('submitNoteForm');
-      window.dispatchEvent(event);
-    };
-
-    window.cancelNotesForm = () => {
-      const event = new CustomEvent('cancelNoteForm');
-      window.dispatchEvent(event);
-    };
-
-    return () => {
-      delete window.submitNotesForm;
-      delete window.cancelNotesForm;
-    };
-  }, []);
 
   const loadNotes = useCallback(async () => {
     try {
@@ -533,13 +517,8 @@ export function NoteProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     [t],
   );
 
-  const getDeleteMessage = (item: Note | null) => {
-    if (!item) {
-      return t('notes.deleteConfirmThis');
-    }
-    const itemName = item.title || 'this note';
-    return `${t('notes.deleteConfirmNamed', { name: itemName })} ${t('bulk.cannotUndo')}`;
-  };
+  const getDeleteMessage = (item: Note | null) =>
+    buildDeleteMessage(t, 'notes', item?.title || undefined);
 
   const value: NoteContextType = {
     isNotePanelOpen,

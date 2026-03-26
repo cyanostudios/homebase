@@ -159,19 +159,12 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
     });
   }, [attemptAction, onCancel]);
 
-  // Kopplad till panelfoten via custom events
   useEffect(() => {
-    const onSubmit = () => {
-      void handleSubmit();
-    };
-    const onCancel = () => {
-      handleCancel();
-    };
-    window.addEventListener('submitInvoiceForm', onSubmit as EventListener);
-    window.addEventListener('cancelInvoiceForm', onCancel as EventListener);
+    window.submitInvoicesForm = () => handleSubmit();
+    window.cancelInvoicesForm = () => handleCancel();
     return () => {
-      window.removeEventListener('submitInvoiceForm', onSubmit as EventListener);
-      window.removeEventListener('cancelInvoiceForm', onCancel as EventListener);
+      delete window.submitInvoicesForm;
+      delete window.cancelInvoicesForm;
     };
   }, [handleSubmit, handleCancel]);
 
@@ -662,8 +655,6 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
             className="resize-vertical"
           />
         </Card>
-
-        {/* ⬇️ Local Save/Cancel borttaget – panelfoten hanterar detta ⬇️ */}
       </form>
 
       {/* Unsaved Changes Warning */}

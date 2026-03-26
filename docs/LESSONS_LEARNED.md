@@ -141,6 +141,22 @@ As of the Settings-plugin migration, Settings is implemented as an always-on plu
 
 ---
 
+### Rate-limit skip-regler måste matcha mountad path
+
+❌ **What we did (that didn't work):**  
+Vi antog att `req.path` alltid innehåller `/api/...` och skrev skip-regler i global rate limiter som bara matchade `/api/auth/login`, `/api/auth/me`, `/api/health` osv. När limitern mountades med `app.use('/api', ...)` stripades prefixet, vilket gjorde att skip-reglerna inte träffade. Resultatet blev felaktig throttling av login i dev (`429 Too Many Requests`).
+
+✅ **What we do instead (that works):**
+
+- Skriv skip-logik som matchar både prefixed och stripped paths när middleware är mountad under en baspath.
+- Exempel: matcha både `/auth/login` och `/api/auth/login` (samma för `me`, `health`, `csrf-token`).
+- Verifiera alltid med ett verkligt endpoint-anrop (`curl` eller motsvarande) efter ändring i limiter.
+
+💡 **Why (lesson learned):**  
+Express ändrar hur `req.path` ser ut beroende på var middleware mountas. Om skip-regler inte tar hänsyn till det kan kritiska endpoints (inloggning/session) oavsiktligt rate-limitas och plattformen upplevs som trasig trots korrekt auth-logik.
+
+---
+
 ### Undvik “dubbel panel”-special-casing
 
 ❌ **What we did (that didn't work):**
@@ -763,6 +779,74 @@ executeDuplicate(item, newName).then(({ closePanel, highlightId }) => {
 
 💡 **Why (lesson learned):**
 Duplicering ska alltid be om ett namn via `DuplicateDialog`. Att anropa `executeDuplicate` direkt med tomt namn ger en post med standardnamn utan att användaren fått chansen att välja – vilket avviker från slots-beteendet.
+
+---
+
+---
+
+## window-bridge borttagning: `*Form.tsx` ska aldrig registrera globala submit/cancel-funktioner
+
+❌ **What we did (that didn't work):**
+
+```ts
+// ❌ FEL – registrerar window-global i *Form.tsx (create/edit form)
+useEffect(() => {
+  (window as any).submitTasksForm = handleSubmit;
+  (window as any).cancelTasksForm = handleCancel;
+  return () => {
+    delete (window as any).submitTasksForm;
+    delete (window as any).cancelTasksForm;
+  };
+}, [handleSubmit, handleCancel, panelMode]);
+```
+
+✅ **What we do instead (that works):**
+
+```tsx
+// ✅ RÄTT – inline Save/Cancel längst ned i formulärets return-block
+<div className="flex justify-end gap-2 pt-4 border-t border-border">
+  <Button
+    type="button"
+    variant="secondary"
+    size="sm"
+    icon={X}
+    onClick={handleCancel}
+    disabled={isSubmitting}
+    className="h-9 text-xs px-3"
+  >
+    {t('common.cancel')}
+  </Button>
+  <Button
+    type="button"
+    variant="primary"
+    size="sm"
+    icon={Check}
+    onClick={handleSubmit}
+    disabled={hasBlockingErrors || isSubmitting}
+    className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
+  >
+    {isSubmitting ? t('common.saving') : currentItem ? t('common.update') : t('common.save')}
+  </Button>
+</div>
+```
+
+💡 **Why (lesson learned):**  
+`window.submitXxxForm`-globals är ett antipattern (tight coupling, svårt att debugga, timing-buggar). Formuläret ska äga sina egna actions. `PanelFooter` returnerar `null` för create/edit/view-lägen — det är formulärets ansvar att ha Save/Cancel. Window globals tillåts **bara** i `*SettingsForm`-komponenter (settings-läge) som fortfarande anropas via `PanelFooter`.
+
+---
+
+## Footer-refaktorering: PanelFooter ska inte hantera formulärsubmit
+
+❌ **What we did:**  
+`PanelFooter` hade ett stort `if (currentMode === 'view')` block med Delete/Duplicate/Export-knappar, och ett `return` block i botten med Save/Cancel för edit/create. Alla dessa anropades via handlers som i sin tur kallade `window.submitXxxForm`.
+
+✅ **What we do now:**
+
+- View-läge: `PanelFooter` returnerar `null`. QuickActionsCard + ExportOptionsCard i sidebar hanterar Delete/Duplicate/Export.
+- Create/Edit-läge: `PanelFooter` returnerar `null`. Formuläret har inline Save/Cancel.
+- Settings-läge (`currentPlugin.name === 'settings'` eller `currentMode === 'settings'`): `PanelFooter` renderar Close + Save som anropar window-globals registrerade av `*SettingsForm`.
+
+💡 **Why:** Tydlig separation of concerns. Varje komponent äger sina egna actions. Inga globala sidoeffekter.
 
 ---
 

@@ -40,7 +40,7 @@ interface ContactSettingsCategory {
 const getContactSettingsCategories = (t: (key: string) => string): ContactSettingsCategory[] => [
   { id: 'view', label: 'View', icon: LayoutGrid },
   { id: 'tags', label: 'Tags', icon: Tag },
-  { id: 'import', label: t('common.import'), icon: Upload },
+  { id: 'import', label: t('contacts.import'), icon: Upload },
 ];
 
 export function ContactSettingsView() {
@@ -154,7 +154,7 @@ export function ContactSettingsView() {
   }, []);
 
   if (isLoading) {
-    return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
+    return <div className="text-sm text-muted-foreground">{t('contacts.loading')}</div>;
   }
 
   const viewModes: {
@@ -260,7 +260,7 @@ export function ContactSettingsView() {
         )}
 
         {selectedCategory === 'import' && (
-          <DetailSection title={t('common.import')} className="pt-0">
+          <DetailSection title={t('contacts.import')} className="pt-0">
             <p className="text-sm text-muted-foreground mb-4">
               {t('contacts.importDescription') ||
                 'Import contacts from a CSV file. Columns: Name, Type, Email, Phone, Notes.'}
@@ -272,7 +272,7 @@ export function ContactSettingsView() {
               onClick={() => setIsImportWizardOpen(true)}
               className="h-9 text-xs px-3"
             >
-              {t('common.import')}
+              {t('contacts.import')}
             </Button>
           </DetailSection>
         )}
@@ -283,7 +283,7 @@ export function ContactSettingsView() {
         onClose={() => setIsImportWizardOpen(false)}
         onImport={importContacts}
         schema={getContactImportSchema()}
-        title={t('common.import')}
+        title={t('contacts.import')}
       />
 
       {isDirty && (
@@ -297,7 +297,7 @@ export function ContactSettingsView() {
             disabled={isSaving}
             className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
           >
-            {isSaving ? t('common.saving') : t('common.save')}
+            {isSaving ? t('contacts.saving') : t('contacts.save')}
           </Button>
         </div>
       )}

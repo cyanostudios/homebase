@@ -1,4 +1,6 @@
 // plugin-loader.js
+require('./server/core/polyfills/nodeWebGlobals').applyNodeWebGlobalsPolyfill();
+
 const fs = require('fs');
 const path = require('path');
 const ServiceManager = require('./server/core/ServiceManager');

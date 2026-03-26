@@ -17,6 +17,7 @@ import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
@@ -773,13 +774,8 @@ export function TaskProvider({ children, isAuthenticated, onCloseOtherPanels }: 
     [contacts],
   );
 
-  const getDeleteMessage = (item: Task | null) => {
-    if (!item) {
-      return t('tasks.deleteConfirmThis');
-    }
-    const itemName = item.title || 'this task';
-    return `${t('tasks.deleteConfirmNamed', { name: itemName })} ${t('bulk.cannotUndo')}`;
-  };
+  const getDeleteMessage = (item: Task | null) =>
+    buildDeleteMessage(t, 'tasks', item?.title || undefined);
 
   const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
   const tasksExportConfig = React.useMemo(() => getTasksExportConfig(contacts ?? []), [contacts]);

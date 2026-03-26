@@ -1,23 +1,12 @@
-import {
-  Calendar as CalendarIcon,
-  Clock3,
-  Info,
-  Search,
-  SlidersHorizontal,
-  Trash2,
-  User,
-  Users,
-} from 'lucide-react';
+import { Info, Search, SlidersHorizontal, Trash2, User, Users } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DayPicker } from 'react-day-picker';
 import { useTranslation } from 'react-i18next';
-import 'react-day-picker/dist/style.css';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -29,6 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/core/api/AppContext';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
+import { DateTimePicker } from '@/core/ui/DateTimePicker';
 import { DetailActivityLog } from '@/core/ui/DetailActivityLog';
 import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
@@ -81,12 +71,6 @@ const GAP_OPTIONS = [
   { value: 60, label: '1 hr' },
 ];
 
-const TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, idx) => {
-  const hour = String(Math.floor(idx / 4)).padStart(2, '0');
-  const minute = String((idx % 4) * 15).padStart(2, '0');
-  return `${hour}:${minute}`;
-});
-
 interface SlotFormProps {
   currentSlot?: {
     id: string;
@@ -135,41 +119,6 @@ function toDatetimeLocal(iso: string | null | undefined): string {
   return `${y}-${mo}-${day}T${h}:${min}`;
 }
 
-/** Extract "YYYY-MM-DD" from a "YYYY-MM-DDTHH:mm" string. */
-function toDatePart(datetimeLocal: string): string {
-  if (!datetimeLocal) {
-    return '';
-  }
-  const tIdx = datetimeLocal.indexOf('T');
-  return tIdx >= 0 ? datetimeLocal.slice(0, tIdx) : datetimeLocal;
-}
-
-/** Extract "HH:mm" from a "YYYY-MM-DDTHH:mm" string. */
-function toTimePart(datetimeLocal: string): string {
-  if (!datetimeLocal) {
-    return '';
-  }
-  const tIdx = datetimeLocal.indexOf('T');
-  if (tIdx < 0) {
-    return '';
-  }
-  return datetimeLocal.slice(tIdx + 1, tIdx + 6);
-}
-
-/**
- * Combine separate date and time strings into "YYYY-MM-DDTHH:mm".
- *
- * - If datePart is empty → return '' (no valid datetime without a date).
- * - If timePart is empty → default to "00:00" so the date is still saved.
- *   This allows users to pick a date first and add the time afterwards.
- */
-function fromDateAndTime(datePart: string, timePart: string): string {
-  if (!datePart) {
-    return '';
-  }
-  return `${datePart}T${timePart || '00:00'}`;
-}
-
 export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFormProps) {
   const { t } = useTranslation();
   const { contacts, getSettings, settingsVersion } = useApp();
@@ -199,10 +148,6 @@ export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFor
   /** Add-contact UX aligned with SlotView (search + popover). */
   const [contactSearch, setContactSearch] = useState('');
   const [showContactSuggestions, setShowContactSuggestions] = useState(false);
-  const [startDateOpen, setStartDateOpen] = useState(false);
-  const [endDateOpen, setEndDateOpen] = useState(false);
-  const [startTimeOpen, setStartTimeOpen] = useState(false);
-  const [endTimeOpen, setEndTimeOpen] = useState(false);
 
   const addableContactsForForm = useMemo(
     () =>
@@ -239,6 +184,7 @@ export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFor
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [gapMinutes, setGapMinutes] = useState(30);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const initializedSlotIdRef = useRef<string | null>(null);
   const baselineRef = useRef<SlotFormBaseline>({
     formData: {
@@ -382,6 +328,10 @@ export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFor
       onCancel();
       return;
     }
+    if (isSubmitting) {
+      return;
+    }
+    setIsSubmitting(true);
     const mentions: SlotMention[] = selectedContactIds
       .map((id) => assignableContacts.find((c: { id: number | string }) => String(c.id) === id))
       .filter(Boolean)
@@ -406,10 +356,14 @@ export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFor
         mentions,
         description: formData.description.trim() || null,
       }));
-      const ok = await onSaveSlots(payloads);
-      if (ok) {
-        markClean();
-        resetForm();
+      try {
+        const ok = await onSaveSlots(payloads);
+        if (ok) {
+          markClean();
+          resetForm();
+        }
+      } finally {
+        setIsSubmitting(false);
       }
       return;
     }
@@ -426,12 +380,16 @@ export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFor
       mentions,
       description: formData.description.trim() || null,
     };
-    const ok = await onSave(payload);
-    if (ok) {
-      markClean();
-      if (!currentSlot) {
-        resetForm();
+    try {
+      const ok = await onSave(payload);
+      if (ok) {
+        markClean();
+        if (!currentSlot) {
+          resetForm();
+        }
       }
+    } finally {
+      setIsSubmitting(false);
     }
   }, [
     panelMode,
@@ -446,6 +404,7 @@ export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFor
     resetForm,
     isSeries,
     generatedTimes,
+    isSubmitting,
   ]);
 
   const handleCancel = useCallback(() => {
@@ -456,24 +415,14 @@ export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFor
     attemptAction(() => onCancel());
   }, [attemptAction, hasActualChanges, onCancel]);
 
-  const submitRef = useRef(handleSubmit);
-  const cancelRef = useRef(handleCancel);
-  submitRef.current = handleSubmit;
-  cancelRef.current = handleCancel;
-
   useEffect(() => {
-    if (panelMode === 'settings') {
-      return;
-    }
-    (window as unknown as { submitSlotsForm?: () => void }).submitSlotsForm = () =>
-      submitRef.current?.();
-    (window as unknown as { cancelSlotsForm?: () => void }).cancelSlotsForm = () =>
-      cancelRef.current?.();
+    window.submitSlotsForm = () => handleSubmit();
+    window.cancelSlotsForm = () => handleCancel();
     return () => {
-      delete (window as unknown as { submitSlotsForm?: () => void }).submitSlotsForm;
-      delete (window as unknown as { cancelSlotsForm?: () => void }).cancelSlotsForm;
+      delete window.submitSlotsForm;
+      delete window.cancelSlotsForm;
     };
-  }, [panelMode]);
+  }, [handleSubmit, handleCancel]);
 
   if (panelMode === 'settings') {
     return <SlotsSettingsForm onCancel={onCancel} />;
@@ -486,9 +435,17 @@ export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFor
   };
 
   const getFieldError = (field: string) => validationErrors.find((e) => e.field === field);
-  const hasBlockingErrors = validationErrors.some(
-    (e) => !e.message?.toLowerCase().includes('warning'),
-  );
+
+  const endBeforeStartError =
+    formData.slot_end && formData.slot_time
+      ? new Date(formData.slot_end).getTime() <= new Date(formData.slot_time).getTime()
+        ? t('slots.endMustBeAfterStart')
+        : null
+      : null;
+
+  const hasBlockingErrors =
+    !!endBeforeStartError ||
+    validationErrors.some((e) => !e.message?.toLowerCase().includes('warning'));
 
   const formSidebar = currentSlot ? (
     <div className="space-y-4">
@@ -656,235 +613,42 @@ export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFor
                       placeholder={t('slots.namePlaceholder')}
                     />
                   </div>
-                  {/* Start date + end date */}
+                  {/* Start / end (same combined date+time UI as matches DateTimePicker) */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="slots-start-date">{t('slots.startDateLabel')}</Label>
-                      <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
-                        <PopoverTrigger asChild>
-                          <button
-                            id="slots-start-date"
-                            type="button"
-                            className="h-10 w-full flex items-center justify-between rounded-md border border-input bg-background px-3 text-sm transition-colors hover:bg-accent/50"
-                          >
-                            <span
-                              className={cn(
-                                !toDatePart(formData.slot_time) && 'text-muted-foreground',
-                              )}
-                            >
-                              {toDatePart(formData.slot_time) || 'Set date'}
-                            </span>
-                            <CalendarIcon className="h-4 w-4 text-muted-foreground opacity-70" />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent align="start" className="w-auto p-0">
-                          <DayPicker
-                            mode="single"
-                            selected={
-                              toDatePart(formData.slot_time)
-                                ? new Date(`${toDatePart(formData.slot_time)}T00:00`)
-                                : undefined
-                            }
-                            onSelect={(date) => {
-                              if (!date) {
-                                return;
-                              }
-                              const datePart = date.toISOString().slice(0, 10);
-                              updateField(
-                                'slot_time',
-                                fromDateAndTime(datePart, toTimePart(formData.slot_time)),
-                              );
-                              setStartDateOpen(false);
-                            }}
-                            initialFocus
-                            weekStartsOn={1}
-                          />
-                          <div className="p-2 border-t border-border">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="w-full h-9 text-xs"
-                              onClick={() => {
-                                updateField('slot_time', '');
-                                setStartDateOpen(false);
-                              }}
-                            >
-                              Clear date
-                            </Button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
+                      <Label htmlFor="slots-start-datetime">{t('slots.dateTimeStart')}</Label>
+                      <DateTimePicker
+                        value={formData.slot_time}
+                        onChange={(v) => updateField('slot_time', v)}
+                        hasError={Boolean(getFieldError('slot_time'))}
+                        placeholder={t('slots.dateTimePlaceholder')}
+                        timeLabel={t('slots.dateTimePickerTime')}
+                        clearLabel={t('slots.dateTimeClear')}
+                      />
+                      {getFieldError('slot_time') && (
+                        <p className="text-sm text-destructive">
+                          {getFieldError('slot_time')!.message}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="slots-start-time">{t('slots.startTimeLabel')}</Label>
-                      <Popover open={startTimeOpen} onOpenChange={setStartTimeOpen}>
-                        <PopoverTrigger asChild>
-                          <button
-                            id="slots-start-time"
-                            type="button"
-                            disabled={!toDatePart(formData.slot_time)}
-                            title={
-                              !toDatePart(formData.slot_time)
-                                ? t('slots.selectDateFirst')
-                                : undefined
-                            }
-                            className="h-10 w-full flex items-center justify-between rounded-md border border-input bg-background px-3 text-sm transition-colors hover:bg-accent/50 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <span
-                              className={cn(
-                                !toTimePart(formData.slot_time) && 'text-muted-foreground',
-                              )}
-                            >
-                              {toTimePart(formData.slot_time) || 'Set time'}
-                            </span>
-                            <Clock3 className="h-4 w-4 text-muted-foreground opacity-70" />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          align="start"
-                          className="w-[var(--radix-popover-trigger-width)] p-1"
-                        >
-                          <div className="max-h-64 overflow-y-auto space-y-0.5">
-                            {TIME_OPTIONS.map((time) => (
-                              <button
-                                key={time}
-                                type="button"
-                                className={cn(
-                                  'w-full rounded-md px-2.5 py-2 text-left text-xs hover:bg-accent',
-                                  toTimePart(formData.slot_time) === time &&
-                                    'bg-accent font-medium',
-                                )}
-                                onClick={() => {
-                                  updateField(
-                                    'slot_time',
-                                    fromDateAndTime(toDatePart(formData.slot_time), time),
-                                  );
-                                  setStartTimeOpen(false);
-                                }}
-                              >
-                                {time}
-                              </button>
-                            ))}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
+                      <Label htmlFor="slots-end-datetime">{t('slots.dateTimeEnd')}</Label>
+                      <DateTimePicker
+                        value={formData.slot_end}
+                        onChange={(v) => updateField('slot_end', v)}
+                        hasError={Boolean(getFieldError('slot_end'))}
+                        placeholder={t('slots.dateTimePlaceholder')}
+                        timeLabel={t('slots.dateTimePickerTime')}
+                        clearLabel={t('slots.dateTimeClear')}
+                      />
                     </div>
                   </div>
-                  {/* End date + end time */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="slots-end-date">{t('slots.endDateLabel')}</Label>
-                      <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
-                        <PopoverTrigger asChild>
-                          <button
-                            id="slots-end-date"
-                            type="button"
-                            className="h-10 w-full flex items-center justify-between rounded-md border border-input bg-background px-3 text-sm transition-colors hover:bg-accent/50"
-                          >
-                            <span
-                              className={cn(
-                                !toDatePart(formData.slot_end) && 'text-muted-foreground',
-                              )}
-                            >
-                              {toDatePart(formData.slot_end) || 'Set date'}
-                            </span>
-                            <CalendarIcon className="h-4 w-4 text-muted-foreground opacity-70" />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent align="start" className="w-auto p-0">
-                          <DayPicker
-                            mode="single"
-                            selected={
-                              toDatePart(formData.slot_end)
-                                ? new Date(`${toDatePart(formData.slot_end)}T00:00`)
-                                : undefined
-                            }
-                            onSelect={(date) => {
-                              if (!date) {
-                                return;
-                              }
-                              const datePart = date.toISOString().slice(0, 10);
-                              updateField(
-                                'slot_end',
-                                fromDateAndTime(datePart, toTimePart(formData.slot_end)),
-                              );
-                              setEndDateOpen(false);
-                            }}
-                            initialFocus
-                            weekStartsOn={1}
-                          />
-                          <div className="p-2 border-t border-border">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="w-full h-9 text-xs"
-                              onClick={() => {
-                                updateField('slot_end', '');
-                                setEndDateOpen(false);
-                              }}
-                            >
-                              Clear date
-                            </Button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="slots-end-time">{t('slots.endTimeLabel')}</Label>
-                      <Popover open={endTimeOpen} onOpenChange={setEndTimeOpen}>
-                        <PopoverTrigger asChild>
-                          <button
-                            id="slots-end-time"
-                            type="button"
-                            disabled={!toDatePart(formData.slot_end)}
-                            title={
-                              !toDatePart(formData.slot_end)
-                                ? t('slots.selectDateFirst')
-                                : undefined
-                            }
-                            className="h-10 w-full flex items-center justify-between rounded-md border border-input bg-background px-3 text-sm transition-colors hover:bg-accent/50 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <span
-                              className={cn(
-                                !toTimePart(formData.slot_end) && 'text-muted-foreground',
-                              )}
-                            >
-                              {toTimePart(formData.slot_end) || 'Set time'}
-                            </span>
-                            <Clock3 className="h-4 w-4 text-muted-foreground opacity-70" />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          align="start"
-                          className="w-[var(--radix-popover-trigger-width)] p-1"
-                        >
-                          <div className="max-h-64 overflow-y-auto space-y-0.5">
-                            {TIME_OPTIONS.map((time) => (
-                              <button
-                                key={time}
-                                type="button"
-                                className={cn(
-                                  'w-full rounded-md px-2.5 py-2 text-left text-xs hover:bg-accent',
-                                  toTimePart(formData.slot_end) === time && 'bg-accent font-medium',
-                                )}
-                                onClick={() => {
-                                  updateField(
-                                    'slot_end',
-                                    fromDateAndTime(toDatePart(formData.slot_end), time),
-                                  );
-                                  setEndTimeOpen(false);
-                                }}
-                              >
-                                {time}
-                              </button>
-                            ))}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
+                  {endBeforeStartError && (
+                    <p className="text-sm text-destructive">{endBeforeStartError}</p>
+                  )}
+                  {getFieldError('slot_end') && !endBeforeStartError && (
+                    <p className="text-sm text-destructive">{getFieldError('slot_end')!.message}</p>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="slots-location">{t('slots.locationLabel')}</Label>
                     <Input

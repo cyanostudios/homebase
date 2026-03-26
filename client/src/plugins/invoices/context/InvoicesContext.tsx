@@ -15,6 +15,7 @@ import { useApp } from '@/core/api/AppContext';
 import { bulkApi } from '@/core/api/bulkApi';
 import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
+import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
 import { resolveSlug } from '@/core/utils/slugUtils';
 
@@ -152,22 +153,6 @@ export function InvoicesProvider({
     registerPanelCloseFunction('invoices', closeInvoicesPanel);
     return () => unregisterPanelCloseFunction('invoices');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Global submit/cancel (PLURAL function names)
-  useEffect(() => {
-    (window as any).submitInvoicesForm = () => {
-      const event = new CustomEvent('submitInvoiceForm');
-      window.dispatchEvent(event);
-    };
-    (window as any).cancelInvoicesForm = () => {
-      const event = new CustomEvent('cancelInvoiceForm');
-      window.dispatchEvent(event);
-    };
-    return () => {
-      delete (window as any).submitInvoicesForm;
-      delete (window as any).cancelInvoicesForm;
-    };
   }, []);
 
   const loadInvoices = async () => {
@@ -445,13 +430,12 @@ export function InvoicesProvider({
     }
   };
 
-  const getDeleteMessage = (item: Invoice | null) => {
-    if (!item) {
-      return t('invoices.deleteConfirmThis');
-    }
-    const itemName = formatDisplayNumber('invoices', item.invoiceNumber || item.id);
-    return `${t('invoices.deleteConfirmNamed', { name: itemName })} ${t('bulk.cannotUndo')}`;
-  };
+  const getDeleteMessage = (item: Invoice | null) =>
+    buildDeleteMessage(
+      t,
+      'invoices',
+      item ? formatDisplayNumber('invoices', item.invoiceNumber || item.id) : undefined,
+    );
 
   const value: InvoicesContextType = {
     isInvoicesPanelOpen,

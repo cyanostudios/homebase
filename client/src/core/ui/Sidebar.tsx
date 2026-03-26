@@ -28,6 +28,7 @@ export type NavPage =
   | 'invoices-reports'
   | 'tasks'
   | 'matches'
+  | 'cups'
   | 'slots'
   | 'files'
   | 'mail'

@@ -1,6 +1,13 @@
 // Public Booking App
-// Configure API_BASE to point to your Homebase backend
-const API_BASE = 'http://localhost:3002';
+// API base resolution:
+// 1) Optional runtime override from index.html: window.PUBLIC_BOOKING_API_BASE
+// 2) Local development fallback: localhost API
+// 3) Production fallback: deployed API host
+const API_BASE =
+  window.PUBLIC_BOOKING_API_BASE ||
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3002'
+    : 'https://api.beyondmusic.se');
 
 let selectedSlot = null;
 

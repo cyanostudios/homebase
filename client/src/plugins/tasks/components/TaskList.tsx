@@ -6,6 +6,8 @@ import {
   FileText,
   Grid3x3,
   List as ListIcon,
+  Plus,
+  Search,
   Settings,
 } from 'lucide-react';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
@@ -14,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -25,8 +28,6 @@ import {
 import { useApp } from '@/core/api/AppContext';
 import { BulkActionBar } from '@/core/ui/BulkActionBar';
 import { BulkDeleteModal } from '@/core/ui/BulkDeleteModal';
-import { useContentLayout } from '@/core/ui/ContentLayoutContext';
-import { ContentToolbar } from '@/core/ui/ContentToolbar';
 import { exportItems } from '@/core/utils/exportUtils';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
@@ -50,6 +51,7 @@ export const TaskList: React.FC = () => {
     tasks,
     tasksContentView,
     openTaskForView,
+    openTaskPanel,
     openTaskSettings,
     deleteTasks,
     selectedTaskIds,
@@ -62,7 +64,6 @@ export const TaskList: React.FC = () => {
   } = useTasks();
   const { contacts, getSettings, updateSettings, settingsVersion } = useApp();
   const { attemptNavigation } = useGlobalNavigationGuard();
-  const { setHeaderTrailing } = useContentLayout();
   const [searchTerm, setSearchTerm] = useState('');
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -317,61 +318,6 @@ export const TaskList: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    if (tasksContentView !== 'list') {
-      setHeaderTrailing(null);
-      return () => setHeaderTrailing(null);
-    }
-    setHeaderTrailing(
-      <ContentToolbar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder={t('tasks.searchPlaceholder')}
-        rightActions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Settings}
-              onClick={() => openTaskSettings()}
-              className="h-9 text-xs px-3"
-            >
-              {t('common.settings')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Grid3x3}
-              onClick={() => setViewMode('grid')}
-              className={cn('h-9 text-xs px-3', viewMode === 'grid' && 'text-primary')}
-            >
-              {t('slots.grid')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={ListIcon}
-              onClick={() => setViewMode('list')}
-              className={cn('h-9 text-xs px-3', viewMode === 'list' && 'text-primary')}
-            >
-              {t('slots.list')}
-            </Button>
-          </div>
-        }
-      />,
-    );
-    return () => setHeaderTrailing(null);
-  }, [
-    t,
-    searchTerm,
-    setSearchTerm,
-    viewMode,
-    setViewMode,
-    setHeaderTrailing,
-    openTaskSettings,
-    tasksContentView,
-  ]);
-
   const handleOpenForView = (task: any) => {
     attemptNavigation(() => openTaskForView(task));
   };
@@ -381,103 +327,95 @@ export const TaskList: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Bulk Action Bar */}
-      <BulkActionBar
-        selectedCount={selectedCount}
-        onClearSelection={clearTaskSelection}
-        actions={[
-          {
-            label: 'Export CSV',
-            icon: FileSpreadsheet,
-            onClick: handleExportCSV,
-            variant: 'default',
-          },
-          { label: 'Export PDF', icon: FileText, onClick: handleExportPDF, variant: 'default' },
-          {
-            label: t('common.delete'),
-            icon: Trash2,
-            onClick: () => setShowBulkDeleteModal(true),
-            variant: 'destructive',
-          },
-        ]}
-      />
-
-      <Card className="shadow-none border-none bg-transparent">
-        {sortedTasks.length === 0 ? (
-          <Card className="shadow-none">
-            <div className="p-6 text-center text-muted-foreground">
-              {searchTerm ? t('tasks.noMatch') : t('tasks.noYet')}
-            </div>
-          </Card>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {sortedTasks.map((task) => {
-              const taskIsSelected = isSelected(task.id);
-              const assignedContacts = getAssignedContacts(task);
-              return (
-                <Card
-                  key={task.id}
-                  className={cn(
-                    'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent bg-gray-50 dark:bg-gray-900/40',
-                    taskIsSelected
-                      ? 'plugin-tasks bg-plugin-subtle ring-1 border-plugin-subtle ring-plugin-subtle/50'
-                      : 'hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md',
-                    recentlyDuplicatedTaskId === String(task.id) && HIGHLIGHT_CLASS,
-                  )}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                      return;
-                    }
-                    e.preventDefault();
-                    handleOpenForView(task);
-                  }}
-                  data-list-item={JSON.stringify(task)}
-                  data-plugin-name="tasks"
-                  role="button"
-                  aria-label={`Open task ${task.title}`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={taskIsSelected}
-                        onChange={() => toggleTaskSelected(task.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="cursor-pointer h-4 w-4"
-                        aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
-                      />
-                      <h3 className="font-semibold text-base line-clamp-1">{task.title}</h3>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 mb-3">
-                    <Badge className={TASK_STATUS_COLORS[task.status]}>
-                      {formatStatusForDisplay(task.status)}
-                    </Badge>
-                    <Badge className={TASK_PRIORITY_COLORS[task.priority]}>{task.priority}</Badge>
-                  </div>
-                  <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
-                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
-                      {task.dueDate && (
-                        <div className={formatDueDate(task.dueDate)?.className || ''}>
-                          {formatDueDate(task.dueDate)?.text}
-                        </div>
-                      )}
-                      {assignedContacts.length > 0 && (
-                        <div className="plugin-contacts text-plugin font-medium truncate">
-                          Assigned: {assignedContacts.map((c) => c.companyName).join(', ')}
-                        </div>
-                      )}
-                      <div>Updated {new Date(task.updatedAt).toLocaleDateString()}</div>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
+    <div className="plugin-tasks min-h-full bg-background">
+      <div className="flex flex-shrink-0 items-center justify-between px-6 py-4">
+        <div className="mr-4 min-w-0 flex flex-1 items-center gap-4">
+          <h2 className="truncate shrink-0 text-lg font-semibold tracking-tight">
+            {t('nav.tasks')}
+          </h2>
+          <div className="relative w-full max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder={t('tasks.searchPlaceholder')}
+              className="h-9 bg-background pl-9 text-xs"
+            />
           </div>
-        ) : isMobile ? (
-          <Card className="shadow-none">
-            <div className="space-y-2 p-4">
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Settings}
+            className="h-9 px-3 text-xs"
+            onClick={() => openTaskSettings()}
+            title={t('common.settings')}
+          >
+            {t('common.settings')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Grid3x3}
+            className={cn('h-9 px-3 text-xs', viewMode === 'grid' && 'text-primary')}
+            onClick={() => setViewMode('grid')}
+          >
+            {t('slots.grid')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={ListIcon}
+            className={cn('h-9 px-3 text-xs', viewMode === 'list' && 'text-primary')}
+            onClick={() => setViewMode('list')}
+          >
+            {t('slots.list')}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={Plus}
+            className="h-9 px-3 text-xs"
+            onClick={() => attemptNavigation(() => openTaskPanel(null))}
+          >
+            {t('tasks.addTask')}
+          </Button>
+        </div>
+      </div>
+
+      <div className="px-6 pb-6 space-y-4">
+        {selectedCount > 0 && (
+          <BulkActionBar
+            selectedCount={selectedCount}
+            onClearSelection={clearTaskSelection}
+            actions={[
+              {
+                label: 'Export CSV',
+                icon: FileSpreadsheet,
+                onClick: handleExportCSV,
+                variant: 'default',
+              },
+              { label: 'Export PDF', icon: FileText, onClick: handleExportPDF, variant: 'default' },
+              {
+                label: t('common.delete'),
+                icon: Trash2,
+                onClick: () => setShowBulkDeleteModal(true),
+                variant: 'destructive',
+              },
+            ]}
+          />
+        )}
+
+        <Card className="shadow-none border-none bg-transparent">
+          {sortedTasks.length === 0 ? (
+            <Card className="shadow-none">
+              <div className="p-6 text-center text-muted-foreground">
+                {searchTerm ? t('tasks.noMatch') : t('tasks.noYet')}
+              </div>
+            </Card>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {sortedTasks.map((task) => {
                 const taskIsSelected = isSelected(task.id);
                 const assignedContacts = getAssignedContacts(task);
@@ -485,7 +423,10 @@ export const TaskList: React.FC = () => {
                   <Card
                     key={task.id}
                     className={cn(
-                      'p-4 cursor-pointer hover:bg-accent transition-colors',
+                      'relative p-5 cursor-pointer transition-all flex flex-col h-fit min-h-[160px] border-transparent bg-gray-50 dark:bg-gray-900/40',
+                      taskIsSelected
+                        ? 'plugin-tasks bg-plugin-subtle ring-1 border-plugin-subtle ring-plugin-subtle/50'
+                        : 'hover:border-plugin-subtle hover:plugin-tasks hover:shadow-md',
                       recentlyDuplicatedTaskId === String(task.id) && HIGHLIGHT_CLASS,
                     )}
                     onClick={(e) => {
@@ -500,152 +441,57 @@ export const TaskList: React.FC = () => {
                     role="button"
                     aria-label={`Open task ${task.title}`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <input
-                            type="checkbox"
-                            checked={taskIsSelected}
-                            onChange={() => toggleTaskSelected(task.id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
-                            aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
-                          />
-                          <h3 className="font-semibold text-base truncate">{task.title}</h3>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <Badge className={TASK_STATUS_COLORS[task.status]}>
-                            {formatStatusForDisplay(task.status)}
-                          </Badge>
-                          <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
-                            {task.priority}
-                          </Badge>
-                        </div>
-                        <div className="flex flex-col gap-1 text-sm">
-                          {task.dueDate && (
-                            <div className={formatDueDate(task.dueDate)?.className || ''}>
-                              {formatDueDate(task.dueDate)?.text}
-                            </div>
-                          )}
-                          {assignedContacts.length > 0 && (
-                            <div className="plugin-contacts text-plugin">
-                              Assigned: {assignedContacts.map((c) => c.companyName).join(', ')}
-                            </div>
-                          )}
-                          <div className="text-muted-foreground">
-                            Updated {new Date(task.updatedAt).toLocaleDateString()}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={taskIsSelected}
+                          onChange={() => toggleTaskSelected(task.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="cursor-pointer h-4 w-4"
+                          aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
+                        />
+                        <h3 className="font-semibold text-base line-clamp-1">{task.title}</h3>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <Badge className={TASK_STATUS_COLORS[task.status]}>
+                        {formatStatusForDisplay(task.status)}
+                      </Badge>
+                      <Badge className={TASK_PRIORITY_COLORS[task.priority]}>{task.priority}</Badge>
+                    </div>
+                    <div className="flex flex-col gap-2 mt-auto pt-3 border-t">
+                      <div className="flex flex-col gap-1 text-[10px] text-muted-foreground">
+                        {task.dueDate && (
+                          <div className={formatDueDate(task.dueDate)?.className || ''}>
+                            {formatDueDate(task.dueDate)?.text}
                           </div>
-                        </div>
+                        )}
+                        {assignedContacts.length > 0 && (
+                          <div className="plugin-contacts text-plugin font-medium truncate">
+                            Assigned: {assignedContacts.map((c) => c.companyName).join(', ')}
+                          </div>
+                        )}
+                        <div>Updated {new Date(task.updatedAt).toLocaleDateString()}</div>
                       </div>
                     </div>
                   </Card>
                 );
               })}
             </div>
-          </Card>
-        ) : (
-          <Card className="shadow-none">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <input
-                      ref={headerCheckboxRef}
-                      type="checkbox"
-                      checked={allVisibleSelected}
-                      onChange={handleHeaderCheckboxChange}
-                      className="h-4 w-4 cursor-pointer"
-                      aria-label={allVisibleSelected ? 'Deselect all tasks' : 'Select all tasks'}
-                    />
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => handleSort('title')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>Title</span>
-                      {sortField === 'title' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="h-3 w-3 inline" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3 inline" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => handleSort('status')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>Status</span>
-                      {sortField === 'status' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="h-3 w-3 inline" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3 inline" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => handleSort('priority')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>Priority</span>
-                      {sortField === 'priority' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="h-3 w-3 inline" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3 inline" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => handleSort('dueDate')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>Due Date</span>
-                      {sortField === 'dueDate' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="h-3 w-3 inline" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3 inline" />
-                        ))}
-                    </div>
-                  </TableHead>
-                  <TableHead>Assigned</TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => handleSort('updatedAt')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>Updated</span>
-                      {sortField === 'updatedAt' &&
-                        (sortOrder === 'asc' ? (
-                          <ArrowUp className="h-3 w-3 inline" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3 inline" />
-                        ))}
-                    </div>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          ) : isMobile ? (
+            <Card className="shadow-none">
+              <div className="space-y-2 p-4">
                 {sortedTasks.map((task) => {
                   const taskIsSelected = isSelected(task.id);
+                  const assignedContacts = getAssignedContacts(task);
                   return (
-                    <TableRow
+                    <Card
                       key={task.id}
                       className={cn(
-                        'cursor-pointer hover:bg-accent',
+                        'p-4 cursor-pointer hover:bg-accent transition-colors',
                         recentlyDuplicatedTaskId === String(task.id) && HIGHLIGHT_CLASS,
                       )}
-                      tabIndex={0}
-                      data-list-item={JSON.stringify(task)}
-                      data-plugin-name="tasks"
-                      role="button"
-                      aria-label={`Open task ${task.title}`}
                       onClick={(e) => {
                         if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
                           return;
@@ -653,69 +499,228 @@ export const TaskList: React.FC = () => {
                         e.preventDefault();
                         handleOpenForView(task);
                       }}
+                      data-list-item={JSON.stringify(task)}
+                      data-plugin-name="tasks"
+                      role="button"
+                      aria-label={`Open task ${task.title}`}
                     >
-                      <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={taskIsSelected}
-                          onChange={() => toggleTaskSelected(task.id)}
-                          className="h-4 w-4 cursor-pointer"
-                          aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
-                        />
-                      </TableCell>
-                      <TableCell className="font-semibold">{task.title}</TableCell>
-                      <TableCell>
-                        <Badge className={TASK_STATUS_COLORS[task.status]}>
-                          {formatStatusForDisplay(task.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
-                          {task.priority}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {task.dueDate ? (
-                          <div className={formatDueDate(task.dueDate)?.className || ''}>
-                            {formatDueDate(task.dueDate)?.text}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <input
+                              type="checkbox"
+                              checked={taskIsSelected}
+                              onChange={() => toggleTaskSelected(task.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="cursor-pointer h-5 w-5 flex-shrink-0 mt-0.5"
+                              aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
+                            />
+                            <h3 className="font-semibold text-base truncate">{task.title}</h3>
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {(() => {
-                          const assignedContacts = getAssignedContacts(task);
-                          if (assignedContacts.length === 0) {
-                            return <span className="text-muted-foreground text-sm">—</span>;
-                          }
-                          return (
-                            <div className="text-sm plugin-contacts text-plugin">
-                              {assignedContacts.map((c) => c.companyName).join(', ')}
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <Badge className={TASK_STATUS_COLORS[task.status]}>
+                              {formatStatusForDisplay(task.status)}
+                            </Badge>
+                            <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
+                              {task.priority}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-col gap-1 text-sm">
+                            {task.dueDate && (
+                              <div className={formatDueDate(task.dueDate)?.className || ''}>
+                                {formatDueDate(task.dueDate)?.text}
+                              </div>
+                            )}
+                            {assignedContacts.length > 0 && (
+                              <div className="plugin-contacts text-plugin">
+                                Assigned: {assignedContacts.map((c) => c.companyName).join(', ')}
+                              </div>
+                            )}
+                            <div className="text-muted-foreground">
+                              Updated {new Date(task.updatedAt).toLocaleDateString()}
                             </div>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {new Date(task.updatedAt).toLocaleDateString()}
-                      </TableCell>
-                    </TableRow>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
                   );
                 })}
-              </TableBody>
-            </Table>
-          </Card>
-        )}
-      </Card>
+              </div>
+            </Card>
+          ) : (
+            <Card className="shadow-none">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <input
+                        ref={headerCheckboxRef}
+                        type="checkbox"
+                        checked={allVisibleSelected}
+                        onChange={handleHeaderCheckboxChange}
+                        className="h-4 w-4 cursor-pointer"
+                        aria-label={allVisibleSelected ? 'Deselect all tasks' : 'Select all tasks'}
+                      />
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('title')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>Title</span>
+                        {sortField === 'title' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="h-3 w-3 inline" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 inline" />
+                          ))}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>Status</span>
+                        {sortField === 'status' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="h-3 w-3 inline" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 inline" />
+                          ))}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('priority')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>Priority</span>
+                        {sortField === 'priority' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="h-3 w-3 inline" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 inline" />
+                          ))}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('dueDate')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>Due Date</span>
+                        {sortField === 'dueDate' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="h-3 w-3 inline" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 inline" />
+                          ))}
+                      </div>
+                    </TableHead>
+                    <TableHead>Assigned</TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('updatedAt')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>Updated</span>
+                        {sortField === 'updatedAt' &&
+                          (sortOrder === 'asc' ? (
+                            <ArrowUp className="h-3 w-3 inline" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 inline" />
+                          ))}
+                      </div>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedTasks.map((task) => {
+                    const taskIsSelected = isSelected(task.id);
+                    return (
+                      <TableRow
+                        key={task.id}
+                        className={cn(
+                          'cursor-pointer hover:bg-accent',
+                          recentlyDuplicatedTaskId === String(task.id) && HIGHLIGHT_CLASS,
+                        )}
+                        tabIndex={0}
+                        data-list-item={JSON.stringify(task)}
+                        data-plugin-name="tasks"
+                        role="button"
+                        aria-label={`Open task ${task.title}`}
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                            return;
+                          }
+                          e.preventDefault();
+                          handleOpenForView(task);
+                        }}
+                      >
+                        <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={taskIsSelected}
+                            onChange={() => toggleTaskSelected(task.id)}
+                            className="h-4 w-4 cursor-pointer"
+                            aria-label={taskIsSelected ? 'Unselect task' : 'Select task'}
+                          />
+                        </TableCell>
+                        <TableCell className="font-semibold">{task.title}</TableCell>
+                        <TableCell>
+                          <Badge className={TASK_STATUS_COLORS[task.status]}>
+                            {formatStatusForDisplay(task.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={TASK_PRIORITY_COLORS[task.priority]}>
+                            {task.priority}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {task.dueDate ? (
+                            <div className={formatDueDate(task.dueDate)?.className || ''}>
+                              {formatDueDate(task.dueDate)?.text}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            const assignedContacts = getAssignedContacts(task);
+                            if (assignedContacts.length === 0) {
+                              return <span className="text-muted-foreground text-sm">—</span>;
+                            }
+                            return (
+                              <div className="text-sm plugin-contacts text-plugin">
+                                {assignedContacts.map((c) => c.companyName).join(', ')}
+                              </div>
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {new Date(task.updatedAt).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Card>
+          )}
+        </Card>
 
-      <BulkDeleteModal
-        isOpen={showBulkDeleteModal}
-        onClose={() => setShowBulkDeleteModal(false)}
-        onConfirm={handleBulkDelete}
-        itemCount={selectedCount}
-        itemLabel="tasks"
-        isLoading={deleting}
-      />
+        <BulkDeleteModal
+          isOpen={showBulkDeleteModal}
+          onClose={() => setShowBulkDeleteModal(false)}
+          onConfirm={handleBulkDelete}
+          itemCount={selectedCount}
+          itemLabel="tasks"
+          isLoading={deleting}
+        />
+      </div>
     </div>
   );
 };

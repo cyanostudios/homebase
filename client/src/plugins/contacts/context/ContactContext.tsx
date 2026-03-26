@@ -19,6 +19,7 @@ import { useBulkSelection } from '@/core/hooks/useBulkSelection';
 import { useItemUrl } from '@/core/hooks/useItemUrl';
 import type { BulkEmailRecipient } from '@/core/ui/BulkEmailDialog';
 import type { BulkMessageRecipient } from '@/core/ui/BulkMessageDialog';
+import { buildDeleteMessage } from '@/core/utils/deleteUtils';
 import { exportItems, type ExportFormat } from '@/core/utils/exportUtils';
 import { resolveSlug } from '@/core/utils/slugUtils';
 import { cn } from '@/lib/utils';
@@ -234,13 +235,6 @@ export function ContactProvider({
     }
   }, [isAuthenticated]);
 
-  useEffect(() => {
-    registerPanelCloseFunction('contacts', closeContactPanel);
-    return () => {
-      unregisterPanelCloseFunction('contacts');
-    };
-  }, [closeContactPanel, registerPanelCloseFunction, unregisterPanelCloseFunction]);
-
   const loadContacts = async () => {
     try {
       const contactsData = await contactsApi.getContacts();
@@ -400,6 +394,13 @@ export function ContactProvider({
     setTagError(null);
     navigateToBase();
   }, [navigateToBase]);
+
+  useEffect(() => {
+    registerPanelCloseFunction('contacts', closeContactPanel);
+    return () => {
+      unregisterPanelCloseFunction('contacts');
+    };
+  }, [closeContactPanel, registerPanelCloseFunction, unregisterPanelCloseFunction]);
 
   const currentItemIndex = currentContact
     ? contacts.findIndex((c) => c.id === currentContact.id)
@@ -709,13 +710,8 @@ export function ContactProvider({
     }
   };
 
-  const getDeleteMessage = (item: Contact | null) => {
-    if (!item) {
-      return t('contacts.deleteConfirmThis');
-    }
-    const itemName = item.companyName || 'this contact';
-    return `${t('contacts.deleteConfirmNamed', { name: itemName })} ${t('bulk.cannotUndo')}`;
-  };
+  const getDeleteMessage = (item: Contact | null) =>
+    buildDeleteMessage(t, 'contacts', item?.companyName || undefined);
 
   const exportFormats: ExportFormat[] = ['txt', 'csv', 'pdf'];
 

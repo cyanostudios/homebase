@@ -94,7 +94,7 @@ export function MatchSettingsView() {
   }, [viewMode, updateSettings]);
 
   if (isLoading) {
-    return <div className="text-sm text-muted-foreground">{t('common.loading')}</div>;
+    return <div className="text-sm text-muted-foreground">{t('matches.loading')}</div>;
   }
 
   const viewModes: {
@@ -155,7 +155,7 @@ export function MatchSettingsView() {
             disabled={isSaving}
             className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
           >
-            {isSaving ? t('common.saving') : t('common.save')}
+            {isSaving ? t('matches.saving') : t('matches.save')}
           </Button>
         </div>
       )}

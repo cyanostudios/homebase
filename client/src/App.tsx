@@ -145,7 +145,6 @@ function AppContent() {
 
   // State
   const [isMobileView, setIsMobileView] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [showToTaskDialog, setShowToTaskDialog] = useState(false);
   const [noteForTask, setNoteForTask] = useState<{
@@ -338,7 +337,14 @@ function AppContent() {
   }, [currentPage]);
 
   const contentTitle = useMemo(() => {
-    if (currentPage === 'slots' || currentPage === 'notes') {
+    if (
+      currentPage === 'slots' ||
+      currentPage === 'notes' ||
+      currentPage === 'cups' ||
+      currentPage === 'contacts' ||
+      currentPage === 'tasks' ||
+      currentPage === 'matches'
+    ) {
       return '';
     }
     if (currentPage === 'dashboard') {
@@ -360,7 +366,14 @@ function AppContent() {
   }, [currentPage, currentPagePlugin]);
 
   const contentIcon = useMemo(() => {
-    if (currentPage === 'slots' || currentPage === 'notes') {
+    if (
+      currentPage === 'slots' ||
+      currentPage === 'notes' ||
+      currentPage === 'cups' ||
+      currentPage === 'contacts' ||
+      currentPage === 'tasks' ||
+      currentPage === 'matches'
+    ) {
       return undefined;
     }
     if (currentPage === 'dashboard') {
@@ -385,7 +398,11 @@ function AppContent() {
     if (!currentPagePlugin || currentPagePlugin.name !== currentPage) {
       return null;
     }
-    if (currentPagePlugin.name === 'slots' || currentPagePlugin.name === 'notes') {
+    if (
+      currentPagePlugin.name === 'slots' ||
+      currentPagePlugin.name === 'notes' ||
+      currentPagePlugin.name === 'cups'
+    ) {
       return null;
     }
 
@@ -435,6 +452,20 @@ function AppContent() {
         label: t('common.close'),
         icon: X,
         onClick: closeSlotSettingsView,
+        variant: 'secondary' as const,
+      };
+    }
+    const cupsContentView = context.cupsContentView as 'list' | 'settings' | undefined;
+    const closeCupSettingsView = context.closeCupSettingsView as (() => void) | undefined;
+    if (
+      currentPagePlugin.name === 'cups' &&
+      cupsContentView === 'settings' &&
+      typeof closeCupSettingsView === 'function'
+    ) {
+      return {
+        label: t('common.close'),
+        icon: X,
+        onClick: closeCupSettingsView,
         variant: 'secondary' as const,
       };
     }
@@ -509,6 +540,17 @@ function AppContent() {
       };
     }
 
+    if (
+      (currentPagePlugin.name === 'contacts' &&
+        (context.contactsContentView as string | undefined) === 'list') ||
+      (currentPagePlugin.name === 'tasks' &&
+        (context.tasksContentView as string | undefined) === 'list') ||
+      (currentPagePlugin.name === 'matches' &&
+        (context.matchesContentView as string | undefined) === 'list')
+    ) {
+      return null;
+    }
+
     const capName = getSingularCap(currentPagePlugin.name);
     const fnName = `open${capName}Panel`;
     const openPanel = context[fnName as keyof typeof context];
@@ -567,27 +609,11 @@ function AppContent() {
   );
 
   // Footer with delete handler
-  const panelFooter = createPanelFooter(
-    currentMode,
-    currentItem,
-    currentPluginContext,
-    validationErrors,
-    {
-      ...handlers,
-      currentPlugin,
-      handleDeleteItem: () => handlers.handleDeleteItem(setShowDeleteConfirm),
-      handleDuplicateItem: () => {
-        const config = currentPluginContext?.getDuplicateConfig?.(currentItem);
-        const useFallback =
-          currentItem && currentPlugin && currentPlugin.name !== 'contacts' && !config;
-        if (config || useFallback) {
-          setShowDuplicateDialog(true);
-        }
-      },
-      handleEditItem: handlers.handleEditItem,
-      isSubmitting: currentPluginContext?.isSaving ?? false,
-    },
-  );
+  const panelFooter = createPanelFooter(currentMode, currentPluginContext, validationErrors, {
+    ...handlers,
+    currentPlugin,
+    isSubmitting: currentPluginContext?.isSaving ?? false,
+  });
 
   const detailPanelOpen = isAnyPanelOpen;
   const detailPanelTitle = panelTitles.getPanelTitle();
@@ -607,7 +633,8 @@ function AppContent() {
   const hasBlockingErrors = validationErrors.some(
     (e: any) => !String(e?.message || '').includes('Warning'),
   );
-  const useHeaderActionButtons = currentMode === 'view' || currentMode === 'edit';
+  const useHeaderActionButtons =
+    currentMode === 'view' || currentMode === 'edit' || currentMode === 'create';
   const pluginName = currentPlugin?.name;
   const hasViewQuickUpdate =
     currentMode === 'view' &&
@@ -709,6 +736,30 @@ function AppContent() {
           {currentPluginContext?.isSaving ? t('common.saving') : t('common.update')}
         </Button>
       </div>
+    ) : currentMode === 'create' ? (
+      <div className="flex items-center gap-1">
+        <Button
+          type="button"
+          onClick={handlers.handleCancelClick}
+          variant="secondary"
+          size="sm"
+          icon={X}
+          className="h-9 text-xs px-3"
+        >
+          {t('common.close')}
+        </Button>
+        <Button
+          type="button"
+          onClick={handlers.handleSaveClick}
+          variant="primary"
+          size="sm"
+          icon={Check}
+          disabled={hasBlockingErrors || Boolean(currentPluginContext?.isSaving)}
+          className="h-9 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-none"
+        >
+          {currentPluginContext?.isSaving ? t('common.saving') : t('common.save')}
+        </Button>
+      </div>
     ) : undefined;
 
   return (
@@ -731,7 +782,14 @@ function AppContent() {
         detailPanelShowCloseButton={!useHeaderActionButtons}
         onDetailPanelClose={onDetailPanelClose}
         detailPanelPluginName={currentPlugin?.name}
-        contentFlush={currentPage === 'slots' || currentPage === 'notes'}
+        contentFlush={
+          currentPage === 'slots' ||
+          currentPage === 'notes' ||
+          currentPage === 'cups' ||
+          currentPage === 'contacts' ||
+          currentPage === 'tasks' ||
+          currentPage === 'matches'
+        }
       >
         {currentPage === 'dashboard' ? (
           <Dashboard onPageChange={handlePageChange} />
@@ -739,19 +797,6 @@ function AppContent() {
           renderers.renderCurrentPage(currentPage, PLUGIN_REGISTRY)
         )}
       </MainLayout>
-
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title={t('dialog.deleteItem', {
-          label: currentPlugin ? t(`nav.${currentPlugin.name.slice(0, -1)}`) : t('dialog.item'),
-        })}
-        message={panelTitles.getDeleteMessage()}
-        confirmText={t('common.delete')}
-        cancelText={t('common.cancel')}
-        onConfirm={() => handlers.confirmDelete(setShowDeleteConfirm)}
-        onCancel={() => setShowDeleteConfirm(false)}
-        variant="danger"
-      />
 
       {/* Global Unsaved Changes Warning */}
       <ConfirmDialog

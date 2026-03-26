@@ -148,17 +148,13 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   }, [attemptAction, onCancel]);
 
   useEffect(() => {
-    if (panelMode === 'settings') {
-      return;
-    }
-    (window as any).submitTasksForm = handleSubmit;
-    (window as any).cancelTasksForm = handleCancel;
-
+    window.submitTasksForm = () => handleSubmit();
+    window.cancelTasksForm = () => handleCancel();
     return () => {
-      delete (window as any).submitTasksForm;
-      delete (window as any).cancelTasksForm;
+      delete window.submitTasksForm;
+      delete window.cancelTasksForm;
     };
-  }, [handleSubmit, handleCancel, panelMode]);
+  }, [handleSubmit, handleCancel]);
 
   const handleDiscardChanges = () => {
     if (!currentTask) {

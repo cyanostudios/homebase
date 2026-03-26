@@ -546,7 +546,7 @@ export function MatchProvider({
         [item.home_team, item.away_team].filter(Boolean).join(' – ').trim() ||
         t('matches.match');
       return {
-        defaultName: `${t('matches.copyOf')} ${displayName}`,
+        defaultName: `${t('matches.copy')} ${displayName}`,
         nameLabel: t('matches.duplicateNameLabel'),
         confirmOnly: false,
       };

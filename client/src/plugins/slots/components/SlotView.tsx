@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   Copy,
+  Download,
   Info,
   Search,
   SlidersHorizontal,
@@ -26,6 +27,7 @@ import { DetailLayout } from '@/core/ui/DetailLayout';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { DuplicateDialog } from '@/core/ui/DuplicateDialog';
 import { formatDisplayNumber } from '@/core/utils/displayNumber';
+import type { ExportFormat } from '@/core/utils/exportUtils';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/plugins/contacts/hooks/useContacts';
 import { matchesApi } from '@/plugins/matches/api/matchesApi';
@@ -70,7 +72,55 @@ function formatTimeOnly(s: string | null): string {
 const SLOT_DETAIL_CARD_CLASS = 'overflow-hidden border border-border/70 bg-card shadow-sm';
 const PANEL_MAX_WIDTH = 'max-w-[920px]';
 
+const quickActionButtonClass = 'h-9 justify-start rounded-md px-3 text-xs hover:bg-muted';
+
 // ─── Sub-components (extracted from SlotView) ─────────────────────────────────
+
+interface SlotExportOptionsCardProps {
+  slot: Slot;
+  exportFormats: ExportFormat[];
+  onExportItem: (format: ExportFormat, item: Slot) => void;
+}
+
+function SlotExportOptionsCard({ slot, exportFormats, onExportItem }: SlotExportOptionsCardProps) {
+  const { t } = useTranslation();
+  if (!Array.isArray(exportFormats) || exportFormats.length === 0) {
+    return null;
+  }
+
+  const exportLabelByFormat: Record<string, string> = {
+    txt: t('common.exportTxt'),
+    csv: t('common.exportCsv'),
+    pdf: t('common.exportPdf'),
+  };
+
+  return (
+    <Card padding="none" className={SLOT_DETAIL_CARD_CLASS}>
+      <DetailSection
+        title={t('slots.exportOptions')}
+        icon={Download}
+        iconPlugin="slots"
+        className="p-4"
+      >
+        <div className="flex flex-col items-start gap-1.5">
+          {exportFormats.map((format) => (
+            <Button
+              key={format}
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={Download}
+              className={quickActionButtonClass}
+              onClick={() => onExportItem(format, slot)}
+            >
+              {exportLabelByFormat[format] ?? `Export ${format.toUpperCase()}`}
+            </Button>
+          ))}
+        </div>
+      </DetailSection>
+    </Card>
+  );
+}
 
 interface SlotQuickActionsCardProps {
   slot: Slot;
@@ -692,6 +742,8 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
     setRecentlyDuplicatedSlotId,
     detailFooterActions,
     getDeleteMessage,
+    exportFormats,
+    onExportItem,
   } = useSlotsContext();
 
   const [sourceMatch, setSourceMatch] = useState<Match | null>(null);
@@ -806,6 +858,11 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
                 onDuplicate={() => setShowDuplicateDialog(true)}
                 getDuplicateConfig={getDuplicateConfig}
                 detailFooterActions={detailFooterActions}
+              />
+              <SlotExportOptionsCard
+                slot={slot}
+                exportFormats={exportFormats}
+                onExportItem={onExportItem}
               />
               <SlotMetadataCard
                 slot={slot}
@@ -949,7 +1006,7 @@ export function SlotView({ slot: slotProp, item }: SlotViewProps) {
         cancelText={t('common.cancel')}
         onConfirm={handleDeleteBooking}
         onCancel={() => setBookingToDelete(null)}
-        variant="destructive"
+        variant="danger"
       />
     </>
   );

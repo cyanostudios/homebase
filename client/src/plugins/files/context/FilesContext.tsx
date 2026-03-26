@@ -129,19 +129,6 @@ export function FilesProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    (window as any).submitFilesForm = () => {
-      window.dispatchEvent(new CustomEvent('submitFileForm'));
-    };
-    (window as any).cancelFilesForm = () => {
-      window.dispatchEvent(new CustomEvent('cancelFileForm'));
-    };
-    return () => {
-      delete (window as any).submitFilesForm;
-      delete (window as any).cancelFilesForm;
-    };
-  }, []);
-
   const normalize = (it: any): FileItem => ({
     ...it,
     createdAt: it?.createdAt ? new Date(it.createdAt) : null,

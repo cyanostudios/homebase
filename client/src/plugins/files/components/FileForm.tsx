@@ -156,7 +156,6 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
     return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
   };
 
-  // ------------ submit/cancel via universal footer ------------
   const handleSubmit = useCallback(async () => {
     if (panelMode === 'settings') {
       return;
@@ -192,15 +191,11 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
   }, [onCancel]);
 
   useEffect(() => {
-    const onSubmit = () => {
-      void handleSubmit();
-    };
-    const onCancelEv = () => handleCancel();
-    window.addEventListener('submitFileForm', onSubmit as EventListener);
-    window.addEventListener('cancelFileForm', onCancelEv as EventListener);
+    window.submitFilesForm = () => handleSubmit();
+    window.cancelFilesForm = () => handleCancel();
     return () => {
-      window.removeEventListener('submitFileForm', onSubmit as EventListener);
-      window.removeEventListener('cancelFileForm', onCancelEv as EventListener);
+      delete window.submitFilesForm;
+      delete window.cancelFilesForm;
     };
   }, [handleSubmit, handleCancel]);
 
@@ -237,9 +232,6 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
               <p className="text-sm text-destructive">{nameErrors.join(' • ')}</p>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-3">
-            Tryck Save i panelens footer för att spara namnet.
-          </p>
         </DetailSection>
       </div>
     );

@@ -161,10 +161,9 @@ If the plugin exposes a settings screen (e.g. cloud storage, SMTP, preferences),
 
 - **Context:** Extend `panelMode` to include `'settings'` (e.g. `'create' | 'edit' | 'view' | 'settings'`). Expose `openMyPluginSettings` (or `openMyPluginPanel` with a dedicated entry point) that sets `panelMode` to `'settings'` and opens the panel. Expose `closeMyPluginPanel` so the panel can be closed from shared panel actions (header/footer).
 - **List toolbar:** Add a Settings button in the list toolbar that calls the open-settings function (same button style as in section 6).
-- **Form component:** When `panelMode === 'settings'`, render the settings UI (e.g. a dedicated `MyPluginSettingsForm`) and pass `onCancel` so the panel can be closed. If the form returns early for settings (before registering submit/cancel event listeners), panel Close/Save actions will not trigger those listeners. In that case, core must close the panel for this plugin when in settings mode.
-- **Panel actions (Close / Save):** Form modes use shared Close (Cancel) and Save/Update handlers. These can be rendered in header and/or footer, but they must trigger the same plugin callbacks. For settings panels to close correctly when the user clicks Close or Save:
-  - **Option A:** Ensure the Form component always registers the global cancel/submit listeners (e.g. move the `useEffect` that registers `cancelMyPluginsForm` / `submitMyPluginsForm` so it runs even when rendering the settings form). Then the existing panel handlers will call those globals and the form’s `onCancel` / submit path will run and close the panel.
-  - **Option B:** Add a special case in core panel handlers: when `currentPlugin.name === 'my-plugin'` and `currentMode === 'settings'`, call `currentPluginContext.closeMyPluginPanel()` directly from both Cancel and Save (Save in settings often just closes the panel after persisting, or simply closes). This is required when the Form returns early for settings and never registers the event listeners (e.g. Files and Mail). See `client/src/core/handlers/panelHandlers.ts` for the pattern (e.g. `closeFilePanel` for files in settings mode).
+- **Form component:** When `panelMode === 'settings'`, render the settings UI (e.g. a dedicated `MyPluginSettingsForm`) and pass `onCancel` so the panel can be closed. The `*SettingsForm` must register `window.submitMyPluginsForm` / `window.cancelMyPluginsForm` so that `PanelFooter`'s Save/Cancel buttons work in settings mode.
+- **Create/Edit forms:** Do **NOT** register window globals for form submission. Add inline Save/Cancel buttons at the bottom of the `*Form.tsx` (see `PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md` §12). `PanelFooter` returns `null` for create/edit/view modes — the form is self-contained.
+- **Panel actions in settings mode:** `PanelFooter` renders Close + Save buttons only for `currentPlugin.name === 'settings'` or `currentMode === 'settings'`. It calls `handleSaveClick`/`handleCancelClick` from `panelHandlers.ts` which dispatch window globals registered by `*SettingsForm`.
 - **Settings content:** Use `DetailSection` from `@/core/ui/DetailSection` for the settings form layout and group related fields under clear section titles.
 
 ## 8. Refactoring Existing Plugins (mandatory contract)
@@ -261,24 +260,9 @@ registerPanelCloseFunction('my-plugins', closeMyPluginPanel);
 return () => unregisterPanelCloseFunction('my-plugins');
 }, []); // Empty dependency array is critical!
 
-// CRITICAL: Global functions for form submission
-useEffect(() => {
-window.submitMyPluginsForm = () => {
-const event = new CustomEvent('submitMyPluginForm');
-window.dispatchEvent(event);
-};
-
-    window.cancelMyPluginsForm = () => {
-      const event = new CustomEvent('cancelMyPluginForm');
-      window.dispatchEvent(event);
-    };
-
-    return () => {
-      delete window.submitMyPluginsForm;
-      delete window.cancelMyPluginsForm;
-    };
-
-}, []);
+// NOTE: window globals are ONLY used by *SettingsForm components (settings mode).
+// Create/Edit *Form.tsx must NOT register window globals — use inline Save/Cancel buttons instead.
+// See PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md §12 for the canonical inline button pattern.
 
 const loadItems = async () => {
 try {
@@ -568,11 +552,14 @@ Close: closeMyPluginPanel
 Save: saveMyPlugin
 Delete: deleteMyPlugin
 
-Global Functions (Frontend)
+Global Functions (Frontend) — ONLY for \*SettingsForm (settings mode)
 
-Submit: window.submitMyPluginsForm (plural!)
-Cancel: window.cancelMyPluginsForm (plural!)
+// Only SettingsForm components register these globals:
+Submit: window.submitMyPluginsForm (plural!) — registered by MyPluginSettingsForm only
+Cancel: window.cancelMyPluginsForm (plural!) — registered by MyPluginSettingsForm only
 
+// Create/Edit \*Form.tsx must NOT register window globals.
+// Use inline Save/Cancel buttons instead (see PLUGIN_DESIGN_ALIGNMENT_CHECKLIST.md §12).
 Security Checklist
 Backend Routes
 
