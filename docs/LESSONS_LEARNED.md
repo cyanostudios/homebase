@@ -334,6 +334,7 @@ En designåtgärd kan göra att inloggning slutar fungera om den byter **hur** s
 
 - `db.query()` returnerar rows-array direkt - använd `existing.length`, inte `existing.rows.length`
 - Använd `priority ?? 'Medium'` istället för `priority || 'Medium'`
+- Starta alltid från golden templates (`templates/plugin-frontend-template`, `templates/plugin-backend-template`) för att undvika contract-drift mellan plugins
 
 ---
 

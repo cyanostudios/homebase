@@ -417,10 +417,14 @@ export function SlotForm({ currentSlot, onSave, onSaveSlots, onCancel }: SlotFor
 
   useEffect(() => {
     window.submitSlotsForm = () => handleSubmit();
+    (window as any).submitSlotForm = window.submitSlotsForm;
     window.cancelSlotsForm = () => handleCancel();
+    (window as any).cancelSlotForm = window.cancelSlotsForm;
     return () => {
       delete window.submitSlotsForm;
+      delete (window as any).submitSlotForm;
       delete window.cancelSlotsForm;
+      delete (window as any).cancelSlotForm;
     };
   }, [handleSubmit, handleCancel]);
 

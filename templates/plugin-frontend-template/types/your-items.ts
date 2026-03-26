@@ -1,4 +1,4 @@
-// TEMPLATE types — copy and rename to your domain (e.g., products.ts)
+export type PanelMode = 'create' | 'edit' | 'view' | 'settings';
 
 export interface ValidationError {
   field: string;
@@ -7,8 +7,18 @@ export interface ValidationError {
 
 export interface YourItem {
   id: string;
-  // TODO: add your canonical fields here
-  title?: string;
-  createdAt?: Date | string | null;
-  updatedAt?: Date | string | null;
+  title: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface YourItemPayload {
+  title: string;
+  description: string | null;
+}
+
+export interface YourItemsSettings {
+  defaultView: 'list' | 'grid';
+  allowDuplicate: boolean;
 }

@@ -123,13 +123,15 @@ export const MailSettingsForm: React.FC<MailSettingsFormProps> = ({ onCancel, on
   ]);
 
   useEffect(() => {
-    const onSubmit = () => handleSave();
-    const onCancelEv = () => onCancel?.();
-    window.addEventListener('submitMailForm', onSubmit);
-    window.addEventListener('cancelMailForm', onCancelEv);
+    window.submitMailForm = () => {
+      void handleSave();
+    };
+    window.cancelMailForm = () => {
+      onCancel?.();
+    };
     return () => {
-      window.removeEventListener('submitMailForm', onSubmit);
-      window.removeEventListener('cancelMailForm', onCancelEv);
+      delete window.submitMailForm;
+      delete window.cancelMailForm;
     };
   }, [handleSave, onCancel]);
 

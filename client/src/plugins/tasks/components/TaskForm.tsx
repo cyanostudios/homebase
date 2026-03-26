@@ -149,10 +149,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({
 
   useEffect(() => {
     window.submitTasksForm = () => handleSubmit();
+    (window as any).submitTaskForm = window.submitTasksForm;
     window.cancelTasksForm = () => handleCancel();
+    (window as any).cancelTaskForm = window.cancelTasksForm;
     return () => {
       delete window.submitTasksForm;
+      delete (window as any).submitTaskForm;
       delete window.cancelTasksForm;
+      delete (window as any).cancelTaskForm;
     };
   }, [handleSubmit, handleCancel]);
 

@@ -1,5 +1,3 @@
-// templates/plugin-frontend-template/components/YourItemList.tsx
-// List + toolbar follow PLUGIN_DEVELOPMENT_STANDARDS_V2.md §6 and UI_AND_UX_STANDARDS_V3.md
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, ChevronUp, ChevronDown, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +16,7 @@ import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
 
 import { useYourItems } from '../hooks/useYourItems';
+import type { YourItem } from '../types/your-items';
 
 type SortField = 'title' | 'updatedAt' | 'id';
 type SortOrder = 'asc' | 'desc';
@@ -37,9 +36,9 @@ export const YourItemList: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('title');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
-  const normalized = (it: any) => ({
+  const normalized = (it: YourItem) => ({
     id: String(it.id ?? ''),
-    title: String(it.title ?? ''),
+    title: String(it.title),
     updatedAt: it.updatedAt ? new Date(it.updatedAt) : null,
     raw: it,
   });
@@ -51,7 +50,7 @@ export const YourItemList: React.FC = () => {
       return it.title.toLowerCase().includes(needle) || it.id.toLowerCase().includes(needle);
     });
 
-    const cmp = (a: any, b: any) => {
+    const cmp = (a: ReturnType<typeof normalized>, b: ReturnType<typeof normalized>) => {
       let av: any;
       let bv: any;
       switch (sortField) {
@@ -177,7 +176,7 @@ export const YourItemList: React.FC = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredAndSorted.map((it: any) => (
+              filteredAndSorted.map((it) => (
                 <TableRow
                   key={it.id}
                   className={cn(

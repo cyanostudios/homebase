@@ -11,6 +11,21 @@ This document defines MANDATORY naming conventions and patterns for all Homebase
 - 🔒 Security: Enforced at every layer
 - 📦 SDK: Use @homebase/core for stable interfaces
 - ⚠️ **Platform stability first:** Do not break navigation, panels, or core flows (see `LESSONS_LEARNED.md`).
+- 🧩 **Golden template first:** New plugins must start from `templates/plugin-frontend-template` and `templates/plugin-backend-template`.
+
+## Plugin Contract v2 (official)
+
+- Panel modes are standardized: `'create' | 'edit' | 'view' | 'settings'`.
+- Form submit/cancel in panel mode are header-driven through:
+  - `window.submit<Plugins>Form`
+  - `window.cancel<Plugins>Form`
+- Each plugin must expose `Form` in `components` inside `client/src/core/pluginRegistry.ts`.
+- Detail view must follow shared shell patterns:
+  - `DetailLayout` main + sidebar
+  - `DetailSection` for grouped content
+  - `ConfirmDialog` for destructive actions
+
+See `NEW_PLUGIN_INTEGRATION_CHECKLIST.md` for the exact integration flow.
 
 🔒 CRITICAL REQUIREMENTS
 

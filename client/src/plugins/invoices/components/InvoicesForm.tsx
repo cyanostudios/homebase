@@ -161,10 +161,14 @@ export const InvoicesForm: React.FC<InvoicesFormProps> = ({ currentInvoice, onSa
 
   useEffect(() => {
     window.submitInvoicesForm = () => handleSubmit();
+    (window as any).submitInvoiceForm = window.submitInvoicesForm;
     window.cancelInvoicesForm = () => handleCancel();
+    (window as any).cancelInvoiceForm = window.cancelInvoicesForm;
     return () => {
       delete window.submitInvoicesForm;
+      delete (window as any).submitInvoiceForm;
       delete window.cancelInvoicesForm;
+      delete (window as any).cancelInvoiceForm;
     };
   }, [handleSubmit, handleCancel]);
 

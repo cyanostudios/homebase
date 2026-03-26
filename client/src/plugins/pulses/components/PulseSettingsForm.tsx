@@ -99,13 +99,20 @@ export const PulseSettingsForm: React.FC<PulseSettingsFormProps> = ({
   ]);
 
   useEffect(() => {
-    const onSubmit = () => handleSave();
-    const onCancelEv = () => onCancel?.();
-    window.addEventListener('submitPulseForm', onSubmit);
-    window.addEventListener('cancelPulseForm', onCancelEv);
+    window.submitPulsesForm = () => {
+      void handleSave();
+    };
+    window.cancelPulsesForm = () => {
+      onCancel?.();
+    };
+    // Compatibility aliases while older callers migrate.
+    window.submitPulseForm = window.submitPulsesForm;
+    window.cancelPulseForm = window.cancelPulsesForm;
     return () => {
-      window.removeEventListener('submitPulseForm', onSubmit);
-      window.removeEventListener('cancelPulseForm', onCancelEv);
+      delete window.submitPulsesForm;
+      delete window.cancelPulsesForm;
+      delete window.submitPulseForm;
+      delete window.cancelPulseForm;
     };
   }, [handleSave, onCancel]);
 

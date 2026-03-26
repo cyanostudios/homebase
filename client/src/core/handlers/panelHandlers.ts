@@ -77,8 +77,9 @@ export const createPanelHandlers = (
     // Settings plugin: submitSettingsForm is registered by SettingsForm and calls context.submitSave
     const pluginNameCapitalized = toCamel(currentPlugin.name);
     const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
-    const functionName = `submit${cap}Form`;
-    const submitFunction = (window as any)[functionName];
+    const singularCap = getSingularCap(currentPlugin.name);
+    const submitFunction =
+      (window as any)[`submit${cap}Form`] ?? (window as any)[`submit${singularCap}Form`];
     if (submitFunction) {
       submitFunction();
     }
@@ -93,19 +94,11 @@ export const createPanelHandlers = (
       currentPluginContext.closeSettingsPanel();
       return;
     }
-    // Files settings: close directly
-    if (
-      currentPlugin.name === 'files' &&
-      currentMode === 'settings' &&
-      typeof currentPluginContext?.closeFilePanel === 'function'
-    ) {
-      currentPluginContext.closeFilePanel();
-      return;
-    }
     const pluginNameCapitalized = toCamel(currentPlugin.name);
     const cap = pluginNameCapitalized.charAt(0).toUpperCase() + pluginNameCapitalized.slice(1);
-    const functionName = `cancel${cap}Form`;
-    const cancelFunction = (window as any)[functionName];
+    const singularCap = getSingularCap(currentPlugin.name);
+    const cancelFunction =
+      (window as any)[`cancel${cap}Form`] ?? (window as any)[`cancel${singularCap}Form`];
     if (cancelFunction) {
       cancelFunction();
     }

@@ -241,10 +241,14 @@ export function MatchForm({ currentMatch, onSave, onCancel }: MatchFormProps) {
 
   useEffect(() => {
     window.submitMatchesForm = () => handleSubmit();
+    (window as any).submitMatchForm = window.submitMatchesForm;
     window.cancelMatchesForm = () => handleCancel();
+    (window as any).cancelMatchForm = window.cancelMatchesForm;
     return () => {
       delete window.submitMatchesForm;
+      delete (window as any).submitMatchForm;
       delete window.cancelMatchesForm;
+      delete (window as any).cancelMatchForm;
     };
   }, [handleSubmit, handleCancel]);
 

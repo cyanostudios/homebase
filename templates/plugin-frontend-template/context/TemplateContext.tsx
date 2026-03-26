@@ -1,39 +1,34 @@
 // templates/plugin-frontend-template/context/TemplateContext.tsx
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { TemplateApi, templateApi } from '../api/templateApi';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useApp } from '@/core/api/AppContext';
+import { templateApi } from '../api/templateApi';
+import type {
+  PanelMode,
+  ValidationError,
+  YourItem,
+  YourItemPayload,
+  YourItemsSettings,
+} from '../types/your-items';
 
 // TODO: Replace "your-items" with your plugin's plural-kebab name everywhere in this file.
 // TODO: Replace YourItem with your domain model name (singular), e.g., Product, Article, etc.
 
-export type ValidationError = { field: string; message: string };
-
-export interface YourItem {
-  id: string;
-  // TODO: add your canonical fields here
-  title?: string;
-  createdAt?: Date | string | null;
-  updatedAt?: Date | string | null;
-}
-
 interface YourItemsContextType {
-  // Panel State
   isYourItemsPanelOpen: boolean;
   currentYourItem: YourItem | null;
-  panelMode: 'create' | 'edit' | 'view' | 'settings';
+  panelMode: PanelMode;
   validationErrors: ValidationError[];
-
-  // Data
   yourItems: YourItem[];
-
-  // Actions
+  settings: YourItemsSettings | null;
+  isSaving: boolean;
   openYourItemsPanel: (item: YourItem | null) => void;
   openYourItemForEdit: (item: YourItem) => void;
   openYourItemForView: (item: YourItem) => void;
   openYourItemsSettings: () => void;
   closeYourItemsPanel: () => void;
-  saveYourItem: (data: any) => Promise<boolean>;
+  saveYourItem: (data: YourItemPayload) => Promise<boolean>;
   deleteYourItem: (id: string) => Promise<void>;
+  saveSettings: (data: YourItemsSettings) => Promise<boolean>;
   clearValidationErrors: () => void;
 }
 
@@ -43,78 +38,61 @@ interface ProviderProps {
   children: ReactNode;
   isAuthenticated: boolean;
   onCloseOtherPanels: () => void;
-  api?: TemplateApi; // for test injection
 }
 
 export function YourItemsProvider({
   children,
   isAuthenticated,
   onCloseOtherPanels,
-  api = templateApi,
 }: ProviderProps) {
   const { registerPanelCloseFunction, unregisterPanelCloseFunction } = useApp();
 
-  // Panel
   const [isYourItemsPanelOpen, setIsYourItemsPanelOpen] = useState(false);
   const [currentYourItem, setCurrentYourItem] = useState<YourItem | null>(null);
-  const [panelMode, setPanelMode] = useState<'create' | 'edit' | 'view' | 'settings'>('create');
+  const [panelMode, setPanelMode] = useState<PanelMode>('create');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-
-  // Data
   const [yourItems, setYourItems] = useState<YourItem[]>([]);
+  const [settings, setSettings] = useState<YourItemsSettings | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Load when authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      loadItems();
+      void loadItems();
+      void loadSettings();
     } else {
       setYourItems([]);
+      setSettings(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
-  // Register panel close once
   useEffect(() => {
     registerPanelCloseFunction('your-items', closeYourItemsPanel);
     return () => unregisterPanelCloseFunction('your-items');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Global submit/cancel (PLURAL)
-  useEffect(() => {
-    (window as any).submitYourItemsForm = () => {
-      const event = new CustomEvent('submitYourItemForm');
-      window.dispatchEvent(event);
-    };
-    (window as any).cancelYourItemsForm = () => {
-      const event = new CustomEvent('cancelYourItemForm');
-      window.dispatchEvent(event);
-    };
-    return () => {
-      delete (window as any).submitYourItemsForm;
-      delete (window as any).cancelYourItemsForm;
-    };
-  }, []);
-
-  const loadItems = async () => {
+  const loadItems = useCallback(async () => {
     try {
-      const items = await api.getItems();
-      const normalized = items.map((it: any) => ({
-        ...it,
-        createdAt: it.createdAt ? new Date(it.createdAt) : null,
-        updatedAt: it.updatedAt ? new Date(it.updatedAt) : null,
-      }));
-      setYourItems(normalized);
+      const items = await templateApi.getItems();
+      setYourItems(items);
     } catch (err) {
       console.error('Failed to load your-items:', err);
     }
-  };
+  }, []);
 
-  // TODO: implement domain validation
-  const validate = (_data: any): ValidationError[] => {
+  const loadSettings = useCallback(async () => {
+    try {
+      const result = await templateApi.getSettings();
+      setSettings(result);
+    } catch (err) {
+      console.error('Failed to load your-items settings:', err);
+    }
+  }, []);
+
+  const validate = (data: YourItemPayload): ValidationError[] => {
     const errors: ValidationError[] = [];
-    // Example:
-    // if (!(_data.title || '').trim()) errors.push({ field: 'title', message: 'Title is required' });
+    if (!data.title.trim()) {
+      errors.push({ field: 'title', message: 'Title is required' });
+    }
     return errors;
   };
 
@@ -158,56 +136,69 @@ export function YourItemsProvider({
     setValidationErrors([]);
   };
 
-  const clearValidationErrors = () => setValidationErrors([]);
+  const clearValidationErrors = useCallback(() => setValidationErrors([]), []);
 
-  const saveYourItem = async (raw: any): Promise<boolean> => {
-    const errors = validate(raw);
+  const saveYourItem = async (raw: YourItemPayload): Promise<boolean> => {
+    const payload: YourItemPayload = {
+      title: raw.title.trim(),
+      description: raw.description?.trim() ? raw.description.trim() : null,
+    };
+    const errors = validate(payload);
     setValidationErrors(errors);
-    const blocking = errors.filter((e) => !e.message.includes('Warning'));
-    if (blocking.length > 0) return false;
+    if (errors.length > 0) {
+      return false;
+    }
 
     try {
+      setIsSaving(true);
       if (currentYourItem) {
-        const saved = await api.updateItem((currentYourItem as any).id, raw);
-        const normalized = {
-          ...saved,
-          createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
-          updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
-        };
-        setYourItems((prev) =>
-          prev.map((i) => (i.id === (currentYourItem as any).id ? normalized : i)),
-        );
-        setCurrentYourItem(normalized as any);
+        const saved = await templateApi.updateItem(currentYourItem.id, payload);
+        setYourItems((prev) => prev.map((i) => (i.id === currentYourItem.id ? saved : i)));
+        setCurrentYourItem(saved);
         setPanelMode('view');
-        setValidationErrors([]);
       } else {
-        const saved = await api.createItem(raw);
-        const normalized = {
-          ...saved,
-          createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
-          updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
-        };
-        setYourItems((prev) => [...prev, normalized]);
+        const saved = await templateApi.createItem(payload);
+        setYourItems((prev) => [saved, ...prev]);
         closeYourItemsPanel();
       }
+      setValidationErrors([]);
       return true;
-    } catch (err: any) {
+    } catch (err) {
+      const error = err as { errors?: ValidationError[] };
       console.error('Failed to save your-item:', err);
-      if (err?.status === 409 && Array.isArray(err.errors)) {
-        setValidationErrors(err.errors);
+      if (Array.isArray(error.errors)) {
+        setValidationErrors(error.errors);
       } else {
         setValidationErrors([{ field: 'general', message: 'Failed to save. Please try again.' }]);
       }
       return false;
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const deleteYourItem = async (id: string) => {
     try {
-      await api.deleteItem(id);
+      await templateApi.deleteItem(id);
       setYourItems((prev) => prev.filter((i) => i.id !== id));
     } catch (err) {
       console.error('Failed to delete your-item:', err);
+    }
+  };
+
+  const saveSettings = async (data: YourItemsSettings): Promise<boolean> => {
+    try {
+      setIsSaving(true);
+      const saved = await templateApi.saveSettings(data);
+      setSettings(saved);
+      setValidationErrors([]);
+      return true;
+    } catch (err) {
+      console.error('Failed to save your-items settings:', err);
+      setValidationErrors([{ field: 'general', message: 'Failed to save settings.' }]);
+      return false;
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -217,6 +208,8 @@ export function YourItemsProvider({
     panelMode,
     validationErrors,
     yourItems,
+    settings,
+    isSaving,
     openYourItemsPanel,
     openYourItemForEdit,
     openYourItemForView,
@@ -224,6 +217,7 @@ export function YourItemsProvider({
     closeYourItemsPanel,
     saveYourItem,
     deleteYourItem,
+    saveSettings,
     clearValidationErrors,
   };
 

@@ -1,120 +1,65 @@
-// templates/plugin-frontend-template/api/templateApi.ts
-// TEMPLATE: Copy this file into your plugin and set the base path to your routeBase.
-// Example usage after copy: export const myItemsApi = new TemplateApi('/api/my-items');
+import type { ValidationError, YourItem, YourItemPayload, YourItemsSettings } from '../types/your-items';
 
-export type ApiFieldError = { field: string; message: string };
+type ApiError = Error & {
+  status?: number;
+  code?: string;
+  errors?: ValidationError[];
+};
 
-export class TemplateApi {
-  private csrfToken: string | null = null;
-
-  constructor(private basePath: string) {}
-
-  async getCsrfToken(): Promise<string> {
-    if (this.csrfToken) return this.csrfToken;
-
-    try {
-      const response = await fetch('/api/csrf-token', {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('CSRF token fetch failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData,
-        });
-
-        if (response.status === 401) {
-          throw new Error('Session required. Please log in again.');
-        } else if (response.status === 503) {
-          throw new Error('CSRF protection not configured on server');
-        } else {
-          throw new Error(`Failed to get CSRF token: ${errorData.error || response.statusText}`);
-        }
-      }
-
-      const data = await response.json();
-      if (!data.csrfToken) {
-        throw new Error('CSRF token not found in response');
-      }
-
-      this.csrfToken = data.csrfToken;
-      return this.csrfToken;
-    } catch (error: any) {
-      console.error('CSRF token fetch failed:', error);
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Failed to get CSRF token');
-    }
-  }
-
-  private async request(path: string, options: RequestInit = {}) {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...((options.headers as Record<string, string>) || {}),
-    };
-
-    // Add CSRF token for mutations
-    if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
-      headers['X-CSRF-Token'] = await this.getCsrfToken();
-    }
-
-    let response: Response;
-    try {
-      response = await fetch(`${this.basePath}${path}`, {
-        headers,
-        credentials: 'include',
-        ...options,
-      });
-    } catch {
-      const err: any = new Error('Network unreachable');
-      err.status = 0;
-      throw err;
-    }
+class TemplateApi {
+  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const response = await fetch(`/api/your-items${path}`, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers ?? {}),
+      },
+      ...options,
+    });
 
     if (!response.ok) {
-      let payload: any = null;
-      try {
-        payload = await response.json();
-      } catch {}
-
-      // Handle standardized error format from backend
-      const errorMessage =
-        response.status === 409 && payload?.errors?.[0]?.message
-          ? payload.errors[0].message
-          : payload?.error || payload?.message || response.statusText || 'Request failed';
-
-      const err: any = new Error(errorMessage);
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+        code?: string;
+        errors?: ValidationError[];
+      };
+      const err: ApiError = new Error(payload.error ?? payload.message ?? 'Request failed');
       err.status = response.status;
-      err.code = payload?.code;
-      err.details = payload?.details;
-      if (payload?.errors) err.errors = payload.errors as ApiFieldError[];
+      err.code = payload.code;
+      err.errors = payload.errors;
       throw err;
     }
 
-    const text = await response.text();
-    return text ? JSON.parse(text) : {};
+    return (await response.json()) as T;
   }
 
-  // CRUD helpers (rename as needed in your plugin)
   getItems() {
-    return this.request('/');
+    return this.request<YourItem[]>('');
   }
 
-  createItem(data: any) {
-    return this.request('/', { method: 'POST', body: JSON.stringify(data) });
+  createItem(payload: YourItemPayload) {
+    return this.request<YourItem>('', { method: 'POST', body: JSON.stringify(payload) });
   }
 
-  updateItem(id: string, data: any) {
-    return this.request(`/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  updateItem(id: string, payload: YourItemPayload) {
+    return this.request<YourItem>(`/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
   }
 
   deleteItem(id: string) {
-    return this.request(`/${id}`, { method: 'DELETE' });
+    return this.request<{ deleted: boolean }>(`/${id}`, { method: 'DELETE' });
+  }
+
+  getSettings() {
+    return this.request<YourItemsSettings>('/settings');
+  }
+
+  saveSettings(payload: YourItemsSettings) {
+    return this.request<YourItemsSettings>('/settings', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
   }
 }
 
-// Default export (left as a placeholder for the template; set to your route later)
-export const templateApi = new TemplateApi('/api/rename-me'); // TODO: replace in your copied plugin
+export const templateApi = new TemplateApi();

@@ -246,10 +246,14 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
   useEffect(() => {
     window.submitContactsForm = () => handleSubmit();
+    (window as any).submitContactForm = window.submitContactsForm;
     window.cancelContactsForm = () => handleCancel();
+    (window as any).cancelContactForm = window.cancelContactsForm;
     return () => {
       delete window.submitContactsForm;
+      delete (window as any).submitContactForm;
       delete window.cancelContactsForm;
+      delete (window as any).cancelContactForm;
     };
   }, [handleSubmit, handleCancel]);
 

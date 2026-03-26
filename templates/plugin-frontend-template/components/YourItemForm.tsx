@@ -1,34 +1,26 @@
-// templates/plugin-frontend-template/components/YourItemForm.tsx
-// Uses DetailSection and standard form controls. When panelMode === 'settings',
-// renders YourItemSettingsForm; Close/Save work because we register listeners before the return.
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
 import { DetailSection } from '@/core/ui/DetailSection';
 import { ConfirmDialog } from '@/core/ui/ConfirmDialog';
 import { useYourItems } from '../hooks/useYourItems';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { useGlobalNavigationGuard } from '@/hooks/useGlobalNavigationGuard';
 import { cn } from '@/lib/utils';
+import type { YourItemPayload } from '../types/your-items';
 
 import { YourItemSettingsForm } from './YourItemSettingsForm';
 
 interface YourItemFormProps {
-  currentItem?: any;
-  onSave: (data: any) => Promise<boolean> | boolean;
+  currentItem?: { id: string; title: string; description: string | null };
+  onSave: (data: YourItemPayload) => Promise<boolean> | boolean;
   onCancel: () => void;
-  isSubmitting?: boolean;
 }
 
-export const YourItemForm: React.FC<YourItemFormProps> = ({
-  currentItem,
-  onSave,
-  onCancel,
-  isSubmitting = false,
-}) => {
-  const { validationErrors, clearValidationErrors, panelMode } = useYourItems();
+export const YourItemForm: React.FC<YourItemFormProps> = ({ currentItem, onSave, onCancel }) => {
+  const { validationErrors, clearValidationErrors, panelMode, isSaving } = useYourItems();
   const {
     isDirty,
     showWarning,
@@ -41,40 +33,36 @@ export const YourItemForm: React.FC<YourItemFormProps> = ({
   const { registerUnsavedChangesChecker, unregisterUnsavedChangesChecker } =
     useGlobalNavigationGuard();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<YourItemPayload>({
     title: '',
-    description: '',
+    description: null,
   });
-
-  // Register unsaved-changes with global guard
   useEffect(() => {
     const formKey = `your-item-form-${currentItem?.id || 'new'}`;
     registerUnsavedChangesChecker(formKey, () => isDirty);
     return () => unregisterUnsavedChangesChecker(formKey);
   }, [isDirty, currentItem, registerUnsavedChangesChecker, unregisterUnsavedChangesChecker]);
 
-  // Load data for edit
   useEffect(() => {
     if (currentItem) {
       setFormData({
-        title: currentItem.title || '',
-        description: currentItem.description || '',
+        title: currentItem.title,
+        description: currentItem.description,
       });
       markClean();
     } else if (panelMode !== 'settings') {
-      setFormData({ title: '', description: '' });
+      setFormData({ title: '', description: null });
       markClean();
     }
   }, [currentItem, panelMode, markClean]);
 
   const resetForm = useCallback(() => {
-    setFormData({ title: '', description: '' });
+    setFormData({ title: '', description: null });
     markClean();
   }, [markClean]);
 
   const handleSubmit = useCallback(async () => {
-    if (panelMode === 'settings') {
-      onCancel();
+    if (isSaving) {
       return;
     }
     const ok = await onSave(formData);
@@ -82,30 +70,38 @@ export const YourItemForm: React.FC<YourItemFormProps> = ({
       markClean();
       if (!currentItem) resetForm();
     }
-  }, [panelMode, formData, onSave, onCancel, markClean, currentItem, resetForm]);
+  }, [formData, onSave, markClean, currentItem, resetForm, isSaving]);
 
   const handleCancel = useCallback(() => {
     attemptAction(() => onCancel());
   }, [attemptAction, onCancel]);
 
-  // Register listeners before any early return so Close/Save work in settings mode too
   useEffect(() => {
-    const onSubmit = () => handleSubmit();
-    const onCancelEv = () => handleCancel();
-    window.addEventListener('submitYourItemForm', onSubmit as EventListener);
-    window.addEventListener('cancelYourItemForm', onCancelEv as EventListener);
+    window.submitYourItemsForm = () => {
+      void handleSubmit();
+    };
+    window.cancelYourItemsForm = () => {
+      handleCancel();
+    };
+    window.submitYourItemForm = () => {
+      void handleSubmit();
+    };
+    window.cancelYourItemForm = () => {
+      handleCancel();
+    };
     return () => {
-      window.removeEventListener('submitYourItemForm', onSubmit as EventListener);
-      window.removeEventListener('cancelYourItemForm', onCancelEv as EventListener);
+      delete window.submitYourItemsForm;
+      delete window.cancelYourItemsForm;
+      delete window.submitYourItemForm;
+      delete window.cancelYourItemForm;
     };
   }, [handleSubmit, handleCancel]);
 
-  // Settings mode: render settings form; footer Close/Save still trigger the listeners above
   if (panelMode === 'settings') {
     return <YourItemSettingsForm onCancel={onCancel} />;
   }
 
-  const updateField = (field: string, value: string) => {
+  const updateField = (field: keyof YourItemPayload, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     markDirty();
     clearValidationErrors();
@@ -113,7 +109,7 @@ export const YourItemForm: React.FC<YourItemFormProps> = ({
 
   const getFieldError = (field: string) => validationErrors.find((err) => err.field === field);
 
-  const hasBlockingErrors = validationErrors.some((err) => !err.message.includes('Warning'));
+  const hasBlockingErrors = validationErrors.length > 0;
 
   const handleDiscardChanges = () => {
     if (!currentItem) {
@@ -161,40 +157,27 @@ export const YourItemForm: React.FC<YourItemFormProps> = ({
                 <p className="text-sm text-destructive">{getFieldError('title')?.message}</p>
               )}
             </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="your-item-description">Description</Label>
-              <textarea
-                id="your-item-description"
-                value={formData.description}
-                onChange={(e) => updateField('description', e.target.value)}
-                rows={4}
-                placeholder="Optional description…"
-                className="w-full px-3 py-2 text-sm border border-input rounded-md bg-background focus:ring-2 focus:ring-ring focus:border-ring resize-y"
-              />
-            </div>
           </div>
         </DetailSection>
-
-        <div className="flex gap-2">
-          <Button type="submit" variant="default" disabled={isSubmitting}>
-            Save
-          </Button>
-          <Button type="button" variant="secondary" onClick={handleCancel}>
-            Cancel
-          </Button>
-        </div>
+        <DetailSection title="Description">
+          <Textarea
+            value={formData.description ?? ''}
+            onChange={(e) => updateField('description', e.target.value)}
+            rows={6}
+          />
+        </DetailSection>
       </form>
 
       <ConfirmDialog
         isOpen={showWarning}
-        title="Unsaved Changes"
+        title="Unsaved changes"
         message={
           currentItem
             ? 'You have unsaved changes. Discard and return to view mode?'
             : 'You have unsaved changes. Discard and close the form?'
         }
-        confirmText="Discard Changes"
-        cancelText="Continue Editing"
+        confirmText="Discard changes"
+        cancelText="Continue editing"
         onConfirm={handleDiscardChanges}
         onCancel={cancelDiscard}
         variant="warning"

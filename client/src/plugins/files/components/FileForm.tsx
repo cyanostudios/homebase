@@ -192,10 +192,14 @@ export const FileForm: React.FC<FileFormProps> = ({ currentItem, onSave, onCance
 
   useEffect(() => {
     window.submitFilesForm = () => handleSubmit();
+    (window as any).submitFileForm = window.submitFilesForm;
     window.cancelFilesForm = () => handleCancel();
+    (window as any).cancelFileForm = window.cancelFilesForm;
     return () => {
       delete window.submitFilesForm;
+      delete (window as any).submitFileForm;
       delete window.cancelFilesForm;
+      delete (window as any).cancelFileForm;
     };
   }, [handleSubmit, handleCancel]);
 

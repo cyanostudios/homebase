@@ -124,10 +124,14 @@ export const NoteForm: React.FC<NoteFormProps> = ({
 
   useEffect(() => {
     window.submitNotesForm = () => handleSubmit();
+    (window as any).submitNoteForm = window.submitNotesForm;
     window.cancelNotesForm = () => handleCancel();
+    (window as any).cancelNoteForm = window.cancelNotesForm;
     return () => {
       delete window.submitNotesForm;
+      delete (window as any).submitNoteForm;
       delete window.cancelNotesForm;
+      delete (window as any).cancelNoteForm;
     };
   }, [handleSubmit, handleCancel]);
 

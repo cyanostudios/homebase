@@ -1,6 +1,4 @@
 // templates/plugin-backend-template/controller.js
-const { Logger } = require('@homebase/core');
-const { AppError } = require('../../server/core/errors/AppError');
 
 class TemplateController {
   constructor(model) {
@@ -10,7 +8,6 @@ class TemplateController {
   // Optional helper: map PG unique violation (23505) -> 409 with { errors: [{ field, message }] }
   mapUniqueViolation(error) {
     if (error?.code !== '23505') return null;
-    const constraint = String(error.constraint || '').toLowerCase();
     const detail = String(error.detail || '');
     const m = detail.match(/\(([^)]+)\)=\(([^)]+)\)/); // e.g. (user_id, sku)=(1, ABC)
     const cols = m ? m[1].split(',').map((s) => s.trim()) : [];
@@ -38,7 +35,6 @@ class TemplateController {
       const item = await this.model.create(req, req.body);
       res.json(item);
     } catch (error) {
-      // Handle unique constraint violations
       const mapped = this.mapUniqueViolation(error);
       if (mapped) {
         return res.status(409).json({ errors: [mapped] });
@@ -52,7 +48,6 @@ class TemplateController {
       const item = await this.model.update(req, req.params.id, req.body);
       res.json(item);
     } catch (error) {
-      // Handle unique constraint violations
       const mapped = this.mapUniqueViolation(error);
       if (mapped) {
         return res.status(409).json({ errors: [mapped] });
@@ -64,7 +59,7 @@ class TemplateController {
   async delete(req, res, next) {
     try {
       await this.model.delete(req, req.params.id);
-      res.json({ message: 'Item deleted successfully' });
+      res.json({ deleted: true });
     } catch (error) {
       next(error);
     }

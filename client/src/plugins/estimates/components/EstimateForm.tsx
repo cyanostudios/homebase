@@ -173,10 +173,14 @@ export function EstimateForm({ currentEstimate, onSave, onCancel }: EstimateForm
 
   useEffect(() => {
     window.submitEstimatesForm = () => handleSubmit();
+    (window as any).submitEstimateForm = window.submitEstimatesForm;
     window.cancelEstimatesForm = () => handleCancel();
+    (window as any).cancelEstimateForm = window.cancelEstimatesForm;
     return () => {
       delete window.submitEstimatesForm;
+      delete (window as any).submitEstimateForm;
       delete window.cancelEstimatesForm;
+      delete (window as any).cancelEstimateForm;
     };
   }, [handleSubmit, handleCancel]);
 

@@ -3,6 +3,14 @@
 **Referensplugin:** `slots` (primär), `notes` och `tasks` (sekundära)  
 **Princip:** Kopiera exakt. Ta bort gammal kod. Inga workarounds.
 
+## Official Template Rule
+
+- New plugins must be generated from:
+  - `templates/plugin-frontend-template`
+  - `templates/plugin-backend-template`
+- The templates are now the source of truth for Contract v2 panel wiring.
+- Integration steps are tracked in `NEW_PLUGIN_INTEGRATION_CHECKLIST.md`.
+
 ---
 
 ## 0. Överordnade regler
