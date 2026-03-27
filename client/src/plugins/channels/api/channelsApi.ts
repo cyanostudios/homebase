@@ -40,6 +40,7 @@ class ChannelsApi {
           label: string | null;
           instanceKey: string | null;
           externalId: string;
+          storeUrl?: string | null;
         }>;
       };
     }
@@ -55,6 +56,7 @@ class ChannelsApi {
         label: string | null;
         instanceKey: string | null;
         externalId: string;
+        storeUrl?: string | null;
       }>;
     }>
   >();
@@ -180,6 +182,7 @@ class ChannelsApi {
       label: string | null;
       instanceKey: string | null;
       externalId: string;
+      storeUrl?: string | null;
     }>;
   }> {
     const cacheKey = String(productId);

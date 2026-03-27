@@ -1203,6 +1203,10 @@ class CdonProductsController {
           items,
         };
         if (diagnoseTrace) errPayload.diagnose = diagnoseTrace;
+        Logger.warn('CDON export: no articles to send', {
+          userId: Context.getUserId(req),
+          counts: errPayload.counts,
+        });
         return res.status(400).json(errPayload);
       }
 
@@ -1386,6 +1390,10 @@ class CdonProductsController {
         items,
       };
       if (diagnoseTrace) jsonResponse.diagnose = diagnoseTrace;
+      Logger.info('CDON export completed', {
+        userId: Context.getUserId(req),
+        counts: jsonResponse.counts,
+      });
       return res.json(jsonResponse);
     } catch (error) {
       Logger.error('CDON export error', error, { userId: Context.getUserId(req) });

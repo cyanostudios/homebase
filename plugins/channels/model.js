@@ -9,6 +9,45 @@ const { Logger, Database } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 const CredentialsCrypto = require('../../server/core/services/security/CredentialsCrypto');
 
+function trimNonEmpty(v) {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s !== '' ? s : null;
+}
+
+/**
+ * CDON/Fyndiq consumer product URLs use a 16-character hex slug (from a UUID or equivalent).
+ * Pure digit strings are not valid storefront article ids (they are often internal product id or SKU).
+ */
+function isCdOnFyndiqStorefrontArticleId(raw) {
+  const s = trimNonEmpty(raw);
+  if (!s) return false;
+  if (/^\d+$/.test(s)) return false;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)) {
+    return true;
+  }
+  if (/^[0-9a-f]{32}$/i.test(s)) return true;
+  if (/^[0-9a-f]{16}$/i.test(s)) return true;
+  return false;
+}
+
+function resolveCdOnFyndiqStorefrontArticleId(channel, row) {
+  const ch = String(channel || '').toLowerCase();
+  if (ch === 'cdon') {
+    const aid = trimNonEmpty(row.cdon_article_id);
+    const ext = trimNonEmpty(row.external_id);
+    if (isCdOnFyndiqStorefrontArticleId(aid)) return aid;
+    if (isCdOnFyndiqStorefrontArticleId(ext)) return ext;
+    return null;
+  }
+  if (ch === 'fyndiq') {
+    const ext = trimNonEmpty(row.external_id);
+    if (isCdOnFyndiqStorefrontArticleId(ext)) return ext;
+    return null;
+  }
+  return trimNonEmpty(row.external_id);
+}
+
 class ChannelsModel {
   static CHANNEL_MAP_TABLE = 'channel_product_map';
   static CDON_SETTINGS_TABLE = 'cdon_settings';
@@ -205,7 +244,8 @@ class ChannelsModel {
 
   /**
    * Get all channel links for a product (rows with external_id, for building product URLs).
-   * Returns [{ channel, channelInstanceId, market, label, externalId }].
+   * Returns [{ channel, channelInstanceId, market, label, externalId, storeUrl? }].
+   * CDON/Fyndiq: only rows whose ids look like storefront article ids (UUID / hex slug); no numeric-only fallbacks.
    * For map rows with channel_instance_id = NULL (CDON/Fyndiq), expands to one link per active market from overrides.
    */
   async getProductChannelLinks(req, productId) {
@@ -229,7 +269,8 @@ class ChannelsModel {
           m.cdon_article_id,
           ci.market,
           ci.label,
-          ci.instance_key
+          ci.instance_key,
+          ci.credentials
         FROM ${ChannelsModel.CHANNEL_MAP_TABLE} m
         LEFT JOIN ${ChannelsModel.CHANNEL_INSTANCES_TABLE} ci
           ON ci.id = m.channel_instance_id
@@ -246,10 +287,23 @@ class ChannelsModel {
       const result = [];
       for (const r of rows) {
         const ch = String(r.channel || '').toLowerCase();
-        const linkId =
-          ch === 'cdon' && r.cdon_article_id != null && String(r.cdon_article_id).trim()
-            ? String(r.cdon_article_id).trim()
-            : String(r.external_id || '').trim();
+        let linkId;
+        if (ch === 'cdon' || ch === 'fyndiq') {
+          linkId = resolveCdOnFyndiqStorefrontArticleId(ch, r);
+          if (!linkId) continue;
+        } else {
+          linkId = trimNonEmpty(r.external_id);
+          if (!linkId) continue;
+        }
+
+        const storeUrl =
+          ch === 'woocommerce'
+            ? trimNonEmpty(
+                r?.credentials?._homebase_store_url ||
+                  r?.credentials?.storeUrl ||
+                  r?.credentials?.store_url,
+              )
+            : null;
 
         if (r.channel_instance_id == null && (ch === 'cdon' || ch === 'fyndiq')) {
           const overrideRows = await db.query(
@@ -273,6 +327,7 @@ class ChannelsModel {
                 label: ov.label != null ? String(ov.label).trim() : null,
                 instanceKey: ov.instance_key != null ? String(ov.instance_key).trim() : null,
                 externalId: linkId,
+                storeUrl,
               });
             }
           } else {
@@ -283,6 +338,7 @@ class ChannelsModel {
               label: null,
               instanceKey: null,
               externalId: linkId,
+              storeUrl,
             });
           }
         } else {
@@ -293,6 +349,7 @@ class ChannelsModel {
             label: r.label != null ? String(r.label).trim() : null,
             instanceKey: r.instance_key != null ? String(r.instance_key).trim() : null,
             externalId: linkId,
+            storeUrl,
           });
         }
       }
@@ -953,8 +1010,9 @@ class ChannelsModel {
       const params = [pid];
       let idx = 2;
       for (const r of rowsToWrite) {
+        // $1 = product_id; per row: channel, instance, channel_instance_id, active, price, currency, vat, category, sale_price, original_price ($idx..$idx+9). No duplicate $2 — that produced one extra value vs 13 columns.
         values.push(
-          `($1, $2, $${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6}, $${idx + 7}, $${idx + 8}, $${idx + 9}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          `($1, $${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6}, $${idx + 7}, $${idx + 8}, $${idx + 9}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         );
         params.push(
           r.ch,

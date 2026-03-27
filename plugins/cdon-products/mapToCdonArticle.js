@@ -93,9 +93,7 @@ function mapProductToCdonArticle(
   marketsFilter = ['se', 'dk', 'fi', 'no'],
 ) {
   const sku = product?.id != null ? String(product.id).trim() : '';
-  const title = htmlToPlainText(
-    product?.title != null ? String(product.title).trim() : '',
-  );
+  const title = htmlToPlainText(product?.title != null ? String(product.title).trim() : '');
   const mainImage = product?.mainImage != null ? String(product.mainImage).trim() : '';
   const quantity =
     product?.quantity != null && Number.isFinite(Number(product.quantity))
@@ -147,9 +145,7 @@ function mapProductToCdonArticle(
   if (!titleArr || titleArr.length === 0) return null;
 
   // Description: per language from textsExtended + textsStandard, else products.description.
-  const baseDesc = htmlToPlainText(
-    product?.description != null ? String(product.description) : '',
-  );
+  const baseDesc = htmlToPlainText(product?.description != null ? String(product.description) : '');
   let descriptionArr = null;
   if (textsExtended && typeof textsExtended === 'object') {
     const arr = [];
@@ -159,9 +155,10 @@ function mapProductToCdonArticle(
       const lang = MARKET_TO_LANG[m] || defaultLanguage || 'sv-SE';
       if (seen.has(lang)) continue;
       const t = textsExtended[mk];
-      const value = htmlToPlainText(
-        t?.description || standardText?.description || '',
-      ).slice(0, 4096);
+      const value = htmlToPlainText(t?.description || standardText?.description || '').slice(
+        0,
+        4096,
+      );
       if (value.length >= 10) {
         seen.add(lang);
         arr.push({ language: lang, value });
@@ -376,14 +373,9 @@ function mapProductToCdonArticle(
   if (cdon.shipped_from != null && String(cdon.shipped_from).trim())
     payload.shipped_from = String(cdon.shipped_from).trim();
 
-  // Manufacturer: CDON expects object { name, address? }. Single source: product.manufacturerName (from manufacturer_id).
-  const manufacturerName =
-    product?.manufacturerName != null && String(product.manufacturerName).trim()
-      ? String(product.manufacturerName).trim().slice(0, 255)
-      : null;
-  if (manufacturerName) {
-    payload.manufacturer = { name: manufacturerName };
-  }
+  // Do not send `manufacturer` with only `name`. CDON rejects it: when `manufacturer` is present,
+  // `address` is required (street_address, city, postal_code, country) — see CDON_API_DOCUMENTATION.md.
+  // Product line brand uses `brand` above; detailed manufacturer is optional and only valid if complete.
   if (cdon.availability_dates && Array.isArray(cdon.availability_dates))
     payload.availability_dates = cdon.availability_dates;
   const numericalProps = buildNumericalProperties(product);
@@ -433,9 +425,7 @@ function getCdonArticleInputIssues(
 ) {
   const issues = [];
   const sku = product?.id != null ? String(product.id).trim() : '';
-  const title = htmlToPlainText(
-    product?.title != null ? String(product.title).trim() : '',
-  );
+  const title = htmlToPlainText(product?.title != null ? String(product.title).trim() : '');
   const mainImage = product?.mainImage != null ? String(product.mainImage).trim() : '';
   const quantity =
     product?.quantity != null && Number.isFinite(Number(product.quantity))

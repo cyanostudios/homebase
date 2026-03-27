@@ -669,6 +669,10 @@ class FyndiqProductsController {
           items,
         };
         if (diagnoseTrace) errResponse.diagnose = diagnoseTrace;
+        Logger.warn('Fyndiq export: no products to send', {
+          userId: Context.getUserId(req),
+          counts: errResponse.counts,
+        });
         return res.status(400).json(errResponse);
       }
 
@@ -921,7 +925,7 @@ class FyndiqProductsController {
             productId,
             channel: 'fyndiq',
             enabled: true,
-            externalId: resolvedArticleId || sku || null,
+            externalId: resolvedArticleId || null,
             status: success ? 'success' : 'error',
             error: errMsg,
           });
@@ -1114,6 +1118,10 @@ class FyndiqProductsController {
             : null;
         jsonResponse.diagnose = diagnoseTrace;
       }
+      Logger.info('Fyndiq export completed', {
+        userId: Context.getUserId(req),
+        counts: jsonResponse.counts,
+      });
       return res.json(jsonResponse);
     } catch (error) {
       Logger.error('Fyndiq export error', error, { userId: Context.getUserId(req) });

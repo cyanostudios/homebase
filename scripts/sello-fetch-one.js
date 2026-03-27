@@ -7,19 +7,14 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-const Bootstrap = require('../server/core/Bootstrap');
 const SelloModel = require('../plugins/products/selloModel');
+const { createScriptRequest } = require('./scriptTenantContext');
 
 const productId = process.argv[2] || '109512000';
 
 async function run() {
-  Bootstrap.initializeServices();
-  const ServiceManager = require('../server/core/ServiceManager');
-  const req = {
-    session: { user: { id: 1 }, tenantOwnerUserId: 1 },
-    tenantPool: undefined,
-  };
-  ServiceManager.initialize(req);
+  const userId = Number(process.env.PHASE1_PILOT_USER_ID || 1);
+  const { req } = await createScriptRequest(userId);
   const selloModel = new SelloModel();
   const apiKey = await selloModel.getApiKeyForJobs(req);
   const raw = await selloModel.fetchSelloJson({

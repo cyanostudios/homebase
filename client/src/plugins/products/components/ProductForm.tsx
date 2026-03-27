@@ -2032,6 +2032,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         }
       }
 
+      // New Kanaler targets (e.g. first time selecting Fyndiq DK) need full article export — not
+      // update_only_strict, which only syncs price/quantity and does not add markets on Fyndiq/CDON.
+      const initialTargetKeys = new Set(initialSelectedTargetKeysRef.current);
+      for (const key of effectiveSelectedKeys) {
+        if (initialTargetKeys.has(key)) {
+          continue;
+        }
+        const channel = key.split(':')[0]?.toLowerCase();
+        if (channel === 'cdon' || channel === 'fyndiq') {
+          fullChannels.add(channel);
+        }
+      }
+
       let overridesChanged = false;
       for (const row of currentOverrideRows) {
         const before = initialOverrideMap.get(String(row.channelInstanceId));
@@ -2041,10 +2054,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           (before?.priceAmount ?? null) !== row.priceAmount ||
           (before?.salePrice ?? null) !== row.salePrice ||
           (before?.originalPrice ?? null) !== row.originalPrice;
+        const activeTurnedOn =
+          row.active === true &&
+          (before?.active ?? false) === false &&
+          (row.channel === 'cdon' || row.channel === 'fyndiq');
         if (categoryChanged || strictChanged) {
           overridesChanged = true;
         }
-        if (categoryChanged) {
+        if (categoryChanged || activeTurnedOn) {
           fullChannels.add(row.channel);
         }
         if (strictChanged) {

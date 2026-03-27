@@ -980,7 +980,7 @@ class ProductController {
         price_amount = EXCLUDED.price_amount,
         currency = EXCLUDED.currency,
         vat_rate = EXCLUDED.vat_rate,
-        category = CASE WHEN $13 = true THEN EXCLUDED.category ELSE channel_product_overrides.category END,
+        category = CASE WHEN $12 = true THEN EXCLUDED.category ELSE channel_product_overrides.category END,
         sale_price = COALESCE(EXCLUDED.sale_price, channel_product_overrides.sale_price),
         original_price = COALESCE(EXCLUDED.original_price, channel_product_overrides.original_price),
         updated_at = CURRENT_TIMESTAMP

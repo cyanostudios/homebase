@@ -10,6 +10,38 @@ export interface ProductChannelLink {
   url: string;
 }
 
+function normalizeStoreUrl(raw: string | null | undefined): string | null {
+  const s = String(raw || '').trim();
+  if (!s) {
+    return null;
+  }
+  if (/^https?:\/\//i.test(s)) {
+    return s.replace(/\/+$/, '');
+  }
+  return `https://${s.replace(/\/+$/, '')}`;
+}
+
+/** CDON/Fyndiq product path uses a 16-char hex slug (from API article UUID or equivalent). */
+function slugForCdOnFyndiqUrl(raw: string): string | null {
+  const s = raw.trim();
+  if (!s) {
+    return null;
+  }
+  if (/^\d+$/.test(s)) {
+    return null;
+  }
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)) {
+    return s.replace(/-/g, '').slice(0, 16);
+  }
+  if (/^[0-9a-f]{32}$/i.test(s)) {
+    return s.slice(0, 16);
+  }
+  if (/^[0-9a-f]{16}$/i.test(s)) {
+    return s;
+  }
+  return null;
+}
+
 const PRODUCT_LINKS_CACHE_TTL_MS = 5_000;
 const productLinksCache = new Map<
   string,
@@ -47,12 +79,13 @@ export function useProductChannelLinks(productId: string, enabled = true) {
         if (cancelled) {
           return;
         }
-        // Prefer Sello rows (channelInstanceId set) over sync rows (null) per (channel, market)
+        // Prefer instance-specific rows over channel-level rows per stable key.
         const byKey = new Map<string, (typeof res.links)[0]>();
         for (const link of res.links || []) {
           const ch = (link.channel || '').toLowerCase();
           const tld = link.market || 'se';
-          const key = `${ch}:${tld}`;
+          const instanceKey = String(link.instanceKey || '').trim();
+          const key = ch === 'woocommerce' ? `${ch}:${instanceKey}` : `${ch}:${tld}`;
           const existing = byKey.get(key);
           const hasInstance =
             link.channelInstanceId !== undefined && link.channelInstanceId !== null;
@@ -67,17 +100,27 @@ export function useProductChannelLinks(productId: string, enabled = true) {
         for (const link of byKey.values()) {
           const ch = (link.channel || '').toLowerCase();
           const tld = link.market || 'se';
-          // CDON/Fyndiq: Sello UUID format is hyphenated; URL uses first 16 chars without hyphens
-          const slug = link.externalId.includes('-')
-            ? link.externalId.replace(/-/g, '').slice(0, 16)
-            : link.externalId;
-
+          const slug =
+            ch === 'cdon' || ch === 'fyndiq' ? slugForCdOnFyndiqUrl(link.externalId) : null;
           let url = '';
-          const pathSegment = tld === 'fi' ? 'tuote' : 'produkt';
-          if (ch === 'cdon') {
-            url = `https://cdon.${tld}/${pathSegment}/${slug}/`;
-          } else if (ch === 'fyndiq') {
-            url = `https://fyndiq.${tld}/${pathSegment}/${slug}/`;
+          if (ch === 'cdon' || ch === 'fyndiq') {
+            if (!slug) {
+              continue;
+            }
+            const pathSegment = tld === 'fi' ? 'tuote' : 'produkt';
+            if (ch === 'cdon') {
+              url = `https://cdon.${tld}/${pathSegment}/${slug}/`;
+            } else if (ch === 'fyndiq') {
+              url = `https://fyndiq.${tld}/${pathSegment}/${slug}/`;
+            }
+          } else if (ch === 'woocommerce') {
+            const storeUrl = normalizeStoreUrl(link.storeUrl);
+            const externalId = String(link.externalId || '').trim();
+            if (!storeUrl || !/^\d+$/.test(externalId)) {
+              continue;
+            }
+            // Build our own Woo permalink-style link from the merchant store URL.
+            url = `${storeUrl}/?p=${externalId}`;
           }
           if (url) {
             built.push({

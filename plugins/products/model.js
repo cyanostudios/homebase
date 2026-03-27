@@ -2,7 +2,7 @@
 // Robust MVP writer + safe reads (no references to non-existing legacy columns)
 // Uses @homebase/core SDK for database access with automatic tenant isolation
 
-const { Logger, Database } = require('@homebase/core');
+const { Logger, Database, Context } = require('@homebase/core');
 const { AppError } = require('../../server/core/errors/AppError');
 
 class ProductModel {
@@ -1755,11 +1755,20 @@ class ProductModel {
       return product;
     }
 
-    await db.query(`DELETE FROM product_list_items WHERE product_id = $1`, [productId]);
+    const userId = Context.getUserId(req);
+    if (!userId) {
+      throw new AppError('User not resolved', 401, AppError.CODES.UNAUTHORIZED);
+    }
+
+    await db.query(`DELETE FROM product_list_items WHERE product_id = $1 AND user_id = $2`, [
+      productId,
+      userId,
+    ]);
     if (normalizedNextListId !== null) {
       await db.insert('product_list_items', {
         list_id: parseInt(normalizedNextListId, 10),
         product_id: parseInt(productId, 10),
+        user_id: userId,
       });
     }
     return this.getById(req, productId);

@@ -4,6 +4,29 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-27 – Homebase v3.2.1: kanallänkar, exportfixar och script-tenant-context
+
+### Produktlänkar per kanal
+
+- **plugins/channels/model.js:** `getProductChannelLinks` returnerar nu även `storeUrl` för WooCommerce och filtrerar CDON/Fyndiq till giltiga storefront-id (UUID/hex-slug), utan numeriska fallback-id.
+- **client/src/plugins/channels/api/channelsApi.ts:** Typstöd för `storeUrl` i channel-links.
+- **client/src/plugins/products/hooks/useProductChannelLinks.ts:** Robust URL-byggare: normaliserar `storeUrl`, bygger Woo-länk som `?p=<externalId>`, och använder strikt slug-logik för CDON/Fyndiq (endast giltiga article-id).
+
+### Produktexport och overrides
+
+- **client/src/plugins/products/components/ProductForm.tsx:** Nyvalda CDON/Fyndiq-targets (och aktivering av override-rad) triggar full export i stället för `update_only_strict` så nya marknader kan skapas korrekt.
+- **plugins/products/controller.js:** Fixat parameterindex i upsert för `channel_product_overrides.category` (`$12` i stället för felaktig `$13`).
+- **plugins/cdon-products/controller.js**, **plugins/fyndiq-products/controller.js:** Tydligare loggning för "no products/articles to send" och avslutad export; Fyndiq-map sparar inte längre SKU som `externalId` vid fallback.
+- **plugins/cdon-products/mapToCdonArticle.js:** Mindre justeringar i artikelmappning för exportflödet.
+
+### Produktlistor och scripts
+
+- **plugins/products/model.js:** `setProductList` använder explicit `user_id` för `product_list_items` delete/insert i multitenant-flödet.
+- **scripts/scriptTenantContext.js:** Ny helper som skapar syntetisk tenant-aware `req` för CLI-scripts via `TenantContextService` + `applyTenantContextToRequest`.
+- **scripts/sget.js**, **scripts/sello-fetch-one.js**, **scripts/import-single-sello-product.js:** Migrerade till `scriptTenantContext` i stället för egen bootstrap/session-kod.
+
+---
+
 ## 2026-03-26 – Multi-tenant: schema-/DB-isolering, kontrollplan, borttag av `user_id` i tenantdata
 
 **Release:** npm-version **3.2.0**, branch **Homebase-V3.2.0**.

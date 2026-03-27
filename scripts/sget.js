@@ -7,10 +7,10 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-const Bootstrap = require('../server/core/Bootstrap');
 const ProductModel = require('../plugins/products/model');
 const ProductController = require('../plugins/products/controller');
 const SelloModel = require('../plugins/products/selloModel');
+const { createScriptRequest } = require('./scriptTenantContext');
 
 const USER_ID = Number(process.env.PHASE1_PILOT_USER_ID || 1);
 
@@ -44,16 +44,9 @@ function makeMockRes() {
 }
 
 async function run() {
-  const ServiceManager = require('../server/core/ServiceManager');
-  Bootstrap.initializeServices();
-  const req = {
-    session: { user: { id: USER_ID }, tenantOwnerUserId: USER_ID },
-    tenantPool: undefined,
-    body: { selloProductIds },
-    query: {},
-    params: {},
-  };
-  ServiceManager.initialize(req);
+  const { req } = await createScriptRequest(USER_ID, {
+    reqExtra: { body: { selloProductIds }, query: {}, params: {} },
+  });
 
   const controller = new ProductController(new ProductModel(), new SelloModel());
   const res = makeMockRes();
