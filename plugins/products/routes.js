@@ -147,7 +147,7 @@ function createProductRoutes(controller, context) {
       commonRules.optionalString('sku', 255),
       commonRules.string('title', 1, 255),
       commonRules.optionalHtmlString('description', 5000),
-      commonRules.enum('status', ['for sale', 'draft', 'archived']),
+      commonRules.enum('status', ['for sale', 'paused']),
       commonRules.integer('quantity', 0),
       commonRules.number('priceAmount', 0),
       commonRules.optionalString('currency', 3),
@@ -195,11 +195,11 @@ function createProductRoutes(controller, context) {
     gate,
     csrfProtection,
     [
-      commonRules.array('ids', 500),
+      commonRules.array('ids', 250),
       body('updates').optional().isObject().withMessage('updates must be an object'),
       body('updates.priceAmount').optional().isNumeric(),
       body('updates.quantity').optional().isInt({ min: 0 }),
-      body('updates.status').optional().isIn(['for sale', 'draft', 'archived']),
+      body('updates.status').optional().isIn(['for sale', 'paused']),
       body('updates.vatRate').optional().isNumeric(),
       body('updates.currency').optional().isLength({ min: 3, max: 3 }).isAlpha(),
     ],
@@ -215,8 +215,8 @@ function createProductRoutes(controller, context) {
     [
       body('productIds').isArray().withMessage('productIds must be an array'),
       body('productIds')
-        .custom((v) => !v || v.length <= 500)
-        .withMessage('productIds at most 500'),
+        .custom((v) => !v || v.length <= 250)
+        .withMessage('productIds at most 250'),
       body('groupVariationType')
         .isIn(['color', 'size', 'model'])
         .withMessage('groupVariationType must be color, size or model'),
@@ -234,7 +234,7 @@ function createProductRoutes(controller, context) {
     '/batch',
     gate,
     csrfProtection,
-    [commonRules.array('ids', 500)],
+    [commonRules.array('ids', 250)],
     validateRequest,
     (req, res) => controller.bulkDelete(req, res),
   );
@@ -262,7 +262,7 @@ function createProductRoutes(controller, context) {
       commonRules.optionalString('sku', 255),
       commonRules.string('title', 1, 255),
       commonRules.optionalHtmlString('description', 5000),
-      commonRules.enum('status', ['for sale', 'draft', 'archived']),
+      commonRules.enum('status', ['for sale', 'paused']),
       commonRules.integer('quantity', 0),
       commonRules.number('priceAmount', 0),
       commonRules.optionalString('currency', 3),

@@ -1858,32 +1858,21 @@ class WooCommerceController {
   }
 
   mapStatusToWoo(status) {
-    switch (String(status || '').toLowerCase()) {
-      case 'for sale':
-      case 'active':
-      case 'publish':
-        return 'publish';
-      case 'draft':
-        return 'draft';
-      case 'archived':
-      case 'private':
-        return 'private';
-      default:
-        return 'draft';
-    }
+    const s = String(status || '')
+      .trim()
+      .toLowerCase();
+    if (s === 'paused' || s === 'private') return 'private';
+    if (s === 'for sale' || s === 'active' || s === 'publish') return 'publish';
+    return 'publish';
   }
 
   mapWooStatusToHomebase(status) {
-    switch (String(status || '').toLowerCase()) {
-      case 'publish':
-        return 'for sale';
-      case 'draft':
-        return 'draft';
-      case 'private':
-        return 'archived';
-      default:
-        return 'draft';
-    }
+    const s = String(status || '')
+      .trim()
+      .toLowerCase();
+    if (s === 'private') return 'paused';
+    if (s === 'publish') return 'for sale';
+    return 'for sale';
   }
 
   // Transform MVP Product -> Woo product payload

@@ -29,11 +29,12 @@ import {
   type ProductImportResult,
   type ProductListParams,
 } from '../api/productsApi';
-import type {
-  Product,
-  ProductSaveChangeSet,
-  ProductSettings,
-  ValidationError,
+import {
+  normalizeProductStatus,
+  type Product,
+  type ProductSaveChangeSet,
+  type ProductSettings,
+  type ValidationError,
 } from '../types/products';
 
 interface ProductContextType {
@@ -428,8 +429,8 @@ export function ProductProvider({
       if (!data.title?.trim()) {
         add('title', 'Title is required');
       }
-      if (!data.status || !['for sale', 'draft', 'archived'].includes(String(data.status))) {
-        add('status', 'Status must be one of: for sale, draft, archived');
+      if (!data.status || !['for sale', 'paused'].includes(String(data.status))) {
+        add('status', 'Status måste vara Till salu eller Pausad');
       }
 
       if (!isFiniteNumber(data.quantity) || data.quantity < 0 || !Number.isInteger(data.quantity)) {
@@ -538,7 +539,7 @@ export function ProductProvider({
     ): { errors: ValidationError[]; data: Record<string, unknown> } => {
       const data: Record<string, unknown> = {
         title: (raw.title ?? '').trim(),
-        status: raw.status,
+        status: normalizeProductStatus(raw.status),
         quantity: Number(raw.quantity ?? 0),
         priceAmount: Number(raw.priceAmount ?? 0),
         purchasePrice:
@@ -752,6 +753,7 @@ export function ProductProvider({
     }
     return {
       ...saved,
+      status: normalizeProductStatus(saved.status),
       createdAt: saved.createdAt ? new Date(saved.createdAt) : null,
       updatedAt: saved.updatedAt ? new Date(saved.updatedAt) : null,
     };

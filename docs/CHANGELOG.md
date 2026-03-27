@@ -4,6 +4,31 @@ Kronologisk översikt över beteendeförändringar och nya funktioner.
 
 ---
 
+## 2026-03-28 – Produkter: status till salu/pausad, batch 250, orders counter & Woo-mappning
+
+### Produktstatus
+
+- **Produktstatus** är nu endast **`for sale`** (till salu) eller **`paused`** (pausad). Tidigare värden som draft/archived normaliseras bort; **server/migrations/085-products-status-for-sale-paused.sql** sätter ogiltiga rader till `for sale`.
+- **client/src/plugins/products/types/products.ts:** `ProductStatus`, `normalizeProductStatus`.
+- **client/src/plugins/products/components/ProductForm.tsx:** Fält **Status** (NativeSelect) med Till salu / Pausad.
+- **client/src/plugins/products/context/ProductContext.tsx:** Validering och normalisering mot de två statusvärdena.
+- **plugins/products/model.js**, **plugins/products/routes.js:** API-validering och persistens med samma två värden.
+- **plugins/woocommerce-products/controller.js:** `mapStatusToWoo` / `mapWooStatusToHomebase` mappar `paused` ↔ Woo **private**, övrigt till **publish** / **for sale** (ingen draft-läge kvar i Homebase-status).
+
+### Batch-operationer
+
+- **plugins/products/controller.js**, **plugins/products/routes.js:** Max **250** id per batch (PATCH/DELETE m.m.), i linje med list-sidans tak (`PRODUCTS_BATCH_MAX_IDS`).
+
+### Orders
+
+- **plugins/orders/model.js:** `allocateOrderNumbers` använder inte längre kolumnen `id` (saknas efter multitenant); uppdatering sker via **`ctid`** mot högsta `next_number`. Justerade parameterindex i upsert av ordrar så att antal placeholders stämmer.
+
+### Tester
+
+- **server/**tests**/phase2ContractValidators.test.js:** Förväntan uppdaterad till `missing_categories` för Fyndiq-kategoriissue.
+
+---
+
 ## 2026-03-27 – Homebase v3.2.1: kanallänkar, exportfixar och script-tenant-context
 
 ### Produktlänkar per kanal

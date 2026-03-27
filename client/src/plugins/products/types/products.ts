@@ -7,6 +7,19 @@ export type ValidationError = {
 
 export type ProductSyncChannel = 'woocommerce' | 'cdon' | 'fyndiq';
 
+/** Synlighet: till salu (kanaler) eller pausad (CDON/Fyndiq paused, Woo private). */
+export type ProductStatus = 'for sale' | 'paused';
+
+export function normalizeProductStatus(raw: string | null | undefined): ProductStatus {
+  const s = String(raw ?? '')
+    .trim()
+    .toLowerCase();
+  if (s === 'paused') {
+    return 'paused';
+  }
+  return 'for sale';
+}
+
 export type ProductSaveChangeSet = {
   local: {
     noChanges: boolean;
@@ -31,7 +44,7 @@ export interface Product {
   mpn: string | null;
   title: string; // required
   description: string | null;
-  status: 'for sale' | 'draft' | 'archived';
+  status: ProductStatus;
   quantity: number;
   priceAmount: number; // maps to price_amount
   currency: string; // ISO-4217, e.g. "SEK"

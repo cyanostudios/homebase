@@ -211,7 +211,7 @@ describe('Phase 2 contract validators', () => {
       };
       const overrides = { se: { active: true, priceAmount: 99, category: null } };
       const issues = getFyndiqArticleInputIssues(product, overrides, 'sv-SE', ['se']);
-      expect(issues.some((i) => i.includes('category'))).toBe(true);
+      expect(issues).toContain('missing_categories');
     });
   });
 });

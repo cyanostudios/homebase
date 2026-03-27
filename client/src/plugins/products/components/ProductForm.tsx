@@ -24,7 +24,12 @@ import { filesApi } from '@/plugins/files/api/filesApi';
 
 import { productsApi } from '../api/productsApi';
 import { useProducts } from '../hooks/useProducts';
-import type { ProductSaveChangeSet, ProductSyncChannel } from '../types/products';
+import {
+  normalizeProductStatus,
+  type ProductSaveChangeSet,
+  type ProductStatus,
+  type ProductSyncChannel,
+} from '../types/products';
 
 const MARKETS = [
   { key: 'se' as const, label: 'Sverige', currency: 'SEK', lang: 'sv-SE' },
@@ -634,7 +639,7 @@ interface ProductFormProps {
 
 type FormData = {
   title: string;
-  status: 'for sale' | 'draft' | 'archived';
+  status: ProductStatus;
   quantity: number | '';
   priceAmount: number | '';
   purchasePrice: number | '';
@@ -830,6 +835,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     'vatRate',
   ];
   const PRODUCT_FULL_ALL_KEYS: Array<keyof FormData> = [
+    'status',
     'sku',
     'mpn',
     'title',
@@ -1499,7 +1505,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       setLastFxObservedAt(typeof fxAt === 'string' ? fxAt : null);
       const nextFormData: FormData = {
         title: baseTitle,
-        status: (currentProduct.status as FormData['status']) ?? 'for sale',
+        status: normalizeProductStatus(currentProduct.status),
         quantity: Number.isFinite(currentProduct.quantity) ? Number(currentProduct.quantity) : 0,
         priceAmount: baseAmount,
         purchasePrice:
@@ -2655,6 +2661,23 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               </Heading>
               <div className="max-w-2xl space-y-6">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div>
+                    <Label htmlFor="product-status" className="mb-1">
+                      Status
+                    </Label>
+                    <NativeSelect
+                      id="product-status"
+                      className="w-full"
+                      value={formData.status}
+                      onChange={(e) => {
+                        const v = e.target.value as ProductStatus;
+                        updateField('status', v);
+                      }}
+                    >
+                      <option value="for sale">Till salu</option>
+                      <option value="paused">Pausad</option>
+                    </NativeSelect>
+                  </div>
                   <div>
                     <Label htmlFor="sku" className="mb-1">
                       Egen referens (SKU)

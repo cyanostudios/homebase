@@ -28,6 +28,8 @@ const LANGUAGE_TO_MARKET = { 'sv-SE': 'SE', 'da-DK': 'DK', 'fi-FI': 'FI', 'nb-NO
 
 const IMPORT_MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB
 const IMPORT_MAX_ROWS = 5000;
+/** Max ids per PATCH/DELETE batch (aligned with catalog list page size cap). */
+const PRODUCTS_BATCH_MAX_IDS = 250;
 const SELLO_PAGE_SIZE = 100;
 
 function normalizeHeader(h) {
@@ -1331,10 +1333,11 @@ class ProductController {
       if (!ids.length) {
         return res.json({ ok: true, updatedCount: 0, updatedIds: [] });
       }
-      if (ids.length > 500) {
-        return res
-          .status(400)
-          .json({ error: 'Too many ids (max 500 per request)', code: 'VALIDATION_ERROR' });
+      if (ids.length > PRODUCTS_BATCH_MAX_IDS) {
+        return res.status(400).json({
+          error: `Too many ids (max ${PRODUCTS_BATCH_MAX_IDS} per request)`,
+          code: 'VALIDATION_ERROR',
+        });
       }
 
       const result = await this.model.batchUpdate(req, ids, updates);
@@ -1440,10 +1443,11 @@ class ProductController {
         return res.json({ ok: true, requested: 0, deleted: 0 });
       }
 
-      if (ids.length > 500) {
-        return res
-          .status(400)
-          .json({ error: 'Too many ids (max 500 per request)', code: 'VALIDATION_ERROR' });
+      if (ids.length > PRODUCTS_BATCH_MAX_IDS) {
+        return res.status(400).json({
+          error: `Too many ids (max ${PRODUCTS_BATCH_MAX_IDS} per request)`,
+          code: 'VALIDATION_ERROR',
+        });
       }
 
       const result = await this.model.bulkDelete(req, ids);

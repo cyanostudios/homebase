@@ -8,6 +8,16 @@ const { AppError } = require('../../server/core/errors/AppError');
 class ProductModel {
   static TABLE = 'products';
 
+  /** Canonical status: `for sale` | `paused`. */
+  normalizeProductStatus(value) {
+    const s = String(value ?? '')
+      .trim()
+      .toLowerCase();
+    if (s === 'paused') return 'paused';
+    if (s === 'for sale' || s === 'forsale') return 'for sale';
+    return 'for sale';
+  }
+
   // ---------- Public API ----------
 
   async getAll(req) {
@@ -1127,7 +1137,14 @@ class ProductModel {
         ],
         status: [
           'status',
-          (v) => (['for sale', 'draft', 'archived'].includes(String(v)) ? String(v) : undefined),
+          (v) => {
+            const s = String(v ?? '')
+              .trim()
+              .toLowerCase();
+            if (s === 'paused') return 'paused';
+            if (s === 'for sale' || s === 'forsale') return 'for sale';
+            return undefined;
+          },
         ],
         vat_rate: ['vatRate', (v) => (Number.isFinite(Number(v)) ? Number(v) : undefined)],
         currency: [
@@ -1589,7 +1606,7 @@ class ProductModel {
       mpn: mpnRaw || sku,
       title: String(titleRaw ?? '').trim(),
       description: clean(data.description) ?? null,
-      status: String(data.status ?? 'for sale'),
+      status: this.normalizeProductStatus(data.status ?? 'for sale'),
       quantity: toInt(data.quantity, 0),
       priceAmount: toFloat(data.priceAmount, 0),
       purchasePrice: data.purchasePrice != null ? toFloat(data.purchasePrice, null) : null,
@@ -1690,7 +1707,7 @@ class ProductModel {
       privateName: row.private_name ?? null,
       title: row.title ?? '',
       description: row.description ?? null,
-      status: row.status ?? 'for sale',
+      status: this.normalizeProductStatus(row.status ?? 'for sale'),
       quantity: toNumberOr(row.quantity, 0),
       priceAmount: toNumberOr(row.price_amount, 0),
       purchasePrice: row.purchase_price != null ? toNumberOr(row.purchase_price, null) : null,

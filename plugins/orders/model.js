@@ -226,17 +226,25 @@ class OrdersModel {
 
   async allocateOrderNumbers(tx, _tenantId, count) {
     if (!count) return [];
+    // Table has never had `id`; it was (user_id PK, next_number), then user_id dropped (083).
+    // One logical counter row per tenant; target row via ctid if multiple legacy rows exist.
     const existing = await tx.query(
-      `SELECT id, next_number FROM ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} ORDER BY id ASC LIMIT 1`,
+      `SELECT next_number FROM ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}
+       ORDER BY next_number DESC NULLS LAST
+       LIMIT 1`,
       [],
     );
     const res = existing.length
       ? await tx.query(
-          `UPDATE ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}
-           SET next_number = next_number + $1
-           WHERE id = $2
+          `UPDATE ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} c
+           SET next_number = c.next_number + $1
+           WHERE c.ctid = (
+             SELECT ctid FROM ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE}
+             ORDER BY next_number DESC NULLS LAST
+             LIMIT 1
+           )
            RETURNING next_number`,
-          [count, existing[0].id],
+          [count],
         )
       : await tx.query(
           `INSERT INTO ${OrdersModel.ORDER_NUMBER_COUNTER_TABLE} (next_number)
@@ -421,19 +429,19 @@ class OrdersModel {
           await tx.query(
             `UPDATE ${OrdersModel.ORDERS_TABLE}
              SET
-               platform_order_number = $3,
-               total_amount = $4,
-               currency = $5,
-               status = $6,
-               shipping_address = $7,
-               billing_address = $8,
-               customer = $9,
-               raw = $10,
-               channel_label = $11,
-               channel_market_norm = $12,
-               currency_norm = $13,
-               customer_identifier_norm = $14,
-               sync_fingerprint = $15,
+               platform_order_number = $2,
+               total_amount = $3,
+               currency = $4,
+               status = $5,
+               shipping_address = $6,
+               billing_address = $7,
+               customer = $8,
+               raw = $9,
+               channel_label = $10,
+               channel_market_norm = $11,
+               currency_norm = $12,
+               customer_identifier_norm = $13,
+               sync_fingerprint = $14,
                updated_at = NOW()
              WHERE id = $1`,
             [
@@ -475,8 +483,8 @@ class OrdersModel {
               )
               VALUES (
                 $1, $2, $3, $4, $5, $6,
-                $7, $8, $9, COALESCE($10, 'SEK'), COALESCE($11, 'processing'), $12, $13,
-                $14, $15, $16, $17, $18, $19,
+                $7, $8, COALESCE($9, 'SEK'), COALESCE($10, 'processing'), $11, $12,
+                $13, $14, $15, $16, $17, $18,
                 NOW(), NOW()
               )
               RETURNING id
